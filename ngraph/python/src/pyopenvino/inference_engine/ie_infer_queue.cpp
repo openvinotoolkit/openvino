@@ -75,8 +75,6 @@ public:
 
     void setCallbacks(py::function f_callback)
     {
-        // auto& ref_idle_ids = _idle_ids; // fujka
-
         for (size_t id = 0; id < _requests.size(); id++)
         {
             _requests[id].SetCompletionCallback([this, f_callback, id /* ... */]() {
@@ -118,12 +116,13 @@ void regclass_InferQueue(py::module m)
             requests.push_back(net.CreateInferRequest());
             idle_ids.push(id);
         }
+
         return new InferQueue(requests, idle_ids);
     }));
 
     cls.def("infer", [](InferQueue& self, const py::dict inputs) {
-        py::gil_scoped_release release; // !!!!!! i m p o r t a n t, deadlocks because of this
-        // getIdleRequestId function has an intention to block InferQueue until there is at least
+        py::gil_scoped_release release; // this makes func run async in python
+        // getIdleRequestId function has an intention to block InferQueue (C++) until there is at least
         // one idle (free to use) InferRequest
         auto id = self.getIdleRequestId();
         // Update inputs of given InferRequest
@@ -139,7 +138,7 @@ void regclass_InferQueue(py::module m)
     });
 
     cls.def("wait_all", [](InferQueue& self) {
-        // py::gil_scoped_release release; // TODO: is needed?
+        py::gil_scoped_release release;
         return self.waitAll();
     });
 
