@@ -517,6 +517,97 @@ TEST(permute_gpu_i64, basic_bfyx_permute_0_1_3_2) {
     permute_test_with_reorder<data_types::i64>();
 }
 
+TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
+{
+    //  Input               : bfyx:1x32x1x2
+    //  Permute1 order       : {0, 3, 1, 2}
+    //  Permute2 order       : {0, 2, 3, 1}
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {1, 8, 1, 16}});
+
+    std::vector<float> values = {
+            0.0f, 1.0f, 2.0f, 3.0f,
+            4.0f, 5.0f, 6.0f, 7.0f,
+            8.0f, 9.0f, 10.0f, 11.0f,
+            12.0f, 13.0f, 14.0f, 15.0f,
+            16.0f, 17.0f, 18.0f, 19.0f,
+            20.0f, 21.0f, 22.0f, 23.0f,
+            24.0f, 25.0f, 26.0f, 27.0f,
+            28.0f, 29.0f, 30.0f, 31.0f,
+            32.0f, 33.0f, 34.0f, 35.0f,
+            36.0f, 37.0f, 38.0f, 39.0f,
+            40.0f, 41.0f, 42.0f, 43.0f,
+            44.0f, 45.0f, 46.0f, 47.0f,
+            48.0f, 49.0f, 50.0f, 51.0f,
+            52.0f, 53.0f, 54.0f, 55.0f,
+            56.0f, 57.0f, 58.0f, 59.0f,
+            60.0f, 61.0f, 62.0f, 63.0f,
+            64.0f, 65.0f, 66.0f, 67.0f,
+            68.0f, 69.0f, 70.0f, 71.0f,
+            72.0f, 73.0f, 74.0f, 75.0f,
+            76.0f, 77.0f, 78.0f, 79.0f,
+            80.0f, 81.0f, 82.0f, 83.0f,
+            84.0f, 85.0f, 86.0f, 87.0f,
+            88.0f, 89.0f, 90.0f, 91.0f,
+            92.0f, 93.0f, 94.0f, 95.0f,
+            96.0f, 97.0f, 98.0f, 99.0f,
+            100.0f, 101.0f, 102.0f, 103.0f,
+            104.0f, 105.0f, 106.0f, 107.0f,
+            108.0f, 109.0f, 110.0f, 111.0f,
+            112.0f, 113.0f, 114.0f, 115.0f,
+            116.0f, 117.0f, 118.0f, 119.0f,
+            120.0f, 121.0f, 122.0f, 123.0f,
+            124.0f, 125.0f, 126.0f, 127.0f
+    };
+
+    set_values(input, values);
+    // unfused
+    topology topology_unfused(
+        input_layout("input", input.get_layout()),
+        reorder("reorder1", "input", format::b_fs_yx_fsv4, data_types::f32),
+        permute("permute", "reorder1", { 0, 3, 1, 2}),
+        reorder("reorder2", "permute", format::bfyx, data_types::f32),
+        permute("out", "reorder2", { 0, 2, 3, 1}));
+
+    cldnn::build_options options_unfused;
+    options_unfused.set_option(cldnn::build_option::optimize_data(false));
+    options_unfused.set_option(cldnn::build_option::allow_static_input_reorder(true));
+
+    network unfused(engine, topology_unfused, options_unfused);
+    unfused.set_input_data("input", input);
+
+    // fused network
+    topology topology_fused(
+        input_layout("input", input.get_layout()),
+        reorder("reorder1", "input", format::b_fs_yx_fsv4, data_types::f32),
+        permute("permute", "reorder1", { 0, 3, 1, 2}),
+        reorder("reorder2", "permute", format::bfyx, data_types::f32), // to be fused to previous permute
+        permute("out", "reorder2", { 0, 2, 3, 1})); // return to original value
+
+    cldnn::build_options options_fused;
+    options_fused.set_option(cldnn::build_option::optimize_data(true));
+    network fused(engine, topology_fused, options_fused);
+    fused.set_input_data("input", input);
+
+    auto outputs_fused = fused.execute();
+    auto outputs_unfused = unfused.execute();
+    auto output_fused = outputs_fused.begin()->second.get_memory();
+    auto output_fused_ptr = output_fused.pointer<float>();
+    auto output_unfused = outputs_unfused.begin()->second.get_memory();
+    auto output_unfused_ptr = output_unfused.pointer<float>();
+    EXPECT_EQ(output_fused.get_layout().format, cldnn::format::bfyx);
+    EXPECT_EQ(output_unfused.get_layout().format, cldnn::format::bfyx);
+    EXPECT_EQ(fused.get_executed_primitives().size(), 4);
+    EXPECT_EQ(unfused.get_executed_primitives().size(), 5);
+
+    for (size_t i = 0; i < values.size(); i++)
+    {
+        EXPECT_FLOAT_EQ(output_unfused_ptr[i], output_fused_ptr[i]);
+        EXPECT_FLOAT_EQ(output_unfused_ptr[i], values[i]);
+    }
+}
+
 TEST(fc_permute_crop_gpu, basic_permute_yxfb)
 {
     const auto& engine = get_test_engine();
