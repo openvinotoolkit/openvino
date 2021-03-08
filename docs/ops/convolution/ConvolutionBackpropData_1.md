@@ -4,15 +4,15 @@
 
 **Category**: Convolution
 
-**Short description**: Computes the gradients of a Convolution operation with respect to the input. Also known as a Deconvolution or a Transposed Convolution.
+**Short description**: Computes 1D, 2D or 3D *ConvolutionBackpropData* operation with respect to the input and kernel tensors. Also known as a Transposed Convolution.
 
 **Detailed description**:
 
 ConvolutionBackpropData takes the input tensor, weights tensor and output shape and computes the output tensor of a given shape. The shape of the output can be specified as an input 1D integer tensor explicitly or determined by other attributes implicitly. If output shape is specified as an explicit input, shape of the output exactly matches the specified size and required amount of padding is computed.
 
-ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular Convolution operation for detailed description of each attribute.
+ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular [Convolution](Convolution_1.md) operation for detailed description of each attribute.
 
-Output shape when specified as an input `output_shape`, specifies only spatial dimensions. No batch or channel dimension should be passed along with H, W or other spatial dimensions. If `output_shape` is omitted, then `pads_begin`, `pads_end` or `auto_pad` are used to determine output spatial shape `[Y_1, Y_2, ..., Y_D]` by input spatial shape `[X_1, X_2, ..., X_D]` in the following way:
+Output shape when specified as an input `output_shape`, specifies only spatial dimensions. No batch or channel dimension should be passed along with spatial dimensions. If `output_shape` is omitted, then `pads_begin`, `pads_end` or `auto_pad` are used to determine output spatial shape `[Y_z, Y_y, Y_x]` by input spatial shape `[X_z, X_y, X_x]` in the following way:
 
 ```
 if auto_pads != None:
@@ -24,7 +24,7 @@ Y_i = stride[i] * (X_i - 1) + ((K_i - 1) * dilations[i] + 1) - pads_begin[i] - p
 
 where `K_i` filter kernel dimension along spatial axis `i`.
 
- If `output_shape` is specified, `pads_begin` and `pads_end` are ignored, and `auto_pad` defines how to distribute padding amount around the tensor. In this case pads are determined based on the next formulas to correctly align input and output tensors (similar to ONNX definition at https://github.com/onnx/onnx/blob/master/docs/Operators.md#convtranspose):
+ If `output_shape` is specified, `pads_begin` and `pads_end` are ignored, and `auto_pad` defines how to distribute padding amount around the tensor. In this case pads are determined based on the next formulas to correctly align input and output tensors:
 
 ```
 total_padding[i] = stride[i] * (X_i - 1) + ((K_i - 1) * dilations[i] + 1) - output_shape[i] + output_padding[i]
@@ -76,7 +76,8 @@ else:
 
   * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor. 
     * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
-    * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
+    * *same_upper* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
+    * *same_lower* the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
     * *valid* - do not use padding.
   * **Type**: string
   * **Default value**: None
@@ -93,21 +94,30 @@ else:
 
 **Inputs**:
 
-*   **1**: `data` -- input tensor of rank 3 or greater. Layout is `[N, C_INPUT, X1, ..., XD]`. *Required*.
+*   **1**: Input tensor of type *T1* and rank 3, 4 or 5. Layout is NCZYX (number of batches, number of channels, spatial axes Z, Y, X). *Required*.
 
-*   **2**: `filter` -- convolution kernel tensor. Weights have shape `[C_INPUT, C_OUTPUT, K_D, ..., K_1]`. `C_INPUT` is the number of channels in input `data` tensor shape, and `C_OUTPUT` is the number of channels in the `output` tensor. Spatial size of the kernel `[K_D, ..., K_1]` is derived from the shape of this input and aren't specified by any attribute. *Required*.
+*   **2**: Convolution kernel tensor of type *T1* and rank 3, 4 or 5. Layout is IOZYX (number of input channels, number of output channels, spatial axes Z, Y, X). Spatial size of the kernel is derived from the shape of this input and aren't specified by any attribute. *Required*.
 
-*   **3**: `output_shape` is 1D integer tensor that specifies spatial shape of the output. *Optional*. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`.
+*   **3**: `output_shape` is 1D tensor of type *T2* that specifies spatial shape of the output. *Optional*. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`.
+*   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
+      * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
+      * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
+      * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
 
 **Outputs**:
 
-*   **1**: `output` -- output tensor of the same rank as input `data` tensor and shape `[N, C_OUTPUT, Y1, ..., YD]`.
+*   **1**: Output tensor of type *T1* and rank 3, 4 or 5. Layout is NOZYX (number of batches, number of kernel output channels, spatial axes Z, Y, X).
+
+**Types**:
+
+* *T1*: any floating point type.
+* *T2*: any integer type.
 
 **Example**
 
 ```xml
 <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
-    <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+    <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2", output_padding="0,0/>
     <input>
         <port id="0">
             <dim>1</dim>
