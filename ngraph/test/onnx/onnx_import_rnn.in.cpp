@@ -1839,7 +1839,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations_con
                                              0.f,
                                              0.f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations)
@@ -1887,7 +1887,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations)
                                              0.f,
                                              0.f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len_const)
@@ -1983,7 +1983,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len)
                                              -0.18203181f,
                                              0.9996245f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse_mixed_seq_len_const)
