@@ -171,6 +171,36 @@ namespace ngraph
                             std::prev(filter_shape.end(), spatial_rank), missing_dims, 1);
                     }
                 }
+
+                void validate_convolution_parameters(const Shape& in_shape,
+                                                     const Shape& f_shape,
+                                                     const Strides& strides,
+                                                     const Strides& dilations,
+                                                     const CoordinateDiff& pads_begin,
+                                                     const CoordinateDiff& pads_end)
+                {
+                    // this implementation supports 1D, 2D and 3D convolutions
+                    NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
+                                 "Unsupported input rank: ",
+                                 in_shape);
+
+                    NGRAPH_CHECK(in_shape.size() == f_shape.size(),
+                                 "Incompatible input ranks: ",
+                                 in_shape.size(),
+                                 " and ",
+                                 f_shape.size());
+
+                    const auto spatial_dims = in_shape.size() - 2;
+                    NGRAPH_CHECK(strides.size() == spatial_dims,
+                                 "Strides not definied for all and only spatial dimensions");
+
+                    NGRAPH_CHECK(dilations.size() == spatial_dims,
+                                 "Dilations not defined for all and only spatial dimensions");
+
+                    NGRAPH_CHECK((pads_begin.size() == pads_end.size()) &&
+                                     (pads_begin.size() == spatial_dims),
+                                 "Pads not defined for all and only spatial dimensions");
+                }
             }
 
             template <typename T>
@@ -181,23 +211,17 @@ namespace ngraph
                              const Shape& f_shape,
                              const Shape& out_shape,
                              const Strides& strides,
-                             const Strides& dilation,
+                             const Strides& dilations,
                              const CoordinateDiff& pads_begin,
                              const CoordinateDiff& pads_end)
 
             {
-                // this implementation supports 1D, 2D and 3D convolutions
-                NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
-                             "Unsupported input rank: ",
-                             in_shape);
-
-                NGRAPH_CHECK(f_shape.size() >= 3 && f_shape.size() <= 5,
-                             "Unsupported kernel rank: ",
-                             f_shape);
+                validate_convolution_parameters(
+                    in_shape, f_shape, strides, dilations, pads_begin, pads_end);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
-                ConvolutionParams params{strides, dilation, pads_begin, pads_end};
+                ConvolutionParams params{strides, dilations, pads_begin, pads_end};
 
                 // here we are extending spatial dimensions to 3D, because we are going to use 3D
                 // convolution implementation to convolve also in 1D & 2D case
