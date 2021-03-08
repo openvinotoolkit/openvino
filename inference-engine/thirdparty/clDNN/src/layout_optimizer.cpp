@@ -248,9 +248,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
+    if (prev.is_type<permute>())
+        return true;
+
     return false;
 }
-
 
 namespace {
 bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
