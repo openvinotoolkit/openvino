@@ -13,6 +13,11 @@ graph {
         i: 4
         type: INT
     }
+    attribute {
+        name: "eps"
+        f: 1e-6
+        type: FLOAT
+    }
   }
   name: "group_norm_example"
   initializer {
