@@ -50,8 +50,8 @@ namespace ngraph
                         auto splits = builder::opset1::split(shape, rank_size);
                         auto num_groups_const =
                             default_opset::Constant::create(element::i64, Shape{1}, {num_groups});
-                        NodeVector new_shape{
-                            splits[0].get_node_shared_ptr(),
+                        ngraph::OutputVector new_shape{
+                            splits[0],
                             num_groups_const,
                             std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
 
@@ -59,12 +59,7 @@ namespace ngraph
                             default_opset::Constant::create(element::i64, Shape{1}, {0});
                         for (size_t i = 2; i < rank_size; i++)
                         {
-                            // Temporary workaround for 50650
-                            // Direct connection of split outputs with concat inputs results in
-                            // always using the output of the split with index 0.
-                            // The WA is to add an intermediate node.
-                            new_shape.push_back(
-                                std::make_shared<default_opset::Add>(splits[i], zero_const));
+                            new_shape.push_back(splits[i]);
                         }
                         return std::make_shared<default_opset::Concat>(new_shape, 0);
                     }
