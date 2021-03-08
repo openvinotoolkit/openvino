@@ -59,6 +59,9 @@ namespace ngraph
                             default_opset::Constant::create(element::i64, Shape{1}, {0});
                         for (size_t i = 2; i < rank_size; i++)
                         {
+                            // Temporary workaround for 50650
+                            // Direct connection of split outputs with concat inputs results in always using the output of the split with index 0
+                            // The WA is to add an intermediate node.
                             new_shape.push_back(
                                 std::make_shared<default_opset::Add>(splits[i], zero_const));
                         }
