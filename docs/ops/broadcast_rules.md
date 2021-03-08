@@ -30,74 +30,74 @@ Broadcast allows to perform element-wise operation for inputs of arbitrary numbe
 
 ## Numpy examples
 
-*      `A: Shape(,) -> scalar`
-       `B: Shape(,) -> scalar`
+*      `A: Shape(,) -> scalar` <br>
+       `B: Shape(,) -> scalar` <br>
   `Result: Shape(,) -> scalar`
 
-*      `A: Shape(2, 3)`
-       `B: Shape(   1)`
+*     `A: Shape(2, 3)` <br>
+      `B: Shape(   1)` <br>
+ `Result: Shape(2, 3)`
+
+*      `A: Shape(   3)` <br>
+       `B: Shape(2, 3)` <br>
   `Result: Shape(2, 3)`
 
-*      `A: Shape(   3)`
-       `B: Shape(2, 3)`
-  `Result: Shape(2, 3)`
-
-*      `A: Shape(2, 3, 5)`
-       `B: Shape(,) -> scalar`
+*      `A: Shape(2, 3, 5)` <br>
+       `B: Shape(,) -> scalar` <br>
   `Result: Shape(2, 3, 5)`
 
-*      `A: Shape(2, 1, 5)`
-       `B: Shape(1, 4, 5)`
+*      `A: Shape(2, 1, 5)` <br>
+       `B: Shape(1, 4, 5)` <br>
   `Result: Shape(2, 4, 5)`
 
-*      `A: Shape(   6, 5)`
-       `B: Shape(2, 1, 5)`
+*      `A: Shape(   6, 5)` <br>
+       `B: Shape(2, 1, 5)` <br>
   `Result: Shape(2, 6, 5)`
 
-*      `A: Shape(2, 1, 5)`
-       `B: Shape(   4, 1)`
-  `Result: Shape(2, 4, 5)`
+*      `A: Shape(2, 1, 5)` <br>
+       `B: Shape(   4, 1)` <br>
+  `Result: Shape(2, 4, 5)` <br>
 
-*      `A: Shape(3, 2, 1, 4)`
-       `B: Shape(      5, 4)`
+*      `A: Shape(3, 2, 1, 4)` <br>
+       `B: Shape(      5, 4)` <br>
   `Result: Shape(3, 2, 5, 4)`
 
-*      `A: Shape(   1, 5, 3)`
-       `B: Shape(5, 2, 1, 3)`
+*      `A: Shape(   1, 5, 3)` <br>
+       `B: Shape(5, 2, 1, 3)` <br>
   `Result: Shape(5, 2, 5, 3)`
 
-*      `A: Shape(3)`
-       `B: Shape(2)`
+*      `A: Shape(3)` <br>
+       `B: Shape(2)` <br>
   `Result: broadcast won't happen due to dimensions mismatch`
 
-*      `A: Shape(3, 1, 5)`
-       `B: Shape(4, 4, 5)`
+*      `A: Shape(3, 1, 5)` <br>
+       `B: Shape(4, 4, 5)` <br>
   `Result: broadcast won't happen due to dimensions mismatch on the leftmost axis`
 
 ## PDPD examples
 
-*      `A: Shape(2, 3, 4, 5)`
-       `B: Shape(   3, 4   ) with axis = 1`
+*      `A: Shape(2, 3, 4, 5)` <br>
+       `B: Shape(   3, 4   ) with axis = 1` <br>
   `Result: Shape(2, 3, 4, 5)`
 
-*      `A: Shape(2, 3, 4, 5)`
-       `B: Shape(   3, 1   ) with axis = 1`
+*      `A: Shape(2, 3, 4, 5)` <br>
+       `B: Shape(   3, 1   ) with axis = 1` <br>
   `Result: Shape(2, 3, 4, 5)`
 
-*      `A: Shape(2, 3, 4, 5)`
-       `B: Shape(      4, 5) with axis=-1(default) or axis=2`
+*      `A: Shape(2, 3, 4, 5)` <br>
+       `B: Shape(      4, 5) with axis=-1(default) or axis=2` <br>
   `Result: Shape(2, 3, 4, 5)`
 
-*      `A: Shape(2, 3, 4, 5)`
-       `B: Shape(1, 3      ) with axis = 0`
+*      `A: Shape(2, 3, 4, 5)` <br>
+       `B: Shape(1, 3      ) with axis = 0` <br>
   `Result: Shape(2, 3, 4, 5)`
 
-*      `A: Shape(2, 3, 4, 5)`
-       `B: Shape(,)`
-  `Result: Shape(2, 3, 4, 5)`
+*      `A: Shape(2, 3, 4, 5)` <br>
+       `B: Shape(,)` <br>
+  `Result: Shape(2, 3, 4, 5)` <br>
 
-*      `A: Shape(2, 3, 4, 5)`
-       `B: Shape(5,)`
+*      `A: Shape(2, 3, 4, 5)` <br>
+       `B: Shape(5,)` <br>
   `Result: Shape(2, 3, 4, 5)`
 
 # Bidirectional Broadcast Rules {#openvino_docs_ops_bidirectional_broadcast_rules}
@@ -118,22 +118,22 @@ Bidirectional Broadcast is not intended for element-wise operations. Its purpose
 
 ## Bidirectional examples
 
-*      `A: Shape(5)`
-       `B: Shape(1)`
+*      `A: Shape(5)` <br>
+       `B: Shape(1)` <br>
   `Result: Shape(5)`
 
-*      `A: Shape(2, 3)`
-       `B: Shape(   3)`
+*      `A: Shape(2, 3)` <br>
+       `B: Shape(   3)` <br>
   `Result: Shape(2, 3)`
 
-*      `A: Shape(3, 1)`
-       `B: Shape(3, 4)`
+*      `A: Shape(3, 1)` <br>
+       `B: Shape(3, 4)` <br>
   `Result: Shape(3, 4)`
 
-*      `A: Shape(3, 4)`
-       `B: Shape(,) -> scalar`
+*      `A: Shape(3, 4)` <br>
+       `B: Shape(,) -> scalar` <br>
   `Result: Shape(3, 4)`
 
-*      `A: Shape(   3, 1)`
-       `B: Shape(2, 1, 6)`
+*      `A: Shape(   3, 1)` <br>
+       `B: Shape(2, 1, 6)` <br>
   `Result: Shape(2, 3, 6)`
