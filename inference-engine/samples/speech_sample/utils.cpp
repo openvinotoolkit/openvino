@@ -116,7 +116,6 @@ void ArkFile::SaveKaldiArkArray(const char* fileName,
     }
 }
 
-
 void ArkFile::SetNumBytesForCurrentUtterance(std::istringstream& stream,
                                              std::vector<std::string>& inputArkFiles,
                                              std::vector<uint32_t>& numBytesThisUtterance,
@@ -136,7 +135,6 @@ void ArkFile::SetNumBytesForCurrentUtterance(std::istringstream& stream,
         numBytesThisUtterance.push_back(currentNumBytesThisUtterance);
     }
 }
-
 
 void PerformanceCounters::GetPerformanceCounters(InferenceEngine::InferRequest& request,
                                     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfCounters) {
@@ -289,10 +287,10 @@ void Score::UpdateScoreError(score_error_t* error, score_error_t* totalError) {
 }
 
 uint32_t Score::CompareScores(float* ptrScoreArray,
-    void* ptrRefScoreArray,
-    score_error_t* scoreError,
-    uint32_t numRows,
-    uint32_t numColumns) {
+                              void* ptrRefScoreArray,
+                              score_error_t* scoreError,
+                              uint32_t numRows,
+                              uint32_t numColumns) {
     uint32_t numErrors = 0;
 
     ClearScoreError(scoreError);
@@ -328,4 +326,23 @@ uint32_t Score::CompareScores(float* ptrScoreArray,
     scoreError->numErrors = numErrors;
 
     return (numErrors);
+}
+
+float Printresults::StdDevError(score_error_t error) {
+    return (sqrt(error.sumSquaredError / error.numScores
+        - (error.sumError / error.numScores) * (error.sumError / error.numScores)));
+}
+
+void Printresults::PrintReferenceCompareResults(score_error_t const& totalError,
+                                           size_t framesNum,
+                                           std::ostream& stream) {
+    stream << "         max error: " <<
+        totalError.maxError << std::endl;
+    stream << "         avg error: " <<
+        totalError.sumError / totalError.numScores << std::endl;
+    stream << "     avg rms error: " <<
+        totalError.sumRmsError / framesNum << std::endl;
+    stream << "       stdev error: " <<
+        StdDevError(totalError) << std::endl << std::endl;
+    stream << std::endl;
 }

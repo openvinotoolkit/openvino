@@ -86,3 +86,14 @@ public:
                                   uint32_t numRows,
                                   uint32_t numColumns);
 };
+
+class Printresults {
+
+public:
+    static void PrintReferenceCompareResults(score_error_t const& totalError,
+                                             size_t framesNum,
+                                             std::ostream& stream);
+
+private:
+    static float StdDevError(score_error_t error);
+};

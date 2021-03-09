@@ -3,28 +3,14 @@
 //
 
 #include "speech_sample.hpp"
-
 #include <gflags/gflags.h>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <map>
-#include <fstream>
-#include <random>
-#include <string>
-#include <vector>
-#include <utility>
-#include <time.h>
 #include <thread>
 #include <chrono>
-#include <limits>
-#include <iomanip>
-#include <inference_engine.hpp>
 #include <gna/gna_config.hpp>
-
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
+#include <inference_engine.hpp>
 #include "utils.hpp"
 
 #define MAX_SCORE_DIFFERENCE 0.0001f
@@ -67,25 +53,6 @@ float ScaleFactorForQuantization(void *ptrFloatMemory, float targetMax, uint32_t
     }
 
     return (scaleFactor);
-}
-
-float StdDevError(score_error_t error) {
-    return (sqrt(error.sumSquaredError / error.numScores
-                 - (error.sumError / error.numScores) * (error.sumError / error.numScores)));
-}
-
-void printReferenceCompareResults(score_error_t const &totalError,
-                                  size_t framesNum,
-                                  std::ostream &stream) {
-    stream << "         max error: " <<
-           totalError.maxError << std::endl;
-    stream << "         avg error: " <<
-           totalError.sumError / totalError.numScores << std::endl;
-    stream << "     avg rms error: " <<
-           totalError.sumRmsError / framesNum << std::endl;
-    stream << "       stdev error: " <<
-           StdDevError(totalError) << std::endl << std::endl;
-    stream << std::endl;
 }
 
 std::vector<std::string> ParseScaleFactors(const std::string& str) {
@@ -775,7 +742,7 @@ int main(int argc, char *argv[]) {
                     PerformanceCounters::PrintPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d));
                 }
                 if (!FLAGS_r.empty()) {
-                    printReferenceCompareResults(totalError, numFrames, std::cout);
+                    Printresults::PrintReferenceCompareResults(totalError, numFrames, std::cout);
                 }
                 std::cout << "End of Utterance " << utteranceIndex << std::endl << std::endl;
             }
