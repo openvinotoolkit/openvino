@@ -137,7 +137,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 try {
                     prepare_repository()
                 }
-                catch (AccessDeniedException e){
+                catch(e){
                     sleep(time: 30, unit: "SECONDS")
                     prepare_repository()
                 }
