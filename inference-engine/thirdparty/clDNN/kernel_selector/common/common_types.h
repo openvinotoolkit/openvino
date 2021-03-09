@@ -76,7 +76,8 @@ enum class KernelType {
     CTC_GREEDY_DECODER,
     CUM_SUM,
     EMBEDDING_BAG,
-    EXTRACT_IMAGE_PATCHES
+    EXTRACT_IMAGE_PATCHES,
+    NON_MAX_SUPPRESSION
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
