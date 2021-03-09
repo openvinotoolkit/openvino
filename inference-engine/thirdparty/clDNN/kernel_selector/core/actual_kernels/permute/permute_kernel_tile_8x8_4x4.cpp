@@ -242,6 +242,11 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
         return false;
     }
 
+    if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
+        // Reorder cannot be fused
+        return false;
+    }
+
     if (!is_rotating_except_batch(params.order)) {
         return false;
     }

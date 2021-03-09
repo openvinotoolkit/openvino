@@ -49,11 +49,11 @@ private:
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
         InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
-        size_t nDimsForWork;
-        size_t workAmount;
-        size_t lastDstDim;
-        size_t shift;
-        uint8_t sizeData;
+        size_t nDimsForWork = 0lu;
+        size_t workAmount = 0lu;
+        size_t lastDstDim = 1lu;
+        size_t shift = 0lu;
+        uint8_t sizeData = 1;
     } params;
 
     template<typename T>
