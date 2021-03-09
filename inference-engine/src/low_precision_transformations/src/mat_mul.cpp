@@ -23,6 +23,9 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
+    if (!support3DTensorOnActivations && (matMul->input(0).get_shape().size() == 3ul)) {
+        return false;
+    }
 
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
     auto dequantization2 = NetworkHelper::getDequantization(matMul, 1);
