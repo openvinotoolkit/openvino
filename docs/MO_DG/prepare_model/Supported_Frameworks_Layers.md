@@ -283,7 +283,7 @@ Standard TensorFlow 2 Keras\* operations:
 | Cropping2D | No |
 | Cropping3D | No |
 | Dense | No |
-| DenseFeatures | The layer is not fully supported and pruning is required |
+| DenseFeatures | In case of categorical and crossed features the operation is not supported |
 | DepthwiseConv2D | No |
 | Dot | No |
 | Dropout | No |
@@ -315,7 +315,7 @@ Standard TensorFlow 2 Keras\* operations:
 | Multiply | No |
 | PReLU | No |
 | Permute | No |
-| RNN | In case of custom cells it can be unsupported |
+| RNN | In case of custom cells it may be not supported |
 | ReLU | No |
 | RepeatVector | No |
 | Reshape | No |
