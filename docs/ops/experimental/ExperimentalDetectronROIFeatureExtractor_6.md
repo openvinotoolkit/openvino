@@ -66,7 +66,7 @@
 * *T*: any supported floating point type.
 
 
-**Mathematical Formulation** #TODO: Update this formula and add `alligned` attr to it!
+**Mathematical Formulation**
 
 *ExperimentalDetectronROIFeatureExtractor* applies the *ROIAlign* algorithm to the pyramid layers:
 
