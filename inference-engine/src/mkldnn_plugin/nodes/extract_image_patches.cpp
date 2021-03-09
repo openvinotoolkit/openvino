@@ -4,13 +4,138 @@
 
 #include "extract_image_patches.hpp"
 #include "list.hpp"
-
+#include <cpu/x64/jit_generator.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
 using details::CaselessEq;
+
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak;
+
+#define GET_OFF(field) offsetof(jit_eximpat_args, field)
+
+template <cpu_isa_t isa>
+struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eximpat_kernel_f32)
+
+    explicit jit_uni_eximpat_kernel_f32(jit_eximpat_params jpp) : jit_uni_eximpat_kernel(jpp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
+    void generate() override {
+        this->preamble();
+
+        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+
+        //loop(jpp.n);  //loop over input and output to get the work done
+
+        this->postamble();
+    }
+    // some additional functions to facilitate the main loop
+    /*
+    void load(const Xbyak::Xmm &xmm, const Xbyak::Address &addr) {
+        switch (jpp.data_size) {
+            case 16: movups(xmm, addr); break;
+            case 8: movsd(xmm, addr); break;
+            case 4: movss(xmm, addr); break;
+            case 2: pinsrw(xmm, addr, 0x0); break;
+            case 1: pinsrb(xmm, addr, 0x0); break;
+        }
+    }
+
+    void store(const Xbyak::Address &addr, const Xbyak::Xmm &xmm) {
+        switch (jpp.data_size) {
+            case 16: movups(addr, xmm); break;
+            case 8: movsd(addr, xmm); break;
+            case 4: movss(addr, xmm); break;
+            case 2: pextrw(addr, xmm, 0x0); break;
+            case 1: pextrb(addr, xmm, 0x0); break;
+        }
+    }
+    */
+    // The main loop where all the work is done
+    /*
+    void loop(int n) {
+        mov(reg_work_amount, jpp.dst_block_dims[n]);
+
+        Xbyak::Label main_loop_label;
+        Xbyak::Label tail_loop_label;
+        Xbyak::Label exit_label;
+
+        if (n + 1 == jpp.ndims) {
+            if (jpp.src_strides[n] == jpp.dst_strides[n] == 1) {
+                uint32_t step = vlen / jpp.data_size;
+
+                L(main_loop_label);
+                {
+                    cmp(reg_work_amount, step);
+                    jl(tail_loop_label, T_NEAR);
+
+                    uni_vmovups(vmm, ptr[reg_src]);
+                    uni_vmovups(ptr[reg_dst], vmm);
+
+                    add(reg_src, step * jpp.data_size);
+                    add(reg_dst, step * jpp.data_size);
+                    sub(reg_work_amount, step);
+
+                    jmp(main_loop_label, T_NEAR);
+                }
+            }
+        }
+
+        L(tail_loop_label); {
+            cmp(reg_work_amount, 0);
+            je(exit_label, T_NEAR);
+
+            if (n + 1 == jpp.ndims) {
+                load(xmm, ptr[reg_src]);
+                store(ptr[reg_dst], xmm);
+            } else {
+                aux_reg_src = reg_src;
+                aux_reg_dst = reg_dst;
+                push(aux_reg_src);
+                push(aux_reg_dst);
+                push(reg_work_amount);
+                loop(n + 1);
+                pop(reg_work_amount);
+                pop(reg_dst);
+                pop(reg_src);
+            }
+
+            add(reg_src, jpp.src_strides[n] * jpp.data_size);
+            add(reg_dst, jpp.dst_strides[n] * jpp.data_size);
+            sub(reg_work_amount, 1);
+
+            jmp(tail_loop_label, T_NEAR);
+        }
+
+        L(exit_label);
+    }
+    */
+
+private:
+    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using reg64_t = const Xbyak::Reg64;
+    uint32_t vlen = cpu_isa_traits<isa>::vlen;
+
+    reg64_t reg_src = r8;
+    reg64_t reg_dst = r9;
+    reg64_t reg_work_amount = r10;
+    reg64_t reg_params = abi_param1;
+
+    Vmm vmm = Vmm(0);
+    Xbyak::Xmm xmm = Xbyak::Xmm(0);
+};
 
 ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
     try {

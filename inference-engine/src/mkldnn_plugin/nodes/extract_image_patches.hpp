@@ -17,6 +17,33 @@ namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+struct jit_eximpat_params {
+    int OB, IC, IH, IW; // from input shape
+    int OH, OW; //from out shape
+    int KH, KW; // kernel sizes
+    int SH, SW; // strides
+    int RH, RW; // rates
+    int PL, PT; // determine padding
+};
+
+struct jit_eximpat_args {
+    const void* src;
+    const void* dst;
+};
+
+struct jit_uni_eximpat_kernel {
+    void (*ker_)(const jit_eximpat_args *);
+
+    void operator()(const jit_eximpat_args *args) { assert(ker_); ker_(args); }
+
+    jit_eximpat_params jpp;
+
+    virtual void create_ker() = 0;
+
+    explicit jit_uni_eximpat_kernel(jit_eximpat_params jpp) : ker_(nullptr), jpp(jpp) {}
+    virtual ~jit_uni_eximpat_kernel() {}
+};
+
 using details::CaselessEq;
 
 class ExtractImagePatchesImpl : public ExtLayerBase {
