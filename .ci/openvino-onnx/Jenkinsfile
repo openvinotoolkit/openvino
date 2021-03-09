@@ -9,69 +9,6 @@ BACKEND_CONFIGURATIONS = [
     [ protobuf_lite : "OFF" ]
 ]
 
-echo "BACKEND_SKU_CONFIGURATIONS=${BACKEND_CONFIGURATIONS}"
-
-CONFIGURATION_WORKFLOW = { configuration ->
-    node("OpenVino") {
-        try {
-            PROJECT_NAME = "openvino"
-            WORKDIR = "${WORKSPACE}/${BUILD_NUMBER}"
-
-            stage("Clone repository") {
-                stopPreviousRunningBuilds()
-                retry(3) {
-                    dir("${WORKDIR}") {
-                        checkout scm
-                    }
-                }
-                gitSubmoduleUpdate(PROJECT_NAME)
-            }
-            stage("Prepare Docker environment") {
-              dir("${WORKDIR}") {
-                    buildDockerImage("openvino-onnx-ci-image", configuration)
-                }
-            }
-            stage("Run tests") {
-                timeout(time: 60, unit: 'MINUTES') {
-                    runTests()
-                }
-            }
-        }
-        catch(e) {
-                // Set result to ABORTED if exception contains exit code of a process interrupted by SIGTERM
-                if ("$e".contains("143")) {
-                    currentBuild.result = "ABORTED"
-                } else {
-                    currentBuild.result = "FAILURE"
-                }
-                gitPrInfo = getGitPrInfo(PROJECT_NAME)
-                notifyByEmail(gitPrInfo)
-        }
-        finally {
-            stage("Cleanup") {
-                deleteDir()
-                sh """
-                    docker image prune -f
-                    docker rm -f ${DOCKER_CONTAINER_NAME}
-                """
-            }
-        }
-    }
-}
-
-def getConfigurationsMap() {
-    def configurationsMap = [:]
-    for (backend in BACKEND_CONFIGURATIONS) {
-        def configuration = backend.clone()
-        echo "configuration=${configuration}"
-        configurationsMap[configuration.protobuf_lite] = {
-            stage(configuration.protobuf_lite) { CONFIGURATION_WORKFLOW(configuration.protobuf_lite) }
-                }
-    }
-
-        return configurationsMap
-}
-
 // workaround for aborting previous builds on PR update
 @NonCPS
  def stopPreviousRunningBuilds() {
@@ -167,6 +104,67 @@ def runTests(String docker_image_tag="openvino-onnx-ci-image") {
         --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
         ${docker_image_tag}
     """
+}
+
+def getConfigurationsMap() {
+    def configurationsMap = [:]
+    for (backend in BACKEND_CONFIGURATIONS) {
+        def configuration = backend.clone()
+        echo "configuration=${configuration}"
+        configurationsMap[configuration.protobuf_lite] = {
+            stage(configuration.protobuf_lite) { CONFIGURATION_WORKFLOW(configuration.protobuf_lite) }
+                }
+    }
+
+        return configurationsMap
+}
+
+CONFIGURATION_WORKFLOW = { configuration ->
+    node("OpenVino") {
+        try {
+            PROJECT_NAME = "openvino"
+            WORKDIR = "${WORKSPACE}/${BUILD_NUMBER}"
+
+            stage("Clone repository") {
+                stopPreviousRunningBuilds()
+                retry(3) {
+                    dir("${WORKDIR}") {
+                        checkout scm
+                        gitSubmoduleUpdate(PROJECT_NAME)
+                    }
+                }
+            }
+            stage("Prepare Docker environment") {
+              dir("${WORKDIR}") {
+                    buildDockerImage("openvino-onnx-ci-image", configuration)
+                }
+            }
+            stage("Run tests") {
+                timeout(time: 60, unit: 'MINUTES') {
+                    runTests()
+                }
+            }
+        }
+        catch(e) {
+                // Set result to ABORTED if exception contains exit code of a process interrupted by SIGTERM
+                if ("$e".contains("143")) {
+                    currentBuild.result = "ABORTED"
+                } else {
+                    currentBuild.result = "FAILURE"
+                }
+                gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                notifyByEmail(gitPrInfo)
+        }
+        finally {
+            stage("Cleanup") {
+                deleteDir()
+                sh """
+                    docker image prune -f
+                    docker rm -f ${DOCKER_CONTAINER_NAME}
+                """
+            }
+        }
+    }
 }
 
 pipeline {
