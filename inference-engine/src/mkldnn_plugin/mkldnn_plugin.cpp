@@ -38,6 +38,7 @@
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
@@ -220,6 +221,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     // List of enabled/disabled transformations
     pass_config->disable<ngraph::pass::ConvertGELU>();
+    pass_config->disable<ngraph::pass::Gelu7Downgrade>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
     pass_config->disable<ngraph::pass::ReduceL1Decomposition>();
     pass_config->disable<ngraph::pass::ReduceL2Decomposition>();

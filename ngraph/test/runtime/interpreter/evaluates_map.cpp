@@ -1108,6 +1108,20 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
+                                    op::GeluApproximationMode::ERF,
+                                    shape_size(inputs[0]->get_shape()));
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::Gelu>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
+                                    outputs[0]->get_data_ptr<T>(),
+                                    op->get_approximation_mode(),
                                     shape_size(inputs[0]->get_shape()));
         return true;
     }
