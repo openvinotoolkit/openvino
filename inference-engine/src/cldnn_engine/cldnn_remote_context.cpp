@@ -151,7 +151,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
 
 const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
     if (!_allocator) {
-        _allocator = shared_from_irelease(reinterpret_cast<IAllocator*>(&m_allocator));
+        _allocator = std::shared_ptr<IAllocator>(&m_allocator, [] (IAllocator*) {});
     }
     return _allocator;
 };
