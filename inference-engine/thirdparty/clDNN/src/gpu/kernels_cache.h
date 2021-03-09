@@ -24,7 +24,9 @@
 #include <string>
 #include <unordered_set>
 #include <kernel_selector_common.h>
-
+#include <tbb/task_arena.h>
+#define CLDNN_OCL_BUILD_THREADING_SEQ 0
+#define CLDNN_OCL_BUILD_THREADING_TBB 1
 namespace cl {
 class Kernel;
 class KernelIntel;
@@ -36,6 +38,7 @@ using kernel_string = kernel_selector::KernelString;
 
 namespace cldnn {
 namespace gpu {
+
 
 class gpu_toolkit;
 class kernels_cache {
@@ -50,6 +53,13 @@ public:
         bool dump_custom_program = false;
         bool one_time = false;
         std::map<std::string, std::string> entry_point_to_id;
+        int32_t program_id = -1;
+    };
+
+    struct BatchCode {
+        const program_code* program;
+        source_code* batch_code;
+        uint32_t batch_id;
     };
 
     struct kernel_code {
@@ -85,6 +95,7 @@ public:
     using kernels_code = std::unordered_set<kernel_code, hash_kernel_code>;
 
 private:
+    std::unique_ptr<tbb::task_arena> arena;
     gpu_toolkit& _context;
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
@@ -94,7 +105,8 @@ private:
     uint32_t _prog_id;
 
     sorted_code get_program_source(const kernels_code& kernels_source_code) const;
-    kernels_map build_batch(const program_code& pcode, size_t batch_id, size_t bucket_id) const;
+    sorted_code get_program_source_tbb(const kernels_code& kernels_source_code, std::vector<BatchCode>* batches) const;
+    void build_batch(const program_code& pcode, size_t batch_id, size_t bucket_id);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
