@@ -57,7 +57,7 @@ Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README
 
 > **NOTE**: The [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample also support batching (automatically packing multiple input images into a single request). However, high batch size results in a latency penalty. So for more real-time oriented usages, lower batch sizes (as low as a single input) are usually used. Still, devices like CPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPU require a number of parallel requests instead of batching to leverage the performance. Running the multiple requests should be coupled with a device configured to the corresponding number of "streams", for example the CPU streams are explained in the <a href="#cpu-streams">corresponding</a> section.
 
-[OpenVINO Deep Learning Workbench tool](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) allows to build throughput versus latency charts for different number of streams/requests/batch to find a performance sweet-spot.
+[OpenVINO™ Deep Learning Workbench tool](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) provides throughput versus latency charts for different numbers of streams, requests, and batch sizes to find the performance sweet spot.
 
 ### Comparing Performance with Native/Framework Code <a name="comparing-performance-with-native-framework-code"></a>
 
