@@ -57,6 +57,7 @@ namespace ngraph
                 "DetectionOutput",
                 "ExperimentalDetectronDetectionOutput",
                 "ExperimentalDetectronGenerateProposalsSingleImage",
+                "ExperimentalDetectronGroupNorm",
                 "ExperimentalDetectronPriorGridGenerator",
                 "ExperimentalDetectronROIFeatureExtractor",
                 "ExperimentalDetectronTopKROIs",
