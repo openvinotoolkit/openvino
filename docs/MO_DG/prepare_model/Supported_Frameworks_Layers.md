@@ -279,7 +279,6 @@ Standard TensorFlow 2 Keras\* operations:
 | Conv2DTranspose | No |
 | Conv3D | No |
 | Conv3DTranspose | No |
-| ConvLSTM2D | No |
 | Cropping1D | No |
 | Cropping2D | No |
 | Cropping3D | No |
