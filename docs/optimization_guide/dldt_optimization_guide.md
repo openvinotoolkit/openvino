@@ -79,7 +79,7 @@ You need to build your performance conclusions on reproducible data. Do the perf
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	 For time values that range too much, use geomean.
 
-Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) for code examples for the performance measurements. Almost every sample, except interactive demos, has a `-ni` option to specify the number of iterations.
+Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) for code examples of performance measurements. Almost every sample, except interactive demos, has the `-ni` option to specify the number of iterations.
 
 ## Model Optimizer Knobs Related to Performance <a name="mo-knobs-related-to-performance"></a>
 
