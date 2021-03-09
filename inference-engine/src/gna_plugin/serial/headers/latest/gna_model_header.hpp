@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "serial/headers/2dot5/gna_model_header.hpp"
+#include "serial/headers/2dot6/gna_model_header.hpp"
 
 namespace GNAPluginNS {
 namespace HeaderLatest {
-using ModelHeader = GNAPluginNS::Header2dot5::ModelHeader;
-using RuntimeEndPoint = GNAPluginNS::Header2dot5::RuntimeEndPoint;
+using ModelHeader = GNAPluginNS::Header2dot6::ModelHeader;
+using RuntimeEndPoint = GNAPluginNS::Header2dot6::RuntimeEndPoint;
 }
 }

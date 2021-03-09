@@ -37,14 +37,6 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
-    for (const auto& output_description : m_output_descriptions)
-    {
-        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
-        {
-            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
-        }
-    }
-
     return true;
 }
 
@@ -110,12 +102,9 @@ void op::v0::TensorIterator::validate_and_infer_types()
     };
 
     // Input
-    uint64_t index_it = 0;
     for (const auto& input_description : m_input_descriptions)
     {
         auto index = input_description->m_input_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
-        index_it++;
 
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
         {
@@ -168,9 +157,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  input_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator initial value is not compatible with body param");
             body_parameter->set_partial_shape(input_partial_shape);
         }
     }
@@ -179,12 +165,11 @@ void op::v0::TensorIterator::validate_and_infer_types()
     revalidate_and_infer_types_for_body_ops();
 
     // Output
-    index_it = 0;
+    try_to_set_num_iterations_if_no_slice_inputs();
+
     for (const auto& output_description : m_output_descriptions)
     {
         auto index = output_description->m_output_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Output_index not in order");
-        index_it++;
 
         auto body_value =
             m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
@@ -242,6 +227,35 @@ void op::v0::TensorIterator::validate_and_infer_types()
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()
 {
     return get_body();
+}
+
+namespace
+{
+    template <typename Desc>
+    bool has_slice_input_desc(const Desc& desc)
+    {
+        const auto is_slice_input_desc = +[](typename Desc::const_reference d) {
+            return is_type<op::util::SubGraphOp::SliceInputDescription>(d);
+        };
+        return std::any_of(begin(desc), end(desc), is_slice_input_desc);
+    }
+} // namespace
+
+void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs()
+{
+    if (m_num_iterations != -1 || has_slice_input_desc(get_input_descriptions()))
+    {
+        return;
+    }
+
+    for (const auto& output_description : m_output_descriptions)
+    {
+        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
+        {
+            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
+            break;
+        }
+    }
 }
 
 std::shared_ptr<Node>
