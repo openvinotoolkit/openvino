@@ -358,7 +358,7 @@ See [Custom Layers in the Model Optimizer](../customize_model_optimizer/Customiz
 * Custom layer implementation details
 
 
-## Supported TensorFlow\* Layers
+## Supported TensorFlow\* and TensorFlow 2 Keras\* Layers
 Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
 
 

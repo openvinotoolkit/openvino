@@ -263,9 +263,9 @@ Standard TensorFlow 2 Keras\* operations:
 | :----------| :----------|
 | ActivityRegularization | No |
 | Add | No |
-| AdditiveAttention | Configuration with specified key is not supported |
+| AdditiveAttention | No |
 | AlphaDropout | No |
-| Attention | Configuration with specified key is not supported |
+| Attention | No |
 | Average | No |
 | AveragePooling1D | No |
 | AveragePooling2D | No |
@@ -308,17 +308,15 @@ Standard TensorFlow 2 Keras\* operations:
 | LeakyReLU | No |
 | LocallyConnected1D | No |
 | LocallyConnected2D | No |
-| Masking | Not supported |
 | MaxPool1D | No |
 | MaxPool2D | No |
 | MaxPool3D | No |
 | Maximum | No |
 | Minimum | No |
-| MultiHeadAttention | Not supported |
 | Multiply | No |
 | PReLU | No |
 | Permute | No |
-| RNN | For some custom cells it can be not supported |
+| RNN | In case of custom cells it can be unsupported |
 | ReLU | No |
 | RepeatVector | No |
 | Reshape | No |
