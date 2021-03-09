@@ -17,11 +17,11 @@
 import numpy as np
 
 from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
+from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
 
 
-class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
+class MarkShapeOfSubgraphDataType(BackReplacementPattern):
     """
     This replacer marks op nodes in ShapeOf subgraphs with 'in_shape_subgraph' bool attribute and
     data nodes of float32 constants with 'correct_data_type' attribute.
@@ -32,18 +32,17 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
     accepts values from ShapeOf subgraph).
 
     This transformation must be run after shape inference and after all transformations that insert/modify
-    Cast nodes in ShapeOf subgraphs therefore it's placed at the end of the middle phase before layout permutations.
+    Cast nodes in ShapeOf subgraphs therefore it's placed at the end of the back phase.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['cmd_params'].data_type == 'FP16']
 
     def run_after(self):
-        from extensions.middle.pass_separator import PostMiddleStart
-        return [PostMiddleStart]
+        from extensions.back.pass_separator import BackFinish
+        return [BackFinish]
 
     def run_before(self):
-        from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
-        return [LayoutChangeForConstantShapePaths]
+        return []
 
     def find_and_replace_pattern(self, graph: Graph):
         condition = lambda node: any([out_port.data.get_value() is not None for out_port in node.out_ports().values()])

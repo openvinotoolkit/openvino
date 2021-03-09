@@ -11,6 +11,7 @@ extensions/back/__init__.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
+extensions/back/ChangeCastOutputType.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
@@ -31,6 +32,7 @@ extensions/back/kaldi_remove_memory_output.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LRNToNorm.py
+extensions/back/MarkDataTypeInShapeOfSubgraphs.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
 extensions/back/NormalizeToNormalizeL2.py
@@ -537,7 +539,6 @@ extensions/middle/AttributedTileNormalizer.py
 extensions/middle/BiasAddBroadcasting.py
 extensions/middle/BinarizeWeightsM1P1.py
 extensions/middle/BlockLSTMtoLSTMSequence.py
-extensions/middle/ChangeCastOutputType.py
 extensions/middle/CheckForCycle.py
 extensions/middle/ConcatOptimization.py
 extensions/middle/ConstSwitchResolver.py
@@ -571,7 +572,6 @@ extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
-extensions/middle/MarkDataTypeInShapeOfSubgraphs.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
 extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
