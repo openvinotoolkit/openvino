@@ -14,10 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-// DEBUG CODE
-#include <iostream>
-// /DEBUG CODE
-
 #include <algorithm> // std::set_intersection, std::unique
 #include <fstream>
 #include <iterator> // std::inserter
@@ -215,6 +211,11 @@ namespace
         }
     }
 
+    // Shift indexes in vectors due to node removal
+    // example:
+    // {2, 4}       {2, 4}
+    // {3, 5, 6} => {3, 4, 5} 4th node will be removed so 5th and 6th node will have a new index
+    // {0, 1}       {0, 1}
     void shift_node_indexes(std::vector<std::vector<int>>& node_indexes)
     {
         for (int i = node_indexes.size() - 1; i >= 1; --i)
@@ -427,6 +428,7 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
 
     auto nodes = model().graph().node();
 
+    // 1. create a list of inputs and outputs of new custom op.
     for (auto node_index : node_indexes)
     {
         inputs.insert(
@@ -435,8 +437,7 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
             outputs.end(), nodes[node_index].output().begin(), nodes[node_index].output().end());
     }
 
-    auto insert_position = node_indexes[0];
-
+    // 2. get internal tensors via intersection of inputs and outputs.
     std::vector<std::string> internal_tensors;
 
     std::set<std::string> inputs_set(inputs.begin(), inputs.end());
@@ -467,17 +468,24 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
         return std::count(internal_tensors.begin(), internal_tensors.end(), target_name);
     };
 
+    // 3. remove internal tensors from input list.
     auto new_end = std::remove_if(inputs.begin(), inputs.end(), is_on_kill_list);
     inputs.erase(new_end, inputs.end());
 
+    // 4. remove from internal tensors a tensor which is used outside of replaced graph
     new_end = std::remove_if(internal_tensors.begin(), internal_tensors.end(), is_external_tensor);
     internal_tensors.erase(new_end, internal_tensors.end());
 
+    // 5. remove internal tensors from output list.
     new_end = std::remove_if(outputs.begin(), outputs.end(), is_on_kill_list);
     outputs.erase(new_end, outputs.end());
 
+    // 6. outputs have to be unique
     new_end = std::unique(outputs.begin(), outputs.end());
     outputs.erase(new_end, outputs.end());
+
+    // 7. replace the first node in vector witch custom op via overwriting.
+    auto insert_position = node_indexes[0];
 
     auto new_node = model().mutable_graph()->mutable_node(insert_position);
     new_node->Clear();
@@ -491,11 +499,9 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
         new_node->add_output(output);
     }
 
+    // 8. remove remaining nodes from the graph.
     node_indexes.erase(node_indexes.begin());
     remove_nodes(node_indexes);
-    // DEBUG CODE
-    serialize("/home/tsocha/dev/openvino/build/" + new_op_name + ".onnx");
-    // /DEBUG CODE
 }
 
 void onnx_import::ONNXModelEditor::ONNXModelEditor::remove_nodes(

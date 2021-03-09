@@ -124,6 +124,25 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
+            /// \brief Replace nodes with given indexes with a newly registered custom operation
+            ///
+            /// \note custom op - a newly created onnx placeholder operation,
+            ///                   after import will be replaced with the graph
+            ///                   produced by node_generator function
+            ///
+            /// \note op_type for newly created custom ops is: custom_op_<ID>.
+            ///       ID is an integer incremented with each call of this function (starts at 0).
+            ///
+            /// \param node_indexes A vector of index vectors which contains information
+            ///                     which nodes should be replaced.
+            ///                     - For each index vector, a new custom op will be inserted at
+            ///                     the first index given.
+            ///                     - Order of custom op inputs and outputs depends on
+            ///                     node index order in index vector.
+            ///                     - Provided index vectors must be a disjoint sets to each other,
+            ///                     otherwise behaviour is undefinied.
+            /// \param node_generator A function which returns a graph of nGraph nodes,
+            ///                       which will replace the selected nodes in the original graph.
             void replace_nodes(std::vector<std::vector<int>> node_indexes, Operator node_generator);
 
         private:
@@ -138,7 +157,7 @@ namespace ngraph
                                onnx_import::Operator node_generator,
                                std::string new_op_name);
 
-            /// \brief Removes all nodes from a container whose index is in nodes_to_remove
+            /// \brief Removes all nodes from a model whose index is in nodes_to_remove
             void remove_nodes(const std::vector<int>& nodes_to_remove);
         };
     } // namespace onnx_import
