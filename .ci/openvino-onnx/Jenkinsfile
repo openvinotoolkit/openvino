@@ -119,7 +119,7 @@ def getConfigurationsMap() {
         def configuration = backend.clone()
         echo "configuration=${configuration}"
         configurationsMap[configuration.protobuf_lite] = {
-            stage(configuration.protobuf_lite) { CONFIGURATION_WORKFLOW(configuration.protobuf_lite) }
+            stage("protobuf-lite ${configuration.protobuf_lite}") { CONFIGURATION_WORKFLOW(configuration.protobuf_lite) }
                 }
     }
 
@@ -184,7 +184,7 @@ pipeline {
         timeout(activity: true, time: 60, unit: 'MINUTES')
     }
     stages {
-        stage('Parallel CI: protobuf-lite ON/OFF') {
+        stage('Parallel CI') {
             steps {
                 script {
                     parallelStagesMap = getConfigurationsMap()
