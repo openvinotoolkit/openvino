@@ -155,6 +155,7 @@ TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImp
     mock_plugin_impl->importedString = {};
 }
 
+
 TEST(InferencePluginTests, throwsOnNullptrCreation) {
     InferenceEnginePluginPtr nulptr;
     InferencePlugin plugin;

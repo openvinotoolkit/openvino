@@ -501,7 +501,7 @@ public:
         }
 
         if (!loadedFromCache) {
-            auto cnnNetwork = ReadNetwork(modelPath, "");
+            auto cnnNetwork = ReadNetwork(modelPath, std::string());
             res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
         }
         return res;
