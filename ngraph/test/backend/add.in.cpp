@@ -95,3 +95,53 @@ NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
     test_case.add_expected_output<float>(shape, {48, 64, 80, 96});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, add_broadcast)
+{
+    Shape shape_a{1, 2};
+    Shape shape_b{3, 2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Parameter>(element::f32, shape_b);
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
+
+    vector<float> a{1, 2};
+    vector<float> b{5, 6, 7, 8, 2, 3, 1, 5, 6, 7, 1, 3};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape_b, {6, 8, 8, 10, 3, 5, 2, 7, 7, 9, 2, 5});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, add_scalars)
+{
+    Shape shape{};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
+
+    vector<float> a{2};
+    vector<float> b{8};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape, {10});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, add_vector_and_scalar)
+{
+    Shape shape_a{2, 2};
+    Shape shape_b{};
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Parameter>(element::f32, shape_b);
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
+
+    vector<float> a{2, 4, 7, 8};
+    vector<float> b{8};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape_a, {10, 12, 15, 16});
+    test_case.run();
+}
