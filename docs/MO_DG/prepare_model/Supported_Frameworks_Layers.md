@@ -274,7 +274,7 @@ Standard TensorFlow 2 Keras\* operations:
 | Bidirectional | No |
 | Concatenate | No |
 | Conv1D | No |
-| Conv1DTranspose | Configuration with dilation not equal to 1 is not supported |
+| Conv1DTranspose | The case with dilation not equal to 1 is not supported |
 | Conv2D | No |
 | Conv2DTranspose | No |
 | Conv3D | No |
