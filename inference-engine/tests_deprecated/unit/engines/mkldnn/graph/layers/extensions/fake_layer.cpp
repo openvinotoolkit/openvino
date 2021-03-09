@@ -21,10 +21,6 @@ class FakeExtensions : public Cpu::MKLDNNExtensions {
  public:
     void Unload() noexcept override {};
 
-    void Release() noexcept override {
-        delete this;
-    };
-
     static std::shared_ptr<TestExtensionsHolder> GetExtensionsHolder() {
         static std::shared_ptr<TestExtensionsHolder> localHolder;
         if (localHolder == nullptr) {
