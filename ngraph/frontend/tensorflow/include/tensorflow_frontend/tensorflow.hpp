@@ -24,7 +24,7 @@ namespace ngraph
 {
     namespace frontend
     {
-        class InputModelTensorflow : public InputModel
+        class NGRAPH_API InputModelTensorflow : public InputModel
         {
         public:
 
@@ -33,7 +33,7 @@ namespace ngraph
             InputModelTensorflow (const std::string& _path) : path(_path) {}
         };
 
-        class FrontEndTensorflow : public FrontEnd
+        class NGRAPH_API FrontEndTensorflow : public FrontEnd
         {
         public:
 
