@@ -302,7 +302,7 @@ TEST(TransformationTests, MVNFusionTestReuseSubInsideSqrt) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestWithConvert) {
+TEST(TransformationTests, MVNFusionTestWithConvertInsideSqrt) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
@@ -343,7 +343,7 @@ TEST(TransformationTests, MVNFusionTestWithConvert) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestSqrt) {
+TEST(TransformationTests, MVNFusionTestSqrtInsideSqrt) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
@@ -382,7 +382,7 @@ TEST(TransformationTests, MVNFusionTestSqrt) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestAltDiv) {
+TEST(TransformationTests, MVNFusionTestAltDivInsideSqrt) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });

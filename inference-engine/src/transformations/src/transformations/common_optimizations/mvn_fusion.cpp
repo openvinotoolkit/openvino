@@ -79,7 +79,7 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
     auto div = pattern::wrap_type<opset6::Multiply>({ sub1, power_div });
 
     auto div_alt = pattern::wrap_type<opset6::Divide>({ sub1, add_eps });
-    const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{ power_sqrt, sqrt });
+    const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{ div, div_alt });
 
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -126,7 +126,7 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
         if (!(axes_1_value == axes_3_value)) {
             return false;
         }
-        if (pattern_to_output.find(const_neg_1) != pattern_to_output.end()) {
+        if (pattern_to_output.find(mean2_axes) != pattern_to_output.end()) {
             auto axes_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
@@ -240,7 +240,7 @@ ngraph::pass::MVNFusionInsideSqrt::MVNFusionInsideSqrt() {
     auto div = pattern::wrap_type<opset6::Multiply>({ sub1, power_div });
 
     auto div_alt = pattern::wrap_type<opset6::Divide>({ sub1, powerOrSqrt });
-    const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{ power_sqrt, sqrt });
+    const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{ div, div_alt });
 
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -287,7 +287,7 @@ ngraph::pass::MVNFusionInsideSqrt::MVNFusionInsideSqrt() {
         if (!(axes_1_value == axes_3_value)) {
             return false;
         }
-        if (pattern_to_output.find(const_neg_1) != pattern_to_output.end()) {
+        if (pattern_to_output.find(mean2_axes) != pattern_to_output.end()) {
             auto axes_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
@@ -317,15 +317,13 @@ ngraph::pass::MVNFusionInsideSqrt::MVNFusionInsideSqrt() {
 
         if (pattern_to_output.find(power_sqrt) != pattern_to_output.end()) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_sqrt).get_node_shared_ptr());
-        }
-        else if (pattern_to_output.find(sqrt) != pattern_to_output.end()) {
+        } else if (pattern_to_output.find(sqrt) != pattern_to_output.end()) {
             nodes_to_copy_info.push_back(pattern_to_output.at(sqrt).get_node_shared_ptr());
         }
 
         if (pattern_to_output.find(div_alt) != pattern_to_output.end()) {
             nodes_to_copy_info.push_back(pattern_to_output.at(div_alt).get_node_shared_ptr());
-        }
-        else if (pattern_to_output.find(power_div) != pattern_to_output.end() && pattern_to_output.find(div) != pattern_to_output.end()) {
+        } else if (pattern_to_output.find(power_div) != pattern_to_output.end() && pattern_to_output.find(div) != pattern_to_output.end()) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_div).get_node_shared_ptr());
             nodes_to_copy_info.push_back(pattern_to_output.at(div).get_node_shared_ptr());
         }
