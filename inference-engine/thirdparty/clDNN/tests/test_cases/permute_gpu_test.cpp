@@ -1625,8 +1625,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_5_4_1_2_3) {
 void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vector<cldnn::tensor::value_type>& sizes)
 {
     size_t input_size = 1;
-    for (size_t i = 0; i<sizes.size(); ++i)
-    {
+    for (size_t i = 0; i<sizes.size(); ++i) {
         input_size *= sizes.at(i);
     }
 
@@ -1638,31 +1637,30 @@ void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vec
     cldnn::format format_fsv = sizes.size() == 4?cldnn::format::b_fs_yx_fsv16:cldnn::format::b_fs_zyx_fsv16;
 
     std::vector<uint16_t> order{0, static_cast<uint16_t>(sizes.size()-1)};
-    for (uint16_t i = 1; i<(sizes.size()-1); ++i)
-    {
+    for (uint16_t i = 1; i<(sizes.size()-1); ++i) {
         order.push_back(i);
     }
 
-    auto input = memory::allocate(engine, {data_types::f32, format, tensor});
+    auto input = memory::allocate(engine, {cldnn::data_types::f32, format, tensor});
 
     std::vector<float> input_values;
     input_values.reserve(input_size);
-    for (size_t i = 1; i <= input_size; ++i)
-    {
-        input_values.push_back(i);
+    for (size_t i = 1; i <= input_size; ++i) {
+        input_values.push_back(static_cast<float>(i));
     }
     set_values(input, input_values);
 
-    topology topology_ref(
+    topology topology_ref = topology(
         input_layout("input", input.get_layout()),
-        reorder("reorder", "input", {data_types::f32, format_fsv, tensor}),
-        permute("permute1", "reorder", order )
+        reorder("reorder", "input", {cldnn::data_types::f32, format_fsv, tensor}),
+        permute("output", "reorder", order )
     );
+
 
     // run with permute_ref
     cldnn::build_options options_ref;
     cldnn::implementation_desc permute_ref = { format_fsv, "permute_ref" };
-    options_ref.set_option(cldnn::build_option::force_implementations({ {"permute1", permute_ref} }));
+    options_ref.set_option(cldnn::build_option::force_implementations({ {"output", permute_ref} }));
 
     cldnn::network network_ref(engine, topology_ref, options_ref);
     network_ref.set_input_data("input", input);
@@ -1673,7 +1671,7 @@ void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vec
     // run with permute_tile_8x8_4x4_fsv16
     cldnn::build_options options_tile;
     cldnn::implementation_desc permute_tile_8x8_4x4_fsv16 = { format_fsv, "permute_tile_8x8_4x4_fsv16" };
-    options_tile.set_option(cldnn::build_option::force_implementations({ {"permute1", permute_tile_8x8_4x4_fsv16} }));
+    options_tile.set_option(cldnn::build_option::force_implementations({ {"output", permute_tile_8x8_4x4_fsv16} }));
 
     cldnn::network network_tile(engine, topology_ref, options_tile);
     network_tile.set_input_data("input", input);

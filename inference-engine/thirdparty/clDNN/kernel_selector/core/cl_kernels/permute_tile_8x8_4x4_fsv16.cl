@@ -19,6 +19,8 @@
 #define CEIL_DIV(A, B) (((A) + (B) - 1) / (B))
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 #define OUTPUT_GET_TILED_INDEX(ORDER) OUTPUT_GET_INDEX(ORDER)
+#define YZ_REMAINDER_LESS_THAN_TILE_HEIGHT ((YZ_REMAINDER_CONDITION) && (YZ_REMAINDER_SIZE < ( TILE_HEIGHT /2)))
+#define YZ_REMAINDER_MORE_THAN_TILE_HEIGHT ((YZ_REMAINDER_CONDITION) && (YZ_REMAINDER_SIZE >= ( TILE_HEIGHT /2)))
 
 KERNEL (permute_tile_8x8_4x4_fsv16)(
     const __global INPUT0_TYPE* input,
@@ -40,65 +42,125 @@ KERNEL (permute_tile_8x8_4x4_fsv16)(
     const uint fsv = get_global_id(0) * TILE_WIDTH;
     const uint fs = get_global_id(2) % (INPUT0_SIZE_FS);
     const uint b = get_global_id(2) / (INPUT0_SIZE_FS);
-    const uint f = fsv + fs*FSV_LENGTH;
+    const uint f = fsv + fs*FSV_ALIGNMENT;
 
     __local OUTPUTVTYPE transpose_buf[TRANS_BUF_SIZE];
     const uint local_id = get_local_id(0) * get_local_size(2) * get_local_size(1)
                     + get_local_id(1) * get_local_size(2)
                     + get_local_id(2);
-
     const uint local_buf_offset = local_id * TILE_WIDTH;
 
-    if (NORMAL_CONDITION)
+    if (F_NO_REMAINDER_CONDITION)
     {
+        // read and transpose
         unroll_for (uint lh = 0; lh < TILE_HEIGHT; ++lh) {
-            // vectorwidth == tilesize
-            // read
             const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
             INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
-            // transpose
-            unroll_for (uint i = 0; i < TILE_WIDTH; ++i) {
-                uint dst = local_buf_offset + i;
-    #if HAS_FUSED_OPS
-                    INPUT0_TYPE input_var = read_data[i];
-                    FUSED_OPS;
-                    transpose_buf[dst][lh] = FUSED_OPS_RESULT;
-    #else
-                    transpose_buf[dst][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
-    #endif
+
+            unroll_for (uint lw = 0; lw < TILE_WIDTH; ++lw) {
+                const uint dst = local_buf_offset + lw;
+#if HAS_FUSED_OPS
+                INPUT0_TYPE input_var = read_data[lw];
+                FUSED_OPS;
+                transpose_buf[dst][lh] = FUSED_OPS_RESULT;
+#else
+                transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS);
+#endif
             }
         }
         // write to ddr
-        unroll_for (uint lh = 0; lh < TILE_WIDTH; ++lh) {
-            const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
-            VSTORE(transpose_buf[local_buf_offset + lh], 0, output + output_idx);
+#ifdef YZ_REMAINDER_CONDITION
+        if (YZ_REMAINDER_LESS_THAN_TILE_HEIGHT)
+        {
+            // copy one by one when z % TILE_HEIGHT < TILE_HEIGHT/2
+            unroll_for (uint lw = 0; lw < TILE_WIDTH; ++lw) {
+                const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+                unroll_for (uint lh = 0; lh < YZ_REMAINDER_SIZE; ++lh) {
+                    output[output_idx + lh] = transpose_buf[local_buf_offset + lw][lh];
+                }
+            }
         }
+        else if (YZ_REMAINDER_MORE_THAN_TILE_HEIGHT)
+        {
+            // use vstore and fill zero when z % TILE_HEIGHT > TILE_HEIGHT/2
+            unroll_for (uint lw = 0; lw < TILE_WIDTH; ++lw) {
+                const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+                VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
+                unroll_for (uint lh = YZ_REMAINDER_SIZE; lh < TILE_HEIGHT; ++lh) {
+                    output[output_idx + lh] = 0.f;
+                }
+            }
+        }
+        else if (YZ_NO_REMAINDER_CONDITION)
+        {
+            // use vstore when z % TILE_HEIGHT == 0
+            unroll_for (uint lw = 0; lw < TILE_WIDTH; ++lw) {
+                const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+                VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
+            }
+        }
+#else
+        unroll_for (uint lw = 0; lw < TILE_WIDTH; ++lw) {
+            const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+            VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
+        }
+#endif
     }
 #ifdef F_REMAINDER_CONDITION
-    else if (F_REMAINDER_CONDITION)
-    {
+    else if (F_REMAINDER_CONDITION) {
+        // read and transpose
         unroll_for (uint lh = 0; lh < TILE_HEIGHT; ++lh) {
-            // vectorwidth == tilesize
-            // read
             const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
             INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
-            // transpose
-            unroll_for (uint i = 0; i < F_REMAINDER_SIZE; ++i) {
-                uint dst = local_buf_offset + i;
+            unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
+                uint dst = local_buf_offset + lw;
     #if HAS_FUSED_OPS
-                    INPUT0_TYPE input_var = read_data[i];
+                    INPUT0_TYPE input_var = read_data[lw];
                     FUSED_OPS;
                     transpose_buf[dst][lh] = FUSED_OPS_RESULT;
     #else
-                    transpose_buf[dst][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                    transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS);
     #endif
             }
         }
         // write to ddr
-        unroll_for (uint lh = 0; lh < F_REMAINDER_SIZE; ++lh) {
-            const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
-            VSTORE(transpose_buf[local_buf_offset + lh], 0, output + output_idx);
+#ifdef YZ_REMAINDER_CONDITION
+        if (YZ_REMAINDER_LESS_THAN_TILE_HEIGHT)
+        {
+            // copy one by one when z % TILE_HEIGHT < TILE_HEIGHT/2
+            unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
+                const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+                unroll_for (uint lh = 0; lh < YZ_REMAINDER_SIZE; ++lh) {
+                    output[output_idx + lh] = transpose_buf[local_buf_offset + lw][lh];
+                }
+            }
         }
+        else if (YZ_REMAINDER_MORE_THAN_TILE_HEIGHT)
+        {
+            // use vstore and fill zero when z % TILE_HEIGHT > TILE_HEIGHT/2
+            unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
+                const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+                VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
+                // zero fill for unaligned
+                unroll_for (uint lh = YZ_REMAINDER_SIZE; lh < TILE_HEIGHT; ++lh) {
+                    output[output_idx + lh] = 0.f;
+                }
+            }
+        }
+        else if (YZ_NO_REMAINDER_CONDITION)
+        {
+            // use vstore when z % TILE_HEIGHT == 0
+            unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
+                const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+                VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
+            }
+        }
+#else
+        unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
+            const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
+            VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx);
+        }
+#endif
     }
 #endif
 }
