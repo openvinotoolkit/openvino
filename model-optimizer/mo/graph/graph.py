@@ -1102,23 +1102,39 @@ def rename_nodes(nodes: List[tuple]):
         rename_node(node, name)
 
 
-def get_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
+def get_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
+    """
+    Gets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This function should only be used during the front phase.
+    """
     for edge_idx in node1.out_edges():
         edge = node1.out_edge(edge_idx)
         out_port = edge['out']
         out_node = node1.out_node(out_port)
-        if out_node.soft_get('id') is node2.soft_get('id'):
+        if out_node.soft_get('id') == node2.soft_get('id'):
             if attr_name in edge:
                 return edge[attr_name]
     return None
 
 
-def set_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, new_value):
+def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, new_value):
+    """
+    Sets edge attribute value between two nodes.
+    This method is introduced for implementation of manual replacing of nodes attributes
+    with tensor debug information. It is needed after removing of fake outputs.
+    Also there are cases when graph transformations lead to mismatch of tensor name
+    and input node, so manual attribute change is needed.
+    This function should only be used during the front phase.
+    """
     for edge_idx in node1.out_edges():
         edge = node1.out_edge(edge_idx)
         out_port = edge['out']
         out_node = node1.out_node(out_port)
-        if out_node.soft_get('id') is node2.soft_get('id'):
+        if out_node.soft_get('id') == node2.soft_get('id'):
             if attr_name in edge:
                 edge[attr_name] = new_value
 

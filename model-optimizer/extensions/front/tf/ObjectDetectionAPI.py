@@ -46,7 +46,7 @@ from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
     mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
-from mo.graph.graph import Graph, Node, get_attribute_between_nodes, set_attribute_between_nodes
+from mo.graph.graph import Graph, Node, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
@@ -1153,12 +1153,12 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
             out_node = match.output_node(out_idx)[0]
             for out_idx in out_node.out_nodes():
                 result_node = out_node.out_node(out_idx)
-                fw_info_list = get_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info')
+                fw_info_list = get_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info')
                 new_fw_info = []
                 for fw_info in fw_info_list:
                     if fw_info is not None and len(fw_info) >= 2:
                         new_fw_info.append((fw_info[0], fw_info[1], None))
-                set_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info', new_fw_info)
+                set_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info', new_fw_info)
 
         return {'detection_output_node': detection_output_node}
 

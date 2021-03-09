@@ -15,7 +15,7 @@
 """
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import add_output_ops
-from mo.graph.graph import Graph, get_attribute_between_nodes, set_attribute_between_nodes
+from mo.graph.graph import Graph, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
 
 
 class OutputCut(FrontReplacementPattern):
@@ -36,20 +36,19 @@ class OutputCut(FrontReplacementPattern):
         # For keeping tensor names information for output nodes fake outputs
         # are added to graph. In the following code fake outputs are removed
         # and tensor names information is moved to output->Result edge.
-        for node in graph.get_op_nodes():
-            if node.soft_get('needs_removal') is True:
-                fw_info = None
-                for idx in node.in_edges():
-                    node_idx = node.in_edge(idx)['in']
-                    if node_idx in node.in_nodes():
-                        in_node = node.in_node(node_idx)
-                        fw_info_value = get_attribute_between_nodes(in_node, node, 'fw_tensor_debug_info')
-                        if fw_info_value:
-                            fw_info = fw_info_value
-                            break
-                graph.erase_node(node)
+        for node in graph.get_op_nodes(needs_removal=True):
+            fw_info = None
+            for idx in node.in_edges():
+                node_idx = node.in_edge(idx)['in']
+                if node_idx in node.in_nodes():
+                    in_node = node.in_node(node_idx)
+                    fw_info_value = get_edge_attribute_between_nodes(in_node, node, 'fw_tensor_debug_info')
+                    if fw_info_value:
+                        fw_info = fw_info_value
+                        break
+            graph.erase_node(node)
 
-                if fw_info and in_node is not None:
-                    for out_idx in in_node.out_nodes():
-                        set_attribute_between_nodes(in_node, in_node.out_node(out_idx),
-                                                    'fw_tensor_debug_info', fw_info)
+            if fw_info and in_node is not None:
+                for out_idx in in_node.out_nodes():
+                    set_edge_attribute_between_nodes(in_node, in_node.out_node(out_idx),
+                                                     'fw_tensor_debug_info', fw_info)

@@ -55,9 +55,7 @@ class TestsOutputCut(unittest.TestCase):
                                     ('Parameter1', 'Op2'),
                                     ('Op2', 'FakeOutput2',
                                      {'in': 2, 'out': 3,
-                                      'fw_tensor_debug_info': [('Op2', 0, 'Op2_tensor_name')]}),
-
-                                    ])
+                                      'fw_tensor_debug_info': [('Op2', 0, 'Op2_tensor_name')]})])
         graph.graph['packed_outputs'] = None
         graph.graph['user_shapes'] = None
 

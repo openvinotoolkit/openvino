@@ -25,7 +25,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
-from mo.graph.graph import Node, Graph, get_attribute_between_nodes, set_attribute_between_nodes
+from mo.graph.graph import Node, Graph, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
 from mo.ops.broadcast import Broadcast
 from mo.ops.concat import Concat
 from mo.ops.const import Const
@@ -266,11 +266,11 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
             out_node = Node(graph, out_name)
             for out_idx in out_node.out_nodes():
                 result_node = out_node.out_node(out_idx)
-                fw_info_list = get_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info')
+                fw_info_list = get_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info')
                 new_fw_info = []
                 for fw_info in fw_info_list:
                     if fw_info is not None and len(fw_info) >= 2:
                         new_fw_info.append((fw_info[0], fw_info[1], None))
-                set_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info', new_fw_info)
+                set_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info', new_fw_info)
 
         return {'detection_output_node': detection_output_node}
