@@ -32,6 +32,8 @@ public:
         return false;
     }
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
     void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
@@ -48,6 +50,8 @@ private:
     bool axisRelaxed = false;
     size_t dataSize, indicesSize, axisSize;
     InferenceEngine::Precision dataPrec, indicesPrec, axisPrec;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
