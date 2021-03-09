@@ -71,6 +71,7 @@ enum class KernelType {
     EMBEDDING_BAG,
     EXTRACT_IMAGE_PATCHES,
     LOOP,
+    NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT
 };
 
