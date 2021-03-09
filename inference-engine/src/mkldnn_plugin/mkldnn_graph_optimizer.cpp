@@ -14,7 +14,7 @@
 #include "nodes/mkldnn_bin_conv_node.h"
 #include "nodes/mkldnn_quantize_node.h"
 #include "nodes/mkldnn_mvn_node.h"
-#include <nodes/mkldnn_permute_node.h>
+#include <nodes/mkldnn_transpose_node.h>
 #include "nodes/mkldnn_interpolate_node.h"
 #include "nodes/mkldnn_input_node.h"
 
@@ -171,7 +171,7 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     graph.RemoveDroppedNodes();
 #endif
 
-    MergePermuteAndReorder(graph);
+    MergeTransposeAndReorder(graph);
     graph.RemoveDroppedNodes();
 
     graph.RemoveDroppedEdges();
@@ -1677,43 +1677,6 @@ void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
     }
 }
 
-void MKLDNNGraphOptimizer::DropConvertReorder(MKLDNNGraph& graph) {
-//    for (auto input : graph.GetNodes()) {
-//        if (input->getType() != Input) {
-//            continue;
-//        }
-//
-//        auto inTD = input->getCnnLayer().get()->outData[0]->getTensorDesc();
-//        for (size_t i = 0; i < input->getChildEdges().size(); i++) {
-//            auto inputEdge = input->getChildEdgeAt(i);
-//            auto convert = inputEdge->getChild();
-//            if (convert->getType() == Convert) {
-//                for (int j = 0; j < convert->getChildEdges().size(); j++) {
-//                    auto convertEdge = convert->getChildEdgeAt(j);
-//                    auto reorder = convertEdge->getChild();
-//                    if (reorder->getType() == Reorder) {
-//                        MKLDNNReorderNode* rn = dynamic_cast<MKLDNNReorderNode*>(reorder.get());
-//                        auto rnOutput = rn->getOutput();
-//                        if (inTD.getPrecision() == rnOutput.getPrecision() &&
-//                            inTD.getLayout() == rnOutput.getLayout() &&
-//                            inTD.getDims() == rnOutput.getDims()) {
-//                            auto avterReorder = reorder->getChildEdgeAt(0)->getChild();
-//                            auto oldEdgeNum = reorder->getChildEdgeAt(0)->getOutputNum();
-//                            reorder->getChildEdgeAt(0)->drop();
-//                            convertEdge->drop();
-//
-//                            MKLDNNEdgePtr newEdge(new MKLDNNEdge(input, avterReorder, i, oldEdgeNum));
-//                            graph.GetEdges().push_back(newEdge);
-//                            input->addEdge(newEdge);
-//                            j--;
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-}
-
 // TODO [NM]: reuse common/general_utils version
 bool MKLDNNGraphOptimizer::IsOneOf(Type type, std::vector<Type> types) {
     for (auto tp : types) {
@@ -1978,32 +1941,32 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
     }
 }
 
-void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
+void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Permute && node->getChildEdges().size() == 1;
+        return node->getType() == Transpose && node->getChildEdges().size() == 1;
     };
 
     auto isSutableChildNode = [](MKLDNNNodePtr node) {
         return node->getType() == Reorder && node->getChildEdges().size() == 1;
     };
 
-    // Method checkAscendingSummaryOrder() checks that after the sequential execution of Permute and Reorder nodes,
-    // the order of the elements in the memory will not change. In other words, that Permute+Reorder is identical permutation.
+    // Method checkAscendingSummaryOrder() checks that after the sequential execution of Transpose and Reorder nodes,
+    // the order of the elements in the memory will not change. In other words, that Transpose+Reorder is identical permutation.
     auto checkAscendingSummaryOrder = [](std::shared_ptr<MKLDNNNode> &parentNode, std::shared_ptr<MKLDNNNode> &childNode) -> bool {
-        auto* permuteNode = dynamic_cast<MKLDNNPermuteNode*>(parentNode.get());
+        auto* transposeNode = dynamic_cast<MKLDNNTransposeNode*>(parentNode.get());
         auto* reorderNode = dynamic_cast<MKLDNNReorderNode*>(childNode.get());
-        if (!permuteNode || !reorderNode) {
+        if (!transposeNode || !reorderNode) {
             return false;
         }
 
-        auto& permuteOrder = permuteNode->getOrder();
-        auto& layoutOrder = permuteNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc.getBlockingDesc().getOrder();
+        auto& transposeOrder = transposeNode->getOrder();
+        auto& layoutOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc.getBlockingDesc().getOrder();
         auto& inOrder = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getBlockingDesc().getOrder();
         auto& outOrder = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc.getBlockingDesc().getOrder();
 
-        if (permuteOrder.size() != layoutOrder.size() || layoutOrder.size() != inOrder.size() || inOrder.size() != outOrder.size()) {
+        if (transposeOrder.size() != layoutOrder.size() || layoutOrder.size() != inOrder.size() || inOrder.size() != outOrder.size()) {
             return false;
         }
 
@@ -2013,10 +1976,10 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
             revLayoutOrder[layoutOrder[i]] = i;
         }
 
-        // newPermuteOrder - Permute layout-aware permutation
-        auto newPermuteOrder = SizeVector(permuteOrder.size());
-        for (int i = 0; i < newPermuteOrder.size(); i++) {
-            newPermuteOrder[i] = layoutOrder[permuteOrder[revLayoutOrder[i]]];
+        // newTransposeOrder - Transpose layout-aware permutation
+        auto newTransposeOrder = SizeVector(transposeOrder.size());
+        for (int i = 0; i < newTransposeOrder.size(); i++) {
+            newTransposeOrder[i] = layoutOrder[transposeOrder[revLayoutOrder[i]]];
         }
 
         // reorderOrder - Reorder layout-aware permutation
@@ -2030,13 +1993,13 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
             }
         }
 
-        // summaryOrder - resulting Permute+Reorder permutation
-        auto summaryOrder = SizeVector(permuteOrder.size());
+        // summaryOrder - resulting Transpose+Reorder permutation
+        auto summaryOrder = SizeVector(transposeOrder.size());
         for (int i = 0; i < summaryOrder.size(); i++) {
-            summaryOrder[i] = reorderOrder[newPermuteOrder[i]];
+            summaryOrder[i] = reorderOrder[newTransposeOrder[i]];
         }
 
-        // check that Permute+Reorder is the identical permutation
+        // check that Transpose+Reorder is the identical permutation
         for (int i = 0; i < summaryOrder.size(); i++) {
             if (summaryOrder[i] != i) {
                 return false;
@@ -2046,21 +2009,33 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
         return true;
     };
 
-    // Permute and Reorder do opposite permutation to each other.
+    // Transpose and Reorder do opposite permutation to each other.
     // Example:
-    //      chain [physical layout: NCHW, logical layout: NCHW] -> Permute(order=0312) -> [physical layout: NWCH, logical layout: NCHW] ->
+    //      chain [physical layout: NCHW, logical layout: NCHW] -> Transpose(order=0312) -> [physical layout: NWCH, logical layout: NCHW] ->
     //      Reorder(nchw->nhwc) -> [physical layout: NCHW, logical layout: NHWC] can be replaced with Reorder(nchw->nhwc; isOptimized=true)
     //      which will just reinterprets layout without physical change of the memory.
     // Two cases are possible:
     //      1) inPrec = outPrec
-    //          In this case, we replace Permute+Reorder pattern with a new Reorder that does nothing.
+    //          In this case, we replace Transpose+Reorder pattern with a new Reorder that does nothing.
     //      2) inPrec != outPrec
-    //          As in the first case, we also replace Permute+Reorder pattern with a new Reorder.
+    //          As in the first case, we also replace Transpose+Reorder pattern with a new Reorder.
     //          Additionally, we insert another Reorder that performs the conversion from the input precision (inPrec)
     //          to the output precision (outPrec)
-    auto mergePermuteAndReorder = [&](std::shared_ptr<MKLDNNNode>& parentNode, std::shared_ptr<MKLDNNNode>& childNode) {
-        auto parentParentNode = parentNode->getParentEdgeAt(0)->getParent();
+    auto mergeTransposeAndReorder = [&](std::shared_ptr<MKLDNNNode>& parentNode, std::shared_ptr<MKLDNNNode>& childNode) {
+        auto parentParentNode = parentNode->getParentEdgesAtPort(0)[0]->getParent();
+        auto parentParentConstNode = parentNode->getParentEdgesAtPort(1)[0]->getParent();
         auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
+
+        auto &remEdge = parentParentConstNode->getChildEdgeAt(0);
+        remEdge->drop();
+        auto& edges = graph.GetEdges();
+        for (auto it = edges.begin(); it != edges.end(); it++) {
+            if ((*it) == remEdge) {
+                edges.erase(it);
+                parentParentConstNode->remove();
+                break;
+            }
+        }
 
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
@@ -2084,6 +2059,9 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
                 edge = childEdge.lock();
                 break;
             }
+        }
+        if (!edge) {
+            IE_THROW() << "Transpose node '" << parentNode->getName() << "' has invalid edges.";
         }
 
         auto reorderNode = graph.InsertReorder(edge, reorderlayerName, reorderInDesc, reorderOutDesc, true);
@@ -2111,7 +2089,7 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
         }
 
         if (checkAscendingSummaryOrder(parentNode, childNode)) {
-            mergePermuteAndReorder(parentNode, childNode);
+            mergeTransposeAndReorder(parentNode, childNode);
         }
     }
 }

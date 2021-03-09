@@ -61,7 +61,7 @@ enum Type {
     DepthToSpace,
     Flatten,
     Pad,
-    Permute,
+    Transpose,
     SpaceToDepth,
     StridedSlice,
     Copy,
@@ -209,8 +209,8 @@ static std::string NameFromType(Type type) {
             return "Flatten";
         case Pad:
             return "Pad";
-        case Permute:
-            return "Permute";
+        case Transpose:
+            return "Transpose";
         case SpaceToDepth:
             return "SpaceToDepth";
         case StridedSlice:

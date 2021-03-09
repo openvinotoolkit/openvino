@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph_tests/include/fuse_permute_reorder.hpp"
+#include "subgraph_tests/include/fuse_transpose_reorder.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
 
-std::string FusePermuteAndReorderTest::getTestCaseName(testing::TestParamInfo<FusePermuteAndReorderParams> obj) {
+std::string FuseTransposeAndReorderTest::getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj) {
     std::ostringstream result;
     SizeVector inputShape;
     Precision inPrec;
@@ -21,11 +21,11 @@ std::string FusePermuteAndReorderTest::getTestCaseName(testing::TestParamInfo<Fu
     return result.str();
 }
 
-void FusePermuteAndReorderTest::CheckPermuteCount(size_t expectedPermuteCount) {
+void FuseTransposeAndReorderTest::CheckTransposeCount(size_t expectedTransposeCount) {
     InferenceEngine::CNNNetwork execGraphInfo = executableNetwork.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
-    size_t actualPermuteCount = 0;
+    size_t actualTransposeCount = 0;
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
@@ -35,34 +35,34 @@ void FusePermuteAndReorderTest::CheckPermuteCount(size_t expectedPermuteCount) {
             IE_ASSERT(nullptr != value);
             return value->get();
         };
-        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "Permute") {
-            actualPermuteCount++;
+        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "Transpose") {
+            actualTransposeCount++;
         }
     }
 
-    ASSERT_EQ(expectedPermuteCount, actualPermuteCount);
+    ASSERT_EQ(expectedTransposeCount, actualTransposeCount);
 }
 
-void FusePermuteAndReorderTest::SetUp() {
+void FuseTransposeAndReorderTest::SetUp() {
     targetDevice = CommonTestUtils::DEVICE_CPU;
 
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();
 }
 
-const auto fusePermuteAndReorderCommonParams = ::testing::Combine(
+const auto fuseTransposeAndReorderCommonParams = ::testing::Combine(
         ::testing::Values(SizeVector{1, 2, 3, 4}, SizeVector{1, 2, 3, 4, 5}),
         ::testing::Values(Precision::I8, Precision::U8)
 );
 
-/*  FusePermuteAndReorderTest graph
+/*  FuseTransposeAndReorderTest graph
       ---------
       |Input  |
       ---------
           |
     -------------
     | --------- |
-    | |Permute| |
+    | |Transpose| |
     | --------- |
     |     |     |
     | --------- |
@@ -75,7 +75,7 @@ const auto fusePermuteAndReorderCommonParams = ::testing::Combine(
       ---------
 */
 
-void FusePermuteAndReorderTest::CreateGraph() {
+void FuseTransposeAndReorderTest::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
@@ -83,37 +83,37 @@ void FusePermuteAndReorderTest::CreateGraph() {
     auto memFmt = inputShape.size() == 5 ? ndhwc : nhwc;
 
     auto constOrder = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto permute = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder);
-    permute->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
+    auto transpose = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder);
+    transpose->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(permute)};
-    function = std::make_shared<ngraph::Function>(results, params, "PermuteReorder");
+    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(transpose)};
+    function = std::make_shared<ngraph::Function>(results, params, "TransposeReorder");
 }
 
-TEST_P(FusePermuteAndReorderTest, CompareWithRefs) {
+TEST_P(FuseTransposeAndReorderTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckPermuteCount(0);
+    CheckTransposeCount(0);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, FusePermuteAndReorderTest, fusePermuteAndReorderCommonParams, FusePermuteAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Basic, FuseTransposeAndReorderTest, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
 
 
-/*  FusePermuteAndReorderTest1 graph
+/*  FuseTransposeAndReorderTest1 graph
              ---------
              |Input  |
              ---------
                  |
              ---------
-             |Permute|
+             |Transpose|
              ---------
                  |
         -------------------
         |                 |
         |           -------------
         |           | --------- |
-        |           | |Permute| |
+        |           | |Transpose| |
     ---------       | --------- |
     |Reshape|       |     |     |
     ---------       | --------- |
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic, FusePermuteAndReorderTest, fusePermuteAndRe
         |           |-----------|
         |                 |
         |             ---------
-        |             |Permute|
+        |             |Transpose|
         |             ---------
         |                 |
         --------   --------
@@ -136,60 +136,60 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic, FusePermuteAndReorderTest, fusePermuteAndRe
              ---------
 */
 
-void FusePermuteAndReorderTest1::CreateGraph() {
+void FuseTransposeAndReorderTest1::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
 
     auto constOrder1 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto permute1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
+    auto transpose1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
     auto memFmt1 = inputShape.size() == 5 ? ndhwc : nhwc;
-    permute1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
+    transpose1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
     auto constOrder2 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto permute2 = std::make_shared<ngraph::opset5::Transpose>(permute1, constOrder2);
+    auto transpose2 = std::make_shared<ngraph::opset5::Transpose>(transpose1, constOrder2);
     auto memFmt2 = inputShape.size() == 5 ? ndhwc : nhwc;
-    permute2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
+    transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
     auto constOrder3 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto permute3 = std::make_shared<ngraph::opset5::Transpose>(permute2, constOrder3);
+    auto transpose3 = std::make_shared<ngraph::opset5::Transpose>(transpose2, constOrder3);
     auto memFmt3 = inputShape.size() == 5 ? ncdhw : nchw;
-    permute3->get_rt_info() = makeCPUInfo({memFmt3}, {memFmt3}, {});
+    transpose3->get_rt_info() = makeCPUInfo({memFmt3}, {memFmt3}, {});
 
-    auto shape = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, permute3->get_output_shape(0));
-    auto reshape = std::make_shared<ngraph::opset5::Reshape>(permute1, shape, false);
+    auto shape = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, transpose3->get_output_shape(0));
+    auto reshape = std::make_shared<ngraph::opset5::Reshape>(transpose1, shape, false);
 
-    auto concat = ngraph::builder::makeConcat({permute3, reshape}, 1);
+    auto concat = ngraph::builder::makeConcat({transpose3, reshape}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, params, "Permute_PermuteReorderPermute_Reshape_Concat");
+    function = std::make_shared<ngraph::Function>(results, params, "Transpose_TransposeReorderTranspose_Reshape_Concat");
 }
 
-TEST_P(FusePermuteAndReorderTest1, CompareWithRefs) {
+TEST_P(FuseTransposeAndReorderTest1, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckPermuteCount(2);
+    CheckTransposeCount(2);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, FusePermuteAndReorderTest1, fusePermuteAndReorderCommonParams, FusePermuteAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Basic, FuseTransposeAndReorderTest1, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
 
 
-/*  FusePermuteAndReorderTest2 graph
+/*  FuseTransposeAndReorderTest2 graph
     ---------         ---------
     |Input  |         |Input  |
     ---------         ---------
         |                 |
         |           -------------
-    ---------       | --------- |
-    |Reorder|       | |Permute| |
-    ---------       | --------- |
-        |           |     |     |
-    ---------       | --------- |
-    |Permute|       | |Reorder| |
-    ---------       | --------- |
-        |           |-----------|
+    ---------       | ----------- |
+    |Reorder|       | |Transpose| |
+    ---------       | ----------- |
+        |           |      |      |
+    ---------       | ----------- |
+    |Transpose|     |  |Reorder|  |
+    ---------       | ----------- |
+        |           |-------------|
         |                 |
         --------   --------
                |   |
@@ -202,7 +202,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic, FusePermuteAndReorderTest1, fusePermuteAndR
              ---------
 */
 
-void FusePermuteAndReorderTest2::CreateGraph() {
+void FuseTransposeAndReorderTest2::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
 
     auto inputShape2(inputShape);
@@ -212,28 +212,28 @@ void FusePermuteAndReorderTest2::CreateGraph() {
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 4, 1, 2, 3} : std::vector<int64_t>{0, 3, 1, 2};
 
     auto constOrder1 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto permute1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
+    auto transpose1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
     auto memFmt1 = inputShape.size() == 5 ? ndhwc : nhwc;
-    permute1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
+    transpose1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
     auto constOrder2 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto permute2 = std::make_shared<ngraph::opset5::Transpose>(params[1], constOrder2);
+    auto transpose2 = std::make_shared<ngraph::opset5::Transpose>(params[1], constOrder2);
     auto memFmt2 = inputShape.size() == 5 ? ncdhw : nchw;
-    permute2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
+    transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
-    auto concat = ngraph::builder::makeConcat({permute1, permute2}, 1);
+    auto concat = ngraph::builder::makeConcat({transpose1, transpose2}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, params, "Permute_Permute_Concat");
+    function = std::make_shared<ngraph::Function>(results, params, "Transpose_Transpose_Concat");
 }
 
-TEST_P(FusePermuteAndReorderTest2, CompareWithRefs) {
+TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckPermuteCount(1);
+    CheckTransposeCount(1);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, FusePermuteAndReorderTest2, fusePermuteAndReorderCommonParams, FusePermuteAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
 
 }  // namespace SubgraphTestsDefinitions
