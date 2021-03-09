@@ -36,6 +36,10 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         if (!mul_const)
             return false;
 
+        auto mul_const_value = mul_const->cast_vector<float>();
+        if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f == 0.0f; }))
+            return false;
+
         auto const_shape = mul_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
         if (const_shape_size > 1) {
@@ -62,7 +66,6 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         const auto& mul_data = pattern_value_map.at(input_pattern);
 
         std::shared_ptr<Node> new_fq;
-        auto mul_const_value = mul_const->cast_vector<float>();
         if (std::all_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f < 0.0f; })) {
             new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low, new_input_high,
                     fq->input_value(4), fq->input_value(3), fq->get_levels());
