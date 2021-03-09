@@ -11,6 +11,7 @@
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_split_node.h>
 #include <ie_compound_blob.h>
+#include <ie_common.h>
 #include "mkldnn_exec_network.h"
 #include "mkldnn_itt.h"
 #include "nodes/common/cpu_convert.h"
@@ -103,12 +104,18 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
 
         switch (inPrec) {
             // these precisions are supported by mkldnn, so we push the blob directly
-            case InferenceEngine::Precision::U8:
             case InferenceEngine::Precision::I8:
             case InferenceEngine::Precision::I32:
             case InferenceEngine::Precision::BF16:
-            case InferenceEngine::Precision::FP32:
+            case InferenceEngine::Precision::FP32: {
+                break;
+            }
+            // these precisions are supported by mkldnn, so we push the blob directly
+            // BUT if a mean image exists, we convert the blob and send FP32
+            case InferenceEngine::Precision::U8:
             case InferenceEngine::Precision::BOOL: {
+                if (graph->hasMeanImageFor(input.first))
+                    inPrec = InferenceEngine::Precision::FP32;
                 break;
             }
             // these precisions are unsupported by mkldnn, so we convert the blob and send I32
@@ -119,16 +126,15 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
                 inPrec = InferenceEngine::Precision::I32;
                 break;
             }
-            case InferenceEngine::Precision::FP16: {
-                inPrec = InferenceEngine::Precision::FP32;
-                break;
-            }
             default:
                 THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
         }
 
-        if (graph->hasMeanImageFor(input.first))
-            inPrec = InferenceEngine::Precision::FP32;
+        // User can initialize input via setBlob API using tensorDesc with default (ANY) layout.
+        // Currently IE doesn't specify behavior in such scenario, so we assume real layout is equal to the network input.
+        if (input.second->getTensorDesc().getLayout() == InferenceEngine::ANY) {
+            input.second->getTensorDesc().setLayout(_networkInputs[input.first]->getLayout());
+        }
 
         pushInput(input.first, input.second, inPrec);
     }
@@ -237,21 +243,25 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             return data;
         }
 
+        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+        InferenceEngine::Precision originPrecision = blobs[name]->getTensorDesc().getPrecision();
         if (_networkInputs.find(name) != _networkInputs.end()) {
-            InferenceEngine::TensorDesc desc = _networkInputs[name]->getTensorDesc();
-            InferenceEngine::Precision originPrecision = blobs[name]->getTensorDesc().getPrecision();
-            _inputs[name] = make_blob_with_precision(desc);
-            _inputs[name]->allocate();
-            if (desc.getPrecision() == originPrecision &&
-                    graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
-                externalPtr[name] = _inputs[name]->buffer();
-            }
-            data = _inputs[name];
-            checkBlob(data, name, true);
-            return data;
-        } else {
-            THROW_IE_EXCEPTION << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network inputs";
+            InferenceEngine::Layout l = _networkInputs[name]->getLayout();
+            InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
+            InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
+
+            desc = InferenceEngine::TensorDesc(p, dims, l);
         }
+
+        _inputs[name] = make_blob_with_precision(desc);
+        _inputs[name]->allocate();
+        if (desc.getPrecision() == originPrecision &&
+                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+            externalPtr[name] = _inputs[name]->buffer();
+        }
+        data = _inputs[name];
+        checkBlob(data, name, true);
+        return data;
     }
     blobs.clear();
     graph->getOutputBlobs(blobs);
@@ -262,19 +272,23 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             return data;
         }
 
-        if (_networkOutputs.find(name) != _networkOutputs.end()) {
-            InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-            _outputs[name] = make_blob_with_precision(desc);
-            _outputs[name]->allocate();
-            if (desc.getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit) {
-                externalPtr[name] = _outputs[name]->buffer();
-            }
-            data = _outputs[name];
-            checkBlob(data, name, false);
-            return data;
-        } else {
-            THROW_IE_EXCEPTION << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network outputs";
+        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+
+        // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
+        // in situation if we push output blobs as inputs for next network (in Hetero plugin)
+        // it may be that output tensor desc will be different from real input tensor desc for next network
+        // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
+        auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
+        desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+
+        _outputs[name] = make_blob_with_precision(desc);
+        _outputs[name]->allocate();
+        if (desc.getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit) {
+            externalPtr[name] = _outputs[name]->buffer();
         }
+        data = _outputs[name];
+        checkBlob(data, name, false);
+        return data;
     }
     THROW_IE_EXCEPTION << "Cannot find blob with name: " << name;
 }

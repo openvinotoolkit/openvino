@@ -274,6 +274,49 @@ TEST(type_prop, binary_arithmetic_bad_argument_element_types)
     }
 }
 
+namespace
+{
+    template <typename T>
+    void test_binary_eltwise_bad_argument_shape(const element::Type& et)
+    {
+        auto input1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+        auto input2 = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
+        try
+        {
+            auto bc = make_shared<T>(input1, input2, op::AutoBroadcastType::NONE);
+            // Should have thrown, so fail if it didn't
+            FAIL() << "Did not detect incorrect element types for arithmetic operator";
+        }
+        catch (const NodeValidationFailure& error)
+        {
+            EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
+        }
+        catch (...)
+        {
+            FAIL() << "Deduced type check failed for unexpected reason";
+        }
+    }
+} // namespace
+
+TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute)
+{
+    test_binary_eltwise_bad_argument_shape<op::v1::Add>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Divide>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Equal>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Greater>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::GreaterEqual>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Less>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::LessEqual>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Maximum>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Minimum>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Multiply>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::NotEqual>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::LogicalOr>(element::boolean);
+    test_binary_eltwise_bad_argument_shape<op::v1::Power>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::v1::Subtract>(element::f32);
+    test_binary_eltwise_bad_argument_shape<op::Xor>(element::boolean);
+}
+
 TEST(type_prop, binary_elementwise_arithmetic_both_dynamic)
 {
     auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
