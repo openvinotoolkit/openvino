@@ -24,7 +24,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 
 ## System Requirements
 
-* [Python* distribution](https://www.python.org/) 3.6, 3.7, 3.8
+* [Python* distribution (64-bit)](https://www.python.org/) 3.6, 3.7, 3.8
 * Supported Operating Systems:
   - Ubuntu* 18.04 long-term support (LTS), 64-bit (Python 3.6 or 3.7)
   - Ubuntu 20.04 long-term support (LTS), 64-bit (Python 3.6 or 3.7)
