@@ -13,7 +13,7 @@ BACKEND_CONFIGURATIONS = [
 @NonCPS
  def stopPreviousRunningBuilds() {
      def jobname = env.JOB_NAME
-     if (jobname.startsWith("onnx/openvino_ci/PR")){
+     if (jobname.startsWith("onnx-ci/openvino onnx ci/openvino/PR")){
          def buildnum = env.BUILD_NUMBER.toInteger()
          def job = Jenkins.instance.getItemByFullName(jobname)
          def job_newest = job.builds.first()
