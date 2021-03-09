@@ -88,21 +88,21 @@ def updateModels() {
     """
 }
 
-def buildDockerImage(String docker_image_tag="openvino-onnx-ci-image", String protobuf_lite="OFF") {
+def buildDockerImage(String protobuf_lite="OFF") {
     updateModels()
     sh """
-        docker build --tag=${docker_image_tag} --build-arg PROTOBUF_LITE=${protobuf_lite} \
+        docker build --tag=${DOCKER_IMAGE_TAG} --build-arg PROTOBUF_LITE=${protobuf_lite} \
         --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
         --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
     """
 }
 
-def runTests(String docker_image_tag="openvino-onnx-ci-image") {
+def runTests() {
     sh """
         docker run --name ${DOCKER_CONTAINER_NAME} \
         --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-        ${docker_image_tag}
+        ${DOCKER_IMAGE_TAG}
     """
 }
 
@@ -136,11 +136,11 @@ CONFIGURATION_WORKFLOW = { configuration ->
             }
             stage("Prepare Docker environment") {
               dir("${WORKDIR}") {
-                    buildDockerImage("openvino-onnx-ci-image", configuration)
+                    buildDockerImage(configuration)
                 }
             }
             stage("Run tests") {
-                timeout(time: 60, unit: 'MINUTES') {
+                timeout(time: 20, unit: 'MINUTES') {
                     runTests()
                 }
             }
@@ -176,7 +176,7 @@ pipeline {
         timeout(activity: true, time: 60, unit: 'MINUTES')
     }
     stages {
-        stage('Parallel CI') {
+        stage('Parallel CI: protobuf-lite ON/OFF') {
             steps {
                 script {
                     parallelStagesMap = getConfigurationsMap()
