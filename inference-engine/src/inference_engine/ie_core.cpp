@@ -173,12 +173,11 @@ class Core::Impl : public ICore {
         struct CacheConfig {
             std::shared_ptr<ICacheManager> _cacheManager;
         };
-        CoreConfig() = default;
 
         void setAndUpdate(std::map<std::string, std::string>& config) {
-            std::lock_guard<std::mutex> lock(_cacheConfigMutex);
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
+                std::lock_guard<std::mutex> lock(_cacheConfigMutex);
                 if (!it->second.empty()) {
                     int err = makedir(it->second.c_str());
                     if (err != 0 && errno != EEXIST) {
@@ -268,7 +267,6 @@ class Core::Impl : public ICore {
         struct HeaderException {};
 
         IE_ASSERT(cacheManager != nullptr);
-        bool headerLoaded = false;
         try {
             cacheManager->readCacheEntry(blobId, std::bind([&](std::istream &networkStream) {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
@@ -276,14 +274,13 @@ class Core::Impl : public ICore {
                     CompiledBlobHeader header;
                     networkStream >> header;
                     if (header.getIeVersion() != GetInferenceEngineVersion()->buildNumber) {
-                        // network cannot be read
+                        // Build number mismatch, don't use this cache
                         throw NetworkNotRead("Version does not match");
                     }
                     if (header.getFileInfo() != NetworkCompilationContext::calculateFileInfo(modelPath)) {
-                        // network cannot be read
+                        // Original file is changed, don't use cache
                         throw NetworkNotRead("Original model file is changed");
                     }
-                    headerLoaded = true;
                 } catch (...) {
                     throw HeaderException();
                 }
@@ -443,8 +440,9 @@ public:
         return details::ReadNetwork(model, weights, extensions);
     }
 
+    // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const RemoteContext::Ptr& context,
-                                  const std::map<std::string, std::string>& config) override {
+                                  const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             THROW_IE_EXCEPTION << "Remote context is nullptr";
@@ -486,7 +484,7 @@ public:
         return res;
     }
 
-    // TODO: In future, for MULTI plug-in this method can be added to ICore interface
+    // TODO: In future this method can be added to ICore interface
     ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Path");
@@ -521,9 +519,10 @@ public:
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
+    // TODO: In future this method can be added to ICore interface
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
-                                    const std::map<std::string, std::string>& config) override {
+                                    const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
 
         if (context == nullptr) {

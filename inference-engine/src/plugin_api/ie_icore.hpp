@@ -67,21 +67,6 @@ public:
                                           const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
-     * @brief Creates an executable network from a network object.
-     *
-     * Users can create as many networks as they need and use
-     *        them simultaneously (up to the limitation of the hardware resources)
-     *
-     * @param network CNNNetwork object acquired from Core::ReadNetwork
-     * @param context A remote context instance
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
-     * @return An executable network reference
-     */
-    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network, const RemoteContext::Ptr& context,
-                                         const std::map<std::string, std::string>& config = {}) = 0;
-
-    /**
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
@@ -90,17 +75,6 @@ public:
      * @return An executable network reference
      */
     virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
-                                            const std::map<std::string, std::string>& config = {}) = 0;
-
-    /**
-     * @brief Creates an executable network from a previously exported network
-     * @param networkModel network model stream
-     * @param context A remote context
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation*
-     * @return An executable network reference
-     */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const RemoteContext::Ptr& context,
                                             const std::map<std::string, std::string>& config = {}) = 0;
 
     /**

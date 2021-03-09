@@ -149,7 +149,7 @@ DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
 DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
 
 /**
- * @brief Metric which defines support of import/export functions by plugin
+ * @brief Metric which defines support of import/export functionality by plugin
  */
 DECLARE_METRIC_KEY(IMPORT_EXPORT_SUPPORT, bool);
 

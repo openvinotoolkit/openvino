@@ -202,8 +202,7 @@ public:
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
      *
      * @param deviceName An optional name of a device. If device name is not specified, the config is set for all the
-     * registered devices. The special case is CACHE_DIR global key. When "CACHE_DIR" is enabled for all devices,
-     * model caching is enabled for all supported devices. Devices which don't support model caching will ignore this config setting
+     * registered devices.
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */

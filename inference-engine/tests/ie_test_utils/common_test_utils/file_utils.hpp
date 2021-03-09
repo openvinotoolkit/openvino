@@ -103,10 +103,9 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
     return ret;
 }
 
-// Removes all files with extension=ext from the given directory
+// Lists all files with extension=ext from the given directory
 // Return value:
-// < 0 - error
-// >= 0 - count of removed files
+// vector of strings representing file paths
 inline std::vector<std::string> listFilesWithExt(const std::string& path, const std::string& ext) {
     struct dirent *ent;
     DIR *dir = opendir(path.c_str());
