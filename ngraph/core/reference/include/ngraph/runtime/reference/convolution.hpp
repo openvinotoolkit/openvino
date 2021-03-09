@@ -29,6 +29,7 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/validation_util.hpp"
 
 // can't be removed currently due to arm-plugin dependency
 #include "ngraph/runtime/reference/convolution_backprop_data.hpp"
@@ -172,8 +173,28 @@ namespace ngraph
                     }
                 }
 
+                void infer_forward_conv_output_shape(const Shape& in_spatial_shape,
+                                                     const Shape& f_spatial_shape,
+                                                     Shape& out_spatial_shape,
+                                                     const Strides& strides,
+                                                     const Strides& dilations,
+                                                     const CoordinateDiff& pads_begin,
+                                                     const CoordinateDiff& pads_end)
+                {
+                    for (size_t idx = 0; idx < in_spatial_shape.size(); idx++)
+                    {
+                        size_t in_padded_dim =
+                            in_spatial_shape[idx] + pads_begin[idx] + pads_end[idx];
+                        size_t filter_dilated_dim = dilations[idx] * (f_spatial_shape[idx] - 1) + 1;
+                        size_t out_spatial_dim =
+                            (in_padded_dim - filter_dilated_dim) / strides[idx] + 1;
+                        out_spatial_shape.push_back(out_spatial_dim);
+                    }
+                }
+
                 void validate_convolution_parameters(const Shape& in_shape,
                                                      const Shape& f_shape,
+                                                     const Shape& out_shape,
                                                      const Strides& strides,
                                                      const Strides& dilations,
                                                      const CoordinateDiff& pads_begin,
@@ -190,6 +211,18 @@ namespace ngraph
                                  " and ",
                                  f_shape.size());
 
+                    NGRAPH_CHECK(in_shape[in_channel_axis] == f_shape[filter_in_ch_axis],
+                                 "Incompatible input channels in data batch and filters shapes: ",
+                                 in_shape[in_channel_axis],
+                                 " and ",
+                                 f_shape[filter_in_ch_axis]);
+
+                    NGRAPH_CHECK(in_shape.size() == out_shape.size(),
+                                 "Incompatible input and output ranks: ",
+                                 in_shape.size(),
+                                 " and ",
+                                 out_shape.size());
+
                     const auto spatial_dims = in_shape.size() - 2;
                     NGRAPH_CHECK(strides.size() == spatial_dims,
                                  "Strides not definied for all and only spatial dimensions");
@@ -200,6 +233,19 @@ namespace ngraph
                     NGRAPH_CHECK((pads_begin.size() == pads_end.size()) &&
                                      (pads_begin.size() == spatial_dims),
                                  "Pads not defined for all and only spatial dimensions");
+
+                    Shape out_spatial_shape{std::next(out_shape.begin(), 2), std::end(out_shape)};
+                    Shape infered_out_spatial_shape{};
+                    infer_forward_conv_output_shape(
+                        Shape{std::next(in_shape.begin(), 2), std::end(in_shape)},
+                        Shape{std::next(f_shape.begin(), 2), std::end(f_shape)},
+                        infered_out_spatial_shape,
+                        strides,
+                        dilations,
+                        pads_begin,
+                        pads_end);
+                    NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape,
+                                 "Incorrect output shape provided");
                 }
             }
 
@@ -217,7 +263,7 @@ namespace ngraph
 
             {
                 validate_convolution_parameters(
-                    in_shape, f_shape, strides, dilations, pads_begin, pads_end);
+                    in_shape, f_shape, out_shape, strides, dilations, pads_begin, pads_end);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
