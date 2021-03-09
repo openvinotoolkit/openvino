@@ -21,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, group_convolution_backprop_data)
+TEST(type_prop, group_convolution_backprop_data_shape_infer)
 {
     const PartialShape data_pshape{1, 16, 6, 6};      // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{2, 8, 2, 3, 3}; // [GROUPS, C_IN, C_OUT, kH, kW]
@@ -42,7 +42,7 @@ TEST(type_prop, group_convolution_backprop_data)
     EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::EXPLICIT);
 }
 
-TEST(type_prop, group_convolution_backprop_data_output_shape_as_const)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as_const)
 {
     const PartialShape data_pshape{1, 16, 5, 5};       // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{1, 16, 2, 3, 3}; // [GROUPS, C_IN, C_OUT, kH, kW]
@@ -64,7 +64,7 @@ TEST(type_prop, group_convolution_backprop_data_output_shape_as_const)
     EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
 }
 
-TEST(type_prop, group_convolution_backprop_data_output_shape_as_param)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as_param)
 {
     const PartialShape data_pshape{1, 16, 5, 5};       // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{1, 16, 2, 3, 3}; // [GROUPS, C_IN, C_OUT, kH, kW]
@@ -83,7 +83,7 @@ TEST(type_prop, group_convolution_backprop_data_output_shape_as_param)
 }
 
 TEST(type_prop,
-     group_convolution_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_1)
+     group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_data_nc_dyn)
 {
     const PartialShape data_pshape{
         Dimension::dynamic(), Dimension::dynamic(), 5, 5}; // [N, C_IN * GROUPS, H, W]
@@ -104,7 +104,7 @@ TEST(type_prop,
 }
 
 TEST(type_prop,
-     group_convolution_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_2)
+     group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_filters_group_dyn)
 {
     const PartialShape data_pshape{Dimension::dynamic(), 16, 5, 5}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -124,8 +124,9 @@ TEST(type_prop,
         gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
-TEST(type_prop,
-     group_convolution_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_3)
+TEST(
+    type_prop,
+    group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_filters_group_cin_dyn)
 {
     const PartialShape data_pshape{Dimension::dynamic(), 16, 5, 5}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -145,8 +146,9 @@ TEST(type_prop,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop,
-     group_convolution_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_4)
+TEST(
+    type_prop,
+    group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_data_cin_filters_group_dyn)
 {
     const PartialShape data_pshape{1, Dimension::dynamic(), 5, 5}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -166,8 +168,9 @@ TEST(type_prop,
         gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop,
-     group_convolution_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_5)
+TEST(
+    type_prop,
+    group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_filters_group_cout_dyn)
 {
     const PartialShape data_pshape{Dimension::dynamic(), 16, 5, 5}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -187,7 +190,7 @@ TEST(type_prop,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference_1)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_nc_dyn)
 {
     const PartialShape data_pshape{
         Dimension::dynamic(), Dimension::dynamic(), 224, 224}; // [N, C_IN * GROUPS, H, W]
@@ -211,7 +214,7 @@ TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference
         PartialShape{Dimension::dynamic(), 8, 447, 447}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference_2)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_group_dyn)
 {
     const PartialShape data_pshape{1, 20, 224, 224}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -234,7 +237,7 @@ TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, 8, 447, 447}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference_3)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_group_cin_dyn)
 {
     const PartialShape data_pshape{Dimension::dynamic(), 20, 224, 224}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -258,7 +261,7 @@ TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 447, 447}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference_4)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_cin_filters_group_dyn)
 {
     const PartialShape data_pshape{1, Dimension::dynamic(), 224, 224}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -282,7 +285,7 @@ TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference
         PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference_5)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_group_cout_dyn)
 {
     const PartialShape data_pshape{1, 20, 224, 224}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{
@@ -306,7 +309,55 @@ TEST(type_prop, group_convolution_backprop_data_dyn_static_ranks_shape_inference
         PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_data_batch)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_spatial_dim_dyn)
+{
+    const PartialShape data_pshape{1, 20, 224, 224}; // [N, C_IN * GROUPS, H, W]
+    const PartialShape filters_pshape{
+        4, 5, 2, Dimension::dynamic(), 3}; // [GROUPS, C_IN, C_OUT, kH, kW]
+    const element::Type_t et = element::f32;
+
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const CoordinateDiff padding_begin{1, 1};
+    const CoordinateDiff padding_end{1, 1};
+
+    auto data = make_shared<op::Parameter>(et, data_pshape);
+    auto filters = make_shared<op::Parameter>(et, filters_pshape);
+    auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, strides, padding_begin, padding_end, dilations);
+
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{1, 8, Dimension::dynamic(), 447}));
+}
+
+TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_spatial_dim_dyn)
+{
+    const PartialShape data_pshape{
+        Dimension::dynamic(), 20, 224, Dimension::dynamic()}; // [N, C_IN * GROUPS, H, W]
+    const PartialShape filters_pshape{4, 5, 2, 3, 3};         // [GROUPS, C_IN, C_OUT, kH, kW]
+    const element::Type_t et = element::f32;
+
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const CoordinateDiff padding_begin{1, 1};
+    const CoordinateDiff padding_end{1, 1};
+
+    auto data = make_shared<op::Parameter>(et, data_pshape);
+    auto filters = make_shared<op::Parameter>(et, filters_pshape);
+    auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, strides, padding_begin, padding_end, dilations);
+
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{Dimension::dynamic(), 8, 447, Dimension::dynamic()}));
+}
+
+TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_data_dyn)
 {
     const PartialShape data_pshape{PartialShape::dynamic()}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{1, 16, 2, 3, 3};       // [GROUPS, C_IN, C_OUT, kH, kW]
@@ -325,7 +376,7 @@ TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_data_batch
         gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_shape_dyn_data_batch)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_data_dyn)
 {
     const PartialShape data_pshape{PartialShape::dynamic()}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{4, 5, 2, 3, 3};        // [GROUPS, C_IN, C_OUT, kH, kW]
@@ -343,7 +394,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_dyn_data_batch)
         PartialShape{Dimension::dynamic(), 8, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_filters)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_filters_dyn)
 {
     const PartialShape data_pshape{
         1, 16, Dimension::dynamic(), Dimension::dynamic()}; // [N, C_IN * GROUPS, H, W]
@@ -363,7 +414,7 @@ TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_filters)
         gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_shape_dyn_filters)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_filters_dyn)
 {
     const PartialShape data_pshape{1, 8, 224, 224}; // [N, C_IN * GROUPS, H, W]
     const PartialShape filters_pshape{PartialShape::dynamic()};
@@ -381,7 +432,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_dyn_filters)
         PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_data_and_filters_1)
+TEST(type_prop,
+     group_convolution_backprop_data_shape_infer_with_output_shape_as_const_data_and_filters_dyn)
 {
     const PartialShape data_pshape{PartialShape::dynamic()};
     const PartialShape filters_pshape{PartialShape::dynamic()};
@@ -400,7 +452,8 @@ TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_data_and_f
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3, 3}));
 }
 
-TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_data_and_filters_2)
+TEST(type_prop,
+     group_convolution_backprop_data_shape_infer_with_output_shape_as_param_data_and_filters_dyn)
 {
     const PartialShape data_pshape{PartialShape::dynamic()};
     const PartialShape filters_pshape{PartialShape::dynamic()};
@@ -417,7 +470,7 @@ TEST(type_prop, group_convolution_backprop_data_with_output_shape_dyn_data_and_f
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-TEST(type_prop, group_convolution_backprop_data_dyn_data_and_filters)
+TEST(type_prop, group_convolution_backprop_data_shape_infer_data_and_filters_dyn)
 {
     const PartialShape data_pshape{PartialShape::dynamic()};
     const PartialShape filters_pshape{PartialShape::dynamic()};
