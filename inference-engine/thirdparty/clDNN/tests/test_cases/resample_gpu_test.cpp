@@ -103,6 +103,8 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
     }
 }
 
+#include "api/engine.hpp"
+
 TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
     //  Input  : 1x1x2x2
     //  Output : 1x1x4x4
@@ -602,6 +604,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
                         auto in_coords = tensor(batch(bi), feature(fi), spatial(in_xi, in_yi, 0, 0));
                         auto in_offset = input.get_layout().get_linear_offset(in_coords);
                         auto in_val = in_ptr[in_offset];
+
                         auto out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         auto out_offset = output.get_layout().get_linear_offset(out_coords);
                         auto out_val = out_ptr[out_offset];
@@ -730,7 +733,6 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
             if (info.original_id == "resample")
                 kernel = info.kernel_id;
         }
-        SCOPED_TRACE("kernel: " + kernel);
 
         compare(in_mem, output, params.operation_type, params.align_corners);
     }
@@ -762,7 +764,7 @@ struct resample_random_test_param_generator : std::vector<resample_random_test_p
 
 };
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_CASE_P(smoke_resample,
                         resample_random_test,
                         testing::ValuesIn(
                             resample_random_test_param_generator()
@@ -775,6 +777,176 @@ INSTANTIATE_TEST_CASE_P(smoke,
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                        ), );
+
+
+/////////////////////////////////////////////////////////////////////////
+// BI
+struct bi_resample_random_test_param_generator : std::vector<resample_random_test_params> {
+    bi_resample_random_test_param_generator& add(resample_random_test_params params) {
+        push_back(params);
+        return *this;
+    }
+
+    bi_resample_random_test_param_generator& smoke_params(data_types type, format::type input_format, format::type output_format) {
+        push_back(resample_random_test_params{ type, {1, 512, 32, 32}, {1, 512, 64, 64}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 512, 64, 64}, {1, 512, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+
+        return *this;
+    }
+};
+
+
+struct bi_resample_random_test : resample_random_test
+{
+    template <typename T>
+    bool compare_outputs(const memory& out_ref, const memory& out_opt) {
+        auto output_lay = out_ref.get_layout();
+        auto opt_output_lay = out_opt.get_layout();
+
+        size_t b = output_lay.size.batch[0];
+        size_t f = output_lay.size.feature[0];
+        size_t x = output_lay.size.spatial[0];
+        size_t y = output_lay.size.spatial[1];
+        auto ref_ptr = out_ref.pointer<T>();
+        auto opt_ptr = out_opt.pointer<T>();
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
+                        auto ref_out_val = ref_ptr[ref_out_offset];
+
+                        auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
+                        auto opt_out_val = opt_ptr[opt_out_offset];
+
+                        EXPECT_EQ(ref_out_offset, opt_out_offset);
+                        EXPECT_EQ(opt_out_val, ref_out_val);
+                        //EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    void execute_compare(const resample_random_test_params& params, bool check_result) {
+        // cldnn::engine_configuration cfg{true, false, false, "", "", true, "", "C:/work/BI/cldnn_dump"};
+        // auto eng = cldnn::engine(cfg);
+        auto eng = get_test_engine();
+
+        auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
+        auto in_mem = memory::allocate(eng, in_layout);
+        fill_random(in_mem);
+
+        /// bfyx
+        cldnn::topology topo;
+        topo.add(input_layout("in", in_layout));
+        auto prim = resample("resample", "in", params.output_size, params.num_filter, params.operation_type);
+        prim.align_corners = params.align_corners;
+        topo.add(prim);
+
+        auto build_opts = build_options();
+        build_opts.set_option(build_option::outputs({"resample"}));
+
+        auto net = network(eng, topo, build_opts);
+        net.set_input_data("in", in_mem);
+
+        auto result = net.execute();
+        auto output = result.at("resample").get_memory();
+
+        std::string kernel = "";
+        for (auto& info : net.get_primitives_info()) {
+            if (info.original_id == "resample")
+                kernel = info.kernel_id;
+        }
+
+        // for (auto& pri : net.get_executed_primitives()) {
+        //     if (pri.first == "resample") {
+        //         std::cout << pri.first.c_str() << std::endl;
+        //         for (auto& pi : pri.second.get_profiling_info()) {
+        //             double ms = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
+        //             std::cout << "      " << pi.name << ":  " << ms << " ms" << std::endl;
+        //         }
+        //     }
+        // }
+
+        // Execut resample_opt
+        // auto eng_opt = cldnn::engine(cfg);
+        auto eng_opt = cldnn::engine();
+
+        cldnn::topology topo_opt;
+        topo_opt.add(input_layout("in", in_layout));
+        topo_opt.add(reorder("in_to_input_type", "in", params.in_format, params.input_type));
+        auto prim_opt = resample("resample_opt", "in_to_input_type", params.output_size, params.num_filter, params.operation_type);
+        prim_opt.align_corners = params.align_corners;
+        topo_opt.add(prim_opt);
+        topo_opt.add(reorder("res_to_bfyx", "resample_opt", format::bfyx, params.input_type));
+
+        auto build_opts_opt = build_options();
+        build_opts_opt.set_option(build_option::outputs({"resample_opt", "res_to_bfyx"}));
+
+        auto net_opt = network(eng_opt, topo_opt, build_opts_opt);
+
+        // Use in_mem from ref network
+        net_opt.set_input_data("in", in_mem);
+
+        auto result_opt = net_opt.execute();
+        auto output_opt = result_opt.at("res_to_bfyx").get_memory();
+
+        std::string kernel_opt = "";
+        for (auto& info : net_opt.get_primitives_info()) {
+            if (info.original_id == "resample_opt")
+                kernel_opt = info.kernel_id;
+        }
+
+        // for (auto& pri : net_opt.get_executed_primitives()) {
+        //     if (pri.first == "resample_opt") {
+        //         std::cout << pri.first.c_str() << std::endl;
+        //         for (auto& pi : pri.second.get_profiling_info()) {
+        //             double ms = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
+        //             std::cout << "      " << pi.name << ":  " << ms << " ms" << std::endl;
+        //         }
+        //     }
+        // }
+
+        if (check_result == true) {
+            // Check data_types
+            if (params.input_type == data_types::f32) {
+                compare_outputs<float>(output, output_opt);
+            } else if (params.input_type == data_types::f16) {
+                compare_outputs<FLOAT16>(output, output_opt);
+            } else if (params.input_type == data_types::i8) {
+                compare_outputs<int8_t>(output, output_opt);
+            } else if (params.input_type == data_types::u8) {
+                compare_outputs<uint8_t>(output, output_opt);
+            } else {
+                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+            }
+        }
+    }
+};
+
+TEST_P(bi_resample_random_test, random) {
+    auto param = GetParam();
+    execute_compare(param, true);
+}
+
+INSTANTIATE_TEST_CASE_P(bi_smoke_caffe_fsv16,
+                        bi_resample_random_test,
+                        testing::ValuesIn(
+                            bi_resample_random_test_param_generator()
+                            .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                        ), );
+
+INSTANTIATE_TEST_CASE_P(bi_smoke_caffe_fsv32,
+                        bi_resample_random_test,
+                        testing::ValuesIn(
+                            bi_resample_random_test_param_generator()
+                            .smoke_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
                         ), );
 
 TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {

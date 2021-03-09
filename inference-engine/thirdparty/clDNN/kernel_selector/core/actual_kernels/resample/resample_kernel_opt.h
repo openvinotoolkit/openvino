@@ -40,5 +40,6 @@ protected:
     }
 private:
     size_t GetOptimalBlockSize(const resample_params& params) const;
+    size_t GetOptimalBlockSize(const size_t val) const;
 };
 }  // namespace kernel_selector

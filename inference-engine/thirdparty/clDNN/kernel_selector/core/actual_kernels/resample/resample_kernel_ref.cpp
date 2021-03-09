@@ -132,6 +132,11 @@ ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_pa
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
     }
 
+    // printf("[%d] gws: (%zd, %zd, %zd), lws: (%zd, %zd, %zd)\n",
+    // (int)arg.resampleType,
+    // dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2],
+    // dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
+
     return dispatchData;
 }
 

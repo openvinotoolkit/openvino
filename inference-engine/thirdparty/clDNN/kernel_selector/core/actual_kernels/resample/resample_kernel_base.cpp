@@ -78,6 +78,9 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dispatchData.lws[2] = 1;
     }
 
+    // printf("resample ref dispatchData\n gws (%d, %d, %d)\n", (int)dispatchData.gws[0], (int)dispatchData.gws[1], (int)dispatchData.gws[2]);
+    // printf(" lws (%d, %d, %d)\n", (int)dispatchData.lws[0], (int)dispatchData.lws[1], (int)dispatchData.lws[2]);
+
     return dispatchData;
 }
 
@@ -177,13 +180,29 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant("SCALES", scales),
         MakeJitConstant("PADS_BEGIN", pads_begin),
         MakeJitConstant("PADS_END", pads_end),
-        MakeJitConstant("PADDING_USED", static_cast<int>(paddingUsed)),
+        MakeJitConstant("PADDING_USED", (int)paddingUsed),
         MakeJitConstant("AXES_USED", axesUsed),
         MakeJitConstant("ALIGN_CORNERS", align_corners),
         MakeJitConstant("KERNEL_W", 2),
         MakeJitConstant("ANTIALIAS", params.antialias),
         MakeJitConstant("CUBE_COEFF", params.cube_coeff),
     });
+
+    if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
+        if (axesUsed[0] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_B", 1));
+        if (axesUsed[1] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_F", 1));
+        if (axesUsed[2] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Z", 1));
+        if (axesUsed[3] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Y", 1));
+        if (axesUsed[4] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_X", 1));
+
+        jit.AddConstants({
+            MakeJitConstant("PADDED_B", b_size_padded),
+            MakeJitConstant("PADDED_F", f_size_padded),
+            MakeJitConstant("PADDED_X", x_size_padded),
+            MakeJitConstant("PADDED_Y", y_size_padded),
+            MakeJitConstant("PADDED_Z", z_size_padded),
+        });
+    }
 
     size_t feature_block_size = GetFeatureBlockSize(params);
 
