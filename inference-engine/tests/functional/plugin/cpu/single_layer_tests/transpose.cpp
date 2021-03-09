@@ -6,7 +6,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-// Since the Transpose ngraph operation is converted to the permute node, we will use it in the permute test
+// Since the Transpose ngraph operation is converted to the transpose node, we will use it in the transpose test
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -19,12 +19,12 @@ typedef std::tuple<
         std::vector<size_t>,            // Input shapes
         std::string,                    // Target device name
         std::map<std::string, std::string>, // Additional network configuration
-        CPUSpecificParams> PermuteLayerCPUTestParamSet;
+        CPUSpecificParams> TransposeLayerCPUTestParamSet;
 
-class PermuteLayerCPUTest : public testing::WithParamInterface<PermuteLayerCPUTestParamSet>,
+class TransposeLayerCPUTest : public testing::WithParamInterface<TransposeLayerCPUTestParamSet>,
                             virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PermuteLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<TransposeLayerCPUTestParamSet> obj) {
         Precision netPrecision;
         std::vector<size_t> inputShape, inputOrder;
         std::string targetDevice;
@@ -72,11 +72,11 @@ protected:
     }
 };
 
-TEST_P(PermuteLayerCPUTest, CompareWithRefs) {
+TEST_P(TransposeLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckPluginRelatedResults(executableNetwork, "Permute");
+    CheckPluginRelatedResults(executableNetwork, "Transpose");
 }
 
 namespace {
@@ -138,7 +138,7 @@ const auto params4D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParams4D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Permute4D_CPU, PermuteLayerCPUTest, params4D, PermuteLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Transpose4D_CPU, TransposeLayerCPUTest, params4D, TransposeLayerCPUTest::getTestCaseName);
 
 const auto paramsPerChannels4D = ::testing::Combine(
         ::testing::ValuesIn(inputOrderPerChannels4D),
@@ -191,7 +191,7 @@ const auto params5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParams5D));
 
-INSTANTIATE_TEST_CASE_P(smoke_Permute5D_CPU, PermuteLayerCPUTest, params5D, PermuteLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Transpose5D_CPU, TransposeLayerCPUTest, params5D, TransposeLayerCPUTest::getTestCaseName);
 
 const auto paramsPerChannels5D = ::testing::Combine(
         ::testing::ValuesIn(inputOrderPerChannels5D),

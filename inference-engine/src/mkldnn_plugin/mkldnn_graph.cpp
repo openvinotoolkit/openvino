@@ -1177,7 +1177,7 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     InsertNode(edge, newReorder, true);
 
     // Using the method MKLDNNEdge::getDesc() we can check that input and output tensor descriptors are equal.
-    // Due to the specificity of MKLDNNGraphOptimizer::MergePermuteAndReorder() that isOptimized flag uses, we shouldn't do these checks.
+    // Due to the specificity of MKLDNNGraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't do these checks.
     if (!isOptimized) {
         newReorder->getParentEdgeAt(0)->getDesc();
         newReorder->getChildEdgeAt(0)->getDesc();

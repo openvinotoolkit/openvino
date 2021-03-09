@@ -489,8 +489,8 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBCde4c8b2c,
     }}, {6, {                                    // Popular
         mkldnn::memory::format_tag::abcdef,      // plain
-        mkldnn::memory::format_tag::acbdef,      // permuted
-        mkldnn::memory::format_tag::defcab,      // permuted
+        mkldnn::memory::format_tag::acbdef,      // permute
+        mkldnn::memory::format_tag::defcab,      // permute
         mkldnn::memory::format_tag::aBcdef16b,   // blocked 16c
 
         mkldnn::memory::format_tag::aBCdef16b16c,
@@ -742,7 +742,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
         MKLDNNMemory::convertToIePrec(desc.data_type()),
         SizeVector {begin(dims), end(dims)},
         ie_blk_desc };
-    // TODO: BLOCKED is the most common layout which covers all other permuted layout like NHWC.
+    // TODO: BLOCKED is the most common layout which covers all other permute layout like NHWC.
     //       But for some cases we have to specify it more correctly.. may be.. or just keep
     //       auto detected layout in constructor of TensorDesc.
     return res;
@@ -809,7 +809,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         is_descending_strides &= (ie_strides[i-1] >= ie_strides[i]);
     }
 
-    // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to permute blocked dims
+    // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to transpose blocked dims
     //       and may be we can achieve correct "descending strides" form which allow conversion.
     if (!is_descending_strides)
         IE_THROW() << "Unsupported case for conversion";

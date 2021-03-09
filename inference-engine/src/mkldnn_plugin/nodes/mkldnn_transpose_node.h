@@ -17,9 +17,10 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPermuteNode : public MKLDNNNode {
 public:
-    MKLDNNPermuteNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNPermuteNode() override = default;
+    MKLDNNTransposeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ~MKLDNNTransposeNode() override = default;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -37,12 +38,12 @@ private:
     InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;
 
-    typedef std::function<void(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> permuteImpl;
+    typedef std::function<void(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> transposeImpl;
     typedef std::function<bool(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> isApplicable;
-    struct PermuteImpl {
-        PermuteImpl(permuteImpl f0, isApplicable f1): execute(std::move(f0)), isValidParams(std::move(f1)) {}
+    struct TransposeImpl {
+        TransposeImpl(transposeImpl f0, isApplicable f1): execute(std::move(f0)), isValidParams(std::move(f1)) {}
 
-        permuteImpl execute;
+        transposeImpl execute;
         isApplicable isValidParams;
     };
 
