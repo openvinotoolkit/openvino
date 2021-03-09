@@ -240,7 +240,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
-                return MKLDNNMVNNode::checkAxesSuitability(node);
+                std::string errorMessage;
+                return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
             });
 
     pass_config->set_callback<ngraph::pass::SoftmaxFusion>(

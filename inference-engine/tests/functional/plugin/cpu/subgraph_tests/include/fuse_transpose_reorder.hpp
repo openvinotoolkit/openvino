@@ -17,31 +17,31 @@ using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
 
-using FusePermuteAndReorderParams = std::tuple<
+using FuseTransposeAndReorderParams = std::tuple<
         InferenceEngine::SizeVector,    // Input shape
         InferenceEngine::Precision      // Input precision
 >;
 
-class FusePermuteAndReorderTest : public testing::WithParamInterface<FusePermuteAndReorderParams>, public CPUTestsBase,
+class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>, public CPUTestsBase,
         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FusePermuteAndReorderParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj);
 
 protected:
     void SetUp() override;
     virtual void CreateGraph();
-    void CheckPermuteCount(size_t expectedPermuteCount);
+    void CheckTransposeCount(size_t expectedTransposeCount);
 
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision inPrec;
 };
 
-class FusePermuteAndReorderTest1 : public FusePermuteAndReorderTest {
+class FuseTransposeAndReorderTest1 : public FuseTransposeAndReorderTest {
 protected:
     void CreateGraph() override;
 };
 
-class FusePermuteAndReorderTest2 : public FusePermuteAndReorderTest {
+class FuseTransposeAndReorderTest2 : public FuseTransposeAndReorderTest {
 protected:
     void CreateGraph() override;
 };

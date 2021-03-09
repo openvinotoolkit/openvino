@@ -36,14 +36,12 @@ private:
     void FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph);
 
     void DropDoubleReorders(MKLDNNGraph& graph);
-    void DropConvertReorder(MKLDNNGraph& graph);
-    void AddConvertToReorder(MKLDNNGraph &graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
     void FuseScaleShiftAndQuantize(MKLDNNGraph &graph);
     void FuseClampAndQuantize(MKLDNNGraph &graph);
-    void MergePermuteAndReorder(MKLDNNGraph &graph);
+    void MergeTransposeAndReorder(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
 

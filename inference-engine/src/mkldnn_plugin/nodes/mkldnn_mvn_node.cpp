@@ -602,46 +602,93 @@ private:
 };
 //////////////////////////////////////////////////////////////////////////////////
 
+bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto& inDataShapeSize = op->input_value(0).get_shape().size();
+        if (inDataShapeSize < 1 || inDataShapeSize > 5) {
+            errorMessage = "First input accepts ranks from 1 to 5. Actual: " + std::to_string(inDataShapeSize);
+            return false;
+        }
+
+        if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v6::MVN>(op)) {
+            auto axesOp = ngraph::as_type_ptr<ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
+            if (!axesOp) {
+                errorMessage = "Constant expected as the second input.";
+                return false;
+            }
+
+            auto epsMode = mvnOp->get_eps_mode();
+            if (epsMode != ngraph::op::MVNEpsMode::INSIDE_SQRT &&
+                    epsMode != ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
+                errorMessage = std::string("Just INSIDE_SQRT and OUTSIDE_SQRT epsilon mods are supported. Actual: ") +
+                        std::to_string(static_cast<int>(epsMode));
+                return false;
+            }
+            // Validates MVN node axes to check whether it can be executed on the current CPU implementation.
+            // Supported cases:
+            // 1D: axes: [0]
+            // 2D: axes: [1]
+            // 3D: axes: [1,2], [2]
+            // 4D: axes: [1,2,3], [2,3]
+            // 5D: axes: [1,2,3,4], [2,3,4]
+            auto axesVal = axesOp->cast_vector<int>();
+            auto& mvnShape = mvnOp->get_output_shape(0);
+            for (int& axe : axesVal)
+                axe = axe < 0 ? axe + mvnShape.size() : axe;
+            std::sort(axesVal.begin(), axesVal.end());
+            if (mvnShape.size() == 1) {
+                if (axesVal.size() != 1 || axesVal[0] != 0) {
+                    errorMessage = "Unsupported axes.";
+                    return false;
+                }
+            } else {
+                if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2)) {
+                    errorMessage = "Unsupported axes.";
+                    return false;
+                }
+                int value = mvnShape.size() - 1;
+                for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                    if (axesVal[i] != value) {
+                        errorMessage = "Unsupported axes.";
+                        return false;
+                    }
+                }
+            }
+        } else if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v0::MVN>(op)) {
+        } else {
+            errorMessage = "Node is not an instance of the MVN operation.";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
 MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
-    std::string errPrefix = "MVN node with name '" + getName() + "' ";
-
-    if (op->get_output_size() != 1)
-        IE_THROW() << errPrefix << "has incorrect number of output edges.";
-
-    const auto& inDataShapeSize = op->input_value(0).get_shape().size();
-    if (inDataShapeSize < 1 || inDataShapeSize > 5)
-        IE_THROW(NotImplemented) << errPrefix << "doesn't support input with size of dimensions: " << inDataShapeSize;
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
 
     if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
-        if (mvnOp->get_input_size() != 2)
-            IE_THROW() << errPrefix << "has incorrect number of input edges.";
-
         normalizeVariance_ = mvnOp->get_normalize_variance();
         epsValue_ = mvnOp->get_eps();
-        auto epsMode = mvnOp->get_eps_mode();
-        if (epsMode == ngraph::op::MVNEpsMode::INSIDE_SQRT) {
+        epsMode_ = INSIDE_SQRT;
+        if (mvnOp->get_eps_mode() == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
             epsMode_ = INSIDE_SQRT;
-        } else if (epsMode == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
-            epsMode_ = INSIDE_SQRT;
-        } else {
-            IE_THROW(NotImplemented) << errPrefix << "does not support epsilon mode: " << epsMode;
         }
 
         acrossChannels_ = false;
+        const auto& inDataShapeSize = op->input_value(0).get_shape().size();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
             acrossChannels_ = true;
     } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
-        if (mvnOp->get_input_size() != 1)
-            IE_THROW() << errPrefix << "has incorrect number of input edges.";
-
         normalizeVariance_ = mvnOp->get_normalize_variance();
         epsValue_ = mvnOp->get_eps();
         epsMode_ = INSIDE_SQRT;
         acrossChannels_ = mvnOp->get_across_channels();
-    } else {
-        IE_THROW(NotImplemented)
-                << "CPU MVN node doesn't support ngraph operation '" << op->get_type_name() << "' with name '" << op->get_friendly_name() << "'";
     }
 }
 
@@ -1338,41 +1385,6 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
             }
         }
     }
-}
-
-// Validates MVN node axes to check whether it can be executed on the current CPU implementation.
-// Supported cases:
-// 1D: axes: [0]
-// 2D: axes: [1]
-// 3D: axes: [1,2], [2]
-// 4D: axes: [1,2,3], [2,3]
-// 5D: axes: [1,2,3,4], [2,3,4]
-bool MKLDNNMVNNode::checkAxesSuitability(const std::shared_ptr<const ngraph::Node>& node) {
-    const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
-    if (mvn != nullptr && node->get_input_size() == 2) {
-        if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
-            auto& mvnShape = mvn->get_output_shape(0);
-            auto axesVal = axesNode->cast_vector<int>();
-            for (int& axe : axesVal)
-                axe = axe < 0 ? axe + mvnShape.size() : axe;
-            std::sort(axesVal.begin(), axesVal.end());
-            if (mvnShape.size() == 1) {
-                if (axesVal.size() == 1 && axesVal[0] == 0)
-                    return true;
-                else
-                    return false;
-            }
-            if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
-                return false;
-            int value = mvnShape.size() - 1;
-            for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
-                if (axesVal[i] != value)
-                    return false;
-            }
-            return true;
-        }
-    }
-    return false;
 }
 
 bool MKLDNNMVNNode::created() const {
