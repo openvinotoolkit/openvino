@@ -21,6 +21,8 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     enum PadMode {
         CONSTANT = 0,
@@ -63,6 +65,14 @@ private:
             node->padConstantCommon<T>();
         }
     };
+
+    std::string errorPrefix;
+    static const size_t DATA_ID = 0;
+    static const size_t PADS_BEGIN_ID = 1;
+    static const size_t PADS_END_ID = 2;
+    static const size_t PAD_VALUE_ID = 3;
+
+    bool isPadValueSpecified = false;
 };
 
 }  // namespace MKLDNNPlugin
