@@ -72,28 +72,38 @@ memory memory::share_surface(const engine& engine, const layout& layout, shared_
 #endif
 
 size_t memory::count() const {
-    if (_impl)  return get_layout().count();
-    else return 0;
+    if (_impl)
+        return get_layout().count();
+    else
+        return 0;
 }
 
 size_t memory::size() const {
-    if (_impl)  return _impl->size();
-    else return 0;
+    if (_impl)
+        return _impl->size();
+    else
+        return 0;
 }
 
 const layout& memory::get_layout() const {
-    if (_impl)  return _impl->get_layout();
-    else throw std::runtime_error("empty memory object");
+    if (_impl)
+        return _impl->get_layout();
+    else
+        throw std::runtime_error("empty memory object");
 }
 
 int memory::get_net_id() const {
-    if (_impl)  return _impl->get_net_id();
-    else throw std::runtime_error("empty memory object");
+    if (_impl)
+        return _impl->get_net_id();
+    else
+        throw std::runtime_error("empty memory object");
 }
 
 bool memory::is_allocated_by(const engine& engine) const {
-    if (_impl)  return _impl->is_allocated_by(*engine.get());
-    else return false;
+    if (_impl)
+        return _impl->is_allocated_by(*engine.get());
+    else
+        return false;
 }
 
 bool memory::is_the_same_buffer(const memory& other) const {
@@ -115,8 +125,10 @@ bool memory::is_the_same_buffer(const memory& other) const {
 }
 
 shared_mem_params memory::get_internal_params() const {
-    if (_impl)  return _impl->get_internal_params();
-    else throw std::runtime_error("empty memory object");
+    if (_impl)
+        return _impl->get_internal_params();
+    else
+        throw std::runtime_error("empty memory object");
 }
 
 memory memory::attach_impl(const cldnn::layout& layout, void* ptr, uint32_t net_id) {
@@ -124,8 +136,10 @@ memory memory::attach_impl(const cldnn::layout& layout, void* ptr, uint32_t net_
 }
 
 void* memory::lock_impl() const {
-    if (_impl)  return _impl->lock();
-    else return nullptr;
+    if (_impl)
+        return _impl->lock();
+    else
+        return nullptr;
 }
 
 void memory::unlock() const {

@@ -88,13 +88,13 @@ public:
         const MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+            precision,
             shapes.first,
             testValues.actual.precisionBeforeDequantization1,
             testValues.actual.dequantization1,
             shapes.second,
             testValues.actual.precisionBeforeDequantization2,
             testValues.actual.dequantization2);
-
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
@@ -102,6 +102,7 @@ public:
         referenceFunction =
             (testValues.expected.precisionBeforeOperation1 == ngraph::element::f32) && testValues.expected.result.empty() ?
             ngraph::builder::subgraph::MatMulFunction::getOriginal(
+                precision,
                 shapes.first,
                 testValues.actual.precisionBeforeDequantization1,
                 testValues.actual.dequantization1,
@@ -139,7 +140,7 @@ TEST_P(MatMulTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {

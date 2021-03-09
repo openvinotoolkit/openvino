@@ -154,7 +154,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
     DispatchData dispatchData;
 
     dispatchData.gws = { out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v };
-    dispatchData.lws= GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }

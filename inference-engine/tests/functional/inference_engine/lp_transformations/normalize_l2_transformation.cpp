@@ -43,6 +43,7 @@ public:
 };
 
 typedef std::tuple<
+    ngraph::element::Type,
     ngraph::Shape,
     ngraph::op::EpsMode,
     std::vector<size_t>,
@@ -51,13 +52,15 @@ typedef std::tuple<
 class NormalizeL2Transformation : public LayerTransformation, public testing::WithParamInterface<NormalizeL2TransformationParams> {
 public:
     void SetUp() override {
+        ngraph::element::Type precision;
         ngraph::Shape shape;
         ngraph::op::EpsMode epsMode;
         std::vector<size_t> axes;
         NormalizeL2TransformationTestValues params;
-        std::tie(shape, epsMode, axes, params) = GetParam();
+        std::tie(precision, shape, epsMode, axes, params) = GetParam();
 
         actualFunction = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+            precision,
             params.actual.inputPrecision,
             shape,
             epsMode,
@@ -70,6 +73,7 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
+            precision,
             params.expected.inputPrecision,
             shape,
             epsMode,
@@ -80,14 +84,16 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
+        ngraph::element::Type precision;
         ngraph::Shape shape;
         ngraph::Shape axes;
         ngraph::op::EpsMode epsMode;
         NormalizeL2TransformationTestValues params;
-        std::tie(shape, epsMode, axes, params) = obj.param;
+        std::tie(precision, shape, epsMode, axes, params) = obj.param;
 
         std::ostringstream result;
         result <<
+            precision << "_" <<
             toString(params.transformationParams) << shape << "_" <<
             axes << "_" << epsMode << "_" << params.actual.inputPrecision << "_" <<
             params.actual.dequantization;
@@ -100,6 +106,11 @@ TEST_P(NormalizeL2Transformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
+};
 
 const std::vector<ngraph::Shape> shapes = {
     { 1, 3, 16, 16 }
@@ -116,76 +127,76 @@ std::vector<std::vector<size_t>> axes = {
 };
 
 const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
-    // U8 per tensor quantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {2.f}, {-12.3f}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {2.f}, {-12.3f}},
-            ngraph::element::f32,
-            {}
-        }
-    },
-    // U8 per tensor quantization without subtract
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {-12.3f}}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            ngraph::element::f32,
-            {{}, {}, {-1.f}}
-        }
-    },
-    // U8 per channel quantization with the same values
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{12.3f, 12.3f, 12.3f}}}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            ngraph::element::f32,
-            {{}, {}, {{1.f, 1.f, 1.f}}}
-        }
-    },
-    // U8 per channel quantization with different values
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}},
-            ngraph::element::f32,
-            {}
-        }
-    },
-    // U8 not update precisions
-    {
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-        {
-            ngraph::element::f32,
-            {{}, {}, {12.3f}}
-        },
-        {
-            ngraph::element::f32,
-            {},
-            ngraph::element::f32,
-            {{}, {}, {1.f}}
-        }
-    },
+//    // U8 per tensor quantization
+//    {
+//        LayerTransformation::createParamsU8I8(),
+//        {
+//            ngraph::element::u8,
+//            {{ngraph::element::f32}, {2.f}, {-12.3f}}
+//        },
+//        {
+//            ngraph::element::u8,
+//            {{ngraph::element::f32}, {2.f}, {-12.3f}},
+//            ngraph::element::f32,
+//            {}
+//        }
+//    },
+//    // U8 per tensor quantization without subtract
+//    {
+//        LayerTransformation::createParamsU8I8(),
+//        {
+//            ngraph::element::u8,
+//            {{ngraph::element::f32}, {}, {-12.3f}}
+//        },
+//        {
+//            ngraph::element::u8,
+//            {},
+//            ngraph::element::f32,
+//            {{}, {}, {-1.f}}
+//        }
+//    },
+//    // U8 per channel quantization with the same values
+//    {
+//        LayerTransformation::createParamsU8I8(),
+//        {
+//            ngraph::element::u8,
+//            {{ngraph::element::f32}, {}, {{12.3f, 12.3f, 12.3f}}}
+//        },
+//        {
+//            ngraph::element::u8,
+//            {},
+//            ngraph::element::f32,
+//            {{}, {}, {{1.f, 1.f, 1.f}}}
+//        }
+//    },
+//    // U8 per channel quantization with different values
+//    {
+//        LayerTransformation::createParamsU8I8(),
+//        {
+//            ngraph::element::u8,
+//            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}}
+//        },
+//        {
+//            ngraph::element::u8,
+//            {{ngraph::element::f32}, {}, {{12.3f, -12.3f, 12.3f}}},
+//            ngraph::element::f32,
+//            {}
+//        }
+//    },
+//    // U8 not update precisions
+//    {
+//        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+//        {
+//            ngraph::element::f32,
+//            {{}, {}, {12.3f}}
+//        },
+//        {
+//            ngraph::element::f32,
+//            {},
+//            ngraph::element::f32,
+//            {{}, {}, {1.f}}
+//        }
+//    },
     // U8 without dequantization
     {
         LayerTransformation::createParamsU8I8(),
@@ -262,6 +273,7 @@ INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
+        ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(epsMode),
         ::testing::ValuesIn(axes),

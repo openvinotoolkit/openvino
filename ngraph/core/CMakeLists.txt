@@ -53,6 +53,8 @@ endif()
 
 target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
 
+ie_mark_target_as_cc(ngraph)
+
 if(NGRAPH_ADDRESS_SANITIZER)
     message(STATUS "Enable Address Sanitizer")
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)

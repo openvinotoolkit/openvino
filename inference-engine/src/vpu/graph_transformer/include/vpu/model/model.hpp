@@ -139,8 +139,8 @@ public:
             const Data& data);
 
     StageDependency addStageDependency(
-            const Stage& stage,
-            const Data& data);
+            const Stage& parent,
+            const Stage& child);
 
     StageTempBuffer addTempBuffer(
             const Stage& stage,
@@ -158,16 +158,16 @@ public:
             const StageOutput& edge,
             const Data& newOutput);
 
-    void replaceStageDependency(
+    void replaceStageDependencyParent(
             const StageDependency& edge,
-            const Data& newDependency);
+            const Stage& newParent);
 
-    void replaceDependentStage(
+    void replaceStageDependencyChild(
             const StageDependency& edge,
-            const Stage& newDependentStage);
+            const Stage& newChild);
 
     void removeStageDependency(const StageDependency& edge);
-    void removeStageDependency(const Stage& stage, const Data& dependency);
+    void removeStageDependency(const Stage& parent, const Stage& child);
 
     //
     // Stage <-> Stage edges

@@ -132,7 +132,7 @@ def attr_getter(node: Node, name: str):
 
 
 def bool_to_str(node: Node, attr: str):
-    # Function converts 0/1 or bool False/True values to str 'false'/'true' which need to appear in IR
+    # Function converts 0/1 or bool False/True or '0'/'1' values to str 'false'/'true' which need to appear in IR
     attribute_name = node.soft_get(attr, None)
     if attribute_name is None:
         return None
@@ -140,6 +140,8 @@ def bool_to_str(node: Node, attr: str):
         return str(attribute_name).lower()
     elif attribute_name in [0, 1]:
         return str(bool(attribute_name)).lower()
+    elif attribute_name in ['0', '1']:
+        return str(bool(int(attribute_name))).lower()
     else:
         raise Error('Wrong value {} for boolean attribute {} in node {}'.format(
             attribute_name, attr, node.soft_get('name')))

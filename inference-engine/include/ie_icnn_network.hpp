@@ -17,7 +17,6 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
-#include "details/ie_irelease.hpp"
 
 #if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN || 1
 # define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
@@ -45,7 +44,7 @@ using OutputsDataMap = std::map<std::string, DataPtr>;
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_ICNNNETWORK_CLASS(ICNNNetwork) : public details::IRelease {
+class INFERENCE_ENGINE_ICNNNETWORK_CLASS(ICNNNetwork): public std::enable_shared_from_this<ICNNNetwork> {
 public:
     /**
      * @brief A shared pointer to a ICNNNetwork interface
@@ -72,8 +71,8 @@ public:
      * This method need to be called to find out OpenVINO output names for using them later
      * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
-     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
      *
      * @param out Reference to the OutputsDataMap object
      */
@@ -87,8 +86,8 @@ public:
      * This method need to be called to find out OpenVINO input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
-     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
      *
      * @param inputs Reference to InputsDataMap object.
      */
@@ -200,25 +199,10 @@ public:
         return NOT_IMPLEMENTED;
     }
 
+protected:
     /**
-     * @brief Methods maps framework operation name to OpenVINO name
-     *
-     * @param ov_name OpenVINO name
-     * @param orig_name Framework operation name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     *
-     * @return Status code of the operation
+     * @brief Default destructor.
      */
-    virtual StatusCode getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
-        (void) ov_name;
-        (void) orig_name;
-        (void) resp;
-        return NOT_IMPLEMENTED;
-    }
-
-    /**
-     * @brief A virtual destructor.
-     */
-    virtual ~ICNNNetwork();
+    ~ICNNNetwork() = default;
 };
 }  // namespace InferenceEngine

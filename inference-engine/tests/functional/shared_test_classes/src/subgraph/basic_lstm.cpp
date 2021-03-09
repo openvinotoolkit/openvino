@@ -105,6 +105,7 @@ void Basic_LSTM_S::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     LoadNetwork();
+    GenerateInputs();
     Infer();
 
     const auto& actualOutputs = GetOutputs();

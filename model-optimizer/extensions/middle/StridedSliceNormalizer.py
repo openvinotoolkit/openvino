@@ -102,6 +102,10 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
         return [LayoutChangeForConstantShapePaths]
 
+    def run_after(self):
+        from extensions.middle.SliceConverter import ConvertSlice
+        return [ConvertSlice]
+
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(type='StridedSlice'):
             StridedSliceNormalizer.normalize_strided_slice(graph, node)
@@ -116,7 +120,8 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             # Until now it was not possible to set correct permutations
             PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:1', 'slice', 'dim_size')
             PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:2', 'slice', 'dim_size')
-            PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'slice', 'dim_size')
+            if node.is_in_port_connected(3):
+                PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'slice', 'dim_size')
 
     @staticmethod
     def normalize_strided_slice(graph: Graph, node: Node):
@@ -157,12 +162,12 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         node_name = node.soft_get('name', node.id)
 
         for i, input_name in [(1, 'begin'), (2, 'end'), (3, 'strides')]:
+            if i == 3 and not node.is_in_port_connected(3):
+                continue  # no need to extend strides if they are not connected
+
             blank_values_arr = np.zeros(num_insertions) if input_name != 'strides' else np.ones(num_insertions)
             blank_values_node = Const(graph, {'name': node_name + '/const_to_unroll_{}_ellipsis'.format(input_name),
                                               'value': int64_array(blank_values_arr)}).create_node()
-
-            if i == 3 and node.in_port(3).disconnected():
-                continue  # no need to extend strides if they are not connected
 
             concat_in_ports_count = 3 if ellipsis_start != 0 else 2
             concat = Concat(graph, {'axis': 0, 'name': node_name + '/concat_{}'.format(input_name),
@@ -190,12 +195,12 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         node_name = node.soft_get('name', node.id)
 
         for i, input_name in [(1, 'begin'), (2, 'end'), (3, 'strides')]:
+            if i == 3 and not node.is_in_port_connected(3):
+                continue  # no need to extend strides if they are not connected
+
             blank_values_arr = np.zeros(num_insertions) if input_name != 'strides' else np.ones(num_insertions)
             blank_values_node = Const(graph, {'name': node_name + '/extend_{}_const'.format(input_name),
                                               'value': int64_array(blank_values_arr)}).create_node()
-
-            if i == 3 and node.in_port(3).disconnected():
-                continue  # no need to extend strides if they are not connected
 
             if node.in_port(i).get_source().node.soft_get('type') == 'Concat':
                 # concat already exists
@@ -227,7 +232,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             if strides is None:
                 raise Error('StridedSlice operation for node {} supports only constant strides input'.format(node_name))
         else:
-            strides = np.ones(slice_rank)
+            strides = np.ones(len(node['slices']), dtype=np.int32)
 
         num_ellipsis_inserts = len(data_shape) - slice_rank + np.count_nonzero(node.new_axis_mask) + 1
         res_slices = []

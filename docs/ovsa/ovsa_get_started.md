@@ -606,7 +606,7 @@ This example uses `curl` to download the `face-detection-retail-004` model from 
 2. Download a model from the Model Zoo:
    ```sh
    cd $OVSA_DEV_ARTEFACTS	
-   curl --create-dirs https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://   download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o    model/face-detection-retail-0004.bin
+   curl --create-dirs https://storage.openvinotoolkit.org/repositories/open_model_zoo/2021.3/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://   storage.openvinotoolkit.org/repositories/open_model_zoo/2021.3/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o    model/face-detection-retail-0004.bin
    ```
    The model is downloaded to the `OVSA_DEV_ARTEFACTS/model` directory.
 	

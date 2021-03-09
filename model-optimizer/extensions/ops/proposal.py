@@ -31,7 +31,7 @@ class ProposalOp(Op):
             'post_nms_topn': 300,  # default in caffe-shared
             'infer': ProposalOp.proposal_infer,
             'in_ports_count': 3,
-            'out_ports_count': 2,
+            'out_ports_count': 1 if attrs.get('version') == 'opset1' else 2,
             'normalize': False,
             'clip_before_nms': True,
             'clip_after_nms': False,

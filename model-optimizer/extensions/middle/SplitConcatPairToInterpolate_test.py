@@ -503,6 +503,81 @@ ref_graph_node_attrs_for_3d_spatial_case_2 = {
 }
 
 
+graph_node_attrs_when_there_are_two_splits_one_concat = {
+    'placeholder1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder1_data': {
+        'value': None,
+        'shape': int64_array([1, 13, 13, 3, 2]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'placeholder2': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder2_data': {
+        'value': None,
+        'shape': int64_array([1, 13, 13, 3, 2]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'split1': {'type': 'Split', 'kind': 'op', 'op': 'Split', 'num_splits': 2},
+    'split1_axis_const': {
+        'kind': 'op',
+        'value': np.array(4, dtype=np.int64),
+        'op': 'Const',
+        'type': 'Const'
+    },
+    'split1_axis_const_data': {
+        'value': np.array(4, dtype=np.int64),
+        'shape': np.array(4, dtype=np.int64).shape,
+        'kind': 'data'
+    },
+    'split2': {'type': 'Split', 'kind': 'op', 'op': 'Split', 'num_splits': 2},
+    'split2_axis_const': {
+        'kind': 'op',
+        'value': np.array(4, dtype=np.int64),
+        'op': 'Const',
+        'type': 'Const'
+    },
+    'split2_axis_const_data': {
+        'value': np.array(4, dtype=np.int64),
+        'shape': np.array(4, dtype=np.int64).shape,
+        'kind': 'data'
+    },
+    'split1_data_0': {'value': None, 'shape': int64_array([1, 13, 13, 3, 1]), 'kind': 'data'},
+    'split1_data_1': {'value': None, 'shape': int64_array([1, 13, 13, 3, 1]), 'kind': 'data'},
+    'split2_data_0': {'value': None, 'shape': int64_array([1, 13, 13, 3, 1]), 'kind': 'data'},
+    'split2_data_1': {'value': None, 'shape': int64_array([1, 13, 13, 3, 1]), 'kind': 'data'},
+    'concat': {'type': 'Concat', 'kind': 'op', 'axis': 4},
+    'concat_data': {'value': None, 'shape': int64_array([1, 13, 13, 3, 4]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 13, 13, 3, 4]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
+
+
+graph_edges_when_there_are_two_splits_one_concat = [
+    ('placeholder1', 'placeholder1_data'),
+    ('placeholder2', 'placeholder2_data'),
+    ('placeholder1_data', 'split1', {'in': 0}),
+    ('split1_axis_const', 'split1_axis_const_data'),
+    ('split1_axis_const_data', 'split1', {'in': 1}),
+    ('split1', 'split1_data_0', {'out': 0}),
+    ('split1', 'split1_data_1', {'out': 1}),
+    ('placeholder2_data', 'split2', {'in': 0}),
+    ('split2_axis_const', 'split2_axis_const_data'),
+    ('split2_axis_const_data', 'split2', {'in': 1}),
+    ('split2', 'split2_data_0', {'out': 0}),
+    ('split2', 'split2_data_1', {'out': 1}),
+    ('split1_data_0', 'concat', {'in': 0}),
+    ('split1_data_1', 'concat', {'in': 1}),
+    ('split2_data_0', 'concat', {'in': 2}),
+    ('split2_data_1', 'concat', {'in': 3}),
+    ('concat', 'concat_data'),
+    ('concat_data', 'abs'),
+    ('abs', 'abs_data'),
+    ('abs_data', 'output')
+]
+
+
 class SplitConcatPairToInterpolateTest(unittest.TestCase):
     def test_spatial_2d_split_concat_1(self):
         graph = build_graph(
@@ -597,6 +672,19 @@ class SplitConcatPairToInterpolateTest(unittest.TestCase):
         ref_graph = build_graph(
             nodes_attrs=ref_graph_node_attrs_for_3d_spatial_case_2,
             edges=ref_graph_edges_opset4
+        )
+        SplitConcatPairToInterpolate().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        self.assertTrue(flag, resp)
+
+    def test_two_splits_one_concat(self):
+        graph = build_graph(
+            nodes_attrs=graph_node_attrs_when_there_are_two_splits_one_concat,
+            edges=graph_edges_when_there_are_two_splits_one_concat
+        )
+        ref_graph = build_graph(
+            nodes_attrs=graph_node_attrs_when_there_are_two_splits_one_concat,
+            edges=graph_edges_when_there_are_two_splits_one_concat
         )
         SplitConcatPairToInterpolate().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')

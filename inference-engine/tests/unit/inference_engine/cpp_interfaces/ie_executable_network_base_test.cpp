@@ -33,8 +33,7 @@ protected:
 
     virtual void SetUp() {
         mockExeNetwork = make_shared<MockExecutableNetworkThreadSafeAsyncOnly>();
-        exeNetwork = details::shared_from_irelease(
-                new ExecutableNetworkBase(mockExeNetwork));
+        exeNetwork = std::make_shared<ExecutableNetworkBase>(mockExeNetwork);
         InputsDataMap networkInputs;
         OutputsDataMap networkOutputs;
         mockAsyncInferRequestInternal = make_shared<MockAsyncInferRequestInternal>(networkInputs, networkOutputs);
@@ -108,8 +107,7 @@ protected:
 
     virtual void SetUp() {
         mockExeNetwork = make_shared<MockExecutableNetworkThreadSafe>();
-        exeNetwork = details::shared_from_irelease(
-                new ExecutableNetworkBase(mockExeNetwork));
+        exeNetwork = std::make_shared<ExecutableNetworkBase>(mockExeNetwork);
         InputsDataMap networkInputs;
         OutputsDataMap networkOutputs;
         mockInferRequestInternal = make_shared<MockInferRequestInternal>(networkInputs, networkOutputs);

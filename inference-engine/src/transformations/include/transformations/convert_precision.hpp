@@ -69,15 +69,18 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *     LessEqual
  */
 
+using type_to_fuse_map = std::map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to)
+    ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to, type_to_fuse_map additional_type_to_fuse_map = {})
         : FunctionPass(),
         m_from(from),
-        m_to(to) {}
+        m_to(to),
+        m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
 
     bool run_on_function(std::shared_ptr<Function> f) override;
 private:
     element::Type m_from, m_to;
+    type_to_fuse_map m_additional_type_to_fuse_map;
 };

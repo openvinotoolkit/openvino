@@ -26,6 +26,7 @@
 #include "program_dump_graph.h"
 #include "program_impl.h"
 #include "sliding_window_utils.h"
+#include "program_helpers.h"
 
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
@@ -375,7 +376,9 @@ void program_impl::build_program(bool is_internal) {
     if (!is_internal)
         prim_info = get_current_stage_info();
 
-    if (!is_internal)  transfer_memory_to_device();
+    if (!is_internal)
+        transfer_memory_to_device();
+
     cleanup();
 }
 
@@ -531,12 +534,19 @@ void program_impl::transfer_memory_to_device() {
     for (auto& node : processing_order) {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
+            auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
+            auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
+
+            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+                std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
+                throw std::invalid_argument(err_str);
+            }
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(mem.get_layout(),
+                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout,
                                                                     allocation_type::usm_device,
                                                                     mem.get_net_id(),
                                                                     false);
@@ -1221,7 +1231,8 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
-            prim.type() != cldnn::region_yolo::type_id())
+            prim.type() != cldnn::region_yolo::type_id() &&
+            prim.type() != cldnn::mvn::type_id())
             can_use_fsv16 = false;
 
         if (prim.type() == cldnn::quantize::type_id() &&

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,17 +51,12 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
 }
 
 bool FuseConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    auto op = m.get_match_root();
+    const auto op = m.get_match_root();
     if (!canBeTransformed(context, op)) {
         return false;
     }
 
-    std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
-    // issue #40395
-    if (convert == nullptr) {
-        return false;
-    }
-
+    const auto convert = as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
     std::shared_ptr<Node> parent = convert->get_input_node_shared_ptr(0);
 
     if (is_type<opset1::Constant>(parent)) {
@@ -99,6 +94,17 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
 }
 
 bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    const auto convert = as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
+    // issue #40395
+    if (convert == nullptr) {
+        return false;
+    }
+
+    const auto destType = convert->get_destination_type();
+    if ((destType != element::f16) && (destType != element::f32)) {
+        return false;
+    }
+
     return true;
 }
 

@@ -1,8 +1,9 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/loop.hpp"
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -143,6 +144,7 @@ namespace LayerTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
         std::tie(
+            unrolling,
             static_continue_cond,
             args_papck,
             start_value,
@@ -212,6 +214,11 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(
                 ngraph::OutputVector {loop},
                 params);
+        if (unrolling) {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            manager.run_passes(function);
+        }
     }
 
     InferenceEngine::Blob::Ptr StaticShapeLoopTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

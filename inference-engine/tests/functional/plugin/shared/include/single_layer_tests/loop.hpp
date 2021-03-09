@@ -20,6 +20,7 @@ TEST_P(StaticShapeLoopTest, CompareWithRefs) {
 TEST_P(StaticShapeLoopTest, CompareWithPredefinedRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     LoadNetwork();
+    GenerateInputs();
     Infer();
     auto expectedOutputs = PredefinedRefs(); // use predefined refs instead of CalculateRefs function
     const auto& actualOutputs = GetOutputs();

@@ -33,7 +33,6 @@ public:
     MOCK_QUALIFIED_METHOD3(GetMetric, const noexcept, StatusCode(const std::string &name, Parameter &result, ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD2(GetContext, const noexcept, StatusCode(RemoteContext::Ptr &pContext, ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD3(QueryState, noexcept, StatusCode(IVariableState::Ptr &, size_t, ResponseDesc *));
-    MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
 };
 
 IE_SUPPRESS_DEPRECATED_END

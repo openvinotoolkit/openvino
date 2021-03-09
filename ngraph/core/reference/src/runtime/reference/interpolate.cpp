@@ -14,9 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/interpolate.hpp"
-#include <numeric>
 #include "ngraph/runtime/reference/interpolate.hpp"
+#include <numeric>
 
 using namespace ngraph::runtime::reference;
 

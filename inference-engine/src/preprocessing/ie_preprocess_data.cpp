@@ -36,18 +36,13 @@ public:
 
     void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial, int batchSize = -1) override;
 
-    void Release() noexcept override;
-
     void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) override;
 };
 
-StatusCode CreatePreProcessData(IPreProcessData *& data, ResponseDesc * /*resp*/) noexcept {
-    data = new PreProcessData();
-    return StatusCode::OK;
-}
+INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
-void PreProcessData::Release() noexcept {
-    delete this;
+INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data) {
+    data = std::make_shared<PreProcessData>();
 }
 
 void PreProcessData::setRoiBlob(const Blob::Ptr &blob) {

@@ -17,6 +17,7 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.middle.L2NormFusing import L2NormToNorm
 from mo.front.common.partial_infer.utils import int64_array
@@ -79,18 +80,31 @@ edges_after_replacement = [
 ]
 
 
+@generator
 class L2NormToNormTest(unittest.TestCase):
-    def test_2D(self):
-        input_shape = int64_array([1, 300])
-        axes = int64_array([1])
-
+    @generate(*[(int64_array([2, 3]), int64_array([1]), 'NCHW'),  # NC layout, normalize C dimension
+                (int64_array([2, 3]), int64_array([1]), 'NHWC'),  # NC layout, normalize C dimension
+                (int64_array([2, 3, 5]), int64_array([1]), 'NCHW'),  # NCH layout, normalize C dimension
+                (int64_array([2, 3, 5]), int64_array([1]), 'NHWC'),  # NCH layout, normalize C dimension
+                (int64_array([2, 3, 5]), int64_array([-1, -2]), 'NHWC'),  # NCH layout, normalize CH dimensions
+                (int64_array([2, 3, 5]), int64_array([-1, -2]), 'NCHW'),  # NCH layout, normalize CH dimensions
+                (int64_array([2, 3, 5]), int64_array([1, 2]), 'NCHW'),  # NCH layout, normalize CH dimensions
+                (int64_array([2, 3, 5]), int64_array([1, 2]), 'NHWC'),  # NCH layout, normalize CH dimensions
+                (int64_array([2, 3, 5, 7]), int64_array([1]), 'NCHW'),  # NCHW layout, normalize C dimension
+                (int64_array([2, 3, 5, 7]), int64_array([-1]), 'NHWC'),  # NHWC layout, normalize C dimension
+                (int64_array([2, 3, 5, 7]), int64_array([3]), 'NHWC'),  # NCHW layout, normalize C dimension
+                (int64_array([2, 3, 5, 7]), int64_array([-1, 1, 2]), 'NCHW'),  # NCHW layout, normalize CHW dimensions
+                (int64_array([2, 3, 5, 7]), int64_array([-3, -2, -1]), 'NHWC'),  # NCHW layout, normalize HWC dimensions
+                ])
+    def test_positive(self, input_shape, axes, layout):
         graph = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
             ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=axes.shape)),
+            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
         ], edges, nodes_with_edges_only=True)
         graph.stage = 'middle'
+        graph.graph['layout'] = layout
 
         L2NormToNorm().find_and_replace_pattern(graph)
 
@@ -104,10 +118,43 @@ class L2NormToNormTest(unittest.TestCase):
         self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
         self.assertTrue(flag, resp)
 
-    def test_2D_scalar_axis(self):
-        input_shape = int64_array([1, 300])
-        axes = int64_array(1)
-
+    @generate(*[(int64_array([2]), int64_array([0]), 'NCHW'),
+                (int64_array([2, 3]), int64_array([0]), 'NCHW'),
+                (int64_array([2, 3]), int64_array([0]), 'NHWC'),
+                (int64_array([2, 3]), int64_array([0, 1]), 'NCHW'),
+                (int64_array([2, 3]), int64_array([0, 1]), 'NHWC'),
+                (int64_array([2, 3, 5]), int64_array([0]), 'NCHW'),
+                (int64_array([2, 3, 5]), int64_array([0]), 'NHWC'),
+                (int64_array([2, 3, 5]), int64_array([-1]), 'NCHW'),
+                (int64_array([2, 3, 5]), int64_array([-1]), 'NHWC'),
+                (int64_array([2, 3, 5]), int64_array([0, 1]), 'NCHW'),
+                (int64_array([2, 3, 5]), int64_array([0, 1]), 'NHWC'),
+                (int64_array([2, 3, 5]), int64_array([0, 2]), 'NCHW'),
+                (int64_array([2, 3, 5]), int64_array([0, 2]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([0]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([0]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([2]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([2]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([3]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([1]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([1, 2]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([1, -1]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([1, -1]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([-2, -1]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([1, 3]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([2, 3]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([0, 1, 2]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([0, 1, 2]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([0, 2, 3]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([0, 2, 3]), 'NHWC'),
+                (int64_array([2, 3, 5, 7]), int64_array([0, 1, 2, 3]), 'NCHW'),
+                (int64_array([2, 3, 5, 7]), int64_array([0, 1, 2, 3]), 'NHWC'),
+                (int64_array([2, 3, 5, 7, 9]), int64_array([1]), 'NCHW'),
+                (int64_array([2, 3, 5, 7, 9]), int64_array([-1]), 'NHWC'),
+                (int64_array([2, 3, 5, 7, 9]), int64_array([1, 2, 3, 4]), 'NCHW'),
+                (int64_array([2, 3, 5, 7, 9]), int64_array([-1, -2, -3, -4]), 'NHWC'),
+                ])
+    def test_negative(self, input_shape, axes, layout):
         graph = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
@@ -115,297 +162,7 @@ class L2NormToNormTest(unittest.TestCase):
             ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
         ], edges, nodes_with_edges_only=True)
         graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', value=int64_array([axes]).sort())),
-        ], edges_after_replacement, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
-        self.assertTrue(flag, resp)
-
-    def test_3D(self):
-        input_shape = int64_array([1, 300, 300])
-        axes = int64_array([1, 2])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', value=axes.sort())),
-        ], edges_after_replacement, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
-        self.assertTrue(flag, resp)
-
-    def test_4D(self):
-        input_shape = int64_array([1, 300, 300, 3])
-        axes = int64_array([1, 2, 3])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', value=axes.sort())),
-        ], edges_after_replacement, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
-        self.assertTrue(flag, resp)
-
-    def test_4D_mixed_axes(self):
-        input_shape = int64_array([1, 300, 300, 3])
-        axes = int64_array([3, 1, 2])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', value=axes.sort())),
-        ], edges_after_replacement, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
-        self.assertTrue(flag, resp)
-
-    def test_4D_multiple_consumers(self):
-        input_shape = int64_array([1, 300, 300, 3])
-        axes = int64_array([1, 2, 3])
-        weights_value = np.ones(shape=int64_array([input_shape[-1]]), dtype=np.float32)
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-            ('result_2', dict(kind='op', op='Result'))
-        ], edges + [('input_data', 'result_2')], nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', value=axes.sort())),
-            ('result_2', dict(kind='op', op='Result'))
-        ], edges_after_replacement + [('input_data', 'result_2')], nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
-        self.assertTrue(flag, resp)
-
-    def test_1D_negative(self):
-        input_shape = int64_array([300])
-        axes = int64_array([0])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_2D_negative(self):
-        input_shape = int64_array([1, 300])
-        axes = int64_array([0])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_3D_negative(self):
-        input_shape = int64_array([1, 300, 300])
-        axes = int64_array([2])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_4D_negative_1(self):
-        input_shape = int64_array([1, 300, 300, 3])
-        axes = int64_array([0, 1, 2])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_4D_negative_2(self):
-        input_shape = int64_array([1, 300, 300, 3])
-        axes = int64_array([2])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_4D_negative_3(self):
-        input_shape = int64_array([1, 300, 300, 3])
-        axes = int64_array([2, 1])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_4D_negative_4(self):
-        input_shape = int64_array([1, 300, 300, 3])
-        axes = int64_array([2, 0])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-
-        L2NormToNorm().find_and_replace_pattern(graph)
-
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-
-    def test_5D_negative(self):
-        input_shape = int64_array([1, 300, 300, 300, 3])
-        axes = int64_array([1, 2, 3, 4])
-
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
+        graph.graph['layout'] = layout
 
         L2NormToNorm().find_and_replace_pattern(graph)
 

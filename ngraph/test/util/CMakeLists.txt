@@ -22,6 +22,7 @@ set (SRC
     all_close_f.cpp
     engine/ie_engines.cpp
     engine/interpreter_engine.cpp
+    engine/shared_utils.cpp
     float_util.cpp
     test_tools.cpp
     test_control.cpp

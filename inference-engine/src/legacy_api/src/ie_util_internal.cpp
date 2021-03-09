@@ -569,20 +569,4 @@ void saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& ou
     out << "}" << std::endl;
 }
 
-std::unordered_set<DataPtr> getRootDataObjects(const CNNNetwork& network) {
-    std::unordered_set<DataPtr> ret;
-    details::CNNNetworkIterator i(network);
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-
-        // TODO: Data without creatorLayer
-        if (CaselessEq<string>()(layer->type, "input") || CaselessEq<string>()(layer->type, "const") ||
-            CaselessEq<string>()(layer->type, "memory")) {
-            ret.insert(layer->outData.begin(), layer->outData.end());
-        }
-        i++;
-    }
-    return ret;
-}
-
 }  // namespace InferenceEngine

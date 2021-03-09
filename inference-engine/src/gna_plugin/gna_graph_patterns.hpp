@@ -140,10 +140,6 @@ inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNN
 inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNLayerPtr layer) {
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
-        if (LayerInfo(layer).isSplit()) {
-            THROW_GNA_EXCEPTION << layer->name << " Failed to find transposition info";
-        }
-
         if (LayerInfo(layer).isConvolution() || LayerInfo(layer).isPooling()) {
             auto out_dims = layer->outData[0]->getDims();
             return {{true, out_dims[1], out_dims[2] * out_dims[3]}};
@@ -153,7 +149,7 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
          * its output size to skip this part during transposition if transposed layer is a result of concatination */
         if (LayerInfo(layer).isFullyConnected() || LayerInfo(layer).isInput()) {
             auto out_dims = layer->outData[0]->getDims();
-            return {{false, 1, InferenceEngine::details::product(std::begin(out_dims) + 1, std::end(out_dims))}};
+            return {{false, 1, InferenceEngine::details::product(std::begin(out_dims), std::end(out_dims))}};
         }
 
         // If an eltwise is reached we should follow only one not-const direction
@@ -168,10 +164,14 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
         for (int idx = 0; idx < layer->insData.size(); ++idx) {
             if (!InferenceEngine::CNNNetHasPrevLayer(layer.get(), idx)) continue;
             auto inputLayer = InferenceEngine::CNNNetPrevLayer(layer, idx);
-            // If a concat input is a const we should keep its size to skip this part during transposition
-            if (LayerInfo(layer).isConcat() && LayerInfo(inputLayer).isConst()) {
+            if (LayerInfo(inputLayer).isSplit()) {
+                // If we found split it's not possible to rotate data
                 auto in_dims = layer->insData[idx].lock()->getDims();
-                auto data_size = InferenceEngine::details::product(std::begin(in_dims) + 1, std::end(in_dims));
+                transpositionInfo.push_back({false, 1, InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims))});
+            } else if (LayerInfo(layer).isConcat() && LayerInfo(inputLayer).isConst()) {
+                // If a concat input is a const we should keep its size to skip this part during transposition
+                auto in_dims = layer->insData[idx].lock()->getDims();
+                auto data_size = InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims));
                 transpositionInfo.push_back({false, 1, data_size});
             } else {
                 std::vector<TranspositionInfo> results = findTranspositionInfoRecursive(inputLayer);
@@ -191,8 +191,6 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
 inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(InferenceEngine::CNNLayerPtr layer) {
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
-        if (LayerInfo(layer).isConcat()) return {};
-
         if (LayerInfo(layer).isConvolution()) {
             auto in_dims = layer->input()->getDims();
             return {{true, in_dims[1], in_dims[2] * in_dims[3]}};
@@ -200,18 +198,28 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
 
         /* If a fullyconnected or output layers are reached, it means that transposition isn't needed, but we should keep
          * its input size to skip this part during transposition if transposed layer is splitting */
-        if (LayerInfo(layer).isFullyConnected() || LayerInfo(layer).isOutput()) {
+        if (LayerInfo(layer).isFullyConnected() || layer->outData.empty()) {
             auto in_dims = layer->input()->getDims();
-            return {{false, 1, InferenceEngine::details::product(std::begin(in_dims) + 1, std::end(in_dims))}};
+            return {{false, 1, InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims))}};
         }
 
         std::vector<TranspositionInfo> transpositionInfo;
         for (const auto &output : layer->outData) {
-            if (getInputTo(output).empty()) continue;
+            if (getInputTo(output).empty()) {
+                auto out_dims = output->getDims();
+                transpositionInfo.push_back({false, 1, InferenceEngine::details::product(std::begin(out_dims), std::end(out_dims))});
+                continue;
+            }
             std::vector<TranspositionInfo> results;
             // Return transposition info from the first branch where convolution is found
             for (const auto &inputTo : getInputTo(output)) {
-                results = findTranspositionInfoRecursive(inputTo.second);
+                if (LayerInfo(inputTo.second).isConcat()) {
+                    // If we found concat it's not possible to rotate data
+                    auto out_dims = output->getDims();
+                    results = {{false, 1, InferenceEngine::details::product(std::begin(out_dims), std::end(out_dims))}};
+                } else {
+                    results = findTranspositionInfoRecursive(inputTo.second);
+                }
                 auto found = std::find_if(std::begin(results), std::end(results), [](const TranspositionInfo & result) {
                     return result.transpose;
                 });

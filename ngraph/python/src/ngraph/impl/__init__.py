@@ -32,10 +32,15 @@ if sys.platform == "win32":
     # PIP installs openvino and ngraph dlls 2 directories above in openvino.libs by default
     # and this path needs to be visible to the _pyngraph modules
     #
-    openvino_dlls = os.path.join(os.path.dirname(__file__), "..", "..", "openvino.libs")
+    openvino_dlls = os.path.join(os.path.dirname(__file__), "..", "..", "openvino", "libs")
     # If you're using a custom installation of openvino,
     # add the location of openvino dlls to your system PATH.
-    os.environ["PATH"] = os.path.abspath(openvino_dlls) + ";" + os.path.abspath(ngraph_dll) + ";" + os.environ["PATH"]
+    if (3, 8) <= sys.version_info:
+        # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
+        os.add_dll_directory(os.path.abspath(ngraph_dll))
+        os.add_dll_directory(os.path.abspath(openvino_dlls))
+    else:
+        os.environ["PATH"] = os.path.abspath(openvino_dlls) + ";" + os.path.abspath(ngraph_dll) + ";" + os.environ["PATH"]
 
 from _pyngraph import Dimension
 from _pyngraph import Function

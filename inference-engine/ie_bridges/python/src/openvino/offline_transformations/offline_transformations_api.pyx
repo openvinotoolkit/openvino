@@ -23,3 +23,6 @@ def ApplyMOCTransformations(IENetwork network, bool cf):
 
 def ApplyLowLatencyTransformation(IENetwork network):
     C.ApplyLowLatencyTransformation(network.impl)
+
+def CheckAPI():
+    C.CheckAPI()

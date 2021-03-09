@@ -70,6 +70,26 @@ class MVN(Op):
         copy_shape_infer(node)
 
 
+class MVNOnnx(Op):
+    op = 'MVNOnnx'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'kind': 'op',
+            'type': None,
+            'op': self.op,
+            'version': None,
+            'eps': None,
+            'eps_mode': None,
+            'normalize_variance': None,
+            'axes': None,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None
+        }, attrs)
+
+
 class MVNCaffe(Op):
     op = 'MVNCaffe'
     enabled = False
@@ -81,8 +101,8 @@ class MVNCaffe(Op):
             'op': self.op,
             'version': None,
             'eps': 1e-9,
-            'normalize_variance': 1,
-            'across_channels': 0,
+            'normalize_variance': None,
+            'across_channels': None,
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': None

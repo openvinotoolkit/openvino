@@ -318,6 +318,7 @@ set(MULTI_TEST_SRC
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
+    backend/recurrent_cells.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
     backend/reduce_min.in.cpp
@@ -444,15 +445,12 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-if (TARGET inference_engine)
-    target_link_libraries(unit-test PRIVATE inference_engine)
-endif()
+target_link_libraries(unit-test PRIVATE inference_engine)
+target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
-
-target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)

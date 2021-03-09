@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,6 @@ struct IENetwork {
     void convertToOldRepresentation();
 
     std::string getOVNameForTensor(const std::string& orig_name);
-    std::string getOVNameForOperation(const std::string& orig_name);
 };
 
 

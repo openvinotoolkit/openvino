@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -36,7 +37,7 @@ bool FakeQuantizeDequantization::empty() const {
     return (convert == nullptr) && (subtract == nullptr) && (multiply == nullptr);
 }
 
-bool FakeQuantizeDequantization::multiplyHasZero() const {
+bool FakeQuantizeDequantization::multiplyHasZeroOrDenormal() const {
     if (multiply == nullptr) {
         return false;
     }
@@ -50,7 +51,7 @@ bool FakeQuantizeDequantization::multiplyHasZero() const {
     }
 
     auto const values = multiplyConstant->cast_vector<float>();
-    return std::any_of(values.begin(), values.end(), [](const float value) { return value == 0.f; });
+    return std::any_of(values.begin(), values.end(), [](const float value) { return (value == 0.f) || (std::abs(value) < 1.e-32); });
 }
 
 bool FakeQuantizeDequantization::isShared() const {

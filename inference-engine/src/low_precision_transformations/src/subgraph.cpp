@@ -32,7 +32,7 @@ bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
         return true;
     }
 
-    const auto inputs = ngraph::pass::low_precision::NetworkHelper::getInputs(node);
+    const auto inputs = node->input_values();
     for (const auto& input : inputs) {
         if (ngraph::is_type<opset1::Constant>(input.get_node())) {
             continue;

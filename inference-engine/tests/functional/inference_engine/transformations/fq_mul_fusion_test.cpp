@@ -169,13 +169,6 @@ INSTANTIATE_TEST_CASE_P(FQOutputs_1D__multiplier_3D, FQMulFusion,
                                            ::testing::Values(ngraph::Shape{1, 3, 1}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQ_all_ones__multiplier_4D_with_channel, FQMulFusion,
-                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
-
 INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
@@ -356,6 +349,40 @@ TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2_param) {
     const auto res = compare_functions(function, expected_function);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, FakeQuantizeMultiplyFusionNegative) {
+    const auto data = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{1, 300, 1}, {0.0f});
+    const auto in_low = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{}, {-0.5f});
+    const auto in_high = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{}, {0.5f});
+    const auto out_low = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{}, {0.0f});
+    // out_high is a parameter, which means it should not be constant folded
+    const auto out_high =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{});
+    const auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(
+            data, in_low, in_high, out_low, out_high, 42);
+
+    const auto mul_value = ngraph::opset4::Constant::create(
+            ngraph::element::Type_t::f32, ngraph::Shape{1, 300, 16}, {3.14f});
+    // and here the output of FQ is passed as the second input of Mul
+    const auto mul = std::make_shared<ngraph::opset4::Multiply>(mul_value, fq);
+
+    auto function = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector{mul}, ngraph::ParameterVector{out_high});
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    ASSERT_EQ(function->get_output_shape(0), ngraph::Shape({1, 300, 16}));
+}
+
 
 } // namespace
 

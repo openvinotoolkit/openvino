@@ -107,7 +107,7 @@ static void saveBinaryToFile(std::string path, const std::vector<unsigned char> 
 #endif
     std::ofstream out_file(filename, std::ios::out | std::ios::binary);
     if (out_file.is_open()) {
-        out_file.write((char*)&buffer[0], buffer.size());
+        out_file.write(reinterpret_cast<const char*>(&buffer[0]), buffer.size());
     }
 }
 
@@ -288,7 +288,7 @@ kernels_cache::kernel_id kernels_cache::set_kernel_source(
     const auto kernel_num = _kernels.size() + _kernels_code.size();
     kernels_cache::kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
 
-    auto res = _kernels_code.emplace( kernel_string, id, dump_custom_program, one_time_kernel );
+    auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program, one_time_kernel);
 
     assert(_kernels.find(id) == _kernels.end());
     if (res.second) {
@@ -366,7 +366,7 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                     cl::Program program(_context.context(), sources_bucket_to_compile);
                     {
                         OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
-                        program.build({_context.device()}, program_source.options.c_str());
+                        program.build(_context.device(), program_source.options.c_str());
                     }
 
                     if (dump_sources && dump_file.good()) {
@@ -387,7 +387,7 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                     }
                 } else {
                     cl::Program program(_context.context(), {_context.device()}, precompiled_kernels);
-                    program.build({_context.device()}, program_source.options.c_str());
+                    program.build(_context.device(), program_source.options.c_str());
                     program.createKernels(&kernels);
                 }
 
@@ -413,7 +413,7 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
 
         if (!err_log.empty()) {
             static const size_t max_msg_length = 128;
-            std::string short_err_log = err_log.length() > max_msg_length ? err_log.erase(max_msg_length) : err_log;
+            std::string short_err_log(err_log, 0, std::min(err_log.length(), max_msg_length));
             throw std::runtime_error("Program build failed:\n" + std::move(short_err_log));
         }
 

@@ -42,6 +42,7 @@ onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
 # Result mismatch
+onnx_model_shape
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
 onnx_model_softmax
@@ -52,9 +53,6 @@ onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
 
 # data [<name>] doesn't exist
-onnx_model_sum_one_input
-onnx_model_shape
-onnx_model_eye_like
 convert_float32_bool
 broadcast_trivial
 aliased_output
@@ -62,7 +60,6 @@ bool_init_raw
 bool_const_op
 onnx_model_tile
 onnx_model_tile_static
-onnx_model_softmax_0D
 onnx_model_logsoftmax_0D
 builder_opset1_collapse_none
 
@@ -206,28 +203,21 @@ onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 onnx_model_max_pool_dyn_rank_without_default_attrs
 
-# LSTMSequence Layer is not instance of RNNLayer class
-# (Constant W, B, R inputs are required)
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_fwd_mixed_seq
-onnx_model_lstm_fwd_hardsigmoid_activation
-onnx_model_lstm_fwd_large_batch_no_clip
-onnx_model_lstm_bdir_short_input_seq_peepholes
-onnx_model_lstm_mixed_seq_reverse
-
-# GRUCell/GRUSequence operation has a form that is not supported
-# (Constant W, B, R inputs are required)
+# (Constant W, R inputs are required) Ticket: 49207
+# Function references undeclared parameters
+# LSTMSequence
+IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
+IE_CPU.onnx_model_lstm_fwd_mixed_seq
+IE_CPU.onnx_model_lstm_mixed_seq_reverse
+# GRUSequence
 IE_CPU.onnx_model_gru_defaults_fwd
-IE_CPU.onnx_model_gru_fwd_activations
 IE_CPU.onnx_model_gru_fwd_mixed_seq_len
 IE_CPU.onnx_model_gru_rev_clip
 IE_CPU.onnx_model_gru_reverse
 IE_CPU.onnx_model_gru_fwd_bias_initial_h
 IE_CPU.onnx_model_gru_bidirectional
 IE_CPU.onnx_model_gru_fwd_linear_before_reset
-
-# RNNCell/RNNSequence operation has a form that is not supported
-# (Constant W, B, R inputs are required)
+# RNNSequence
 IE_CPU.onnx_model_rnn_defaults_fwd
 IE_CPU.onnx_model_rnn_fwd_activations
 IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
@@ -236,13 +226,13 @@ IE_CPU.onnx_model_rnn_reverse
 IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 
-# RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
-IE_GPU.onnx_model_lstm_fwd_mixed_seq_const
-IE_GPU.onnx_model_lstm_reverse_mixed_seq_const
-IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
-IE_GPU.onnx_model_gru_fwd_mixed_seq_len
-IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Peepholes input unsupported
+onnx_model_lstm_fwd_with_clip_peepholes
+onnx_model_lstm_bdir_short_input_seq_peepholes
+# Activation function hardsigmoid is not supported
+onnx_model_gru_fwd_activations_relu_hardsigmoid
+onnx_model_lstm_fwd_hardsigmoid_activation
 
 # Const layer has incorrect dimensions in the output data
 IE_CPU.nothing_to_reverse
@@ -834,25 +824,6 @@ shuffle_channels_simple
 shuffle_channels_negative_axis
 shuffle_channels_float
 
-# Cannot cast ngraph node LSTMCell to CNNLayer!
-lstm_cell_no_bias_no_peepholes
-lstm_cell_zero_bias_peepholes
-lstm_cell_zero_bias_peepholes_constant
-lstm_cell_fixed_no_bias_no_peepholes
-lstm_cell_bias_peepholes
-lstm_cell_bias_peepholes_clip_input_forget
-lstm_cell_activaction_functions
-
-# RNNCell should be converted to RNNCellIE operation!
-rnn_cell_no_bias
-rnn_cell_bias_clip
-rnn_cell_activation_function
-
-# GRUCell should be converted to GRUCellIE operation!
-gru_cell_bias_clip
-gru_cell_linear_before_reset
-gru_cell_activation_function
-
 # Detected op not belonging to opset1!
 onnx_model_quant_conv_linear
 onnx_model_quant_conv_linear_2d
@@ -1094,6 +1065,19 @@ non_zero
 non_zero_all_1s
 non_zero_all_0s
 
+# (Constant W, R inputs are required) Ticket: 49207
+# W, R inputs as Parameter, default clip value
+# Operation has a form that is not supported.
+# LSTMCell_... should be converted to LSTMCellIE operation.
+lstm_cell_zero_bias_default_attrs
+lstm_cell_bias_default_attrs
+# RNNCell_.. should be converted to RNNCellIE operation.
+rnn_cell_zero_bias_default_attrs
+
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Activation function hardsigmoid is not supported
+gru_cell_hardsigmoid_activation_function
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
@@ -1150,12 +1134,6 @@ IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
-
-# RNN/LSTM Cells should be converted to IE representation
-IE_CPU.lstm_cell__zero_bias_peepholes
-IE_CPU.rnn_cell__no_bias
-IE_CPU.rnn_cell__bias_clip
-IE_CPU.rnn_cell__activation_function
 
 # function with NMS-5 to get the nGraph function with NMSIE3 (internal
 # operation, similar with NMS-5, but with all static output shapes), before
@@ -1478,7 +1456,14 @@ IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
 IE_GPU.onnx_dyn_shapes_model_asinh_3_2
-# IE_GPU.onnx_upsample9_scales_input_nearest_infer
+
+# RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
+IE_GPU.onnx_model_lstm_fwd_mixed_seq_const
+IE_GPU.onnx_model_lstm_reverse_mixed_seq_const
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
 
 IE_GPU.sum_matrix_6d
 IE_GPU.sqrt
@@ -1586,15 +1571,10 @@ IE_GPU.onnx_model_gather_elements_int32_axis_0
 IE_GPU.onnx_model_gather_elements_int8_axis_1
 IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 
-IE_CPU.evaluate_ctc_greedy_decoder_seq_len
 IE_GPU.evaluate_ctc_greedy_decoder_seq_len
-IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 IE_GPU.evaluate_ctc_greedy_decoder_seq_len_f16
-IE_CPU.evaluate_ctc_greedy_decoder_seq_len_merge
 IE_GPU.evaluate_ctc_greedy_decoder_seq_len_merge
-IE_CPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
 IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
-IE_CPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
 IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
 
 # incorrect result for Minimum if u16 type is used
@@ -1608,3 +1588,6 @@ evaluate_mvn_6_inside_sqrt
 evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
+
+# The test randomly fails in CI (MSVC2019 Debug)
+onnx_model_experimental_detectron_generate_proposals_single_image

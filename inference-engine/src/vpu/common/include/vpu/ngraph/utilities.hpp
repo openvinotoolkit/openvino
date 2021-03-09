@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,15 +6,31 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "ngraph/type.hpp"
 
 #include "vpu/utils/error.hpp"
-
+#include "vpu/ngraph/operations/static_shape_non_maximum_suppression.hpp"
+#include "vpu/ngraph/operations/static_shape_nonzero.hpp"
+#include "vpu/ngraph/operations/static_shape_topk.hpp"
+#include "vpu/ngraph/operations/out_shape_of_reshape.hpp"
 #include <stack>
 #include <deque>
 
 namespace vpu {
 
-std::vector<std::int64_t> evaluateTargetShape(const ngraph::Output<ngraph::Node>& value);
+using typeToFuseMap = std::map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
+
+bool fuseTypeToStaticShapeNonMaxSuppression(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuseTypeToStaticShapeNonZero(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuseTypeToStaticShapeTopK(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuseTypeToOutShapeOfReshape(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+
+static typeToFuseMap myriadTypeToFuseMap {
+     {ngraph::vpu::op::StaticShapeNonMaxSuppression::type_info, fuseTypeToStaticShapeNonMaxSuppression},
+     {ngraph::vpu::op::StaticShapeNonZero::type_info, fuseTypeToStaticShapeNonZero},
+     {ngraph::vpu::op::StaticShapeTopK::type_info, fuseTypeToStaticShapeTopK},
+     {ngraph::vpu::op::OutShapeOfReshape::type_info, fuseTypeToOutShapeOfReshape},
+};
 
 std::shared_ptr<ngraph::Node> shapeToConstant(const ngraph::element::Type& type, const ngraph::Shape& shape);
 

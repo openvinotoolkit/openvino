@@ -22,7 +22,6 @@ public:
 
 struct TestExecutableNetworkBase : public InferenceEngine::ExecutableNetworkBase {
     using InferenceEngine::ExecutableNetworkBase::_impl;
-    ~TestExecutableNetworkBase() override = default;
 };
 
 static MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetwork::Ptr execNetwork) {

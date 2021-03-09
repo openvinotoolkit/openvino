@@ -30,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(mkldnn::engine eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0)) : status(NotReady), eng(eng) {}
+    MKLDNNGraph() = default;
 
     Status GetStatus() {
         return status;
@@ -172,7 +172,7 @@ protected:
         graphEdges.clear();
         _meanImages.clear();
     }
-    Status status;
+    Status status { NotReady };
     Config config;
 
     // For dumping purposes. -1 - no counting, all other positive
@@ -191,7 +191,7 @@ protected:
     std::map<std::string, MeanImage> _meanImages;
     std::string _name;
 
-    mkldnn::engine eng;
+    static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
     void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);

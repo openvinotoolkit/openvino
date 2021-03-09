@@ -39,7 +39,6 @@ private:
     void RemoveIOScaleShifts(MKLDNNGraph& graph);
     void DropDoubleReorders(MKLDNNGraph& graph);
     void DropConvertReorder(MKLDNNGraph& graph);
-    void ChangeConvertToReorder(MKLDNNGraph &graph);
     void AddConvertToReorder(MKLDNNGraph &graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);

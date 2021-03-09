@@ -53,13 +53,14 @@ void PassImpl::run(const Model& model) {
                                                  DataDesc(DataType::S32, DimsOrder::C, {convertedShape->desc().totalDimSize()}),
                                                  generator);
 
-        _stageBuilder->addGatherStage(model,
-                                      shape->name() + "@convert-notation",
-                                      nullptr,
-                                      shape,
-                                      gatherIndices,
-                                      convertedShape,
-                                      Dim::C);
+        const auto& gather = _stageBuilder->addGatherStage(
+            model,
+            shape->name() + "@convert-notation",
+            nullptr,
+            shape,
+            gatherIndices,
+            convertedShape,
+            Dim::C);
 
         for (const auto& dataToShapeEdge : shape->childDataToShapeEdges()) {
             model->replaceDataToShapeParent(dataToShapeEdge, convertedShape);
@@ -81,18 +82,18 @@ void PassImpl::run(const Model& model) {
                 continue;
             }
 
-            const auto& dependentStagesEdges = convertedShape->dependentStagesEdges();
+            const auto& stageDependencyEdges = gather->childDependencyEdges();
 
             for (const auto& consumer : child->consumers()) {
-                const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&consumer](const StageDependency& edge) {
-                    return edge->dependentStage() == consumer;
+                const auto it = std::find_if(stageDependencyEdges.begin(), stageDependencyEdges.end(), [&consumer](const StageDependency& edge) {
+                    return edge->child() == consumer;
                 });
 
-                if (it != dependentStagesEdges.end()) {
+                if (it != stageDependencyEdges.end()) {
                     continue;
                 }
 
-                model->addStageDependency(consumer, convertedShape);
+                model->addStageDependency(gather, consumer);
             }
         }
     }

@@ -74,20 +74,6 @@ static void fillIdxTensor(std::vector<int> & idx, int batchSize) {
     }
 }
 
-void ROIAlignLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-    auto inputShape = cnnNetwork.getInputShapes().begin()->second;
-    for (const auto &input : cnnNetwork.getInputsInfo()) {
-        const auto &info = input.second;
-        Blob::Ptr blob;
-        blob = GenerateInput(*info);
-        inferRequest.SetBlob(info->name(), blob);
-        inputs.push_back(blob);
-    }
-    inferRequest.Infer();
-}
-
 void ROIAlignLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     std::vector<size_t> coordsShape;

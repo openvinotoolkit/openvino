@@ -27,11 +27,6 @@ public:
     typedef std::shared_ptr<IAsyncInferRequestInternal> Ptr;
 
     /**
-     * @brief A virtual destructor
-     */
-    virtual ~IAsyncInferRequestInternal() = default;
-
-    /**
      * @brief Start inference of specified input(s) in asynchronous mode
      * @note The method returns immediately. Inference starts also immediately.
      */

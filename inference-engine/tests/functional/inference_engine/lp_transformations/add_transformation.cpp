@@ -22,6 +22,7 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
@@ -46,6 +47,8 @@ public:
         std::vector<float> constValues;
         std::string operationType;
 
+        Expected() = default;
+
         Expected(const ngraph::element::Type& precision1,
                  ngraph::builder::subgraph::DequantizationOperations dequantization1,
                  const ngraph::element::Type& precision2,
@@ -68,6 +71,11 @@ public:
     std::string additionalLayer;
 };
 
+typedef std::tuple <
+    ngraph::element::Type,
+    AddTransformationTestValues
+> AddTransformationParams;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
     os << "{ ";
@@ -81,13 +89,14 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-class AddTransformation : public LayerTransformation, public testing::WithParamInterface<AddTransformationTestValues> {
+class AddTransformation : public LayerTransformation, public testing::WithParamInterface<AddTransformationParams> {
 public:
     void SetUp() override {
-        const AddTransformationTestValues testValues = GetParam();
+        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const AddTransformationTestValues& testValues = std::get<1>(GetParam());
 
         actualFunction = AddFunction::getOriginal(
-            testValues.precision,
+            precision,
             testValues.inputShape,
             testValues.broadcast,
             testValues.params,
@@ -101,11 +110,11 @@ public:
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-            low_precision::LayerTransformation::Params(testValues.params));
+                low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
 
         referenceFunction = AddFunction::getReference(
-            testValues.precision,
+            precision,
             testValues.inputShape,
             testValues.broadcast,
             testValues.params,
@@ -121,12 +130,13 @@ public:
             testValues.expected.operationType);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<AddTransformationTestValues> obj) {
-        const AddTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj) {
+        const element::Type precision = std::get<0>(obj.param);
+        const AddTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
         result <<
-            testValues.precision << "_" <<
+            precision << "_" <<
             testValues.inputShape << "_" <<
             testValues.broadcast << "_" <<
             testValues.actual.precision1 << "_" <<
@@ -145,6 +155,11 @@ TEST_P(AddTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+const std::vector<ngraph::element::Type> netPrecision = {
+    element::f32,
+    element::f16
+};
 
 const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     // Multiply with zero on the first branch
@@ -765,11 +780,13 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             "Subtract"
         },
         ""
-    },
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     AddTransformation,
-    ::testing::ValuesIn(addTransformationTestValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecision),
+        ::testing::ValuesIn(addTransformationTestValues)),
     AddTransformation::getTestCaseName);

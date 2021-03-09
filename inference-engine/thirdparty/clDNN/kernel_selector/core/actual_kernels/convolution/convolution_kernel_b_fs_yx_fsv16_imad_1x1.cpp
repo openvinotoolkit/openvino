@@ -201,13 +201,11 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params, c
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
             (conv_params.compensation.empty()))
             return false;
-    }
-    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
             (conv_params.compensation.empty()))
             return false;
-    }
-    else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
             return false;
     } else {
