@@ -17,7 +17,7 @@ Below, there are the three main steps of the deployment process:
 
 	- *Performance flow*: This is an offline step where general topology-level optimizations happen automatically (see <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>).
 
-	- *Tools*: OpenVINO features the Model Optimizer that enables automatic and seamless transition from the training to the deployment environment.
+	- *Tools*: OpenVINO™ features the Model Optimizer that enables automatic and seamless transition from a training to deployment environment.
 
 2.	**Model Inference/Execution**<br>
 	After conversion, Inference Engine consumes the IR to perform inference. While Inference Engine API itself is target-agnostic, internally, it has a notion of plugins, which are device-specific libraries facilitating the hardware-assisted acceleration.
