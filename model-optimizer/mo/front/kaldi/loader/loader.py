@@ -200,13 +200,12 @@ def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
     # add information for shape calculation for MemoryOffset
     # shape calculation for MemoryOffset can't be done through shape of previous layer because
     # it is separated in 2 parts to remove cycle from graph
-    batch = graph.graph['cmd_params'].batch if graph.graph['cmd_params'].batch is not None else 1
     for node in graph.get_op_nodes(**{'op': 'Parameter'}):
         for o_n_name, params in node.get_outputs():
             o_n = Node(graph, o_n_name)
             if o_n['op'] == 'MemoryOffset':
                 # don't take batch from Parameter, it will be override
-                o_n['parameters']['element_size'] = int64_array([batch, node['shape'][1]])
+                o_n['parameters']['element_size'] = int64_array([1, node['shape'][1]])
 
     load_components(file_descr, graph, component_layer_map)
 
@@ -247,7 +246,6 @@ def load_components(file_descr, graph, component_layer_map=None):
             file_descr.seek(start_index)
 
         if is_nnet3:
-            batch = graph.graph['cmd_params'].batch if graph.graph['cmd_params'].batch is not None else 1
             if name in component_layer_map:
                 layer_id = component_layer_map[name][0]
                 for layer in component_layer_map[name]:
@@ -258,7 +256,7 @@ def load_components(file_descr, graph, component_layer_map=None):
                     for o_n_name, params in node.get_outputs():
                         o_n = Node(graph, o_n_name)
                         if o_n['op'] == 'MemoryOffset' and dim != 0:
-                            o_n['parameters']['element_size'] = int64_array([batch, dim])
+                            o_n['parameters']['element_size'] = int64_array([1, dim])
             else:
                 raise Error("Something wrong with layer {}".format(name))
         else:
@@ -388,11 +386,10 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         # read dim info where possible to simplify shape calculation for MemoryOffset
         # shape calculation for MemoryOffset can't be done through shape of previous layer because
         # it is separated in 2 parts to remove cycle from graph
-        batch = graph.graph['cmd_params'].batch if graph.graph['cmd_params'].batch is not None else 1
         for o_n_name, params in node.get_outputs():
             o_n = Node(graph, o_n_name)
             if o_n['op'] == 'MemoryOffset':
-                o_n['parameters']['element_size'] = int64_array([batch, dim])
+                o_n['parameters']['element_size'] = int64_array([1, dim])
     else:
         raise Error("Unsupported node specifier {}".format(tokens[0]))
     return True
