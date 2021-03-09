@@ -133,6 +133,28 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
     ASSERT_EQ(refError, dsc.msg);
 }
 
+TEST_F(InferenceEnginePluginInternalTest, executableNetworkInternalExportsMagicAndName) {
+    std::stringstream strm;
+    ASSERT_NO_THROW(mockExeNetworkInternal->WrapOstreamExport(strm));
+    ExportMagic actualMagic = {};
+    strm.read(actualMagic.data(), actualMagic.size());
+    ASSERT_EQ(exportMagic, actualMagic);
+    std::string pluginName;
+    std::getline(strm, pluginName);
+    ASSERT_EQ(pluginId, pluginName);
+    std::string exportedString;
+    std::getline(strm, exportedString);
+    ASSERT_EQ(mockExeNetworkInternal->exportString, exportedString);
+}
+
+TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImports) {
+    std::stringstream strm;
+    ASSERT_NO_THROW(mockExeNetworkInternal->WrapOstreamExport(strm));
+    ASSERT_NO_THROW(mock_plugin_impl->ImportNetwork(strm, {}));
+    ASSERT_EQ(mockExeNetworkInternal->exportString, mock_plugin_impl->importedString);
+    mock_plugin_impl->importedString = {};
+}
+
 TEST(InferencePluginTests, throwsOnNullptrCreation) {
     InferenceEnginePluginPtr nulptr;
     InferencePlugin plugin;

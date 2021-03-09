@@ -243,11 +243,11 @@ class Core::Impl : public ICore {
             try {
                 // need to export network for further import from "cache"
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
-                cacheManager->writeCacheEntry(blobID, std::bind([&](std::ostream& networkStream) {
+                cacheManager->writeCacheEntry(blobID, [&](std::ostream& networkStream) {
                     networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber,
                                                         NetworkCompilationContext::calculateFileInfo(modelPath));
                     execNetwork.Export(networkStream);
-                }, _1));
+                });
             } catch (...) {
                 cacheManager->removeCacheEntry(blobID);
                 throw;
@@ -268,7 +268,7 @@ class Core::Impl : public ICore {
 
         IE_ASSERT(cacheManager != nullptr);
         try {
-            cacheManager->readCacheEntry(blobId, std::bind([&](std::istream &networkStream) {
+            cacheManager->readCacheEntry(blobId, [&](std::istream &networkStream) {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
                 try {
                     CompiledBlobHeader header;
@@ -289,7 +289,7 @@ class Core::Impl : public ICore {
                               plugin.ImportNetwork(networkStream, context, config) :
                               plugin.ImportNetwork(networkStream, config);
                 networkIsImported = true;
-            }, _1));
+            });
         } catch (const HeaderException& ex) {
             // For these exceptions just remove old cache and set that import didn't work
             cacheManager->removeCacheEntry(blobId);
@@ -445,7 +445,7 @@ public:
                                   const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
-            THROW_IE_EXCEPTION << "Remote context is nullptr";
+            THROW_IE_EXCEPTION << "Remote context is null";
         }
         auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -509,28 +509,20 @@ public:
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
 
         if (parsed._deviceName.empty()) {
-            THROW_IE_EXCEPTION << "Device name is empty";
+            ExportMagic magic = {};
+            auto currentPos = networkModel.tellg();
+            networkModel.read(magic.data(), magic.size());
+            auto exportedWithName = (exportMagic == magic);
+            if (exportedWithName) {
+                std::getline(networkModel, parsed._deviceName);
+            }
+            networkModel.seekg(currentPos, networkModel.beg);
         }
 
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
-    }
-
-    // TODO: In future this method can be added to ICore interface
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const RemoteContext::Ptr& context,
-                                    const std::map<std::string, std::string>& config) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
-
-        if (context == nullptr) {
-            THROW_IE_EXCEPTION << "Remote context is null";
-        }
-
-        auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
-        return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, context, parsed._config);
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
@@ -906,7 +898,18 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::str
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const RemoteContext::Ptr& context,
                                       const std::map<std::string, std::string>& config) {
-    return _impl->ImportNetwork(networkModel, context, config);
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
+
+    if (context == nullptr) {
+        THROW_IE_EXCEPTION << "Remote context is null";
+    }
+
+    std::string deviceName_ = context->getDeviceName();
+    DeviceIDParser device(deviceName_);
+    std::string deviceName = device.getDeviceName();
+
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+    return _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::string& deviceName,

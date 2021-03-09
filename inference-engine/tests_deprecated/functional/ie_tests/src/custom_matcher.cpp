@@ -75,7 +75,7 @@ InferenceEngine::ExecutableNetwork Regression::Matchers::CustomMatcher::createEx
         if (config.useExportImport) {
             std::stringstream stream;
             loadedExecutableNetwork.Export(stream);
-            executableApi = config.ie_core->ImportNetwork(stream, config._device_name);
+            executableApi = config.ie_core->ImportNetwork(stream);
         } else {
             executableApi = loadedExecutableNetwork;
         }

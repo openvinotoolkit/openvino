@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,8 @@ public:
 
     void Export(std::ostream& networkModel) override {
         std::stringstream strm;
+        strm.write(exportMagic.data(), exportMagic.size());
+        strm << _plugin->GetName() << std::endl;
         ExportImpl(strm);
         networkModel << strm.rdbuf();
     }

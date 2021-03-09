@@ -127,7 +127,7 @@ void RawMatcher::match() {
         if (config.useExportImport) {
             std::stringstream stream;
             loadedExecutableNetwork.Export(stream);
-            executableNetwork = config.ie_core->ImportNetwork(stream, config._device_name);
+            executableNetwork = config.ie_core->ImportNetwork(stream);
         } else {
             executableNetwork = loadedExecutableNetwork;
         }
