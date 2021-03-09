@@ -61,5 +61,6 @@ public:
 
 protected:
     virtual JitConstants GetJitConstants(const region_yolo_params& params) const;
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector
