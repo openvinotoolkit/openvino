@@ -279,8 +279,8 @@ private:
     Reg64 reg_output_scale = rbx;
     Reg64 reg_output_shift = rdx;
 
-    bool do_rounding;
-    bool do_dequantization;
+    bool do_rounding = true;
+    bool do_dequantization = true;
 
     inline void compute_planar() {
         int src_type_size = jqp_.src_prc.size();
@@ -1209,7 +1209,11 @@ void MKLDNNQuantizeNode::createPrimitive() {
 
     jqp.op_type = quantizeOpType;
 
-    if (getSelectedPrimitiveDescriptor()->getImplementationType() != impl_desc_type::ref) {
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+
+    if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         if (mayiuse(cpu::x64::avx512_common)) {
             if (isBinarization())
                 quantize_kernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx512_common>(jqp));
@@ -1523,7 +1527,11 @@ void MKLDNNQuantizeNode::executeQuantization() {
 }
 
 void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
-    if (getSelectedPrimitiveDescriptor()->getImplementationType() != impl_desc_type::ref) {
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+
+    if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         if (jqp.op_type == QuantizeOpType::Binarization)
             executeBinarization();
         else
