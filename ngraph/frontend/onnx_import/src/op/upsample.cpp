@@ -88,18 +88,19 @@ namespace ngraph
                                                      ? Transform_mode::asymmetric
                                                      : Transform_mode::half_pixel);
                     const auto attrs =
-                        ngraph::op::v4::Interpolate::InterpolateAttrs(interpolate_mode,
-                                                                      ShapeCalcMode::scales,
-                                                                      zero_pad,
-                                                                      zero_pad,
-                                                                      transform_mode);
+                        default_opset::Interpolate::InterpolateAttrs(interpolate_mode,
+                                                                     ShapeCalcMode::scales,
+                                                                     zero_pad,
+                                                                     zero_pad,
+                                                                     transform_mode);
 
                     const auto data = node.get_ng_inputs().at(0);
-
                     NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
                                  "Input tensor's rank must static.");
 
                     const auto rank = data.get_partial_shape().rank().get_length();
+                    NGRAPH_CHECK(rank == 4, "Input tensor must be 4D.");
+
                     std::vector<float> scales(rank, 1.f);
                     scales[rank - 1] = width_scale;
                     scales[rank - 2] = height_scale;

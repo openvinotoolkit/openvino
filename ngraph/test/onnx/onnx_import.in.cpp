@@ -3304,10 +3304,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_dynamic)
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    test_case.add_input<float>(Shape {4},                   // X
+    test_case.add_input<float>(Shape {4},                      // X
         {   1.f, 2.f, 3.f, 4.f  });
-    test_case.add_input<int64_t>(Shape {3},    {1, 2, 2});  // S
-    test_case.add_expected_output<float>(Shape {1, 3, 5},   // Y
+    test_case.add_input<int64_t>(Shape {4},    {1, 1, 2, 2});  // S
+    test_case.add_expected_output<float>(Shape {1, 1, 3, 5},   // Y
         {   1.f, 1.f, 1.f, 2.f, 2.f,
             1.f, 1.f, 1.f, 2.f, 2.f,
             3.f, 3.f, 3.f, 4.f, 4.f    });
