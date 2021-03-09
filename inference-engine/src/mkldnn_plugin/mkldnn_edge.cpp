@@ -169,9 +169,9 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
 }
 
 std::string MKLDNNEdge::name() const {
-    auto childPtr = getChild();
     auto parentPtr = getParent();
-    return childPtr->getName() + "<->" + parentPtr->getName();
+    auto childPtr = getChild();
+    return parentPtr->getName() + std::to_string(parent_port) + "<->" + childPtr->getName() + std::to_string(child_port);
 }
 
 void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
