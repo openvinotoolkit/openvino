@@ -30,7 +30,7 @@
 
 * *T_IND*: `int64` or `int32`.
 
-**Detailed description**: *IDFT* performs the discrete Fourier transformation of input tensor with respect to specified axes. Calculations are performed according to the following rules.
+**Detailed description**: *IDFT* performs the discrete Fourier transformation of input tensor, according to the following rules.
 
 For simplicity, assume that an input tensor `A` has the shape `[B_0, ..., B_{k-1}, M_0, ..., M_{r-1}, 2]`, `axes=[k+1,...,k+r]`, and `signal_size=[S_0,...,S_{r-1}]`.
 
