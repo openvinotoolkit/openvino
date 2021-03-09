@@ -384,13 +384,11 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, "GPU"); // enables cache for GPU plugin
  * @endcode
  *
- * Enables caching of compiled network blobs for devices where import/export is supported
+ * The following code enables caching of compiled network blobs for devices where import/export is supported
  *
  * @code
  * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}); // enables models cache
  * @endcode
- *
- * @note This key supports unicode symbols in path
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
