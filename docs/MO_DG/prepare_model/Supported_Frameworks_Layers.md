@@ -98,7 +98,7 @@ Standard MXNet\* symbols:
 | InstanceNorm | No |
 | L2Normalization | only 4D input is supported |
 | LRN | No |
-| LeakyReLU | No |
+| LeakyReLU | supported "act_type" = "prelu", "elu", "leaky", "gelu" |
 | Pad | No |
 | Pooling | No |
 | ROIPooling | No |

@@ -73,6 +73,7 @@ set(SRC
     op.cpp
     op_eval/bucketize.cpp
     op_eval/floor_mod.cpp
+    op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
