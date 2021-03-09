@@ -29,7 +29,7 @@ class GNAFakeQuantizeLayer {
     DnnActivation parseAsActivation() const {
         DnnActivation fqActivation;
 
-        fqActivation.args.fakeQuantize.levels = fqLayer->GetParamAsInt("levels");
+        fqActivation.fqParams.levels = fqLayer->GetParamAsInt("levels");
         auto inputShape  = getShapeForRange(fqLayer, 1);
         auto outputShape = getShapeForRange(fqLayer, 3);
 
@@ -37,13 +37,15 @@ class GNAFakeQuantizeLayer {
         auto inputRangeSize = InferenceEngine::details::product(inputShape.begin(), inputShape.end());
         auto outputRangeSize = InferenceEngine::details::product(outputShape.begin(), outputShape.end());
 
-        fqActivation.args.fakeQuantize.inputPerChannel = inputRangeSize != 1;
-        fqActivation.args.fakeQuantize.input_low   = getParamFromInputAsFloats(fqLayer, 1);
-        fqActivation.args.fakeQuantize.input_high  = getParamFromInputAsFloats(fqLayer, 2);
+        fqActivation.fqParams.set = true;
 
-        fqActivation.args.fakeQuantize.outputPerChannel = outputRangeSize != 1;
-        fqActivation.args.fakeQuantize.output_low  = getParamFromInputAsFloats(fqLayer, 3);
-        fqActivation.args.fakeQuantize.output_high = getParamFromInputAsFloats(fqLayer, 4);
+        fqActivation.fqParams.inputPerChannel = inputRangeSize != 1;
+        fqActivation.fqParams.input_low   = getParamFromInputAsFloats(fqLayer, 1);
+        fqActivation.fqParams.input_high  = getParamFromInputAsFloats(fqLayer, 2);
+
+        fqActivation.fqParams.outputPerChannel = outputRangeSize != 1;
+        fqActivation.fqParams.output_low  = getParamFromInputAsFloats(fqLayer, 3);
+        fqActivation.fqParams.output_high = getParamFromInputAsFloats(fqLayer, 4);
         fqActivation.type = kActFakeQuantize;
 
         return fqActivation;

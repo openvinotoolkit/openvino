@@ -1,7 +1,6 @@
 <attributes>
     <models>
-        # References were collected from DB with next query: {"target_branch": "releases/2020/4", "commit_date":
-        "2020-06-15 13:21:41+00:00"}
+        # References were collected from DB with next query: {"target_branch": "releases/2020/4", "commit_date": "2020-06-15 13:21:41+00:00"}
         # and modified on FACTOR = 1.3
         <model device="GPU" path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" precision="FP32" test="create_exenetwork" vmhwm="329206" vmpeak="687460" vmrss="329206" vmsize="687460"/>
         <model device="GPU" path="public/ctdet_coco_dlav0_512/FP32/ctdet_coco_dlav0_512.xml" precision="FP32" test="infer_request_inference" vmhwm="1071985" vmpeak="1598854" vmrss="1071985" vmsize="1513657"/>
@@ -150,7 +149,7 @@
         <model device="CPU" path="public/ssd300/FP32/ssd300.xml" precision="FP32" test="create_exenetwork" vmsize="1046988" vmpeak="1179042" vmrss="307990" vmhwm="439457"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
         <model device="GPU" path="public/ssd300/FP32/ssd300.xml" precision="FP32" test="create_exenetwork" vmsize="1267775" vmpeak="1279647" vmrss="932672" vmhwm="944626"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
         <model device="CPU" path="public/ssd300/FP32/ssd300.xml" precision="FP32" test="infer_request_inference" vmsize="1321819" vmpeak="1321819" vmrss="374207" vmhwm="439748"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
-        <model device="GPU" path="public/ssd300/FP32/ssd300.xml" precision="FP32" test="infer_request_inference"vmsize="1356565" vmpeak="1441762" vmrss="941418" vmhwm="947060"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="GPU" path="public/ssd300/FP32/ssd300.xml" precision="FP32" test="infer_request_inference" vmsize="1356565" vmpeak="1441762" vmrss="941418" vmhwm="947060"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
         <model device="CPU" path="public/googlenet-v2/FP32/googlenet-v2.xml" precision="FP32" test="create_exenetwork" vmhwm="214182" vmpeak="1067034" vmrss="162011" vmsize="1014452"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
         <model device="CPU" path="public/ssd512/FP32/ssd512.xml" precision="FP32" test="create_exenetwork" vmhwm="453237" vmpeak="1498151" vmrss="319966" vmsize="1361952"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
         <model device="GPU" path="public/googlenet-v2/FP32/googlenet-v2.xml" precision="FP32" test="create_exenetwork" vmhwm="642766" vmpeak="975322" vmrss="606226" vmsize="938501"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3

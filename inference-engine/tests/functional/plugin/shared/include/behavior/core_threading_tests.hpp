@@ -65,7 +65,7 @@ public:
 
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
-            auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
+            auto extension = std::make_shared<InferenceEngine::Extension>(
                 FileUtils::makePluginLibraryName<char>({}, "template_extension"));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::details::InferenceEngineException & ex) {

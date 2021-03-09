@@ -11,6 +11,7 @@
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_split_node.h>
 #include <ie_compound_blob.h>
+#include <ie_common.h>
 #include "mkldnn_exec_network.h"
 #include "mkldnn_itt.h"
 #include "nodes/common/cpu_convert.h"
@@ -128,6 +129,13 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             default:
                 THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
         }
+
+        // User can initialize input via setBlob API using tensorDesc with default (ANY) layout.
+        // Currently IE doesn't specify behavior in such scenario, so we assume real layout is equal to the network input.
+        if (input.second->getTensorDesc().getLayout() == InferenceEngine::ANY) {
+            input.second->getTensorDesc().setLayout(_networkInputs[input.first]->getLayout());
+        }
+
         pushInput(input.first, input.second, inPrec);
     }
 }
