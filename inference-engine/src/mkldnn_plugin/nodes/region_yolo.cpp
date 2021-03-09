@@ -40,8 +40,8 @@ struct jit_args_logistic {
 struct jit_logistic_config_params {
     InferenceEngine::Precision src_dt;
     InferenceEngine::Precision dst_dt;
-    unsigned src_data_size;
-    unsigned dst_data_size;
+    unsigned src_data_size = 0;
+    unsigned dst_data_size = 0;
 };
 
 struct jit_uni_logistic_kernel {
