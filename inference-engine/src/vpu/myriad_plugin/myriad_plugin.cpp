@@ -20,6 +20,7 @@
 #include <vpu/ngraph/query_network.hpp>
 
 #include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 #include "myriad_plugin.h"
 
@@ -144,6 +145,7 @@ IE_SUPPRESS_DEPRECATED_START
 IE_SUPPRESS_DEPRECATED_END
 
     _parsedConfig.registerOption<LogLevelOption>();
+    _parsedConfig.registerOption<CopyOptimizationOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

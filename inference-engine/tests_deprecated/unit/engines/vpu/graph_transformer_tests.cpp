@@ -9,6 +9,7 @@
 
 #include <vpu/utils/io.hpp>
 #include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 namespace vpu {
 
@@ -162,6 +163,7 @@ void TestModel::setStageBatchInfo(
 PluginConfiguration createConfiguration() {
     PluginConfiguration configuration;
     configuration.registerOption<LogLevelOption>();
+    configuration.registerOption<CopyOptimizationOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
