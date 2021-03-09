@@ -1,12 +1,12 @@
-ir_version: 7
-producer_name: "onnx-importer-test"
+ir_version: 3
+producer_name: "nGraph ONNX Importer"
 graph {
   node {
     input: "data"
     input: "gamma"
     input: "beta"
-    output: "out1"
-    op_type: "ExperimentalDetectronGroupNorm"
+    output: "y"
+    op_type: "GroupNorm"
     domain: "org.openvinotoolkit"
     attribute {
         name: "num_groups"
@@ -15,10 +15,11 @@ graph {
     }
     attribute {
         name: "eps"
-        f: 1e-6
+        f: 1e-5
         type: FLOAT
     }
   }
+  name: "group_norm_example"
   initializer {
     dims: 8
     data_type: 1
@@ -30,23 +31,6 @@ graph {
     data_type: 1
     name: "beta"
     raw_data: "\0\0\200?\0\0\0@\0\0@@\0\0\200@\0\0\240@\0\0\300@\0\0\340@\0\0\0A"
-  }
-  name: "test-model"
-  input {
-    name: "rois"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 16
-          }
-          dim {
-            dim_value: 4
-          }
-        }
-      }
-    }
   }
   input {
     name: "data"
@@ -61,17 +45,46 @@ graph {
             dim_value: 8
           }
           dim {
-            dim_value: 2
+            dim_value: 1
           }
           dim {
             dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "gamma"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "beta"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 8
           }
         }
       }
     }
   }
   output {
-    name: "out1"
+    name: "y"
     type {
       tensor_type {
         elem_type: 1
@@ -83,10 +96,13 @@ graph {
             dim_value: 8
           }
           dim {
-            dim_value: 2
+            dim_value: 1
           }
           dim {
             dim_value: 2
+          }
+          dim {
+            dim_value: 3
           }
         }
       }
@@ -94,6 +110,5 @@ graph {
   }
 }
 opset_import {
-  domain: ""
-  version: 10
+  version: 1
 }

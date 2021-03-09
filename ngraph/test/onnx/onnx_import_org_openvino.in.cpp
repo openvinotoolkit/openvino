@@ -233,6 +233,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm_5d.prototxt"));
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    Shape shape{2, 8, 1, 2, 1};
+    int size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0);
+    std::vector<float> output = {-0.34163546562, 0.55278813838, 2.89442372322,  4.68327093124,
+                                 -1.02490639686, 1.65836453437, 5.78884744644,  9.36654186248,
+                                 -1.70817732810, 2.76394081115, 8.68327140808,  14.04981231689,
+                                 -2.39144825935, 3.86951708793, 11.57769489288, 18.73308372497,
+                                 -0.34163546562, 0.55278813838, 2.89442372322,  4.68327093124,
+                                 -1.02490639686, 1.65836453437, 5.78884744644,  9.36654186248,
+                                 -1.70817732810, 2.76394081115, 8.68327140808,  14.04981231689,
+                                 -2.39144825935, 3.86951708793, 11.57769489288, 18.73308372497};
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
 {
     const auto function = onnx_import::import_onnx_model(

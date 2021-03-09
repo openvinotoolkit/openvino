@@ -50,13 +50,14 @@ namespace ngraph
                         auto splits = builder::opset1::split(shape, rank_size);
                         auto num_groups_const =
                             default_opset::Constant::create(element::i64, Shape{1}, {num_groups});
-                        NodeVector new_shape{
-                            splits[0].get_node_shared_ptr(),
+                        ngraph::OutputVector new_shape{
+                            splits[0],
                             num_groups_const,
                             std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
+
                         for (size_t i = 2; i < rank_size; i++)
                         {
-                            new_shape.push_back(splits[i].get_node_shared_ptr());
+                            new_shape.push_back(splits[i]);
                         }
                         return std::make_shared<default_opset::Concat>(new_shape, 0);
                     }
@@ -78,14 +79,20 @@ namespace ngraph
 
                     size_t num_groups =
                         static_cast<size_t>(node.get_attribute_value<int64_t>("num_groups"));
-                    float eps = node.get_attribute_value<float>("eps", 1e-5);
+                    float eps = node.get_attribute_value<float>("eps", 1e-6);
 
                     auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
                     auto data_reshaped = std::make_shared<default_opset::Reshape>(
                         data, detail::create_group_norm_shape(data, num_groups), true);
+                    const auto reduction_axes =
+                        common::get_monotonic_range_along_node_rank(data_reshaped, 2);
 
                     auto mvn =
-                        std::make_shared<ngraph::opset5::MVN>(data_reshaped, false, true, eps);
+                        std::make_shared<default_opset::MVN>(data_reshaped,
+                                                             reduction_axes,
+                                                             true,
+                                                             eps,
+                                                             ngraph::op::MVNEpsMode::INSIDE_SQRT);
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
