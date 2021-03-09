@@ -97,7 +97,7 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
             return false;
         }
 
-        if (pattern_to_output.find(const_0_5) != pattern_to_output.end()) {
+        if (pattern_to_output.count(const_0_5) != 0) {
             auto const_0_5_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
 
             if (!const_0_5_node || !op::util::has_constant_value<float>(const_0_5_node, 0.5)) {
@@ -105,7 +105,7 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
             }
         }
 
-        if (pattern_to_output.find(const_neg_1) != pattern_to_output.end()) {
+        if (pattern_to_output.count(const_neg_1) != 0) {
             auto const_neg_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_neg_1).get_node_shared_ptr());
 
             if (!const_neg_1_node || !op::util::has_constant_value<float>(const_neg_1_node, -1)) {
@@ -126,7 +126,7 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
         if (!(axes_1_value == axes_3_value)) {
             return false;
         }
-        if (pattern_to_output.find(mean2_axes) != pattern_to_output.end()) {
+        if (pattern_to_output.count(mean2_axes) != 0) {
             auto axes_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
@@ -145,24 +145,24 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
                                                 pattern_to_output.at(mean3).get_node_shared_ptr(),
                                                 pattern_to_output.at(add_eps).get_node_shared_ptr() });
 
-        if (pattern_to_output.find(mean2) != pattern_to_output.end() && pattern_to_output.find(sub2) != pattern_to_output.end()) {
+        if (pattern_to_output.count(mean2) != 0 && pattern_to_output.count(sub2) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(mean2).get_node_shared_ptr());
             nodes_to_copy_info.push_back(pattern_to_output.at(sub2).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.find(cast) != pattern_to_output.end()) {
+        if (pattern_to_output.count(cast) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(cast).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.find(power_sqrt) != pattern_to_output.end()) {
+        if (pattern_to_output.count(power_sqrt) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_sqrt).get_node_shared_ptr());
-        } else if (pattern_to_output.find(sqrt) != pattern_to_output.end()) {
+        } else if (pattern_to_output.count(sqrt) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(sqrt).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.find(div_alt) != pattern_to_output.end()) {
+        if (pattern_to_output.count(div_alt) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(div_alt).get_node_shared_ptr());
-        } else if (pattern_to_output.find(power_div) != pattern_to_output.end() && pattern_to_output.find(div) != pattern_to_output.end()) {
+        } else if (pattern_to_output.count(power_div) != 0 && pattern_to_output.count(div) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_div).get_node_shared_ptr());
             nodes_to_copy_info.push_back(pattern_to_output.at(div).get_node_shared_ptr());
         }
@@ -258,7 +258,7 @@ ngraph::pass::MVNFusionInsideSqrt::MVNFusionInsideSqrt() {
             return false;
         }
 
-        if (pattern_to_output.find(const_0_5) != pattern_to_output.end()) {
+        if (pattern_to_output.count(const_0_5) != 0) {
             auto const_0_5_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
 
             if (!const_0_5_node || !op::util::has_constant_value<float>(const_0_5_node, 0.5)) {
@@ -266,7 +266,7 @@ ngraph::pass::MVNFusionInsideSqrt::MVNFusionInsideSqrt() {
             }
         }
 
-        if (pattern_to_output.find(const_neg_1) != pattern_to_output.end()) {
+        if (pattern_to_output.count(const_neg_1) != 0) {
             auto const_neg_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_neg_1).get_node_shared_ptr());
 
             if (!const_neg_1_node || !op::util::has_constant_value<float>(const_neg_1_node, -1)) {
@@ -287,7 +287,7 @@ ngraph::pass::MVNFusionInsideSqrt::MVNFusionInsideSqrt() {
         if (!(axes_1_value == axes_3_value)) {
             return false;
         }
-        if (pattern_to_output.find(mean2_axes) != pattern_to_output.end()) {
+        if (pattern_to_output.count(mean2_axes) != 0) {
             auto axes_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
@@ -306,24 +306,24 @@ ngraph::pass::MVNFusionInsideSqrt::MVNFusionInsideSqrt() {
                                                 pattern_to_output.at(mean3).get_node_shared_ptr(),
                                                 pattern_to_output.at(add_eps).get_node_shared_ptr() });
 
-        if (pattern_to_output.find(mean2) != pattern_to_output.end() && pattern_to_output.find(sub2) != pattern_to_output.end()) {
+        if (pattern_to_output.count(mean2) != 0 && pattern_to_output.count(sub2) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(mean2).get_node_shared_ptr());
             nodes_to_copy_info.push_back(pattern_to_output.at(sub2).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.find(cast) != pattern_to_output.end()) {
+        if (pattern_to_output.count(cast) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(cast).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.find(power_sqrt) != pattern_to_output.end()) {
+        if (pattern_to_output.count(power_sqrt) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_sqrt).get_node_shared_ptr());
-        } else if (pattern_to_output.find(sqrt) != pattern_to_output.end()) {
+        } else if (pattern_to_output.count(sqrt) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(sqrt).get_node_shared_ptr());
         }
 
-        if (pattern_to_output.find(div_alt) != pattern_to_output.end()) {
+        if (pattern_to_output.count(div_alt) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(div_alt).get_node_shared_ptr());
-        } else if (pattern_to_output.find(power_div) != pattern_to_output.end() && pattern_to_output.find(div) != pattern_to_output.end()) {
+        } else if (pattern_to_output.count(power_div) != 0 && pattern_to_output.count(div) != 0) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_div).get_node_shared_ptr());
             nodes_to_copy_info.push_back(pattern_to_output.at(div).get_node_shared_ptr());
         }
