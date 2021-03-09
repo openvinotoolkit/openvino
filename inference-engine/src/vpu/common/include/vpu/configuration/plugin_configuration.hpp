@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,11 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
+#include <vpu/parsed_config.hpp>
 
 #include "ie_parameter.hpp"
 
 #include "vpu/utils/logger.hpp"
-#include "configuration.hpp"
 
 namespace vpu {
 
@@ -78,7 +78,9 @@ private:
 
 }  // namespace details
 
-class PluginConfiguration {
+// TODO: remove virtual inheritance once all options are migrated
+// it's needed to pass updated compilation config to graph transformer
+class PluginConfiguration : public virtual ParsedConfig {
 public:
     PluginConfiguration();
 

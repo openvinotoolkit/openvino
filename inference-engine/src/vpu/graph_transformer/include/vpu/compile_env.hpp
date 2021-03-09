@@ -19,7 +19,7 @@ struct DeviceResources {
 };
 
 struct DefaultAllocation {
-    static int numStreams(const ncDevicePlatform_t& platform, const CompilationConfig& configuration);
+    static int numStreams(const ncDevicePlatform_t& platform, const PluginConfiguration& configuration);
     static int numSlices(const ncDevicePlatform_t& platform, int numStreams);
     static int numShaves(const ncDevicePlatform_t& platform, int numStreams, int numSlices);
     static int tilingCMXLimit(int numSlices);
@@ -30,7 +30,7 @@ public:
     ncDevicePlatform_t platform;
     Resources resources;
 
-    CompilationConfig config;
+    PluginConfiguration config;
 
     Logger::Ptr log;
 
@@ -51,9 +51,9 @@ public:
 
     static void init(
         ncDevicePlatform_t platform,
-        const CompilationConfig& config,
+        const PluginConfiguration& config,
         const Logger::Ptr& log);
-    static void updateConfig(const CompilationConfig& config);
+    static void updateConfig(const PluginConfiguration& config);
     static void free();
 
 private:

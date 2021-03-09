@@ -39,9 +39,8 @@ ExecutableNetwork::ExecutableNetwork(
     _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), std::move(mvnc), _config.logLevel(), _log);
     _device = _executor->openDevice(devicePool, _config);
 
-    const auto& compileConfig = config.compileConfig();
     const auto& revision = _device->revision();
-    _actualNumExecutors = compileConfig.numExecutors != -1 ? compileConfig.numExecutors : DefaultAllocation::numStreams(revision, compileConfig);
+    _actualNumExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(revision, config);
 
     _supportedMetrics = {
         METRIC_KEY(NETWORK_NAME),
@@ -71,7 +70,7 @@ ExecutableNetwork::ExecutableNetwork(
     auto compiledGraph = compileNetwork(
         network,
         _device->_platform,
-        _config.compileConfig(),
+        _config,
         compilerLog,
         _core);
 

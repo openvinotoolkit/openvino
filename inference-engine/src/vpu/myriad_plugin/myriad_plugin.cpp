@@ -89,7 +89,7 @@ QueryNetworkResult Engine::QueryNetwork(
     const auto supportedLayers = getSupportedLayers(
             network,
             parsedConfigCopy.platform(),
-            parsedConfigCopy.compileConfig(),
+            parsedConfigCopy,
             log,
             GetCore());
 

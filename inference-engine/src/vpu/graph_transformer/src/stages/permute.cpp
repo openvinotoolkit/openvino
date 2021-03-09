@@ -124,7 +124,7 @@ Stage StageBuilder::addReorderStage(
         const Data& output) {
     const auto* env = CompileEnv::getOrNull();
     VPU_THROW_UNLESS(
-        env == nullptr || !env->config.disableReorder,
+        env == nullptr || !env->config.compileConfig().disableReorder,
         "Tried to add Reorder Stage %v, while DISABLE_REORDER option was set",
         name);
 

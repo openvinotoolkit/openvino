@@ -186,13 +186,13 @@ void GraphTransformerTest::TearDown() {
 
 void GraphTransformerTest::InitCompileEnv() {
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
-        config.dumpInternalGraphFileName = envVar;
+        config.compileConfig().dumpInternalGraphFileName = envVar;
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_DIRECTORY")) {
-        config.dumpInternalGraphDirectory = envVar;
+        config.compileConfig().dumpInternalGraphDirectory = envVar;
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
-        config.dumpAllPasses = std::stoi(envVar) != 0;
+        config.compileConfig().dumpAllPasses = std::stoi(envVar) != 0;
     }
 
     CompileEnv::init(platform, config, _log);

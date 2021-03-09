@@ -21,7 +21,7 @@
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/optional.hpp>
-#include <vpu/configuration/configuration.hpp>
+#include <vpu/configuration/plugin_configuration.hpp>
 
 #include "mvnc.h"
 
@@ -71,16 +71,16 @@ struct CompiledGraph final {
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const CompilationConfig& config, const Logger::Ptr& log,
+CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
                                   const ie::ICore* core);
 
-CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
+CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const PluginConfiguration& subConfig, const ie::ICore* core);
 
 //
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const CompilationConfig& config, const Logger::Ptr& log,
+std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
                                          const ie::ICore* core);
 
 //

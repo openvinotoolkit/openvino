@@ -24,7 +24,7 @@ void graphTransformerFunctionalTests::SetUp() {
 
 void graphTransformerFunctionalTests::CreateModel() {
     const auto compilerLog = std::make_shared<Logger>("Test", LogLevel::Info, consoleOutput());
-    CompileEnv::init(_platform, _compilationConfig, compilerLog);
+    CompileEnv::init(_platform, _configuration, compilerLog);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
@@ -87,7 +87,7 @@ int64_t graphTransformerFunctionalTests::CompileAndInfer(Blob::Ptr& inputBlob, B
     auto compiledGraph = compileModel(
                 _gtModel,
                 _platform,
-                _compilationConfig,
+                _configuration,
                 compilerLog);
 
     std::istringstream instream(std::string(compiledGraph->blob.data(), compiledGraph->blob.size()));
