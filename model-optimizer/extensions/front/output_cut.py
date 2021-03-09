@@ -38,14 +38,15 @@ class OutputCut(FrontReplacementPattern):
         # and tensor names information is moved to output->Result edge.
         for node in graph.get_op_nodes():
             if node.soft_get('needs_removal') is True:
-                fw_info = []
+                fw_info = None
                 for idx in node.in_edges():
-                    node_idx = node.in_edge(idx)['out']
+                    node_idx = node.in_edge(idx)['in']
                     if node_idx in node.in_nodes():
                         in_node = node.in_node(node_idx)
                         fw_info_value = get_attribute_between_nodes(in_node, node, 'fw_tensor_debug_info')
-                        if fw_info_value is not None:
-                            fw_info += fw_info_value
+                        if fw_info_value:
+                            fw_info = fw_info_value
+                            break
                 graph.erase_node(node)
 
                 if fw_info and in_node is not None:

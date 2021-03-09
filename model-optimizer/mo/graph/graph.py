@@ -1103,15 +1103,14 @@ def rename_nodes(nodes: List[tuple]):
 
 
 def get_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
-    attr_value = None
     for edge_idx in node1.out_edges():
         edge = node1.out_edge(edge_idx)
         out_port = edge['out']
         out_node = node1.out_node(out_port)
         if out_node.soft_get('id') is node2.soft_get('id'):
             if attr_name in edge:
-                attr_value = edge[attr_name]
-    return attr_value
+                return edge[attr_name]
+    return None
 
 
 def set_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, new_value):
