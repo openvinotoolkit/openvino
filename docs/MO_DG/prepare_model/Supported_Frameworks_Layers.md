@@ -285,7 +285,7 @@ Standard TensorFlow 2 Keras\* operations:
 | Dense | No |
 | DenseFeatures | The layer is not fully supported and pruning is required |
 | DepthwiseConv2D | No |
-| Dot | Configuration with setup normalization is not supported |
+| Dot | No |
 | Dropout | No |
 | ELU | No |
 | Embedding | No |
