@@ -117,10 +117,10 @@ def getConfigurationsMap() {
     def configurationsMap = [:]
     for (backend in BACKEND_CONFIGURATIONS) {
         def configuration = backend.clone()
-        echo "configuration=${configuration}"
-        configurationsMap[configuration.protobuf_lite] = {
-            stage("protobuf-lite ${configuration.protobuf_lite}") { CONFIGURATION_WORKFLOW(configuration.protobuf_lite) }
-                }
+        configuration.name = "protobuf-lite ${configuration.protobuf_lite}"
+        configurationsMap[configuration.name] = {
+            stage(configuration.name) { CONFIGURATION_WORKFLOW(configuration) }
+        }
     }
 
         return configurationsMap
@@ -130,7 +130,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
     node("OpenVino") {
         try {
             PROJECT_NAME = "openvino"
-            WORKDIR = "${WORKSPACE}/${BUILD_NUMBER}"
+            WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}"
 
             stage("Clone repository") {
                 stopPreviousRunningBuilds()
@@ -144,7 +144,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
             }
             stage("Prepare Docker environment") {
               dir("${WORKDIR}") {
-                    buildDockerImage(configuration)
+                    buildDockerImage(configuration.protobuf_lite)
                 }
             }
             stage("Run tests") {
@@ -176,9 +176,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
 }
 
 pipeline {
-    agent {
-        label "OpenVino"
-    }
+    agent none
     options {
         skipDefaultCheckout true
         timeout(activity: true, time: 60, unit: 'MINUTES')
