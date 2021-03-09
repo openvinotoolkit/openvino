@@ -14,6 +14,6 @@
         <value>GPU</value>
     </devices>
     <models>
-        <model name="alexnet" source="omz"/>
+        <model name="alexnet" precision="FP32" source="omz"/>
     </models>
 </attributes>

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ import datetime
 import logging as log
 import os
 import sys
+import platform
+import subprocess
 import traceback
 from collections import OrderedDict
 
@@ -34,14 +36,15 @@ from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
-from mo.utils.error import Error, FrameworkError
+from mo.utils.error import Error, FrameworkError, classify_error_type
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
-from mo.utils.version import get_version
+from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements
+from mo.utils.find_ie_version import find_ie_version
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -90,7 +93,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
                         lines.append('\t{}: \t{}'.format(desc, 'Default'))
                         continue
                 lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
-    lines.append('Model Optimizer version: \t{}'.format(get_version()))
     print('\n'.join(lines), flush=True)
 
 
@@ -146,6 +148,18 @@ def prepare_ir(argv: argparse.Namespace):
 
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
+
+    # This try-except is additional reinsurance that the IE
+    # dependency search does not break the MO pipeline
+    try:
+        if not find_ie_version(silent=argv.silent) and not argv.silent:
+            print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
+            print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+                    "bat" if sys.platform == "windows" else "sh"))
+            # If the IE was not found, it will not print the MO version, so we have to print it manually
+            print("{}: \t{}".format("Model Optimizer version", get_version()))
+    except Exception as e:
+        pass
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -254,9 +268,35 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
-        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+
+        return_code = "not executed"
+        # This try-except is additional reinsurance that the IE
+        # dependency search does not break the MO pipeline
+        try:
+            if find_ie_version(silent=True):
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
+                                                               'offline_transformations.py')
+                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
+                return_code = status.returncode
+                if return_code != 0 and not argv.silent:
+                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
+        except Exception as e:
+            pass
+
+        message = str(dict({
+            "platform": platform.system(),
+            "mo_version": get_simplified_mo_version(),
+            "ie_version": get_simplified_ie_version(env=os.environ),
+            "python_version": sys.version,
+            "return_code": return_code
+        }))
+        t = tm.Telemetry()
+        t.send_event('mo', 'offline_transformations_status', message)
+
+        print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
+        print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
     return 0
 
@@ -287,9 +327,9 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
-    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_version())
+    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session()
-    telemetry.send_event('mo', 'version', get_version())
+    telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user

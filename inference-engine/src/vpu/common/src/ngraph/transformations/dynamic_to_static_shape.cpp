@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,6 +181,11 @@ bool DynamicToStaticShape::run_on_function(std::shared_ptr<ngraph::Function> fun
 
     // Operation-specific testing that needs to be performed in dynamic context before DSRs are introduced
     validateDynamicFunction(*function);
+
+    // Make sure all values are invalidated, we need it to correctly evaluate upper-bound
+    for (auto& node : function->get_ops()) {
+        node->invalidate_values();
+    }
 
     for (const auto& operation : function->get_ordered_ops()) {
         if (!isDynamic(*operation)) {
