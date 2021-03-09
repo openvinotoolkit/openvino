@@ -1,2 +1,5 @@
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from .test_utils_api import *
 __all__ = ['CompareNetworks']

@@ -19,6 +19,7 @@
 
 #include "ngraph_ops/type_relaxed.hpp"
 #include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 // branch specific transformations
 #include "low_precision/concat.hpp"
@@ -221,6 +222,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
         add<MVNTransformation, op::MVN>(params).
+        add<MVNTransformation, opset6::MVN>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
         add<PReluTransformation, opset1::PRelu>(params).
         add<ReluTransformation, opset1::Relu>(params).
@@ -331,6 +333,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Interpolate>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
     make_matcher_type_relaxed<op::MVN>(this);
+    make_matcher_type_relaxed<opset6::MVN>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
     make_matcher_type_relaxed<opset4::Interpolate>(this);
 }

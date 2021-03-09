@@ -161,14 +161,15 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
 
 def get_dtype(precision):
     format_map = {
-      'FP32' : np.float32,
-      'I32'  : np.int32,
-      'I64'  : np.int64,
-      'FP16' : np.float16,
-      'I16'  : np.int16,
-      'U16'  : np.uint16,
-      'I8'   : np.int8,
-      'U8'   : np.uint8,
+      'FP32' : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
+      'I32'  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
+      'I64'  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
+      'FP16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
+      'I16'  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
+      'U16'  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
+      'I8'   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
+      'U8'   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
+      'BOOL' : (np.uint8, 0, 1),
     }
     if precision in format_map.keys():
         return format_map[precision]
@@ -180,7 +181,7 @@ def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_
     if 'N' in info.layout:
         shape[info.layout.index('N')] = 1
     binary_index = request_id * batch_size * input_size + input_id
-    dtype = get_dtype(info.precision)
+    dtype = get_dtype(info.precision)[0]
     for b in range(batch_size):
         binary_index %= len(binary_paths)
         binary_filename = binary_paths[binary_index]
@@ -207,6 +208,10 @@ def fill_blob_with_image_info(image_size, layer):
     return im_info
 
 def fill_blob_with_random(layer):
+    dtype, rand_min, rand_max = get_dtype(layer.precision)
+    # np.random.uniform excludes high: add 1 to have it generated
+    if np.dtype(dtype).kind in ['i', 'u', 'b']:
+        rand_max += 1
     if layer.shape:
-        return np.random.rand(*layer.shape).astype(get_dtype(layer.precision))
-    return (get_dtype(layer.precision))(np.random.rand())
+        return np.random.uniform(rand_min, rand_max, layer.shape).astype(dtype)
+    return (dtype)(np.random.uniform(rand_min, rand_max))

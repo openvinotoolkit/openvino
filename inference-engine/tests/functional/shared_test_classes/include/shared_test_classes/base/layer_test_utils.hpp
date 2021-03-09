@@ -189,6 +189,8 @@ protected:
 
     void LoadNetwork();
 
+    virtual void GenerateInputs();
+
     virtual void Infer();
 
     TargetDevice targetDevice;

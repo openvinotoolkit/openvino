@@ -391,34 +391,25 @@ StageOutput ModelObj::addStageOutput(
     return edge;
 }
 
-StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& data) {
-    for (const auto& dependentStageEdge : data->dependentStagesEdges()) {
-        VPU_THROW_UNLESS(dependentStageEdge->dependentStage() != stage,
-                         "Adding stage dependency for {} with type {} failed: data {} with usage {} is already its dependency",
-                         stage->name(), stage->type(), data->name(), data->usage());
+StageDependency ModelObj::addStageDependency(const Stage& parent, const Stage& child) {
+    for (const auto& dependentStageEdge : parent->childDependencyEdges()) {
+        VPU_THROW_UNLESS(dependentStageEdge->child() != child,
+                         "Adding dependent stage for {} with type {} failed: stage {} with type {} is already its dependent stage",
+                         parent->name(), parent->type(), child->name(), child->type());
     }
-
-    for (const auto& input : stage->inputs()) {
-        VPU_THROW_UNLESS(data != input,
-                         "Adding stage dependency for {} with type {} failed: data {} with usage {} is already its input",
-                         stage->name(), stage->type(), data->name(), data->usage());
-    }
-
-    VPU_THROW_UNLESS(data->producer() != nullptr,
-                     "Adding stage dependency for {} with type {} failed: data {} with usage {} should have producer, "
-                     "but actually it doesn't", stage->name(), stage->type(), data->name(), data->usage());
 
     _resetStageOrder = true;
 
     std::shared_ptr<StageDependencyEdge> edge(new StageDependencyEdge);
     edge->_ptrPosInModel = _stageDependencyEdgePtrList.emplace(_stageDependencyEdgePtrList.end(), edge);
 
-    edge->_dependency = data;
-    edge->_dependentStage = stage;
+    edge->_parent = parent;
+    edge->_child = child;
 
-    data->_dependentStagesEdges.push_back(edge);
+    parent->_childDependencyEdges.push_back(edge);
+    child->_parentDependencyEdges.push_back(edge);
 
-    setStagesOrder(data->producerEdge()->producer(), stage);
+    setStagesOrder(parent, child);
 
     return edge;
 }
@@ -681,111 +672,84 @@ void ModelObj::replaceStageOutput(
     }
 }
 
-void ModelObj::replaceStageDependency(
+void ModelObj::replaceStageDependencyParent(
         const StageDependency& edge,
-        const Data& newDependency) {
-    const auto previousDependency = edge->dependency();
-    const auto dependentStage = edge->dependentStage();
+        const Stage& newParent) {
+    const auto previousParent = edge->parent();
+    const auto child = edge->child();
 
-    for (const auto& dependentStageEdge : newDependency->dependentStagesEdges()) {
-        VPU_THROW_UNLESS(dependentStageEdge->dependentStage() != dependentStage,
-            "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
-            "new dependency {} with usage {} is already dependency for dependent stage", previousDependency->name(), previousDependency->usage(),
-            dependentStage->name(), dependentStage->type(), newDependency->name(), newDependency->usage());
+    for (const auto& dependentStageEdge : newParent->childDependencyEdges()) {
+        VPU_THROW_UNLESS(dependentStageEdge->child() != child,
+                         "replaceStageDependencyParent failed for {} with type {}: stage {} with type {} is already its parent",
+                         child->name(), child->type(), newParent->name(), newParent->type());
     }
-
-    for (const auto& input : dependentStage->inputs()) {
-        VPU_THROW_UNLESS(newDependency != input,
-            "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
-            "new dependency {} with usage {} is already input for dependent stage", previousDependency->name(), previousDependency->usage(),
-            dependentStage->name(), dependentStage->type(), newDependency->name(), newDependency->usage());
-    }
-
-    VPU_THROW_UNLESS(newDependency->producer() != nullptr,
-        "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
-        "newDependency {} with usage {} has no producer", previousDependency->name(), previousDependency->usage(),
-        dependentStage->name(), dependentStage->type(), newDependency->name(), newDependency->usage());
-
-    VPU_THROW_UNLESS(previousDependency->producer() != nullptr,
-        "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
-        "previous dependency has no producer",
-        previousDependency->name(), previousDependency->usage(), dependentStage->name(), dependentStage->type());
 
     _resetStageOrder = true;
 
-    previousDependency->_dependentStagesEdges.erase(edge);
+    auto& childDependencyEdges = previousParent->_childDependencyEdges;
+    childDependencyEdges.erase(std::remove(childDependencyEdges.begin(), childDependencyEdges.end(), edge));
 
-    removeStagesOrder(previousDependency->producer(), dependentStage);
+    removeStagesOrder(previousParent, child);
 
-    edge->_dependency = newDependency;
-    newDependency->_dependentStagesEdges.push_back(edge);
+    edge->_parent = newParent;
+    newParent->_childDependencyEdges.push_back(edge);
 
-    setStagesOrder(newDependency->producerEdge()->producer(), dependentStage);
+    setStagesOrder(newParent, child);
 }
 
-void ModelObj::replaceDependentStage(
+void ModelObj::replaceStageDependencyChild(
         const StageDependency& edge,
-        const Stage& newDependentStage) {
-    const auto dependency = edge->dependency();
-    const auto previousDependentStage = edge->dependentStage();
+        const Stage& newChild) {
+    const auto parent = edge->parent();
+    const auto previousChild = edge->child();
 
-    for (const auto& dependentStageEdge : dependency->dependentStagesEdges()) {
-        VPU_THROW_UNLESS(dependentStageEdge->dependentStage() != newDependentStage,
-            "replaceDependentStage failed for dependency {} with usage {} and dependentStage {} with type {}: "
-            "new dependent stage {} with type {} is already dependent stage for dependency", dependency->name(), dependency->usage(),
-            previousDependentStage->name(), previousDependentStage->type(), newDependentStage->name(), newDependentStage->type());
+    for (const auto& dependentStageEdge : parent->childDependencyEdges()) {
+        VPU_THROW_UNLESS(dependentStageEdge->child() != newChild,
+                         "replaceStageDependencyChild failed for {} with type {}: stage {} with type {} is already its child",
+                         parent->name(), parent->type(), newChild->name(), newChild->type());
     }
-
-    for (const auto& input : newDependentStage->inputs()) {
-        VPU_THROW_UNLESS(dependency != input,
-            "replaceDependentStage failed for dependency {} with usage {} and dependentStage {} with type {}: "
-            "new dependent stage {} with type {} already has dependency as its input", dependency->name(), dependency->usage(),
-            previousDependentStage->name(), previousDependentStage->type(), newDependentStage->name(), newDependentStage->type());
-    }
-
-    VPU_THROW_UNLESS(dependency->producer() != nullptr,
-        "replaceDependentStage failed for dependency {} with usage {} and dependentStage {} with type {}: "
-        "dependency has no producer",
-        dependency->name(), dependency->usage(), previousDependentStage->name(), previousDependentStage->type());
 
     _resetStageOrder = true;
 
-    removeStagesOrder(dependency->producer(), previousDependentStage);
+    auto& parentDependencyEdges = previousChild->_parentDependencyEdges;
+    parentDependencyEdges.erase(std::remove(parentDependencyEdges.begin(), parentDependencyEdges.end(), edge));
 
-    edge->_dependentStage = newDependentStage;
+    removeStagesOrder(parent, previousChild);
 
-    setStagesOrder(dependency->producer(), newDependentStage);
+    edge->_child = newChild;
+    newChild->_parentDependencyEdges.push_back(edge);
+
+    setStagesOrder(parent, newChild);
 }
 
 void ModelObj::removeStageDependency(const StageDependency& edge) {
-    const auto dependency = edge->dependency();
-    const auto dependentStage = edge->dependentStage();
-
-    VPU_THROW_UNLESS(dependency->producer(),
-        "removeStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: dependency has no producer",
-        dependency->name(), dependency->usage(), dependentStage->name(), dependentStage->type());
+    const auto parent = edge->parent();
+    const auto child = edge->child();
 
     _resetStageOrder = true;
 
-    dependency->_dependentStagesEdges.erase(edge);
+    auto& childDependencyEdges = parent->_childDependencyEdges;
+    childDependencyEdges.erase(std::remove(childDependencyEdges.begin(), childDependencyEdges.end(), edge));
+    auto& parentDependencyEdges = child->_parentDependencyEdges;
+    parentDependencyEdges.erase(std::remove(parentDependencyEdges.begin(), parentDependencyEdges.end(), edge));
 
-    removeStagesOrder(dependency->producer(), dependentStage);
+    removeStagesOrder(parent, child);
 
     VPU_THROW_UNLESS(edge->_ptrPosInModel != _stageDependencyEdgePtrList.end(),
-        "removeStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: no such edge in Model's DataToShapeEdges list",
-        dependency->name(), dependency->usage(), dependentStage->name(), dependentStage->type());
+        "removeStageDependency failed for parent {} with type {} and child {} with type {}: no such edge in Model's DataToShapeEdges list",
+        parent->name(), parent->type(), child->name(), child->type());
 
     _stageDependencyEdgePtrList.erase(edge->_ptrPosInModel);
 }
 
-void ModelObj::removeStageDependency(const Stage& stage, const Data& dependency) {
-    const auto& dependentStagesEdges = dependency->dependentStagesEdges();
+void ModelObj::removeStageDependency(const Stage& parent, const Stage& child) {
+    const auto& childDependencyEdges = parent->childDependencyEdges();
 
-    const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&stage](const StageDependency& edge) {
-        return edge->dependentStage() == stage;
+    const auto it = std::find_if(childDependencyEdges.begin(), childDependencyEdges.end(), [&child](const StageDependency& edge) {
+        return edge->child() == child;
     });
 
-    if (it != dependentStagesEdges.end()) {
+    if (it != childDependencyEdges.end()) {
         const auto stageDependencyEdge = *it;
         removeStageDependency(stageDependencyEdge);
     }
@@ -924,6 +888,22 @@ Injection ModelObj::injectStageImpl(
     child->_parentStageEdge = edge;
 
     //
+    // Redirect child stage dependencies to parent.
+    //
+
+    const auto parentDependencyEdges = child->_parentDependencyEdges;
+    for (const auto& parentDependencyEdge : parentDependencyEdges) {
+        edge->_injectedStageDependencies.push_back(parentDependencyEdge);
+        replaceStageDependencyChild(parentDependencyEdge, parent);
+    }
+
+    const auto childDependencyEdges = child->_childDependencyEdges;
+    for (const auto& childDependencyEdge : childDependencyEdges) {
+        edge->_injectedStageDependencies.push_back(childDependencyEdge);
+        replaceStageDependencyParent(childDependencyEdge, parent);
+    }
+
+    //
     // Redirect child inputs to parent.
     //
 
@@ -1048,6 +1028,19 @@ void ModelObj::revertInjection(const Injection& edge) {
     //
 
     childStage->_ptrPosInModel = _stagePtrList.emplace(_stagePtrList.end(), childStage);
+
+    //
+    // Redirect stage dependencies back to child.
+    //
+
+    for (const auto& injectedStageDependency : edge->injectedStageDependencies()) {
+        if (parentStage == injectedStageDependency->parent()) {
+            replaceStageDependencyParent(injectedStageDependency, childStage);
+        } else {
+            replaceStageDependencyChild(injectedStageDependency, childStage);
+        }
+    }
+    edge->_injectedStageDependencies.clear();
 
     //
     // Remove Injection Edge from parent and child Stage.
@@ -1706,7 +1699,7 @@ DataToShapeAllocation ModelObj::connectDataWithShape(
 
     if (childProducer && isStageDependencyNeeded(childProducer, parent)) {
         // Shape and data are produced from different stages, make sure that shape is calculated before data
-        addStageDependency(childProducer, parent);
+        addStageDependency(parent->producer(), childProducer);
     }
 
     return edge;
@@ -1724,11 +1717,14 @@ void ModelObj::replaceDataToShapeParent(
 
     const auto& childProducer = child->producer();
     if (childProducer != nullptr) {
-        removeStageDependency(childProducer, oldParent);
+        const auto& oldParentProducer = oldParent->producer();
+        if (oldParentProducer != nullptr) {
+            removeStageDependency(oldParent->producer(), childProducer);
+        }
 
         if (isStageDependencyNeeded(childProducer, newParent)) {
             // Shape and data are produced from different stages, make sure that shape is calculated before data
-            addStageDependency(childProducer, newParent);
+            addStageDependency(newParent->producer(), childProducer);
         }
     }
 }
@@ -1749,15 +1745,16 @@ void ModelObj::replaceDataToShapeChild(
     newChild->_parentDataToShapeEdge = edge;
 
     const auto& oldChildProducer = oldChild->producer();
-    if (oldChildProducer != nullptr) {
-        removeStageDependency(oldChildProducer, parent);
+    const auto& parentProducer = parent->producer();
+    if (parentProducer != nullptr && oldChildProducer != nullptr) {
+        removeStageDependency(parentProducer, oldChildProducer);
     }
 
     const auto& newChildProducer = newChild->producer();
 
     if (newChildProducer && isStageDependencyNeeded(newChildProducer, parent)) {
         // Shape and data are produced from different stages, make sure that shape is calculated before data
-        addStageDependency(newChildProducer, parent);
+        addStageDependency(parent->producer(), newChildProducer);
     }
 }
 
@@ -1839,8 +1836,9 @@ void ModelObj::disconnectDatas(const DataToShapeAllocation& edge) {
     _shapeEdgePtrList.erase(edge->_ptrPosInModel);
 
     const auto& childProducer = child->producer();
-    if (childProducer != nullptr) {
-        removeStageDependency(childProducer, parent);
+    const auto& parentProducer = parent->producer();
+    if (parentProducer != nullptr && childProducer != nullptr) {
+        removeStageDependency(parentProducer, childProducer);
     }
 }
 
@@ -1893,7 +1891,10 @@ void ModelObj::disconnectStage(const Stage& stage) {
     for (const auto& outEdge : stage->_outputEdges) {
         // Disconnect from dependency
         if (const auto& dataToShapeEdge = outEdge->output()->parentDataToShapeEdge()) {
-            removeStageDependency(stage, dataToShapeEdge->parent());
+            const auto& parentProducer = dataToShapeEdge->parent()->producer();
+            if (parentProducer != nullptr) {
+                removeStageDependency(parentProducer, stage);
+            }
         }
         // Disconnect from consumers
         for (const auto& consumerEdge : outEdge->_output->_consumerEdges) {

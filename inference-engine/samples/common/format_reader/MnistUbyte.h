@@ -43,10 +43,6 @@ public:
         return _width * _height * 1;
     }
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     std::shared_ptr<unsigned char> getData(size_t width, size_t height) override {
         if ((width * height != 0) && (_width * _height != width * height)) {
             std::cout << "[ WARNING ] Image won't be resized! Please use OpenCV.\n";

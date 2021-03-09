@@ -36,10 +36,7 @@ namespace LayerTestsDefinitions {
         return result.str();
     }
 
-    void ROIPoolingLayerTest::Infer() {
-        inferRequest = executableNetwork.CreateInferRequest();
-        inputs.clear();
-
+    void ROIPoolingLayerTest::GenerateInputs() {
         auto feat_map_shape = cnnNetwork.getInputShapes().begin()->second;
 
         const auto is_roi_max_mode = (pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX);
@@ -60,11 +57,9 @@ namespace LayerTestsDefinitions {
             } else {
                 blob = GenerateInput(*info);
             }
-            inferRequest.SetBlob(info->name(), blob);
             inputs.push_back(blob);
             it++;
         }
-        inferRequest.Infer();
     }
 
     void ROIPoolingLayerTest::SetUp() {

@@ -156,6 +156,24 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 THROW_GNA_EXCEPTION << "GNA pwl uniform algorithm parameter "
                                     << "should be equal to YES/NO, but not" << value;
             }
+        } else if (key == GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)) {
+            float max_error;
+            try {
+                max_error = InferenceEngine::CNNLayer::ie_parse_float(value);
+                if (max_error < 0.0f || max_error > 100.0f) {
+                    throw std::out_of_range("");
+                }
+            }
+            catch (std::invalid_argument&) {
+                THROW_GNA_EXCEPTION << "Invalid value of PWL max error percent";
+            }
+            catch (std::out_of_range&) {
+                log << "Unsupported PWL error percent value: " << value
+                    << ", should be greater than 0 and less than 100";
+                THROW_GNA_EXCEPTION << "Unsupported PWL error percent value: " << value
+                    << ", should be greater than 0 and less than 100";
+            }
+            gnaFlags.pwlMaxErrorPercent = max_error;
         } else if (key == CONFIG_KEY(PERF_COUNT)) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.performance_counting = true;
@@ -252,6 +270,7 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
     keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
+    keyConfigMap[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(gnaFlags.pwlMaxErrorPercent);
     keyConfigMap[CONFIG_KEY(PERF_COUNT)] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);

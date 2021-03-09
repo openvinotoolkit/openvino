@@ -27,6 +27,10 @@ const MKLDNNNodePtr MKLDNNEdge::getChild() const {
     return childPtr;
 }
 
+bool MKLDNNEdge::isUseExternalMemory() const {
+    return externalMemoryPtr;
+}
+
 bool MKLDNNEdge::isDropped() {
     bool not_in_parent = true;
     bool not_in_child = true;
@@ -162,6 +166,31 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
     memoryPtr->Create(MKLDNNMemoryDesc(inputDesc), mem_ptr, false);  // no pads zeroing
     status = Status::Allocated;
+}
+
+std::string MKLDNNEdge::name() const {
+    auto parentPtr = getParent();
+    auto childPtr = getChild();
+    return parentPtr->getName() + std::to_string(parent_port) + "<->" + childPtr->getName() + std::to_string(child_port);
+}
+
+void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
+    if (status != Status::NeedAllocation)
+        return;
+
+    if (weightsCache) {
+        auto alloc = [this] () {
+            allocate();
+            return memoryPtr;
+        };
+
+        auto ptr = weightsCache->findOrCreate(name(), alloc, false);
+        memoryPtr = *ptr;
+        externalMemoryPtr = true;
+        status = Status::Allocated;
+    } else {
+        allocate();
+    }
 }
 
 void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
@@ -570,6 +599,7 @@ void MKLDNNEdge::validate() {
     getParent();
     getChild();
     getDims();
+
     if (status != Status::Allocated) {
         THROW_IE_EXCEPTION << "Error memory is not allocated!";
     }
@@ -583,6 +613,10 @@ MKLDNNEdgePtr MKLDNNEdge::getSharedEdge() const {
                            << getChild()->getName() << "). The pointer on the edge with memory is empty!";
     }
     return memoryFromEdgePtr;
+}
+
+MKLDNNEdgePtr MKLDNNEdge::getSharedEdge(std::nothrow_t) const {
+    return memoryFromEdge.lock();
 }
 
 void MKLDNNEdge::init() {

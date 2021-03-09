@@ -25,10 +25,6 @@
 
 #include "test_utils.h"
 
-#define CL_HPP_ENABLE_EXCEPTIONS
-#define CL_HPP_MINIMUM_OPENCL_VERSION 120
-#define CL_HPP_TARGET_OPENCL_VERSION 120
-
 #if defined __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
@@ -239,6 +235,3 @@ TEST(gpu_device_query, DISABLED_release_device)
     //check if simple execution was finished correctly
     execute_simple_topology(eng);
 }
-
-
-

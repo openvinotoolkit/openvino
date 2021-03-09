@@ -67,6 +67,8 @@ class Policy {
         };
         uint32_t limitedTo = LIMITED_TO_DEFAULT_GNA2_65536;
     } GNAAffineDiagonalPolicy;
+
+    bool cnn2dInputPaddingSupported = true;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {

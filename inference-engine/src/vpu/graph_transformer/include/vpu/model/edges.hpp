@@ -38,28 +38,6 @@ private:
 };
 
 //
-// StageDependencyEdge defines that some data should be calculated before the stage starts
-// but this data is not an input for the stage, e.g. this data is used as a shape for stage output.
-//
-
-class StageDependencyEdge final :
-        public EnableHandle,
-        public EnableCustomAttributes {
-VPU_MODEL_ATTRIBUTE(Data, dependency, nullptr)
-VPU_MODEL_ATTRIBUTE(Stage, dependentStage, nullptr)
-
-private:
-    StageDependencyEdge() : _posInData(this) {}
-
-private:
-    StageDependencyPtrList::iterator _ptrPosInModel;
-    StageDependencyListNode _posInData;
-
-    friend ModelObj;
-    friend DataNode;
-};
-
-//
 // StageOutputEdge
 //
 
@@ -209,6 +187,7 @@ class InjectionEdge final :
     VPU_MODEL_ATTRIBUTE(Stage, parent, nullptr)
     VPU_MODEL_ATTRIBUTE(StagePtr, child, nullptr)
     VPU_MODEL_ATTRIBUTE(int, portInd, -1)
+    VPU_MODEL_ATTRIBUTE(StageDependencyVector, injectedStageDependencies, {})
 
 private:
     InjectionEdge() : _posInStage(this) {}
@@ -217,6 +196,27 @@ private:
     Model _model;
     InjectionPtrList::iterator _ptrPosInModel;
     InjectionListNode _posInStage;
+
+    friend ModelObj;
+    friend StageNode;
+};
+
+//
+// StageDependencyEdge defines that some stage should be executed before other
+//
+
+class StageDependencyEdge final :
+        public EnableHandle,
+        public EnableCustomAttributes {
+    VPU_MODEL_ATTRIBUTE(Stage, parent, nullptr)
+    VPU_MODEL_ATTRIBUTE(Stage, child, nullptr)
+
+private:
+    StageDependencyEdge() : _posInStage(this) {}
+
+private:
+    StageDependencyPtrList::iterator _ptrPosInModel;
+    StageDependencyListNode _posInStage;
 
     friend ModelObj;
     friend StageNode;

@@ -45,7 +45,8 @@ public:
 
         procAddr = dlsym(shared_object, symbolName);
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
+            THROW_IE_EXCEPTION << details::as_status << NOT_FOUND
+                << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
         return procAddr;
     }
 };
@@ -60,8 +61,7 @@ SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
     _impl.reset(new Impl(pluginName));
 }
 
-SharedObjectLoader::~SharedObjectLoader() noexcept(false) {
-}
+SharedObjectLoader::~SharedObjectLoader() noexcept(false) {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
     return _impl->get_symbol(symbolName);

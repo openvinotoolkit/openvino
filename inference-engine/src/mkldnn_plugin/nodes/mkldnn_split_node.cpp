@@ -6,10 +6,8 @@
 #include "common/cpu_memcpy.h"
 #include <legacy/ie_layers.h>
 #include <vector>
-#include <queue>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <climits>
 #include <ie_parallel.hpp>
 
 #define THROW_ERROR THROW_IE_EXCEPTION << "Split layer with name '" << getName() <<"' "
@@ -460,7 +458,10 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
 }
 
 void MKLDNNSplitNode::prepareOptimizedParams() {
-    const auto& inpTensorDesc = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU Split node with name '" << getName() << "' doesn't have primitive descriptors.";
+    const auto& inpTensorDesc = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc;
     const auto outputPortsCount = outDims.size();
 
     //find axis order position
@@ -551,28 +552,14 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
 void MKLDNNSplitNode::initializeDstMemPtrs() {
     dstMemPtrs.clear();
 
-    //Here we have to place the output data pointers in the order that reflects the output edges order.
-    //It's important in case when several edges are connected to one port.
-    //This is a naive implementation, an indexed priority queue or modified treap would be a more elegant solution.
-    std::unordered_map<uint8_t*, size_t> mapDstPtrs;
-    for (size_t i = 0; i < getChildEdges().size(); ++i) {
-        auto outputEdge = this->getChildEdgeAt(i);
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdge->getMemoryPtr()->GetPtr())) {
-            mapDstPtrs[dstData] = i;
+    for (size_t i = 0; i < outDims.size(); ++i) {
+        auto outputEdges = this->getChildEdgesAtPort(i);
+        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdges.front()->getMemoryPtr()->GetPtr())) {
+            dstMemPtrs.push_back(dstData);
         } else {
             THROW_ERROR << "can't get child edge indx " << i << "data.";
         }
     }
-
-    std::vector<uint8_t*> vecCountingSort(getChildEdges().size(), nullptr);
-    for (auto& item : mapDstPtrs) {
-        vecCountingSort[item.second] = item.first;
-    }
-
-    dstMemPtrs.reserve(vecCountingSort.size());
-    auto backInserter = std::back_inserter(dstMemPtrs);
-    std::copy_if(vecCountingSort.begin(), vecCountingSort.end(), backInserter, [](const uint8_t* x) {return x;});
-    dstMemPtrs.shrink_to_fit();
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);

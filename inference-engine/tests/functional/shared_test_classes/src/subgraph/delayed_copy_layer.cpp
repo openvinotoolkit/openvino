@@ -63,6 +63,7 @@ namespace SubgraphTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
+        GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();

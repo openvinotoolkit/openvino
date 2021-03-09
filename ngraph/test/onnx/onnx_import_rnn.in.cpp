@@ -851,11 +851,11 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_con
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
-NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations)
+NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_relu_hardsigmoid)
 {
     // activations: relu, hardsigmoid
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_activations.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_activations_relu_hardsigmoid.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 

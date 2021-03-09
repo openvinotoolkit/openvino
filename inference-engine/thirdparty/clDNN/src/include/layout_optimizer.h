@@ -149,24 +149,28 @@ private:
                               const layout& output_layout,
                               const layout& weights_layout,
                               const convolution_node& node);
-    bool convolution_b_fs_yx_fsv16_opt(const layout &output_layout,
-                                       const layout &weights_layout,
-                                       std::shared_ptr<const convolution> conv,
-                                       bool weak_restrictions = false);
-    bool convolution_b_fs_zyx_fsv16_opt(const layout &output_layout,
-                                        const layout &weights_layout,
-                                        std::shared_ptr<const convolution> conv);
-    bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_layout,
-                                              const layout& weights_layout,
-                                              std::shared_ptr<const convolution> conv);
-    bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
+    bool convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
+                                       const layout& output_layout,
                                        const layout& weights_layout,
                                        std::shared_ptr<const convolution> conv,
                                        bool weak_restrictions = false);
-    bool deconvolution_b_fs_zyx_fsv16_opt(const layout &output_layout,
+    bool convolution_b_fs_zyx_fsv16_opt(const layout& input_layout,
+                                        const layout& output_layout,
+                                        const layout& weights_layout,
+                                        std::shared_ptr<const convolution> conv);
+    bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_layout,
+                                              const layout& output_layout,
+                                              const layout& weights_layout,
+                                              std::shared_ptr<const convolution> conv);
+    bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
+                                       const layout& output_layout,
+                                       const layout& weights_layout,
+                                       std::shared_ptr<const convolution> conv,
+                                       bool weak_restrictions = false);
+    bool deconvolution_b_fs_zyx_fsv16_opt(const layout &input_layout,
                                           const layout &weights_layout,
                                           std::shared_ptr<const deconvolution> conv);
-    bool deconvolution_b_fs_yx_fsv16_opt(const layout &output_layout,
+    bool deconvolution_b_fs_yx_fsv16_opt(const layout &input_layout,
                                          const layout &weights_layout,
                                          std::shared_ptr<const deconvolution> conv);
     bool users_for_convolution_byxf_opt(program_node const& node, uint32_t depth);

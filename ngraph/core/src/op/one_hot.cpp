@@ -154,7 +154,7 @@ namespace detail
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a));                                   \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_one_hot_out, _, a));                                   \
         using IT = typename element_type_traits<element::Type_t::a>::value_type;                   \
         using OT = typename element_type_traits<out_t>::value_type;                                \
         rc = evaluate<IT, OT>(__VA_ARGS__);                                                        \

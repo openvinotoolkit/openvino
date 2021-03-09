@@ -30,6 +30,7 @@ extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
+extensions/back/LinearToLinearONNXReplacer.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
@@ -96,7 +97,7 @@ extensions/front/caffe/input_ext.py
 extensions/front/caffe/interp_ext.py
 extensions/front/caffe/lrn_ext.py
 extensions/front/caffe/mvn_ext.py
-extensions/front/caffe/MVNNormalizer.py
+extensions/front/caffe/MVNCaffeToMVN.py
 extensions/front/caffe/normalize_ext.py
 extensions/front/caffe/permute_ext.py
 extensions/front/caffe/pooling_ext.py
@@ -294,6 +295,7 @@ extensions/front/onnx/mask_rcnn.json
 extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
 extensions/front/onnx/mean_variance_normalization_ext.py
+extensions/front/onnx/MvnOnnxToMvn.py
 extensions/front/onnx/non_max_suppression_ext.py
 extensions/front/onnx/non_zero_ext.py
 extensions/front/onnx/normalize_ext.py
@@ -370,6 +372,7 @@ extensions/front/tf/BatchMatMul_ext.py
 extensions/front/tf/BatchToSpaceNDToUpsample.py
 extensions/front/tf/BlockLSTM.py
 extensions/front/tf/BlockLSTM_ext.py
+extensions/front/tf/broadcast_ext.py
 extensions/front/tf/bucketize.py
 extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
@@ -637,9 +640,11 @@ extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
 extensions/ops/constant_fill.py
+extensions/ops/ConvertLike.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
+extensions/ops/ctc_greedy_decoder_seq_len.py
 extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
 extensions/ops/data_augmentation.py
@@ -767,6 +772,7 @@ mo/__init__.py
 mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
+mo/back/offline_transformations.py
 mo/back/replacement.py
 mo/front/__init__.py
 mo/front/caffe/__init__.py
@@ -962,15 +968,19 @@ mo/pipeline/common.py
 mo/pipeline/unified.py
 mo/utils/__init__.py
 mo/utils/broadcasting.py
+mo/utils/check_ie_bindings.py
 mo/utils/class_registration.py
 mo/utils/cli_parser.py
 mo/utils/custom_replacement_config.py
 mo/utils/dsu.py
 mo/utils/error.py
+mo/utils/extract_release_version.py
+mo/utils/find_ie_version.py
 mo/utils/find_inputs.py
 mo/utils/get_ov_update_message.py
 mo/utils/graph.py
 mo/utils/guess_framework.py
+mo/utils/ie_version.py
 mo/utils/import_extensions.py
 mo/utils/ir_engine/__init__.py
 mo/utils/ir_engine/compare_graphs.py
@@ -981,6 +991,7 @@ mo/utils/ir_reader/extenders/binary_convolution_extender.py
 mo/utils/ir_reader/extenders/bucketize_extender.py
 mo/utils/ir_reader/extenders/conv_extender.py
 mo/utils/ir_reader/extenders/convert_extender.py
+mo/utils/ir_reader/extenders/ctc_greedy_decoder_seq_len_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py
 mo/utils/ir_reader/extenders/deformable_convolution_extender.py
 mo/utils/ir_reader/extenders/experimental_extender.py

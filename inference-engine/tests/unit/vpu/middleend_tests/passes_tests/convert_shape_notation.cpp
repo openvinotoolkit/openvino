@@ -89,16 +89,16 @@ protected:
         ASSERT_EQ(edge->parent(), shape);
     }
 
-    void checkStageDependency(const Data& shape, const Stage& stage) {
-        ASSERT_FALSE(shape->dependentStagesEdges().empty());
-        const auto& dependentStagesEdges = shape->dependentStagesEdges();
+    void checkStageDependency(const Stage& parent, const Stage& child) {
+        ASSERT_FALSE(parent->childDependencyEdges().empty());
+        const auto& childDependencyEdges = parent->childDependencyEdges();
 
-        auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(),
-                               [&stage](const StageDependency& edge) {
-                                   return edge->dependentStage() == stage;
+        auto it = std::find_if(childDependencyEdges.begin(), childDependencyEdges.end(),
+                               [&child](const StageDependency& edge) {
+                                   return edge->child() == child;
                                });
 
-        ASSERT_NE(it, dependentStagesEdges.end());
+        ASSERT_NE(it, childDependencyEdges.end());
     }
 
     void checkNoDataToShapeDependency(const Data& shape, const Data& data) {
@@ -114,15 +114,15 @@ protected:
         ASSERT_EQ(it, childDataToShapeEdges.end());
     }
 
-    void checkNoStageDependency(const Data& shape, const Stage& stage) {
-        const auto& dependentStagesEdges = shape->dependentStagesEdges();
+    void checkNoStageDependency(const Stage& parent, const Stage& child) {
+        const auto& childDependencyEdges = parent->childDependencyEdges();
 
-        auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(),
-                               [&stage](const StageDependency& edge) {
-                                   return edge->dependentStage() == stage;
+        auto it = std::find_if(childDependencyEdges.begin(), childDependencyEdges.end(),
+                               [&child](const StageDependency& edge) {
+                                   return edge->child() == child;
                                });
 
-        ASSERT_EQ(it, shape->dependentStagesEdges().end());
+        ASSERT_EQ(it, parent->childDependencyEdges().end());
     }
 
     void checkGathers(int gathersCount) {
@@ -145,8 +145,8 @@ protected:
                 dependentStage = dataConsumingShape->producer();
             }
 
-            checkStageDependency(convertedShape, dependentStage);
-            checkNoStageDependency(shape, dependentStage);
+            checkStageDependency(convertedShape->producer(), dependentStage);
+            checkNoStageDependency(shape->producer(), dependentStage);
         }
     }
 

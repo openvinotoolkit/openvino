@@ -34,7 +34,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Infer() override;
+    void GenerateInputs() override;
 
 private:
     ngraph::helpers::SequenceTestsMode m_mode;

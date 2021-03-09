@@ -8,7 +8,7 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-NGRAPH_RTTI_DEFINITION(ExpGatherElements, "ExpGatherElements", 0);
+constexpr NodeTypeInfo ExpGatherElements::type_info;
 
 ExpGatherElements::ExpGatherElements(const Output<Node>& data,
                                      const Output<Node>& indices,

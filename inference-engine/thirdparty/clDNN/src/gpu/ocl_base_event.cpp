@@ -118,7 +118,6 @@ bool base_events::is_set_impl() {
 }
 
 bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
-
     // For every profiling period (i.e. submission / starting / executing),
     // the goal is to sum up all disjoint durations of its projection on the time axis
 

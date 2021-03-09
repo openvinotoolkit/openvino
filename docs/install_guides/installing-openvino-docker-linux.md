@@ -19,7 +19,9 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 ## Prebuilt images
 
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
+Prebuilt images are available on: 
+- [Docker Hub](https://hub.docker.com/u/openvino)
+- [Quay.io](https://quay.io/organization/openvino)
 
 ## Use Docker* Image for CPU
 
@@ -45,7 +47,8 @@ docker run -it --rm <image_name>
 - GPU is not available in container by default, you must attach it to the container.
 - Kernel driver must be installed on the host.
 - Intel® OpenCL™ runtime package must be included into the container.
-- In the container, user must be in the `video` group.
+- In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
+
 
 Before building a Docker* image on GPU, add the following commands to a Dockerfile:
 
@@ -94,6 +97,7 @@ To make GPU available in the container, attach the GPU to the container using `-
 ```sh
 docker run -it --rm --device /dev/dri <image_name>
 ```
+> **NOTE**: If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
 ## Use a Docker* Image for Intel® Neural Compute Stick 2
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -262,10 +262,6 @@ const std::map <std::string, InferenceEngine::DataPtr> InferenceEnginePython::IE
 
 std::string InferenceEnginePython::IENetwork::getOVNameForTensor(const std::string& orig_name) {
     return actual->getOVNameForTensor(orig_name);
-}
-
-std::string InferenceEnginePython::IENetwork::getOVNameForOperation(const std::string& orig_name) {
-    return actual->getOVNameForOperation(orig_name);
 }
 
 void
@@ -603,7 +599,7 @@ void InferenceEnginePython::IECore::registerPlugins(const std::string &xmlConfig
 }
 
 void InferenceEnginePython::IECore::addExtension(const std::string &ext_lib_path, const std::string &deviceName) {
-    auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(ext_lib_path);
+    auto extension_ptr = std::make_shared<InferenceEngine::Extension>(ext_lib_path);
     auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
     actual.AddExtension(extension, deviceName);
 }

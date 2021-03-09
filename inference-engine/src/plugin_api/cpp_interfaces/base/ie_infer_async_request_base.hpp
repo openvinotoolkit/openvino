@@ -84,10 +84,6 @@ public:
         TO_STATUS(_impl->SetUserData(data));
     }
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetBatch(batch_size));
     }
@@ -108,9 +104,6 @@ public:
         }
     }
     IE_SUPPRESS_DEPRECATED_END
-
-private:
-    ~InferRequestBase() = default;
 };
 
 }  // namespace InferenceEngine

@@ -95,6 +95,7 @@ void ProposalBehTest::SetUp() {
 
 void ProposalBehTest::Run() {
     LoadNetwork();
+    GenerateInputs();
     Infer();
 }
 

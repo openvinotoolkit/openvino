@@ -54,7 +54,7 @@ void OutShapeOfReshape::validate_and_infer_types() {
                           ") shape descriptor type needs to be an integral type. Got: ",
                           outShapeDescriptorTensorType);
 
-    set_output_type(0, element::i64, outShapeDescriptorTensorShape);
+    set_output_type(0, m_output_type, outShapeDescriptorTensorShape);
 }
 
 std::shared_ptr<Node> OutShapeOfReshape::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -257,6 +257,9 @@ bool OutShapeOfReshape::evaluate(const HostTensorVector& outputs,
     return out_shape::evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
 }
 
+void OutShapeOfReshape::set_output_type(const ngraph::element::Type& output_type) {
+    m_output_type = output_type;
+}
 
 }  // namespace op
 }  // namespace vpu

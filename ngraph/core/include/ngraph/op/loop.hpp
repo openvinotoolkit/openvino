@@ -64,7 +64,6 @@ namespace ngraph
                 /// iteration or not.
                 Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition);
 
-                int64_t get_num_iterations() const { return m_num_iterations; }
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
                                                      int64_t stride,
@@ -93,7 +92,6 @@ namespace ngraph
                 void clone_to(Loop& dst, const OutputVector& new_args) const;
 
                 SpecialBodyPorts m_special_body_ports;
-                int64_t m_num_iterations = -1; // -1 means infinity
             };
         }
     }

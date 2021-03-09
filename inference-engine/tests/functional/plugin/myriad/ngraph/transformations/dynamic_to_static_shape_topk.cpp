@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -159,7 +159,8 @@ protected:
         const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, topk_setup.data_shape);
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
 
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(dims,
+        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(data);
+        const auto gather = std::make_shared<ngraph::opset3::Gather>(shapeOf,
                                                                      ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {topk_setup.axis}),
                                                                      ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
         const auto upper_bound = ngraph::opset3::Constant::create(dims->get_element_type(), {1}, {100});
@@ -188,7 +189,8 @@ protected:
         const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, topk_setup.data_shape);
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
 
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(dims,
+        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(data);
+        const auto gather = std::make_shared<ngraph::opset3::Gather>(shapeOf,
                                                                      ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {topk_setup.axis}),
                                                                      ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
         const auto upper_bound = ngraph::opset3::Constant::create(dims->get_element_type(), {1}, {100});

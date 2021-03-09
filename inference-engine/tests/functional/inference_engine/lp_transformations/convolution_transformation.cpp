@@ -49,27 +49,38 @@ public:
 };
 
 typedef std::tuple<
+    element::Type,
     ngraph::Shape,
     ConvolutionTransformationTestValues> ConvolutionTransformationParams;
 
 class ConvolutionTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionTransformationParams> {
 public:
     void SetUp() override {
-        const auto inputShape = std::get<0>(GetParam());
-        const auto testValues = std::get<1>(GetParam());
+        const auto netPrecision = std::get<0>(GetParam());
+        const auto inputShape = std::get<1>(GetParam());
+        auto testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+            netPrecision,
             testValues.actual.precisionBeforeDequantization,
             inputShape,
             testValues.actual.dequantizationOnActivations,
             testValues.actual.weights,
             testValues.actual.fakeQuantizeOnWeights);
-
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
+        if (!testValues.params.updatePrecisions) {
+            const auto convertOnWeights = std::make_shared<opset1::Convert>(testValues.expected.weights, netPrecision);
+            OutputVector convertedOutput(1);
+            convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
+            const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
+            testValues.expected.weights = as_type_ptr<opset1::Constant>(convertedWeights);
+        }
+
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
+            netPrecision,
             testValues.expected.precisionBeforeDequantization,
             inputShape,
             testValues.expected.dequantizationBefore,
@@ -81,11 +92,13 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
-        auto inputShape = std::get<0>(obj.param);
-        ConvolutionTransformationTestValues testValues = std::get<1>(obj.param);
+        const auto netPrecision = std::get<0>(obj.param);
+        auto inputShape = std::get<1>(obj.param);
+        ConvolutionTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
         result << toString(testValues.params) << "_" <<
+            netPrecision << "_" <<
             inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantizationOnActivations << "_" << "_weights_" <<
@@ -101,6 +114,11 @@ TEST_P(ConvolutionTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+const std::vector<element::Type> netPrecisions = {
+    element::f32,
+    element::f16
+};
 
 const std::vector<ngraph::Shape> shapes = {
     ngraph::Shape({ 1, 3, 72, 48 }),
@@ -370,6 +388,7 @@ INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ConvolutionTransformation,
     ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
     ConvolutionTransformation::getTestCaseName);

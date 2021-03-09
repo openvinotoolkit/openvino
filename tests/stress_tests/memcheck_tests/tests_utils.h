@@ -54,7 +54,7 @@ public:
 
 class TestReferences {
 private:
-    std::vector<std::string> model_name_v, test_name_v, device_v;
+    std::vector<std::string> model_name_v, test_name_v, device_v, precision_v;
     std::vector<long> vmsize_v, vmpeak_v, vmrss_v, vmhwm_v;
 public:
     std::array<long, MeasureValueMax> references;
@@ -69,6 +69,8 @@ public:
             for (pugi::xml_attribute_iterator ait = node.attributes_begin(); ait != node.attributes_end(); ait++) {
                 if (strncmp(ait->name(), "path", strlen(ait->name())) == 0) {
                     model_name_v.push_back(ait->value());
+                } else if (strncmp(ait->name(), "precision", strlen(ait->name())) == 0) {
+                    precision_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "test", strlen(ait->name())) == 0) {
                     test_name_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "device", strlen(ait->name())) == 0) {
@@ -90,11 +92,12 @@ public:
         for (int i = 0; i < test_name_v.size(); i++)
             if (test_name_v[i] == test_name)
                 if (model_name_v[i] == test_params.model_name)
-                    if (device_v[i] == test_params.device) {
-                        references[VMSIZE] = vmsize_v[i];
-                        references[VMPEAK] = vmpeak_v[i];
-                        references[VMRSS] = vmrss_v[i];
-                        references[VMHWM] = vmhwm_v[i];
-                    }
+                    if (device_v[i] == test_params.device)
+                        if (precision_v[i] == test_params.precision) {
+                            references[VMSIZE] = vmsize_v[i];
+                            references[VMPEAK] = vmpeak_v[i];
+                            references[VMRSS] = vmrss_v[i];
+                            references[VMHWM] = vmhwm_v[i];
+                        }
     }
 };

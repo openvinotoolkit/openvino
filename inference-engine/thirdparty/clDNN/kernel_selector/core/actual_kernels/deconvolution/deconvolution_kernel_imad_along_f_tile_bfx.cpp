@@ -127,7 +127,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx:
 
 KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const deconvolution_params&>(params);
-    
+
     // Currently most optimized for fsv16 formats
     if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16)
         return FORCE_PRIORITY_7;

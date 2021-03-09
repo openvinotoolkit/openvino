@@ -1248,7 +1248,19 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port)
                 if (stop_nodes.count(in.get_node()))
                     continue;
                 auto consumer = in.get_node()->shared_from_this();
+                // FIXME: Here we have a WA in order to save some original fields
+                // if we have conflicts because Variant merge doesn't work.
+                // We can restore original fields because we don't change the operation
+                auto orig_rt_info = consumer->get_rt_info();
+
                 copy_runtime_info({curr_node, consumer}, consumer);
+
+                auto& rt_info = consumer->get_rt_info();
+                for (const auto& it : orig_rt_info)
+                {
+                    if (rt_info.find(it.first) == rt_info.end())
+                        rt_info[it.first] = it.second;
+                }
             }
         }
     }

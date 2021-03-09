@@ -13,17 +13,30 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
+    const element::Type precision,
     const ngraph::Shape& inputShape,
     const AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ngraph::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const int opset_version) {
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
-
-    const auto dequantizationOp = makeDequantization(input, dequantization);
-    const auto mvn = std::make_shared<ngraph::op::MVN>(dequantizationOp, reductionAxes, normalizeVariance);
+    auto deqStructure = dequantization;
+    deqStructure.multiply.outPrecision = precision;
+    const auto dequantizationOp = makeDequantization(input, deqStructure);
+    std::shared_ptr<Node> mvn;
+    if (opset_version == 2) {
+        mvn = std::make_shared<ngraph::op::MVN>(dequantizationOp, reductionAxes, normalizeVariance);
+    } else if (opset_version == 6) {
+        mvn = std::make_shared<ngraph::opset6::MVN>(
+                dequantizationOp,
+                std::make_shared<opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
+                normalizeVariance,
+                1e-9,
+                op::MVNEpsMode::INSIDE_SQRT);
+    }
     mvn->set_friendly_name("output");
     auto& rtInfo = mvn->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("mvn");
@@ -50,24 +63,41 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> MVNFunction::getReference(
+    const element::Type precision,
     const ngraph::Shape& inputShape,
     const AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const int opset_version) {
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
-
-    const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
-    const auto mvn = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::MVN>>(
-        op::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance), precisionAfterOperation);
+    auto deqBeforeStructure = dequantizationBefore;
+    deqBeforeStructure.multiply.outPrecision = precision;
+    const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, deqBeforeStructure);
+    std::shared_ptr<Node> mvn;
+    if (opset_version == 2) {
+        mvn = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::MVN>>(
+            op::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
+            dequantizationAfter.empty() ? precision : element::f32);
+    } else if (opset_version == 6) {
+        mvn = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset6::MVN>>(
+            opset6::MVN(dequantizationOpBefore,
+                std::make_shared<opset1::Constant>(element::i64, Shape{reductionAxes.size()}, reductionAxes.to_vector()),
+                normalizeVariance,
+                1e-9,
+                op::MVNEpsMode::INSIDE_SQRT),
+            dequantizationAfter.empty() ? precision : element::f32);
+    }
     auto& rtInfo = mvn->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("mvn");
 
-    const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(mvn, dequantizationAfter);
+    auto deqAfterStructure = dequantizationAfter;
+    deqAfterStructure.multiply.outPrecision = precision;
+    const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(mvn, deqAfterStructure);
     dequantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };

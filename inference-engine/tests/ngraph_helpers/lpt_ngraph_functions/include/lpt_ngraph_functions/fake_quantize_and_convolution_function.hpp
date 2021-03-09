@@ -9,6 +9,9 @@
 #include <string>
 
 #include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ngraph_functions/common/multiply.hpp"
+#include "lpt_ngraph_functions/common/reshape.hpp"
+#include "lpt_ngraph_functions/common/transpose.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -36,6 +39,23 @@ public:
         const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
         const DequantizationOperations::Convert& convertOnWeights,
         const DequantizationOperations& dequantizationOnWeights,
+        const DequantizationOperations& dequantizationAfter,
+        const std::string operation = "Convolution");
+
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
+        const DequantizationOperations::Convert& convertOnData,
+        const DequantizationOperations& dequantizationOnData,
+        const Constant& constantOnWeights,
+        const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+        const DequantizationOperations::Convert& convertOnWeights,
+        const DequantizationOperations& dequantizationOnWeights,
+        const Reshape& reshape1,
+        const DequantizationOperations::Multiply& multiply,
+        const Transpose& transpose,
+        const Reshape& reshape2,
         const DequantizationOperations& dequantizationAfter,
         const std::string operation = "Convolution");
 };
