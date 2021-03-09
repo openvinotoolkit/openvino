@@ -13,6 +13,7 @@
 #include "api/input_layout.hpp"
 #include "api/non_max_suppression.hpp"
 #include "api/data.hpp"
+#include "api/mutable_data.hpp"
 
 using namespace cldnn;
 
@@ -52,6 +53,7 @@ struct non_max_suppression_basic : public testing::Test {
     const int batch_size = 2;
     const int classes_num = 2;
     const int boxes_num = 3;
+    const int selected_indices_num = 6;
 
     const std::vector<T> boxes_data = {
         T(0.f), T(0.f), T(10.f), T(10.f),
@@ -73,6 +75,9 @@ struct non_max_suppression_basic : public testing::Test {
     const layout boxes_layout = layout(type_to_data_type<T>::value, format::bfyx, tensor(batch(batch_size), feature(boxes_num), spatial(1, 4)));
     const layout scores_layout = layout(type_to_data_type<T>::value, format::bfyx, tensor(batch(batch_size), feature(classes_num), spatial(1, boxes_num)));
 
+    const layout selected_scores_layout = layout(type_to_data_type<T>::value, format::bfyx, tensor(batch(selected_indices_num), feature(3)));
+    const layout valid_outputs_layout = layout(cldnn::data_types::i32, format::bfyx, tensor(batch(selected_indices_num), feature(1)));
+
     memory get_boxes_memory(engine& engine) {
         auto mem = memory::allocate(engine, boxes_layout);
         tests::set_values(mem, boxes_data);
@@ -82,6 +87,16 @@ struct non_max_suppression_basic : public testing::Test {
     memory get_scores_memory(engine& engine) {
         auto mem = memory::allocate(engine, scores_layout);
         tests::set_values(mem, scores_data);
+        return mem;
+    }
+
+    memory get_selected_scores_mem(engine& engine) {
+        auto mem = memory::allocate(engine, selected_scores_layout);
+        return mem;
+    }
+
+    memory get_valid_outputs_mem(engine& engine) {
+        auto mem = memory::allocate(engine, valid_outputs_layout);
         return mem;
     }
 
@@ -130,6 +145,55 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     }
 }
 
+TYPED_TEST(non_max_suppression_basic, optional_outputs) {
+    auto engine = tests::get_test_engine();
+
+    topology topo;
+    topo.add(input_layout("boxes", this->boxes_layout));
+    topo.add(input_layout("scores", this->scores_layout));
+
+    memory selected_scores_mem = this->get_selected_scores_mem(engine);
+    memory valid_outputs_mem = this->get_valid_outputs_mem(engine);
+
+    topo.add(mutable_data("selected_scores", selected_scores_mem));
+    topo.add(mutable_data("valid_outputs", valid_outputs_mem));
+
+    topo.add(non_max_suppression("nms", "boxes", "scores", this->selected_indices_num, false, true,
+                                cldnn::primitive_id(), cldnn::primitive_id(),
+                                cldnn::primitive_id(), cldnn::primitive_id(),
+                                "selected_scores", "valid_outputs"));
+
+    build_options build_opts(
+        build_option::optimize_data(true)
+    );
+    auto net = network(engine, topo, build_opts);
+
+    auto boxes_mem = this->get_boxes_memory(engine);
+    auto scores_mem = this->get_scores_memory(engine);
+
+    net.set_input_data("boxes", boxes_mem);
+    net.set_input_data("scores", scores_mem);
+
+    auto result = net.execute();
+
+    std::vector<int> expected_out = {
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad
+    };
+
+    auto out_mem = result.at("nms").get_memory();
+    auto out_ptr = out_mem.pointer<int>();
+
+    ASSERT_EQ(expected_out.size(), out_ptr.size());
+    for (size_t i = 0; i < expected_out.size(); ++i) {
+        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+    }
+}
+
 TYPED_TEST(non_max_suppression_basic, num_per_class) {
     auto engine = tests::get_test_engine();
 
@@ -140,7 +204,8 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
     topo.add(input_layout("boxes", this->boxes_layout));
     topo.add(input_layout("scores", this->scores_layout));
     topo.add(data("num_per_class", num_per_class_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class"));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 
+        this->batch_size * this->classes_num * 1, false, true, "num_per_class"));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -160,8 +225,6 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
         0, 1, 0,
         1, 0, 2,
         1, 1, 2,
-        this->pad, this->pad, this->pad,
-        this->pad, this->pad, this->pad,
     };
 
     auto out_mem = result.at("nms").get_memory();
@@ -186,7 +249,9 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
     topo.add(input_layout("scores", this->scores_layout));
     topo.add(data("num_per_class", num_per_class_mem));
     topo.add(data("iou_threshold", iou_threshold_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class", "iou_threshold"));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 
+        this->batch_size * this->classes_num * this->boxes_num,
+        false, true, "num_per_class", "iou_threshold"));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -207,7 +272,13 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
         1, 0, 2,
         0, 0, 1,
         1, 0, 1,
-        1, 1, 2
+        1, 1, 2,
+        1, 1, 1,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad
     };
 
     auto out_mem = result.at("nms").get_memory();
@@ -235,7 +306,9 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
     topo.add(data("num_per_class", num_per_class_mem));
     topo.add(data("iou_threshold", iou_threshold_mem));
     topo.add(data("score_threshold", score_threshold_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class", "iou_threshold", "score_threshold"));
+    topo.add(non_max_suppression("nms", "boxes", "scores",
+        this->batch_size * this->classes_num * this->boxes_num,
+        false, true, "num_per_class", "iou_threshold", "score_threshold"));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -257,6 +330,12 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
         0, 0, 1,
         1, 0, 1,
         this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad
     };
 
     auto out_mem = result.at("nms").get_memory();
@@ -269,7 +348,10 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
 }
 
 TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
-    auto engine = tests::get_test_engine();
+    // auto engine = tests::get_test_engine();
+
+    cldnn::engine_configuration cfg = { true, false, false, "", "", true, "", "/home/jade/work/cl_dump/"};
+    auto engine = cldnn::engine(cfg); 
 
     auto num_per_class_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(num_per_class_mem, { 3.f });
@@ -287,7 +369,9 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     topo.add(data("iou_threshold", iou_threshold_mem));
     topo.add(data("score_threshold", score_threshold_mem));
     topo.add(data("soft_nms_sigma", soft_nms_sigma_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class", "iou_threshold", "score_threshold", "soft_nms_sigma"));
+    topo.add(non_max_suppression("nms", "boxes", "scores",
+        this->batch_size * this->classes_num * this->boxes_num,
+        false, true, "num_per_class", "iou_threshold", "score_threshold", "soft_nms_sigma"));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -302,12 +386,26 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
 
     auto result = net.execute();
 
+    for(auto& p : net.get_executed_primitives()) {
+        std::cout << p.first.c_str() << std::endl;
+        for (auto pi : p.second.get_profiling_info()) {
+            double ms = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
+            std::cout << "    " << pi.name << ": " << ms << " ms" << std::endl;
+        }
+    }
+
     std::vector<int> expected_out = {
         0, 0, 2,
         0, 1, 0,
         1, 0, 2,
         0, 0, 1,
         1, 0, 1,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
         this->pad, this->pad, this->pad
     };
 

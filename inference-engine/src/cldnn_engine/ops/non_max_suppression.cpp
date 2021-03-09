@@ -105,6 +105,7 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
     }
 
     auto nonMaxSupressionLayerName = num_output > 1 ? layer_type_name_ID(op) + ".0" : layer_type_name_ID(op);
+
     auto prim = cldnn::non_max_suppression(
             nonMaxSupressionLayerName,
             reorderedInputs[0],

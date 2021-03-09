@@ -72,6 +72,8 @@ public:
         memory_impl::cptr lookup_table;
         memory_impl::cptr scale_table;
         memory_impl::cptr slope;
+        memory_impl::cptr second_output;
+        memory_impl::cptr third_output;
         // used for fused primitives
         std::vector<memory_impl::cptr> fused_op_inputs;
         int32_t split = 0;

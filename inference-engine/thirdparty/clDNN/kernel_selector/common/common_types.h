@@ -69,6 +69,7 @@ enum class KernelType {
     CUM_SUM,
     EMBEDDING_BAG,
     EXTRACT_IMAGE_PATCHES,
+    NON_MAX_SUPPRESSION,
     LOOP
 };
 

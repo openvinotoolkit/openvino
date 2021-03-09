@@ -221,6 +221,28 @@ void set_arguments_impl(kernels_cache::kernel_type& kernel,
                         status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.cell).get_buffer());
                 }
                 break;
+
+            case kernel_selector::kernel_argument_types::SECOND_OUTPUT:  // NMS layer
+                if (data.second_output) {
+                    if (data.second_output->get_layout().format.is_image_2d())
+                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_image2d&>(*data.second_output).get_buffer());
+                    else if (memory_capabilities::is_usm_type(data.second_output->get_allocation_type()))
+                        status = kernel.setArgUsm(i, dynamic_cast<const gpu::gpu_usm&>(*data.second_output).get_buffer());
+                    else
+                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.second_output).get_buffer());
+                }
+                break;
+
+            case kernel_selector::kernel_argument_types::THIRD_OUTPUT:  // NMS layer
+                if (data.third_output) {
+                    if (data.third_output->get_layout().format.is_image_2d())
+                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_image2d&>(*data.third_output).get_buffer());
+                    else if (memory_capabilities::is_usm_type(data.third_output->get_allocation_type()))
+                        status = kernel.setArgUsm(i, dynamic_cast<const gpu::gpu_usm&>(*data.third_output).get_buffer());
+                    else
+                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.third_output).get_buffer());
+                }
+                break;
             default:
                 break;
         }
