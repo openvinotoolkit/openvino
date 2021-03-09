@@ -13,7 +13,7 @@ Deep Learning Inference Engine is a part of Intel&reg; Deep Learning Deployment 
 Below, there are the three main steps of the deployment process:
 
 1.	**Conversion**<br>
-	Trained models are converted from a specific framework (like TensorFlow\*) or format (like ONNX\*) to a framework-agnostic Intermediate Representation (IR) format.
+	Trained models are converted from a specific framework, like TensorFlow\*, or format, like ONNX\*, to the framework-agnostic Intermediate Representation (IR) format.
 
 	- *Performance flow*: This is an offline step where general topology-level optimizations happen automatically (see <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>).
 
