@@ -24,7 +24,6 @@
 #include <debug.h>
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
-#include <legacy/ie_util_internal.hpp>
 #include "gna_plugin.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "layers/gna_layer_type.hpp"
@@ -50,6 +49,10 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
+#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
+#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -394,9 +397,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
     // search for FQ layers
     // only supports cases of int16 or int8
     InputsDataMap inputs = network.getInputsInfo();
-    for (auto && input : inputs) {
+    size_t inputIdx = 0;
+    for (auto&& input : inputs) {
         auto data = input.second->getInputData();
-        size_t inputIdx = 0;
         for (auto && nextToInputLayer : getInputTo(data)) {
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
                 inputIdx++;
@@ -411,7 +414,16 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                 THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
+
+            auto fp32eq = [](float p1, float p2) -> bool {
+                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+            };
             float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
+            auto minAbsVal = std::min(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
+            auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
+            if (fp32eq(minAbsVal, 0.0f) && !fp32eq(maxAbsVal, 0.0f)) {
+                scaleInput = (fqLayer.getLevels() - 1) / (2 * maxAbsVal);
+            }
 
             if (!config.inputScaleFactors.empty()) {
                 gnalog() << "Scale factor calculated during model quantization (" << scaleInput
@@ -585,7 +597,7 @@ void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> 
             if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
                 transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
                 // If no convolutions are found try to find them in next layers
-                if (!foundPartToTranspose(transpositionInfo)) {
+                if (!foundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                     transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
                 }
             }
@@ -662,7 +674,7 @@ void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> 
             }
             // Find a convolution in previous or next layers
             auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
-            if (!foundPartToTranspose(transpositionInfo)) {
+            if (!foundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                 transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
             }
             if (!transpositionInfo.empty()) {
@@ -675,6 +687,68 @@ void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> 
         }
     }
 }
+
+#ifdef PLOT
+void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
+    InferenceEngine::ordered_properties& printed_properties,
+    InferenceEngine::ordered_properties& node_properties) {
+    // printing quantized params
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    if (!quantized) {
+        return;
+    }
+    if (LayerInfo(layer).isWeightable() || LayerInfo(layer).isEltwise()) {
+        printed_properties.emplace_back(
+            "weights scale factor", std::to_string(quantized->_weights_quant.GetScale()));
+        if (quantized->_weights_quant.IsStatsSet()) {
+            for (auto& min : quantized->_weights_quant.GetMinValues()) {
+                printed_properties.emplace_back(
+                    "weights min val", std::to_string(min));
+            }
+            for (auto& max : quantized->_weights_quant.GetMaxValues()) {
+                printed_properties.emplace_back(
+                    "weights max val", std::to_string(max));
+            }
+        }
+
+        if (quantized->_bias_quant.IsStatsSet()) {
+            for (auto& min : quantized->_bias_quant.GetMinValues()) {
+                printed_properties.emplace_back(
+                    "bias min val", std::to_string(min));
+            }
+            for (auto& max : quantized->_bias_quant.GetMaxValues()) {
+                printed_properties.emplace_back(
+                    "bias max val", std::to_string(max));
+            }
+        }
+    }
+    printed_properties.emplace_back(
+        "src scale factor", std::to_string(quantized->_src_quant.GetScale()));
+    if (quantized->_src_quant.IsStatsSet()) {
+        for (auto& min : quantized->_src_quant.GetMinValues()) {
+            printed_properties.emplace_back(
+                "src min val", std::to_string(min));
+        }
+        for (auto& max : quantized->_src_quant.GetMaxValues()) {
+            printed_properties.emplace_back(
+                "src max val", std::to_string(max));
+        }
+    }
+
+    printed_properties.emplace_back(
+        "dst scale factor", std::to_string(quantized->_dst_quant.GetScale()));
+    if (quantized->_dst_quant.IsStatsSet()) {
+        for (auto& min : quantized->_dst_quant.GetMinValues()) {
+            printed_properties.emplace_back(
+                "dst min val", std::to_string(min));
+        }
+        for (auto& max : quantized->_dst_quant.GetMaxValues()) {
+            printed_properties.emplace_back(
+                "dst max val", std::to_string(max));
+        }
+    }
+}
+#endif
 
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
@@ -698,6 +772,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                     // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
                     return node->get_rt_info().count("UNROLL_TI") == 0;
             });
+        pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
+        pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
+        pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
+        pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
@@ -809,17 +887,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
 #ifdef PLOT
     std::ofstream file("gna_passes.dot");
-    saveGraphToDot(newNet, file, [](const CNNLayerPtr layer,
-                                           ordered_properties &printed_properties,
-                                           ordered_properties &node_properties) {
-        // printing quantized params
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-        if (!quantized) {
-            return;
-        }
-        printed_properties.emplace_back(
-            "scale factor", std::to_string(quantized->_dst_quant.GetScale()));
-    });
+    saveGraphToDot(newNet, file, [this](const CNNLayerPtr layer,
+        ordered_properties& printed_properties,
+        ordered_properties& node_properties) {
+            AddDebugProperties(layer, printed_properties, node_properties);
+        });
 #endif
 
     auto sortedNet = CNNNetSortTopologicallyEx(newNet, make_fuzed_order);
@@ -1569,10 +1641,9 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
 
     for (auto && memory : mt) {
         GNAMemoryLayer memoryLayer(nullptr, nullptr, gnaFlags->sw_fp32 ? 4 : 2);
-        memoryLayer.gna_ptr = memory.first;
-        memoryLayer.reserved_size = memory.second;
-
-        graphCompiler.memory_connection.emplace_back(make_pair(std::string("noname"), memoryLayer));
+        std::string name;
+        std::tie(memoryLayer.gna_ptr, memoryLayer.reserved_size, name, memoryLayer.scale_factor) = memory;
+        graphCompiler.memory_connection.emplace_back(make_pair(name, memoryLayer));
     }
 
     DumpXNNToFile();
@@ -1627,7 +1698,9 @@ void GNAPlugin::Export(std::ostream &outStream) {
                     .SetOutputRotation(transpose_outputs_info);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
-        serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);
+        auto state = std::make_shared<memory::GNAVariableState>(memoryConnection.first, std::make_shared <GNAMemoryLayer>(memoryConnection.second));
+        gnalog() << "Scale factor Memory layer " << state->GetScaleFactor() << std::endl;
+        serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size, memoryConnection.first, state->GetScaleFactor());
     }
 
     serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);

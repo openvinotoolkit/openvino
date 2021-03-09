@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,6 +117,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
+    const element::Type netPrecision,
     const ngraph::Shape& inputShape1,
     const ngraph::element::Type precisionBeforeDequantization1,
     const DequantizationOperations& dequantization1,
@@ -137,9 +138,14 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
     input2->set_friendly_name("input2");
 
+    DequantizationOperations deqSructure1 = dequantization1;
+    deqSructure1.multiply.outPrecision = netPrecision;
+    DequantizationOperations deqSructure2 = dequantization2;
+    deqSructure2.multiply.outPrecision = netPrecision;
+
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        makeDequantization(input1, dequantization1),
-        makeDequantization(input2, dequantization2),
+        makeDequantization(input1, deqSructure1),
+        makeDequantization(input2, deqSructure2),
         false,
         false);
     matMul->set_friendly_name("matMul");
@@ -162,39 +168,40 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
-    const DequantizationOperations& dequantizationOperations,
-    const ngraph::Shape& weightsConstShape,
-    const std::vector<float>& weightsConstValues,
-    const FakeQuantizeOnWeights& fqOnWeights) {
+    const DequantizationOperations& deqOnData,
+    const Constant& weights,
+    const FakeQuantizeOnWeights& fqOnWeights,
+    const DequantizationOperations& deqOnWeights) {
     const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         inputShape);
     input->set_friendly_name("input1");
 
-    auto lastDequantization = makeDequantization(input, dequantizationOperations);
+    const auto dequantizationOnData = makeDequantization(input, deqOnData);
 
-    const std::shared_ptr<ngraph::opset1::Constant> weightsConst = std::make_shared<ngraph::opset1::Constant>(
-        precision,
-        weightsConstShape,
-        weightsConstValues);
+    const std::shared_ptr<ngraph::Node> weightsConst = std::make_shared<ngraph::opset1::Constant>(
+        weights.outPrecision,
+        weights.shape,
+        weights.values);
 
-    auto fakeQuantize = makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const std::shared_ptr<ngraph::Node> fakeQuantize = fqOnWeights.empty() ? nullptr : makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const auto dequantizationOnWeights = makeDequantization(fakeQuantize == nullptr ? weightsConst : fakeQuantize, deqOnWeights);
 
-    const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        lastDequantization,
-        fakeQuantize,
+    const auto matMul = std::make_shared<ngraph::opset1::MatMul>(
+        dequantizationOnData,
+        dequantizationOnWeights,
         false,
         false);
     matMul->set_friendly_name("matMul");
     auto& rtInfo = matMul->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("matMul");
 
-    std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(matMul);
-
+    const auto result = std::make_shared<ngraph::opset1::Result>(matMul);
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ result },
         std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
         "MatMulTransformation");
+
     return function;
 }
 
@@ -221,19 +228,25 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
     input2->set_friendly_name("input2");
 
-    auto dequantization1Op = makeDequantization(input1, dequantization1);
-    auto dequantization2Op = makeDequantization(input2, dequantization2);
+    DequantizationOperations deqSructure1 = dequantization1;
+    deqSructure1.multiply.outPrecision = precision;
+    DequantizationOperations deqSructure2 = dequantization2;
+    deqSructure2.multiply.outPrecision = precision;
+
+    auto dequantization1Op = makeDequantization(input1, deqSructure1);
+    auto dequantization2Op = makeDequantization(input2, deqSructure2);
 
     std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MatMul>>(
-        std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
+        std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{ element::f32 },
         ngraph::op::TemporaryReplaceOutputType(dequantization1Op, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(dequantization2Op, element::f32).get(),
         false,
         false);
 
     matMul->set_friendly_name("matMul");
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(matMul, precision);
-    auto dequantizationAfter = makeDequantization(matMul, resultDequantizationOperations);
+    DequantizationOperations deqSructureAfter = resultDequantizationOperations;
+    deqSructureAfter.multiply.outPrecision = precision;
+    auto dequantizationAfter = makeDequantization(matMul, deqSructureAfter);
     dequantizationAfter->set_friendly_name("matMul");
 
     std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(dequantizationAfter);
@@ -250,9 +263,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const DequantizationOperations& dequantization,
-    const ngraph::element::Type weightsConstPrecision,
-    const ngraph::Shape& weightsConstShape,
-    const std::vector<float>& weightsConstValues,
+    const Constant& weights,
     const DequantizationOperations& resultDequantization) {
     const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
@@ -262,9 +273,9 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const std::shared_ptr<ngraph::Node> lastDequantizationBefore = makeDequantization(input, dequantization);
 
     const std::shared_ptr<ngraph::opset1::Constant> weightsConst = std::make_shared<ngraph::opset1::Constant>(
-        weightsConstPrecision,
-        weightsConstShape,
-        weightsConstValues);
+        weights.outPrecision,
+        weights.shape,
+        weights.values);
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MatMul>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
@@ -293,36 +304,37 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData,
-    const ngraph::Shape& weightsConstShape,
-    const std::vector<float>& weightsConstValues,
-    const FakeQuantizeOnDataWithConstant& fqOnWeights) {
-    const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precision,
-        inputShape);
+    const Constant& weights,
+    const FakeQuantizeOnDataWithConstant& fqOnWeights,
+    const DequantizationOperations& deqOnWeights) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input1");
 
-    auto lastDequantization = makeFakeQuantize(input, precision, fqOnData);
+    const auto dequantizationOnData = makeFakeQuantize(input, precision, fqOnData);
 
-    const std::shared_ptr<ngraph::opset1::Constant> weightsConst = std::make_shared<ngraph::opset1::Constant>(
-        precision,
-        weightsConstShape,
-        weightsConstValues);
+    const std::shared_ptr<ngraph::Node> weightsConst = std::make_shared<ngraph::opset1::Constant>(
+        weights.outPrecision,
+        weights.shape,
+        weights.values);
 
-    auto fakeQuantize = makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const std::shared_ptr<ngraph::Node> fakeQuantize = fqOnWeights.empty() ? nullptr : makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const auto dequantizationOnWeights = makeDequantization(fakeQuantize == nullptr ? weightsConst : fakeQuantize, deqOnWeights);
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        lastDequantization,
-        fakeQuantize,
+        dequantizationOnData,
+        dequantizationOnWeights,
         false,
         true);
     matMul->set_friendly_name("matMul");
 
-    std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(matMul);
+    const std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(matMul);
+    result->set_friendly_name("result");
 
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ result },
         std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
         "MatMulTransformation");
+
     return function;
 }
 

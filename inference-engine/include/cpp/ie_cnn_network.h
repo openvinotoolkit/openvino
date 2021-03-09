@@ -202,19 +202,6 @@ public:
         return ov_name;
     }
 
-    /**
-     * @brief Method maps framework operator name to OpenVINO name
-     *
-     * @param orig_name Framework operation name
-     *
-     * @return OpenVINO name
-     */
-    std::string getOVNameForOperation(const std::string& orig_name) const {
-        std::string ov_name;
-        CALL_STATUS_FNC(getOVNameForOperation, ov_name, orig_name);
-        return ov_name;
-    }
-
 protected:
     IE_SUPPRESS_DEPRECATED_START
     /**

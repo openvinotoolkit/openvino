@@ -66,11 +66,10 @@ For the list of supported layers, see the **GNA** column of the **Supported Laye
 
 Limitations include:
 
-- Only 1D convolutions are natively supported in the models converted from:
-	- [Kaldi](../../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md) framework
-	- [TensorFlow](../../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md) framework. For TensorFlow models, use the `--disable_nhwc_to_nchw` option when running the Model Optimizer.
+- Only 1D convolutions are natively supported.
 - The number of output channels for convolutions must be a multiple of 4.
 - Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
+- Concatenations and splitting are supported only along the channel dimension (axis=1).
 
 #### Experimental Support for 2D Convolutions
 
@@ -78,7 +77,7 @@ The Intel® GNA hardware natively supports only 1D convolution.
 
 However, 2D convolutions can be mapped to 1D when a convolution kernel moves in a single direction. GNA Plugin performs such a transformation for Kaldi `nnet1` convolution. From this perspective, the Intel® GNA hardware convolution operation accepts an `NHWC` input and produces an `NHWC` output. Because OpenVINO™ only supports the `NCHW` layout, you may need to insert `Permute` layers before or after convolutions.
 
-For example, the Kaldi model optimizer inserts such a permute after convolution for the [rm_cnn4a network](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi/rm_cnn4a_smbr/). This `Permute` layer is automatically removed by the GNA Plugin, because the Intel® GNA hardware convolution layer already produces the required `NHWC` result.
+For example, the Kaldi model optimizer inserts such a permute after convolution for the [rm_cnn4a network](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/rm_cnn4a_smbr/). This `Permute` layer is automatically removed by the GNA Plugin, because the Intel® GNA hardware convolution layer already produces the required `NHWC` result.
 
 ## Operation Precision
 

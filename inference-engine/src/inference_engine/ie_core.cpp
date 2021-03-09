@@ -364,7 +364,7 @@ public:
 
                     allowNotImplemented([&]() {
                         for (auto&& extensionLocation : desc.listOfExtentions) {
-                            plugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
+                            plugin.AddExtension(std::make_shared<Extension>(extensionLocation));
                         }
                     });
                 }
@@ -738,11 +738,10 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 
     for (auto&& deviceName : _impl->GetListOfDevicesInRegistry()) {
         std::vector<std::string> devicesIDs;
-
         try {
             Parameter p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
-        } catch (details::InferenceEngineException&) {
+        } catch (details::InferenceEngineException& e) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
             THROW_IE_EXCEPTION << "An exception is thrown while trying to create the " << deviceName
