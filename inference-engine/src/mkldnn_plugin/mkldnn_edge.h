@@ -47,7 +47,7 @@ public:
     void init();
     void allocate(const void* mem_ptr = nullptr);
     void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
-    void reuse(MKLDNNMemoryPtr blob);
+    void reuse(MKLDNNMemoryPtr ptr);
     void validate();
     void drop();
 
@@ -82,7 +82,6 @@ private:
     int child_port;
 
     bool externalMemoryPtr = false;
-    InferenceEngine::Blob::Ptr memoryFromBlob;
     MKLDNNEdgeWeakPtr memoryFromEdge;
     MKLDNNDims dims;
     MKLDNNMemoryPtr memoryPtr;

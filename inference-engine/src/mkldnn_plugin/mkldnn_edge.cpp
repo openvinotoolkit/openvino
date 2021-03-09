@@ -112,10 +112,8 @@ bool MKLDNNEdge::needReorder() {
         if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace >= 0 &&
             outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
             canBeInPlaceConflicts = true;
-
-        if (getParent()->getType() == Input && getParent()->isConstant())
-            canBeInPlaceConflicts = true;
     }
+
     return canBeInPlaceConflicts || !MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc());
 }
 
@@ -215,11 +213,11 @@ void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
     }
 }
 
-void MKLDNNEdge::reuse(MKLDNNMemoryPtr blob) {
+void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
     if (status != Status::NeedAllocation)
         return;
-    externalMemoryPtr = blob;
-    allocate(blob->GetPtr());
+    memoryPtr = ptr;
+    status = Status::Allocated;
 }
 
 void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
