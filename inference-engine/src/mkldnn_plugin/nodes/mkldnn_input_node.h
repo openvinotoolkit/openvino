@@ -24,7 +24,7 @@ public:
     MKLDNNMemoryPtr getConstBlob() const;
 
 private:
-    void cloneIfRequired(const InferenceEngine::Blob::Ptr & blob, const InferenceEngine::TensorDesc & tensorDesc);
+    void cloneIfRequired(const InferenceEngine::Blob::Ptr & blob, const InferenceEngine::TensorDesc & outTensorDesc);
 
 private:
     InferenceEngine::Precision precision;
