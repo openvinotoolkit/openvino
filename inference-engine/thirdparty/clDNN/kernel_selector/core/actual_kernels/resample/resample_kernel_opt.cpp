@@ -58,12 +58,13 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
    } else {
-       dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
-       dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
-       dispatchData.gws[2] = arg.output.Batch().v;
+        dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
+        dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
+        dispatchData.gws[2] = arg.output.Batch().v;
+
         dispatchData.lws[0] = 1;
-       dispatchData.lws[1] = sub_group_size;
-       dispatchData.lws[2] = 1;
+        dispatchData.lws[1] = sub_group_size;
+        dispatchData.lws[2] = 1;
    }
 
     // printf("[%d] gws: (%zd, %zd, %zd), lws: (%zd, %zd, %zd), (%zd, %zd, %zd) %zd\n",

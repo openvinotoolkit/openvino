@@ -769,7 +769,6 @@ INSTANTIATE_TEST_CASE_P(smoke_resample,
 
 
 /////////////////////////////////////////////////////////////////////////
-// BI
 struct bi_resample_random_test_param_generator : std::vector<resample_random_test_params> {
     bi_resample_random_test_param_generator& add(resample_random_test_params params) {
         push_back(params);
@@ -821,7 +820,7 @@ struct bi_resample_random_test : resample_random_test
     }
 
     void execute_compare(const resample_random_test_params& params, bool check_result) {
-        // cldnn::engine_configuration cfg{true, false, false, "", "", true, "", "C:/work/BI/cldnn_dump"};
+        // cldnn::engine_configuration cfg{true, false, false, "", "", true, "", "C:/work/cldnn_dump"};
         // auto eng = cldnn::engine(cfg);
         auto eng = get_test_engine();
 
