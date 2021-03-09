@@ -35,8 +35,7 @@ namespace ngraph
                 {
                     const std::unordered_set<std::string> modes_opset1 = {"nearest", "bilinear"};
                     const std::unordered_set<std::string> modes_opset7 = {"nearest", "linear"};
-                    const auto& supported_modes =
-                        1 <= opset && opset <= 6 ? modes_opset1 : modes_opset7;
+                    const auto& supported_modes = opset <= 6 ? modes_opset1 : modes_opset7;
                     const bool is_mode_supported =
                         (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
                          supported_modes.end());
@@ -72,7 +71,7 @@ namespace ngraph
                     }
                     return result;
                 }
-            }
+            } // namespace
 
             namespace set_1
             {
@@ -84,7 +83,7 @@ namespace ngraph
                     check_mode_support(node, mode, 1);
 
                     const auto interpolate_mode = convert_mode(mode);
-                    const auto zero_pad = std::vector<size_t>(1, 0);
+                    const std::vector<size_t> zero_pad{0};
                     const auto transform_mode = (interpolate_mode == InterpolateMode::linear_onnx
                                                      ? Transform_mode::asymmetric
                                                      : Transform_mode::half_pixel);
@@ -97,47 +96,26 @@ namespace ngraph
 
                     const auto data = node.get_ng_inputs().at(0);
 
-                    if (data.get_partial_shape().is_static())
-                    {
-                        auto output_shape = data.get_shape();
-                        const auto rank = output_shape.size();
-                        std::vector<float> scales(rank, 1.f);
-                        scales[rank - 1] = width_scale;
-                        scales[rank - 2] = height_scale;
-                        output_shape[rank - 1] = std::floor(output_shape[rank - 1] * width_scale);
-                        output_shape[rank - 2] = std::floor(output_shape[rank - 2] * height_scale);
+                    NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
+                                 "Input tensor's rank must static.");
 
-                        const auto output_shape_const = default_opset::Constant::create(
-                            element::u64, Shape({output_shape.size()}), output_shape);
-                        const auto scales_const = default_opset::Constant::create(
-                            ngraph::element::f32, Shape({scales.size()}), scales);
+                    const auto rank = data.get_partial_shape().rank().get_length();
+                    std::vector<float> scales(rank, 1.f);
+                    scales[rank - 1] = width_scale;
+                    scales[rank - 2] = height_scale;
 
-                        return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, scales_const, attrs)};
-                    }
-                    else
-                    {
-                        NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
-                                     "Input tensor's rank must static.");
+                    const auto scales_const = default_opset::Constant::create(
+                        ngraph::element::f32, Shape({scales.size()}), scales);
 
-                        const auto rank = data.get_partial_shape().rank().get_length();
-                        std::vector<float> scales(rank, 1.f);
-                        scales[rank - 1] = width_scale;
-                        scales[rank - 2] = height_scale;
+                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
+                    const auto multiply =
+                        std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
+                    const auto output_shape = std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
-                        const auto scales_const = default_opset::Constant::create(
-                            ngraph::element::f32, Shape({scales.size()}), scales);
-
-                        const auto shape_of_data = std::make_shared<default_opset::Convert>(
-                            std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                        const auto multiply =
-                            std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
-                        const auto output_shape = std::make_shared<default_opset::Convert>(
-                            std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
-
-                        return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape, scales_const, attrs)};
-                    }
+                    return {std::make_shared<default_opset::Interpolate>(
+                        data, output_shape, scales_const, attrs)};
                 }
             } // namespace set_1
 
