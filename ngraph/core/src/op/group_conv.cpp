@@ -144,7 +144,6 @@ void op::v1::GroupConvolution::validate_and_infer_types()
                                   m_pads_end.size() == num_spatial_dims,
                               "Pads should be defined for all and only spatial features.");
 
-        // TODO: result_shape = PartialShape::dynamic(output_ps_rank);
         result_shape = std::vector<Dimension>(output_ps_rank, Dimension::dynamic());
         if (data_batch_pshape.rank().is_static())
         {

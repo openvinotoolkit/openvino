@@ -29,7 +29,6 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 
 // can't be removed currently due to arm-plugin dependency
 #include "ngraph/runtime/reference/convolution_backprop_data.hpp"
