@@ -991,13 +991,17 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNBinaryConvolutionNode::createPrimitive() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcDims = config.inConfs[0].desc.getDims();
     auto weiDims = config.inConfs[1].desc.getDims();
     auto dstDims = config.outConfs[0].desc.getDims();
 
-    auto implType = getSelectedPrimitiveDescriptor()->getImplementationType();
+    auto implType = selectedPrimitiveDescriptor->getImplementationType();
 
     jcp.ngroups = group;
     jcp.mb = srcDims[0];
@@ -1295,7 +1299,11 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
     auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->GetPtr());
     auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcBlockDesc = config.inConfs[0].desc.getBlockingDesc();
     std::vector<size_t> srcStride(srcBlockDesc.getStrides().size());
@@ -1315,7 +1323,7 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
         dstStride[dstBlockDesc.getOrder()[i]] = dstBlockDesc.getStrides()[i];
     }
 
-    auto implType = getSelectedPrimitiveDescriptor()->getImplementationType();
+    auto implType = selectedPrimitiveDescriptor->getImplementationType();
     if (implType != impl_desc_type::ref) {
         executeOptimized(src, weights, dst, srcStride, weightsStride, dstStride);
     } else {

@@ -252,7 +252,10 @@ void MKLDNNPadNode::padConstant() {
         return;
     }
 
-    InferenceEngine::Precision precision = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
+    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc.getPrecision();
     OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, precision,
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),

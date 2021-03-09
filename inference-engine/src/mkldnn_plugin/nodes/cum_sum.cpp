@@ -205,7 +205,7 @@ private:
     void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
         auto itCounter = counters.rbegin();
         auto itWork = iterationRange.rbegin();
-        while (itCounter != counters.rend()) {
+        while (itCounter != counters.rend() && itWork != iterationRange.rend()) {
             *itCounter = start % *itWork;
             start /= *itWork;
             ++itCounter;
@@ -217,7 +217,7 @@ private:
         auto itCounter = counters.rbegin();
         auto itWork = iterationRange.rbegin();
 
-        while (itCounter != counters.rend()) {
+        while (itCounter != counters.rend() && itWork != iterationRange.rend()) {
             *itCounter = (*itCounter + 1) % *itWork;
             if (*itCounter != 0) {
                 break;

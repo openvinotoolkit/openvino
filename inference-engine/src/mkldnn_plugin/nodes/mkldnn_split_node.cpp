@@ -458,7 +458,10 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
 }
 
 void MKLDNNSplitNode::prepareOptimizedParams() {
-    const auto& inpTensorDesc = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU Split node with name '" << getName() << "' doesn't have primitive descriptors.";
+    const auto& inpTensorDesc = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc;
     const auto outputPortsCount = outDims.size();
 
     //find axis order position
