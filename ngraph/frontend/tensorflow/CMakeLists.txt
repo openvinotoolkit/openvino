@@ -21,7 +21,7 @@ file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
 find_package(Protobuf REQUIRED IMPORTED)
 include_directories(${Protobuf_INCLUDE_DIRS})
 
-set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(TENSORFLOW_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -30,53 +30,37 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
-# Create shared library
-add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
-add_library(ngraph::frontend_manager ALIAS frontend_manager)
+set(PROTOBUF_GENERATE_CPP_APPEND_PATH ON)
+file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${proto_files})
 
-target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../tensorflow/include)
-MESSAGE("HERE4: " ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${Protobuf_INCLUDE_DIRS})
+
+# Create shared library
+add_library(tensorflow_frontend SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(ngraph::tensorflow_frontend ALIAS tensorflow_frontend)
+
+target_include_directories(tensorflow_frontend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../generic/include ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME frontend_manager
-                           FILEDESCRIPTION "Manager of OpenVINO nGraph Front Ends")
+    ie_add_vs_version_file(NAME tensorflow_frontend
+                           FILEDESCRIPTION "FrontEnd to load and convert Tensorflow file format")
 endif()
 
-# TODO: Add other frontends to the list of dependencies temporary; in the produce version they should be discovered
-# TODO: in runtime.
-target_link_libraries(frontend_manager PRIVATE onnx_importer tensorflow_frontend ${Protobuf_LIBRARIES}  PUBLIC ngraph)
-
-message("tensorflow: " ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
-
-set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
-target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}> ${ONNX_IMPORT_INCLUDE_DIR} ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
-target_include_directories(frontend_manager SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${ONNX_IMPORT_INCLUDE_PATH} ${ONNX_IMPORT_INCLUDE_DIR}
-        ${FRONTEND_INCLUDE_DIR} ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
-
-target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${ONNX_IMPORT_INCLUDE_DIR}  ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
+target_link_libraries(tensorflow_frontend PRIVATE ${Protobuf_LIBRARIES} PUBLIC ngraph)
 
 # TODO: Consider to remove the following block (inherited from onnx_import just in case).
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    target_compile_options(frontend_manager PRIVATE -Wno-undef -Wno-reserved-id-macro -Wno-switch-enum
+    target_compile_options(tensorflow_frontend PRIVATE -Wno-undef -Wno-reserved-id-macro -Wno-switch-enum
             -Wno-invalid-offsetof -Wno-shorten-64-to-32 -Wno-unused-macros -Wno-missing-variable-declarations
             -Wno-unused-private-field -Wno-shadow -Wno-deprecated PUBLIC -Wno-undefined-func-template)
 endif()
 
-install(TARGETS frontend_manager EXPORT ngraphTargets
+install(TARGETS tensorflow_frontend EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
-    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-    COMPONENT ngraph
-    FILES_MATCHING
-        PATTERN "*.hpp"
-        PATTERN "*.h"
-)
-
-
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    export(TARGETS frontend_manager NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+    export(TARGETS tensorflow_frontend NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endif()

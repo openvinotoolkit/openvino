@@ -17,6 +17,7 @@
 #include <ngraph/except.hpp>
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/editor/editor.hpp"
+#include "tensorflow_frontend/tensorflow.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 #include "pdpd/pdpd.hpp"
 
@@ -414,6 +415,8 @@ namespace ngraph
                 return std::make_shared<FrontEndONNX>();
             else if (framework == "pdpd")
                 return std::make_shared<FrontEndPDPD>();
+            else if (framework == "tf")
+                return std::make_shared<FrontEndTensorflow>();
             else
                 throw "Framework " + framework + " is unknown for FrontEnd manager; cannot load it.";
         }
@@ -425,7 +428,7 @@ namespace ngraph
 
         std::vector<std::string> FrontEndManager::availableFrontEnds () const
         {
-            return {"onnx", "pdpd"};
+            return {"onnx", "pdpd", "tf"};
         }
     } // namespace frontend
 
