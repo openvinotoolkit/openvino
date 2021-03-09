@@ -24,8 +24,8 @@ set(ONNX_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(ONNX_COMMON_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 
-target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
-                                                        $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
+                                                 $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph onnx_proto onnx ${Protobuf_LIBRARIES})
 
@@ -33,8 +33,4 @@ target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR} ${NGRAP
 
 if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)
-endif()
-
-if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endif()
