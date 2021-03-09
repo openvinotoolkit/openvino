@@ -201,7 +201,7 @@ bool WeightableLayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
     return false;
 }
 
-void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> node) const {
+void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& node, const int outChannelsShapeIndex) const {
     const auto fq = getFakeQuantizeOnWeights(node);
     if (fq == nullptr) {
         return;
@@ -215,7 +215,9 @@ void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::sha
         dataPrecision.min,
         dataPrecision.max,
         dataPrecision.hasZeroPoint,
-        updatePrecisions);
+        updatePrecisions,
+        element::f32,
+        outChannelsShapeIndex);
 
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {

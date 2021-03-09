@@ -31,6 +31,7 @@ bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node> & node, ngraph::eleme
 bool fuse_type_to_nonzero(const std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(const std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_fake_quantize(const std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 bool extend_select_type(const std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
@@ -105,7 +106,8 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
         {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
-        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
+        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0},
+        {opset1::FakeQuantize::type_info, fuse_type_to_fake_quantize}
     };
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
@@ -312,6 +314,19 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node> & node, ngraph:
     return false;
 }
 
+bool fuse_type_to_fake_quantize(const std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to);
+        return true;
+    } else if (auto casted = std::dynamic_pointer_cast<opset1::FakeQuantize>(node)) {
+        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(*casted,
+                                                                                     element::TypeVector{}, element::TypeVector{to});
+        replace_node(node, relaxed_op);
+        return true;
+    }
+    return false;
+}
+
 bool extend_select_type(const std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
         type_relaxed->set_origin_input_type(element::boolean, 0);
@@ -415,6 +430,12 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node> & node, element::
             new_const = change_constant_precision<element::Type_t::boolean, element::Type_t::u8>(constant);
         } else if (from == element::boolean && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::boolean, element::Type_t::i32>(constant);
+        } else if (from == element::bf16 && to == element::f32) {
+            new_const = change_constant_precision<element::Type_t::bf16, element::Type_t::f32>(constant);
+        } else if (from == element::bf16 && to == element::i64) {
+            new_const = change_constant_precision<element::Type_t::bf16, element::Type_t::i64>(constant);
+        } else if (from == element::i8 && to == element::i64) {
+            new_const = change_constant_precision<element::Type_t::i8, element::Type_t::i64>(constant);
         } else {
             throw ngraph_error("not supported");
         }

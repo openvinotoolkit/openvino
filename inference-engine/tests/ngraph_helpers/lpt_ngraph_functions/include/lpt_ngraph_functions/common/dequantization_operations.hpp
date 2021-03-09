@@ -109,6 +109,7 @@ public:
     bool operator==(const DequantizationOperations& value) const noexcept {
         return equal(value);
     }
+    void setPrecision(const ngraph::element::Type& type) noexcept;
 
     Convert convert;
     Subtract subtract;

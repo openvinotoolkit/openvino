@@ -60,7 +60,7 @@ private:
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
         auto conv = std::make_shared<ngraph::op::DeconvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
-                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0));
+                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::element::f32);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
     }
