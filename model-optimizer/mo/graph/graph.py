@@ -1115,7 +1115,7 @@ def get_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
         edge = node1.out_edge(edge_idx)
         out_port = edge['out']
         out_node = node1.out_node(out_port)
-        if out_node.soft_get('id') == node2.soft_get('id'):
+        if out_node.id == node2.id:
             if attr_name in edge:
                 return edge[attr_name]
     return None
@@ -1134,7 +1134,7 @@ def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, n
         edge = node1.out_edge(edge_idx)
         out_port = edge['out']
         out_node = node1.out_node(out_port)
-        if out_node.soft_get('id') == node2.soft_get('id'):
+        if out_node.id == node2.id:
             if attr_name in edge:
                 edge[attr_name] = new_value
 
