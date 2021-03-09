@@ -127,7 +127,7 @@ public:
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         const auto& inDims = inputs[0]->getTensorDesc().getDims();
-        const size_t inDimsSize = inDims.size(); // MUST ALWAYS be 4. Why do we need it?
+        const size_t inDimsSize = inDims.size(); // Must always be 4 according to the specs.
 
         const size_t BATCH = 0, CHANNEL = 1, HIGHT = 0, WIDTH = 1;
 
@@ -136,10 +136,10 @@ public:
         const int64_t IW = inDims[inDimsSize - 1];
 
         const auto& outDims = outputs[0]->getTensorDesc().getDims();
-        const size_t outDimsSize = outDims.size(); // MUST ALWAYS be 4. Why do we need it?
+        const size_t outDimsSize = outDims.size(); // Must always be 4 according to the specs.
 
         const int64_t OB = outDims[BATCH];
-        const int64_t OC = outDims[CHANNEL];
+        //const int64_t OC = outDims[CHANNEL]; // Must always be KH * KW * IC according to the specs.
         const int64_t OH = outDims[outDimsSize - 2];
         const int64_t OW = outDims[outDimsSize - 1];
 
@@ -181,22 +181,16 @@ public:
                 }
             }
         }
-        const int64_t OH_OW = OH * OW;
-        const int64_t OC_OH_OW = OC * OH_OW;
-        const int64_t IC_OH_OW = IC * OH_OW;
-        const int64_t KW_IC_OH_OW = KW * IC_OH_OW;
-        const int64_t IH_IW = IH * IW;
-        const int64_t IC_IH_IW = IC * IH * IW;
-        const int64_t SH_IW = SH * IW;
-
+        const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
+        const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
         auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
             const int64_t iw_start = kw * RW - PL;
             const int64_t iw_stop = iw_start + OW * SW;
             const int64_t ih_start = kh * RH - PT;
             const int64_t ih_stop = ih_start + OH * SH;
-            int64_t dst_idx = ob * OC_OH_OW + kh * KW_IC_OH_OW + kw * IC_OH_OW + ic * OH_OW;
-            int64_t ishift = ob * IC_IH_IW + ic * IH_IW + ih_start * IW;
-            for (int64_t ih = ih_start; ih < ih_stop; ih += SH, ishift += SH_IW) {
+            int64_t dst_idx = ob * ostrides[0]  + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
+            int64_t ishift = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2];
+            for (int64_t ih = ih_start; ih < ih_stop; ih += SH, ishift += SH * IW) {
                 for (int64_t iw = iw_start; iw < iw_stop; iw += SW, dst_idx++) {
                     if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
                         dst_data[dst_idx] = T(0);
