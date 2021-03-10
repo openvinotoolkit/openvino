@@ -38,7 +38,8 @@ TEST(type_prop, concat_deduce_wrong_rank)
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     auto param2 = make_shared<op::Parameter>(element::f32,
                                              Shape{
-                                                 2, 2,
+                                                 2,
+                                                 2,
                                              });
     try
     {
