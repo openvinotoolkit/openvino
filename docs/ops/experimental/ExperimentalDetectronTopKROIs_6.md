@@ -4,9 +4,9 @@
 
 **Category**: Sort
 
-**Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to input ROIs
+**Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to probabilities of input ROIs
 
-**Detailed description**: TBD
+**Detailed description**: Operation performs probabilities sorting for input ROIs and returns *max_rois* number of ROIs.
 
 **Attributes**:
 
@@ -16,23 +16,21 @@
     * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 0
-    * **Required**: *no*
+    * **Required**: *yes*
 
 **Inputs**
 
-* **1**: A 2D tensor of type *T1* with shape `[number_of_input_ROIs, 4]` contains input rois. **Required.**
+* **1**: A 2D tensor of type *T* with shape `[number_of_input_ROIs, 4]` contains input ROIs. **Required.**
 
-* **2**: A 1D tensor of type *T2* with probabilities for input ROIs. Number of rois and number of probabilities should be equal. **Required.**
+* **2**: A 1D tensor of type *T* with probabilities for input ROIs. Number of ROIs and number of probabilities should be equal. **Required.**
 
 **Outputs**
 
-* **1**: The result of operation. A 2D tensor of type *T1* with shape `[max_rois, 4]`.
+* **1**: The result of operation top ROIs. A 2D tensor of type *T* with shape `[max_rois, 4]`.
 
 **Types**
 
-* *T1*: any supported numeric type.
-
-* *T2*: any floating point type.
+* *T*: any supported floating point type.
 
 **Example**
 
