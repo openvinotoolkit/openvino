@@ -4,7 +4,7 @@
 
 **Category**: Generation
 
-**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* ... TBD
+**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of specified sizes.
 
 **Detailed description**: TBD
 
@@ -46,8 +46,7 @@
 
 **Outputs**
 
-* **1**: The result of operation. A tensor of type *T* with shape `[featmap_height * featmap_width * number_of_priors, 4]` if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise, where `featmap_height` and `featmap_width` are flatten dimensions values from second input.
-
+* **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise, where `featmap_height` and `featmap_width` are spatial dimensions values from second input.
 
 **Types**
 

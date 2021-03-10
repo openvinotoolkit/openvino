@@ -4,15 +4,18 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronDetectionOutput* ... TBD
+**Short description**: An operation *ExperimentalDetectronDetectionOutput*  performs non-maximum suppression to generate the detection output using information on location and score predictions.
 
-**Detailed description**: TBD
+**Detailed description**: Apply threshold on detection probabilities and apply NMS class-wise. Leave only max_detections_per_image_ detections.
+
+The layer has 4 inputs: tensor with input ROIs with input deltas with input scores with input data.
+
 
 **Attributes**:
 
 * *score_threshold*
 
-    * **Description**: *score_threshold* attribute specifies score threshold.
+    * **Description**: *score_threshold* attribute specifies threshold to consider only detections whose score are larger than a threshold.
     * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: 0.05
@@ -20,7 +23,7 @@
 
 * *nms_threshold*
 
-    * **Description**: *nms_threshold* attribute specifies NMS threshold.
+    * **Description**: *nms_threshold* attribute specifies threshold to be used in the NMS stage.
     * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: 0.5

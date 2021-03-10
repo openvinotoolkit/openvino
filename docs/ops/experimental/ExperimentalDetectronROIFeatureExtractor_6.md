@@ -57,9 +57,9 @@
 
 **Outputs**:
 
-*   **1**: 4D output tensor of type *T*. Batch size equals to number of rois. Channels number is the same as for all images in the input pyramid. Required.
+*   **1**: 4D output tensor of type *T* with rois features. Batch size equals to number of rois. Channels number is the same as for all images in the input pyramid.
 
-*   **2**: 2D output tensor of type *T* with same shape as 0 input. Required.
+*   **2**: 2D output tensor of type *T* with ROIs Shape must be the same as for 0 input.
 
 **Types**
 
