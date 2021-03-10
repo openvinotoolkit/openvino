@@ -25,6 +25,6 @@ static void showUsage() {
     std::cout << "\n";
     std::cout << "    -h                         "  << help_message << "\n";
     std::cout << "    --input_folders \"<path>\" "  << input_folders_message << "\n";
-    std::cout << "    --output_folders \"<path>\" " << output_folder_message << "\n";
+    std::cout << "    --output_folder \"<path>\" " << output_folder_message << "\n";
     std::cout << std::flush;
 }
