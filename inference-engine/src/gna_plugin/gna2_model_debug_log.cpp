@@ -281,7 +281,7 @@ static void DumpFCAffineParameters(std::ostream& dumpFile, void** parameters, si
 static void DumpIntParameter(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
     uint32_t* param = reinterpret_cast<uint32_t*>(parameters[0]);
     if (param != nullptr)
-        dumpFile << "\tParameter name: " << paramNames[0] << ", value: " << *param;
+        dumpFile << "\tParameter name: " << paramNames[0] << ", value: " << *param << "\n";
 }
 
 typedef void (*dumpParamaters) (std::ostream&, void**, size_t, const std::vector<std::string>);
@@ -308,7 +308,7 @@ static void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
         double a = static_cast<double>(segments[k].Slope) / factor;
         double b = static_cast<double>(segments[k].yBase) - ((static_cast<double>(B) * segments[k].Slope) / factor);
 
-        dumpFile << "\n\t\tBase value for input (B) : " << B << "\n";
+        dumpFile << "\t\tBase value for input (B) : " << B << "\n";
         dumpFile << "\t\tBase value for output (b) : " << segments[k].yBase << "\n";
         dumpFile << "\t\tSegment slope (S): " << segments[k].Slope << "\n";
         dumpFile << "\t\tShift (scale) : " << scale << "\n";
@@ -321,25 +321,40 @@ static void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
     }
 }
 
-static void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& activation) {
-    const Gna2CompoundBias* const bias = static_cast<Gna2CompoundBias*>(activation.Data);
+static void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
+    auto i = 0;
 
-    dumpFile << "\t\tBias: " << bias->Bias << ", multiplier: " << unsigned(bias->Multiplier) << "\n";
+    while (i < tensor.Shape.Dimensions[0]) {
+        const Gna2CompoundBias* const bias = static_cast<Gna2CompoundBias*>(tensor.Data) + i;
+        dumpFile << "\t\tBias for row " << i << " : " << bias->Bias << ", multiplier: " << unsigned(bias->Multiplier) << "\n";
+        i++;
+    }
+}
+
+static void DumpCharArray(std::ostream& dumpFile, const char *carray, size_t count) {
+    auto i = 0;
+    while (*(carray + i) != 0 && i < count) {
+        dumpFile << *(carray + i) << " ";
+        i++;
+    }
+    dumpFile << "\n";
 }
 
 void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
+    std::time_t currTime = std::time(nullptr);
 
-    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer" << ".txt";
+    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S") << ".txt";
 
     std::ofstream dumpFile(dumpFileName.str(), std::ios::out);
 
     dumpFile << "Layers (operations) count: " << opsNo << "\n";
-    dumpFile << "--------------------------------------------------------------\n\n";
 
     for (uint32_t i = 0; i < opsNo; i++) {
         const auto& operation = gnaModel.Operations[i];
+
+        dumpFile << "------------------------------------------------------------------------\n\n";
 
         dumpFile << "Layer (operation): " << i << "\n";
         dumpFile << "Layer (operation) type: " << GetLayerType(operation.Type) << "\n";
@@ -347,13 +362,16 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
 
         for (uint32_t j = 0; j < operation.NumberOfOperands; j++) {
             if (operation.Operands[j] == nullptr) {
-                dumpFile << "\tOperand " << j << " == nullptr\n\n";
+                dumpFile << "\tOperand " << j << " == nullptr\n";
                 continue;
             }
             const auto& operand = *operation.Operands[j];
             dumpFile << "\tOperand " << j << " (" << GetOperandNames(operation.Type)[j] << ")"
                 << " type: " << GetOperandType(operand.Type) <<
-                " shape: " << GetSimpleString(operand.Shape) << "\n";
+                " shape: " << GetSimpleString(operand.Shape) <<
+                " layout: ";
+
+            DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
 
             if (operand.Type == Gna2DataTypePwlSegment) {
                 DumpPwl(dumpFile, operand);
@@ -369,8 +387,6 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
                     dumpFile << std::setw(8) << value << (((++k % 64) == 0) ? "\n" : "");
                 } while (NextElement(elementIndex, operand.Shape));
             }
-
-            dumpFile << "\n\n";
         }
 
         dumpFile << "Parameters: \n";
@@ -380,7 +396,6 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
             size_t knownParamCount = operation.NumberOfParameters <= paramNames.size() ? operation.NumberOfParameters : paramNames.size();
             GetParamDumpFunc(operation.Type)(dumpFile, operation.Parameters, knownParamCount, paramNames);
         }
-        dumpFile << "\n\n--------------------------------------------------------------\n\n";
     }
 }
 #endif
