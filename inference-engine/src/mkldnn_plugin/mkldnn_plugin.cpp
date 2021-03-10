@@ -196,16 +196,23 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     };
 
     auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
+        auto max_seq_len = node->input(0).get_shape().at(1);
         if (const auto &rnn_seq = std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
-            return rnn_seq->get_clip() == 0.0f;
+            return rnn_seq->get_clip() == 0.0f &&
+                   !ngraph::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
         } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
                 node)) {
             return gru_seq->get_clip() == 0.0f &&
-                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+                   gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
         } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
                 node)) {
             return lstm_seq->get_clip() == 0.0f &&
-                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                   lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
+                                                          max_seq_len);
         }
         return false;
     };

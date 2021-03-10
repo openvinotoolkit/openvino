@@ -221,30 +221,46 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 });
 
             auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-                if (std::dynamic_pointer_cast<const ngraph::op::v0::RNNCell>(node) || std::dynamic_pointer_cast<const ngraph::op::v5::RNNSequence>(node)) {
+                if (std::dynamic_pointer_cast<const ngraph::op::v0::RNNCell>(node)) {
                     return false;
-                } else if (std::dynamic_pointer_cast<const ngraph::op::v3::GRUCell>(node) ||
-                           std::dynamic_pointer_cast<const ngraph::op::v5::GRUSequence>(node)) {
+                } else if (std::dynamic_pointer_cast<const ngraph::op::v3::GRUCell>(node)) {
                     return false;
                 } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::op::v4::LSTMCell>(node)) {
                     return lstm_cell->get_clip() == 0.0f && lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                 } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::op::v0::LSTMCell>(node)) {
                     return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-                } else if (const auto &lstm_sequence = std::dynamic_pointer_cast<const ngraph::op::v5::LSTMSequence>(node)) {
-                    return lstm_sequence->get_clip() == 0.0f && lstm_sequence->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                 }
                 return false;
             };
 
-            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                                      ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                                      ngraph::pass::ConvertLSTMSequenceToTensorIterator,
-                                      ngraph::pass::RNNCellDecomposition,
+            auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
+                auto max_seq_len = node->input(0).get_shape().at(1);
+                if (std::dynamic_pointer_cast<const ngraph::op::v5::RNNSequence>(node)) {
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ngraph::op::v5::GRUSequence>(node)) {
+                    return false;
+                } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::op::v5::LSTMSequence>(node)) {
+                    return lstm_seq->get_clip() == 0.0f &&
+                           lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                           !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
+                                                                  max_seq_len);
+                }
+                return false;
+            };
+
+            pass_config->set_callback<ngraph::pass::RNNCellDecomposition,
                                       ngraph::pass::GRUCellDecomposition,
                                       ngraph::pass::LSTMCellDecomposition>(
                 [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                     return isCellPrimitiveSupported(node);
                 });
+
+            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                                      ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                                      ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+                    [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                        return isSequencePrimitiveSupported(node);
+                    });
 
             pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
                                       ngraph::pass::ConvertTensorIteratorToLSTMSequence,
