@@ -18,8 +18,6 @@
 
 #include <pybind11/pybind11.h>
 
-#include <chrono>
-
 #include <cpp/ie_infer_request.hpp>
 
 namespace py = pybind11;

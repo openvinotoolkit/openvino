@@ -21,8 +21,6 @@
 #include <vector>
 
 #include <pybind11/functional.h>
-#include <pybind11/pybind11.h>
-// #include <pybind11/embed.h> // python interpreter
 #include <pybind11/stl.h>
 
 #include <cpp/ie_executable_network.hpp>
@@ -30,7 +28,6 @@
 #include <ie_common.h>
 #include <ie_iinfer_request.hpp>
 
-#include "../../../pybind11/include/pybind11/pybind11.h"
 #include "pyopenvino/inference_engine/ie_infer_queue.hpp"
 
 namespace py = pybind11;
