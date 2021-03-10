@@ -21,8 +21,7 @@ size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) con
 size_t ResampleKernelOpt::GetDataTypeSize(const resample_params& params) const {
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         return 32;
-    }
-    else {
+    } else {
         return 16;
     }
 }
@@ -57,14 +56,12 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
     DispatchData dispatchData;
     const auto& out = arg.output;
 
-    if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP)
-    {
+    if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
         dispatchData.gws[0] = out.X().v * out.Y().v;
         dispatchData.gws[1] = CeilDiv(Align(out.Feature().v, GetFeatureBlockSize(arg)), GetFeatureBlockSize(arg));
         dispatchData.gws[2] = arg.output.Batch().v;
 
-        if ((out.Feature().v % GetDataTypeSize(arg)) == 0)
-        {
+        if ((out.Feature().v % GetDataTypeSize(arg)) == 0) {
             dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
         } else {
             dispatchData.lws[0] = GetOptimalBlockSize(arg);

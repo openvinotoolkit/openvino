@@ -48,7 +48,8 @@ enum class coordinate_transformation_mode : int32_t {
     asymmetric,
     /// @brief the coordinate in the original tensor axis `x` is `(x_resized + 0.5) / scale[x]`.
     tf_half_pixel_for_nn,
-    /// @brief the coordinate in the original tensor axis `x` is calculated as `0 if output_shape[x] == 1 else x_resized * (input_shape[x] - 1) / (output_shape[x] - 1)`.
+    /// @brief the coordinate in the original tensor axis `x` is calculated as `0 if output_shape[x] == 1 else x_resized * (input_shape[x] - 1) /
+    /// (output_shape[x] - 1)`.
     align_corners
 };
 

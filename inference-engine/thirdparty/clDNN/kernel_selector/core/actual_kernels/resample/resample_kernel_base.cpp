@@ -170,7 +170,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant("SCALES", scales),
         MakeJitConstant("PADS_BEGIN", pads_begin),
         MakeJitConstant("PADS_END", pads_end),
-        MakeJitConstant("PADDING_USED", (int)paddingUsed),
+        MakeJitConstant("PADDING_USED", static_cast<int>(paddingUsed)),
         MakeJitConstant("AXES_USED", axesUsed),
         MakeJitConstant("ALIGN_CORNERS", align_corners),
         MakeJitConstant("KERNEL_W", 2),
