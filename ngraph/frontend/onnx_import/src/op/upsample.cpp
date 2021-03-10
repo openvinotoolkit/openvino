@@ -35,7 +35,7 @@ namespace ngraph
                 {
                     const std::unordered_set<std::string> modes_opset1 = {"nearest", "bilinear"};
                     const std::unordered_set<std::string> modes_opset7 = {"nearest", "linear"};
-                    const auto& supported_modes = opset <= 6 ? modes_opset1 : modes_opset7;
+                    const auto& supported_modes = opset < 7 ? modes_opset1 : modes_opset7;
                     const bool is_mode_supported =
                         (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
                          supported_modes.end());
@@ -96,10 +96,10 @@ namespace ngraph
 
                     const auto data = node.get_ng_inputs().at(0);
                     NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
-                                 "Input tensor's rank must static.");
+                                 "Upsample v1 input tensor's rank must be static.");
 
                     const auto rank = data.get_partial_shape().rank().get_length();
-                    NGRAPH_CHECK(rank == 4, "Input tensor must be 4D.");
+                    NGRAPH_CHECK(rank == 4, "Upsample v1 input tensor must be 4D.");
 
                     std::vector<float> scales(rank, 1.f);
                     scales[rank - 1] = width_scale;
