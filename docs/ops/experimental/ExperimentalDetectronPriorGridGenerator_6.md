@@ -4,7 +4,7 @@
 
 **Category**: Generation
 
-**Short description**: An operation ExperimentalDetectronPriorGridGenerator... TBD
+**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* ... TBD
 
 **Detailed description**: TBD
 
@@ -16,22 +16,22 @@
     * **Range of values**:
       * `true` - the output tensor should be 2D tensor
       * `false` - the output tensor should be 4D tensor
-    * **Type**: bool
+    * **Type**: boolean
     * **Default value**: true
     * **Required**: *yes*
 
 * *h* (*w*)
 
     * **Description**: *h* (*w*) attribute specifies number of cells of the generated grid with respect to height (width).
-    * **Range of values**: non-negative integer
+    * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 0
     * **Required**: *yes*
 
 * *stride_x* (*stride_y*)
 
-    * **Description**: *stride_x* (*stride_y*) attribute specifies the step of generated grid with respect to x (y) coordinate
-    * **Range of values**: non-negative float
+    * **Description**: *stride_x* (*stride_y*) attribute specifies the step of generated grid with respect to x (y) coordinate.
+    * **Range of values**: non-negative float number
     * **Type**: float
     * **Default value**: 0.0
     * **Required**: *yes*
@@ -42,7 +42,7 @@
 
 * **2**: A 4D tensor of type *T* with input feature map. **Required.**
 
-* **3**: A 4D tensor of type *T* with image data. The number of channels of both feature map and image data tensors must match. **Required.**
+* **3**: A 4D tensor of type *T* with input data. The number of channels of both feature map and input data tensors must match. **Required.**
 
 **Outputs**
 
@@ -51,7 +51,7 @@
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any supported floating point type.
 
 **Example**
 

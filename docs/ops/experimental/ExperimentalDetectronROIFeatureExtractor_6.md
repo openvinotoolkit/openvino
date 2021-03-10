@@ -4,9 +4,9 @@
 
 **Category**: Pool
 
-**Short description**: ExperimentalDetectronROIFeatureExtractor is the ROIAlign operation applied over a feature pyramid.
+**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the ROIAlign operation applied over a feature pyramid.
 
-**Detailed description**: ExperimentalDetectronROIFeatureExtractor maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels. For more details please see the math formulas below and the following sources:
+**Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels. For more details please see the math formulas below and the following sources:
 
 * [Feature Pyramid Networks for Object Detection](https://arxiv.org/pdf/1612.03144.pdf)
 * [Facebook AI / detectron](https://ai.facebook.com/tools/detectron/)
@@ -45,7 +45,7 @@
     * **Range of values**:
       * `true` - add offset to ROI size 
       * `false` - do not add offset to ROI size 
-    * **Type**: bool
+    * **Type**: boolean
     * **Default value**: false
     * **Required**: *no*
 

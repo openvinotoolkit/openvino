@@ -4,7 +4,7 @@
 
 **Category**: Sort
 
-**Short description**: An operation ExperimentalDetectronTopKROIs is TopK operation applied to input ROIs
+**Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to input ROIs
 
 **Detailed description**: TBD
 
@@ -12,9 +12,9 @@
 
 * *max_rois*
 
-    * **Description**: *max_rois* attribute specifies maximal numbers of output ROIs
-    * **Range of values**: non-negative integer
-    * **Type**: `int`
+    * **Description**: *max_rois* attribute specifies maximal numbers of output ROIs.
+    * **Range of values**: non-negative integer number
+    * **Type**: int
     * **Default value**: 0
     * **Required**: *no*
 
@@ -26,11 +26,11 @@
 
 **Outputs**
 
-* **1**: The result of operation. A tensor of type *T1* with shape `[max_rois, 4]`.
+* **1**: The result of operation. A 2D tensor of type *T1* with shape `[max_rois, 4]`.
 
 **Types**
 
-* *T1*: any numeric type.
+* *T1*: any supported numeric type.
 
 * *T2*: any floating point type.
 

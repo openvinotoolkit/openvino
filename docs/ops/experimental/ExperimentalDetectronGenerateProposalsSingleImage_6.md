@@ -4,7 +4,7 @@
 
 **Category**: Generation
 
-**Short description**: An operation ExperimentalDetectronGenerateProposalsSingleImage... TBD
+**Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* ... TBD
 
 **Detailed description**: TBD
 
@@ -12,39 +12,39 @@
 
 * *min_size*
 
-    * **Description**: *min_size* attribute specifies minimum box width & height
-    * **Range of values**: non-negative float
+    * **Description**: *min_size* attribute specifies minimum box width & height.
+    * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: 0.0
     * **Required**: *yes*
 
 * *nms_threshold*
 
-    * **Description**: *nms_threshold* attribute specifies NMS threshold
-    * **Range of values**: non-negative float
+    * **Description**: *nms_threshold* attribute specifies NMS threshold.
+    * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: 0.7
     * **Required**: *yes*
 
 * *post_nms_count*
 
-    * **Description**: *post_nms_count* attribute specifies number of top-n proposals after NMS
-    * **Range of values**: non-negative integer
+    * **Description**: *post_nms_count* attribute specifies number of top-n proposals after NMS.
+    * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 1000
     * **Required**: *yes*
 
 * *pre_nms_count*
 
-    * **Description**: *pre_nms_count* attribute specifies number of top-n proposals before NMS
-    * **Range of values**: non-negative integer
+    * **Description**: *pre_nms_count* attribute specifies number of top-n proposals before NMS.
+    * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 1000
     * **Required**: *yes*
 
 **Inputs**
 
-* **1**: A 1D tensor of type *T* with shape `[3]` with image info. **Required.**
+* **1**: A 1D tensor of type *T* with shape `[3]` with input data. **Required.**
 
 * **2**: A 2D tensor of type *T* with input anchors. The second dimension of 'input_anchors' should be 4. **Required.**
 
@@ -54,13 +54,13 @@
 
 **Outputs**
 
-* **1**: A 2D tensor of type *T* with shape `[post_nms_count, 4]`.
+* **1**: A 2D tensor of type *T* with shape `[post_nms_count, 4]` describing.
 
-* **2**: A 1D tensor of type *T* with shape `[post_nms_count]`.
+* **2**: A 1D tensor of type *T* with shape `[post_nms_count]` describing.
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any supported numeric type.
 
 **Example**
 

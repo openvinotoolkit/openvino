@@ -4,7 +4,7 @@
 
 **Category**: Object detection
 
-**Short description**: An operation ExperimentalDetectronDetectionOutput... TBD
+**Short description**: An operation *ExperimentalDetectronDetectionOutput* ... TBD
 
 **Detailed description**: TBD
 
@@ -12,40 +12,40 @@
 
 * *score_threshold*
 
-    * **Description**: *score_threshold* attribute specifies score threshold
-    * **Range of values**: non-negative float
+    * **Description**: *score_threshold* attribute specifies score threshold.
+    * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: 0.05
     * **Required**: *yes*
 
 * *nms_threshold*
 
-    * **Description**: *nms_threshold* attribute specifies NMS threshold
-    * **Range of values**: non-negative float
+    * **Description**: *nms_threshold* attribute specifies NMS threshold.
+    * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: 0.5
     * **Required**: *yes*
 
 * *num_classes*
 
-    * **Description**: *num_classes* attribute specifies number of detected classes
-    * **Range of values**: non-negative integer
+    * **Description**: *num_classes* attribute specifies number of detected classes.
+    * **Range of values**: non-negative integer number
     * **Type**: int
-    * **Default value**: None
+    * **Default value**: 81
     * **Required**: *yes*
 
 * *post_nms_count*
 
     * **Description**: *sampling_ratio* attribute specifies the maximal number of detections per class.
-    * **Range of values**: non-negative integer
+    * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 2000
     * **Required**: *yes*
 
 * *max_detections_per_image*
 
-    * **Description**: *max_detections_per_image* attribute specifies maximal number of detections per image
-    * **Range of values**: non-negative integer
+    * **Description**: *max_detections_per_image* attribute specifies maximal number of detections per image.
+    * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 100
     * **Required**: *yes*
@@ -53,52 +53,52 @@
 * *class_agnostic_box_regression*
 
     * **Description**: *class_agnostic_box_regression* attribute ia a flag specifies whether to delete background classes or not.
-      * `true` means background classes should be deleted
-      * `false` means background classes shouldn't be deleted.
     * **Range of values**:
-    * **Type**: bool
-    * **Default value**: None
+      * `true` means background classes should be deleted
+      * `false` means background classes shouldn't be deleted
+    * **Type**: boolean
+    * **Default value**: false
     * **Required**: *yes*
 
 * *max_delta_log_wh*
 
-    * **Description**: *max_delta_log_wh* attribute specifies maximal delta of logarithms for width and height
-    * **Range of values**:
+    * **Description**: *max_delta_log_wh* attribute specifies maximal delta of logarithms for width and height.
+    * **Range of values**: floating point number
     * **Type**: float
-    * **Default value**: None
+    * **Default value**: log(1000.0f / 16.0f)
     * **Required**: *yes*
 
 * *deltas_weights*
 
-    * **Description**: *deltas_weights* attribute specifies deltas of weights
-    * **Range of values**:
+    * **Description**: *deltas_weights* attribute specifies deltas of weights.
+    * **Range of values**: a list of non-negative floating point numbers
     * **Type**: float[]
     * **Default value**: None
     * **Required**: *yes*
 
 **Inputs**
 
-* **1**: A 2D tensor of type *T*. Input rois Input rois rank must be equal to 2. The last dimension of the 'input_rois' input must be equal to 4. The first dimension of first, second and third inputs must be the same. **Required.**
+* **1**: A 2D tensor of type *T* with input ROIs, rank must be equal to 2. The last dimension of this input must be equal to 4. The batch dimension of first, second and third inputs must be the same. **Required.**
 
 * **2**: A 2D tensor of type *T* with input deltas. The last dimension of this input must be equal to the value of the attribute `num_classes` * 4. **Required.**
 
 * **3**: A 2D tensor of type *T* with input scores. The last dimension of this input must be equal to the value of the attribute `num_classes`. **Required.**
 
-* **4**: A 2D tensor of type *T* with input image info. **Required.**
+* **4**: A 2D tensor of type *T* with input data. **Required.**
 
 **Outputs**
 
-* **1**: A 2D tensor of type *T* with shape `[max_detections_per_image, 4]` contains boxes indices.
+* **1**: A 2D tensor of type *T* with shape `[max_detections_per_image, 4]` describing boxes indices.
 
-* **2**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` contains class indices.
+* **2**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` describing class indices.
 
-* **3**: A 1D tensor of type *T* with shape `[max_detections_per_image]` contains scores indices.
+* **3**: A 1D tensor of type *T* with shape `[max_detections_per_image]` describing scores indices.
 
-* **4**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` contains batch indices.
+* **4**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` describing batch indices.
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any supported floating point type.
 
 * *T_IND*: `int64` or `int32`.
 
