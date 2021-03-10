@@ -23,11 +23,8 @@ class MemoryOffsetBatchUpdate(FrontReplacementPattern):
 
     def run_after(self):
         from extensions.front.user_data_repack import UserDataRepack
-        return [UserDataRepack]
-
-    def run_before(self):
         from extensions.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
-        return [SplitRecurrentMemoryOffset]
+        return [UserDataRepack, SplitRecurrentMemoryOffset]
 
     def find_and_replace_pattern(self, graph: Graph):
         batch = graph.get_op_nodes(op="Parameter")[0].shape[0]
