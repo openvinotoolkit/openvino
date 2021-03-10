@@ -120,8 +120,8 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto inPrec0 = getOriginalInputPrecisions()[0];
-    auto inPrec1 = getOriginalInputPrecisions()[1];
+    auto inPrec0 = getOriginalInputPrecisionAtPort(0);
+    auto inPrec1 = getOriginalInputPrecisionAtPort(1);
     if ((inPrec0 != Precision::U8 && inPrec0 != Precision::I8) || inPrec1 != Precision::I8 || isThreeInputs) {
         if (inPrec0 == Precision::BF16 || inPrec1 == Precision::BF16) {
             inPrec0 = Precision::BF16;

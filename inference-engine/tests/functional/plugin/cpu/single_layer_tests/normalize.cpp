@@ -85,7 +85,9 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingDividePerChannel,
         fusingPReluPerChannel,
         fusingPReluPerTensor,
-        fusingRelu
+        fusingRelu,
+        fusingGelu,
+        fusingReluScaleShift
 };
 
 const float epsilon = 1e-4f;

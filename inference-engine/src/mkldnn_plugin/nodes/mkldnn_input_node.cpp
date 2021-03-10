@@ -71,7 +71,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     LayerConfig config;
     config.dynBatchSupport = true;
     if (getType() == Input || getType() == MemoryInput) {
-        precision = getOriginalOutputPrecisions()[0];
+        precision = getOriginalOutputPrecisionAtPort(0);
         if (precision == Precision::U16 || isMeanImage) {
             precision = Precision::FP32;
         }
@@ -84,7 +84,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
         dataConfig.desc = mem_tdesc;
         config.outConfs.push_back(dataConfig);
     } else if (getType() == Output) {
-        precision = getOriginalInputPrecisions()[0];
+        precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;
         DataConfig dataConfig;
         dataConfig.inPlace = -1;

@@ -84,6 +84,7 @@ public:
     void appendPostOps(mkldnn::post_ops& ops) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
+    void fuseInto(MKLDNNNodePtr& parentNode) override;
 
 private:
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;

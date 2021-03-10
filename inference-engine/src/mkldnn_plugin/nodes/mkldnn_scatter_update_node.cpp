@@ -147,7 +147,7 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    indicesPrec = getOriginalInputPrecisions()[INDICES_ID];
+    indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
     auto indicesType = MKLDNNExtensionUtils::IEPrecisionToDataType(indicesPrec);
     indicesSize = MKLDNNExtensionUtils::sizeOfDataType(indicesType);
     if (indicesSize >= 8) {
@@ -160,7 +160,7 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     indicesType = MKLDNNExtensionUtils::IEPrecisionToDataType(indicesPrec);
 
     if (axisRelaxed) {
-        axisPrec = getOriginalInputPrecisions()[AXIS_ID];
+        axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
         auto axisType = MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec);
         axisSize = MKLDNNExtensionUtils::sizeOfDataType(axisType);
         if (axisSize >= 8) {
@@ -172,7 +172,7 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    dataPrec = getOriginalInputPrecisions()[DATA_ID];
+    dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrec);
     dataSize = MKLDNNExtensionUtils::sizeOfDataType(dataType);
 

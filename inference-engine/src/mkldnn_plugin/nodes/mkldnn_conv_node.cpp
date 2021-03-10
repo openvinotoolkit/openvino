@@ -20,12 +20,32 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (!ngraph::is_type<ngraph::op::v1::Convolution>(op) && !ngraph::is_type<ngraph::op::v1::GroupConvolution>(op)) {
+            errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
+            return false;
+        }
+        size_t ndims = op->get_input_shape(0).size();
+        if ((ndims < 4) || (ndims > 5)) {
+            IE_THROW() << "Only 4D and 5D blobs are supported as input";
+        }
+    } catch (...) {
+        return false;
+    }
+
+    return true;
+}
+
 MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache), withBiases(false), withSum(false), withDWConv(false), isDW(false), isMerged(false),
+        : MKLDNNNode(op, eng, cache), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), /* dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef), */
           groupNum(1lu), eltwisePrecision(Precision::FP32) {
-    // TODO [NM]: do we still have networks that requires this optimizations? Preferable should be removed.
-    isMerged = false; // (!getMergeWith().empty());  // grouped convolution was constructed from split->concat subgraph
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+
     isPrimitivesPriorityDefined = op->get_rt_info().count("PrimitivesPriority") != 0;
 
     auto convolutionOp = ngraph::as_type_ptr<ngraph::op::v1::Convolution>(op);
@@ -43,13 +63,6 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         groupIC = IC;
         groupOC = weightDims[0];
 
-        isDW = groupNum == groupOC && groupNum == groupIC;
-
-        if (isMerged) {
-            groupNum = getMergeWith().size() + 1;
-        }
-
-        withBiases = getOriginalInputsNumber() == 3;
         biasesDims = { groupOC };
 
         for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
@@ -61,46 +74,36 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         paddingL = convolutionOp->get_pads_begin();
         paddingR = convolutionOp->get_pads_end();
     } else if (groupConvolutionOp) {
-            algorithm = ConvolutionGrouped;
+        algorithm = ConvolutionGrouped;
 
-            groupNum = groupConvolutionOp->input_value(1).get_shape()[0];
-            isGrouped = true;
+        groupNum = groupConvolutionOp->input_value(1).get_shape()[0];
+        isGrouped = true;
 
-            weightDims = groupConvolutionOp->input_value(1).get_shape();
+        weightDims = groupConvolutionOp->input_value(1).get_shape();
 
-            IC = weightDims[2];
-            groupIC = IC;
-            groupOC = weightDims[1];
+        groupIC = weightDims[2];
+        IC = groupIC * groupNum;
+        groupOC = weightDims[1];
 
-            isDW = groupNum == groupOC && groupNum == groupIC;
+        biasesDims = {groupOC * groupNum};
 
-            if (isMerged) {
-                groupNum = getMergeWith().size() + 1;
-            }
-
-            withBiases = getOriginalInputsNumber() == 3;
-            biasesDims = {groupOC};
-
-            for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
-                stride.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_strides()[i]));
-            }
-            for (int i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
-                dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
-            }
-            paddingL = groupConvolutionOp->get_pads_begin();
-            paddingR = groupConvolutionOp->get_pads_end();
-    } else {
-        IE_THROW(NotImplemented)
-                << "CPU Convolution node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+        for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
+            stride.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_strides()[i]));
+        }
+        for (int i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
+            dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
+        }
+        paddingL = groupConvolutionOp->get_pads_begin();
+        paddingR = groupConvolutionOp->get_pads_end();
     }
 }
 
 bool MKLDNNConvolutionNode::canBeExecutedInInt8() {
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[0]);
+    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     if (!inputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
-    auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[1]);
+    auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
     if (!weightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 
@@ -112,9 +115,9 @@ InferenceEngine::Precision MKLDNNConvolutionNode::fusedEltwisePrecision(const MK
 
     int fusingPort = fusingNode->getFusingPort();
     if (fusingPort == 0) {
-        eltwisePrecision = fusingNode->getOriginalInputPrecisions()[1];
+        eltwisePrecision = fusingNode->getOriginalInputPrecisionAtPort(1);
     } else if (fusingPort == 1) {
-        eltwisePrecision = fusingNode->getOriginalInputPrecisions()[0];
+        eltwisePrecision = fusingNode->getOriginalInputPrecisionAtPort(0);
     } else {
         IE_THROW() << "Cannot determine Eltwise post op precision for Convolution node with name '" << getName() << "'";
     }
@@ -125,6 +128,8 @@ InferenceEngine::Precision MKLDNNConvolutionNode::fusedEltwisePrecision(const MK
 void MKLDNNConvolutionNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
+
+    withBiases = getOriginalInputsNumber() == 3;
 
     withSum = false;
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
@@ -139,14 +144,14 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
     }
 
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[0]);
+    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     if (!inputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisions()[0]);
+    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
     eltwisePrecision = MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType);
     if (!fusedWith.empty()) {
-        outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalInputPrecisions()[0]);
+        outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalInputPrecisionAtPort(0));
         eltwisePrecision = MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType);
     }
 
@@ -171,13 +176,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     int ndims = getParentEdgesAtPort(0)[0]->getDims().ndims();
-    if ((ndims < 4) || (ndims > 5)) {
-        IE_THROW() << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
-    }
-
-    if (isMerged && isGrouped)
-        IE_THROW() << "Convolution initialization. Group splitted mode are used together with direct group specification.";
-
     MKLDNNDims weightsDims = MKLDNNDims(weightDims);
 
     withDWConv = isFusedWith(Convolution);
@@ -228,9 +226,9 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                                                                                                   : memory::format_tag::nhwc);
         createDescriptor({in_candidate}, {out_candidate});
     } else {
-        inputDataType = (getOriginalInputPrecisions()[0] == Precision::BF16 && !(isGrouped && ndims == 5)) ? memory::data_type::bf16
+        inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16 && !(isGrouped && ndims == 5)) ? memory::data_type::bf16
                                                                                                            : memory::data_type::f32;
-        outputDataType = (getOriginalOutputPrecisions()[0] == Precision::BF16 && !(isGrouped && ndims == 5)) ? memory::data_type::bf16
+        outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16 && !(isGrouped && ndims == 5)) ? memory::data_type::bf16
                                                                                                              : memory::data_type::f32;
         eltwisePrecision = Precision::FP32;
         for (int i = 0; i < fusedWith.size(); i++) {
@@ -483,7 +481,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
 
                 dataConfig.constant = false;
                 dataConfig.desc = getDstMemDesc(itpd, i);
-                if (!(isGrouped || isMerged))
+                if (!isGrouped)
                     dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
                 config.outConfs.push_back(dataConfig);
 
@@ -546,10 +544,6 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
 
     MKLDNNMemoryDesc in_candidate(inDesc);
     MKLDNNMemoryDesc out_candidate(outDesc);
-
-    // grouping and autoblocking is not compatible
-    if (((isGrouped && !isDW) || isMerged) && (in_candidate.blocksExtended() || out_candidate.blocksExtended()))
-        return;
 
     MKLDNNDims blocked_weightDims(weightDims);
     MKLDNNDims blocked_biasesDims(biasesDims);

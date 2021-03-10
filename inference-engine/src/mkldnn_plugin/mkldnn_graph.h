@@ -200,7 +200,6 @@ protected:
     void AllocateWithReuse();
     void CreatePrimitives();
     void ExecuteConstantNodesOnly();
-    void SetOriginalLayerNames();
 
     void do_before(const std::string &dir, const MKLDNNNodePtr &node);
     void do_after(const std::string &dir, const MKLDNNNodePtr &node);

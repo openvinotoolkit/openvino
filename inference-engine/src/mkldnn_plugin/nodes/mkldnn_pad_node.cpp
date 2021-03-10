@@ -110,7 +110,7 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
                                                                    InferenceEngine::Precision::BF16, InferenceEngine::Precision::I8,
                                                                    InferenceEngine::Precision::U8};
-    InferenceEngine::Precision precision = getOriginalInputPrecisions()[DATA_ID];
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
         precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);

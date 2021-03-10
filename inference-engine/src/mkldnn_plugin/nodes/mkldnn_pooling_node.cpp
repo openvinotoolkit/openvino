@@ -85,8 +85,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    inputPrecision = getOriginalInputPrecisions()[0];
-    outputPrecision = getOriginalOutputPrecisions()[0];
+    inputPrecision = getOriginalInputPrecisionAtPort(0);
+    outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
     // MKLDNN supports only equal precisions for input and output
     if (one_of(inputPrecision, Precision::FP32, Precision::BF16)) {
@@ -94,7 +94,7 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
 
     if (!fusedWith.empty()) {
-        outputPrecision = fusedWith.back()->getOriginalOutputPrecisions()[0];
+        outputPrecision = fusedWith.back()->getOriginalOutputPrecisionAtPort(0);
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
