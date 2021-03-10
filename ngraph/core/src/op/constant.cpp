@@ -179,13 +179,9 @@ op::Constant::Constant(const element::Type& type,
         {
             throw std::runtime_error("deserialize unsupported type dynamic");
         }
-        case element::Type_t::i4: 
-        { 
-            throw std::runtime_error("deserialize unsupported type i4");
+        case element::Type_t::i4: { throw std::runtime_error("deserialize unsupported type i4");
         }
-        case element::Type_t::u1: 
-        { 
-            throw std::runtime_error("deserialize unsupported type u1");
+        case element::Type_t::u1: { throw std::runtime_error("deserialize unsupported type u1");
         }
         }
         m_all_elements_bitwise_identical = true;
@@ -295,10 +291,8 @@ op::Constant::Constant(const element::Type& type,
             throw std::runtime_error("deserialize unsupported type undefined");
         case element::Type_t::dynamic:
             throw std::runtime_error("deserialize unsupported type dynamic");
-        case element::Type_t::i4:
-            throw std::runtime_error("deserialize unsupported type i4");
-        case element::Type_t::u1:
-            throw std::runtime_error("deserialize unsupported type u1");
+        case element::Type_t::i4: throw std::runtime_error("deserialize unsupported type i4");
+        case element::Type_t::u1: throw std::runtime_error("deserialize unsupported type u1");
         }
         m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
