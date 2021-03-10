@@ -38,10 +38,11 @@ enum class TestLoadType {
 };
 using TestParam = std::tuple<TestLoadType, std::string, bool>;
 
-static const std::vector<TestParam> loadVariants {
-        { TestLoadType::ECNN, std::string("ByCNNNetwork"), false },
-        { TestLoadType::EContext, std::string("ByRemoteContext"), true },
-        { TestLoadType::EModelName, std::string("ByModelName"), false },
+//  GCC4.8 limitation: have to specify type of each element in list
+static const std::vector<TestParam> loadVariants = {
+        TestParam { TestLoadType::ECNN, std::string("ByCNNNetwork"), false },
+        TestParam { TestLoadType::EContext, std::string("ByRemoteContext"), true },
+        TestParam { TestLoadType::EModelName, std::string("ByModelName"), false },
 };
 
 static const std::vector<std::string> cacheFolders {
