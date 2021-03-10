@@ -239,6 +239,17 @@ namespace
             }
         }
     }
+
+    void validate_node_index(const ONNX_NAMESPACE::GraphProto& graph, const int node_idx)
+    {
+        NGRAPH_CHECK(
+            node_idx >= 0 && node_idx < graph.node_size(),
+            "The specified node index is out of range of nodes in the original model(idx: ",
+            std::to_string(node_idx),
+            "; nodes count in the model: ",
+            std::to_string(graph.node_size()),
+            ")");
+    }
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
@@ -409,28 +420,33 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
 {
     std::string new_op_name = "custom_op_" + std::to_string(m_custom_op_ID++);
 
-    shift_node_indexes(node_indexes);
-
     for (auto node_vector : node_indexes)
     {
         auto new_end = std::unique(node_vector.begin(), node_vector.end());
         node_vector.erase(new_end, node_vector.end());
-        replace_nodes(node_vector, node_generator, new_op_name);
+    }
+
+    shift_node_indexes(node_indexes);
+
+    for (auto node_vector : node_indexes)
+    {
+        replace_nodes(node_vector, new_op_name);
     }
     onnx_import::register_operator(new_op_name, 1, "org.openvinotoolkit.editor", node_generator);
 }
 
-void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
-    std::vector<int> node_indexes, onnx_import::Operator node_generator, std::string new_op_name)
+void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(std::vector<int>& node_indexes,
+                                                                  const std::string& new_op_name)
 {
     std::vector<std::string> inputs;
     std::vector<std::string> outputs;
 
-    auto nodes = model().graph().node();
+    const auto nodes = model().graph().node();
 
     // 1. create a list of inputs and outputs of new custom op.
     for (auto node_index : node_indexes)
     {
+        validate_node_index(model().graph(), node_index);
         inputs.insert(
             inputs.end(), nodes[node_index].input().begin(), nodes[node_index].input().end());
         outputs.insert(
@@ -449,22 +465,22 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
                           outputs_set.end(),
                           std::inserter(internal_tensors, internal_tensors.end()));
 
-    auto is_external_tensor = [&node_indexes, &nodes](std::string tensor_name) {
-        bool is_external = false;
+    const auto is_external_tensor = [&node_indexes, &nodes](const std::string& tensor_name) {
         for (int i = 0; i < nodes.size(); ++i)
         {
-            if (std::count(node_indexes.begin(), node_indexes.end(), i))
-            {
-                continue;
-            }
+            const bool in_indices = std::count(node_indexes.begin(), node_indexes.end(), i);
+            const bool is_external =
+                std::count(nodes[i].input().begin(), nodes[i].input().end(), tensor_name);
 
-            is_external = is_external ||
-                          std::count(nodes[i].input().begin(), nodes[i].input().end(), tensor_name);
+            if (!in_indices && is_external)
+            {
+                return true;
+            }
         }
-        return is_external;
+        return false;
     };
 
-    auto is_on_kill_list = [&internal_tensors](std::string target_name) {
+    auto is_on_kill_list = [&internal_tensors](const std::string& target_name) {
         return std::count(internal_tensors.begin(), internal_tensors.end(), target_name);
     };
 
@@ -480,11 +496,7 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
     new_end = std::remove_if(outputs.begin(), outputs.end(), is_on_kill_list);
     outputs.erase(new_end, outputs.end());
 
-    // 6. outputs have to be unique
-    new_end = std::unique(outputs.begin(), outputs.end());
-    outputs.erase(new_end, outputs.end());
-
-    // 7. replace the first node in vector witch custom op via overwriting.
+    // 6. replace the first node in vector witch custom op via overwriting.
     auto insert_position = node_indexes[0];
 
     auto new_node = model().mutable_graph()->mutable_node(insert_position);
@@ -499,7 +511,7 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
         new_node->add_output(output);
     }
 
-    // 8. remove remaining nodes from the graph.
+    // 7. remove remaining nodes from the graph.
     node_indexes.erase(node_indexes.begin());
     remove_nodes(node_indexes);
 }
@@ -509,10 +521,9 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::remove_nodes(
 {
     auto nodes = model().mutable_graph()->mutable_node();
 
-    int idx = -1;
+    int idx = 0;
     const auto discard_node = [&idx, &nodes_to_remove](const ngraph_onnx::NodeProto&) {
-        ++idx;
-        return std::count(nodes_to_remove.begin(), nodes_to_remove.end(), idx);
+        return std::count(nodes_to_remove.begin(), nodes_to_remove.end(), idx++);
     };
 
     const auto new_end = std::remove_if(nodes->begin(), nodes->end(), discard_node);
