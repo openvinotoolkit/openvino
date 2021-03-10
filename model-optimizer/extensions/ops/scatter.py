@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -93,6 +95,25 @@ class ScatterElementsSub(Scatter):
 class ScatterElementsUpdate(Scatter):
     op = op_type = 'ScatterElementsUpdate'
     version = 'opset3'
+
+    @staticmethod
+    def infer(node: Node):
+        Scatter.infer(node)
+
+        input_value = node.in_port(0).data.get_value()
+        indices_shape = node.in_port(1).data.get_shape()
+        indices_value = node.in_port(1).data.get_value()
+        updates_value = node.in_port(2).data.get_value()
+        axis = node.in_port(3).data.get_value()
+
+        # compute output value if all inputs are constant
+        if input_value is not None and indices_value is not None and updates_value is not None:
+            out_value = input_value.copy()
+            for idx in np.ndindex(*indices_shape):
+                data_idx = list(idx)
+                data_idx[axis] = indices_value[idx]
+                out_value[tuple(data_idx)] = updates_value[idx]
+            node.out_port(0).data.set_value(out_value)
 
 
 class ScatterAdd(Scatter):
