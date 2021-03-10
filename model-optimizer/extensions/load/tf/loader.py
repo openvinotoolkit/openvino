@@ -30,12 +30,11 @@ except:
 import logging as log
 
 from extensions.load.loader import Loader
-from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
+from mo.front.extractor import add_fake_outputs
 from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs
-from mo.front.tf.extractor import get_tf_edges, tf_op_extractor, tf_op_extractors
-from mo.front.tf.extractors.utils import get_tf_node_port
+from mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
@@ -107,27 +106,8 @@ class TFLoader(Loader):
         # for each output Identity node is added, and tensor name for the output is kept
         # on (output, fake output) edge. After Result nodes adding transformation fake outputs
         # are deleted from graph.
-        for output in outputs:
-            fake_node_name = graph.unique_id(output)
-            graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
-                           infer=copy_shape_infer, needs_removal=True)
-            src_node, src_port = get_tf_node_port(output)
-            tensor_name = src_node + ":" + str(src_port)
-            cf_flag = False
-            if src_node[0] == '^':
-                src_node = src_node[1:]
-                cf_flag = True
-            edge = (src_node, fake_node_name, {
-                'out': src_port,
-                'in': 0,
-                # debug anchor for a framework name, out port and tensor name
-                'fw_tensor_debug_info': [(output, src_port, tensor_name)],
-                'in_attrs': ['in', 'control_flow_edge', 'permutation'],
-                'out_attrs': ['out', 'permutation'],
-                'data_attrs': ['fw_tensor_debug_info'],
-                'control_flow_edge': cf_flag
-            })
-            graph.add_edges_from([edge])
+        add_fake_outputs(graph, outputs, lambda g, output, fake_node_name: g.add_edges_from([
+            create_tf_edge(output, fake_node_name, 0)]))
 
         remove_control_dependency_inputs(graph)
 

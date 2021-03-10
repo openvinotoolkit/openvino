@@ -751,6 +751,14 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
     return sinks
 
 
+def add_fake_outputs(graph: Graph, outputs: list, create_edge: callable, params: dict = {}):
+    for output in outputs:
+        fake_node_name = graph.unique_id(output)
+        graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
+                       infer=None, needs_removal=True)
+        create_edge(graph, output, fake_node_name, **params)
+
+
 def set_is_input(graph: Graph, placeholders: list, is_input: bool):
     for placeholder in placeholders:
         graph.node[placeholder]['is_input'] = is_input

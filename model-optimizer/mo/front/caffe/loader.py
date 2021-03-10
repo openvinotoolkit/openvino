@@ -16,16 +16,16 @@
 
 import importlib
 import logging as log
-import mmap
 import os
 import sys
 
+import mmap
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph, Node
+from mo.front.extractor import add_fake_outputs
+from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
@@ -298,21 +298,8 @@ def caffe_pb_to_nx(graph, proto, model):
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
-            src_layer = blob_producers[bottom][0]
-            src_port = blob_producers[bottom][1]
-            assert (graph.has_node(src_layer))
-            edge_attrs = {
-                'out': src_port,
-                'in': dst_port,
-                'name': bottom,
-                # debug anchor for a framework name, out port and tensor name
-                'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
-                'in_attrs': ['in', 'name'],
-                'out_attrs': ['out', 'name'],
-                'data_attrs': ['fw_tensor_debug_info']
-            }
+            add_edge_caffe(graph, bottom, layer.name, blob_producers, dst_port)
             used_blobs.add(bottom)
-            graph.add_edge(src_layer, layer.name, **edge_attrs)
 
         # update blob producers dictionary by output ports
         for src_port, top in enumerate(layer.top):
@@ -326,25 +313,26 @@ def caffe_pb_to_nx(graph, proto, model):
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
     all_blobs = set(blob_producers.keys())
-    for not_used_blob in all_blobs - used_blobs:
-        fake_node_name = graph.unique_id(not_used_blob)
-        graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
-                       infer=copy_shape_infer, needs_removal=True)
-        src_layer = blob_producers[not_used_blob][0]
-        src_port = blob_producers[not_used_blob][1]
-        edge_attrs = {
-            'out': blob_producers[not_used_blob][1],
-            'in': 0,
-            'name': not_used_blob,
-            # debug anchor for a framework name, out port and tensor name
-            'fw_tensor_debug_info': [(src_layer, src_port, not_used_blob)],
-            'in_attrs': ['in', 'name'],
-            'out_attrs': ['out', 'name'],
-            'data_attrs': ['fw_tensor_debug_info']
-        }
-        graph.add_edge(src_layer, fake_node_name, **edge_attrs)
+    add_fake_outputs(graph, all_blobs - used_blobs, add_edge_caffe,
+                     {'blob_producers': blob_producers, 'dst_port': 0})
 
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +
                     refer_to_faq_msg(79))
     return {fake_node_name: shape for (fake_node_name, shape) in zip(input_names, input_dims)}
+
+
+def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: dict, dst_port: int):
+    src_layer = blob_producers[bottom][0]
+    src_port = blob_producers[bottom][1]
+    edge_attrs = {
+        'out': blob_producers[bottom][1],
+        'in': dst_port,
+        'name': bottom,
+        # debug anchor for a framework name, out port and tensor name
+        'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
+        'in_attrs': ['in', 'name'],
+        'out_attrs': ['out', 'name'],
+        'data_attrs': ['fw_tensor_debug_info']
+    }
+    graph.add_edge(src_layer, dst_layer, **edge_attrs)

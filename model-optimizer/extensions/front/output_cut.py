@@ -49,7 +49,7 @@ class OutputCut(FrontReplacementPattern):
                         break
             graph.erase_node(node)
 
-            if fw_info and in_node is not None:
+            if fw_info is not None and in_node is not None:
                 for out_idx in in_node.out_nodes():
                     set_edge_attribute_between_nodes(in_node, in_node.out_node(out_idx),
                                                      'fw_tensor_debug_info', fw_info)
