@@ -14,13 +14,18 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
     manager.register_pass<PropagateMasks>();
 
     auto modifier = [](Node& node, std::vector<std::string>& attributes) {
+        std::stringstream ss;
         for (auto input : node.input_values()) {
             if (auto mask = getMask(input)) {
                 if (!mask->all_dims_are_empty()) {
                     attributes.emplace_back("color=green");
                     attributes.emplace_back("penwidth=2");
                 }
+                ss << *mask << "\\n";
             }
+        }
+        if (!ss.str().empty()) {
+            attributes.push_back("label=\"" + ss.str() + "\"");
         }
     };
     manager.register_pass<VisualizeTree>("/tmp/before.svg", modifier);

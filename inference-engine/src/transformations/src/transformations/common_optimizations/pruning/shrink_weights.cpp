@@ -43,7 +43,7 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
                 throw ngraph_error("Ooops...");
             }
             for (size_t dim = 0; dim < mask->size(); ++dim) {
-                res[dim] -= mask->at(dim)->size();
+                res[dim] -= mask->at(dim).size();
             }
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
@@ -52,13 +52,13 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
             new_const->set_friendly_name(const_node->get_friendly_name());
         } else {
             for (size_t dim = 0; dim < mask->size(); ++dim) {
-                const auto &dim_size = mask->at(dim)->size();
+                const auto &dim_size = mask->at(dim).size();
                 if (dim_size == 0) continue;
 
                 // Convert dims that we want remove to dims that we need to keep
                 std::vector<int64_t> dims_to_keep;
                 for (size_t dim_value = 0; dim_value < const_shape[dim]; ++dim_value) {
-                    if (!mask->at(dim)->count(dim_value)) {
+                    if (!mask->at(dim).count(dim_value)) {
                         dims_to_keep.emplace_back(dim_value);
                     }
                 }

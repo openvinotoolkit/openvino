@@ -21,110 +21,37 @@
 
 namespace ngraph {
 
-
-/**
- * @ingroup ie_runtime_attr_api
- * @brief describes dimension values that contains only zeros and can be removed.
- */
-class TRANSFORMATIONS_API MaskValue : public std::set<uint64_t>,
-                                      public std::enable_shared_from_this<MaskValue> {
-public:
-    using Ptr = std::shared_ptr<MaskValue>;
-
-    MaskValue() = default;
-
-    MaskValue(std::initializer_list<value_type> list) noexcept
-        : std::set<value_type>(list) {
-    }
-
-    void add_parent(const MaskValue::Ptr & parent) {
-        m_parents.push_back(parent);
-        parent->add_consumer(this->shared_from_this());
-    }
-
-    void update_dependencies() {
-        for (auto & parent : m_parents) {
-            if (*parent == *this) {
-                continue;
-            }
-            // TODO: check that new dimension values are in range of existing values
-            parent->clear();
-            for (auto & it  : *this) {
-                parent->insert(it);
-            }
-            parent->update_dependencies();
-        }
-
-        for (auto & consumer : m_consumers) {
-            if (*consumer == *this) {
-                continue;
-            }
-            consumer->clear();
-            for (auto it = begin(); it != end(); ++it) {
-                consumer->insert(*it);
-            }
-            consumer->update_dependencies();
-        }
-    }
-
-private:
-    void add_consumer(MaskValue::Ptr consumer) {
-        m_consumers.emplace_back(std::move(consumer));
-    }
-
-    std::vector<MaskValue::Ptr> m_parents;
-    std::vector<MaskValue::Ptr> m_consumers;
-};
-
 /**
  * @ingroup ie_runtime_attr_api
  * @brief each element in vector represents dimension and each element
  * in set is an id of dimensions which contains zeros.
  */
-class TRANSFORMATIONS_API Mask : public std::vector<MaskValue::Ptr> {
+class TRANSFORMATIONS_API Mask : public std::vector<std::set<uint64_t>>,
+                                 public std::enable_shared_from_this<Mask> {
 public:
     using Ptr = std::shared_ptr<Mask>;
 
     Mask() = default;
 
     explicit Mask(const ngraph::PartialShape & shape)
-            : std::vector<value_type>() {
-        size_t count = shape.rank().get_length();
-        for (size_t i = 0; i < count; i++) {
-            push_back(std::make_shared<MaskValue>());
-        }
+            : std::vector<value_type>(shape.rank().get_length()) {
     }
 
     explicit Mask(const size_t & size)
-            : std::vector<value_type>() {
-        for (size_t i = 0; i < size; i++) {
-            push_back(std::make_shared<MaskValue>());
-        }
+            : std::vector<value_type>(size) {
     }
 
-    Mask(std::initializer_list<std::initializer_list<MaskValue::value_type>> list) noexcept
+    Mask(std::initializer_list<std::initializer_list<uint64_t>> list) noexcept
             : std::vector<value_type>() {
         for (const auto & dim_values : list) {
-            push_back(std::make_shared<MaskValue>(dim_values));
+            push_back(dim_values);
         }
-    }
-
-    void update_dependencies() {
-        for (auto it = begin(); it != end(); ++it) {
-            it->get()->update_dependencies();
-        }
-    }
-    void invalidate() {
-        for (auto it = begin(); it != end(); ++it) {
-            it->get()->clear();
-        }
-        update_dependencies();
     }
 
     bool all_dims_are_empty() const {
         return std::all_of(begin(), end(),
                            [](const value_type & value) {
-                               return (!value || value->empty());
+                               return value.empty();
                            });
     }
 
@@ -132,8 +59,54 @@ public:
 
     void set_shape_like(bool flag) { m_is_shape_like = flag; }
 
+    void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+        m_callbacks[mask] = receive_callback;
+        m_dependencies.push_back(mask);
+    }
+
+    bool apply_callback(Mask::Ptr mask) {
+        // TODO: in case if callback returns false we need to propagate original value
+        const auto & ref_state = Mask(*this);
+        if (!m_callbacks.at(mask)(shared_from_this())) {
+            return false;
+        }
+
+        if (!m_need_initialization && *this == ref_state) {
+            return true;
+        }
+
+        m_need_initialization = false;
+
+        for (const auto & m_dependency : m_dependencies) {
+            if (!m_dependency->apply_callback(shared_from_this())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void invalidate() {
+        clean_dim_values();
+        for (const auto & d : m_dependencies) {
+            if (d->apply_callback(shared_from_this())) {
+                // TODO: throw an exception if zero dims can't be propagated
+            }
+        }
+    }
+
+    void clean_dim_values() {
+        for (auto & item : *this) {
+            item.clear();
+        }
+    }
 private:
     bool m_is_shape_like{false};
+
+    std::map<Mask::Ptr, std::function<bool(Mask::Ptr)>> m_callbacks;
+
+    std::vector<Mask::Ptr> m_dependencies;
+
+    bool m_need_initialization{true};
 };
 
 TRANSFORMATIONS_API std::ostream & operator<< (std::ostream & out, const Mask & mask);

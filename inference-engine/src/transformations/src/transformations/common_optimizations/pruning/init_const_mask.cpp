@@ -49,7 +49,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                     }
                 }
                 if (!skip_dim_value) {
-                    mask->at(dim)->insert(value);
+                    mask->at(dim).insert(value);
                 }
             }
         }
