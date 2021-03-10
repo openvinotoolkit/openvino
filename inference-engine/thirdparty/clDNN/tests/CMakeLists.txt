@@ -18,20 +18,6 @@ set(CLDNN_BUILD__PROJ             "clDNN_unit_tests")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 
-#find_package_tbb(REQUIRED)
-#if(TBB_FOUND)
-#    include_directories(BEFORE SYSTEM  ${_tbb_include_dirs})
-#    list(APPEND EXTRA_SHARED_LIBS ${TBB_IMPORTED_TARGETS})
-#
-#    # Print TBB location
-#    get_filename_component(_tbb_root "${_tbb_include_dirs}" PATH)
-#    get_filename_component(_tbb_root "${_tbb_root}" ABSOLUTE)
-#    message(STATUS "TBB: ${_tbb_root}")
-
-#    unset(_tbb_include_dirs)
-#    unset(_tbb_root)
-#endif()
-
 # =========================================== Compiler options =========================================
 intel_config_flag_apply_settings(CompilerOptions CMAKE_CXX_FLAGS ALL_PATTERN ""
     SET
