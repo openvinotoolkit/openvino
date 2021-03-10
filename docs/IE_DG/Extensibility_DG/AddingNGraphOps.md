@@ -6,7 +6,7 @@ Inference Engine Extension API allows to register operation sets (opsets) with c
 
 To add your custom nGraph operation, create a new class that extends `ngraph::Op`, which is in turn derived from `ngraph::Node`, the base class for all graph operations in nGraph. Follow the steps below:
 
-1. Define a `NodeTypeInfo` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an nGraph operation currently consists of a string identifier and a version number, but this may change in the future.
+1. Add the `NGRAPH_RTTI_DECLARATION` and `NGRAPH_RTTI_DEFINITION` macros which define a `NodeTypeInfo` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an nGraph operation currently consists of a string identifier and a version number, but this may change in the future.
 
 2. Implement constructors that can optionally take the operation inputs and attributes as parameters. 
 
