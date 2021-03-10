@@ -94,6 +94,14 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         if len(input_shape_of_unsqueeze) not in {4, 5}:
             return
 
+        if len(input_shape_of_unsqueeze) + 1 != len(second_input_of_tile.value):
+            return
+
+        reshape_node = match['reshape']
+        new_shape = reshape_node.in_port(1).data.get_value()
+        if new_shape is None or len(input_shape_of_unsqueeze) != len(new_shape):
+            return
+
         scale = float32_array([second_input_of_tile.value[d_idx]])
         axis = d_idx - 1
         axis_node = Const(graph, {'name': unsqueeze_name + '/axis', 'value': int64_array([axis])}).create_node()
@@ -141,8 +149,6 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         cast_mul_result_to_int.out_port(0).connect(interp_node.in_port(1))
         scales_node.out_port(0).connect(interp_node.in_port(2))
         axis_node.out_port(0).connect(interp_node.in_port(3))
-
-        reshape_node = match['reshape']
 
         reshape_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
         reshape_name = reshape_node.soft_get('name', reshape_node.id)
