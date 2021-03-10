@@ -477,6 +477,7 @@ void op::v0::Range::validate_and_infer_types()
     case element::Type_t::dynamic: result_shape = PartialShape::dynamic(1); break;
     case element::Type_t::u1:
     case element::Type_t::i4:
+    case element::Type_t::u4:
     case element::Type_t::undefined:
     case element::Type_t::boolean:
         NODE_VALIDATION_CHECK(

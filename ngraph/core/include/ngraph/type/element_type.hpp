@@ -52,6 +52,7 @@ namespace ngraph
             i32,
             i64,
             u1,
+            u4,
             u8,
             u16,
             u32,
@@ -140,6 +141,7 @@ namespace ngraph
         constexpr Type i32(Type_t::i32);
         constexpr Type i64(Type_t::i64);
         constexpr Type u1(Type_t::u1);
+        constexpr Type u4(Type_t::u4);
         constexpr Type u8(Type_t::u8);
         constexpr Type u16(Type_t::u16);
         constexpr Type u32(Type_t::u32);

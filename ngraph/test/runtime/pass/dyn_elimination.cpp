@@ -125,6 +125,7 @@ void pass::DynElimination::construct_range()
             replacement = make_range_replacement<uint64_t>(et, shape, start_arg, step_arg);
             break;
         case element::Type_t::i4:
+        case element::Type_t::u4:
         case element::Type_t::u1:
         case element::Type_t::undefined:
         case element::Type_t::dynamic:

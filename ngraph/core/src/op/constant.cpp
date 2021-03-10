@@ -181,6 +181,8 @@ op::Constant::Constant(const element::Type& type,
         }
         case element::Type_t::i4: { throw std::runtime_error("deserialize unsupported type i4");
         }
+        case element::Type_t::u4: { throw std::runtime_error("deserialize unsupported type u4");
+        }
         case element::Type_t::u1: { throw std::runtime_error("deserialize unsupported type u1");
         }
         }
@@ -292,6 +294,7 @@ op::Constant::Constant(const element::Type& type,
         case element::Type_t::dynamic:
             throw std::runtime_error("deserialize unsupported type dynamic");
         case element::Type_t::i4: throw std::runtime_error("deserialize unsupported type i4");
+        case element::Type_t::u4: throw std::runtime_error("deserialize unsupported type u4");
         case element::Type_t::u1: throw std::runtime_error("deserialize unsupported type u1");
         }
         m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
@@ -355,8 +358,14 @@ string op::Constant::convert_value_to_string(size_t index) const
     case element::Type_t::f32: rc = to_cpp_string(get_data_ptr<float>()[index]); break;
     case element::Type_t::f64: rc = to_cpp_string(get_data_ptr<double>()[index]); break;
     case element::Type_t::i4:
-        throw std::runtime_error("AAAAA");
-        rc = to_string((get_data_ptr<uint8_t>()[index / 8] >> (7 - (index % 8))) & 1);
+    {
+        int8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F;
+        int8_t data = ((i4data << 4) | i4data) & 0b10000111;
+        rc = to_string(data);
+        break;
+    }
+    case element::Type_t::u4:
+        rc = to_string((get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F);
         break;
     case element::Type_t::i8: rc = to_string(get_data_ptr<int8_t>()[index]); break;
     case element::Type_t::i16: rc = to_string(get_data_ptr<int16_t>()[index]); break;
@@ -469,6 +478,7 @@ vector<string> op::Constant::get_value_strings() const
         break;
     case element::Type_t::u1:
     case element::Type_t::i4:
+    case element::Type_t::u4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic: throw runtime_error("unsupported type");
     }
@@ -625,6 +635,7 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
     }
     case element::Type_t::i4:
     case element::Type_t::u1:
+    case element::Type_t::u4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic: break;
     }

@@ -78,6 +78,7 @@ static const element_types_map_t& get_type_info_map()
         {element::Type_t::i32, TypeInfo(32, false, true, true, "int32_t", "i32")},
         {element::Type_t::i64, TypeInfo(64, false, true, false, "int64_t", "i64")},
         {element::Type_t::u1, TypeInfo(1, false, false, false, "uint1_t", "u1")},
+        {element::Type_t::u4, TypeInfo(4, false, false, false, "uint4_t", "u4")},
         {element::Type_t::u8, TypeInfo(8, false, false, true, "uint8_t", "u8")},
         {element::Type_t::u16, TypeInfo(16, false, false, false, "uint16_t", "u16")},
         {element::Type_t::u32, TypeInfo(32, false, false, false, "uint32_t", "u32")},
@@ -100,6 +101,7 @@ std::vector<const element::Type*> element::Type::get_known_types()
                                             &element::i32,
                                             &element::i64,
                                             &element::u1,
+                                            &element::u4,
                                             &element::u8,
                                             &element::u16,
                                             &element::u32,
@@ -302,6 +304,7 @@ size_t ngraph::compiler_byte_size(element::Type_t et)
         ET_CASE(i32);
         ET_CASE(i64);
         ET_CASE(u1);
+        ET_CASE(u4);
         ET_CASE(u8);
         ET_CASE(u16);
         ET_CASE(u32);
@@ -335,6 +338,7 @@ namespace ngraph
                                         {"i32", element::Type_t::i32},
                                         {"i64", element::Type_t::i64},
                                         {"u1", element::Type_t::u1},
+                                        {"u4", element::Type_t::u4},
                                         {"u8", element::Type_t::u8},
                                         {"u16", element::Type_t::u16},
                                         {"u32", element::Type_t::u32},

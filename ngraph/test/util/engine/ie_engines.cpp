@@ -150,6 +150,7 @@ namespace
         case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
         case element::Type_t::u1: return InferenceEngine::Precision::BIN; break;
         case element::Type_t::i4:
+        case element::Type_t::u4:
         case element::Type_t::undefined:
         case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
         }

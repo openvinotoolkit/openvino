@@ -99,6 +99,8 @@ namespace ngraph
                 throw ngraph_error("make_constant: Unsupported element type 'u1'");
             case element::Type_t::i4:
                 throw ngraph_error("make_constant: Unsupported element type 'i4'");
+            case element::Type_t::u4:
+                throw ngraph_error("make_constant: Unsupported element type 'u4'");
             case element::Type_t::undefined:
                 throw ngraph_error("make_constant: Unsupported element type 'undefined'");
             }
