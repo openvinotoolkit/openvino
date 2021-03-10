@@ -178,7 +178,7 @@ namespace detail
 
         return rc;
     }
-
+#undef TYPE_OUT_CASE
     bool evaluate_onehot(const HostTensorVector& output_values,
                          const HostTensorVector& input_values,
                          const int64_t axis)
