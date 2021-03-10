@@ -70,3 +70,14 @@ class TestsOutputCut(unittest.TestCase):
         self.assertTrue(op2.out_edge(3)['fw_tensor_debug_info'] == [('Op2', 0, 'Op2_tensor_name')])
         self.assertTrue(graph.get_op_nodes(name='FakeOutput1') == [])
         self.assertTrue(graph.get_op_nodes(name='FakeOutput2') == [])
+
+    def test_case3(self):
+        graph = build_graph(nodes, [])
+        graph.graph['packed_outputs'] = None
+        graph.graph['user_shapes'] = None
+
+        graph.stage = 'front'
+        OutputCut().find_and_replace_pattern(graph)
+
+        self.assertTrue(graph.get_op_nodes(name='FakeOutput1') == [])
+        self.assertTrue(graph.get_op_nodes(name='FakeOutput2') == [])

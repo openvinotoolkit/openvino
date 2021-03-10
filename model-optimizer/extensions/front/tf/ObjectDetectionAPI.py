@@ -1149,16 +1149,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
 
         # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer
         # correspond to original tensors and should be removed from output->Result edges
-        for out_idx in range(match.outputs_count()):
-            out_node = match.output_node(out_idx)[0]
-            for out_idx in out_node.out_nodes():
-                result_node = out_node.out_node(out_idx)
-                fw_info_list = get_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info')
-                new_fw_info = []
-                for fw_info in fw_info_list:
-                    if fw_info is not None and len(fw_info) >= 2:
-                        new_fw_info.append((fw_info[0], fw_info[1], None))
-                set_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info', new_fw_info)
+        match.clear_tensors_info_from_outputs()
 
         return {'detection_output_node': detection_output_node}
 

@@ -1109,7 +1109,7 @@ def get_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
     with tensor debug information. It is needed after removing of fake outputs.
     Also there are cases when graph transformations lead to mismatch of tensor name
     and input node, so manual attribute change is needed.
-    This function should only be used during the front phase.
+    This method should only be used during the front phase.
     """
     for edge_idx in node1.out_edges():
         edge = node1.out_edge(edge_idx)
@@ -1128,7 +1128,7 @@ def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, n
     with tensor debug information. It is needed after removing of fake outputs.
     Also there are cases when graph transformations lead to mismatch of tensor name
     and input node, so manual attribute change is needed.
-    This function should only be used during the front phase.
+    This method should only be used during the front phase.
     """
     for edge_idx in node1.out_edges():
         edge = node1.out_edge(edge_idx)

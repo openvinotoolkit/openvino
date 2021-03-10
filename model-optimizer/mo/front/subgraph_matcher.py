@@ -16,7 +16,7 @@
 import logging as log
 import re
 
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
 from mo.utils.custom_replacement_config import CustomReplacementDescriptor
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
@@ -156,6 +156,24 @@ class SubgraphMatch(object):
                         refer_to_faq_msg(34))
         self._output_nodes_map[sub_graph_output_port] = (Node(self.graph, node_name), node_port)
 
+    def clear_tensors_info_from_outputs(self):
+        """
+        Clears tensor names information from 'fw_tensor_debug_info' attribute for all edges outgoing from
+        outputs of the subgraph match.
+        This method is used in cases when transformation adds postprocessing and the result does not
+        correspond to the original tensor.
+        This method should only be used during the front phase.
+        """
+        for out in range(self.outputs_count()):
+            out_node = self.output_node(out)[0]
+            for out_idx in out_node.out_nodes():
+                result_node = out_node.out_node(out_idx)
+                fw_info_list = get_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info')
+                new_fw_info = []
+                for fw_info in fw_info_list:
+                    if fw_info is not None and len(fw_info) >= 2:
+                        new_fw_info.append((fw_info[0], fw_info[1], None))
+                set_edge_attribute_between_nodes(out_node, result_node, 'fw_tensor_debug_info', new_fw_info)
 
 # TODO looks like this class is not needed. Can be implemented as pure functions.
 class SubgraphMatcher(object):
