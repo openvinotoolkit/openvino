@@ -246,57 +246,12 @@ void ConcatMultiChannelsTransformation::fillQuantization(
 FakeQuantizeDequantization ConcatMultiChannelsTransformation::getConcatenatedDequantization(
     const std::shared_ptr<ngraph::opset1::Concat> concat,
     const std::vector<FakeQuantizeDequantization>& dequantization) const {
-    bool allDequantizationShiftAreZero = true;
-    bool allDequantizationMultiplyAreZero = true;
-    for (const auto& deq : dequantization) {
-        if (deq.subtract != nullptr) {
-            allDequantizationShiftAreZero = false;
-        }
-        if (deq.multiply != nullptr) {
-            allDequantizationMultiplyAreZero = false;
-        }
-    }
-
     NodeVector convertNodes;
-    NodeVector subNodes;
-    NodeVector mulNodes;
+    NodeVector subtractNodes;
+    NodeVector multiplyNodes;
 
-    //preparing to concatenate dequantization nodes
-    for (const auto& deq : dequantization) {
-        auto broadcastElementWiseConst = [](
-            // FakeQuantize constant shape must be broadcastable to the shape on data.
-            std::shared_ptr<ngraph::opset1::Constant> operation,
-            const ngraph::Shape targetShape) -> std::shared_ptr<Node> {
-                auto targetShapeConst = std::make_shared<ngraph::opset1::Constant>(
-                    element::i64, ngraph::Shape{ targetShape.size() },
-                    targetShape);
-
-                auto broadcast = ngraph::pass::low_precision::fold<ngraph::opset1::Broadcast>(
-                    operation,
-                    targetShapeConst,
-                    ngraph::op::AutoBroadcastType::NUMPY);
-
-                return broadcast;
-        };
-
-        const ngraph::element::Type precision = deq.data.get_element_type();
-        ngraph::Shape targetShape(deq.data.get_shape().size(), 1ul);
-        targetShape[1] = deq.data.get_shape()[1];
-
-        if (deq.convert != nullptr) {
-            convertNodes.push_back(deq.convert);
-        }
-        if (!allDequantizationShiftAreZero) {
-            subNodes.push_back(deq.subtract == nullptr ?
-                std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<float>({ 0.f })) :
-                broadcastElementWiseConst(as_type_ptr<ngraph::opset1::Constant>(deq.subtractConstant), targetShape));
-        }
-        if (!allDequantizationMultiplyAreZero) {
-            mulNodes.push_back(deq.multiply == nullptr ?
-                std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<float>({ 1.0f })) :
-                broadcastElementWiseConst(as_type_ptr<ngraph::opset1::Constant>(deq.multiplyConstant), targetShape));
-        }
-    }
+    // forming nodes for concatenation
+    fillDequantizationNodes(dequantization, concat, convertNodes, subtractNodes, multiplyNodes);
 
     std::shared_ptr<Node> parent = concat;
     std::shared_ptr<DequantizationConvert> convert;
@@ -307,20 +262,16 @@ FakeQuantizeDequantization ConcatMultiChannelsTransformation::getConcatenatedDeq
 
     std::shared_ptr<DequantizationSubtract> subtract;
     std::shared_ptr<ngraph::opset1::Constant> subConst;
-    if (!subNodes.empty()) {
-        subConst = as_type_ptr<ngraph::opset1::Constant>(
-            subNodes.size() == 1ul ? subNodes[0] : fold<ngraph::opset1::Concat>(subNodes, 1ul));
-
+    if (!subtractNodes.empty()) {
+        subConst = as_type_ptr<ngraph::opset1::Constant>(concatenateDeqNodes(subtractNodes));
         subtract = std::make_shared<DequantizationSubtract>(parent, subConst);
         parent = subtract;
     }
 
     std::shared_ptr<DequantizationMultiply> multiply;
     std::shared_ptr<ngraph::opset1::Constant> mulConst;
-    if (!mulNodes.empty()) {
-        mulConst = as_type_ptr<ngraph::opset1::Constant>(
-            mulNodes.size() == 1ul ? mulNodes[0] : fold<ngraph::opset1::Concat>(mulNodes, 1ul));
-
+    if (!multiplyNodes.empty()) {
+        mulConst = as_type_ptr<ngraph::opset1::Constant>(concatenateDeqNodes(multiplyNodes));
         multiply = std::make_shared<DequantizationMultiply>(parent, mulConst);
     }
 
