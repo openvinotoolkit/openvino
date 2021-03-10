@@ -54,9 +54,9 @@
 
 **Outputs**
 
-* **1**: A 2D tensor of type *T* with shape `[post_nms_count, 4]` describing.
+* **1**: A 2D tensor of type *T* with shape `[post_nms_count, 4]` describing ROI item.
 
-* **2**: A 1D tensor of type *T* with shape `[post_nms_count]` describing.
+* **2**: A 1D tensor of type *T* with shape `[post_nms_count]` describing ROI score item.
 
 **Types**
 
