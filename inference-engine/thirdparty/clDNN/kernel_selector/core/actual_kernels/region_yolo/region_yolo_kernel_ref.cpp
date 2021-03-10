@@ -46,21 +46,46 @@ JitConstants RegionYoloKernelRef::GetJitConstants(const region_yolo_params& ry) 
     return jit;
 }
 
+bool RegionYoloKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (p.GetType() != KernelType:: REGION_YOLO || o.GetType() != KernelType::REGION_YOLO) {
+        return false;
+    }
+
+    const region_yolo_params& params = static_cast<const region_yolo_params&>(p);
+    const size_t expected_feature_size =
+            params.do_softmax ? params.inputs[0].X().v * params.inputs[0].Y().v * params.inputs[0].Feature().v : params.inputs[0].Feature().v;
+
+    if (expected_feature_size != params.output.Feature().v) {
+        return false;
+    }
+
+    return true;
+}
+
 RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
     RegionYoloKernelRef::DispatchData dispatchData;
 
     const auto& input = params.inputs[0];
-    if (input.GetLayout() == DataLayout::bfyx) {
-        dispatchData.gws = {input.X().v * input.Y().v, 1, 1};
-    } else {
-        dispatchData.gws = {input.Feature().v * input.Batch().v, input.X().v, input.Y().v};
+
+    switch (input.GetLayout()) {
+    case DataLayout::bfyx:
+    case DataLayout::byxf: {
+        uint32_t region_num = params.do_softmax ? params.num : params.mask_size;
+        dispatchData.gws = {input.X().v * input.Y().v, region_num, input.Batch().v};
+    } break;
+    default:
+        throw std::invalid_argument("Unsupported DataLayout");
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }
+
 KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    assert(params.GetType() == KernelType::REGION_YOLO);
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     const region_yolo_params& orgParams = static_cast<const region_yolo_params&>(params);
 
     DispatchData dispatchData = SetDefault(orgParams);
