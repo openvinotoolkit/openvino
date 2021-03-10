@@ -274,7 +274,7 @@ Standard TensorFlow 2 Keras\* operations:
 | Bidirectional | No |
 | Concatenate | No |
 | Conv1D | No |
-| Conv1DTranspose | The case with dilation not equal to 1 is not supported |
+| Conv1DTranspose | Not supported if dilation is not equal to 1 |
 | Conv2D | No |
 | Conv2DTranspose | No |
 | Conv3D | No |
@@ -283,7 +283,7 @@ Standard TensorFlow 2 Keras\* operations:
 | Cropping2D | No |
 | Cropping3D | No |
 | Dense | No |
-| DenseFeatures | In case of categorical and crossed features the operation is not supported |
+| DenseFeatures | Not supported for categorical and crossed features |
 | DepthwiseConv2D | No |
 | Dot | No |
 | Dropout | No |
@@ -315,7 +315,7 @@ Standard TensorFlow 2 Keras\* operations:
 | Multiply | No |
 | PReLU | No |
 | Permute | No |
-| RNN | In case of custom cells it may be not supported |
+| RNN | Not supported for some custom cells |
 | ReLU | No |
 | RepeatVector | No |
 | Reshape | No |
