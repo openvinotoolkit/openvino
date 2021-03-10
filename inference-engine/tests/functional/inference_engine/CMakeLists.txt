@@ -16,6 +16,7 @@ set(LINK_LIBRARIES
     openvino::itt
     openvino::conditional_compilation
     sharedTestClasses
+    inference_engine_snippets
 )
 
 set(DEPENDENCIES
