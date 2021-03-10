@@ -784,8 +784,8 @@ struct bi_resample_random_test_param_generator : std::vector<resample_random_tes
         push_back(resample_random_test_params{ type, {1, 10, 64, 64}, {1, 10, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
         push_back(resample_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 20, 20}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
         push_back(resample_random_test_params{ type, {1, 10, 20, 20}, {1, 10, 10, 10}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        if (format::b_fs_yx_fsv16 == input_format)
-            push_back(resample_random_test_params{ type, {1, 48, 256, 256}, {1, 48, 512, 512}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 48, 256, 256}, {1, 48, 512, 512}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+
         return *this;
     }
 };
