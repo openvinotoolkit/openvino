@@ -19,7 +19,7 @@ import numpy as np
 from enum import Enum
 
 supported_precisions = ["FP32", "FP64", "FP16", "I64", "U64", "I32", "U32",
-                            "I16", "I8", "U16", "U8", "BOOL", "BIN", "BF16"]
+                            "I16", "I4", "I8", "U16", "U4", "U8", "BOOL", "BIN", "BF16"]
 
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
 
@@ -36,7 +36,9 @@ format_map = {
       'U32'  : np.uint32,
       'I16'  : np.int16,
       'U16'  : np.uint16,
+      'I4'   : np.int8,
       'I8'   : np.int8,
+      'U4'   : np.int8,
       'U8'   : np.uint8,
       'BOOL' : np.uint8,
       'BIN'  : np.int8,
