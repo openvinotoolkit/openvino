@@ -618,7 +618,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
             op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
         }
         ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoNetwork, deviceName);
-    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+    } catch (const NotImplementedException& ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
