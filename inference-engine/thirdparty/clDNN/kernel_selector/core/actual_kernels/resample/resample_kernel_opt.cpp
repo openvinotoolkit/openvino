@@ -51,12 +51,17 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
     if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP)
     {
         dispatchData.gws[0] = out.X().v * out.Y().v;
-        dispatchData.gws[1] = CeilDiv(Align(out.Feature().v, sub_group_size), GetFeatureBlockSize(arg));
+        dispatchData.gws[1] = CeilDiv(out.Feature().v, GetFeatureBlockSize(arg));
         dispatchData.gws[2] = arg.output.Batch().v;
 
-        dispatchData.lws[0] = GetOptimalBlockSize(arg);
-        dispatchData.lws[1] = sub_group_size;
-        dispatchData.lws[2] = 1;
+        if ((out.Feature().v % GetFeatureBlockSize(arg)) == 0)
+        {
+            dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
+        } else {
+            dispatchData.lws[0] = GetOptimalBlockSize(arg);
+            dispatchData.lws[1] = sub_group_size;
+            dispatchData.lws[2] = 1;
+        }
    } else {
         dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
         dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
@@ -67,7 +72,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.lws[2] = 1;
    }
 
-    // printf("[%d] gws: (%zd, %zd, %zd), lws: (%zd, %zd, %zd), (%zd, %zd, %zd) %zd\n",
+    // printf("resample opt type[%d] gws: (%zd, %zd, %zd), lws: (%zd, %zd, %zd), (%zd, %zd, %zd) %zd\n",
     //     (int)arg.resampleType,
     //     dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2],
     //     dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2],

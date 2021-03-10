@@ -150,14 +150,6 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int fp_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
 #endif
 
-    // if (get_group_id(0) < 3 && get_group_id(1) < 3 && get_group_id(2) == 0)
-    // {
-    //     printf("global [%3d, %3d, %3d]  local [%3d, %3d, %3d]  group [%3d, %3d, %3d]\n", (int)get_global_id(0), (int)get_global_id(1), (int)get_global_id(2),
-    //                                                             (int)get_local_id(0), (int)get_local_id(1), (int)get_local_id(2),
-    //                                                             (int)get_group_id(0), (int)get_group_id(1), (int)get_group_id(2));
-    //     printf("  - feature_block_nun(%d) FEATURE_BLOCK_SIZE(%d) OUTPUT_SIZE_Y(%d) OUTPUT_SIZE_X(%d) INPUT0_FEATURE_NUM(%d), INPUT0_SIZE_Y(%d), INPUT0_SIZE_X(%d)\n", (int)feature_block_nun, (int)FEATURE_BLOCK_SIZE, (int)OUTPUT_SIZE_Y, (int)OUTPUT_SIZE_X, (int)INPUT0_FEATURE_NUM, (int)INPUT0_SIZE_Y, (int)INPUT0_SIZE_X);
-    // }
-
     ACCUMULATOR_TYPE sum[fp_max] = {0};
     ACCUMULATOR_TYPE wsum[fp_max] = {0};
 
@@ -174,37 +166,36 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
             wf = wb * TRIANGLE_COEFF(af, i_f - f);
 
             if (wf != 0) {
-            unroll_for(int y = y_init; y < y_max; y++) {
-                wy = wf * TRIANGLE_COEFF(ay, i_y - y);
+                unroll_for(int y = y_init; y < y_max; y++) {
+                    wy = wf * TRIANGLE_COEFF(ay, i_y - y);
 
-                if (wy != 0) {
-                unroll_for(int x = x_init; x < x_max; x++) {
-                    wx = TRIANGLE_COEFF(ax, i_x - x);
-                    w = wx * wy;
-                    //w = wb * wf * wx * wy;
+                    if (wy != 0) {
+                        unroll_for(int x = x_init; x < x_max; x++) {
+                            wx = TRIANGLE_COEFF(ax, i_x - x);
+                            w = wx * wy;
+                            //w = wb * wf * wx * wy;
 
 #if PADDING_USED == 1
-                    bool isOutOfBounds = b < 0 || f < 0 || y < 0 || x < 0 ||
-                                        b >= in_size[0] || f >= in_size[1] ||
-                                        y >= in_size[3] || x >= in_size[4];
+                            bool isOutOfBounds = b < 0 || f < 0 || y < 0 || x < 0 ||
+                                                b >= in_size[0] || f >= in_size[1] ||
+                                                y >= in_size[3] || x >= in_size[4];
 #endif
-                    if (w != 0) {
-                        unroll_for(int fp = 0; fp < fp_max; fp++) {
-                            if (f + fp < INPUT0_FEATURE_NUM) {
-                                wsum[fp] += w;
-#if PADDING_USED == 1
-                                if (!isOutOfBounds)
-#endif
-                                {
-                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, y, x)]);
-                                }
-                            }
-                        }  // unroll_for(int fp = 0; fp < fp_max; fp++)
-                    }  // w != 0;
-
-                }  // unroll_for(int x = x_init; x < x_max; x++)
-                }
-            }  // unroll_for(int y = y_init; y < y_max; y++)
+                            if (w != 0) {
+                                unroll_for(int fp = 0; fp < fp_max; fp++) {
+                                    if (f + fp < INPUT0_FEATURE_NUM) {
+                                        wsum[fp] += w;
+        #if PADDING_USED == 1
+                                        if (!isOutOfBounds)
+        #endif
+                                        {
+                                            sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, y, x)]);
+                                        }
+                                    }
+                                }  // unroll_for(int fp = 0; fp < fp_max; fp++)
+                            }  // w != 0;
+                        }  // unroll_for(int x = x_init; x < x_max; x++)
+                    }
+                }  // unroll_for(int y = y_init; y < y_max; y++)
             }
         }  // unroll_for(int f = f_init; f < f_max; f++)
     }  // unroll_for(int b = b_init; b < b_max; b++)

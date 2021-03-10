@@ -778,13 +778,20 @@ struct bi_resample_random_test_param_generator : std::vector<resample_random_tes
     bi_resample_random_test_param_generator& smoke_params(data_types type, format::type input_format, format::type output_format) {
         push_back(resample_random_test_params{ type, {1, 512, 32, 32}, {1, 512, 64, 64}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
         push_back(resample_random_test_params{ type, {1, 512, 64, 64}, {1, 512, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-
+        push_back(resample_random_test_params{ type, {1, 32, 32, 32}, {1, 32, 64, 64}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 32, 64, 64}, {1, 32, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 10, 32, 32}, {1, 10, 64, 64}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 10, 64, 64}, {1, 10, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 20, 20}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 10, 20, 20}, {1, 10, 10, 10}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
+        if (format::b_fs_yx_fsv16 == input_format)
+            push_back(resample_random_test_params{ type, {1, 48, 256, 256}, {1, 48, 512, 512}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
         return *this;
     }
 };
 
 
-struct bi_resample_random_test : resample_random_test
+struct caffe_resample_random_test : resample_random_test
 {
     template <typename T>
     bool compare_outputs(const memory& out_ref, const memory& out_opt) {
@@ -916,21 +923,21 @@ struct bi_resample_random_test : resample_random_test
     }
 };
 
-TEST_P(bi_resample_random_test, random) {
+TEST_P(caffe_resample_random_test, random) {
     auto param = GetParam();
     execute_compare(param, true);
 }
 
-INSTANTIATE_TEST_CASE_P(bi_smoke_caffe_fsv16,
-                        bi_resample_random_test,
+INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv16,
+                        caffe_resample_random_test,
                         testing::ValuesIn(
                             bi_resample_random_test_param_generator()
                             .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                         ), );
 
-INSTANTIATE_TEST_CASE_P(bi_smoke_caffe_fsv32,
-                        bi_resample_random_test,
+INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv32,
+                        caffe_resample_random_test,
                         testing::ValuesIn(
                             bi_resample_random_test_param_generator()
                             .smoke_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
