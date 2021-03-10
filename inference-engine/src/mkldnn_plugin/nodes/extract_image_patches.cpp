@@ -185,6 +185,42 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         for (size_t i = 0; i < rates.size(); i++)
             _rates.push_back((int64_t)rates[i]);
 
+        /*** JIT kernel configuration ***/
+        jit_eximpat_params jcp;
+        SizeVector in_dims = inData->getTensorDesc().getDims();
+        jcp.OB = in_dims[0];
+        jcp.IC = in_dims[1];
+        jcp.IH = in_dims[2];
+        jcp.IW = in_dims[3];
+        SizeVector out_dims = layer->outData[0]->getTensorDesc().getDims();
+        jcp.OH = out_dims[2];
+        jcp.OW = out_dims[3];
+        jcp.KH = _ksizes[0];
+        jcp.KW = _ksizes[1];
+        jcp.SH = _strides[0];
+        jcp.SW = _strides[1];
+        jcp.RH = _rates[0];
+        jcp.RW = _rates[1];
+        jcp.dtype_size = layer->insData.front().lock()->getPrecision().size();
+        set_pads(_auto_pad, {jcp.IH, jcp.IW, jcp.KH, jcp.KW, jcp.SH, jcp.SW, jcp.RH, jcp.RW});
+        jcp.PL = _pads[0];
+        jcp.PT = _pads[1];
+
+        if (mayiuse(x64::avx512_common)) {
+            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx512_common>(jcp));
+            //block_size = 16;
+        } else if (mayiuse(x64::avx2)) {
+            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx2>(jcp));
+            //block_size = 8;
+        } else if (mayiuse(x64::sse41)) {
+            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jcp));
+            //block_size = 4;
+        }
+
+        if (eximpat_kernel)
+            eximpat_kernel->create_ker();
+        /*** JIT kernel configuration finished ***/
+
         LayerConfig config;
 
         DataConfig inConfig;
@@ -233,6 +269,47 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
     }
 
     return OK;
+}
+
+void ExtractImagePatchesImpl::set_pads(const std::string & pad_str, const std::vector<int64_t> & params) {
+    const int64_t IH = params[0]; const int64_t IW = params[1];
+    const int64_t KH = params[2]; const int64_t KW = params[3];
+    const int64_t SH = params[4]; const int64_t SW = params[5];
+    const int64_t RH = params[6]; const int64_t RW = params[7];
+    const int64_t iwStep = KW + (RW - 1) * (KW - 1);
+    const int64_t ihStep = KH + (RH - 1) * (KH - 1);
+
+    int64_t PL = 0, PT = 0;
+    if (!CaselessEq<std::string>()(pad_str, "valid")) {
+        int64_t PW = (std::ceil(1.f * IW/SW) - 1) * SW + iwStep - IW;
+        int64_t PH = (std::ceil(1.f * IH/SH) - 1) * SH + ihStep - IH;
+
+        if ((PW > 0) && (PW < iwStep)) {
+            if (PW % 2 == 1) {
+                if (CaselessEq<std::string>()(pad_str, "same_lower")) {
+                    PL = (PW + 1) / 2;
+                } else if (CaselessEq<std::string>()(pad_str, "same_upper")) {
+                    PL = (PW - 1) / 2;
+                }
+            } else {
+                PL = PW / 2;
+            }
+        }
+        if ((PH > 0) && (PH < ihStep)) {
+            if (PH % 2 == 1) {
+                if (CaselessEq<std::string>()(pad_str, "same_lower")) {
+                    PT = (PH + 1) / 2;
+                } else if (CaselessEq<std::string>()(pad_str, "same_upper")) {
+                    PT = (PH - 1) / 2;
+                }
+            } else {
+                PT = PH / 2;
+            }
+        }
+    }
+    _pads.clear();
+    _pads.push_back(PL);
+    _pads.push_back(PT);
 }
 
 }  // namespace Cpu
