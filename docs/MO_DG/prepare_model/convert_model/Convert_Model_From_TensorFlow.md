@@ -342,11 +342,9 @@ model = tf.keras.models.load_model('model.h5', custom_objects={'CustomLayer': Cu
 tf.saved_model.save(model,'model')
 ```
 
-Then follow the above instructions for the SavedModel format. 
+Then follow the above instructions for the SavedModel format.
 
-> **NOTE:** Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.    
-
-> **NOTE**: Currently, OpenVINO™ support for TensorFlow* 2 models is in preview (aka Beta), which means limited and not of production quality yet. OpenVINO™ does not support models with Keras RNN and Embedding layers.
+> **NOTE:** Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.
 
 
 ## Custom Layer Definition
@@ -360,7 +358,7 @@ See [Custom Layers in the Model Optimizer](../customize_model_optimizer/Customiz
 * Custom layer implementation details
 
 
-## Supported TensorFlow\* Layers
+## Supported TensorFlow\* and TensorFlow 2 Keras\* Layers
 Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
 
 
