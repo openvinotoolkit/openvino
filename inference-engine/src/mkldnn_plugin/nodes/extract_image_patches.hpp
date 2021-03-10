@@ -24,6 +24,7 @@ struct jit_eximpat_params {
     int SH, SW; // strides
     int RH, RW; // rates
     int PL, PT; // determine padding
+    int dtype_size; // bit size of the datatype
 };
 
 struct jit_eximpat_args {
@@ -81,38 +82,9 @@ public:
         const int64_t SW = _strides[WIDTH];
         const int64_t RH = _rates[HIGHT];
         const int64_t RW = _rates[WIDTH];
+        const int64_t PL = _pads[HIGHT];
+        const int64_t PT = _pads[WIDTH];
 
-        int64_t iwStep = KW + (RW - 1) * (KW - 1);
-        int64_t ihStep = KH + (RH - 1) * (KH - 1);
-
-        int64_t PL = 0, PT = 0;
-        if (!CaselessEq<std::string>()(_auto_pad, "valid")) {
-            int64_t PW = (std::ceil(1.f * IW/SW) - 1) * SW + iwStep - IW;
-            int64_t PH = (std::ceil(1.f * IH/SH) - 1) * SH + ihStep - IH;
-
-            if ((PW > 0) && (PW < iwStep)) {
-                if (PW % 2 == 1) {
-                    if (CaselessEq<std::string>()(_auto_pad, "same_lower")) {
-                        PL = (PW + 1) / 2;
-                    } else if (CaselessEq<std::string>()(_auto_pad, "same_upper")) {
-                        PL = (PW - 1) / 2;
-                    }
-                } else {
-                    PL = PW / 2;
-                }
-            }
-            if ((PH > 0) && (PH < ihStep)) {
-                if (PH % 2 == 1) {
-                    if (CaselessEq<std::string>()(_auto_pad, "same_lower")) {
-                        PT = (PH + 1) / 2;
-                    } else if (CaselessEq<std::string>()(_auto_pad, "same_upper")) {
-                        PT = (PH - 1) / 2;
-                    }
-                } else {
-                    PT = PH / 2;
-                }
-            }
-        }
         const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
         const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
         auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
@@ -139,9 +111,12 @@ private:
     std::vector<int64_t> _ksizes;
     std::vector<int64_t> _strides;
     std::vector<int64_t> _rates;
+    std::vector<int64_t> _pads;
     std::string _auto_pad;
 
+    std::shared_ptr<jit_uni_eximpat_kernel> eximpat_kernel;
     static const std::set<size_t> _supported_precisions_sizes;
+    inline void set_pads(const std::string & pad_str, const std::vector<int64_t> & params);
 };
 
 const std::set<size_t> ExtractImagePatchesImpl::_supported_precisions_sizes = {1, 2, 4, 8};
