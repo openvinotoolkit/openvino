@@ -38,13 +38,13 @@ enum class TestLoadType {
 };
 using TestParam = std::tuple<TestLoadType, std::string, bool>;
 
-static const std::vector<TestParam> loadVariants = {
+static const std::vector<TestParam> loadVariants {
         { TestLoadType::ECNN, std::string("ByCNNNetwork"), false },
         { TestLoadType::EContext, std::string("ByRemoteContext"), true },
         { TestLoadType::EModelName, std::string("ByModelName"), false },
 };
 
-static const std::vector<std::string> cacheFolders = {
+static const std::vector<std::string> cacheFolders {
         std::string("testCache"),
 };
 

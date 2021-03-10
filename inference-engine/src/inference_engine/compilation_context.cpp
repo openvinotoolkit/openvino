@@ -14,13 +14,10 @@
 #include "ie_itt.hpp"
 #include "cpp_interfaces/exception2status.hpp"
 #include "transformations/serialize.hpp"
-#include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_exception.hpp"
 
-#include "ngraph/pass/pass.hpp"
 #include "ngraph/variant.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/opsets/opset6.hpp"
 
 #ifdef WIN32
@@ -31,10 +28,8 @@ namespace InferenceEngine {
 
 template <typename T>
 static std::size_t hash_combine(std::size_t seed, const T& a) {
-    std::size_t val = std::hash<T>()(a);
-
     // Hash combine formula from boost
-    return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+    return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
 
 template <typename T>
@@ -49,8 +44,9 @@ class OstreamHashWrapper final: public std::streambuf {
 public:
     std::size_t getResult() const { return m_res; }
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        std::string str(s, n);
-        m_res = hash_combine(m_res, str);
+        for (std::streamsize i = 0; i < n; i++) {
+            m_res = hash_combine(m_res, s[i]);
+        }
         m_pos += n;
         return n;
     }
@@ -90,42 +86,30 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
     size_t seed {};
     seed = hash_combine(seed, xmlHash.getResult());
     seed = hash_combine(seed, binHash.getResult());
+
     for (const auto& kvp : compileOptions) {
         seed = hash_combine(seed, kvp.first + kvp.second);
     }
 
-    // 3. Add runtime information which was not serialized
+    // 3. Add runtime information which may not be serialized
     for (const auto& op : network.getFunction()->get_ordered_ops()) {
-        ngraph::Node::RTMap rt = op->get_rt_info();
-
-        auto affinity_it = rt.find("affinity");
-        seed = hash_combine(seed, op->get_friendly_name());
-
-        if (rt.end() != affinity_it) {
-            auto affinity = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(affinity_it->second);
-            seed = hash_combine(seed, std::string(affinity->get()));
-        }
-
-        auto priorities_it = rt.find("PrimitivesPriority");
-        if (rt.end() != priorities_it) {
-            auto primPriority = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(priorities_it->second);
-            seed = hash_combine(seed, std::string(primPriority->get()));
-        }
-
-        if (const auto& c = std::dynamic_pointer_cast<ngraph::opset6::Constant>(op)) {
-            auto data = reinterpret_cast<const std::uint8_t *>(c->get_data_ptr());
-            auto data_size = c->get_element_type().size() * ngraph::shape_size(c->get_shape());
-
-            std::uint64_t sum = 0;
-            for (size_t i = 0; i < data_size; ++i) {
-                sum += data[i];
+        const auto& rt = op->get_rt_info();
+        for (const auto& rtMapData : rt) {
+            seed = hash_combine(seed, rtMapData.first);
+            auto stringData = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(rtMapData.second);
+            if (stringData) {
+                seed = hash_combine(seed, stringData->get());
+            } else {
+                auto intData = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::int64_t>>(rtMapData.second);
+                if (intData) {
+                    seed = hash_combine(seed, intData->get());
+                }
             }
-            seed = hash_combine(seed, sum);
         }
     }
 
     // 4. Add inputs info
-    for (const auto & input : network.getInputsInfo()) {
+    for (const auto& input : network.getInputsInfo()) {
         InputInfo::Ptr info = input.second;
         seed = hash_combine(seed, as_int32_t(info->getPrecision()));
         seed = hash_combine(seed, as_int32_t(info->getLayout()));
@@ -145,8 +129,8 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
         }
     }
 
-    // 5. Add inputs info
-    for (const auto & output : network.getOutputsInfo()) {
+    // 5. Add outputs info
+    for (const auto& output : network.getOutputsInfo()) {
         DataPtr info = output.second;
         seed = hash_combine(seed, as_int32_t(info->getPrecision()));
         seed = hash_combine(seed, as_int32_t(info->getLayout()));
