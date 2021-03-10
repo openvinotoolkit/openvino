@@ -701,21 +701,21 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     setPostOps(attr, true);
 
-    Precision inputPrecision = getOriginalInputPrecisions()[0];
+    Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
     if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
             || acrossChannels_ || !normalizeVariance_) {
         if (!isFloatCompatible(inputPrecision)) {
             inputPrecision = Precision::FP32;
         }
     }
-    Precision outputPrecision = getOriginalOutputPrecisions()[0];
+    Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
         if (outputPrecision == Precision::BF16)
             outputPrecision = Precision::FP32;
     }
 
     if (!fusedWith.empty()) {
-        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisions()[0];
+        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
     // ref with float planar and no fusion

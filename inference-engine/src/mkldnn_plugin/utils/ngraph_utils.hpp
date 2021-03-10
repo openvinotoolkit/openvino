@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <ngraph/variant.hpp>
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -18,6 +19,17 @@ inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ng
         return "";
     }
 };
+
+inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
+    const auto &rtInfo = node->get_rt_info();
+    using PrimitivesPriorityWraper = ngraph::VariantWrapper<ngraph::PrimitivesPriority>;
+
+    if (!rtInfo.count(PrimitivesPriorityWraper::type_info.name)) return "";
+
+    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::type_info.name);
+    ngraph::PrimitivesPriority pp = ngraph::as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
+    return pp.getPrimitivesPriority();
+}
 
 template <typename T>
 inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ngraph::Node>& op) {

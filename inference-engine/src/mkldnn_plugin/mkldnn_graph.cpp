@@ -258,11 +258,6 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
         op2node[op] = node;
 
-        const auto& rtInfo = op->get_rt_info();
-        if (rtInfo.count("originalLayersNames")) {
-            node->originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
-        }
-
         for (size_t port = 0; port < op->get_input_size(); port++) {
             auto parentOp = op->get_input_node_shared_ptr(port);
 
@@ -342,7 +337,6 @@ void MKLDNNGraph::InitGraph() {
 
     CreatePrimitives();
 
-    SetOriginalLayerNames();
 //
 //    if (!config.dumpToDot.empty())
 //        dumpToDotFile(config.dumpToDot + "_init.dot");
@@ -357,31 +351,6 @@ void MKLDNNGraph::InitGraph() {
     printGraphInfo();
 #endif
     ExecuteConstantNodesOnly();
-}
-
-void MKLDNNGraph::SetOriginalLayerNames() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::SetOriginalLayerNames");
-
-    // Do it before cleanup. Because it will lose original layers information
-    for (auto &graphNode : graphNodes) {
-        auto nodeType = graphNode->getType();
-        if (nodeType == Reorder || nodeType == Output) continue;
-
-        if (graphNode->getOriginalLayers().empty()) {
-            graphNode->addOriginalLayer(graphNode->getOriginalName());
-        }
-
-        if (!graphNode->getFusedWith().empty() || !graphNode->getMergeWith().empty()) {
-            // Original layer names
-            std::vector<MKLDNNNodePtr> internal = graphNode->getFusedWith();
-            auto &merged = graphNode->getMergeWith();
-            internal.insert(internal.end(), merged.begin(), merged.end());
-
-            for (auto &sub_node : internal) {
-                graphNode->addOriginalLayer(sub_node->getOriginalName());
-            }
-        }
-    }
 }
 
 void MKLDNNGraph::InitNodes() {

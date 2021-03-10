@@ -58,11 +58,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)"
     };
 
-    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
+// TODO [NM]: Disabled until BF16 transformer is not migrated on CPU graph representation.
+//    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
        retVector.emplace_back(R"(.*BF16.*)");
-    }
+//    }
 
     return retVector;
 }

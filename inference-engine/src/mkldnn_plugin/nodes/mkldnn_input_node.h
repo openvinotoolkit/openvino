@@ -25,6 +25,10 @@ public:
         isMeanImage = true;
     }
 
+    const InferenceEngine::Blob::CPtr getConstBlob() const {
+        return constBlob;
+    }
+
 private:
     InferenceEngine::Precision precision;
 

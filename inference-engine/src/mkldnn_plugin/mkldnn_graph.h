@@ -200,7 +200,6 @@ protected:
     void AllocateWithReuse();
     void CreatePrimitives();
     void ExecuteConstantNodesOnly();
-    void SetOriginalLayerNames();
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;

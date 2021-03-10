@@ -720,11 +720,11 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
 
     setPostOps(attr, true);
 
-    Precision inputPrecision = getOriginalInputPrecisions()[DATA];
-    Precision outputPrecision = getOriginalOutputPrecisions()[DATA];
+    Precision inputPrecision = getOriginalInputPrecisionAtPort(DATA);
+    Precision outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
 
     if (!fusedWith.empty()) {
-        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisions()[0];
+        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
     if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
@@ -781,9 +781,9 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
-    auto isConvertedToScaleShift = [](MKLDNNNodePtr node) {
+    auto isConvertableToScaleShift = [](MKLDNNNodePtr node) {
         return one_of(node->getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu) &&
-               node->getParentEdgeAt(1)->getParent()->isConstant() &&
+               node->getParentEdgeAt(1)->getParent()->getType() == Input && node->getParentEdgeAt(1)->getParent()->isConstant() &&
                MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(node->getParentEdgeAt(0)->getDims().ToSizeVector(),
                                                                           node->getParentEdgeAt(1)->getDims().ToSizeVector());
     };
@@ -796,10 +796,8 @@ bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
     } else if (node->getType() == Eltwise) {
         return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseTanh,
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
-                                            EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt) ||
-                isConvertedToScaleShift(node);
-                // TODO [NM]: implemented after enabling MulAdd operation
-                // ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2)
+                                            EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt, EltwiseMulAdd) ||
+               isConvertableToScaleShift(node);
     }
 
     return false;
