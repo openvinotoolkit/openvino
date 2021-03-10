@@ -35,7 +35,7 @@ integral_np_types = [
 ]
 
 
-@pytest.mark.parametrize("dtype", np_types)
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_binary_convolution(dtype):
     strides = np.array([1, 1])
     pads_begin = np.array([0, 0])
