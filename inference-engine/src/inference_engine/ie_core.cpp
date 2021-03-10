@@ -303,7 +303,8 @@ public:
 
         for (const auto& op : func->get_ops()) {
             if (opNames.find(op->get_friendly_name()) == opNames.end() ||
-                !res.supportedLayersMap.count(op->get_friendly_name()))
+                (!res.supportedLayersMap.count(op->get_friendly_name()) &&
+                 std::dynamic_pointer_cast<ngraph::op::Constant>(op)))
                 res.supportedLayersMap[op->get_friendly_name()] = defDevice;
         }
         return res;
