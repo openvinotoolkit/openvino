@@ -169,10 +169,13 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         //   supported cases:
         //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC)
         //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => Transpose(NCHW->NHWC)
-        //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPooling => Transpose(NCHW->NHWC) (2d max pool case)
+        //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPooling => Transpose(NCHW->NHWC) (2d max pool case)
+        //          ( TODO: 2d max pool case )
         //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => ActivationFunction => Transpose(NCHW->NHWC)
-        //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC) (2d max pool case)
-        //     - TODO: Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS (output of MO --disable_nhwc_to_nchw option)
+        //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC)
+        //          ( TODO: 2d max pool case )
+        //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS  => Transpose(NCHW->NHWC) (output of MO --disable_nhwc_to_nchw option)
+        //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS => AF => Transpose(NCHW->NHWC) (output of MO --disable_nhwc_to_nchw option)
         auto leading_transpose = std::dynamic_pointer_cast<Transpose>(input.get_node_shared_ptr());
         if (!leading_transpose || !IsTransposeOrderMatches(leading_transpose, {0,3,1,2}))
             continue;
@@ -309,8 +312,9 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             if (add_const) {
                 auto bias_size = shape_size(add_const->get_shape());
                 if (bias_size == filter_count) {
-                    auto& bias_const_node = opset1::Constant(element::Type_t::f32, Shape{ 1, bias_size , 1, 1 }, add_const->get_data_ptr());
-                    bias_const = std::make_shared<opset1::Constant>(bias_const_node);
+                    const float* srd_data_pointer = add_const->get_data_ptr<float>();
+                    std::vector<float> bias_values(srd_data_pointer, srd_data_pointer + bias_size);
+                    bias_const = opset1::Constant::create(element::Type_t::f32, Shape{ 1, bias_size , 1, 1 }, bias_values);
                 } else {
                     continue;
                 }
@@ -378,10 +382,13 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         size_t total_factorized_conv_channel_count = (input_channel_count * filter_height * filter_width);
         while (total_factorized_conv_channel_count / conv_count > GNA_MAX_1D_CONV_CHANNEL_COUNT || total_factorized_conv_channel_count % conv_count != 0)
             conv_count++;
-        if (conv_count > GNA_MAX_PERMUTE_COL_COUNT)
-        {
+        //LIMITATION: currently we are able to split only convolutions without pooling in horizontal dimention
+        if (conv_count > GNA_MAX_PERMUTE_COL_COUNT || (pool_size_x > 1 || pool_stride_x > 1) && conv_count > 1)
             continue;
-        }
+
+        // GNA supported features - there is no need to decompose such convolution
+        if (conv_count == 1 && input_height == 1 && filter_dilation_x == 1 && filter_dilation_y == 1 && !disable_nhwc_to_nchw_option)
+            continue;
 
         // All checks applied - now we may start to do transformations
 
@@ -499,7 +506,6 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
 
         bool vertical_permute = (filter_height > 1);
         bool horizontal_permute = (filter_dilation_x > 1);
-        //TODO: properly order filters for set of condition driven by vertical_permute / horizontal_permute
         std::vector<std::shared_ptr<ngraph::opset1::Constant>> h_1_filters = ReduceConv2DFilterHeightByChannelPermute(filter_values, vertical_permute, horizontal_permute, conv_count);
         for (auto filter : h_1_filters)
             ngraph::copy_runtime_info(conv, filter);
@@ -509,10 +515,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         auto org_input_channel_count = input_channel_count;
         input_channel_count /= conv_count;
 
-        // the GNA supported features
-        if (conv_count == 1 && input_height == 1 && filter_dilation_x == 1 && filter_dilation_y == 1)
-            continue;
-        //if (input_channel_count == 32 && input_height > 1)
+        //if (input_channel_count == 96 && output_channel_count == 128 && filter_height == 1 && filter_width == 5)
         //{
         //    printf("conv name: %s in [%u, %u, %u, %u] k [%u, %u, %u, %u] \n",
         //        conv->get_friendly_name().c_str(),
@@ -607,6 +610,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                     size_t pool_size_x,
                     size_t pool_stride_x,
                     RoundingType rounding_type,
+                    std::shared_ptr<ngraph::op::util::UnaryElementwiseArithmetic> af,
                     size_t h_index,
                     size_t c_index = 0) {
                         // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
@@ -620,28 +624,22 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
 
                         std::shared_ptr<Node> last_conv_block_op = conv;
                         if (add_bias_const) {
-                            auto add_bias_op = ngraph::opset1::Add({ conv, add_bias_const });
-                            last_conv_block_op = std::make_shared<op::TypeRelaxed<ngraph::opset1::Add>>(
-                                add_bias_op,
-                                std::vector<element::Type>{ element::f32, element::f32 },
-                                std::vector<element::Type>{});
-
-                            //last_conv_block_op = std::make_shared<ngraph::opset1::Add>(add_bias_op);
+                            last_conv_block_op = std::make_shared<ngraph::opset1::Add>(conv, add_bias_const);
                             ngraph::copy_runtime_info(source_conv2d, {last_conv_block_op});
-                            //last_conv_block_op = add_bias_op->clone_with_new_inputs(OutputVector{ conv, /* BIAS */add_bias_op->input_value(1) });
                         }
                         //add max pooling
-                        if (pool_size_x > 1) {
+                        if (pool_size_x > 1 || pool_stride_x > 1) {
                             auto max_pool_x = ngraph::opset1::MaxPool(last_conv_block_op, { 1, pool_stride_x }, { 0,0 }, { 0,0 },
                                 { 1, pool_size_x }, rounding_type, op::PadType::VALID);
-
-                            auto max_pool_x_op = std::make_shared<op::TypeRelaxed<opset1::MaxPool>>(
-                                max_pool_x,
-                                std::vector<element::Type>{ element::f32, element::f32 },
-                                std::vector<element::Type>{});
-
-                            last_conv_block_op = max_pool_x_op;
+                            max_pool_x.validate_and_infer_types();
+                            last_conv_block_op = std::make_shared <opset1::MaxPool>(max_pool_x);
                         }
+                        if (af) {
+                            auto af_result = af->copy_with_new_inputs({ last_conv_block_op });
+                            ngraph::copy_runtime_info(conv, af_result);
+                            last_conv_block_op = af_result;
+                        }
+
                         // NCHW => NHWC
                         auto nhwc_output = builder::opset1::reorder_axes(last_conv_block_op, { 0ull,2ull,3ull,1ull });
                         ngraph::copy_runtime_info(source_conv2d, { nchw_input, conv, nhwc_output });
@@ -656,8 +654,10 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                 }
 
                 // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
+                // activation function can be fused with convolution only if it is not splitted
                 auto nhwc_y_output = nhwc_conv_1d(conv, nhwc_conv_y_input, h_1_filters[conv_index], conv_index ? nullptr : bias_const,
-                    filter_stride_x, pool_size_x,pool_stride_x, max_pool ? max_pool->get_rounding_type() : RoundingType::FLOOR, y);
+                    filter_stride_x, pool_size_x,pool_stride_x, max_pool ? max_pool->get_rounding_type() : RoundingType::FLOOR,
+                    conv_count == 1? af : nullptr, y);
                 result_chunks.push_back(nhwc_y_output);
                 last_op = nhwc_y_output;
             }
@@ -671,15 +671,19 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             }
             partial_conv_results.push_back(last_op);
         }
-
         std::shared_ptr<ngraph::Node> conv_result = partial_conv_results[0];
         for (size_t i = 1; i < partial_conv_results.size(); i++) {
             auto add_result = std::make_shared<ngraph::opset1::Add>(partial_conv_results[i], conv_result);
             ngraph::copy_runtime_info(conv, add_result);
             conv_result = add_result;
         }
+
+        if (max_pool && (pool_size_y > 1 || pool_stride_y > 1)) {
+
+        }
+
         // activation function
-        if (af) {
+        if (af && conv_count > 1) {
             auto af_result = af->copy_with_new_inputs({ conv_result });
             ngraph::copy_runtime_info(conv, af_result);
             conv_result = af_result;
