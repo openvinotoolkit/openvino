@@ -71,8 +71,10 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/floor_mod.cpp
+    op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
@@ -267,6 +269,7 @@ set(MULTI_TEST_SRC
     backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution.in.cpp
+    backend/binary_convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -318,6 +321,7 @@ set(MULTI_TEST_SRC
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
+    backend/recurrent_cells.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
     backend/reduce_min.in.cpp
@@ -444,15 +448,12 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-if (TARGET inference_engine)
-    target_link_libraries(unit-test PRIVATE inference_engine)
-endif()
+target_link_libraries(unit-test PRIVATE inference_engine)
+target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
-
-target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
