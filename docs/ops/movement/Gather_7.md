@@ -25,8 +25,11 @@ the number of batch dimensions.
   * **Default value**: 0
   * **Required**: *no*
 
-Example 1 with defatult *batch_dims* value (equals to 0):
+Example 1 with default *batch_dims* value:
 ```
+batch_dims = 0
+axis = 0
+
 indices = [0, 0, 4] 
 data    = [1, 2, 3, 4, 5]
 output  = [1, 1, 5]
@@ -35,6 +38,8 @@ output  = [1, 1, 5]
 Example 2 with non-default *batch_dims* value:
 ```
 batch_dims = 1
+axis = 1
+
 indices = [[0, 0, 4], <-- this is applied to the first batch 
            [4, 0, 0]]  <-- this is applied to the second batch
 indices_shape = (2, 3)
@@ -51,6 +56,8 @@ output_shape = (2, 3)
 Example 3 with non-default *batch_dims* value:
 ```
 batch_dims = 2
+axis = 2
+
 indices = [[[0, 0, 4],  <-- this is applied to the first batch, index = (0, 0)
             [4, 0, 0]],  <-- this is applied to the second batch, index = (0, 1)
           
