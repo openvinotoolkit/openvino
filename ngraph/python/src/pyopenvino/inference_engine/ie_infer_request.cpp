@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
 #include <boost/type_index.hpp>
@@ -23,7 +24,7 @@
 
 // #include <cpp/ie_infer_request.hpp> // in "pyopenvino/inference_engine/ie_infer_request.hpp"
 
-#include "pyopenvino/inference_engine/ie_executable_network.hpp"
+#include "pyopenvino/inference_engine/ie_infer_request.hpp"
 
 namespace py = pybind11;
 
