@@ -23,12 +23,8 @@
 #include <fstream>
 #include <set>
 #include <string>
-#include <memory>
 #include <utility>
-#include <future>
 #include <thread>
-#include <queue>
-#include <condition_variable>
 #include "kernel_selector_helper.h"
 #include "cldnn_itt.h"
 
@@ -183,6 +179,7 @@ inline bool does_options_support_batch_compilation(const std::string& options) {
 namespace cldnn {
 namespace gpu {
 
+
 std::string kernels_cache::get_cache_path() const {
     auto path = _context.get_configuration().kernels_cache_path;
     if (path.empty()) {
@@ -277,7 +274,9 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
     return scode;
 }
 
-kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {}
+kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {
+    pool = std::unique_ptr<ThreadPool>(new ThreadPool(1));
+}
 
 kernels_cache::kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
@@ -313,61 +312,6 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get program binary.
     return program.getInfo<CL_PROGRAM_BINARIES>().front();
 }
-
-class ThreadPool {
-public:
-    ThreadPool(size_t num_threads) : _num_threads(num_threads), _stop_pool(false) {
-        _workers.reserve(num_threads);
-        for (size_t i = 0; i < _num_threads; ++i) {
-            _workers.emplace_back([this]() { this->WorkerThread(); });
-        }
-    }
-    ~ThreadPool() {
-        _stop_pool = true;
-        _cv.notify_all();
-        for (auto& w : _workers) {
-            w.join();
-        }
-        printf("pool stoped\n");
-    }
-
-    template <class F, class... Args>
-    std::future<typename std::result_of<F(Args...)>::type> Enqueue(F&& f, Args&&... args) {
-        if (_stop_pool) {
-            throw std::runtime_error("Thread pool is stoped");
-        }
-
-        using return_type = typename std::result_of<F(Args...)>::type;
-        auto task = std::make_shared<std::packaged_task<return_type()>> (std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-        std::future<return_type> result = task->get_future();
-        {
-            std::lock_guard<std::mutex> lock(_q_m);
-            _tasks.push([task]() {(*task)();});
-        }
-        _cv.notify_one();
-        return result;
-    }
-
-private:
-    size_t _num_threads;
-    std::vector<std::thread> _workers;
-    std::queue<std::function<void()>> _tasks;
-    std::condition_variable _cv;
-    std::mutex _q_m;
-    bool _stop_pool;
-
-    void WorkerThread() {
-        while (true) {
-            std::unique_lock<std::mutex> lock(_q_m);
-            _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
-            if ( (_stop_pool) && (this->_tasks.empty())) return;
-            std::function<void()> task = std::move(_tasks.front());
-            _tasks.pop();
-            lock.unlock();
-            task();
-        }
-    }
-};
 
 kernels_cache::kernels_map kernels_cache::build_batch(const program_code& program_source,
        size_t batch_id, size_t program_id) const {
@@ -492,7 +436,6 @@ void kernels_cache::build_all() {
         _one_time_kernels.clear();
     }
 
-    ThreadPool pool(1);
 //    auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::future<void>> builds;
 
@@ -500,7 +443,7 @@ void kernels_cache::build_all() {
     size_t program_id = 0;
     for (const auto& program : sorted_program_code) {
         for (size_t batch_id = 0; batch_id < program.second.source.size(); ++batch_id) {
-            builds.push_back(pool.Enqueue([this, &numKernels](const std::pair<std::string,
+            builds.push_back(pool->Enqueue([this, &numKernels](const std::pair<std::string,
                     const program_code&>& _program, const size_t& program_id, const size_t& batch_id) {
                 auto kmap = build_batch(_program.second, batch_id, program_id);
                 std::lock_guard<std::mutex> lock(_context.get_cache_mutex());

@@ -21,9 +21,13 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <queue>
 #include <string>
+#include <future>
+#include <functional>
 #include <unordered_set>
 #include <kernel_selector_common.h>
+#include <condition_variable>
 
 namespace cl {
 class Kernel;
@@ -36,8 +40,62 @@ using kernel_string = kernel_selector::KernelString;
 
 namespace cldnn {
 namespace gpu {
-
 class gpu_toolkit;
+class ThreadPool {
+    public:
+        ThreadPool(size_t num_threads) : _num_threads(num_threads), _stop_pool(false) {
+            _workers.reserve(num_threads);
+            for (size_t i = 0; i < _num_threads; ++i) {
+                _workers.emplace_back([this]() { this->WorkerThread(); });
+            }
+        }
+        ~ThreadPool() {
+            _stop_pool = true;
+            _cv.notify_all();
+            for (auto& w : _workers) {
+                w.join();
+            }
+            printf("pool stoped\n");
+        }
+
+        template <class F, class... Args>
+            std::future<typename std::result_of<F(Args...)>::type> Enqueue(F&& f, Args&&... args) {
+                if (_stop_pool) {
+                    throw std::runtime_error("Thread pool is stoped");
+                }
+
+                using return_type = typename std::result_of<F(Args...)>::type;
+                auto task = std::make_shared<std::packaged_task<return_type()>> (std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+                std::future<return_type> result = task->get_future();
+                {
+                    std::lock_guard<std::mutex> lock(_q_m);
+                    _tasks.push([task]() {(*task)();});
+                }
+                _cv.notify_one();
+                return result;
+            }
+
+    private:
+        size_t _num_threads;
+        std::vector<std::thread> _workers;
+        std::queue<std::function<void()>> _tasks;
+        std::condition_variable _cv;
+        std::mutex _q_m;
+        bool _stop_pool;
+
+        void WorkerThread() {
+            while (true) {
+                std::unique_lock<std::mutex> lock(_q_m);
+                _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
+                if ( (_stop_pool) && (this->_tasks.empty())) return;
+                std::function<void()> task = std::move(_tasks.front());
+                _tasks.pop();
+                lock.unlock();
+                task();
+            }
+        }
+};
+
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
@@ -90,6 +148,7 @@ private:
     std::atomic<bool> _pending_compilation{false};
     std::map<std::string, kernel_type> _kernels;
     std::map<std::string, kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
+    std::unique_ptr<ThreadPool> pool;
                                                            // be removed later from the cache).
     uint32_t _prog_id;
 
