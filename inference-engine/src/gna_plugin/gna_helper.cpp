@@ -18,8 +18,15 @@
 
 #include "gna_lib_ver_selector.hpp"
 
+typedef struct _nnet_type_t
+{
+    uint32_t nLayers;               // The number of layers in the network.
+    uint32_t nGroup;                // Input vector grouping level.
+    intel_nnet_layer_t *pLayers;    // Layer configurations.
+
+} intel_nnet_type_t;
+
 #ifndef WIN32
-#include <profiler.h>
 
 void clearTimeB(timeb & tb) {
     tb.time = 0;

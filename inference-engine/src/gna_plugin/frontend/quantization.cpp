@@ -106,7 +106,7 @@ void QuantizeAffine16(float *ptr_float_weights,
     }
 }
 
-__attribute__ ((target ("arch=goldmont")))
+__attribute__ ((target ("default")))
 float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_t num_elements)
 {
     float *ptr_float_feat = (float*)ptr_float_memory;
@@ -155,41 +155,6 @@ float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_
     }
 
     return(single_min != 0 ? (single_min < 1.0 ? 1 / single_min : 1.0f) : 1.0f);
-}
-
-__attribute__ ((target ("default")))
-float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_t num_elements) {
-
-    float *ptr_float_feat = reinterpret_cast<float *>(ptr_float_memory);
-    float max = 0.0;
-    float scale_factor;
-    float min = 0.0;
-    size_t i;
-
-    for ( i = 0;i < num_elements;i++) {
-        min = fabs(ptr_float_feat[i]);
-        if (min != 0.0f) {
-            break;
-        }
-    }
-
-    for (; i < num_elements; i++) {
-        if (fabs(ptr_float_feat[i]) < min && ptr_float_feat[i] != 0) {
-            min = fabs(ptr_float_feat[i]);
-        }
-    }
-
-    if (min == 0.0) {
-        scale_factor = 1.0f;
-    } else {
-        if( min < 1) {
-            scale_factor = 1 / min;
-        }
-        else {
-            scale_factor = 1.0f;
-        }
-    }
-    return scale_factor;
 }
 
 float accessmember(__m128 v, int index)

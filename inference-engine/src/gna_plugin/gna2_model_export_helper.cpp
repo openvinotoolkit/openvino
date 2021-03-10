@@ -59,8 +59,10 @@ void ExportLdForNoMmu(uint32_t modelId, std::ostream & outStream) {
 
     status = Gna2ModelExportConfigSetSource(exportConfig, 0, modelId);
     GNADeviceHelper::checkGna2Status(status);
+#if GNA_LIB_VER != 2 && GNA_LIB_VER != 1
     status = Gna2ModelExportConfigSetTarget(exportConfig, Gna2DeviceVersionEmbedded3_0);
     GNADeviceHelper::checkGna2Status(status);
+#endif
 
     void * ldNoMmu;
     uint32_t ldNoMmuSize;

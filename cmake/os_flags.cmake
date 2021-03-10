@@ -139,7 +139,7 @@ if(WIN32)
 else()
     # TODO: enable for C sources as well
     # ie_add_compiler_flags(-Werror)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
     ie_add_compiler_flags(-ffunction-sections -fdata-sections)
     ie_add_compiler_flags(-fvisibility=hidden)
     ie_add_compiler_flags(-fdiagnostics-show-option)
