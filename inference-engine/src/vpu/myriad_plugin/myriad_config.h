@@ -56,10 +56,6 @@ public:
         return _platform;
     }
 
-    ncDeviceProtocol_t protocol() const {
-        return _protocol;
-    }
-
     const std::chrono::milliseconds& watchdogInterval() const {
         return _watchdogInterval;
     }
@@ -88,7 +84,6 @@ private:
     bool _enableAsyncDma = true;
     PowerConfig _powerConfig = PowerConfig::FULL;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
-    ncDeviceProtocol_t _protocol = NC_ANY_PROTOCOL;
     std::chrono::milliseconds _watchdogInterval = std::chrono::milliseconds(1000);
     std::chrono::seconds _deviceConnectTimeout = std::chrono::seconds(15);
     std::string _deviceName;

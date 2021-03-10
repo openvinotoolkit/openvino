@@ -21,6 +21,7 @@
 
 #include <vpu/configuration/options/log_level.hpp>
 #include <vpu/configuration/options/copy_optimization.hpp>
+#include <vpu/configuration/options/protocol.hpp>
 
 #include "myriad_plugin.h"
 
@@ -146,9 +147,11 @@ IE_SUPPRESS_DEPRECATED_END
 
     _parsedConfig.registerOption<LogLevelOption>();
     _parsedConfig.registerOption<CopyOptimizationOption>();
+    _parsedConfig.registerOption<ProtocolOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+    _parsedConfig.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
 IE_SUPPRESS_DEPRECATED_END
 }
 

@@ -14,6 +14,7 @@
 #include <mvnc.h>
 #include "myriad_mvnc_wrapper.h"
 #include "configuration/myriad_configuration.hpp"
+#include "vpu/configuration/options/protocol.hpp"
 
 #include <ie_parameter.hpp>
 
@@ -53,7 +54,7 @@ struct DeviceDesc {
         return _graphNum < _maxGraphNum;
     }
 
-    bool isSuitableForConfig(const MyriadConfig& config) const {
+    bool isSuitableForConfig(const MyriadConfiguration& config) const {
         bool isSuitableByName = true;
         if (!config.deviceName().empty()) {
             isSuitableByName = config.deviceName() == _name;
@@ -61,7 +62,7 @@ struct DeviceDesc {
 
         return isSuitableByName &&
                 ((config.platform() == NC_ANY_PLATFORM) || (_platform == config.platform())) &&
-                ((config.protocol() == NC_ANY_PROTOCOL) || (_protocol == config.protocol()));
+                ((config.get<ProtocolOption>() == NC_ANY_PROTOCOL) || (_protocol == config.get<ProtocolOption>()));
     }
 
     ncDevicePlatform_t revision() const {

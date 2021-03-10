@@ -84,7 +84,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 #endif
 
     const ncDevicePlatform_t& configPlatform = config.platform();
-    const ncDeviceProtocol_t& configProtocol = config.protocol();
+    const ncDeviceProtocol_t& configProtocol = config.get<ProtocolOption>();
     const std::string& configDevName = config.deviceName();
     PowerConfig powerConfig = config.powerConfig();
     int enableAsyncDma = config.asyncDma();
@@ -271,7 +271,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
         if (availableDevices.empty() && config.platform() != NC_ANY_PLATFORM) {
             DeviceDesc device;
             device._platform = config.platform();
-            device._protocol = config.protocol();
+            device._protocol = config.get<ProtocolOption>();
             return std::make_shared<DeviceDesc>(device);
         } else if (availableDevices.empty()) {
             IE_THROW() << "Can not init Myriad device: " << ncStatusToStr(nullptr, booted);

@@ -10,6 +10,7 @@
 #include <vpu/utils/io.hpp>
 #include <vpu/configuration/options/log_level.hpp>
 #include <vpu/configuration/options/copy_optimization.hpp>
+#include <vpu/configuration/options/protocol.hpp>
 
 namespace vpu {
 
@@ -164,9 +165,11 @@ PluginConfiguration createConfiguration() {
     PluginConfiguration configuration;
     configuration.registerOption<LogLevelOption>();
     configuration.registerOption<CopyOptimizationOption>();
+    configuration.registerOption<ProtocolOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+    configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
 IE_SUPPRESS_DEPRECATED_END
 
     return configuration;
