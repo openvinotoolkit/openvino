@@ -49,7 +49,8 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    MVNTransformationTestValues
+    MVNTransformationTestValues,
+    int
 > MVNTransformationParams;
 
 template <typename T>
@@ -70,6 +71,7 @@ public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const MVNTransformationTestValues testValues = std::get<1>(GetParam());
+        const int opset_version = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MVNFunction::getOriginal(
             precision,
@@ -77,7 +79,8 @@ public:
             testValues.reductionAxes,
             testValues.normalizeVariance,
             testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
+            testValues.actual.dequantization,
+            opset_version);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MVNTransformation, ngraph::opset1::Interpolate>(testValues.params);
@@ -91,12 +94,14 @@ public:
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+            testValues.expected.dequantizationAfter,
+            opset_version);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const MVNTransformationTestValues testValues = std::get<1>(obj.param);
+        const int opset_version = std::get<2>(obj.param);
 
         std::ostringstream result;
         result <<
@@ -107,7 +112,8 @@ public:
             testValues.normalizeVariance << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore;
+            testValues.expected.dequantizationBefore << "_" <<
+            opset_version;
         return result.str();
     }
 };
@@ -115,6 +121,10 @@ public:
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     ngraph::element::f16
+};
+
+const std::vector<int> opset_version = {
+    2, 6
 };
 
 const std::vector<MVNTransformationTestValues> testValues = {
@@ -293,5 +303,6 @@ INSTANTIATE_TEST_CASE_P(
     MVNTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn(opset_version)),
     MVNTransformation::getTestCaseName);

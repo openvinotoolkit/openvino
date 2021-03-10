@@ -332,7 +332,10 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNROIPoolingNode::createPrimitive() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jpp.c_block = simd_w;
@@ -378,7 +381,10 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
     const auto *src_roi = reinterpret_cast<const float *>(srcMemory1.GetPtr());
     float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_strides = config.inConfs[0].desc.getBlockingDesc().getStrides();
     auto dst_strides = config.outConfs[0].desc.getBlockingDesc().getStrides();
@@ -526,8 +532,8 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
                         arg.xf = in_x - left_x_index;
                         arg.yf = in_y - top_y_index;
 
-                        arg.xoff = (size_t) ((right_x_index - left_x_index) * jpp.c_block * sizeof(float));
-                        arg.yoff = (size_t) ((bottom_y_index - top_y_index) * jpp.iw * jpp.c_block * sizeof(float));
+                        arg.xoff = sizeof(float) * (right_x_index - left_x_index) * jpp.c_block;
+                        arg.yoff = sizeof(float) * (bottom_y_index - top_y_index) * jpp.iw * jpp.c_block;
 
                         arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
                                             top_y_index * src_strides[2] + left_x_index * src_strides[3]];

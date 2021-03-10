@@ -21,7 +21,6 @@ public:
     ~Extension();
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override;
     void Unload() noexcept override {}
-    void Release() noexcept override { delete this; }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override;
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override;

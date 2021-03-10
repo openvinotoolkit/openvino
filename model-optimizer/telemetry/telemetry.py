@@ -40,9 +40,7 @@ class Telemetry(metaclass=SingletonMetaClass):
         if not hasattr(self, 'tid'):
             self.tid = None
         if app_name is not None:
-            # temporary disable telemetry
-            # self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
-            self.consent = False
+            self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
             # override default tid
             if tid is not None:
                 self.tid = tid

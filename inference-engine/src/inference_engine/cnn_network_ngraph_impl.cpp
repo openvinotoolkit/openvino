@@ -119,7 +119,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
 
         // map original names to OpenVINO name
-        _opNames[outName] = outName;
         for (const auto& name : layer->get_output_tensor(0).get_names()) {
             _tensorNames[name] = outName;
         }
@@ -152,7 +151,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
 
-    _opNames = net->_opNames;
     _tensorNames = net->_tensorNames;
 
     for (const auto& outputInfo : outputs) {
@@ -253,12 +251,6 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & ou
     // Save original framework names
     for (const auto& name : output.get_tensor().get_names()) {
         _tensorNames[name] = dataName;
-    }
-    for (const auto consumerInput : output.get_target_inputs()) {
-        const auto &consumerLayer = consumerInput.get_node()->shared_from_this();
-        if (std::dynamic_pointer_cast<ngraph::op::Result>(consumerLayer)) {
-            _opNames[consumerLayer->get_friendly_name()] = dataName;
-        }
     }
 }
 
@@ -449,13 +441,6 @@ StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name, const 
     if (_tensorNames.find(orig_name) == _tensorNames.end())
         return DescriptionBuffer(NOT_FOUND, resp) << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
     ov_name = _tensorNames.at(orig_name);
-    return OK;
-}
-
-StatusCode CNNNetworkNGraphImpl::getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
-    if (_opNames.find(orig_name) == _opNames.end())
-        return DescriptionBuffer(NOT_FOUND, resp) << "Framework operation with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
-    ov_name = _opNames.at(orig_name);
     return OK;
 }
 

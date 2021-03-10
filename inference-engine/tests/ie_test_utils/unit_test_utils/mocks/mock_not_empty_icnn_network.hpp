@@ -15,7 +15,7 @@
 
 namespace InferenceEngine {
 
-class MockNotEmptyICNNNetwork : public ICNNNetwork {
+class MockNotEmptyICNNNetwork final : public ICNNNetwork {
 public:
     static constexpr const char* INPUT_BLOB_NAME = "first_input";
     const SizeVector INPUT_DIMENTIONS = { 1, 3, 299, 299 };
@@ -73,7 +73,6 @@ public:
     MOCK_QUALIFIED_METHOD3(addOutput, noexcept, StatusCode(const std::string &, size_t , ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, StatusCode(const size_t size, ResponseDesc*));
     MOCK_QUALIFIED_METHOD0(getBatchSize, const noexcept, size_t());
-    MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void(ICNNNetwork::InputShapes &));
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, StatusCode(const ICNNNetwork::InputShapes &, ResponseDesc *));
     MOCK_QUALIFIED_METHOD3(serialize, const noexcept, StatusCode(const std::string &, const std::string &, InferenceEngine::ResponseDesc*));
