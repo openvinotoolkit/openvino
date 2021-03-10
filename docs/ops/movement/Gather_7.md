@@ -21,7 +21,7 @@ the number of batch dimensions.
   representing the batches, and *Gather* starts to gather from the `b` dimension. It requires the first `b` 
   dimensions in `data` and `indices` tensors to be equal.
   * **Range of values**: `[0; min(data.rank, indices.rank))` and `batch_dims <= axis`
-  * **Type**: *T_IND*
+  * **Type**: *T_AXIS*
   * **Default value**: 0
   * **Required**: *no*
 
@@ -87,7 +87,7 @@ output_shape = (2, 2, 3)
 * **2**:  `indices` tensor of type *T_IND* with indices to gather. The values for indices are in the range `[0, data[axis] - 1]`. 
 **Required**.
 
-* **3**:  Scalar or 1D tensor `axis` of *T_IND* type is a dimension index to gather data from. For example, 
+* **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example, 
 *axis* equal to 1 means that gathering is performed over the first dimension. Negative value means reverse indexing. 
 Allowed values are from `[-len(data.shape), len(indices.shape) - 1]` and `axis >= batch_dims`. 
 **Required**.
@@ -103,6 +103,8 @@ the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.shap
 
 * *T_IND*: `int32` or `int64`.
 
+* *T_AXIS*: `int32` or `int64`.
+
 **Example**
 
 ```xml
@@ -115,7 +117,7 @@ the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.shap
             <dim>128</dim>
         </port>
         <port id="1">
-            <dim>4</dim>
+            <dim>2</dim>
             <dim>32</dim>
             <dim>21</dim>
         </port>
