@@ -24,9 +24,20 @@
 #include <string>
 #include <unordered_set>
 #include <kernel_selector_common.h>
-#include <tbb/task_arena.h>
+
 #define CLDNN_OCL_BUILD_THREADING_SEQ 0
 #define CLDNN_OCL_BUILD_THREADING_TBB 1
+#define CLDNN_OCL_BUILD_THREADING_THREADPOOL 2
+
+#if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
+#include <tbb/task_arena.h>
+#elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
+#include <queue>
+#include <future>
+#include <functional>
+#include <condition_variable>
+#endif
+
 namespace cl {
 class Kernel;
 class KernelIntel;
@@ -39,13 +50,68 @@ using kernel_string = kernel_selector::KernelString;
 namespace cldnn {
 namespace gpu {
 
-
 class gpu_toolkit;
+#if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
+class ThreadPool {
+public:
+    ThreadPool(size_t num_threads) : _num_threads(num_threads), _stop_pool(false) {
+        _workers.reserve(num_threads);
+        for (size_t i = 0; i < _num_threads; ++i) {
+            _workers.emplace_back([this]() { this->WorkerThread(); });
+        }
+    }
+    ~ThreadPool() {
+        _stop_pool = true;
+        _cv.notify_all();
+        for (auto& w : _workers) {
+            w.join();
+        }
+    }
+
+    template <class F, class... Args>
+    std::future<typename std::result_of<F(Args...)>::type> Enqueue(F&& f, Args&&... args) {
+        if (_stop_pool) {
+            throw std::runtime_error("Thread pool is stoped");
+        }
+
+        using return_type = typename std::result_of<F(Args...)>::type;
+        auto task = std::make_shared<std::packaged_task<return_type()>> (std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+        std::future<return_type> result = task->get_future();
+        {
+            std::lock_guard<std::mutex> lock(_q_m);
+            _tasks.push([task]() {(*task)();});
+        }
+        _cv.notify_one();
+        return result;
+    }
+
+private:
+    size_t _num_threads;
+    std::vector<std::thread> _workers;
+    std::queue<std::function<void()>> _tasks;
+    std::condition_variable _cv;
+    std::mutex _q_m;
+    bool _stop_pool;
+
+    void WorkerThread() {
+        while (true) {
+            std::unique_lock<std::mutex> lock(_q_m);
+            _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
+            if ( (_stop_pool) && (this->_tasks.empty())) return;
+            std::function<void()> task = std::move(_tasks.front());
+            _tasks.pop();
+            lock.unlock();
+            task();
+        }
+    }
+};
+#endif
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
 
     struct program_code {
+        int32_t program_id = -1;
         std::vector<source_code> source;
         std::vector<size_t> hash_values;
         uint32_t kernels_counter = 0;
@@ -53,7 +119,6 @@ public:
         bool dump_custom_program = false;
         bool one_time = false;
         std::map<std::string, std::string> entry_point_to_id;
-        int32_t program_id = -1;
     };
 
     struct BatchCode {
@@ -95,7 +160,6 @@ public:
     using kernels_code = std::unordered_set<kernel_code, hash_kernel_code>;
 
 private:
-    std::unique_ptr<tbb::task_arena> arena;
     gpu_toolkit& _context;
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
@@ -103,10 +167,15 @@ private:
     std::map<std::string, kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
                                                            // be removed later from the cache).
     uint32_t _prog_id;
+#if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
+    std::unique_ptr<tbb::task_arena> arena;
+#elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
+    std::unique_ptr<ThreadPool> pool;
+#endif
 
-    sorted_code get_program_source(const kernels_code& kernels_source_code) const;
-    sorted_code get_program_source_tbb(const kernels_code& kernels_source_code, std::vector<BatchCode>* batches) const;
-    void build_batch(const program_code& pcode, size_t batch_id, size_t bucket_id);
+
+    sorted_code get_program_source(const kernels_code& kernels_source_code, std::vector<BatchCode>* batches) const;
+    void build_batch(const program_code& pcode, size_t batch_id);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
