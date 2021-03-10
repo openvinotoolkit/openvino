@@ -213,6 +213,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator, ngraph::pass::ConvertGRUSequenceToTensorIterator,
             ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
             [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                std::cout << "isSequencePrimitiveSupported(node)" << isSequencePrimitiveSupported(node) << std::endl;
                 return isSequencePrimitiveSupported(node);
             });
 

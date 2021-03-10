@@ -93,12 +93,12 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
                                                                     pattern::any_input(),
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
             return false;
         }
 
@@ -252,12 +252,12 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
                                                                     pattern::any_input(),
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
             return false;
         }
 
@@ -412,12 +412,12 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
                                                                      pattern::any_input(),
                                                                      pattern::any_input(),
                                                                      pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
             return false;
         }
 

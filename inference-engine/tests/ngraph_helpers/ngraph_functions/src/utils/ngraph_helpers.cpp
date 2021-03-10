@@ -943,6 +943,12 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
         case SequenceTestsMode::PURE_SEQ:
             os << "PURE_SEQ";
             break;
+        case SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST:
+            os << "PURE_SEQ_RAND_SEQ_LEN_CONST";
+            break;
+        case SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM:
+            os << "PURE_SEQ_RAND_SEQ_LEN_PARAM";
+            break;
         case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
             os << "CONVERT_TO_TI_RAND_SEQ_LEN_PARAM";
             break;
