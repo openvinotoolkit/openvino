@@ -27,6 +27,7 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/select.hpp"
+#include "ngraph/op/squared_difference.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
@@ -60,6 +61,7 @@ bool ngraph::op::is_binary_elementwise_logical(const ngraph::Node* node)
 bool ngraph::op::supports_auto_broadcast(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::v1::Select*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::SquaredDifference*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseComparison*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseLogical*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseArithmetic*>(node) != nullptr;
