@@ -151,8 +151,6 @@ xfail_issue_47317 = xfail_test(reason="RuntimeError: While validating ONNX node 
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_48100 = xfail_test(reason="RuntimeError: cpu_convert can't convert from: "
-                                      "FP64 precision to: FP32")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
