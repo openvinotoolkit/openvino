@@ -27,6 +27,7 @@
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>
+#include <ie_precision.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -409,15 +410,35 @@ public:
 
     bool isFusedWith(Type type) const;
 
-    void fuseWith(const MKLDNNNodePtr &fusingNode) {
+    void addFusedNode(const MKLDNNNodePtr &fusingNode) {
         fusedWith.push_back(fusingNode);
+    }
 
-        for (int i = 0; i< inDims.size(); i++) {
-            if (fusingNode->getParentEdgesAtPort(i)[0]->getParent().get() == this) {
+    virtual void fuseInto(MKLDNNNodePtr& parentNode) {
+        // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
+        for (int i = 0; i < getParentEdges().size(); i++) {
+            if (getParentEdgesAtPort(i)[0]->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
                 break;
             }
         }
+
+        auto parentFusedNodes = parentNode->getFusedWith();
+        if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
+            for (int i = 0; i < getParentEdges().size(); i++) {
+                if (getParentEdgesAtPort(i)[0]->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
+                    setFusingPort(i);
+                    break;
+                }
+            }
+        }
+
+        if (getFusingPort() == -1) {
+            THROW_IE_EXCEPTION << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
+        }
+
+        parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
+        parentNode->addOriginalLayer(getOriginalLayers());
     }
 
     void clearFusedWith() {
@@ -427,8 +448,6 @@ public:
     void mergeWith(const MKLDNNNodePtr &merge) {
         mergedWith.push_back(merge);
     }
-
-    void addOriginalLayer(const std::string& layerName);
 
     const std::vector <MKLDNNNodePtr> &getMergeWith() {
         return mergedWith;
@@ -450,6 +469,8 @@ public:
         return name;
     }
 
+    void addOriginalLayer(const std::string& layerName);
+
     const std::string getOriginalLayers() const {
         return originalLayers;
     }
@@ -457,10 +478,6 @@ public:
     Type getType() const {
         return type;
     }
-
-//    const InferenceEngine::CNNLayerPtr &getCnnLayer() const {
-//        return cnnLayer;
-//    }
 
     const std::vector<PrimitiveDescInfo>& getSupportedPrimitiveDescriptors() const {
         return supportedPrimitiveDescriptors;
@@ -611,16 +628,40 @@ public:
         return originalOutputPrecisions;
     }
 
-    size_t getOriginalInputsNumber() const {
-        return originalInputsNumber;
+    InferenceEngine::Precision getOriginalInputPrecisionAtPort(size_t port) const {
+        if (originalInputPrecisions.size() <= port) {
+            THROW_IE_EXCEPTION << "Incorrect input port number for node " << getName();
+        }
+        return originalInputPrecisions[port];
+    }
+    InferenceEngine::Precision getOriginalOutputPrecisionAtPort(size_t port) const {
+        if (originalOutputPrecisions.size() <= port) {
+            THROW_IE_EXCEPTION << "Incorrect output port number for node " << getName();
+        }
+        return originalOutputPrecisions[port];
     }
 
-    std::string getOriginalName() const {
-        return originalName;
+    void setOriginalInputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
+        if (originalInputPrecisions.size() <= port) {
+            THROW_IE_EXCEPTION << "Incorrect input port number for node " << getName();
+        }
+        originalInputPrecisions[port] = precision;
+    }
+
+    void addOriginalInputPrecision(InferenceEngine::Precision precision) {
+        originalInputPrecisions.push_back(precision);
+    }
+
+    size_t getOriginalInputsNumber() const {
+        return originalInputPrecisions.size();
     }
 
     Algorithm getAlgorithm() const {
         return algorithm;
+    }
+
+    void setAlgorithm(Algorithm alg) {
+        algorithm = alg;
     }
 
     virtual bool canFuse(const MKLDNNNodePtr& node) const {
@@ -723,8 +764,6 @@ private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
 
-    std::string originalName;
-    size_t originalInputsNumber;
     std::vector<InferenceEngine::Precision> originalInputPrecisions;
     std::vector<InferenceEngine::Precision> originalOutputPrecisions;
 

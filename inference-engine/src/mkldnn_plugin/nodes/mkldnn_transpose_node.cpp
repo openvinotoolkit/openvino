@@ -59,10 +59,10 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 //
-    prec = getOriginalInputPrecisions()[0];
+    prec = getOriginalInputPrecisionAtPort(0);
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
-    auto inputOrderDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[1]);
+    auto inputOrderDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;

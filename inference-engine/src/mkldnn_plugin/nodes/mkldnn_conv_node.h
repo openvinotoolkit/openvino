@@ -19,6 +19,7 @@ public:
     MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNConvolutionNode() override = default;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
@@ -58,8 +59,6 @@ private:
     bool withBiases;
     bool withSum;
     bool withDWConv;
-    bool isDW;
-    bool isMerged;
     bool isGrouped;
     bool isPrimitivesPriorityDefined;
     std::vector<ptrdiff_t> stride;

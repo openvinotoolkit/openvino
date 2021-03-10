@@ -19,14 +19,12 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void MergeGroupConvolution(MKLDNNGraph& graph);
+    void FuseConvolutionAndBias(MKLDNNGraph &graph);
+    void FuseMultiplyAndAdd(MKLDNNGraph &graph);
     void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
-    void FuseConvolutionAndActivation(MKLDNNGraph &graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
-    void FuseConvolutionAndQuantize(MKLDNNGraph &graph);
     void FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph);
     void FusePoolingAndQuantize(MKLDNNGraph &graph);
     void FuseBatchNormWithScale(MKLDNNGraph& graph);

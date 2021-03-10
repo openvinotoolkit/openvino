@@ -25,9 +25,9 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisions()[0];
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getOriginalOutputPrecisions()[0];
+    precision = getOriginalOutputPrecisionAtPort(0);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     // Current reshape implementation is simple memory reinterpret,

@@ -231,8 +231,6 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     algorithm = Algorithm::Undefined;
     fusingPort = -1;
 
-    originalName = name;
-    originalInputsNumber = op->get_input_size();
     for (size_t i = 0; i < op->get_input_size(); i++) {
         inDims.emplace_back(op->get_input_shape(i));
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
@@ -256,19 +254,28 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 //        }
     }
 
+    const auto& rtInfo = op->get_rt_info();
+    if (rtInfo.count("originalLayersNames")) {
+        originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
+    }
 
-//    if (op->params.find("PrimitivesPriority") != layer->params.end()) {
-//        std::istringstream stream(layer->params["PrimitivesPriority"]);
-//        std::string str;
-//        while (getline(stream, str, ',')) {
-//            if (str.substr(0, 4) != "cpu:")
-//                continue;
-//            implPriorities.push_back(parse_impl_name(str));
-//            if (implPriorities[implPriorities.size() - 1] == impl_desc_type::unknown &&
-//                    str != "cpu:unknown")
-//                IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
-//        }
-//    }
+    if (originalLayers.empty()) {
+        addOriginalLayer(name);
+    }
+
+    auto primitivesPriority = getPrimitivesPriorityValue(op);
+    if (!primitivesPriority.empty()) {
+        std::istringstream stream(primitivesPriority);
+        std::string str;
+        while (getline(stream, str, ',')) {
+            if (str.substr(0, 4) != "cpu:")
+                continue;
+            implPriorities.push_back(parse_impl_name(str));
+            if (implPriorities[implPriorities.size() - 1] == impl_desc_type::unknown &&
+                str != "cpu:unknown")
+                IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
+        }
+    }
 
     if (op != nullptr) {
         std::string inputMemoryFormats = ngraph::getMLKDNNInputMemoryFormats(op);

@@ -14,6 +14,8 @@
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_pooling_node.h"
+#include "mkldnn_input_node.h"
+#include "common/cpu_convert.h"
 
 #include "emitters/jit_emitter.hpp"
 #include "emitters/jit_eltwise_emitters.hpp"
@@ -953,28 +955,12 @@ MKLDNNEltwiseNode::initializers = {
     {ngraph::op::v0::PRelu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwisePrelu;
     }},
-    // TODO [NM]: we need to introduce custom MulAdd operation
-//    {ngraph::op::v0::MulAdd::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
-//        node.algorithm = EltwiseMish;
-//        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_mish;
-//    }},
 };
 
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
     if (initializers.find(op->get_type_info()) != initializers.end()) {
         initializers[op->get_type_info()](op, *this);
-
-        std::shared_ptr<const ngraph::opset1::Constant> secondIn;
-        const auto isConstantBroadcastbleSecondInput = [&](const std::shared_ptr<ngraph::Node>& op) {
-            secondIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
-            return secondIn != nullptr && MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(op->get_input_shape(0), op->get_input_shape(1));
-        };
-        if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu) && isConstantBroadcastbleSecondInput(op)) {
-            scales = secondIn->cast_vector<float>();
-        } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract) && isConstantBroadcastbleSecondInput(op)) {
-            shifts = secondIn->cast_vector<float>();
-        }
     } else {
         IE_THROW(NotImplemented)
             << "CPU Eltwise node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
@@ -1055,8 +1041,8 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     for (auto& fusedNode : fusedWith) {
         if (fusedNode->getType() == Eltwise) {
-            for (int i = 1; i < fusedNode->getOriginalInputPrecisions().size(); i++) {
-                inputPrecisions.push_back(fusedNode->getOriginalInputPrecisions()[i]);
+            for (int i = 1; i < fusedNode->getOriginalInputsNumber(); i++) {
+                inputPrecisions.push_back(fusedNode->getOriginalInputPrecisionAtPort(i));
             }
         }
     }
@@ -1064,9 +1050,9 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     if (inputPrecisions.size() != getParentEdges().size())
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
 
-    InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisions()[0];
+    InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!fusedWith.empty()) {
-        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisions()[0];
+        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
     if (!mayiuse(avx512_core)) {
@@ -1718,6 +1704,31 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 }
 
 void MKLDNNEltwiseNode::fillScalesAndShifts() {
+    std::shared_ptr<const ngraph::opset1::Constant> secondIn;
+    const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
+        if (getParentEdgeAt(1)->getParent()->getType() != Input ||
+            !getParentEdgeAt(1)->getParent()->isConstant() ||
+            !MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(getParentEdgesAtPort(0)[0]->getDims().ToSizeVector(),
+                                                                        constInput->getChildEdgesAtPort(0)[0]->getDims().ToSizeVector())) {
+            IE_THROW() << "Fusing Eltwise node with name '" + getName() + "' " << "as post operation is not supported";
+        }
+
+        auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
+        auto constBlob = constInputNode->getConstBlob();
+        auto srtPtr = constBlob->cbuffer().as<int8_t *>();
+        buffer.resize(constBlob->size());
+        cpu_convert(srtPtr, &buffer[0], constBlob->getTensorDesc().getPrecision(), Precision::FP32, constBlob->size());
+    };
+
+    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
+        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
+    } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
+        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
+        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
+        fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
+    }
+
     const size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].size() > 1 ? 1 : 0]);
     const size_t bufferSizeAligned = rnd_up(bufferSize, 16);
 
@@ -1760,6 +1771,16 @@ void MKLDNNEltwiseNode::fillScalesAndShifts() {
     }
 }
 
+void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
+    // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
+    bool isSpecialConvolutionAddFusing = parentNode->getType() == Convolution && getAlgorithm() == EltwiseAdd &&
+            getParentEdgesAtPort(0)[0]->getDims().ToSizeVector() == getParentEdgesAtPort(1)[0]->getDims().ToSizeVector();
+    if (!isSpecialConvolutionAddFusing && one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract, EltwiseMultiply, EltwiseDivide, EltwiseMulAdd, EltwisePrelu)) {
+        fillScalesAndShifts();
+    }
+    MKLDNNNode::fuseInto(parentNode);
+}
+
 void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
@@ -1784,30 +1805,26 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
             case mkldnn::algorithm::eltwise_round_half_to_even:
             case mkldnn::algorithm::eltwise_round_half_away_from_zero:
                 ops.append_eltwise(1.0, getMKLDNNAlgorithm(), getAlpha(), getBeta());
-                return;
-            case mkldnn::algorithm::depthwise_scale_shift:
-                IE_THROW() << "[NM] Not implemented";
-                return;
+                break;
             default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
         switch (getAlgorithm()) {
             case EltwiseAdd:
             case EltwiseSubtract:
-                if (shifts.empty()) IE_THROW() << errorPrefix << "has empty shifts";
-                break;
             case EltwiseMultiply:
             case EltwiseDivide:
+            case EltwiseMulAdd:
+                if (scales.empty() || shifts.empty())
+                    IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
+                ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, &scales[0], &shifts[0]);
+                break;
             case EltwisePrelu:
-                if (scales.empty()) IE_THROW() << errorPrefix << "has empty scales";
+                if (scales.empty())
+                    IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
+                ops.append_depthwise(mkldnn::algorithm::depthwise_prelu, &scales[0], nullptr);
                 break;
             default: IE_THROW() << errorPrefix << "as post operation is not supported";
-        }
-        fillScalesAndShifts();
-        if (getAlgorithm() == EltwisePrelu) {
-            ops.append_depthwise(mkldnn::algorithm::depthwise_prelu, &scales[0], nullptr);
-        } else {
-            ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, &scales[0], &shifts[0]);
         }
     }
 }
@@ -1851,8 +1868,8 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
 
             // Limitation: inputs precision definition inside Eltwise node assumes fusing is applied for 0-th port,
             // otherwise we need identical precision on all inputs of fused node
-            for (int i = 1; i < getOriginalInputPrecisions().size(); i++) {
-                if (getOriginalInputPrecisions()[0] != getOriginalInputPrecisions()[i]) {
+            for (int i = 1; i < getOriginalInputsNumber(); i++) {
+                if (getOriginalInputPrecisionAtPort(0) != getOriginalInputPrecisionAtPort(i)) {
                     return false;
                 }
             }
