@@ -280,10 +280,11 @@ namespace ngraph
                 const T* group_filter = f;
                 const Shape group_filter_shape = [&]() {
                     Shape new_shape{f_shape};
+                    new_shape[filter_out_ch_axis] /= groups;
                     new_shape[filter_in_ch_axis] /= groups;
                     return new_shape;
                 }();
-                const size_t group_filter_size = shape_size(group_filter_shape);
+                const size_t group_filter_size = shape_size(group_filter_shape) * groups;
 
                 T* group_out = out;
                 const Shape group_out_shape = [&]() {
@@ -292,7 +293,6 @@ namespace ngraph
                     new_shape[out_channel_axis] /= groups;
                     return new_shape;
                 }();
-
                 const size_t group_out_size = shape_size(group_out_shape);
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
