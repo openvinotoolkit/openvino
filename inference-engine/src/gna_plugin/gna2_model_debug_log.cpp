@@ -331,7 +331,7 @@ static void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
     }
 }
 
-static void DumpCharArray(std::ostream& dumpFile, const char *carray, size_t count) {
+static void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
     auto i = 0;
     while (*(carray + i) != 0 && i < count) {
         dumpFile << *(carray + i) << " ";
@@ -345,9 +345,10 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
 
-    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S") << ".txt";
+    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S");
 
-    std::ofstream dumpFile(dumpFileName.str(), std::ios::out);
+    std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
+    std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::out);
 
     dumpFile << "Layers (operations) count: " << opsNo << "\n";
 
@@ -379,12 +380,13 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
                 DumpCompoundBias(dumpFile, operand);
             } else if (dumpData) {
                 std::vector<uint32_t> elementIndex(operand.Shape.NumberOfDimensions);
-                uint32_t k = 0;
 
-                // NOTE: data is dumped sequentially in lines of 64 values for better screen space usage
+                datFile << "Layer " << i << ", type " << GetLayerType(operation.Type) <<
+                    ", operand " << j << " - " << GetOperandNames(operation.Type)[j] << "\n";
+
                 do {
                     int32_t value = GetValue(operand, elementIndex);
-                    dumpFile << std::setw(8) << value << (((++k % 64) == 0) ? "\n" : "");
+                    datFile << value << "\n";
                 } while (NextElement(elementIndex, operand.Shape));
             }
         }
