@@ -21,6 +21,8 @@ from mo.graph.graph import Graph
 
 class TransformationsConfig(FrontReplacementPattern):
     enabled = True
+    # do not run this transformation recursively otherwise the transformations will be registered multiple times
+    run_not_recursively = True
     graph_condition = [lambda graph: graph.graph['cmd_params'].transformations_config is not None]
 
     def run_before(self):
