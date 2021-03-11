@@ -329,10 +329,14 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
 bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network) {
     // bool isLayerINT8()
-    int L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+    float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
     const auto nGraphFunc = network.getFunction();
     ngraph::NodeVector nodes;
 
+    int total_convs = 0, mem_limited_convs = 0, total_gemms = 0, mem_limited_gemms = 0;
+    auto memLimitedFactor = [&] (int size_data_moved) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */ / size_data_moved);};
+    float worst_case = FLT_MAX;
+    float best_case =  -FLT_MAX;
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
             // todo : bias data size (always fp)
@@ -356,6 +360,11 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
                                                                                                    std::multiplies<int>());
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
+                    total_gemms++;
+                    auto factor = memLimitedFactor(dataSizeInput + dataSizeInput);
+                    mem_limited_gemms += factor < 1;
+                    best_case = std::max(factor, best_case);
+                    worst_case = std::min(factor, worst_case);
                 }
             } else if (!std::strcmp("Convolution", node->get_type_info().name)) {
                 // Check that input and output shape a fully defined (not dynamic)
@@ -368,20 +377,24 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
                                                          std::multiplies<int>());
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
+                    total_convs++;
+                    auto factor = memLimitedFactor(dataSizeInput + dataSizeInput);
+                    mem_limited_convs += factor < 1;
+                    best_case = std::max(factor, best_case);
+                    worst_case = std::min(factor, worst_case);
                 }
-                bool memLimited = (L2_cache_size * 1.0 /*utilization factor*/ <
-                                   (dataSizeInput + dataSizeInput));
                 std::cout << "Type: " << node->get_type_info().name << std::endl
                           << "Name: " << node->get_friendly_name() << std::endl
-                          << "dataSizeInput: " << dataSizeInput << std::endl
-                          << "dataSizeOutput: " << dataSizeOutput << std::endl
-                          << "L2_cache_size: " << L2_cache_size << std::endl
-                          << "memLimited: " << memLimited << std::endl;
+                          << "dataSize: " << dataSizeInput + dataSizeOutput << std::endl
+                          << "L2_cache_size: " << L2_cache_size << std::endl;
             }
     }
+    std::cout << "Total convs: " << total_convs<< ". Mem limited: " << mem_limited_convs << std::endl;
+    std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
+    std::cout << "BEST CASE: " << best_case<< ". WORST CASE: " << worst_case << std::endl;
 
 
-    return false;
+    return mem_limited_gemms > 0.5*total_gemms || mem_limited_convs > 0.5*total_convs;
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
@@ -419,10 +432,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         const auto mode_name = (mode != config.end()) ? mode->second : conf.ovPerfMode;
         // checking streams (to avoid overriding what user might explicitly set)
         const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
-        if (streams == config.end()) {
+        if (streams == config.end() && !streamsSet) {
             if (mode_name == CONFIG_VALUE(LATENCY)) {
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+//                const int num_phys_cores = getNumberOfCPUCores();
+//                const int num_logical_cores = std::thread::hardware_concurrency();
                 const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
                 // this is first heuristic in series (carefully separating int8, bf16 and float32):
                 //      memory bandwidth limited
@@ -430,8 +445,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 //      Hybrid specific
                 //      etc
                 const bool isNetworkMemLimited = IsNetworkMemBandwidthLimited(network);
+                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << isNetworkMemLimited << std::endl;
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(
-                        isNetworkMemLimited ? default_num_streams / 2 : 2*default_num_streams);
+                        isNetworkMemLimited ? default_num_streams : 2*default_num_streams);
             }
         }
     }
@@ -474,6 +490,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // accumulate config parameters on engine level
+    streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
     engConfig.readProperties(config);
 }
 
