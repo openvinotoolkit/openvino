@@ -34,8 +34,6 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
     This transformation looks for Interpolation layer implemented using simple operations, i.e. Unsqueeze,
     Tile, Reshape, and replaces found pattern with a sequence of Shape, StridedSlice, Const, Mul, Interpolate.
 
-    Here we assume that the input of 'unsqueeze' is in NDHWC layout and is a 5D-tensor.
-
     Found pattern will be replaced with
         nodes=[
             ('shape', dict(kind='op', op='Shape')),
@@ -76,31 +74,53 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
             ]
         )
 
-    def replace_pattern(self, graph: Graph, match: dict):
+    @staticmethod
+    def is_applicable(match: dict) -> bool:
         unsqueeze_node = match['unsqueeze']
-        unsqueeze_name = unsqueeze_node.name
-
         second_input_of_unsqueeze = unsqueeze_node.in_port(1).get_connection().get_source().node
-        if not second_input_of_unsqueeze.has_valid('value'):
-            return
+        if not second_input_of_unsqueeze.has_valid('value') or len(second_input_of_unsqueeze.value) != 1:
+            return False
 
         d_idx = int(second_input_of_unsqueeze.value)
 
         second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
         if not second_input_of_tile.has_valid('value'):
-            return
+            return False
 
         input_shape_of_unsqueeze = unsqueeze_node.in_port(0).data.get_shape()
-        if len(input_shape_of_unsqueeze) not in {4, 5}:
-            return
+        input_rank_of_unsqueeze = len(input_shape_of_unsqueeze)
+        if input_rank_of_unsqueeze not in {4, 5}:
+            return False
 
-        if len(input_shape_of_unsqueeze) + 1 != len(second_input_of_tile.value):
-            return
+        if input_rank_of_unsqueeze + 1 != len(second_input_of_tile.value):
+            return False
+
+        expected_tile_constant = np.ones(input_rank_of_unsqueeze + 1, dtype=np.int64)
+        expected_tile_constant[d_idx] = float(second_input_of_tile.value[d_idx])
+
+        if not np.array_equal(expected_tile_constant, float32_array(second_input_of_tile.value)):
+            return False
 
         reshape_node = match['reshape']
         new_shape = reshape_node.in_port(1).data.get_value()
-        if new_shape is None or len(input_shape_of_unsqueeze) != len(new_shape):
+        if new_shape is None or input_rank_of_unsqueeze != len(new_shape):
+            return False
+
+        return True
+
+    def replace_pattern(self, graph: Graph, match: dict):
+        unsqueeze_node = match['unsqueeze']
+        unsqueeze_name = unsqueeze_node.name
+
+        if not self.is_applicable(match):
             return
+
+        second_input_of_unsqueeze = unsqueeze_node.in_port(1).get_connection().get_source().node
+
+        d_idx = int(second_input_of_unsqueeze.value)
+
+        second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
+        reshape_node = match['reshape']
 
         scale = float32_array([second_input_of_tile.value[d_idx]])
         axis = d_idx - 1
