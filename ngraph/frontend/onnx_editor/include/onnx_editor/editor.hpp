@@ -122,6 +122,9 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
+            InputEdge to_input_edge(Node node, Input in);
+            OutputEdge to_output_edge(Node node, Output out);
+
         private:
             const std::string m_model_path;
 

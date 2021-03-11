@@ -25,6 +25,7 @@
 #include "onnx_editor/editor.hpp"
 
 using namespace ngraph;
+using namespace ngraph::onnx_editor;
 
 namespace
 {
@@ -368,4 +369,14 @@ void onnx_editor::ONNXModelEditor::set_input_values(
 
         modify_initializer(*onnx_initializer, name, values, onnx_input);
     }
+}
+
+InputEdge onnx_editor::ONNXModelEditor::to_input_edge(Node node, Input in)
+{
+    return InputEdge{-1, ""};
+}
+
+OutputEdge onnx_editor::ONNXModelEditor::to_output_edge(Node node, Output out)
+{
+    return OutputEdge{-1, ""};
 }

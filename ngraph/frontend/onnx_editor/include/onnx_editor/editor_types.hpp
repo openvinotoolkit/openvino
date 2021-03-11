@@ -72,5 +72,46 @@ namespace ngraph
         ///            OutputEdge(5, "out1")
         ///            OutputEdge(5, "out2")
         using OutputEdge = Edge<EdgeType::OUTPUT>;
+        struct Input
+        {
+            Input() = delete;
+            Input(std::string input_name)
+                : m_input_name{std::move(input_name)}
+            {
+            }
+            Input(int input_index)
+                : m_input_index{std::move(input_index)}
+            {
+            }
+            const std::string m_input_name = "";
+            const int m_input_index = -1;
+        };
+        struct Output
+        {
+            Output() = delete;
+            Output(std::string output_name)
+                : m_output_name{std::move(output_name)}
+            {
+            }
+            Output(int output_index)
+                : m_output_index{std::move(output_index)}
+            {
+            }
+            const std::string m_output_name = "";
+            const int m_output_index = -1;
+        };
+
+        struct Node
+        {
+            Node(std::string output_name)
+                : m_output_name{std::move(output_name)}
+            {
+            }
+            Node(Output output)
+                : m_output_name{output.m_output_name}
+            {
+            }
+            const std::string m_output_name = "";
+        };
     }
 }
