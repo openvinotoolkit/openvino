@@ -483,11 +483,11 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                     outData->setPrecision(Desc::mandatory().getInputPrecision());
                 }
             }
-            // for pooling layer output precission is the same as input precission
+            // for pooling layer output precision is the same as input precision
             if (LayerInfo(*cnnLayer).isMaxPooling()) {
-                const auto inputPrecission = cnnLayer->insData.front().lock()->getPrecision();
+                const auto inputPrecision = cnnLayer->insData.front().lock()->getPrecision();
                 for (auto&& outData : cnnLayer->outData) {
-                    outData->setPrecision(inputPrecission);
+                    outData->setPrecision(inputPrecision);
                 }
             }
         }
