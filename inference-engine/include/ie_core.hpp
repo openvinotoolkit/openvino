@@ -108,7 +108,7 @@ public:
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
      *
-     * This can be more efficient than using Code::ReadNetwork + Code::LoadNetwork(CNNNetwork) flow
+     * This can be more efficient than using ReadNetwork + LoadNetwork(CNNNetwork) flow
      *        especially for cases when caching is enabled and cached model is available
      *
      * @param modelPath path to model
@@ -119,8 +119,8 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork LoadNetwork(
-        const std::string & modelPath, const std::string & deviceName,
-        const std::map<std::string, std::string>&config = {});
+        const std::string& modelPath, const std::string& deviceName,
+        const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension
