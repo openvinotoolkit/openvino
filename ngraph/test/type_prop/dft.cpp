@@ -165,10 +165,10 @@ TEST(type_prop, dft_constant_axes_and_there_are_signal_size_dynamic_shapes)
 
     std::vector<ShapesAndValues> shapes_and_values = {
         {{2, Dimension(0, 200), 180, 2}, {2}, {2}, {2, Dimension(0, 200), 77, 2}, {1, 2}, {-1, 77}},
-         {{Dimension(0, 18), 180, Dimension(0, 400), 2},
-          {2},
-          {2},
-          {87, 180, 390, 2}, {2, 0}, {390, 87}},
+        {{Dimension(0, 18), 180, Dimension(0, 400), 2},
+         {2},
+         {2},
+         {87, 180, 390, 2}, {2, 0}, {390, 87}},
         {{Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
          {3},
          {3},
@@ -263,11 +263,11 @@ TEST(type_prop, dft_constant_axes_and_there_are_signal_size_dynamic_shapes2)
 
     std::vector<ShapesAndValues> shapes_and_values = {
         {{2, Dimension(0, 200), 180, 2}, {2}, {2}, {2, Dimension(0, 200), 180, 2}, {1, 2}},
-         {{Dimension(0, 18), 180, Dimension(0, 400), 2},
-          {2},
-          {2},
-          {Dimension(0, 18), 180, Dimension(0, 400), 2},
-          {2, 0}},
+        {{Dimension(0, 18), 180, Dimension(0, 400), 2},
+         {2},
+         {2},
+         {Dimension(0, 18), 180, Dimension(0, 400), 2},
+         {2, 0}},
         {{Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
          {3},
          {3},
