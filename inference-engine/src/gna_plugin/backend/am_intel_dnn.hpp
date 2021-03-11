@@ -381,16 +381,16 @@ private:
                                          bool postInitMem);
 
     static void InitMaxpoolComponentPrivate(intel_dnn_component_t &cmp,
-        std::array<uint32_t, 3> inCHW,
-        std::array<uint32_t, 3> outCHW,
-        uint32_t num_bytes_per_input,
-        uint32_t num_bytes_per_output,
-        std::array<uint32_t, 2> poolingWindowXY,
-        std::array<uint32_t, 2> poolingStrideXY,
-        float output_scale_factor,
-        void *&ptr_inputs,
-        void *&ptr_outputs,
-        bool postInitMem);
+                                            std::array<uint32_t, 3> inCHW,
+                                            std::array<uint32_t, 3> outCHW,
+                                            uint32_t num_bytes_per_input,
+                                            uint32_t num_bytes_per_output,
+                                            std::array<uint32_t, 2> poolingWindowXY,
+                                            std::array<uint32_t, 2> poolingStrideXY,
+                                            float output_scale_factor,
+                                            void *&ptr_inputs,
+                                            void *&ptr_outputs,
+                                            bool postInitMem);
 
     static void InitPiecewiseLinearComponentPrivate(intel_dnn_component_t &cmp,
                                                     DnnActivation function_id,
