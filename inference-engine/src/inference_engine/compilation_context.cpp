@@ -6,6 +6,9 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdlib.h>
+#include <limits.h>
+
 #ifndef WIN32
 #include <unistd.h>
 #endif
@@ -24,6 +27,14 @@
 #define stat _stat
 #endif
 
+#ifdef WIN32
+#define MAX_ABS_PATH _MAX_PATH
+#define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
+#elif defined(__linux__) || defined(__APPLE__)
+#define MAX_ABS_PATH PATH_MAX
+#define get_absolute_path(result, path) realpath(path.c_str(), result)
+#endif
+
 namespace InferenceEngine {
 
 template <typename T>
@@ -39,15 +50,21 @@ static int32_t as_int32_t(T v) {
 
 class OstreamHashWrapper final: public std::streambuf {
     std::size_t    m_res = {};
-    std::streampos m_pos = {};
-
 public:
     std::size_t getResult() const { return m_res; }
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        for (std::streamsize i = 0; i < n; i++) {
-            m_res = hash_combine(m_res, s[i]);
+        const std::int64_t* intS = (const std::int64_t *)s;
+        std::streamsize n64 = n / sizeof(std::int64_t);
+        std::streamsize i = 0;
+        // Using 64-bit values executes much faster than char
+        while (i++ < n64) {
+            m_res += *(intS++);
         }
-        m_pos += n;
+
+        std::streamsize rest = n % sizeof(std::int64_t);
+        for (i = 0; i < rest; i++) {
+            m_res += s[n - rest + i];
+        }
         return n;
     }
 };
@@ -55,10 +72,18 @@ public:
 //////////////////////////////////////////////////
 
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
+    size_t seed {};
+    std::string absolutePath;
+    absolutePath.reserve(MAX_ABS_PATH);
+    auto absPath = get_absolute_path(&absolutePath[0], filePath);
+    if (absPath) {
+        seed = hash_combine(seed, absolutePath);
+    } else {
+        // can't get absolute path, use filePath for hash calculation
+        seed = hash_combine(seed, filePath);
+    }
     std::string res;
     struct stat result;
-    size_t seed {};
-    seed = hash_combine(seed, filePath);
     if (stat(filePath.c_str(), &result) == 0) {
         seed = hash_combine(seed, result.st_mtime);
         seed = hash_combine(seed, result.st_size);

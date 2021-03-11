@@ -14,6 +14,8 @@
 #include "ngraph/opsets/opset6.hpp"
 #include "cpp/ie_cnn_network.h"
 
+#include "common_test_utils/test_constants.hpp"
+
 using namespace InferenceEngine;
 using namespace ::testing;
 
@@ -53,6 +55,14 @@ TEST_F(NetworkContext_CalcFileInfoTests, NoFile) {
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile) {
     ASSERT_EQ(NetworkCompilationContext::calculateFileInfo(m_fileName),
               NetworkCompilationContext::calculateFileInfo(m_fileName));
+}
+
+TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
+    std::string file1 = m_fileName;
+    std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;
+    ASSERT_EQ(NetworkCompilationContext::calculateFileInfo(file1),
+              NetworkCompilationContext::calculateFileInfo(file2)) <<
+              "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, DateModified) {
