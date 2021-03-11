@@ -25,5 +25,5 @@ namespace ngraph
 #define NGRAPH_OP(a, b) using b::a;
 #include "ngraph/opsets/opset7_tbl.hpp"
 #undef NGRAPH_OP
-    } // namespace opset6
+    } // namespace opset7
 } // namespace ngraph

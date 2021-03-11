@@ -128,7 +128,10 @@ NGRAPH_OP(Unsqueeze, ngraph::op::v0)
 NGRAPH_OP(VariadicSplit, ngraph::op::v1)
 
 // New operations added in opset2
+<<<<<<< HEAD
 NGRAPH_OP(Gelu, ngraph::op::v0)
+=======
+>>>>>>> upstream/master
 NGRAPH_OP(BatchToSpace, ngraph::op::v1)
 NGRAPH_OP(SpaceToBatch, ngraph::op::v1)
 
@@ -184,3 +187,4 @@ NGRAPH_OP(ReadValue, ngraph::op::v6) // new version
 
 // New operations added in opset7
 NGRAPH_OP(DFT, ngraph::op::v7)
+NGRAPH_OP(Gelu, ngraph::op::v7)
