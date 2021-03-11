@@ -61,6 +61,15 @@ TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile) {
               NetworkCompilationContext::calculateFileInfo(m_fileName));
 }
 
+TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
+    auto hash1 = NetworkCompilationContext::calculateFileInfo(m_fileName);
+    std::string newName = m_fileName + "2";
+    std::rename(m_fileName.c_str(), newName.c_str());
+    m_fileName = std::move(newName);
+    auto hash2 = NetworkCompilationContext::calculateFileInfo(m_fileName);
+    ASSERT_NE(hash1, hash2);
+}
+
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
     std::string file1 = m_fileName;
     std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;

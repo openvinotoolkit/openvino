@@ -89,7 +89,7 @@ long long FileUtils::fileSize(const char* charfilepath) {
     return in.tellg();
 }
 
-std::string FileUtils::absoluteFilePath(const std::string &filePath) {
+std::string FileUtils::absoluteFilePath(const std::string& filePath) {
     std::string absolutePath;
     absolutePath.resize(MAX_ABS_PATH);
     auto absPath = get_absolute_path(&absolutePath[0], filePath);
