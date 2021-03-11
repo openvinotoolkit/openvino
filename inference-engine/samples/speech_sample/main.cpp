@@ -1029,6 +1029,11 @@ int main(int argc, char *argv[]) {
                             continue;
                         }
 
+                        ptrInputBlobs.clear();
+                        for (auto& input : cInputInfo) {
+                            ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
+                        }
+
                         if (FLAGS_iname.empty()) {
                             size_t num_files = FLAGS_iname.empty() ? numInputArkFiles : ptrInputBlobs.size();
                             for (size_t i = 0; i < num_files; ++i) {
