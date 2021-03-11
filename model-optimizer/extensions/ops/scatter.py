@@ -100,6 +100,11 @@ class ScatterElementsUpdate(Scatter):
     def infer(node: Node):
         Scatter.infer(node)
 
+        node_name = node.soft_get('name', node.id)
+        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        assert len(connected_in_ports) == 4, \
+            "Incorrect number of inputs for {} node".format(node_name)
+
         input_value = node.in_port(0).data.get_value()
         indices_shape = node.in_port(1).data.get_shape()
         indices_value = node.in_port(1).data.get_value()
