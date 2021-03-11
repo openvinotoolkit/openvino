@@ -257,8 +257,8 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 v_uint8 q2 = v_shuffle(q0, hmask);
                 v_uint8 q3 = v_shuffle(q1, hmask);
 
-                v_uint8 q4 = v_blend<0xCC /*0b11001100*/>(q2, v_slli_si128(q3, 4));
-                v_uint8 q5 = v_blend<0xCC /*0b11001100*/>(v_srli_si128(q2, 4), q3);
+                v_uint8 q4 = v_blend<0xCC /*0b11001100*/>(q2, v_shift_left<4>(q3));
+                v_uint8 q5 = v_blend<0xCC /*0b11001100*/>(v_shift_right<4>(q2), q3);
 
                 v_store_low(&dst[c][0][x], q4);
                 v_store_high(&dst[c][1][x], q4);
@@ -334,8 +334,8 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                     v_uint8 q0 = v_pack_u(r0, r1);
                     v_uint8 q1 = v_pack_u(r2, r3);
 
-                    v_uint8 q2 = v_blend<0xCC /*0b11001100*/>(q0, v_slli_si128(q1, 4));
-                    v_uint8 q3 = v_blend<0xCC /*0b11001100*/>(v_srli_si128(q0, 4), q1);
+                    v_uint8 q2 = v_blend<0xCC /*0b11001100*/>(q0, v_shift_left<4>(q1));
+                    v_uint8 q3 = v_blend<0xCC /*0b11001100*/>(v_shift_right<4>(q0), q1);
 
                     v_uint8 q4 = v_shuffle(q2, vmask);
                     v_uint8 q5 = v_shuffle(q3, vmask);
