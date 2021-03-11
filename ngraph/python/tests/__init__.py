@@ -159,8 +159,6 @@ xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[na
                                       "FP64 precision.")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_48098 = xfail_test(reason="ngraph.exceptions.UserInputError: ('Expected %s parameters, "
-                                      "received %s.', <value1>, <value2>)")
 xfail_issue_48100 = xfail_test(reason="RuntimeError: cpu_convert can't convert from: "
                                       "FP64 precision to: FP32")
 
@@ -197,3 +195,4 @@ xfail_issue_49750 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v4
 xfail_issue_49752 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::Pad")
 xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::StridedSlice")
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
+xfail_issue_49913 = xfail_test(reason="CPU supports Gelu with tanh mode only")
