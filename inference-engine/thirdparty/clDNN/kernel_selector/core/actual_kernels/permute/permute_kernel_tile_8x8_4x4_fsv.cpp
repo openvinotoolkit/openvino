@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-#include "permute_kernel_tile_8x8_4x4_fsv16.h"
+#include "permute_kernel_tile_8x8_4x4_fsv.h"
 #include "kernel_selector_utils.h"
 #include <string>
 #include <functional>
@@ -23,13 +23,13 @@
 // Tile size : 4x4 or 8x8
 #define MIN_TILE_SIZE 4
 #define DEFAULT_TILE_SIZE 8
-#define FSV_ALIGNMENT 16
+#define MAX_TILE_SIZE 16
 
 #define CEIL_DIV(A, B) ((A + B - 1)/(B))
 
 namespace kernel_selector {
 
-ParamsKey PermuteKernel_tile_8x8_4x4_fsv16::GetSupportedKey() const {
+ParamsKey PermuteKernel_tile_8x8_4x4_fsv::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -48,6 +48,12 @@ ParamsKey PermuteKernel_tile_8x8_4x4_fsv16::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -96,18 +102,56 @@ static inline std::string GetTiledInputOrder(size_t size) {
     return order_str;
 }
 
-static inline size_t GetTileSize(const permute_params& params) {
-    // // supports 4x4 or 8x8 tiling
-    if (params.inputs[0].Y().v < DEFAULT_TILE_SIZE && params.inputs[0].Feature().v < DEFAULT_TILE_SIZE)
-        return MIN_TILE_SIZE;
-
-    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.output.GetDType() == Datatype::INT64))
-        return MIN_TILE_SIZE;
-
-    return MIN_TILE_SIZE;
+static inline size_t GetFsvAlignment(const permute_params& params) {
+    const auto& in =  params.inputs[0];
+    int fsv_alignment = -1;
+    switch (in.GetLayout()) {
+        case DataLayout::b_fs_yx_fsv16:
+        case DataLayout::b_fs_zyx_fsv16:
+            fsv_alignment = 16;
+            break;
+        case DataLayout::b_fs_yx_fsv32:
+        case DataLayout::b_fs_zyx_fsv32:
+            fsv_alignment = 32;
+            break;
+        case DataLayout::b_fs_yx_fsv4:
+            fsv_alignment = 32;
+            break;
+        default:
+            throw std::runtime_error("Unsupported combination\n");
+    }
+    return fsv_alignment;
 }
 
-JitConstants PermuteKernel_tile_8x8_4x4_fsv16::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
+static inline size_t GetTileSize(const permute_params& params) {
+    // vector type support at most 16 elements
+    // u8 and i8 use the largest vector type: min(16. fsv_alignment)
+    if (((params.inputs[0].GetDType() == Datatype::UINT8) && (params.output.GetDType() == Datatype::UINT8)) ||
+        ((params.inputs[0].GetDType() == Datatype::INT8) && (params.output.GetDType() == Datatype::INT8)) ||
+        ((params.inputs[0].GetDType() == Datatype::F16) && (params.output.GetDType() == Datatype::F16))) {
+        return std::min(static_cast<size_t>(MAX_TILE_SIZE), GetFsvAlignment(params));
+    }
+
+    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.output.GetDType() == Datatype::INT64)) {
+        return MIN_TILE_SIZE;
+    }
+
+    // supports 4x4 or 8x8 tiling
+    size_t rotating_dim = 0;
+    if (params.inputs[0].GetDims().size() == 4) {
+        rotating_dim = params.inputs[0].Y().v;
+    } else if (params.inputs[0].GetDims().size() == 5) {
+        rotating_dim = params.inputs[0].Z().v;
+    }
+
+    if (rotating_dim < DEFAULT_TILE_SIZE && params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
+        return MIN_TILE_SIZE;
+    }
+
+    return DEFAULT_TILE_SIZE;
+}
+
+JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     const size_t f = params.inputs[0].Feature().v;
     const size_t z = params.inputs[0].Z().v;
@@ -121,16 +165,21 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv16::GetJitConstants(const permute_par
     const uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
     const uint64_t transpose_buffer_size = tile_width*tile_height * total_lws;
 
-    jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(params.inputs[0].GetDims().size())));
-    jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(params.output.GetDims().size())));
+    const size_t input_ndims = params.inputs[0].GetDims().size();
+    const size_t output_ndims = params.output.GetDims().size();
 
-    jit.AddConstant(MakeJitConstant("INPUT0_SIZE_FS", CEIL_DIV(f, FSV_ALIGNMENT)));
+    const size_t fsv_alignment = GetFsvAlignment(params);
+
+    jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
+    jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
+
+    jit.AddConstant(MakeJitConstant("INPUT0_SIZE_FS", CEIL_DIV(f, fsv_alignment)));
     jit.AddConstant(MakeJitConstant("INPUT0_SIZE_F", f));
     jit.AddConstant(MakeJitConstant("TILE_WIDTH", tile_width));
     jit.AddConstant(MakeJitConstant("TILE_HEIGHT", tile_height));
-    jit.AddConstant(MakeJitConstant("TILE_STRIDE", FSV_ALIGNMENT * x));
-    jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", FSV_ALIGNMENT));
-    jit.AddConstant(MakeJitConstant("GROUP_STRIDE", tile_width * x * FSV_ALIGNMENT));
+    jit.AddConstant(MakeJitConstant("TILE_STRIDE", fsv_alignment * x));
+    jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
+    jit.AddConstant(MakeJitConstant("GROUP_STRIDE", tile_width * x * fsv_alignment));
     jit.AddConstant(MakeJitConstant("INPUTVTYPE", "CAT(INPUT0_TYPE, TILE_WIDTH)"));
     jit.AddConstant(MakeJitConstant("OUTPUTVTYPE", "CAT(OUTPUT_TYPE, TILE_HEIGHT)"));
     jit.AddConstant(MakeJitConstant("VLOAD", "CAT(vload, TILE_WIDTH)"));
@@ -150,18 +199,18 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv16::GetJitConstants(const permute_par
     }
 
     // whether y (or z if b_fs_zyx_fsv16) is tile_height-aligned
-    if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) && (y % tile_height != 0)) {
+    if ((input_ndims == 4) && (y % tile_height != 0)) {
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", y % tile_height));
         jit.AddConstant(MakeJitConstant("YZ_NO_REMAINDER_CONDITION", "y < (INPUT0_SIZE_Y - YZ_REMAINDER_SIZE)"));
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION", "((INPUT0_SIZE_Y - YZ_REMAINDER_SIZE) <= y) && (y < INPUT0_SIZE_Y)"));
-    } else if ((params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) && (z % tile_height != 0)) {
+    } else if ((input_ndims == 5) && (z % tile_height != 0)) {
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", z % tile_height));
         jit.AddConstant(MakeJitConstant("YZ_NO_REMAINDER_CONDITION", "z < (INPUT0_SIZE_Z - YZ_REMAINDER_SIZE)"));
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION", "((INPUT0_SIZE_Z - YZ_REMAINDER_SIZE) <= z) && (z < INPUT0_SIZE_Z)"));
     }
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> output_order = GetFusedOpOrderVector(params.output.GetDims().size());
+        std::vector<std::string> output_order = GetFusedOpOrderVector(output_ndims);
         FusedOpsConfiguration conf = {"", output_order, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
@@ -201,26 +250,29 @@ static inline std::vector<size_t> GetGWS(const permute_params& params) {
     const auto& in =  params.inputs[0];
     const size_t tile_width = GetTileSize(params);
     const size_t tile_height = tile_width;
+    const size_t fsv_alignment = GetFsvAlignment(params);
     std::vector<size_t> gws;
     switch (in.GetLayout()) {
         case DataLayout::b_fs_yx_fsv16:
-            gws = {CEIL_DIV(FSV_ALIGNMENT, tile_width),
+        case DataLayout::b_fs_yx_fsv32:
+        case DataLayout::b_fs_yx_fsv4:
+            gws = {CEIL_DIV(fsv_alignment, tile_width),
                 CEIL_DIV(in.Y().v, tile_height) * in.X().v,
-                in.Batch().v * CEIL_DIV(in.Feature().v, FSV_ALIGNMENT)};
+                in.Batch().v * CEIL_DIV(in.Feature().v, fsv_alignment)};
             break;
         case DataLayout::b_fs_zyx_fsv16:
-            gws = {CEIL_DIV(FSV_ALIGNMENT, tile_width),
+        case DataLayout::b_fs_zyx_fsv32:
+            gws = {CEIL_DIV(fsv_alignment, tile_width),
                 CEIL_DIV(in.Z().v, tile_height) * in.X().v * in.Y().v,
-                in.Batch().v * CEIL_DIV(in.Feature().v, FSV_ALIGNMENT)};
+                in.Batch().v * CEIL_DIV(in.Feature().v, fsv_alignment)};
             break;
         default:
             throw std::runtime_error("Unsupported combination\n");
-            break;
     }
     return gws;
 }
 
-CommonDispatchData PermuteKernel_tile_8x8_4x4_fsv16::SetDefault(const permute_params& params) const {
+CommonDispatchData PermuteKernel_tile_8x8_4x4_fsv::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
     const size_t tile_width = GetTileSize(params);
     const size_t tile_height = tile_width;
@@ -230,7 +282,7 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4_fsv16::SetDefault(const permute_pa
 }
 
 // Validate is the same as permute_kernel_tile_8x8_4x4
-bool PermuteKernel_tile_8x8_4x4_fsv16::Validate(const Params& p, const optional_params& o) const {
+bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) return false;
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
@@ -255,21 +307,18 @@ bool PermuteKernel_tile_8x8_4x4_fsv16::Validate(const Params& p, const optional_
         return false;
     }
 
-    if (params.output.PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims()) {
-        return false;
-    }
-
     return true;
 }
 
-// GetKernelsPriority is the same as permute_kernel_tile_8x8_4x4
-KernelsPriority PermuteKernel_tile_8x8_4x4_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 
     // calculate number of working groups
     const size_t tile_width = GetTileSize(newParams);
     const size_t tile_height = tile_width;
+    const size_t fsv_alignment = GetFsvAlignment(newParams);
+
     std::vector<size_t> gws = GetGWS(newParams);
     std::vector<size_t> lws = GetBestLwsFromGws(newParams, gws, tile_width, tile_height);
     size_t num_working_groups = 1;
@@ -277,14 +326,21 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv16::GetKernelsPriority(const Param
         num_working_groups *= gws.at(i)/lws.at(i);
     }
 
+    const size_t feature = newParams.inputs[0].Feature().v;
+    size_t rotating_dim = 0;
+    if (newParams.inputs[0].GetDims().size() == 4) {
+        rotating_dim = newParams.inputs[0].Y().v;
+    } else if (newParams.inputs[0].GetDims().size() == 5) {
+        rotating_dim = newParams.inputs[0].Z().v;
+    }
 
     if (num_working_groups == 1) {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    } else if ((newParams.inputs[0].Y().v >= FSV_ALIGNMENT) && (newParams.inputs[0].Feature().v >= FSV_ALIGNMENT)) {
+    } else if ((rotating_dim >= fsv_alignment) && (feature >= fsv_alignment)) {
         return FORCE_PRIORITY_1;
-    } else if ((newParams.inputs[0].Y().v >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE)) {
+    } else if ((rotating_dim >= DEFAULT_TILE_SIZE) && (feature >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_2;
-    } else if ((newParams.inputs[0].Y().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE)) {
+    } else if ((rotating_dim >= DEFAULT_TILE_SIZE) || (feature >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_3;
     } else {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
