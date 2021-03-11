@@ -286,6 +286,7 @@ limitations under the License.
                 <tab type="usergroup" title="Utilities to Validate Your Converted Model" url="@ref openvino_inference_engine_tools_cross_check_tool_README">
                     <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
                 </tab>
+                <tab type="user" title="Introduction to OpenVINO state API" url="@ref openvino_docs_IE_DG_network_state_intro"/>
                 <tab type="usergroup" title="Supported Devices" url="@ref openvino_docs_IE_DG_supported_plugins_Supported_Devices">
                     <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CL_DNN">
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>
