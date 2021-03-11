@@ -64,35 +64,46 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
     }
     */
     // The main loop where all the work is done
-    /*
     void loop(int n) {
-        mov(reg_work_amount, jpp.dst_block_dims[n]);
+        /*
+        Xbyak::Label main_ih_loop;
+        Xbyak::Label main_iw_loop;
+        Xbyak::Label main_iw_loop_done;
 
-        Xbyak::Label main_loop_label;
         Xbyak::Label tail_loop_label;
         Xbyak::Label exit_label;
 
-        if (n + 1 == jpp.ndims) {
-            if (jpp.src_strides[n] == jpp.dst_strides[n] == 1) {
-                uint32_t step = vlen / jpp.data_size;
+        Xbyak::Label set_zero;
+        Xbyak::Label set_src;
 
-                L(main_loop_label);
-                {
-                    cmp(reg_work_amount, step);
-                    jl(tail_loop_label, T_NEAR);
+        mov(ih_work_amount, jpp.OH);
+        L(main_ih_loop);
+        {
+            cmp(ih_work_amount, 1);
+            jl(tail_loop_label, T_NEAR);
 
-                    uni_vmovups(vmm, ptr[reg_src]);
-                    uni_vmovups(ptr[reg_dst], vmm);
+            mov(iw_work_amount, jpp.OW);
+            L(main_iw_loop);
+            {
+                cmp(iw_work_amount, 1);
+                jl(main_iw_loop_done, T_NEAR);
 
-                    add(reg_src, step * jpp.data_size);
-                    add(reg_dst, step * jpp.data_size);
-                    sub(reg_work_amount, step);
+                //uni_vmovups(vmm, ptr[reg_src]);
+                //uni_vmovups(ptr[reg_dst], vmm);
 
-                    jmp(main_loop_label, T_NEAR);
-                }
+                add(reg_src, jpp.SW * jpp.data_size);
+                add(reg_dst, jpp.data_size);
+
+                sub(iw_work_amount, 1);
+                jmp(main_iw_loop, T_NEAR);
             }
-        }
+            L(main_iw_loop_done);
 
+            sub(ih_work_amount, 1);
+            jmp(main_ih_loop, T_NEAR);
+        }
+        */
+        /*
         L(tail_loop_label); {
             cmp(reg_work_amount, 0);
             je(exit_label, T_NEAR);
@@ -118,10 +129,10 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
 
             jmp(tail_loop_label, T_NEAR);
         }
-
-        L(exit_label);
+        */
+        //L(exit_label);
     }
-    */
+
 
 private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
