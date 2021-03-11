@@ -56,8 +56,6 @@ TEST(type_prop, dft_constant_axes_and_there_are_no_signal_size_dynamic_shapes)
         std::vector<int64_t> axes;
     };
 
-    const auto dyn_dim = Dimension::dynamic();
-
     std::vector<ShapesAndValues> shapes_and_values = {
         {{2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}, {1, 2}},
         {{2, 180, Dimension(7, 500), 2}, {2}, {2, 180, Dimension(7, 500), 2}, {1, 2}},
@@ -199,8 +197,6 @@ TEST(type_prop, dft_constant_axes_and_there_are_no_signal_size_dynamic_shapes2)
         Shape axes_shape;
         PartialShape ref_output_shape;
     };
-
-    const auto dyn_dim = Dimension::dynamic();
 
     std::vector<ShapesAndValues> shapes_and_values = {
         {{2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}},
