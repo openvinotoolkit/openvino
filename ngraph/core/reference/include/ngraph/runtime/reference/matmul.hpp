@@ -25,7 +25,6 @@
 #include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/shape_util.hpp"
 
-
 using namespace std;
 
 namespace ngraph
@@ -178,19 +177,15 @@ namespace ngraph
                 if (arg0_rank > 2 && arg1_rank > 2)
                 {
                     // Align input batches to the output shape
-                    Shape arg0_br_target_shape(out_shape.begin(), out_shape.end()-2);
-                    Shape arg1_br_target_shape(out_shape.begin(), out_shape.end()-2);
+                    Shape arg0_br_target_shape(out_shape.begin(), out_shape.end() - 2);
+                    Shape arg1_br_target_shape(out_shape.begin(), out_shape.end() - 2);
 
                     arg0_br_target_shape.insert(
-                        end(arg0_br_target_shape),
-                        end(arg0_shape_tmp) - 2,
-                        end(arg0_shape_tmp));
+                        end(arg0_br_target_shape), end(arg0_shape_tmp) - 2, end(arg0_shape_tmp));
                     arg1_br_target_shape.insert(
-                        end(arg1_br_target_shape),
-                        end(arg1_shape_tmp) - 2,
-                        end(arg1_shape_tmp));
+                        end(arg1_br_target_shape), end(arg1_shape_tmp) - 2, end(arg1_shape_tmp));
 
-                    std::vector<size_t> broadcast_axes(out_shape.size()-2);
+                    std::vector<size_t> broadcast_axes(out_shape.size() - 2);
                     std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
                     if (!broadcast_axes.empty())
                     {
@@ -204,11 +199,11 @@ namespace ngraph
                         {
                             arg0_broadcast_vec.reserve(shape_size(arg0_br_target_shape));
                             broadcast(reinterpret_cast<const char*>(arg0_update),
-                                        reinterpret_cast<char*>(arg0_broadcast_vec.data()),
-                                        arg0_shape_tmp,
-                                        arg0_br_target_shape,
-                                        broadcast_axes,
-                                        sizeof(T));
+                                      reinterpret_cast<char*>(arg0_broadcast_vec.data()),
+                                      arg0_shape_tmp,
+                                      arg0_br_target_shape,
+                                      broadcast_axes,
+                                      sizeof(T));
 
                             arg0_update = arg0_broadcast_vec.data();
                             arg0_shape_tmp = arg0_br_target_shape;
@@ -219,11 +214,11 @@ namespace ngraph
                         {
                             arg1_broadcast_vec.reserve(shape_size(arg1_br_target_shape));
                             broadcast(reinterpret_cast<const char*>(arg1_update),
-                                        reinterpret_cast<char*>(arg1_broadcast_vec.data()),
-                                        arg1_shape_tmp,
-                                        arg1_br_target_shape,
-                                        broadcast_axes,
-                                        sizeof(T));
+                                      reinterpret_cast<char*>(arg1_broadcast_vec.data()),
+                                      arg1_shape_tmp,
+                                      arg1_br_target_shape,
+                                      broadcast_axes,
+                                      sizeof(T));
 
                             arg1_update = arg1_broadcast_vec.data();
                             arg1_shape_tmp = arg1_br_target_shape;
