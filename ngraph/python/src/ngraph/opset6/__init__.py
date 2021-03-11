@@ -22,7 +22,7 @@ from ngraph.opset4.ops import acosh
 from ngraph.opset1.ops import add
 from ngraph.opset1.ops import asin
 from ngraph.opset4.ops import asinh
-from ngraph.opset3.ops import assign
+from ngraph.opset6.ops import assign
 from ngraph.opset1.ops import atan
 from ngraph.opset4.ops import atanh
 from ngraph.opset1.ops import avg_pool
@@ -114,7 +114,7 @@ from ngraph.opset1.ops import prior_box_clustered
 from ngraph.opset1.ops import psroi_pooling
 from ngraph.opset4.ops import proposal
 from ngraph.opset1.ops import range
-from ngraph.opset3.ops import read_value
+from ngraph.opset6.ops import read_value
 from ngraph.opset4.ops import reduce_l1
 from ngraph.opset4.ops import reduce_l2
 from ngraph.opset1.ops import reduce_logical_and

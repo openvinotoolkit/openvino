@@ -142,3 +142,35 @@ def mvn(
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
+
+
+@nameable_op
+def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param new_value:    Node producing a value to be assigned to a variable.
+    @param variable_id:  Id of a variable to be updated.
+    @param name:         Optional name for output node.
+    @return Assign node
+    """
+    return _get_node_factory_opset6().create(
+        "Assign",
+        [as_node(new_value)],
+        {"variable_id": variable_id}
+    )
+
+
+@nameable_op
+def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param init_value:   Node producing a value to be returned instead of an unassigned variable.
+    @param variable_id:  Id of a variable to be read.
+    @param name:         Optional name for output node.
+    @return ReadValue node
+    """
+    return _get_node_factory_opset6().create(
+        "ReadValue",
+        [as_node(init_value)],
+        {"variable_id": variable_id}
+    )
