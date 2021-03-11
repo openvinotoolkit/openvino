@@ -217,7 +217,7 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${OpenCV_LIBS} ${NGRAPH_LIBRARIES})
 ```
 3. **To build your project** using CMake with the default build tools currently available on your machine, execute the following commands:
-> **NOTE**: Make sure **Set the Environment Variables** step in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document is applied to your terminal, otherwise `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
+> **NOTE**: Make sure **Set the Environment Variables** step in [OpenVINO Installation](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode#installing) document is applied to your terminal, otherwise `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
 ```sh
 cd build/
 cmake ../project
