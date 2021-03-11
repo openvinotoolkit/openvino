@@ -123,7 +123,7 @@ public:
 
     struct BatchCode {
         const program_code* program;
-        source_code* batch_code;
+        const source_code* batch_code;
         uint32_t batch_id;
     };
 

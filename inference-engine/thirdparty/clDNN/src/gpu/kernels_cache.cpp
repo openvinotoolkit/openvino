@@ -25,10 +25,6 @@
 #include <string>
 #include <memory>
 #include <utility>
-#include <future>
-#include <thread>
-#include <queue>
-#include <condition_variable>
 #include "kernel_selector_helper.h"
 #include "cldnn_itt.h"
 #if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
@@ -36,6 +32,9 @@
 #include <tbb/blocked_range.h>
 #elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
 #include <thread>
+#include <future>
+#include <queue>
+#include <condition_variable>
 #endif
 
 #ifndef ENABLE_UNICODE_PATH_SUPPORT
@@ -215,13 +214,12 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 
 kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<BatchCode>* batches) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
-    sorted_code scode; //std::map<std::string, program_code>;
+    sorted_code scode;
     uint32_t program_id = 0;
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str;
         full_code += get_undef_jit({full_code});
         const source_code org_source_code = { full_code };
-        // source_code = std::vector<std::string>;
         std::string entry_point = code.kernel_strings->entry_point;
         std::string options = code.kernel_strings->options;
         bool batch_compilation = code.kernel_strings->batch_compilation;
@@ -424,7 +422,7 @@ void kernels_cache::build_batch(const program_code& program_source, size_t batch
                         _kernels[k_id->second] = ktype;
                     }
                 } else {
-                    printf("could not find entry point\n");
+                    throw std::runtime_error("Could not find entry point");
                 }
             }
         }
