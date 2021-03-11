@@ -1,13 +1,10 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "compilation_context.hpp"
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdlib.h>
-#include <limits.h>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -25,17 +22,10 @@
 #include "transformations/rt_info/dequantization_attribute.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "file_utils.h"
 
 #ifdef WIN32
 #define stat _stat
-#endif
-
-#ifdef WIN32
-#define MAX_ABS_PATH _MAX_PATH
-#define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
-#elif defined(__linux__) || defined(__APPLE__)
-#define MAX_ABS_PATH PATH_MAX
-#define get_absolute_path(result, path) realpath(path.c_str(), result)
 #endif
 
 namespace InferenceEngine {

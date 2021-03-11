@@ -12,6 +12,8 @@
 // clang-format off
 #include <string>
 #include <cstring>
+#include <stdlib.h>
+#include <limits.h>
 
 #include "ie_api.h"
 #include "details/ie_so_pointer.hpp"
@@ -79,6 +81,21 @@ template<> struct FileTraits<wchar_t> {
     static std::wstring PluginLibraryPrefix() { return { L"lib" }; }
     static std::wstring PluginLibraryExt() { return { L"so" }; }
 };
+#endif
+
+#ifdef _WIN32
+
+/// @brief Max length of absolute file path
+#define MAX_ABS_PATH _MAX_PATH
+/// @brief Get absolute file path, returns NULL in case of error
+#define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
+
+#else
+/// @brief Max length of absolute file path
+#define MAX_ABS_PATH PATH_MAX
+/// @brief Get absolute file path, returns NULL in case of error
+#define get_absolute_path(result, path) realpath(path.c_str(), result)
+
 #endif
 
 /**
