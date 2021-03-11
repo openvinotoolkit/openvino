@@ -248,9 +248,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
+    if (prev.is_type<permute>())
+        return true;
+
     return false;
 }
-
 
 namespace {
 bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
@@ -864,10 +866,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (input_layout.format.dimension() == 5 &&
             (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
             expected = format::bfzyx;
-    } else if (node.is_type<region_yolo>()) {
-        if (_optimization_attributes.b_fs_yx_fsv16_network) {
-            expected = format::bfyx;
-        }
     }
 
     return expected;

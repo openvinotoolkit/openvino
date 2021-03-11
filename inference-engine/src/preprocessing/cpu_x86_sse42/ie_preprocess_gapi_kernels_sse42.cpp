@@ -904,34 +904,33 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
 
 // Resize (bi-linear, 8UC3)
 void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],  // 4 clones of alpha
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
-    constexpr const int chanNum = 3;
-
+                      const uint8_t* src0[],
+                      const uint8_t* src1[],
+                      const short    alpha[],
+                      const short    clone[],  // 4 clones of alpha
+                      const short    mapsx[],
+                      const short    beta[],
+                          uint8_t    tmp[],
+                      const Size&    inSz,
+                      const Size&    outSz,
+                      const int      lpi) {
+    constexpr int chanNum = 3;
     calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 8UC4)
 void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],  // 4 clones of alpha
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
-    constexpr const int chanNum = 4;
+                      const uint8_t* src0[],
+                      const uint8_t* src1[],
+                      const short    alpha[],
+                      const short    clone[],  // 4 clones of alpha
+                      const short    mapsx[],
+                      const short    beta[],
+                          uint8_t    tmp[],
+                      const Size&   inSz,
+                      const Size&   outSz,
+                      const int     lpi) {
+    constexpr int chanNum = 4;
     calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 

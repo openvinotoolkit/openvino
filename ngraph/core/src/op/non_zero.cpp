@@ -158,7 +158,7 @@ namespace nonzero
 
         return rc;
     }
-
+#undef TYPE_OUT_CASE
     bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output)
     {
         bool rc = true;
