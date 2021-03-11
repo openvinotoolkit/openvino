@@ -218,6 +218,7 @@ limitations under the License.
                 <tab type="user" title="RNNSequence-5" url="@ref openvino_docs_ops_sequence_RNNSequence_5"/>
                 <tab type="user" title="ROIAlign-3" url="@ref openvino_docs_ops_detection_ROIAlign_3"/>
                 <tab type="user" title="ROIPooling-1" url="@ref openvino_docs_ops_detection_ROIPooling_1"/>
+                <tab type="user" title="Roll-7" url="@ref openvino_docs_ops_movement_Roll_7"/>
                 <tab type="user" title="Round-5" url="@ref openvino_docs_ops_arithmetic_Round_5"/>
                 <tab type="user" title="ScatterElementsUpdate-3" url="@ref openvino_docs_ops_movement_ScatterElementsUpdate_3"/>
                 <tab type="user" title="ScatterNDUpdate" url="@ref openvino_docs_ops_movement_ScatterNDUpdate_3"/>
@@ -286,6 +287,7 @@ limitations under the License.
                 <tab type="usergroup" title="Utilities to Validate Your Converted Model" url="@ref openvino_inference_engine_tools_cross_check_tool_README">
                     <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
                 </tab>
+                <tab type="user" title="Introduction to OpenVINO state API" url="@ref openvino_docs_IE_DG_network_state_intro"/>
                 <tab type="usergroup" title="Supported Devices" url="@ref openvino_docs_IE_DG_supported_plugins_Supported_Devices">
                     <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CL_DNN">
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>
