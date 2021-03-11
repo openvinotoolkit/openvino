@@ -202,6 +202,7 @@ onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 onnx_model_max_pool_dyn_rank_without_default_attrs
+onnx_model_lp_norm_default_dynamic
 
 # (Constant W, R inputs are required) Ticket: 49207
 # Function references undeclared parameters
@@ -1591,3 +1592,14 @@ IE_CPU.onnx_mvn_v6
 
 # The test randomly fails in CI (MSVC2019 Debug)
 onnx_model_experimental_detectron_generate_proposals_single_image
+
+# Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
+bin_convolution_2D_1batch_1channel
+bin_convolution_2D_1batch_1channel_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_padding_pad_val_1
+bin_convolution_2D_1batch_1channel_stride
+bin_convolution_2D_1batch_1channel_dilation
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_1
+bin_convolution_2D_1batch_2channel
+bin_convolution_2D_2batch_1channel
