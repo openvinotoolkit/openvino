@@ -751,12 +751,16 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
     return sinks
 
 
-def add_fake_outputs(graph: Graph, outputs: list, create_edge: callable, params: dict = {}):
+def add_fake_outputs(graph: Graph, outputs: list, add_edge: callable, params: dict = {}):
+    """
+    Adds identity nodes after each output of the graph. These nodes are used for
+    storing tensor names information.
+    """
     for output in outputs:
         fake_node_name = graph.unique_id(output)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                        infer=None, needs_removal=True)
-        create_edge(graph, output, fake_node_name, **params)
+        add_edge(graph, output, fake_node_name, **params)
 
 
 def set_is_input(graph: Graph, placeholders: list, is_input: bool):

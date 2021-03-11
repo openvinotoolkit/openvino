@@ -323,6 +323,9 @@ def caffe_pb_to_nx(graph, proto, model):
 
 
 def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: dict, dst_port: int):
+    """
+    Creates an edge and adds it to the graph.
+    """
     src_layer = blob_producers[bottom][0]
     src_port = blob_producers[bottom][1]
     edge_attrs = {

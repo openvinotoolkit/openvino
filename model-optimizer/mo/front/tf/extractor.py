@@ -38,6 +38,9 @@ def get_tf_edges(node: Node):
 
 
 def create_tf_edge(src_node_id: str, dst_node_id: str, in_port: int):
+    """
+    Creates an edge for given nodes and input port.
+    """
     src_node, src_port = get_tf_node_port(src_node_id)
     tensor_name = src_node + ":" + str(src_port)
     cf_flag = False
