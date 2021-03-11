@@ -4,7 +4,7 @@
 
 **Category**: Signal processing
 
-**Short description**: *IDFT* layer performs the inverse discrete Fourier transformation of input tensor by specified dimensions.
+**Short description**: *IDFT* operation performs the inverse discrete Fourier transformation of input tensor by specified dimensions.
 
 **Detailed description**: *IDFT* performs the inverse discrete Fourier transformation of input tensor with respect to specified axes.
 
