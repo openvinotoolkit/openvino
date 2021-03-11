@@ -14,8 +14,6 @@ from proc_utils import cmd_exec  # pylint: disable=import-error
 
 def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, artifacts):
     """ Test conditional compilation statistics collection
-
-    :param test_info: custom `test_info` field of built-in `request` pytest fixture
     """
     out = artifacts / test_id
     # cleanup old data if any
