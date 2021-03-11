@@ -46,12 +46,14 @@ macro(onnx_set_target_properties)
     elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
         target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
+
+        # it fixes random problems with double registration of descriptors to protobuf database
+        set_target_properties(onnx_proto PROPERTIES
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
     endif()
 
-    set_target_properties(onnx_proto PROPERTIES
-        CXX_VISIBILITY_PRESET default
-        C_VISIBILITY_PRESET default
-        VISIBILITY_INLINES_HIDDEN OFF)
     target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
 
     install(TARGETS onnx_proto
