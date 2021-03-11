@@ -77,6 +77,7 @@ namespace ngraph
 
                     return attrs;
                 }
+
             } // namespace
 
             namespace set_1
@@ -111,6 +112,7 @@ namespace ngraph
                     return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales_const, get_attributes(mode))};
                 }
+
             } // namespace set_1
 
             namespace set_7
@@ -125,26 +127,6 @@ namespace ngraph
                     const auto scales = node.get_attribute_value<std::vector<float>>("scales");
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
                     check_mode_support(node, mode, version_7);
-
-                    if (data_shape.is_static())
-                    {
-                        auto data_static_shape = data_shape.to_shape();
-
-                        std::vector<int64_t> output_shape;
-                        for (size_t i = 0; i < data_static_shape.size(); ++i)
-                        {
-                            output_shape.push_back(
-                                std::floor(data_static_shape.at(i) * scales.at(i)));
-                        }
-                        auto output_shape_const = default_opset::Constant::create(
-                            element::u64, Shape({output_shape.size()}), output_shape);
-
-                        const auto scales_const = default_opset::Constant::create(
-                            ngraph::element::f32, Shape({scales.size()}), scales);
-
-                        return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, scales_const, get_attributes(mode))};
-                    }
 
                     const auto scales_const = default_opset::Constant::create(
                         ngraph::element::f32, Shape({scales.size()}), scales);

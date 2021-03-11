@@ -3335,21 +3335,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_dynamic)
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_import_only)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Scales attribute values {1.0, 1.0, 2.0, 3.0}
-
-    const Shape expected_output_shape{1, 1, 4, 6};
-    EXPECT_EQ(function->get_output_size(), 1);
-    EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 2);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_nearest_infer)
 {
     const auto function = onnx_import::import_onnx_model(
