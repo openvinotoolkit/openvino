@@ -17,6 +17,70 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::Node> node,
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
 
+namespace Activation {
+InferenceEngine::Blob::Ptr generate(const InferenceEngine::InputInfo& info,
+                                    bool inPrcSigned,
+                                    int32_t data_start_from = -10,
+                                    uint32_t data_range = 20,
+                                    int32_t resolution = 32768) {
+    if (!inPrcSigned) {
+        data_range = 15;
+        data_start_from = 0;
+    }
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
+                                            data_start_from,
+                                            resolution);
+}
+} // namespace Activation
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Abs> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Acos> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed(), -1, 2);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Asin> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed(), -1, 2);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Atan> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed(), -1, 2);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Ceiling> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed(), -1000, 2000);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Clamp> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Cos> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Cosh> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
                                     const InferenceEngine::InputInfo& info,
                                     size_t port) {
@@ -44,6 +108,54 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Detect
     }
     CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, 0, resolution);
     return blob;
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Elu> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Erf> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Exp> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Floor> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Gelu> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    switch (port) {
+        case 1: {
+            std::vector<float> alpha(node->get_input_shape(1).size(), 0.2f);
+            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), alpha.data(), alpha.size());
+        }
+        case 2: {
+            std::vector<float> beta(node->get_input_shape(2).size(), 0.5f);
+            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), beta.data(), beta.size());
+        }
+        default: {
+            return Activation::generate(info, node->get_input_element_type(0).is_signed());
+        }
+    }
 }
 
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize> node,
@@ -103,6 +215,32 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::FakeQu
     }
 }
 
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Log> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed(), 1, 20);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Negative> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PRelu> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    switch (port) {
+        case 1: {
+            std::vector<float> negativeSlope(node->get_input_shape(1).size(), -0.01f);
+            FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), negativeSlope.data(), negativeSlope.size());
+        }
+        default: {
+            return Activation::generate(info, node->get_input_element_type(0).is_signed());
+        }
+    }
+}
+
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PSROIPooling> node,
                                     const InferenceEngine::InputInfo& info,
                                     size_t port) {
@@ -147,6 +285,65 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::ROIPoo
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
 
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Selu> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    switch (port) {
+        case 1: {
+            std::vector<float> alpha(node->get_input_shape(1).size(), 1.6732f);
+            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), alpha.data(), alpha.size());
+        }
+        case 2: {
+            std::vector<float> lambda(node->get_input_shape(1).size(), 1.0507f);
+            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), lambda.data(), lambda.size());
+        }
+        default:
+            return Activation::generate(info, node->get_input_element_type(0).is_signed());
+    }
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sigmoid> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sign> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sin> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sinh> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sqrt> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed(), 1, 20);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Tan> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Tanh> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::Divide> node,
                                     const InferenceEngine::InputInfo& info,
                                     size_t port) {
@@ -161,11 +358,112 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::FloorM
            FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
 }
 
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::GatherTree> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    auto& shape = node->get_input_shape(0);
+    auto maxBeamIndx = shape.at(2) - 1;
+
+    switch (port) {
+        case 2:
+        case 3:
+            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx, maxBeamIndx / 2);
+        default:
+            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx);
+    }
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalAnd> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalNot> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalOr> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalXor> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+}
+
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::Power> node,
                                     const InferenceEngine::InputInfo& info,
                                     size_t port) {
     return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
            FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
+}
+
+namespace ReduceOps {
+    InferenceEngine::Blob::Ptr generate(const ngraph::AxisSet& axis_vec,
+                                        const InferenceEngine::InputInfo& info) {
+        IE_ASSERT(axis_vec.size() == 1);
+
+        auto axis = *axis_vec.begin();
+        auto td = info.getTensorDesc();
+        auto dims = td.getDims();
+
+        // Slice of tensor through axis is {1, 0, 0, ....}, the mean value is 1/slice_size
+        auto raw_values = std::vector<float>(dims[axis], 0);
+        raw_values[0] = 1;
+
+        auto blob = make_blob_with_precision(td);
+        blob->allocate();
+        CommonTestUtils::fill_data_with_broadcast(blob, axis, raw_values);
+        return blob;
+    }
+} // namespace ReduceOps
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalAnd> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalOr> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceMax> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceMean> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceMin> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceProd> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceSum> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
 }
 
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v3::Bucketize> node,
@@ -212,15 +510,105 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v3::ROIAli
     }
 }
 
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::HSwish> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Mish> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Proposal> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    if (port == 0) {
+        return FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
+    }
+    return FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::ReduceL1> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::ReduceL2> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return ReduceOps::generate(node->get_reduction_axes(), info);
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::SoftPlus> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Swish> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
 InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::BatchNormInference node,
                                     const InferenceEngine::InputInfo& info,
                                     size_t port) {
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), 3, 0, 1);
 }
 
+InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::GRUSequence node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    if (port == 2) {
+        unsigned int m_max_seq_len = 10;
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), m_max_seq_len, 0);
+    }
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v5::HSigmoid> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed());
+}
+
+InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::Loop node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    auto tdesc = info.getTensorDesc();
+    auto blob = make_blob_with_precision(tdesc);
+    blob->allocate();
+
+    if (tdesc.getLayout() == InferenceEngine::SCALAR) {
+        auto scalar_1d = CommonTestUtils::make_reshape_view(blob, {1});
+        unsigned int max_iter_num = 10;
+        CommonTestUtils::fill_data_with_broadcast(scalar_1d, 0, {static_cast<float>(max_iter_num)});
+    } else {
+        int start_value = 7;
+        CommonTestUtils::fill_data_with_broadcast(blob, 0, {static_cast<float>(start_value)});
+    }
+    return blob;
+}
+
+InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::LSTMSequence node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    if (port == 2) {
+        unsigned int m_max_seq_len = 10;
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), m_max_seq_len, 0);
+    }
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+}
+
 InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::NonMaxSuppression node,
                                     const InferenceEngine::InputInfo& info,
                                     size_t port) {
+    std::cout << "lklkllll" << std::endl;
     if (port == 1) {
         InferenceEngine::Blob::Ptr blob;
         blob = make_blob_with_precision(info.getTensorDesc());
@@ -229,6 +617,22 @@ InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::NonMaxSuppression node
         return blob;
     }
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+}
+
+InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::RNNSequence node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    if (port == 2) {
+        unsigned int m_max_seq_len = 10;
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), m_max_seq_len, 0);
+    }
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+}
+
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v5::Round> node,
+                                    const InferenceEngine::InputInfo& info,
+                                    size_t port) {
+    return Activation::generate(info, node->get_input_element_type(0).is_signed(), -10, 20, 4);
 }
 
 template<typename T>

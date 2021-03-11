@@ -311,8 +311,19 @@ void LayerTestsCommon::Serialize() {
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
+void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+                               const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs,
+                               float threshold) {
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex];
+        const auto &actual = actualOutputs[outputIndex];
+        Compare(expected, actual, threshold);
+    }
+}
 
-void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected,
+                               const InferenceEngine::Blob::Ptr &actual,
+                               float threshold) {
     ASSERT_EQ(expected.size(), actual->byteSize());
     const auto &expectedBuffer = expected.data();
 
@@ -368,6 +379,10 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
     }
+}
+
+void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+    Compare(expected, actual, threshold);
 }
 
 void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual) {
@@ -524,11 +539,7 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
 
 void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
-    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-        const auto &expected = expectedOutputs[outputIndex];
-        const auto &actual = actualOutputs[outputIndex];
-        Compare(expected, actual);
-    }
+    Compare(expectedOutputs, actualOutputs, threshold);
 }
 
 void LayerTestsCommon::Validate() {

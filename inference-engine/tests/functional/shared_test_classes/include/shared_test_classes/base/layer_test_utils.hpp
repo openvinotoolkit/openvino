@@ -145,6 +145,14 @@ public:
 
     virtual void Serialize();
 
+    static void Compare(const std::vector<std::vector<std::uint8_t>> &expected,
+                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
+                        float threshold);
+
+    static void Compare(const std::vector<std::uint8_t> &expected,
+                        const InferenceEngine::Blob::Ptr &actual,
+                        float threshold);
+
     virtual void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
@@ -159,9 +167,6 @@ public:
     std::map<std::string, std::string>& GetConfiguration();
 
     std::string getRuntimePrecision(const std::string& layerName);
-
-protected:
-    LayerTestsCommon();
 
     template<class T>
     static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
@@ -181,6 +186,9 @@ protected:
                                         << " failed";
         }
     }
+
+protected:
+    LayerTestsCommon();
 
     RefMode GetRefMode() {
         return refMode;
@@ -216,7 +224,7 @@ protected:
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
 
-    std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
+    virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
 
