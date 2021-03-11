@@ -29,7 +29,7 @@ struct jit_eximpat_params {
 
 struct jit_eximpat_args {
     const void* src;
-    const void* dst;
+    void* dst; // const?
 };
 
 struct jit_uni_eximpat_kernel {
@@ -84,27 +84,96 @@ public:
         const int64_t RW = _rates[WIDTH];
         const int64_t PL = _pads[HIGHT];
         const int64_t PT = _pads[WIDTH];
-
         const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
         const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
-        auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
-            const int64_t iw_start = kw * RW - PL;
-            const int64_t iw_stop = iw_start + OW * SW;
-            const int64_t ih_start = kh * RH - PT;
-            const int64_t ih_stop = ih_start + OH * SH;
-            int64_t dst_idx = ob * ostrides[0]  + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
-            int64_t ishift = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2];
-            for (int64_t ih = ih_start; ih < ih_stop; ih += SH, ishift += SH * IW) {
-                for (int64_t iw = iw_start; iw < iw_stop; iw += SW, dst_idx++) {
-                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
-                        dst_data[dst_idx] = T(0);
-                    } else {
-                        dst_data[dst_idx] = src_data[ishift + iw];
+
+        //if (eximpat_kernel){
+        if (0){
+            auto src_ptr = reinterpret_cast<const char *>(src_data);
+            auto dst_ptr = reinterpret_cast<char *>(dst_data);
+
+            auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
+                const int64_t ih_start = kh * RH - PT;
+                int64_t dst_offset = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
+                int64_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2];
+
+                auto args = jit_eximpat_args();
+                args.src = src_ptr + src_offset;
+                args.dst = dst_ptr + dst_offset;
+                (*eximpat_kernel)(&args);
+            };
+            parallel_for4d(OB, KH, KW, IC, thread_body);
+        } else {
+            auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
+                const int64_t iw_start = kw * RW - PL;
+                //const int64_t iw_stop = iw_start + OW * SW;
+                const int64_t ih_start = kh * RH - PT;
+                //const int64_t ih_stop = ih_start + OH * SH;
+
+
+                const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
+                const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
+
+                const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
+                const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
+
+                int64_t dst_idx = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
+
+
+                /*
+                for (int64_t ih = 0; ih < ih_lpad; ih++)
+                    for (int64_t iw = 0; iw < OW; iw++)
+                            dst_data[dst_idx++] = T(0);
+                */
+                for (int64_t i = 0; i < ih_lpad * OW; i++)
+                        dst_data[dst_idx++] = T(0);
+
+                const int64_t ioffset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start;
+
+                for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {
+                    for (int64_t iw = 0; iw < iw_lpad; iw++)
+                        dst_data[dst_idx++] = T(0);
+                    /*
+                    for (int64_t iw = iw_lpad; iw < iw_hpad; iw++)
+                        dst_data[dst_idx++] = src_data[ishift + iw * SW + ih * SH * IW];
+                    */
+                    for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
+                        dst_data[dst_idx++] = src_data[src_idx];
+
+                    for (int64_t i = 0; i < (OW - iw_hpad); i++)
+                        dst_data[dst_idx++] = T(0);
+                }
+
+                for (int64_t i = 0; i < (OH - ih_hpad) * OW; i++)
+                        dst_data[dst_idx++] = T(0);
+                /*
+                for (int64_t ih = ih_hpad; ih < OH; ih++)
+                    for (int64_t iw = 0; iw < OW; iw++)
+                        dst_data[dst_idx++] = T(0);
+                */
+
+            };
+            /*
+            auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
+                const int64_t iw_start = kw * RW - PL;
+                const int64_t iw_stop = iw_start + OW * SW;
+                const int64_t ih_start = kh * RH - PT;
+                const int64_t ih_stop = ih_start + OH * SH;
+                int64_t dst_idx = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
+                int64_t ishift = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2];
+                for (int64_t ih = ih_start; ih < ih_stop; ih += SH, ishift += SH * IW) {
+                    for (int64_t iw = iw_start; iw < iw_stop; iw += SW, dst_idx++) {
+                        if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
+                            dst_data[dst_idx] = T(0);
+                        } else {
+                            dst_data[dst_idx] = src_data[ishift + iw];
+                        }
                     }
                 }
-            }
-        };
-        parallel_for4d(OB, KH, KW, IC, thread_body);
+            };
+             */
+            parallel_for4d(OB, KH, KW, IC, thread_body);
+        }
     }
 
 private:
