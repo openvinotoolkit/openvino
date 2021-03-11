@@ -12,7 +12,7 @@ import sys
 from proc_utils import cmd_exec  # pylint: disable=import-error
 
 
-def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, artifacts, test_info):
+def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, artifacts):
     """ Test conditional compilation statistics collection
 
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
@@ -42,5 +42,3 @@ def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, a
 
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
     assert (len(out_csv) == 1), f'Multiple or none "{out}.pid*.csv" files'
-    
-    test_info["csv_path"] = out_csv[0]

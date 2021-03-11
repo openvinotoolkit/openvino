@@ -13,13 +13,12 @@ python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
 """
 
 import sys
-import os
-import re
 from inspect import getsourcefile
 from pathlib import Path
 
 import pytest
 import yaml
+import json
 
 # add ../lib to imports
 sys.path.insert(
@@ -84,34 +83,9 @@ def pytest_generate_tests(metafunc):
         ids = ids + [model_path]
 
     metafunc.parametrize("test_id, model", params, ids=ids)
-    setattr(metafunc.config, "orig_cases", test_cases)
 
-
-@pytest.fixture(scope="function")
-def test_info(request, pytestconfig):
-    current_test_case = re.findall(r"\[.*?\]", os.environ.get('PYTEST_CURRENT_TEST'))[0].strip("[]")
-    setattr(request.node._request, "test_info", {"orig_instance": current_test_case,
-                                                 "csv_path": {}
-                                                 })
-    if not hasattr(pytestconfig, "session_info"):
-        setattr(pytestconfig, "session_info", [])
-
-    yield request.node._request.test_info
-
-    pytestconfig.session_info.append(request.node._request.test_info)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def update_test_conf_info(request, pytestconfig):
-    yield
-    upd_cases = pytestconfig.orig_cases.copy()
-    for record in pytestconfig.session_info:
-        rec_i = next((index for (index, d) in enumerate(upd_cases)
-                      if d["model"]["path"] == record["orig_instance"]), None)
-        upd_cases[rec_i]["model"]["csv_path"] = record["csv_path"]
-
-    with open(request.config.getoption("test_conf"), "w") as config:
-        yaml.safe_dump(upd_cases, config)
+    with open(Path(__file__).parent / "cc_tests.json", "w") as file:
+        json.dump(ids, file, ensure_ascii=False, indent=4)
 
 
 @pytest.fixture(scope="session")
