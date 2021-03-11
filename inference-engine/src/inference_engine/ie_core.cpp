@@ -287,7 +287,27 @@ public:
     QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
+        auto res = GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
+        if (!network.getFunction() || res.supportedLayersMap.empty())
+            return res;
+
+        const auto& func = network.getFunction();
+        auto specialized_function = ngraph::clone_function(*func);
+
+        std::string defDevice = res.supportedLayersMap.begin()->second;
+        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
+        std::unordered_set<std::string> opNames;
+
+        for (const auto& op : specialized_function->get_ops())
+            opNames.emplace(op->get_friendly_name());
+
+        for (const auto& op : func->get_ops()) {
+            if (opNames.find(op->get_friendly_name()) == opNames.end() ||
+                (!res.supportedLayersMap.count(op->get_friendly_name()) &&
+                 std::dynamic_pointer_cast<ngraph::op::Constant>(op)))
+                res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+        }
+        return res;
     }
 
     Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
