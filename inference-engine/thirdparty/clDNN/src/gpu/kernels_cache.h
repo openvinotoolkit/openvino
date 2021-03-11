@@ -109,22 +109,16 @@ private:
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
-
-    struct program_code {
-        int32_t program_id = -1;
-        std::vector<source_code> source;
-        std::vector<size_t> hash_values;
+    struct batch_program {
+        int32_t bucket_id = 0;
+        int32_t batch_id = 0;
+        source_code source;
+        size_t hash_value;
         uint32_t kernels_counter = 0;
         std::string options;
         bool dump_custom_program = false;
         bool one_time = false;
         std::map<std::string, std::string> entry_point_to_id;
-    };
-
-    struct BatchCode {
-        const program_code* program;
-        const source_code* batch_code;
-        uint32_t batch_id;
     };
 
     struct kernel_code {
@@ -155,7 +149,6 @@ public:
 
     typedef std::string kernel_id;
     typedef cl::KernelIntel kernel_type;
-    using sorted_code = std::map<std::string, program_code>;
     using kernels_map = std::map<std::string, kernel_type>;
     using kernels_code = std::unordered_set<kernel_code, hash_kernel_code>;
 
@@ -163,8 +156,8 @@ private:
     gpu_toolkit& _context;
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
-    std::map<std::string, kernel_type> _kernels;
-    std::map<std::string, kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
+    std::map<const std::string, const kernel_type> _kernels;
+    std::map<const std::string, const kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
                                                            // be removed later from the cache).
     uint32_t _prog_id;
 #if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
@@ -174,8 +167,8 @@ private:
 #endif
 
 
-    sorted_code get_program_source(const kernels_code& kernels_source_code, std::vector<BatchCode>* batches) const;
-    void build_batch(const program_code& pcode, size_t batch_id);
+    void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
+    void build_batch(const batch_program& batch);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;

@@ -72,11 +72,11 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # ======================================================================================================
 if("${THREADING}" MATCHES "SEQ")
     add_definitions(-DCLDNN_OCL_BUILD_THREADING=CLDNN_OCL_BUILD_THREADING_SEQ)
+elseif("${CLDNN_THREADING}" MATCHES "TBB")
+    add_definitions(-DCLDNN_OCL_BUILD_THREADING=CLDNN_OCL_BUILD_THREADING_TBB)
 else()
     add_definitions(-DCLDNN_OCL_BUILD_THREADING=CLDNN_OCL_BUILD_THREADING_THREADPOOL)
 endif()
-#elseif("${CLDNN_THREADING}" MATCHES "TBB")
-#    add_definitions(-DCLDNN_OCL_BUILD_THREADING=CLDNN_OCL_BUILD_THREADING_TBB)
 
 # Path which points to main directory of project.
 set(CLDNN__MAIN_DIR      "${CMAKE_CURRENT_SOURCE_DIR}")

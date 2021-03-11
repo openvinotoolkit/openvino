@@ -212,10 +212,10 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 }
 
 
-kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<BatchCode>* batches) const {
+void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
-    sorted_code scode;
-    uint32_t program_id = 0;
+    std::map<std::string, std::vector<batch_program>> program_buckets;
+
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str;
         full_code += get_undef_jit({full_code});
@@ -235,7 +235,7 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
         std::string key = options;
 
         if (batch_compilation == false) {
-            key += " __PROGRAM__" + std::to_string(scode.size());
+            key += " __PROGRAM__" + std::to_string(program_buckets.size());
         }
 
         if (dump_custom_program) {
@@ -245,52 +245,48 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
         if (one_time_kernel) {
             key += " __ONE_TIME__";
         }
-
-        auto& current_bucket = scode[key];
-        if (current_bucket.program_id == -1) {
-            current_bucket.program_id = program_id++;
-        }
-
-        current_bucket.dump_custom_program = dump_custom_program;
-        current_bucket.one_time = one_time_kernel;
-
-        if (current_bucket.source.empty()) {
-            current_bucket.options = options;
+        auto& current_bucket = program_buckets[key];
+        if (current_bucket.empty()) {
+            const auto& bucket_id = program_buckets.size() - 1;
+            current_bucket.push_back(batch_program());
+            current_bucket.back().bucket_id = static_cast<int32_t>(bucket_id);
         }
 
         // Create new kernels bucket when the limit is reached
-        if ((current_bucket.kernels_counter % get_max_kernels_per_batch()) == 0) {
-            current_bucket.source.push_back({});
+        if ((current_bucket.back().kernels_counter != 0) && ((current_bucket.back().kernels_counter % get_max_kernels_per_batch()) == 0)) {
+            const auto& batch_id = current_bucket.size();
+            current_bucket.push_back(batch_program());
+            current_bucket.back().bucket_id = static_cast<int32_t>(program_buckets.size());
+            current_bucket.back().batch_id = static_cast<int32_t>(batch_id);
         }
 
-        current_bucket.entry_point_to_id[entry_point] = code.id;
+        auto& current_batch = current_bucket.back();
+        current_batch.dump_custom_program = dump_custom_program;
+        current_batch.one_time = one_time_kernel;
+        current_batch.entry_point_to_id[entry_point] = code.id;
+
         assert(org_source_code.size() == 1);
 
-        current_bucket.source.back().push_back(std::move(org_source_code.front()));
-
-
-        current_bucket.kernels_counter++;
+        current_batch.source.push_back(std::move(org_source_code.front()));
+        current_batch.kernels_counter++;
     }
 
-    // Compute hash value for each bucket
+    // Compute hash value for each batch
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
     // of the precompiled binaries or get_undef_jit calls
     // Hash is computed for string that contains compilation options + driver version +
-    // full source code (jit + template + undef sections) of all kernels in the bucket
-    for (auto& c : scode) {
-        program_code& code = c.second;
+    // full source code (jit + template + undef sections) of all kernels in the batches
+    for (auto& c : program_buckets) {
         auto options = c.first;
-        for (size_t i = 0; i < code.source.size(); i++) {
+        auto& batches = c.second;
+        for (auto& b : batches) {
             std::string full_code = options + " " + _context.get_device_info().driver_version;
-            for (auto& ss : code.source[i])
+            for (auto& ss : b.source)
                 full_code += ss;
-            code.hash_values.push_back(std::hash<std::string>()(full_code));
-            BatchCode batch_code = {&code, &(code.source[i]), static_cast<uint32_t>(i)};
-            batches->push_back(batch_code);
+            b.hash_value = std::hash<std::string>()(full_code);
+            all_batches->push_back(b);
         }
     }
-
-    return scode;
 }
 
 kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {
@@ -337,13 +333,12 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     return program.getInfo<CL_PROGRAM_BINARIES>().front();
 }
 
-void kernels_cache::build_batch(const program_code& program_source, size_t batch_id) {
+void kernels_cache::build_batch(const batch_program& batch) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram");
 
-    bool dump_sources = !_context.get_configuration().ocl_sources_dumps_dir.empty() || program_source.dump_custom_program;
+    bool dump_sources = !_context.get_configuration().ocl_sources_dumps_dir.empty() || batch.dump_custom_program;
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
-    auto sources_bucket_to_compile = program_source.source[batch_id];
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
@@ -351,20 +346,19 @@ void kernels_cache::build_batch(const program_code& program_source, size_t batch
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
-        current_dump_file_name += "clDNN_program_" + std::to_string(program_source.program_id) + "_part_" + std::to_string(batch_id) + ".cl";
+        current_dump_file_name += "clDNN_program_" + std::to_string(batch.bucket_id) + "_part_" + std::to_string(batch.batch_id) + ".cl";
     }
 
     std::ofstream dump_file;
     if (dump_sources) {
         dump_file.open(current_dump_file_name);
         if (dump_file.good()) {
-            for (auto& s : sources_bucket_to_compile)
+            for (auto& s : batch.source)
                 dump_file << s;
         }
     }
 
-    const auto& hash_value = program_source.hash_values[batch_id];
-    std::string cached_bin_name = get_cache_path() + std::to_string(hash_value) + ".cl_cache";
+    std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
     cl::Program::Binaries precompiled_kernels = {};
 
     if (is_cache_enabled()) {
@@ -380,10 +374,10 @@ void kernels_cache::build_batch(const program_code& program_source, size_t batch
 
         // Run compilation
         if (precompiled_kernels.empty()) {
-            cl::Program program(_context.context(), sources_bucket_to_compile);
+            cl::Program program(_context.context(), batch.source);
             {
                 OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
-                program.build(_context.device(), program_source.options.c_str());
+                program.build(_context.device(), batch.options.c_str());
             }
 
             if (dump_sources && dump_file.good()) {
@@ -405,21 +399,21 @@ void kernels_cache::build_batch(const program_code& program_source, size_t batch
             }
         } else {
             cl::Program program(_context.context(), {_context.device()}, precompiled_kernels);
-            program.build(_context.device(), program_source.options.c_str());
+            program.build(_context.device(), batch.options.c_str());
             program.createKernels(&kernels);
         }
         {
             std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
             for (auto& k : kernels) {
-                auto kernel_name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                const auto& entry_point = kernel_name;
-                const auto& k_id = program_source.entry_point_to_id.find(entry_point);
-                const auto& ktype = kernels_cache::kernel_type(k, _context.get_device_info().supports_usm);
-                if (k_id != program_source.entry_point_to_id.end()) {
-                    if (program_source.one_time) {
-                        _one_time_kernels.insert({k_id->second, ktype});
+                const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                const auto& k_id = batch.entry_point_to_id.find(entry_point);
+                const auto& k_type = kernel_type(k, _context.get_device_info().supports_usm);
+                if (k_id != batch.entry_point_to_id.end()) {
+                    const auto& kmap = std::make_pair(k_id->second, k_type);
+                    if (batch.one_time) {
+                        _one_time_kernels.insert(kmap);
                     } else {
-                        _kernels[k_id->second] = ktype;
+                        _kernels.insert(kmap);
                     }
                 } else {
                     throw std::runtime_error("Could not find entry point");
@@ -427,7 +421,6 @@ void kernels_cache::build_batch(const program_code& program_source, size_t batch
             }
         }
     } catch (const cl::BuildError& err) {
-        printf("build error happend!!!\n");
         if (dump_sources && dump_file.good())
             dump_file << "\n/* Build Log:\n";
 
@@ -440,7 +433,6 @@ void kernels_cache::build_batch(const program_code& program_source, size_t batch
             dump_file << "*/\n";
     }
     if (!err_log.empty()) {
-        printf("program build failed!\n");
         static const size_t max_msg_length = 128;
         std::string short_err_log(err_log, 0, std::min(err_log.length(), max_msg_length));
         throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
@@ -462,51 +454,41 @@ void kernels_cache::build_all() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
     if (!_pending_compilation)
         return;
-    std::vector<BatchCode> batches;
-    kernels_cache::sorted_code sorted_program_code;
+    std::vector<batch_program> batches;
     {
         std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
-        sorted_program_code = get_program_source(_kernels_code, &batches);
+        get_program_source(_kernels_code, &batches);
         _one_time_kernels.clear();
     }
-
-    auto start = std::chrono::high_resolution_clock::now();
 
 #if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
     arena->execute([this, &batches] {
         tbb::parallel_for(tbb::blocked_range<size_t>(0, batches.size()), [this, &batches](const tbb::blocked_range<size_t>& r) {
             for (auto i = r.begin(); i != r.end(); ++i) {
-                build_batch(*batches[i].program, batches[i].batch_id); // TODO: program id is already given
+                build_batch(batches[i]);
             }
         });
     });
 #elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
     std::vector<std::future<void>> builds;
-    for (const auto& program : sorted_program_code) {
-        for (size_t batch_id = 0; batch_id < program.second.source.size(); ++batch_id) {
-            builds.push_back(pool->Enqueue([this, program, batch_id] () {
-                build_batch(program.second, batch_id);
-            }));
-        }
+    for (const auto& batch : batches) {
+        builds.push_back(pool->Enqueue([this, &batch] () {
+            build_batch(batch);
+        }));
     }
     std::for_each(builds.begin(), builds.end(), [&] (std::future<void>& f) { f.wait(); });
 #else
     // no parallel build
-    for (const auto& program : sorted_program_code) {
-        for (size_t batch_id = 0; batch_id < program.second.source.size(); ++batch_id) {
-            build_batch(program.second, batch_id);
-        }
+    for (const auto& batch : batches) {
+        build_batch(batch);
     }
 #endif
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto total = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     {
         std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
         _kernels_code.clear();
         _pending_compilation = false;
     }
-    std::cout << "[ INFO ] Build all kernels took "  << total.count() << " ms" << std::endl;
 }
 
 void kernels_cache::reset() {
@@ -515,6 +497,5 @@ void kernels_cache::reset() {
     _kernels_code.clear();
     _pending_compilation = false;
 }
-
 }  // namespace gpu
 }  // namespace cldnn
