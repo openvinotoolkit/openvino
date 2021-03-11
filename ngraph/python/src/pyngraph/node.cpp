@@ -117,7 +117,8 @@ void regclass_pyngraph_Node(py::module m)
         [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
             py::dict attr_dict;
             attr_dict[atr_name.c_str()] = value;
-            util::DictAttributeDeserializer dict_deserializer(attr_dict);
+            std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
+            util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
             self->visit_attributes(dict_deserializer);
         });
 }
