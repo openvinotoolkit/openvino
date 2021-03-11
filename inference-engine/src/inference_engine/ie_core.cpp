@@ -14,6 +14,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/graph_util.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 
 #include <cpp_interfaces/exception2status.hpp>
 #include "compilation_context.hpp"
