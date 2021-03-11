@@ -21,8 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/shape_util.hpp"
@@ -123,8 +121,8 @@ namespace ngraph
                 const T* arg1_update = arg1;
 
                 // vars for updated inputs shapes
-                Shape wip_arg0_shape = arg0_shape;
-                Shape wip_arg1_shape = arg1_shape;
+                Shape arg0_shape_tmp = arg0_shape;
+                Shape arg1_shape_tmp = arg1_shape;
 
                 auto get_transpose_order = [](const Shape& input_shape) {
                     size_t rank = input_shape.size();
@@ -132,34 +130,19 @@ namespace ngraph
                     vector<size_t> axes_order(rank);
                     iota(axes_order.begin(), axes_order.end(), 0);
                     swap(axes_order[rank - 1], axes_order[rank - 2]);
-                    return AxisVector{begin(axes_order), end(axes_order)};
+                    return axes_order;
                 };
-
-                auto get_broadcast_axes = [](const Shape& marker_shape, const Shape& target_shape) {
-                    NGRAPH_CHECK(marker_shape.size() == target_shape.size(),
-                                 "Incompatible input shapes");
-                    AxisSet broadcast_axes;
-                    for (size_t i = 0; i < marker_shape.size(); i++)
-                    {
-                        if (marker_shape[i] == 1 && target_shape[i] != 1)
-                        {
-                            broadcast_axes.insert(i);
-                        }
-                    }
-                    return broadcast_axes;
-                };
-
                 // Perform transpose if requested
                 if (transpose_arg0 && arg0_rank > 1)
                 {
                     arg0_transpose_vec.reserve(shape_size(arg0_shape));
                     auto axis_vector = get_transpose_order(arg0_shape);
-                    swap(wip_arg0_shape[arg0_rank - 1], wip_arg0_shape[arg0_rank - 2]);
+                    swap(arg0_shape_tmp[arg0_rank - 1], arg0_shape_tmp[arg0_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg0),
                                         reinterpret_cast<char*>(arg0_transpose_vec.data()),
                                         arg0_shape,
                                         axis_vector,
-                                        wip_arg0_shape,
+                                        arg0_shape_tmp,
                                         sizeof(T));
 
                     arg0_update = arg0_transpose_vec.data();
@@ -169,12 +152,12 @@ namespace ngraph
                 {
                     arg1_transpose_vec.reserve(shape_size(arg1_shape));
                     auto axis_vector = get_transpose_order(arg1_shape);
-                    swap(wip_arg1_shape[arg1_rank - 1], wip_arg1_shape[arg1_rank - 2]);
+                    swap(arg1_shape_tmp[arg1_rank - 1], arg1_shape_tmp[arg1_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg1),
                                         reinterpret_cast<char*>(arg1_transpose_vec.data()),
                                         arg1_shape,
                                         axis_vector,
-                                        wip_arg1_shape,
+                                        arg1_shape_tmp,
                                         sizeof(T));
 
                     arg1_update = arg1_transpose_vec.data();
@@ -184,7 +167,7 @@ namespace ngraph
                 if (arg0_rank <= 2 && arg1_rank <= 2)
                 {
                     details::dot(
-                        arg0_update, arg1_update, out, wip_arg0_shape, wip_arg1_shape, out_shape);
+                        arg0_update, arg1_update, out, arg0_shape_tmp, arg1_shape_tmp, out_shape);
                     return;
                 }
 
@@ -195,82 +178,69 @@ namespace ngraph
 
                 if (arg0_rank > 2 && arg1_rank > 2)
                 {
-                    const auto& broadcast_shapes = builder::get_numpy_broadcast_shapes(
-                        {Shape{begin(wip_arg0_shape), next(end(wip_arg0_shape), -2)},
-                         Shape{begin(wip_arg1_shape), next(end(wip_arg1_shape), -2)}});
-
-                    Shape arg0_br_target_shape = broadcast_shapes.first;
-                    Shape arg1_br_target_shape = broadcast_shapes.first;
-                    Shape arg0_br_marker_shape = broadcast_shapes.second.at(0);
-                    Shape arg1_br_marker_shape = broadcast_shapes.second.at(1);
+                    // Align input batches to the output shape
+                    Shape arg0_br_target_shape(out_shape.begin(), out_shape.end()-2);
+                    Shape arg1_br_target_shape(out_shape.begin(), out_shape.end()-2);
 
                     arg0_br_target_shape.insert(
                         end(arg0_br_target_shape),
-                        next(begin(wip_arg0_shape), wip_arg0_shape.size() - 2),
-                        end(wip_arg0_shape));
+                        end(arg0_shape_tmp) - 2,
+                        end(arg0_shape_tmp));
                     arg1_br_target_shape.insert(
                         end(arg1_br_target_shape),
-                        next(begin(wip_arg1_shape), wip_arg1_shape.size() - 2),
-                        end(wip_arg1_shape));
+                        end(arg1_shape_tmp) - 2,
+                        end(arg1_shape_tmp));
 
-                    arg0_br_marker_shape.insert(
-                        end(arg0_br_marker_shape),
-                        next(begin(wip_arg0_shape), wip_arg0_shape.size() - 2),
-                        end(wip_arg0_shape));
-                    arg1_br_marker_shape.insert(
-                        end(arg1_br_marker_shape),
-                        next(begin(wip_arg1_shape), wip_arg1_shape.size() - 2),
-                        end(wip_arg1_shape));
-
-                    if (arg0_br_target_shape != wip_arg0_shape)
+                    std::vector<size_t> broadcast_axes(out_shape.size()-2);
+                    std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
+                    if (!broadcast_axes.empty())
                     {
-                        auto broadcast_axes =
-                            get_broadcast_axes(arg0_br_marker_shape, arg0_br_target_shape);
-                        if (!broadcast_axes.empty())
+                        // Usual rules of the broadcasting are applied for batch dimensions.
+                        // If ranks of input arguments are different,
+                        // the smaller tensor is unsqueezed from the left side of the shape
+                        // by necessary number of axes to make both shapes of the same rank.
+                        // Broadcast all batches (last two dimensions represent matrix),
+                        // expand dim with value 1 to bigger dim if dimensions are not equal.
+                        if (arg0_br_target_shape != arg0_shape_tmp)
                         {
                             arg0_broadcast_vec.reserve(shape_size(arg0_br_target_shape));
                             broadcast(reinterpret_cast<const char*>(arg0_update),
-                                      reinterpret_cast<char*>(arg0_broadcast_vec.data()),
-                                      wip_arg0_shape,
-                                      arg0_br_target_shape,
-                                      broadcast_axes,
-                                      sizeof(T));
+                                        reinterpret_cast<char*>(arg0_broadcast_vec.data()),
+                                        arg0_shape_tmp,
+                                        arg0_br_target_shape,
+                                        broadcast_axes,
+                                        sizeof(T));
 
                             arg0_update = arg0_broadcast_vec.data();
-                            wip_arg0_shape = arg0_br_target_shape;
-                            arg0_rank = wip_arg0_shape.size();
+                            arg0_shape_tmp = arg0_br_target_shape;
+                            arg0_rank = arg0_shape_tmp.size();
                         }
-                    }
 
-                    if (arg1_br_target_shape != wip_arg1_shape)
-                    {
-                        auto broadcast_axes =
-                            get_broadcast_axes(arg1_br_marker_shape, arg1_br_target_shape);
-                        if (!broadcast_axes.empty())
+                        if (arg1_br_target_shape != arg1_shape_tmp)
                         {
                             arg1_broadcast_vec.reserve(shape_size(arg1_br_target_shape));
                             broadcast(reinterpret_cast<const char*>(arg1_update),
-                                      reinterpret_cast<char*>(arg1_broadcast_vec.data()),
-                                      wip_arg1_shape,
-                                      arg1_br_target_shape,
-                                      broadcast_axes,
-                                      sizeof(T));
+                                        reinterpret_cast<char*>(arg1_broadcast_vec.data()),
+                                        arg1_shape_tmp,
+                                        arg1_br_target_shape,
+                                        broadcast_axes,
+                                        sizeof(T));
 
                             arg1_update = arg1_broadcast_vec.data();
-                            wip_arg1_shape = arg1_br_target_shape;
-                            arg1_rank = wip_arg1_shape.size();
+                            arg1_shape_tmp = arg1_br_target_shape;
+                            arg1_rank = arg1_shape_tmp.size();
                         }
                     }
                 }
 
                 // Perform batched dot
                 size_t output_batch_size = 1;
-                Shape dot_arg0_shape = (arg0_rank > 2) ? Shape{wip_arg0_shape[arg0_rank - 2],
-                                                               wip_arg0_shape[arg0_rank - 1]}
-                                                       : wip_arg0_shape;
-                Shape dot_arg1_shape = (arg1_rank > 2) ? Shape{wip_arg1_shape[arg1_rank - 2],
-                                                               wip_arg1_shape[arg1_rank - 1]}
-                                                       : wip_arg1_shape;
+                Shape dot_arg0_shape = (arg0_rank > 2) ? Shape{arg0_shape_tmp[arg0_rank - 2],
+                                                               arg0_shape_tmp[arg0_rank - 1]}
+                                                       : arg0_shape_tmp;
+                Shape dot_arg1_shape = (arg1_rank > 2) ? Shape{arg1_shape_tmp[arg1_rank - 2],
+                                                               arg1_shape_tmp[arg1_rank - 1]}
+                                                       : arg1_shape_tmp;
                 Shape dot_output_shape =
                     (out_rank > 2 && arg0_rank > 1 && arg1_rank > 1)
                         ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
