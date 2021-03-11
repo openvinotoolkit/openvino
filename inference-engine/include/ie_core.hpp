@@ -85,6 +85,9 @@ public:
      * `InferenceEngine::Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const`
      * function overload which takes a filesystem path to the model.
      * For ONNX case the second parameter should contain empty blob.
+     * @note Created InferenceEngine::CNNNetwork object shares the weights with `weights` object.
+     * So, do not create `weights` on temporary data which can be later freed, since the network
+     * constant datas become to point to invalid memory.
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;
