@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
 
-**Category**: Sort
+**Category**: Object detection, Sort
 
 **Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to probabilities of input ROIs
 

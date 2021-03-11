@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage*
 
-**Category**: Generation
+**Category**: Object detection
 
 **Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* ... TBD
 

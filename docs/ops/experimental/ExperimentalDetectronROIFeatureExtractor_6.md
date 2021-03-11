@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronROIFeatureExtractor-6*
 
-**Category**: Pool
+**Category**: Object detection, Pool
 
 **Short description**: *ExperimentalDetectronROIFeatureExtractor* is the ROIAlign operation applied over a feature pyramid.
 
