@@ -1265,12 +1265,6 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                                 << input.second->getTensorDesc().getLayout();
         }
 
-        auto dims = input.second->getTensorDesc().getDims();
-        if (inputLayout == Layout::CHW && (dims[0] != 1 || dims[1] != 1)) {
-            THROW_GNA_EXCEPTION << "For Layout::CHW only dimension with height = 1 and channel = 1 is supported, but was: "
-                                << dims;
-        }
-
         if (inputLayout == Layout::NCHW || inputLayout == Layout::CHW) {
             // specific case that can be squeezed to 2d
             inputLayout = Layout::NC;
@@ -1302,6 +1296,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             }
         }
 
+        auto dims = input.second->getTensorDesc().getDims();
         auto  importedElements = is1D ? dims[0] : details::product(++std::begin(dims), std::end(dims));
         auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
