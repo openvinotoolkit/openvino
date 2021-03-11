@@ -169,7 +169,7 @@ For more information about the Model Optimizer, see the [Model Optimizer Develop
 
 You can configure the Model Optimizer either for all supported frameworks at once or for one framework at a time. Choose the option that best suits your needs. If you see error messages, make sure you installed all dependencies.
 
-> **IMPORTANT**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your environment.
+> **IMPORTANT**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server, please make sure that it is configured in your environment.
 
 > **NOTE**:
 > In the steps below:

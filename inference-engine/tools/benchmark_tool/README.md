@@ -151,7 +151,7 @@ To run the tool, you can use [public](@ref omz_models_public_index) or [Intel's]
 
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
 
-> **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+> **NOTE:** Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server, please make sure that it is configured in your OS environment.
 
 1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh

@@ -212,7 +212,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 
 > **NOTE**: Since the TensorFlow framework is not officially supported on CentOS*, the Model Optimizer for TensorFlow can't be configured and ran on those systems.  
 
-> **IMPORTANT**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+> **IMPORTANT**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server, please make sure that it is configured in your OS environment.
 
 **Option 1: Configure all supported frameworks at the same time**
 
