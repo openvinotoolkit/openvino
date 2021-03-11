@@ -217,10 +217,10 @@ def remove_rpath(file_path):
         :type file_path: pathlib.Path
     """
     if sys.platform == "darwin":
-        cmd = [f'otool -l {file_path}',
-               f'| grep LC_RPATH -A 3 | grep -o "path.*" | cut -d \" \" -f2',
-               f'| xargs -I{{}} install_name_tool -delete_rpath {{}} {file_path}']
-        ret_info = subprocess.run(cmd, check=True)
+        cmd = f'otool -l {file_path} ' \
+              f'| grep LC_RPATH -A 3 | grep -o "path.*" | cut -d \" \" -f2 ' \
+              f'| xargs -I{{}} install_name_tool -delete_rpath {{}} {file_path}'
+        ret_info = subprocess.run(cmd, shell=True, check=True)
         if ret_info.returncode != 0:
             sys.exit(f"Could not remove rpath for {file_path}")
     else:
