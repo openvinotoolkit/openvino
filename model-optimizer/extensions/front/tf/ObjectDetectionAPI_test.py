@@ -16,6 +16,8 @@
 
 import unittest
 
+from generator import generator, generate
+
 from extensions.front.tf.ObjectDetectionAPI import calculate_shape_keeping_aspect_ratio, \
     calculate_placeholder_spatial_shape
 from mo.front.subgraph_matcher import SubgraphMatch
@@ -34,58 +36,33 @@ class FakePipelineConfig:
         return self._model_params[param]
 
 
+@generator
 class TestCalculateShape(unittest.TestCase):
     min_size = 600
     max_size = 1024
 
-    def test_calculate_shape_1(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(100, 300, self.min_size, self.max_size), (341, 1024))
-
-    def test_calculate_shape_2(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(100, 600, self.min_size, self.max_size), (171, 1024))
-
-    def test_calculate_shape_3(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(100, 3000, self.min_size, self.max_size), (34, 1024))
-
-    def test_calculate_shape_4(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(300, 300, self.min_size, self.max_size), (600, 600))
-
-    def test_calculate_shape_5(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(300, 400, self.min_size, self.max_size), (600, 800))
-
-    def test_calculate_shape_6(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(300, 600, self.min_size, self.max_size), (512, 1024))
-
-    def test_calculate_shape_7(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(1000, 2500, self.min_size, self.max_size),
-                              (410, 1024))
-
-    def test_calculate_shape_8(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(1800, 2000, self.min_size, self.max_size),
-                              (600, 667))
-
-    def test_calculate_shape_11(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(300, 100, self.min_size, self.max_size), (1024, 341))
-
-    def test_calculate_shape_12(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(600, 100, self.min_size, self.max_size), (1024, 171))
-
-    def test_calculate_shape_13(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(3000, 100, self.min_size, self.max_size), (1024, 34))
-
-    def test_calculate_shape_15(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(400, 300, self.min_size, self.max_size), (800, 600))
-
-    def test_calculate_shape_16(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(600, 300, self.min_size, self.max_size), (1024, 512))
-
-    def test_calculate_shape_17(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(2500, 1000, self.min_size, self.max_size),
-                              (1024, 410))
-
-    def test_calculate_shape_18(self):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(2000, 1800, self.min_size, self.max_size),
-                              (667, 600))
+    @generate(*[(100, 300, 341, 1024, False),
+                (100, 600, 171, 1024, False),
+                (100, 3000, 34, 1024, False),
+                (300, 300, 600, 600, False),
+                (300, 400, 600, 800, False),
+                (300, 600, 512, 1024, False),
+                (1000, 2500, 410, 1024, False),
+                (1800, 2000, 600, 667, False),
+                (300, 100, 1024, 341, False),
+                (600, 100, 1024, 171, False),
+                (3000, 100, 1024, 34, False),
+                (400, 300, 800, 600, False),
+                (600, 300, 1024, 512, False),
+                (2500, 1000, 1024, 410, False),
+                (2000, 1800, 667, 600, False),
+                (300, 300, 1024, 1024, True),
+                (900, 300, 1024, 1024, True),
+                (1300, 900, 1024, 1024, True),
+                (1025, 1025, 1024, 1024, True),
+                ])
+    def test_calculate_shape(self, h, w, th, tw, pad):
+        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(h, w, self.min_size, self.max_size, pad), (th, tw))
 
 
 class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
@@ -120,6 +97,14 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
         self.pipeline_config._model_params['resizer_max_dimension'] = 1024
         self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 300, 3]}]}
         self.assertTupleEqual((800, 600),
+                              calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
+
+    def test_keep_aspect_ratio_resizer_overrided_by_user_pad(self):
+        self.pipeline_config._model_params['resizer_min_dimension'] = 600
+        self.pipeline_config._model_params['resizer_max_dimension'] = 1024
+        self.pipeline_config._model_params['pad_to_max_dimension'] = True
+        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 300, 3]}]}
+        self.assertTupleEqual((1024, 1024),
                               calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
 
     def test_missing_input_shape_information(self):
