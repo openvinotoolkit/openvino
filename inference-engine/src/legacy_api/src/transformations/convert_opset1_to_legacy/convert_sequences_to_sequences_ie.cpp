@@ -186,6 +186,7 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
             if (gru_target_inputs.empty())
                 return false;
             auto transpose_after = gru_target_inputs.begin()->get_node()->shared_from_this();
+            unsqueeze_1->set_friendly_name(transpose_after->get_friendly_name());
             ngraph::replace_node(transpose_after, unsqueeze_1);
             ngraph::replace_node(gru_sequence, {gru_sequence_ie->output(0), unsqueeze_2->output(0)});
         }
