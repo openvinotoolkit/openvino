@@ -158,6 +158,7 @@ REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
 REGISTER_FACTORY(v3, ScatterUpdate);
 REGISTER_FACTORY(v3, ScatterElementsUpdate);
+REGISTER_FACTORY(v3, ScatterNDUpdate);
 // REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 internal conversion
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
@@ -167,7 +168,6 @@ REGISTER_FACTORY(v3, ScatterElementsUpdate);
 // REGISTER_FACTORY(v3, NonZero);
 // REGISTER_FACTORY(v3, ROIAlign);
 // REGISTER_FACTORY(v3, ReadValue);
-// REGISTER_FACTORY(v3, ScatterNDUpdate);
 // REGISTER_FACTORY(v3, ShapeOf);
 // REGISTER_FACTORY(v3, TopK);
 
@@ -203,6 +203,7 @@ REGISTER_FACTORY(v5, Round);
 
 // ------------------------------ Supported v6 ops ------------------------------ //
 REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
+REGISTER_FACTORY(v6, MVN);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

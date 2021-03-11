@@ -19,7 +19,8 @@ namespace ngraph { namespace vpu { namespace op {
 
 class ExpGatherElements : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    static constexpr NodeTypeInfo type_info{"ExpGatherElements", 0};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     explicit ExpGatherElements(const Output<Node>& data,
                                const Output<Node>& indices,

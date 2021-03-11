@@ -39,6 +39,7 @@
 #include "legacy/ngraph_ops/rnn_sequence_ie.hpp"
 #include "legacy/ngraph_ops/lstm_sequence_ie.hpp"
 #include "legacy/ngraph_ops/gru_sequence_ie.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "exec_graph_info.hpp"
 
 #include "caseless.hpp"
@@ -54,7 +55,46 @@
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
 #include "ie_legacy_itt.hpp"
-#include "ie_cnn_layer_builder_ngraph.h"
+
+namespace Builder {
+
+template <class T>
+std::string asString(const T& value) {
+    return std::to_string(value);
+}
+
+template <typename T>
+std::string asString(const std::vector<T>& value) {
+    std::string result;
+    for (const auto& item : value) {
+        if (!result.empty()) result += ",";
+        result += asString(item);
+    }
+    return result;
+}
+
+template <>
+std::string asString<double>(const double& value) {
+    std::ostringstream sStrm;
+    sStrm.precision(std::numeric_limits<double>::digits10);
+    sStrm << std::fixed << value;
+    std::string result = sStrm.str();
+
+    auto pos = result.find_last_not_of("0");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    pos = result.find_last_not_of(".");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    return result;
+}
+
+template <>
+std::string asString<float>(const float& value) {
+    return asString(static_cast<double>(value));
+}
+
+}  // namespace Builder
 
 namespace InferenceEngine {
 namespace details {
@@ -1937,6 +1977,15 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         std::string originalNames = ::ngraph::getFusedNames(layer);
         if (!originalNames.empty()) {
             cnnLayer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalNames;
+        }
+
+        if (auto subgraph = ::ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(layer)) {
+            std::string names = "";
+            for (const auto& op : subgraph->get_body()->get_ordered_ops()) {
+                names += ", " + op->get_friendly_name();
+            }
+
+            cnnLayer->params["originalLayersNames"] += names;
         }
 
         std::string primitivesPriority = ::ngraph::getPrimitivesPriority(layer);
