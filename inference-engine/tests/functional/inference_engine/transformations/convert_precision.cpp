@@ -689,5 +689,5 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
 
     auto actual = reinterpret_cast<const uint8_t*>(c->get_data_ptr())[0];
-    ASSERT_EQ(1, actual);
+    ASSERT_EQ(16, actual);
 }

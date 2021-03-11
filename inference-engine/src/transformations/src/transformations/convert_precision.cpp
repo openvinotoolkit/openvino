@@ -474,8 +474,8 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
     for (size_t i = 0; i < size; i++) {
         size_t dst_idx = i / ((to.size() * 8) / to.bitwidth());
         size_t src_idx = i / ((src_type.size() * 8) / src_type.bitwidth());
-        size_t dst_off = (to.size() * 8 - to.bitwidth()) - to.size() * (i % ((to.size() * 8) / to.bitwidth()));
-        size_t src_off = (src_type.size() * 8 - src_type.bitwidth()) - src_type.size() * (i % ((src_type.size() * 8) / src_type.bitwidth()));
+        size_t dst_off = (to.size() * 8 - to.bitwidth()) - to.bitwidth() * (i % ((to.size() * 8) / to.bitwidth()));
+        size_t src_off = (src_type.size() * 8 - src_type.bitwidth()) - src_type.bitwidth() * (i % ((src_type.size() * 8) / src_type.bitwidth()));
         switch (to.size()) {
         case 1:
             convert_lp_value<uint8_t, uint8_t>(src_data[src_idx], dst_data[dst_idx], src_off, src_type.bitwidth(),
