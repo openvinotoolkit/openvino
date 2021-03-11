@@ -310,9 +310,7 @@ std::vector<Dims> BlobCopy_Dims = {
 std::vector<PrecisionType> BlobCopy_PrecisionParams = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::U4,
         InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::I4,
         InferenceEngine::Precision::I8,
         InferenceEngine::Precision::U16,
         InferenceEngine::Precision::I16,
@@ -434,8 +432,6 @@ std::vector<Dims> BlobCopySetLayout_Dims = {
 };
 
 std::vector<PrecisionType> BlobCopySetLayout_Precisions = {
-    Precision::I4,
-    Precision::U4,
     Precision::U8,
     Precision::U16,
     InferenceEngine::Precision::FP32,
