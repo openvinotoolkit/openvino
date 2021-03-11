@@ -19,6 +19,10 @@ enum DnnActivationType : uint8_t {
     kActIdentity,
     kActKaldiLstmClipping,
     kActCustom,
+    kActExp,
+    kActLog,
+    kActNegHalfLog,
+    kActDivByN,
     kActNumType
 };
 
@@ -47,7 +51,11 @@ static const char *intel_dnn_activation_name[kActNumType] = {
         "kActLeakyRelu",
         "kActIdentity",
         "kActKaldiLstmClipping",
-        "kActCustom"
+        "kActCustom",
+        "kActExp",
+        "kActLog",
+        "kActNegHalfLog",
+        "kActDivByN"
 };
 
 typedef enum DnnSoftmaxType {

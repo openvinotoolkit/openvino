@@ -57,6 +57,7 @@ uint32_t ToByteSize(const Gna2DataType type) {
     }
 }
 
+float GNAPluginNS::identity_SF = 256.0f;
 constexpr uint32_t GNAPluginNS::GNAPlugin::FAKE_REQUEST_CONFIG_ID;
 #endif
 using namespace InferenceEngine;
@@ -501,11 +502,11 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         // auto idx = std::distance(outputsDataMap.begin(), outputPort);
         auto & desc = outputsDesc[idx];
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-
         desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         desc.orientation = component.orientation_out;
         desc.num_bytes_per_element = component.num_bytes_per_output;
         desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+        
         // TODO: this need to be fixed
         desc.num_elements = component.num_rows_out;
 
@@ -517,6 +518,18 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned
         auto outLayer = outPort.second->getCreatorLayer().lock();
+
+        // Memory layers are not dnnComponents hence we need to make switch with identity layer
+        if (outLayer->type == "Memory") {
+            // traverse memory connection to find corresponding output_memory
+            for (auto && memConnection : graphCompiler.memory_connection) {
+                if (memConnection.second.getInput()->name == outLayer->name) {
+                    // if connection is found, replace memory input layer with memory output layer
+                    outLayer = memConnection.second.getOutput();
+                    break;
+                }
+            }
+        }
 
         // searching for outData represented in GNA blob
         // using ufs - upper first search
@@ -693,10 +706,25 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
 
+    for (auto& gnaMemoryConn : graphCompiler.memory_connection) {
+        std::string name = gnaMemoryConn.first;
+        GNAMemoryLayer memLayer = gnaMemoryConn.second;
+
+        InferenceEngine::CNNLayerPtr layer = memLayer.getInput();
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+        auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+
+        auto ptr = make_blob_with_precision(TensorDesc(InferenceEngine::Precision::I16,
+                                            memLayer.getDims(),
+                                            memLayer.getDims().size() == 2 ? NC : NCHW),
+                                            memLayer.gna_ptr);
+        graphCompiler.memoryStates.emplace_back(std::make_shared<memory::GNAMemoryState>(name, ptr, scale_factor));
+    }
+
     DumpXNNToFile();
 
 #ifdef PLOT
-    dnn->WriteGraphWizModel("gna-blob.dot");
+    dnn->WriteGraphWizModel("/data/local/tmp/gna-blob.dot");
 #endif
 #if GNA_LIB_VER == 2
     createRequestConfigsForGnaModels();
@@ -1047,7 +1075,7 @@ std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() 
         return {};
     }
 
-    return {std::make_shared<memory::GNAMemoryState>(shared_from_this())};
+    return graphCompiler.memoryStates;
 }
 
 std::string GNAPlugin::GetName() const noexcept {
@@ -1398,6 +1426,14 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
             THROW_GNA_EXCEPTION << "GNA performance counter enabling parameter "
                                 << "should be equal to YES/NO, but not" << value;
         }
+    });
+
+    if_set(CONFIG_KEY(IDENTITY_SCALE_FACTOR), [&] {
+        auto idScaleFactor = InferenceEngine::CNNLayer::ie_parse_float(value);
+            if (fp32eq(idScaleFactor, 0.0f)) {
+                THROW_GNA_EXCEPTION << "identity scale factor of 0.0f not supported";
+            }
+        identity_SF = idScaleFactor;
     });
 
     if_set(GNA_CONFIG_KEY(LIB_N_THREADS), [&] {

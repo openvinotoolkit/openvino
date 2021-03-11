@@ -35,7 +35,9 @@ else()
     set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
     set(libGNA_INCLUDE_DIRS "${GNA}/include" CACHE STRING "" FORCE)
 endif()
-set(libGNA_LIBRARIES_BASE_PATH ${GNA}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
+#set(libGNA_LIBRARIES_BASE_PATH ${GNA}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
+# Ebuild fails to copy x64 named folder during build process
+set(libGNA_LIBRARIES_BASE_PATH ${GNA}/${GNA_PLATFORM_DIR} CACHE STRING "" FORCE)
 
 add_library(libGNA::KERNEL SHARED IMPORTED)
 find_library(GNA_KERNEL_LIBRARY

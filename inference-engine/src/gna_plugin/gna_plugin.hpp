@@ -28,6 +28,7 @@
 #endif
 
 namespace GNAPluginNS {
+extern float identity_SF;
 class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::enable_shared_from_this<GNAPlugin> {
  protected:
     std::string _pluginName = "GNA";

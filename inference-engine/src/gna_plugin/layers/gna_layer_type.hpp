@@ -38,6 +38,11 @@ enum LayerType {
     Memory,
     Power,
     Crop,
+    Exp,
+    Log,
+    NegHalfLog,
+    Identity,
+    DivByN,
     LSTMCell,
     TensorIterator,
     NO_TYPE
@@ -66,6 +71,11 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "Power" , Power},
         { "Memory" , Memory },
         { "Crop" , Crop },
+        { "Log", Log },
+        { "NegHalfLog" , NegHalfLog },
+        { "DivByN", DivByN },
+        { "Identity", Identity },
+        { "Exp", Exp },
         { "LSTMCell", LSTMCell },
         { "TensorIterator", TensorIterator }
 };

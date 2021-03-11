@@ -134,6 +134,12 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
                                    &layerCloneImpl<QuantizeLayer>,
                                    &layerCloneImpl<BinaryConvolutionLayer>,
                                    &layerCloneImpl<WeightableLayer>,
+                                   &layerCloneImpl<TanHLayer>,
+             			   &layerCloneImpl<LogLayer>,
+                                   &layerCloneImpl<NegHalfLogLayer>,
+				   &layerCloneImpl<IdentityLayer>,
+				   &layerCloneImpl<DivByNLayer>,
+                                   &layerCloneImpl<SigmoidLayer>,
                                    &layerCloneImpl<OneHotLayer>,
                                    &layerCloneImpl<CNNLayer>,
                                    &layerCloneImpl<UniqueLayer>};

@@ -56,7 +56,7 @@ DECLARE_GNA_CONFIG_KEY(SCALE_FACTOR);
 * currently supported values are I16, I8
 */
 DECLARE_GNA_CONFIG_KEY(PRECISION);
-
+DECLARE_GNA_CONFIG_KEY(IDENTITY_SCALE_FACTOR);
 
 /**
 * @brief if turned on, dump GNA firmware model into specified file

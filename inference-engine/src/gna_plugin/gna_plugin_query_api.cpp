@@ -111,6 +111,7 @@ std::map<std::string, std::string> GNAPlugin::supportedConfigKeysWithDefaults() 
         {GNA_CONFIG_KEY(PRECISION), Precision(Precision::I8).name()},
         {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), CONFIG_VALUE(YES)},
         {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)},
+        {CONFIG_KEY(IDENTITY_SCALE_FACTOR), "2048.0"},
         {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
         {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)}
     };
