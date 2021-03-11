@@ -26,7 +26,7 @@
 
 **Outputs**
 
-* **1**: The result of operation top ROIs. A 2D tensor of type *T* with shape `[max_rois, 4]`.
+* **1**: A 2D tensor of type *T* with shape `[max_rois, 4]` describing *max_rois* ROIs with top probabilities.
 
 **Types**
 

@@ -25,7 +25,7 @@
 
 * *sampling_ratio*
 
-    * **Description**: *sampling_ratio* attribute specifies the number of sampling points per the output value. If 0, then use adaptive number computed as ceil(roi_width / output_width), and likewise for height.
+    * **Description**: *sampling_ratio* attribute specifies the number of sampling points per the output value. If 0, then use adaptive number computed as `ceil(roi_width / output_width)`, and likewise for height.
     * **Range of values**: a non-negative integer number
     * **Type**: int
     * **Default value**: 0
@@ -51,15 +51,15 @@
 
 **Inputs**:
 
-*   **1**: 2D input tensor of type *T* describing the rois as 4-tuples: [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Batch size is the number of rois. Coordinates *x* and *y* are refer to the input *image_size*. **Required**.
+*   **1**: 2D input tensor of type *T* describing the ROIs as 4-tuples: [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Batch size is the number of ROIs. Coordinates *x* and *y* are refer to the input *image_size*. **Required**.
 
-*   **2**, ..., **L**: Pyramid of 4D input blobs with feature maps. Batch size must be 1. The number of channels must be the same for all layers of the pyramid. The layer width and height must equal to the `layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
+*   **2**, ..., **L**: Pyramid of 4D input tensors with feature maps. Batch size must be 1. The number of channels must be the same for all layers of the pyramid. The layer width and height must equal to the `layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
 
 **Outputs**:
 
-*   **1**: 4D output tensor of type *T* with rois features. Batch size equals to number of rois. Channels number is the same as for all images in the input pyramid.
+*   **1**: 4D output tensor of type *T* with ROIs features. Batch size equals to number of ROIs. Channels number is the same as for all images in the input pyramid.
 
-*   **2**: 2D output tensor of type *T* with ROIs Shape must be the same as for 0 input.
+*   **2**: 2D output tensor of type *T* with reordered ROIs according to their mapping to the pyramid levels. Shape must be the same as for 0 input.
 
 **Types**
 
