@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <unordered_map>
 
-#include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_conv_node.h>
 #include <nodes/mkldnn_deconv_node.h>
@@ -168,7 +167,6 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "SimplerNMS", SimplerNMS },
 //        { "ROIAlign", ROIAlign },
 //        { "ROIPooling", ROIPooling },
-//        { "BatchNormalization", BatchNormalization },
 //        { "Flatten", Flatten },
         { "Pad", Pad },
         { "Transpose", Transpose },
