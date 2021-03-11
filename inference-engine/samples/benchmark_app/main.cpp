@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (!ov_perf_mode.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_mode.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device << " device. "
                           "Although the automatic selection usually provides a reasonable performance, "
                           "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
@@ -390,7 +390,8 @@ int main(int argc, char *argv[]) {
                                                   {"load network time (ms)", duration_ms}
                                           });
             if (!ov_perf_mode.empty()) {
-                std::cout << "OV PERF MODE " << ov_perf_mode << std::endl;
+                std::cout << "OV_PERFORMANCE_MODE: " << ov_perf_mode << std::endl;
+                // output of the actual settings that the mode produces (debugging)
                 for (auto& device : devices) {
                     std::vector<std::string> supported_config_keys = ie.GetMetric(device,
                                                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS));

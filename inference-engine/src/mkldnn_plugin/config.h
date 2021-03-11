@@ -25,6 +25,7 @@ struct Config {
     std::string dumpQuantizedGraphToDot = "";
     std::string dumpQuantizedGraphToIr = "";
     int batchLimit = 0;
+    std::string ovPerfMode = "";
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
 
 #if defined(__arm__) || defined(__aarch64__)

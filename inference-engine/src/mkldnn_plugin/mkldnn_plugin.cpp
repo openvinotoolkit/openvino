@@ -7,6 +7,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+#include "ie_mkldnn.h"
 
 #include <legacy/net_pass.h>
 #include <threading/ie_executor_manager.hpp>
@@ -90,6 +91,7 @@
 #  include <windows.h>
 # else
 #  include <cpuid.h>
+
 # endif
 #endif
 
@@ -325,8 +327,65 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     }
 }
 
+bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network) {
+    // bool isLayerINT8()
+    int L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+    const auto nGraphFunc = network.getFunction();
+    ngraph::NodeVector nodes;
+
+    // Traverse nGraph Function in topological order
+    for (auto & node : nGraphFunc->get_ordered_ops()) {
+            // todo : bias data size (always fp)
+            if (std::strcmp("MatMul", node->get_type_info().name) && std::strcmp("Convolution", node->get_type_info().name))
+                continue;
+
+            int dataSizeInput = 0, dataSizeOutput = 0;
+            if (!std::strcmp("MatMul", node->get_type_info().name)) {
+                // Check that input and output shape a fully defined (not dynamic)
+                ngraph::Input<ngraph::Node> input0 = node->input(0);
+                ngraph::Input<ngraph::Node> input1 = node->input(0);
+                ngraph::Output<ngraph::Node> output = node->output(0);
+                if (input0.get_partial_shape().is_static() && input1.get_partial_shape().is_static()
+                    && output.get_partial_shape().is_static()) {
+                    auto shapeInput0 = input0.get_shape();
+                    auto shapeInput1 = input0.get_shape();
+                    auto shapeOutput = output.get_shape();
+                    dataSizeInput = std::accumulate(shapeInput0.begin(), shapeInput0.end(), 1,
+                                                         std::multiplies<int>()) +
+                                                         std::accumulate(shapeInput1.begin(), shapeInput1.end(), 1,
+                                                                                                   std::multiplies<int>());
+                    dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
+                                                          std::multiplies<int>());
+                }
+            } else if (!std::strcmp("Convolution", node->get_type_info().name)) {
+                // Check that input and output shape a fully defined (not dynamic)
+                ngraph::Input<ngraph::Node> input = node->input(0);
+                ngraph::Output<ngraph::Node> output = node->output(0);
+                if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
+                    auto shapeInput = input.get_shape();
+                    auto shapeOutput = output.get_shape();
+                    dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
+                                                         std::multiplies<int>());
+                    dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
+                                                          std::multiplies<int>());
+                }
+                bool memLimited = (L2_cache_size * 1.0 /*utilization factor*/ <
+                                   (dataSizeInput + dataSizeInput));
+                std::cout << "Type: " << node->get_type_info().name << std::endl
+                          << "Name: " << node->get_friendly_name() << std::endl
+                          << "dataSizeInput: " << dataSizeInput << std::endl
+                          << "dataSizeOutput: " << dataSizeOutput << std::endl
+                          << "L2_cache_size: " << L2_cache_size << std::endl
+                          << "memLimited: " << memLimited << std::endl;
+            }
+    }
+
+
+    return false;
+}
+
 InferenceEngine::ExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
+Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
@@ -352,6 +411,30 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+    // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
+    auto config = orig_config;
+    const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
+    // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
+    if (mode != config.end() || !conf.ovPerfMode.empty()) {
+        const auto mode_name = (mode != config.end()) ? mode->second : conf.ovPerfMode;
+        // checking streams (to avoid overriding what user might explicitly set)
+        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+        if (streams == config.end()) {
+            if (mode_name == CONFIG_VALUE(LATENCY)) {
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+                // this is first heuristic in series (carefully separating int8, bf16 and float32):
+                //      memory bandwidth limited
+                //      compute limited
+                //      Hybrid specific
+                //      etc
+                const bool isNetworkMemLimited = IsNetworkMemBandwidthLimited(network);
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(
+                        isNetworkMemLimited ? default_num_streams / 2 : 2*default_num_streams);
+            }
+        }
+    }
     conf.readProperties(config);
 
     if (conf.enableDynamicBatch) {
