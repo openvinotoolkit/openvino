@@ -40,6 +40,8 @@ private:
     Config engConfig;
     NumaNodesWeights weightsSharing;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
+
+    bool static IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network);
 };
 
 }  // namespace MKLDNNPlugin
