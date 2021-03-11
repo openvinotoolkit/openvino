@@ -27,6 +27,58 @@ from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
 
 
+def get_input_nodes(node: Node):
+    return [src_port.get_source().node for src_port in node.in_ports().values() if not src_port.disconnected()]
+
+
+def get_output_nodes(node: Node):
+    result = []
+    for out_port in node.out_ports().values():
+        if not out_port.disconnected():
+            for dest_port in out_port.get_destinations():
+                result.append(dest_port.node)
+    return result
+
+
+def bfs(start_nodes: List, visited: Set, condition: callable = None, direction: str = 'forward') -> List[Node]:
+    """
+    The function performs BFS starting from selected nodes in forward or backward direction adding nodes by an
+    optional condition
+    :param start_nodes: Nodes to start search from
+    :param visited: set of already visited nodes where traversing should not happen
+    :param condition: function getting a Node as input and returning whether the node should be included into the
+    result or not. If the value is None then the node is added unconditionally.
+    :param direction: traverse direction. can be 'forward', 'backward' or 'bidirectional'
+    :return: the list of Nodes visited
+    """
+    assert visited is not None, 'The "visited" set must be defined'
+    assert direction in ['forward', 'backward', 'bidirectional'], "direction must be 'forward', 'backward' " \
+                                                                  "or 'bidirectional'"
+    assert start_nodes is not None, 'The list of start nodes must be specified'
+
+    result = list()
+    d = deque(start_nodes)
+    while len(d) != 0:
+        cur_node = d.popleft()
+        if cur_node.name in ['Cast_496', 'Range_499', 'Cast_500', 'OneHot_24', 'Shape_22', 'Cast_25']:
+            print('hey')
+        result.append(cur_node)
+        visited.add(cur_node)
+
+        if direction in ['forward', 'bidirectional']:
+            next_out_nodes = get_output_nodes(cur_node)
+        if direction in ['backward', 'bidirectional']:
+            next_in_nodes = get_input_nodes(cur_node)
+
+        if direction == 'bidirectional':
+            d.extend([node for node in next_in_nodes if node not in visited])
+
+        next_nodes = next_out_nodes if direction in ['forward', 'bidirectional'] else next_in_nodes
+        d.extend([node for node in next_nodes if node not in visited and (condition is None or condition(node))])
+
+    return result
+
+
 class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
     """
     The transformation looks for the layout agnostic operations which does not have a layout (NCHW or NHWC) and makes
@@ -48,55 +100,6 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
     def run_before(self):
         return [InsertLayoutPropagationTranspose]
 
-    @staticmethod
-    def get_input_nodes(node: Node):
-        return [src_port.get_source().node for src_port in node.in_ports().values() if not src_port.disconnected()]
-
-    @staticmethod
-    def get_output_nodes(node: Node):
-        result = []
-        for out_port in node.out_ports().values():
-            if not out_port.disconnected():
-                for dest_port in out_port.get_destinations():
-                    result.append(dest_port.node)
-        return result
-
-    @staticmethod
-    def bfs(start_nodes: List, visited: Set, condition: callable = None, direction: str = 'forward') -> List[Node]:
-        """
-        The function performs BFS starting from selected nodes in forward or backward direction adding nodes by an
-        optional condition
-        :param start_nodes: Nodes to start search from
-        :param visited: set of already visited nodes where traversing should not happen
-        :param condition: function getting a Node as input and returning whether the node should be included into the
-        result or not. If the value is None then the node is added unconditionally.
-        :param direction: traverse direction. can be 'forward', 'backward' or 'bidirectional'
-        :return: the list of Nodes visited
-        """
-        assert visited is not None, 'The "visited" set must be defined'
-        assert direction in ['forward', 'backward', 'bidirectional'], "direction must be 'forward', 'backward' " \
-                                                                      "or 'bidirectional'"
-        assert start_nodes is not None, 'The list of start nodes must be specified'
-
-        result = list()
-        d = deque(start_nodes)
-        while len(d) != 0:
-            cur_node = d.popleft()
-            result.append(cur_node)
-            visited.add(cur_node)
-
-            if direction in ['forward', 'bidirectional']:
-                next_out_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
-            if direction in ['backward', 'bidirectional']:
-                next_in_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
-
-            if direction == 'bidirectional':
-                d.extend([node for node in next_in_nodes if node not in visited])
-
-            next_nodes = next_out_nodes if direction in ['forward', 'bidirectional'] else next_in_nodes
-            d.extend([node for node in next_nodes if node not in visited and (condition is None or condition(node))])
-
-        return result
 
     def find_and_replace_pattern(self, graph: Graph):
         visited = set()
@@ -108,18 +111,18 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
                 if node_condition(node):
                     log.debug('Detected node "{}" as a node which should be executed in the original layout'
                               ''.format(node.soft_get('name', node.id)))
-                    forward_visited_nodes = self.bfs([node], visited, condition_forward, 'forward')
-                    backward_visited_nodes = self.bfs([node], visited, condition_backward, 'backward')
+                    forward_visited_nodes = bfs([node], visited, condition_forward, 'forward')
+                    backward_visited_nodes = bfs([node], visited, condition_backward, 'backward')
 
                     # find "reinterp_shape" like ops which change rank of input to 4D or 5D from smaller dimensions
                     for back_node in backward_visited_nodes:
-                        for input_node in self.get_input_nodes(back_node):
+                        for input_node in get_input_nodes(back_node):
                             if input_node not in backward_visited_nodes and not condition_forward(input_node):
                                 marked_nodes.add(input_node)
 
                     # find "reinterp_shape" like ops which change rank of input from 4D or 5D to smaller dimensions
                     for forward_node in forward_visited_nodes:
-                        for output_node in self.get_output_nodes(forward_node):
+                        for output_node in get_output_nodes(forward_node):
                             if output_node not in forward_visited_nodes and not condition_backward(output_node):
                                 marked_nodes.add(output_node)
 

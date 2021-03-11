@@ -16,7 +16,7 @@
 
 import numpy as np
 
-from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
+from extensions.middle.MarkSubgraphsWithCorrectLayout import bfs, get_input_nodes, get_output_nodes
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 
@@ -35,7 +35,8 @@ class MarkShapeOfSubgraphDataType(BackReplacementPattern):
     Cast nodes in ShapeOf subgraphs therefore it's placed at the end of the back phase.
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].data_type == 'FP16']
+    # temporary disabled to check what happens with FP32
+    # graph_condition = [lambda graph: graph.graph['cmd_params'].data_type == 'FP16']
 
     def run_after(self):
         from extensions.back.pass_separator import BackFinish
@@ -44,18 +45,27 @@ class MarkShapeOfSubgraphDataType(BackReplacementPattern):
     def run_before(self):
         return []
 
+    @staticmethod
+    def get_ops_with_shape_input():
+        return {
+            'Reshape': [1],
+            'Interpolate': [1, 2]
+        }
+
     def find_and_replace_pattern(self, graph: Graph):
-        condition = lambda node: any([out_port.data.get_value() is not None for out_port in node.out_ports().values()])
+        shape_input_ops_map = self.get_ops_with_shape_input()
+        start_points = []
+        for op_type in shape_input_ops_map:
+            start_points.extend(graph.get_op_nodes(type=op_type))
 
         start_nodes = []
-        shapeof_nodes = set(graph.get_op_nodes(op='ShapeOf'))
-        for node in shapeof_nodes:
-            start_nodes.extend([n for n in MarkSubGraphsWithCorrectLayout.get_output_nodes(node) if condition(n)])
+        for node in start_points:
+            start_ports = [x for x in shape_input_ops_map[node.type] if not node.in_port(x).disconnected()]
+            start_nodes.extend([node.in_port(port_idx).get_source().node for port_idx in start_ports])
 
-        nodes_in_shapeof_subgraph = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, shapeof_nodes,
-                                                                       condition=condition,
-                                                                       direction="bidirectional")
-        for node in nodes_in_shapeof_subgraph:
+        nodes_with_shape_values = bfs(start_nodes, set(), condition=lambda node: node.soft_get('type') != 'ShapeOf',
+                                      direction='backward')
+        for node in nodes_with_shape_values:
             node['in_shape_subgraph'] = True
-            if node.op == 'Const' and node.value.dtype == np.float32:
+            if node.type == 'Const' and node.value.dtype == np.float32:
                 node.out_node(0)['correct_data_type'] = True
