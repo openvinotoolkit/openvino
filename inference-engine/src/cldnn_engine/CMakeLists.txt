@@ -22,8 +22,6 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-set_ie_threading_interface_for(${TARGET_NAME})
-
 target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
                                              inference_engine
                                              inference_engine_transformations
