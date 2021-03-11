@@ -29,18 +29,20 @@ namespace ngraph
         {
             namespace
             {
-                bool check_mode_support(const onnx_import::Node& node,
-                                        const std::string& mode,
-                                        const int64_t opset)
-                {
-                    const std::unordered_set<std::string> modes_opset1 = {"nearest", "bilinear"};
-                    const std::unordered_set<std::string> modes_opset7 = {"nearest", "linear"};
-                    const auto& supported_modes = opset < 7 ? modes_opset1 : modes_opset7;
-                    const bool is_mode_supported =
-                        (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
-                         supported_modes.end());
+                constexpr unsigned version_1{1};
+                constexpr unsigned version_7{7};
+                constexpr unsigned version_9{9};
 
-                    if (!is_mode_supported)
+                void check_mode_support(const onnx_import::Node& node,
+                                        const std::string& mode,
+                                        const unsigned op_version)
+                {
+                    const std::unordered_set<std::string> modes_v1 = {"nearest", "bilinear"};
+                    const std::unordered_set<std::string> modes_v7 = {"nearest", "linear"};
+                    const auto& supported_modes = op_version < version_7 ? modes_v1 : modes_v7;
+
+                    if (std::find(supported_modes.cbegin(), supported_modes.cend(), mode) ==
+                        supported_modes.cend())
                     {
                         std::string supported_modes_str = "";
                         for (const auto& mode_name : supported_modes)
@@ -48,28 +50,32 @@ namespace ngraph
                             supported_modes_str += (mode_name + ", ");
                         }
                         CHECK_VALID_NODE(node,
-                                         is_mode_supported,
+                                         false,
                                          mode,
                                          " - this type of interpolation mode is not supported."
                                          " Choose one of the following modes: ",
                                          supported_modes_str);
                     }
-                    return is_mode_supported;
                 }
 
-                using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
-                using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
-                using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
-                using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
-
-                InterpolateMode convert_mode(const std::string& mode_str)
+                default_opset::Interpolate::InterpolateAttrs get_attributes(std::string mode)
                 {
-                    InterpolateMode result = InterpolateMode::nearest;
-                    if (mode_str == "linear" || mode_str == "bilinear")
-                    {
-                        result = InterpolateMode::linear_onnx;
-                    }
-                    return result;
+                    using InterpolateMode = default_opset::Interpolate::InterpolateMode;
+                    using Transform_mode = default_opset::Interpolate::CoordinateTransformMode;
+                    using ShapeCalcMode = default_opset::Interpolate::ShapeCalcMode;
+
+                    const auto interpolate_mode =
+                        (mode == "linear" || mode == "bilinear" ? InterpolateMode::linear_onnx
+                                                                : InterpolateMode::nearest);
+
+                    std::vector<size_t> pad{0};
+                    auto attrs = default_opset::Interpolate::InterpolateAttrs(
+                        interpolate_mode, ShapeCalcMode::scales, pad, pad);
+
+                    if (attrs.mode == InterpolateMode::linear_onnx)
+                        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
+
+                    return attrs;
                 }
             } // namespace
 
@@ -80,26 +86,13 @@ namespace ngraph
                     const auto height_scale = node.get_attribute_value<float>("height_scale");
                     const auto width_scale = node.get_attribute_value<float>("width_scale");
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
-                    check_mode_support(node, mode, 1);
-
-                    const auto interpolate_mode = convert_mode(mode);
-                    const std::vector<size_t> zero_pad{0};
-                    const auto transform_mode = (interpolate_mode == InterpolateMode::linear_onnx
-                                                     ? Transform_mode::asymmetric
-                                                     : Transform_mode::half_pixel);
-                    const auto attrs =
-                        default_opset::Interpolate::InterpolateAttrs(interpolate_mode,
-                                                                     ShapeCalcMode::scales,
-                                                                     zero_pad,
-                                                                     zero_pad,
-                                                                     transform_mode);
+                    check_mode_support(node, mode, version_1);
 
                     const auto data = node.get_ng_inputs().at(0);
-                    NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
-                                 "Upsample v1 input tensor's rank must be static.");
-
+                    NGRAPH_CHECK((data.get_partial_shape().rank().is_static() &&
+                                  data.get_partial_shape().rank().get_length() == 4),
+                                 "Upsample v1 input tensor is required to be 4D.");
                     const auto rank = data.get_partial_shape().rank().get_length();
-                    NGRAPH_CHECK(rank == 4, "Upsample v1 input tensor must be 4D.");
 
                     std::vector<float> scales(rank, 1.f);
                     scales[rank - 1] = width_scale;
@@ -116,7 +109,7 @@ namespace ngraph
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
                     return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales_const, attrs)};
+                        data, output_shape, scales_const, get_attributes(mode))};
                 }
             } // namespace set_1
 
@@ -131,25 +124,7 @@ namespace ngraph
 
                     const auto scales = node.get_attribute_value<std::vector<float>>("scales");
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
-                    check_mode_support(node, mode, 7);
-
-                    auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
-                    attrs.mode = convert_mode(mode);
-                    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-                    attrs.coordinate_transformation_mode = Transform_mode::half_pixel;
-                    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
-                    attrs.antialias = false;
-                    attrs.cube_coeff = -0.75;
-
-                    if (attrs.mode == InterpolateMode::linear_onnx)
-                    {
-                        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
-                    }
-
-                    auto zero_pad = std::vector<size_t>(1, 0);
-
-                    attrs.pads_begin = zero_pad;
-                    attrs.pads_end = zero_pad;
+                    check_mode_support(node, mode, version_7);
 
                     if (data_shape.is_static())
                     {
@@ -168,21 +143,21 @@ namespace ngraph
                             ngraph::element::f32, Shape({scales.size()}), scales);
 
                         return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, scales_const, attrs)};
+                            data, output_shape_const, scales_const, get_attributes(mode))};
                     }
 
                     const auto scales_const = default_opset::Constant::create(
                         ngraph::element::f32, Shape({scales.size()}), scales);
 
-                    auto shape_of_data = std::make_shared<default_opset::Convert>(
+                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    auto multiply =
+                    const auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
-                    auto output_shape = std::make_shared<default_opset::Convert>(
+                    const auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
                     return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales_const, attrs)};
+                        data, output_shape, scales_const, get_attributes(mode))};
                 }
 
             } // namespace set_7
@@ -199,30 +174,12 @@ namespace ngraph
                     const auto scales_shape = scales.get_partial_shape();
 
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
-                    check_mode_support(node, mode, 9);
+                    check_mode_support(node, mode, version_9);
 
                     CHECK_VALID_NODE(
                         node,
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of Scales input is required to be static.");
-
-                    auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
-                    attrs.mode = convert_mode(mode);
-                    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-                    attrs.coordinate_transformation_mode = Transform_mode::half_pixel;
-                    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
-                    attrs.antialias = false;
-                    attrs.cube_coeff = -0.75;
-
-                    if (attrs.mode == InterpolateMode::linear_onnx)
-                    {
-                        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
-                    }
-
-                    auto zero_pad = std::vector<size_t>(1, 0);
-
-                    attrs.pads_begin = zero_pad;
-                    attrs.pads_end = zero_pad;
 
                     if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
                     {
@@ -242,18 +199,18 @@ namespace ngraph
                             element::u64, Shape({output_shape.size()}), output_shape);
 
                         return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, scales, attrs)};
+                            data, output_shape_const, scales, get_attributes(mode))};
                     }
 
-                    auto shape_of_data = std::make_shared<default_opset::Convert>(
+                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    auto multiply =
+                    const auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-                    auto output_shape = std::make_shared<default_opset::Convert>(
+                    const auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
                     return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales, attrs)};
+                        data, output_shape, scales, get_attributes(mode))};
                 }
 
             } // namespace set_9
