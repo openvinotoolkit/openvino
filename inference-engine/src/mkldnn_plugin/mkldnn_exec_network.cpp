@@ -300,7 +300,6 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
 //            type != Concatenation &&
 //            type != Eltwise &&
 //            type != Crop &&
-//            type != BatchNormalization &&
 //            type != Copy) {
 //            check_result = false;
 //        }

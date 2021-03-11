@@ -103,15 +103,6 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseBinaryConvolutionAndQuantize(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseBatchNormWithScale");
-    FuseBatchNormWithScale(graph);
-    graph.RemoveDroppedNodes();
-
-    // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveIdentityOperator");
-    // RemoveIdentityOperator(graph);
-    // graph.RemoveDroppedNodes();
-
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionSumAndConvolutionSumActivation");
     FuseConvolutionSumAndConvolutionSumActivation(graph);
     graph.RemoveDroppedNodes();
 
