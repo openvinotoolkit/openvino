@@ -66,15 +66,13 @@ public:
 
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
     size_t seed {};
-    std::string absolutePath;
-    absolutePath.reserve(MAX_ABS_PATH);
-    auto absPath = get_absolute_path(&absolutePath[0], filePath);
-    if (absPath) {
-        seed = hash_combine(seed, absolutePath);
-    } else {
+    try {
+        seed = hash_combine(seed, FileUtils::absoluteFilePath(filePath));
+    } catch (...) {
         // can't get absolute path, use filePath for hash calculation
         seed = hash_combine(seed, filePath);
     }
+
     std::string res;
     struct stat result;
     if (stat(filePath.c_str(), &result) == 0) {

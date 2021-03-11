@@ -12,8 +12,6 @@
 // clang-format off
 #include <string>
 #include <cstring>
-#include <stdlib.h>
-#include <limits.h>
 
 #include "ie_api.h"
 #include "details/ie_so_pointer.hpp"
@@ -83,20 +81,14 @@ template<> struct FileTraits<wchar_t> {
 };
 #endif
 
-#ifdef _WIN32
-
-/// @brief Max length of absolute file path
-#define MAX_ABS_PATH _MAX_PATH
-/// @brief Get absolute file path, returns NULL in case of error
-#define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
-
-#else
-/// @brief Max length of absolute file path
-#define MAX_ABS_PATH PATH_MAX
-/// @brief Get absolute file path, returns NULL in case of error
-#define get_absolute_path(result, path) realpath(path.c_str(), result)
-
-#endif
+/**
+ * @brief Interface function to get absolute path of file
+ * @ingroup ie_dev_api_file_utils
+ * @param filePath - path to file, can be relative to current working directory
+ * @return Absolute path of file
+ * @throw InferenceEngineException if any error occurred
+ */
+INFERENCE_ENGINE_API_CPP(std::string) absoluteFilePath(const std::string& filePath);
 
 /**
  * @brief Interface function to get the size of a file. The function supports UNICODE path
