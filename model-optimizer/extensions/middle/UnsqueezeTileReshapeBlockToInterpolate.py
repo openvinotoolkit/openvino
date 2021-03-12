@@ -102,10 +102,10 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         if not np.array_equal(expected_tile_constant, float32_array(second_input_of_tile.value)):
             return False
 
-        # reshape_node = match['reshape']
-        # new_shape = reshape_node.in_port(1).data.get_value()
-        # if new_shape is None or input_rank_of_unsqueeze != len(new_shape):
-        #     return False
+        reshape_node = match['reshape']
+        new_shape = reshape_node.in_port(1).data.get_value()
+        if new_shape is None or input_rank_of_unsqueeze != len(new_shape):
+            return False
 
         return True
 
@@ -115,25 +115,11 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
 
         unsqueeze_node = match['unsqueeze']
         unsqueeze_name = unsqueeze_node.soft_get('name', unsqueeze_node.id)
-        unsqueeze_shape_node = Shape(graph, dict(name=unsqueeze_name + '/UnsqueezeOutShape')).create_node()
-        unsqueeze_node.out_port(0).get_connection().set_destination(unsqueeze_shape_node.in_port(0))
-        tile_node = match['tile']
-        second_input_of_tile = tile_node.in_port(1).get_connection().get_source().node
-        tail_out_shape = create_op_with_const_inputs(graph,
-                                                     Mul,
-                                                     {1: int64_array(second_input_of_tile.value)},
-                                                     {'name': unsqueeze_name + '/Mul'})
-        unsqueeze_shape_node.out_port(0).connect(tail_out_shape.in_port(0))
-
-        interpolate_reshape = Reshape(graph, {}).create_node()
-        tail_out_shape.out_port(0).connect(interpolate_reshape.in_port(1))
-
-        shape_node = Shape(graph, dict(name=unsqueeze_name + '/InputShape')).create_node()
         second_input_of_unsqueeze = unsqueeze_node.in_port(1).get_connection().get_source().node
         d_idx = int(second_input_of_unsqueeze.value)
         axis = d_idx - 1
-        second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
-        scale = float32_array([second_input_of_tile.value[d_idx]])
+
+        shape_node = Shape(graph, dict(name=unsqueeze_name + '/Shape')).create_node()
         strided_slice_node = create_op_with_const_inputs(graph,
                                                          StridedSlice,
                                                          {
@@ -151,12 +137,17 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         shape_node.out_port(0).connect(strided_slice_node.in_port(0))
         cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
         strided_slice_node.out_port(0).connect(cast_shape_to_float.in_port(0))
+
+        second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
+        scale = float32_array([second_input_of_tile.value[d_idx]])
         mul_node = create_op_with_const_inputs(graph, Mul, {1: scale}, {'name': unsqueeze_name + '/Mul'})
+
         cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
         floor_node = Floor(graph, {'name': unsqueeze_name + '/Floor'}).create_node()
         cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
         mul_node.out_port(0).connect(floor_node.in_port(0))
         floor_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
+
         interp_node = create_op_with_const_inputs(graph,
                                                   Interpolate,
                                                   {
@@ -176,9 +167,12 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
                                                       'maybe_part_of_sequence': True
                                                   })
         cast_mul_result_to_int.out_port(0).connect(interp_node.in_port(1))
-        interp_node.out_port(0).connect(interpolate_reshape.in_port(0))
-        tile_node.out_port(0).get_connection().set_source(interpolate_reshape.out_port(0))
-        unsqueeze_node.in_port(0).get_source().connect(interp_node.in_port(0))
-        unsqueeze_node.in_port(0).get_source().connect(shape_node.in_port(0))
-        tile_name = tile_node.soft_get('name', tile_node.id)
-        rename_nodes([(tile_node, tile_name + '/delete'), (interp_node, tile_name)])
+
+        reshape_node = match['reshape']
+        reshape_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
+        reshape_name = reshape_node.soft_get('name', reshape_node.id)
+        rename_nodes([(reshape_node, reshape_name + '/delete'), (interp_node, reshape_name)])
+
+        unsqueeze_connection = unsqueeze_node.in_port(0).get_connection()
+        unsqueeze_connection.set_destination(interp_node.in_port(0))
+        unsqueeze_connection.get_source().connect(shape_node.in_port(0))
