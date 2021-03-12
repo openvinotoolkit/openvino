@@ -11,6 +11,8 @@
 #include "gna_api_wrapper.hpp"
 #include "gna2-device-api.h"
 
+#include <gna2-tlv-writer.h>
+
 #include <cstdint>
 #include <fstream>
 
@@ -53,6 +55,119 @@ void * ExportSueLegacyUsingGnaApi2(
     return bufferDump;
 }
 
+void ExportTlvModel(uint32_t modelId,
+    std::ostream& outStream,
+    Gna2DeviceVersion deviceVersionToExport,
+    uint32_t input_size,
+    uint32_t output_size) {
+
+    uint32_t exportConfig;
+    auto status = Gna2ModelExportConfigCreate(gnaUserAllocatorAlignedPage, &exportConfig);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigCreate");
+
+    status = Gna2ModelExportConfigSetSource(exportConfig, 0, modelId);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetSource");
+    status = Gna2ModelExportConfigSetTarget(exportConfig, deviceVersionToExport);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
+
+    // first descriptors
+    void* bufferLayerDescriptors;
+    uint32_t sizeOfLayerDescriptors;
+
+    status = Gna2ModelExport(exportConfig,
+        Gna2ModelExportComponentLayerDescriptors,
+        &bufferLayerDescriptors, &sizeOfLayerDescriptors);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentLayerDescriptors)");
+
+    // RO
+    void* bufferROData;
+    uint32_t sizeOfROData;
+
+    status = Gna2ModelExport(exportConfig,
+        Gna2ModelExportComponentReadOnlyDump,
+        &bufferROData, &sizeOfROData);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentReadOnlyDump)");
+
+    // RW - scratch
+    void* bufferScratchRWData;
+    uint32_t sizeOfScratchRWData;
+
+    status = Gna2ModelExport(exportConfig,
+        Gna2ModelExportComponentScratchDump,
+        &bufferScratchRWData, &sizeOfScratchRWData);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentScratchDump)");
+
+    //TODO: This must be first cover by model creation code
+    void* bufferStateRWData = nullptr;
+    uint32_t sizeOfStateRWData = 0;
+
+#if 0
+    // RW - state
+    status = Gna2ModelExport(exportConfig,
+        Gna2ModelExportComponentStateDump,
+        &bufferStateRWData, &sizeOfStateRWData);
+    if (!Gna2StatusIsSuccessful(status)) {
+        bufferStateRWData = nullptr;
+        sizeOfStateRWData = 0;
+    }
+
+    // RW - external Input
+    void* bufferInputRWData;
+    uint32_t sizeOfInputRWData;
+    status = Gna2ModelExport(exportConfig,
+        Gna2ModelExportComponentExternalBufferInputDump,
+        &bufferInputRWData, &sizeOfInputRWData);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentExternalBufferInputDump)");
+
+    // RW - external Output
+    void* bufferOutputRWData;
+    uint32_t sizeOfOutputRWData;
+    status = Gna2ModelExport(exportConfig,
+        Gna2ModelExportComponentExternalBufferOutputDump,
+        &bufferOutputRWData, &sizeOfOutputRWData);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExport(Gna2ModelExportComponentExternalBufferOutputDump)");
+#endif
+    char* outTlv;
+    uint32_t outTlvSize;
+    char* RW = nullptr;
+
+    const char* gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion().c_str();
+    const char* userData = nullptr;
+    uint32_t userDataSize = 0;
+    auto tlv_status = Gna2ExportTlvGNAA35(
+        gnaUserAllocator,
+        &outTlv,
+        &outTlvSize,
+        (const char*)bufferLayerDescriptors,
+        sizeOfLayerDescriptors,
+        (const char*)bufferROData,
+        sizeOfROData,
+        (const char*)bufferStateRWData,
+        sizeOfStateRWData,
+        sizeOfScratchRWData,
+        input_size,
+        output_size,
+        gnaLibraryVersion,
+        userData,
+        userDataSize);
+
+    if (Gna2TlvStatusSuccess == tlv_status) {
+        outStream.write(outTlv, outTlvSize);
+    }
+    gnaUserFree(outTlv);
+
+    gnaUserFree(bufferLayerDescriptors);
+    gnaUserFree(bufferROData);
+    gnaUserFree(bufferScratchRWData);
+    gnaUserFree(bufferStateRWData);
+#if 0
+    gnaUserFree(bufferInputRWData);
+    gnaUserFree(bufferOutputRWData);
+#endif
+    GNADeviceHelper::checkGna2Status((Gna2Status)status, "ExportTlvModel");
+    status = Gna2ModelExportConfigRelease(exportConfig);
+    GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigRelease");
+}
 
 void ExportLdForDeviceVersion(
     uint32_t modelId,

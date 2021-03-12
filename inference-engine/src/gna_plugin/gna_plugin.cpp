@@ -1194,6 +1194,16 @@ void GNAPlugin::DumpXNNToFile() const {
         dump.header.OutputScalingFactor = outputsDesc.front().scale_factor;
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
+    } else if (versionInt == Gna2DeviceVersionEmbedded3_0) {
+        uint32_t input_size = 0;
+        uint32_t output_size = 0;
+        for (auto i : inputsDesc->bytes_allocated_for_input) 
+            input_size += i.second;
+        for (auto o : outputsDesc)
+            output_size += o.num_bytes_per_element* o.num_elements;
+
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, Gna2DeviceVersionEmbedded3_0,
+            input_size, output_size);
     } else {
         static_assert(sizeof(versionInt) >= sizeof(Gna2DeviceVersion), "");
         gnadevice->dumpXnnForDeviceVersion(modelId, dumpStream,

@@ -15,6 +15,7 @@
 #endif
 #include "gna_mock_api.hpp"
 
+
 static GNACppApi * current = nullptr;
 
 GNACppApi :: GNACppApi() {
@@ -219,6 +220,18 @@ GNA2_API enum Gna2Status Gna2ModelExport(
     }
     return Gna2StatusSuccess;
 }
+
+GNA2_API enum Gna2Status Gna2ModelExportAsTLV(
+    uint32_t exportConfigId,
+    enum Gna2ModelExportComponent componentType,
+    void** exportBuffer,
+    uint32_t* exportBufferSize) {
+    if (current != nullptr) {
+        return current->Gna2ModelExport(exportConfigId, componentType, exportBuffer, exportBufferSize);
+    }
+    return Gna2StatusSuccess;
+}
+
 
 GNA2_API enum Gna2Status Gna2DeviceGetVersion(
     uint32_t deviceIndex,

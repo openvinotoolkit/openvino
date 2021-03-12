@@ -22,6 +22,12 @@ void ExportLdForDeviceVersion(
     std::ostream & outStream,
     Gna2DeviceVersion deviceVersionToExport);
 
+void ExportTlvModel(uint32_t modelId,
+    std::ostream& outStream,
+    Gna2DeviceVersion deviceVersionToExport,
+    uint32_t input_size,
+    uint32_t output_size);
+
 void ExportGnaDescriptorPartiallyFilled(uint32_t numberOfLayers, std::ostream & outStream);
 
 #endif
