@@ -84,7 +84,7 @@ Each device plugin includes a library of optimized implementations to execute kn
 execute a custom operation. The custom operation extension is implemented according to the target device:
 
 - Custom Operation CPU Extension
-   - A compiled shared library (`.so`, `.dylib` or `.dll`) needed by the CPU Plugin for executing the custom operation
+   - A compiled shared library (`.so` or `.dll`) needed by the CPU Plugin for executing the custom operation
    on a CPU. Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more
    details.
 - Custom Operation GPU Extension
@@ -342,7 +342,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make --jobs=$(nproc)
 ```
 
-The result of this command is a compiled shared library (`.so`, `.dylib` or `.dll`). It should be loaded in the
+The result of this command is a compiled shared library (`.so` or `.dll`). It should be loaded in the
 application using `Core` class instance method `AddExtension` like this
 `core.AddExtension(std::make_shared<Extension>(compiled_library_file_name), "CPU");`.
 
