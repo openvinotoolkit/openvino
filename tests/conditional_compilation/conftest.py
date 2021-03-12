@@ -67,8 +67,7 @@ def pytest_generate_tests(metafunc):
     params = []
     ids = []
 
-    test_config = metafunc.config.getoption('test_conf')
-    with open(test_config, "r") as file:
+    with open(metafunc.config.getoption('test_conf'), "r") as file:
         test_cases = yaml.safe_load(file)
 
     for test in test_cases:
@@ -76,14 +75,29 @@ def pytest_generate_tests(metafunc):
         model_path = test["model"]["path"]
         if "marks" in test:
             extra_args["marks"] = test["marks"]
-        
-        path_with_env_vars = Path(expand_env_vars(model_path))
-        model_path.replace('$', '').replace('{', '').replace('}', '')
-        params.append(pytest.param(model_path, path_with_env_vars, **extra_args))
-        ids = ids + [model_path]
+
+        test_id = model_path.replace('$', '').replace('{', '').replace('}', '')
+        params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
+        ids = ids + [test_id]
 
     metafunc.parametrize("test_id, model", params, ids=ids)
 
+
+@pytest.fixture(scope="function")
+def test_info(request, pytestconfig):
+    setattr(request.node._request, "test_info", {"test_id": {}})
+    if not hasattr(pytestconfig, "session_info"):
+        setattr(pytestconfig, "session_info", [])
+
+    yield request.node._request.test_info
+
+    pytestconfig.session_info.append(request.node._request.test_info)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_test_info(pytestconfig):
+    yield
+    ids = [record["test_id"] for record in pytestconfig.session_info]
     with open(Path(__file__).parent / "cc_tests.json", "w") as file:
         json.dump(ids, file, ensure_ascii=False, indent=4)
 
