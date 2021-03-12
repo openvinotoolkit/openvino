@@ -17,44 +17,66 @@
 import unittest
 
 import numpy as np
-import numpy.testing as npt
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph
-from mo.utils.unittest.graph import valued_const_with_data, result, regular_op_with_empty_data, \
-    shaped_const_with_data, connect
 from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
+from mo.front.common.partial_infer.utils import int64_array, float32_array
+from mo.graph.graph import Node
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.unittest.graph import result, regular_op_with_empty_data, \
+    shaped_const_with_data, connect, regular_op
 
 
 class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
 
     def test_run(self):
-        inp_shape = (1, 3, 10, 10)
+        inp_shape = (1, 3, 1000, 1000)
+        dst_type = np.float32
 
         nodes = {
             **shaped_const_with_data('input', int64_array(inp_shape)),
-            **regular_op_with_empty_data('shapeof', {'type': 'ShapeOf'}),
-            **regular_op_with_empty_data('cast', {'type': 'Cast', 'dst_type': np.float32}),
-            **regular_op_with_empty_data('div', {'type': 'Mul'}),
-            **valued_const_with_data('div_2_const', int64_array(2)),
-            **regular_op_with_empty_data('interp', {'type': 'Interpolate', 'shape_calculation_model': 'scales',
-                                                    'in_ports': {0: {}, 1: {}, 2: {}}}),
+            **regular_op_with_empty_data('shape', {'type': 'ShapeOf'}),
+            **regular_op_with_empty_data('cast_to_float', {'type': 'Cast', 'dst_type': dst_type}),
+            **regular_op('mul_const',  {'op': 'Const'}),
+            **{'mul_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.])}},
+            **regular_op_with_empty_data('mul', {'type': 'Mul'}),
+            **regular_op_with_empty_data('cast_to_int', {'type': 'Cast', 'dst_type': np.int64}),
+            **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
+            **result('res'),
+        }
+
+        nodes_ref = {
+            **shaped_const_with_data('input', int64_array(inp_shape)),
+            **regular_op_with_empty_data('shape', {'type': 'ShapeOf'}),
+            **regular_op_with_empty_data('cast_to_float', {'type': 'Cast', 'dst_type': dst_type,
+                                                           'returns_shape_value': True}),
+            **regular_op_with_empty_data('mul', {'type': 'Mul', 'returns_shape_value': True}),
+            **regular_op('mul_const',  {'op': 'Const', 'returns_shape_value': True}),
+            **{'mul_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.]),
+                               'correct_data_type': True}},
+            **regular_op_with_empty_data('cast_to_int', {'type': 'Cast', 'dst_type': np.int64,
+                                                         'returns_shape_value': True}),
+            **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
             **result('res'),
         }
 
         edges = [
-            *connect('input', '0:interp'),
-            *connect('input', '0:shapeof', skip_data=True),
-            *connect('shapeof', '0:cast'),
-            *connect('cast', '0:div'),
-            *connect('div_2_const', '1:div'),
-            *connect('div', '1:interp'),
-            *connect('interp', 'res'),
+            *connect('input', '0:interpolate'),
+            *connect('input', '0:shape', skip_data=True),
+            *connect('shape', '0:cast_to_float'),
+            *connect('cast_to_float', '0:mul'),
+            *connect('mul_const', '1:mul'),
+            *connect('mul', '0:cast_to_int'),
+            *connect('cast_to_int', '1:interpolate'),
+            *connect('interpolate', 'res'),
         ]
 
         graph = build_graph(nodes, edges)
-        interp_node = Node(graph, 'interp')
-        interp_node.add_input_port(2, skip_if_exist=True)
+        interp_node = Node(graph, 'interpolate')
+        interp_node.add_input_port(2)
 
         MarkNodesWithShapeValues().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph(nodes_ref, edges)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'res', check_op_attrs=True)
+        self.assertTrue(flag, resp)
