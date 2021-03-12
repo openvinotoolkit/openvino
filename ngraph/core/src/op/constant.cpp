@@ -361,7 +361,8 @@ string op::Constant::convert_value_to_string(size_t index) const
     {
         uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
         int8_t data = i4data;
-        if ((i4data >> 3) & 0b1) {
+        if ((i4data >> 3) & 0b1)
+        {
             // negative number
             data = (i4data & 0x7) | 0xF0;
         }
