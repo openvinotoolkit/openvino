@@ -419,16 +419,27 @@ void convert_lp_value(const SRC& src, DST& dst, size_t src_offset, size_t src_si
     // new_val [00000000 00000000]
     DST new_val = 0;
     if (is_signed) {
-        //sign [00000001]
-        SRC sign = (val >> (src_size - 1)) & 0b1;
+        //sign [00000000]
+        //invert value in order to use XOR
+        SRC sign = (~(val >> (src_size - 1))) & 0b1;
         // diff 5
         size_t diff = sizeof(SRC)*8 - src_size + 1;
         // val [10100000]
         val = val << diff;
         // val [00000101]
-        val = val >> diff;
-        // new_val [00000001 00000101]
-        new_val = (sign << (dst_size - 1)) | (val);
+        val = (val >> diff);
+        // Negative number
+        if (!sign) {
+            // val [11110101]
+            val |= (std::numeric_limits<SRC>::max() << (diff - 1));
+            // new_val [00000001 11111111]
+            new_val = (sign << (dst_size - 1)) ^ (std::numeric_limits<DST>::max() >> (sizeof(DST) * 8 - dst_size));
+            // new_val [00000001 11110101]
+            new_val &= (std::numeric_limits<DST>::max() << sizeof(SRC)*8) | val;
+        } else {
+            // new_val [00000000 00000101]
+            new_val = val;
+        }
     } else {
         // diff 4
         size_t diff = sizeof(SRC)*8 - src_size;
@@ -441,7 +452,11 @@ void convert_lp_value(const SRC& src, DST& dst, size_t src_offset, size_t src_si
     }
 
     // mask [11000000 00011111]
-    DST mask = (std::numeric_limits<DST>::max() << (dst_offset + dst_size)) | (std::numeric_limits<DST>::max() >> (sizeof(DST) * 8 - dst_offset));
+    DST mask = 0;
+    if (dst_offset + dst_size < sizeof(DST) * 8)
+        mask = (std::numeric_limits<DST>::max() << (dst_offset + dst_size));
+    if (dst_offset != 0)
+        mask |= (std::numeric_limits<DST>::max() >> (sizeof(DST) * 8 - dst_offset));
 
     // signed:   new_val [11100000 10111111]
     // unsigned: new_val [11000001 10111111]
@@ -452,6 +467,7 @@ void convert_lp_value(const SRC& src, DST& dst, size_t src_offset, size_t src_si
     // unsigned: dst [10000001 10100100]
     dst &= new_val;
 }
+
 std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constant>& constant, element::Type to) {
     static const std::unordered_set<element::Type_t, EnumClassHash> supported_integer_precisions = {
         element::i4,

@@ -639,12 +639,52 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8) {
     constant_convert_test(element::Type_t::u4, element::Type_t::u8, 171, 10);
 }
 
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI8_2) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i8, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU8_96) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u8, 96, 6);
+}
+
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 171, 130);
+    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 96, 6);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 171, -126);
+    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 171, 242);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI32) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i32, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU32) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u32, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 171, -14);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU8) {
