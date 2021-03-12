@@ -264,6 +264,17 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         std::swap(convolution._dilation_x, convolution._dilation_y);
     }
 
+    // Map 2d convolution to 1d if it's possible
+    if (in_height > 1 && in_width > 1 && in_width == convolution._kernel_x && convolution._stride_x == 1) {
+        in_width *= in_height;
+        in_height = 1;
+        out_width *= out_height;
+        out_height = 1;
+        convolution._stride_x *= (convolution._stride_y * convolution._kernel_x);
+        convolution._kernel_x *= convolution._kernel_y;
+        convolution._kernel_y = 1;
+    }
+
     if (in_batch != 1 || out_batch != 1) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
@@ -313,6 +324,12 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     const auto inputs = convolution.insData.front().lock();
     const auto outputs = convolution.outData.front();
+
+    if (layer->GetParamAsString("auto_pad", "explicit") != "valid" &&
+        (convolution._padding[0] != 0 || convolution._padding[0] != 0 ||
+         convolution._pads_end[0] != 0 || convolution._pads_end[1] != 0)) {
+        THROW_GNA_LAYER_EXCEPTION(&convolution) << "Padding isn't supported by GNA";
+    }
 
     std::size_t calculated_out_width = (in_width * in_height - convolution._kernel_x + 2 * convolution._padding_x) / convolution._stride_x + 1;
     if (out_width * in_height != calculated_out_width) {
