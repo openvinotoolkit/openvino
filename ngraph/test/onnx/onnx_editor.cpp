@@ -25,6 +25,7 @@
 #include "onnx_import/editor/editor.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/engine/interpreter_engine.hpp"
+#include "util/onnx_test_util.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 // #include "utils/onnx_test_util.hpp"
@@ -713,6 +714,105 @@ NGRAPH_TEST(onnx_editor, subgraph__inputs_getter)
     EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"conv1/7x7_s2_2:conv1/7x7_s2_1"}));
 }
 
+NGRAPH_TEST(onnx_editor, sequential_replacements)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
+
+    const auto model_prefix = file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/");
+    const auto placeholder_operator = [](const onnx_import::Node& node) -> OutputVector {
+        return {};
+    };
+
+    auto ref_model = file_util::path_join(model_prefix, "sequential_replacements_step_1.prototxt");
+
+    editor.replace_nodes(std::vector<std::vector<int>>{std::vector<int>{0}}, placeholder_operator);
+
+    auto result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+
+    ref_model = file_util::path_join(model_prefix, "sequential_replacements_step_2.prototxt");
+
+    editor.replace_nodes(std::vector<std::vector<int>>{std::vector<int>{1}}, placeholder_operator);
+
+    result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+
+    ref_model = file_util::path_join(model_prefix, "sequential_replacements_step_3.prototxt");
+
+    editor.replace_nodes(std::vector<std::vector<int>>{std::vector<int>{0}, std::vector<int>{1}},
+                         placeholder_operator);
+
+    result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+
+    ref_model = file_util::path_join(model_prefix, "sequential_replacements_step_4.prototxt");
+
+    editor.replace_nodes(std::vector<std::vector<int>>{std::vector<int>{0, 1}},
+                         placeholder_operator);
+
+    result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, replace_2_vectors_no_index_shifting)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    const auto model_prefix = file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/");
+    const auto placeholder_operator = [](const onnx_import::Node& node) -> OutputVector {
+        return {};
+    };
+
+    const auto ref_model = file_util::path_join(model_prefix, "replace_2_vectors.prototxt");
+    editor.replace_nodes(
+        std::vector<std::vector<int>>{std::vector<int>{3, 5, 6}, std::vector<int>{2, 4}},
+        placeholder_operator);
+
+    const auto result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, replace_2_vectors_with_index_shifting)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    const auto model_prefix = file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/");
+    const auto placeholder_operator = [](const onnx_import::Node& node) -> OutputVector {
+        return {};
+    };
+
+    const auto ref_model = file_util::path_join(model_prefix, "replace_2_vectors.prototxt");
+    editor.replace_nodes(
+        std::vector<std::vector<int>>{std::vector<int>{2, 4}, std::vector<int>{3, 5, 6}},
+        placeholder_operator);
+
+    const auto result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, replace_3_vectors_with_external_tensor)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    const auto model_prefix = file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/");
+    const auto placeholder_operator = [](const onnx_import::Node& node) -> OutputVector {
+        return {};
+    };
+
+    const auto ref_model = file_util::path_join(model_prefix, "replace_3_vectors.prototxt");
+    editor.replace_nodes(std::vector<std::vector<int>>{std::vector<int>{2, 4},
+                                                       std::vector<int>{3, 5, 6},
+                                                       std::vector<int>{0, 1}},
+                         placeholder_operator);
+
+    const auto result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
 using TestEngine = test::INTERPRETER_Engine;
 
 NGRAPH_TEST(onnx_editor, values__append_one_initializer)
@@ -824,5 +924,29 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_mixed_types)
     const auto function = onnx_import::import_onnx_model(editor);
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int16_t>(Shape{2, 2, 1}, {1, 4, 5, 8});
+    test_case.run();
+}
+
+NGRAPH_TEST(onnx_editor, replace_and_run)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt")};
+
+    const auto custom_op_generator = [](const onnx_import::Node& node) -> OutputVector {
+        OutputVector ng_inputs{node.get_ng_inputs()};
+        return {std::make_shared<ngraph::op::v1::Add>(
+            std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1)),
+            ng_inputs.at(2))};
+    };
+
+    editor.replace_nodes(std::vector<std::vector<int>>{std::vector<int>{0, 1}},
+                         custom_op_generator);
+
+    const auto function = onnx_import::import_onnx_model(editor);
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1});
+    test_case.add_input<float>({2});
+    test_case.add_input<float>({3});
+    test_case.add_expected_output<float>(Shape{1}, {6});
     test_case.run();
 }
