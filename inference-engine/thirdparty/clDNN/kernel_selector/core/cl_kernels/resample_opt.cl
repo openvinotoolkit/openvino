@@ -69,22 +69,6 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
 )
 {
-    const int xy = get_global_id(0);
-    const int b = get_global_id(2);
-    const int f_block = get_group_id(1);
-
-    const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
-    const int y = (xy / X_BLOCKS);
-
-    const int feature_num = f_block * FEATURE_SLICE_SIZE + get_sub_group_local_id();
-    const uint feature_block = f_block * FEATURE_SLICE_SIZE;
-
-    typedef IN_VEC_TYPE in_vec_t;
-    typedef ACC_VEC_TYPE acc_vec_t;
-
-    if (feature_num >= OUTPUT_FEATURE_NUM)
-        return;
-
 #ifdef SAMPLE_TYPE_CAFFE_INTERP
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
     const int out_size[5] = { OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Z, OUTPUT_SIZE_Y, OUTPUT_SIZE_X };
@@ -129,10 +113,10 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const ACCUMULATOR_TYPE ax = 1.0f;
 #endif
 
-    const int rb = (SCALES[0] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ab);
-    const int rf = (SCALES[1] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / af);
-    const int ry = (SCALES[3] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ay);
-    const int rx = (SCALES[4] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ax);
+    const int rb = (SCALES[0] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ab);
+    const int rf = (SCALES[1] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / af);
+    const int ry = (SCALES[3] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ay);
+    const int rx = (SCALES[4] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ax);
 
     int const b_init = max(-PADS_BEGIN[0], ib_r - rb);
     int const f_init = max(-PADS_BEGIN[1], if_r - rf);
@@ -151,7 +135,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
 
     ACCUMULATOR_TYPE sum[fp_max] = {0};
-    ACCUMULATOR_TYPE wsum[fp_max] = {0};
+    ACCUMULATOR_TYPE wsum = ACCUMULATOR_VAL_ZERO;
 
     ACCUMULATOR_TYPE wb = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wf = ACCUMULATOR_VAL_ZERO;
@@ -173,7 +157,6 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                         unroll_for(int x = x_init; x < x_max; x++) {
                             wx = TRIANGLE_COEFF(ax, i_x - x);
                             w = wx * wy;
-                            //w = wb * wf * wx * wy;
 
 #if PADDING_USED == 1
                             bool isOutOfBounds = b < 0 || f < 0 || y < 0 || x < 0 ||
@@ -181,17 +164,15 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                                                 y >= in_size[3] || x >= in_size[4];
 #endif
                             if (w != 0) {
-                                unroll_for(int fp = 0; fp < fp_max; fp++) {
-                                    if (f + fp < INPUT0_FEATURE_NUM) {
-                                        wsum[fp] += w;
-        #if PADDING_USED == 1
+                                wsum += w;
+                                unroll_for(int fp = 0; fp < min(fp_max, INPUT0_FEATURE_NUM - f); fp++) {
+#if PADDING_USED == 1
                                         if (!isOutOfBounds)
-        #endif
+#endif
                                         {
                                             sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, y, x)]);
                                         }
-                                    }
-                                }  // unroll_for(int fp = 0; fp < fp_max; fp++)
+                                }  // unroll_for(int fp = 0; fp < min(fp_max, INPUT0_FEATURE_NUM - f); fp++)
                             }  // w != 0;
                         }  // unroll_for(int x = x_init; x < x_max; x++)
                     }
@@ -201,7 +182,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     }  // unroll_for(int b = b_init; b < b_max; b++)
 
     unroll_for (int f = 0; f < fp_max; f++) {
-        ACCUMULATOR_TYPE res = (wsum[f] == 0) ? ACCUMULATOR_VAL_ZERO : (sum[f] / wsum[f]);
+        ACCUMULATOR_TYPE res = (wsum == 0) ? ACCUMULATOR_VAL_ZERO : (sum[f] / wsum);
 #if HAS_FUSED_OPS
         #define OF_ID (feature + f)
         FUSED_OPS;
@@ -214,6 +195,21 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     }
 
 #else  // SAMPLE_TYPE_CAFFE_INTERP
+    const int xy = get_global_id(0);
+    const int b = get_global_id(2);
+    const int f_block = get_group_id(1);
+
+    const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
+    const int y = (xy / X_BLOCKS);
+
+    const int feature_num = f_block * FEATURE_SLICE_SIZE + get_sub_group_local_id();
+    const uint feature_block = f_block * FEATURE_SLICE_SIZE;
+
+    typedef IN_VEC_TYPE in_vec_t;
+    typedef ACC_VEC_TYPE acc_vec_t;
+
+    if (feature_num >= OUTPUT_FEATURE_NUM)
+        return;
 
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
 #ifdef SAMPLE_TYPE_NEAREST  // FEATURE_PACKED_MODE

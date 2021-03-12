@@ -68,8 +68,15 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dispatchData.lws[2] = 1;
     }
 
-    // printf("resample ref dispatchData\n gws (%d, %d, %d)\n", (int)dispatchData.gws[0], (int)dispatchData.gws[1], (int)dispatchData.gws[2]);
-    // printf(" lws (%d, %d, %d)\n", (int)dispatchData.lws[0], (int)dispatchData.lws[1], (int)dispatchData.lws[2]);
+    // if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
+    //         printf("resample ref caffe gws: (%zd, %zd, %zd), lws: (%zd, %zd, %zd), (%zd, %zd, %zd) %zd\n",
+    //     dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2],
+    //     dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2],
+    //     dispatchData.gws[0]/dispatchData.lws[0],
+    //     dispatchData.gws[1]/dispatchData.lws[1],
+    //     dispatchData.gws[2]/dispatchData.lws[2],
+    //     dispatchData.gws[0]/dispatchData.lws[0] *  dispatchData.gws[1]/dispatchData.lws[1] * dispatchData.gws[2]/dispatchData.lws[2]);
+    // }
 
     return dispatchData;
 }
