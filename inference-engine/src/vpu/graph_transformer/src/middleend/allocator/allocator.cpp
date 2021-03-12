@@ -471,6 +471,10 @@ std::size_t Allocator::freeCMXMemoryAmount() const {
     return _maxCmxSize - offset;
 }
 
+std::size_t Allocator::freeMemoryAmount(const MemoryType& type) const {
+    return type == MemoryType::CMX ? freeCMXMemoryAmount() : -1;
+}
+
 void Allocator::extractDatas(MemoryType memType, const DataSet& from, DataVector& out) const {
     for (const auto& data : from) {
         if (data->usage() != DataUsage::Intermediate)
@@ -519,6 +523,15 @@ allocator::MemChunk* Allocator::allocateMem(MemoryType memType, int size, int in
     if (auto chunk = checkMemPool(*memPool, memType, size, inUse)) {
         memPool->memUsed = std::max(memPool->memUsed, chunk->offset + chunk->size);
         return chunk;
+    }
+
+    //
+    // Check free space
+    //
+
+    const auto freeSpace = freeMemoryAmount(memType);
+    if (static_cast<std::size_t>(size) > freeSpace) {
+        return nullptr;
     }
 
     //
