@@ -156,11 +156,11 @@ namespace ngraph
                     check_mode_support(node, mode, version_9);
 
                     const auto inputs = node.get_ng_inputs();
-                    const auto data = inputs.at(0);
-                    const auto scales = inputs.at(1);
+                    const auto& data = inputs.at(0);
+                    const auto& scales = inputs.at(1);
 
-                    const auto data_shape = data.get_partial_shape();
-                    const auto scales_shape = scales.get_partial_shape();
+                    const auto& data_shape = data.get_partial_shape();
+                    const auto& scales_shape = scales.get_partial_shape();
                     CHECK_VALID_NODE(
                         node,
                         (scales_shape.is_static() || data_shape.rank().is_static()),
