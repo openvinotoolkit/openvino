@@ -64,34 +64,38 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
         }
     }
     */
+    // uses reg_num_pads as an argument
+    // advances reg_dst
+    void pad_with_zeros() {
+        uni_vpxor(vmm, vmm, vmm);
+        Xbyak::Label main, tail, exit;
+        L(main);
+        {
+            cmp(reg_num_pads, jpp.block_size);
+            jl(tail, T_NEAR);
+            uni_vmovups(ptr[reg_dst], vmm);
+            add(reg_dst, jpp.dtype_size * jpp.block_size);
+            sub(reg_num_pads, jpp.block_size);
+            jmp(main, T_NEAR);
+        }
+        L(tail);
+        {
+            cmp(reg_num_pads, 0);
+            jle(exit, T_NEAR);
+            movss(ptr[reg_dst], vmm); // will it work for 64 types?
+            add(reg_dst, jpp.dtype_size);
+            sub(reg_num_pads, 1);
+            jmp(tail, T_NEAR);
+        }
+        L(exit);
+    }
     // The main loop where all the work is done
     void loop() {
-        //Xbyak::Label tail_loop_label;
-        Xbyak::Label exit_label;
-        Xbyak::Label top_pad;
         //for (int64_t i = 0; i < ih_lpad * OW; i++)
         //    dst_data[dst_idx++] = T(0);
-
-        //mov(reg_i, ptr[reg_params + GET_OFF(h_lo_pad)]);
-        mov(reg_i, jpp.block_size);
-        //mov(reg_i, ptr[reg_params + GET_OFF(h_hi_pad)]);
-        uni_vmovups(vmm, 1);
-        uni_vpxor(vmm, vmm, vmm);
-        //pxor(vmm, vmm);
-        L(top_pad);
-        {
-            cmp(reg_i, jpp.block_size);
-            jl(exit_label, T_NEAR);
-            uni_vmovups(ptr[reg_dst], vmm);
-            add(reg_dst, jpp.dtype_size * jpp.block_size); // sure need to mult by dtype_size?
-            sub(reg_i, jpp.block_size);
-            jmp(top_pad, T_NEAR);
-        }
-        // set appropriate dst in case some extra zeros were written
-        //mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-        //mov(reg_i, ptr[reg_params + GET_OFF(h_lo_pad)]);
-        //mul_by_const(reg_i, reg_aux, jpp.dtype_size * jpp.block_size);
-        //add(reg_dst,  reg_i);
+        mov(reg_num_pads, ptr[reg_params + GET_OFF(h_lo_pad)]);
+        mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
+        pad_with_zeros();
         /*
         for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {
             for (int64_t iw = 0; iw < iw_lpad; iw++)
@@ -103,75 +107,90 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
                 dst_data[dst_idx++] = 0;
         }
          */
-        /*
-        mov(ih_work_amount, jpp.OH);
-        L(main_ih_loop);
+        Xbyak::Label ih_loop, ih_tail, ih_exit;
+        Xbyak::Label iw_loop, iw_tail, iw_exit;
+        mov(reg_i, ptr[reg_params + GET_OFF(h_hi_pad)]);
+        sub(reg_i, ptr[reg_params + GET_OFF(h_lo_pad)]);
+        L(ih_loop);
         {
-            cmp(ih_work_amount, 1);
-            jl(tail_loop_label, T_NEAR);
+            //cmp(reg_i, jpp.block_size);
+            cmp(reg_i, 0);
+            jle(ih_exit, T_NEAR);
+            /*
+            for (int64_t iw = 0; iw < iw_lpad; iw++)
+                dst_data[dst_idx++] = 0;
+            */
+            mov(reg_num_pads, ptr[reg_params + GET_OFF(w_lo_pad)]);
+            pad_with_zeros();
+            /*
+            for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
+                dst_data[dst_idx++] = src_data[src_idx];
+            */
 
-            mov(iw_work_amount, jpp.OW);
-            L(main_iw_loop);
+            mov(reg_j, ptr[reg_params + GET_OFF(w_lo_pad)]);
+            mul_by_const(reg_j, reg_aux64, jpp.SW * jpp.dtype_size);
+            add(reg_j, reg_src);
+
+            mov(reg_num_pads, ptr[reg_params + GET_OFF(w_hi_pad)]);
+            mul_by_const(reg_num_pads, reg_aux64, jpp.SW * jpp.dtype_size);
+            add(reg_num_pads, reg_src);
+
+            L(iw_loop);
             {
-                cmp(iw_work_amount, 1);
-                jl(main_iw_loop_done, T_NEAR);
-
+                cmp(reg_j, reg_num_pads);
+                jge(iw_exit, T_NEAR);
                 //uni_vmovups(vmm, ptr[reg_src]);
                 //uni_vmovups(ptr[reg_dst], vmm);
+                //add(reg_src, jpp.dtype_size * jpp.block_size);
+                //add(reg_dst, jpp.dtype_size * jpp.block_size);
+                mov(reg_aux32, ptr[reg_j]);
+                mov(ptr[reg_dst], reg_aux32);
+                //movss(vmm, ptr[reg_src]);
+                //movss(ptr[reg_dst], vmm);
 
-                add(reg_src, jpp.SW * jpp.data_size);
-                add(reg_dst, jpp.data_size);
-
-                sub(iw_work_amount, 1);
-                jmp(main_iw_loop, T_NEAR);
+                add(reg_j, jpp.SW * jpp.dtype_size);
+                add(reg_dst, jpp.dtype_size);
+                jmp(iw_loop);
             }
-            L(main_iw_loop_done);
+            L(iw_exit);
 
-            sub(ih_work_amount, 1);
-            jmp(main_ih_loop, T_NEAR);
+            /*
+            for (int64_t i = 0; i < (OW - iw_hpad); i++)
+                dst_data[dst_idx++] = 0;
+            */
+            mov(reg_num_pads, jpp.OW);
+            sub(reg_num_pads, ptr[reg_params + GET_OFF(w_hi_pad)]);
+            pad_with_zeros();
+            sub(reg_i, 1);
+            add(reg_src, jpp.SH * jpp.IW * jpp.dtype_size);
+            //sub(reg_i, jpp.block_size);
+            jmp(ih_loop, T_NEAR);
         }
-        */
-        /*
-        L(tail_loop_label); {
-            cmp(reg_work_amount, 0);
-            je(exit_label, T_NEAR);
-
-            if (n + 1 == jpp.ndims) {
-                load(xmm, ptr[reg_src]);
-                store(ptr[reg_dst], xmm);
-            } else {
-                aux_reg_src = reg_src;
-                aux_reg_dst = reg_dst;
-                push(aux_reg_src);
-                push(aux_reg_dst);
-                push(reg_work_amount);
-                loop(n + 1);
-                pop(reg_work_amount);
-                pop(reg_dst);
-                pop(reg_src);
-            }
-
-            add(reg_src, jpp.src_strides[n] * jpp.data_size);
-            add(reg_dst, jpp.dst_strides[n] * jpp.data_size);
-            sub(reg_work_amount, 1);
-
-            jmp(tail_loop_label, T_NEAR);
-        }
-        */
-        L(exit_label);
+        L(ih_exit);
+        //for (int64_t i = 0; i < (OH - ih_hpad) * OW; i++)
+        //    dst_data[dst_idx++] = T(0);
+        mov(reg_num_pads, jpp.OH);
+        sub(reg_num_pads, ptr[reg_params + GET_OFF(h_hi_pad)]);
+        mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
+        pad_with_zeros();
     }
 
 
 private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
+    using reg32_t = const Xbyak::Reg32;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     reg64_t reg_src = r8;
+    reg64_t reg_src_tmp = r10;
     reg64_t reg_dst = r9;
-    reg64_t reg_work_amount = r10;
+
     reg64_t reg_i = r11;
-    reg64_t reg_aux = r12;
+    reg64_t reg_num_pads = r12; // reserved. used to specify padding
+    reg64_t reg_aux64 = r13;
+    reg64_t reg_j = r14;
+    reg32_t reg_aux32 = r15d;
     reg64_t reg_params = abi_param1;
 
     Vmm vmm = Vmm(0);
