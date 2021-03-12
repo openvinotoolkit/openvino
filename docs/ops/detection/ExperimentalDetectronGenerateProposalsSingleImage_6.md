@@ -4,10 +4,28 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* ... TBD
+**Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* computes ROIs and ROI's scores based on input data.
 
-**Detailed description**: TBD
+**Detailed description**:
 
+   Transpose and reshape predicted bbox transformations to get them into the same order as the anchors:
+     - bbox deltas will be (4 * A, H, W) format from convolution output
+     - transpose to (H, W, 4 * A)
+     - reshape to (H * W * A, 4) where rows are ordered by (H, W, A) in slowest to fastest order to match the enumerated anchors
+       
+   Same story for the scores:
+     - Scores are (A, H, W) format from convolution output
+     - Transpose to (H, W, A)
+     - Reshape to (H * W * A, 1) where rows are ordered by (H, W, A) to match the order of anchors and bbox_deltas
+
+   Transform anchors into proposals and clip proposals to image.
+   Remove predicted boxes with either height or width < *min_size*, sort all `(proposal, score)` pairs by score from highest to lowest.
+   Take top *pre_nms_count*.
+   
+   Apply *nms_threshold*.
+   Take *post_nms_count*.
+   Return the top proposals (-> ROIs top).
+       
 **Attributes**:
 
 * *min_size*
@@ -20,7 +38,7 @@
 
 * *nms_threshold*
 
-    * **Description**: *nms_threshold* attribute specifies NMS threshold.
+    * **Description**: *nms_threshold* attribute specifies threshold to be used in the NMS stage.
     * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: 0.7

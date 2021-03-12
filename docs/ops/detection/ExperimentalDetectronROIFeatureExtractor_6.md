@@ -41,10 +41,10 @@
 
 * *aligned*
 
-    * **Description**: *aligned* attribute specifies add offset (`-0.5`) to ROI sizes or not.
+    * **Description**: *aligned* attribute specifies add offset (`-0.5`) to ROIs sizes or not.
     * **Range of values**:
-      * `true` - add offset to ROI size 
-      * `false` - do not add offset to ROI size 
+      * `true` - add offset to ROIs sizes
+      * `false` - do not add offset to ROIs sizes
     * **Type**: boolean
     * **Default value**: false
     * **Required**: *no*
