@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,11 +24,17 @@ class GeLUOP(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'version': 'opset2',
+            'version': 'opset7',
             'infer': copy_shape_infer
         }
         super().__init__(graph, mandatory_props, attrs)
+
+    def backend_attrs(self):
+        if self.get_opset() == 'opset7':
+            return ['approximation']
+        else:
+            return []

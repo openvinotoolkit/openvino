@@ -248,9 +248,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
+    if (prev.is_type<permute>())
+        return true;
+
     return false;
 }
-
 
 namespace {
 bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
@@ -782,7 +784,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         auto input_tensor = node.get_dependency(0).get_output_layout().size;
         int input_features = input_tensor.feature[0];
         int output_features = expected_tensor.feature[0];
-        float r = float(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
+        float r = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
         if (r > 0.5f)
             expected_format = cldnn::format::b_fs_yx_fsv16;
         else
@@ -862,12 +864,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<mvn>()) {
         auto input_layout = node.get_dependency(0).get_output_layout();
         if (input_layout.format.dimension() == 5 &&
-            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16 ))
+            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
             expected = format::bfzyx;
-    } else if (node.is_type<region_yolo>()) {
-        if (_optimization_attributes.b_fs_yx_fsv16_network) {
-            expected = format::bfyx;
-        }
     }
 
     return expected;

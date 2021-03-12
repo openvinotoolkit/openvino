@@ -78,6 +78,13 @@ public:
 
     static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 
+    static int getConstantInputIndex(std::shared_ptr<Node> node);
+
+    static std::vector<size_t> updateReshapeValues(
+        const Shape& elementwiseConstantShape,
+        const Shape& elementwiseShape,
+        const std::vector<size_t>& reshapeValues);
+
     // Optimizes the series of multiplies after a given output port
     static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
@@ -155,8 +162,6 @@ public:
     static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
     static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
-
-    static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
 
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 

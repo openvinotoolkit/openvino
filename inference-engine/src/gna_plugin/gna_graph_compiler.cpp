@@ -264,6 +264,17 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         std::swap(convolution._dilation_x, convolution._dilation_y);
     }
 
+    // Map 2d convolution to 1d if it's possible
+    if (in_height > 1 && in_width > 1 && in_width == convolution._kernel_x && convolution._stride_x == 1) {
+        in_width *= in_height;
+        in_height = 1;
+        out_width *= out_height;
+        out_height = 1;
+        convolution._stride_x *= (convolution._stride_y * convolution._kernel_x);
+        convolution._kernel_x *= convolution._kernel_y;
+        convolution._kernel_y = 1;
+    }
+
     if (in_batch != 1 || out_batch != 1) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
@@ -313,6 +324,12 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     const auto inputs = convolution.insData.front().lock();
     const auto outputs = convolution.outData.front();
+
+    if (layer->GetParamAsString("auto_pad", "explicit") != "valid" &&
+        (convolution._padding[0] != 0 || convolution._padding[0] != 0 ||
+         convolution._pads_end[0] != 0 || convolution._pads_end[1] != 0)) {
+        THROW_GNA_LAYER_EXCEPTION(&convolution) << "Padding isn't supported by GNA";
+    }
 
     std::size_t calculated_out_width = (in_width * in_height - convolution._kernel_x + 2 * convolution._padding_x) / convolution._stride_x + 1;
     if (out_width * in_height != calculated_out_width) {
@@ -740,6 +757,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto orientation = kDnnInterleavedOrientation;
 
         auto activation_type = DnnActivation::fromType(kActPow);
+        activation_type.fqParams.set = false;
+        activation_type.srcFQParams.set = false;
         activation_type.args.pow.exponent = power.power;
         activation_type.args.pow.scale = power.scale;
         activation_type.args.pow.offset = power.offset;
@@ -768,7 +787,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                 PwlDesignOpt16(activation_type,
                     ptr_pwl_segments,
                     input_pwl_scale_factor,
-                    output_pwl_scale_factor);
+                    output_pwl_scale_factor,
+                    gnaFlags->pwlMaxErrorPercent);
             }
         }
 
@@ -1668,14 +1688,6 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
     }
 }
 
-void GNAGraphCompiler::FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr layer) {
-    // in FP32 mode lets use special form of activation that satisfies fakeQuantize formula
-    if (gnaFlags->sw_fp32) {
-        PWLPrimitive(layer);
-        return;
-    }
-}
-
 void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto* generic = dynamic_cast<GenericLayer*>(layer.get());
     std::string type;
@@ -1768,6 +1780,24 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         THROW_GNA_EXCEPTION << "Activation function type not yet supported: " << type;
     }
     auto activation_type = DnnActivation::fromType(it->second);
+    activation_type.fqParams.set = false;
+    if (quantized != nullptr && quantized->_dst_quant.IsStatsSet()) {
+        activation_type.fqParams.set = true;
+        activation_type.fqParams.levels = quantized->_dst_quant.GetLevels();
+        activation_type.fqParams.inputPerChannel = false;
+        activation_type.fqParams.input_low = &(quantized->_dst_quant.GetMinValues(true).front());
+        activation_type.fqParams.input_high = &(quantized->_dst_quant.GetMaxValues(true).front());
+    }
+
+    activation_type.srcFQParams.set = false;
+    if (quantized != nullptr && quantized->_src_quant.IsStatsSet()) {
+        activation_type.srcFQParams.set = true;
+        activation_type.srcFQParams.levels = quantized->_src_quant.GetLevels();
+        activation_type.srcFQParams.inputPerChannel = false;
+        activation_type.srcFQParams.input_low = &(quantized->_src_quant.GetMinValues(true).front());
+        activation_type.srcFQParams.input_high = &(quantized->_src_quant.GetMaxValues(true).front());
+    }
+
     if (it->second == kActRelu) {
         auto reluLayer = dynamic_cast<ReLULayer*>(layer.get());
         activation_type.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
@@ -1775,11 +1805,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type.args.lrelu.negative_slope = 0.0f;
     }
 
-    if (it->second == kActFakeQuantize) {
+    if (quantized == nullptr && it->second == kActFakeQuantize) {
         activation_type = GNAFakeQuantizeLayer(layer).parseAsActivation();
-    }
-
-    if (it->second == kActKaldiLstmClipping) {
+    } else if (it->second == kActKaldiLstmClipping) {
         auto clamp_layer = dynamic_cast<ClampLayer*>(layer.get());
         if (clamp_layer) {
             if (clamp_layer->min_value == 0 && clamp_layer->max_value == 0) {
@@ -1856,7 +1884,8 @@ case name:\
             PwlDesignOpt16(activation_type,
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                output_pwl_scale_factor,
+                gnaFlags->pwlMaxErrorPercent);
         }
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
     }
@@ -2001,7 +2030,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{DelayedCopyLayerName}, CREATE(CopyPrimitive)},
         {{"TensorIterator"}, SKIP},
         {{"LSTMCell"}, SKIP},
-        {{"FakeQuantize"}, CREATE(FakeQuantizePrimitive)}  // TODO: fakequantize layer should be properly converted to GNA scale factors for integer case
+        {{"FakeQuantize"}, CREATE(PWLPrimitive)}
     };
     (void)layersBuilder;
     auto it = LayersBuilder::getStorage().find(layer->type);

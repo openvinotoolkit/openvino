@@ -28,7 +28,7 @@ public:
     PermuteKernel_tile_8x8_4x4() : PermuteKernelBase("permute_tile_8x8_4x4") {}
     virtual ~PermuteKernel_tile_8x8_4x4() {}
 
-    virtual bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p, const optional_params& o) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const;
     ParamsKey GetSupportedKey() const override;
 protected:

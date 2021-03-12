@@ -61,7 +61,7 @@ public:
     virtual KernelsPriority GetKernelsPriority(const Params& /*params*/,
                                                const optional_params& /*options*/) const {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    };
+    }
 
     virtual ParamsKey GetSupportedKey() const = 0;
     virtual const std::string GetName() const { return kernelName; }

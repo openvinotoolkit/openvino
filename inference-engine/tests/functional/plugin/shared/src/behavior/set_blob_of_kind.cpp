@@ -66,6 +66,7 @@ void SetBlobOfKindTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     LoadNetwork();
+    GenerateInputs();
 
     if (isBlobKindSupported(core, targetDevice, blobKind)) {
         Infer();
