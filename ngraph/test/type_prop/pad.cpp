@@ -281,3 +281,27 @@ TEST(type_prop, pad_v1_deduce_too_small_for_reflect)
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST(type_prop, pad_v1_dynamic_output_with_dynamic_rank)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto pads_begin = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto arg_pad_value = op::Constant::create(element::f32, Shape{}, {0});
+
+    auto pad =
+        make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
+    ASSERT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, pad_v1_dynamic_output_with_static_rank)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto arg_pad_value = op::Constant::create(element::f32, Shape{}, {0});
+
+    auto pad =
+        make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
+    ASSERT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
+}

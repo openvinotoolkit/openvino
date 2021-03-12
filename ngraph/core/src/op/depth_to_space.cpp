@@ -112,7 +112,7 @@ void op::DepthToSpace::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
     }
 }
 

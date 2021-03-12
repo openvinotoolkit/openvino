@@ -61,6 +61,26 @@ TEST(type_prop, space_to_depth_output_shape_depth_first_5D)
     ASSERT_EQ(space_to_depth->get_shape(), (Shape{1, 12 * 8, 4 / 2, 1080 / 2, 1616 / 2}));
 }
 
+TEST(type_prop, space_to_depth_dynamic_shape_static_rank)
+{
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 8);
+
+    ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
+    ASSERT_EQ(space_to_depth->get_output_partial_shape(0), PartialShape::dynamic(4));
+}
+
+TEST(type_prop, space_to_depth_dynamic_shape_dynamic_rank)
+{
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 8);
+
+    ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
+    ASSERT_EQ(space_to_depth->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
 TEST(type_prop, space_to_depth_input_rank_not_supported)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8});

@@ -90,3 +90,35 @@ TEST(type_prop, batch_to_space_and_space_to_batch)
     ASSERT_EQ(space_to_batch->get_element_type(), element::f32);
     ASSERT_EQ(space_to_batch->get_shape(), (Shape{4800, 9, 11, 2}));
 }
+
+TEST(type_prop, batch_to_space_dynamic_shape_static_rank)
+{
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto block_shape =
+        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
+    auto pads_begin =
+        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+
+    auto batch_to_space =
+        make_shared<op::v1::BatchToSpace>(data, block_shape, pads_begin, pads_end);
+
+    ASSERT_EQ(batch_to_space->get_element_type(), element::f32);
+    ASSERT_EQ(batch_to_space->get_output_partial_shape(0), PartialShape::dynamic(4));
+}
+
+TEST(type_prop, batch_to_space_dynamic_shape_dynamic_rank)
+{
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto block_shape =
+        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
+    auto pads_begin =
+        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+
+    auto batch_to_space =
+        make_shared<op::v1::BatchToSpace>(data, block_shape, pads_begin, pads_end);
+
+    ASSERT_EQ(batch_to_space->get_element_type(), element::f32);
+    ASSERT_EQ(batch_to_space->get_output_partial_shape(0), PartialShape::dynamic());
+}
