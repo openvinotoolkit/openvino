@@ -78,6 +78,21 @@ namespace ngraph
                     return attrs;
                 }
 
+                OutputVector create_upsample_subgraph(const Output<ngraph::Node>& data,
+                                                      const Output<ngraph::Node>& scales,
+                                                      const std::string& mode)
+                {
+                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
+                    const auto multiply =
+                        std::make_shared<default_opset::Multiply>(shape_of_data, scales);
+                    const auto output_shape = std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
+
+                    return {std::make_shared<default_opset::Interpolate>(
+                        data, output_shape, scales, get_attributes(mode))};
+                }
+
             } // namespace
 
             namespace set_1
@@ -102,15 +117,7 @@ namespace ngraph
                     const auto scales_const = default_opset::Constant::create(
                         ngraph::element::f32, Shape({scales.size()}), scales);
 
-                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    const auto multiply =
-                        std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
-                    const auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
-
-                    return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales_const, get_attributes(mode))};
+                    return create_upsample_subgraph(data, scales_const, mode);
                 }
 
             } // namespace set_1
@@ -131,15 +138,7 @@ namespace ngraph
                     const auto scales_const = default_opset::Constant::create(
                         ngraph::element::f32, Shape({scales.size()}), scales);
 
-                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    const auto multiply =
-                        std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
-                    const auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
-
-                    return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales_const, get_attributes(mode))};
+                    return create_upsample_subgraph(data, scales_const, mode);
                 }
 
             } // namespace set_7
@@ -152,47 +151,17 @@ namespace ngraph
                     const auto data = inputs.at(0);
                     const auto scales = inputs.at(1);
 
-                    const auto data_shape = data.get_partial_shape();
-                    const auto scales_shape = scales.get_partial_shape();
-
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
                     check_mode_support(node, mode, version_9);
 
+                    const auto data_shape = data.get_partial_shape();
+                    const auto scales_shape = scales.get_partial_shape();
                     CHECK_VALID_NODE(
                         node,
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of Scales input is required to be static.");
 
-                    if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
-                    {
-                        const auto scales_const =
-                            as_type_ptr<default_opset::Constant>(scales.get_node_shared_ptr());
-
-                        auto scales_vector = scales_const->cast_vector<float>();
-                        auto data_static_shape = data_shape.to_shape();
-
-                        std::vector<int64_t> output_shape;
-                        for (size_t i = 0; i < data_static_shape.size(); ++i)
-                        {
-                            output_shape.push_back(
-                                std::floor(data_static_shape.at(i) * scales_vector.at(i)));
-                        }
-                        auto output_shape_const = default_opset::Constant::create(
-                            element::u64, Shape({output_shape.size()}), output_shape);
-
-                        return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, scales, get_attributes(mode))};
-                    }
-
-                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    const auto multiply =
-                        std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-                    const auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
-
-                    return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales, get_attributes(mode))};
+                    return create_upsample_subgraph(data, scales, mode);
                 }
 
             } // namespace set_9
