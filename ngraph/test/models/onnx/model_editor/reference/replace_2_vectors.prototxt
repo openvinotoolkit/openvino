@@ -17,6 +17,7 @@ graph {
     input: "in4"
     input: "add1"
     output: "mul2"
+    domain: "org.openvinotoolkit.editor"
     op_type: "custom_op_0"
   }
   node {
@@ -25,6 +26,7 @@ graph {
     input: "relu1"
     output: "split2"
     output: "mul1"
+    domain: "org.openvinotoolkit.editor"
     op_type: "custom_op_0"
   }
   name: "subgraph_extraction_testing"

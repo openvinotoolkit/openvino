@@ -5,12 +5,14 @@ graph {
     input: "A"
     input: "B"
     output: "X"
+    domain: "org.openvinotoolkit.editor"
     op_type: "custom_op_0"
   }
   node {
     input: "X"
     input: "C"
     output: "Y"
+    domain: "org.openvinotoolkit.editor"
     op_type: "custom_op_1"
   }
   name: "test_graph"

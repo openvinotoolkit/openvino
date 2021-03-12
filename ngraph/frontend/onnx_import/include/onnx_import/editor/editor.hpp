@@ -147,6 +147,7 @@ namespace ngraph
 
         private:
             const std::string m_model_path;
+            const std::string m_editor_domain{"org.openvinotoolkit.editor"};
 
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;

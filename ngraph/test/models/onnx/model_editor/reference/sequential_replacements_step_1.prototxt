@@ -5,6 +5,7 @@ graph {
     input: "A"
     input: "B"
     output: "X"
+    domain: "org.openvinotoolkit.editor"
     op_type: "custom_op_0"
   }
   node {

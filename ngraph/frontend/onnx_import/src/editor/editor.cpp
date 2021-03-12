@@ -432,7 +432,7 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
     {
         replace_nodes(node_vector, new_op_name);
     }
-    onnx_import::register_operator(new_op_name, 1, "org.openvinotoolkit.editor", node_generator);
+    onnx_import::register_operator(new_op_name, 1, m_editor_domain, node_generator);
 }
 
 void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(std::vector<int>& node_indexes,
@@ -502,6 +502,7 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(std::vector<in
     auto new_node = model().mutable_graph()->mutable_node(insert_position);
     new_node->Clear();
     new_node->set_op_type(new_op_name);
+    new_node->set_domain(m_editor_domain);
     for (auto input : inputs)
     {
         new_node->add_input(input);

@@ -6,6 +6,7 @@ graph {
     input: "B"
     input: "C"
     output: "Y"
+    domain: "org.openvinotoolkit.editor"
     op_type: "custom_op_3"
   }
   name: "test_graph"
