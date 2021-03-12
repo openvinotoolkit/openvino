@@ -14,19 +14,13 @@ set(builder_files_src ${CMAKE_CURRENT_SOURCE_DIR}/builders/ie_layer_decorator.cp
                       ${CMAKE_CURRENT_SOURCE_DIR}/builders/ie_const_layer.cpp
                       ${CMAKE_CURRENT_SOURCE_DIR}/builders/ie_split_layer.cpp
                       ${CMAKE_CURRENT_SOURCE_DIR}/builders/ie_pooling_layer.cpp
+                      ${CMAKE_CURRENT_SOURCE_DIR}/builders/ie_divbyn_layer.cpp
                       ${CMAKE_CURRENT_SOURCE_DIR}/builders/ie_network_builder.cpp)
 
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/low_precision_transformations/*.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/low_precision_transformations/common/*.cpp
-if (ENABLE_NGRAPH)
-	${CMAKE_CURRENT_SOURCE_DIR}/transform/*.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/transform/transformations/*.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/transform/transformations/fusion/*.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/transform/transformations/utils/*.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/ngraph_ops/*.cpp
-endif()
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/built-in/*.cpp

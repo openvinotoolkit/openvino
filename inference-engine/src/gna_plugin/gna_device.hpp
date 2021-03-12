@@ -30,6 +30,8 @@
 /**
  * holds gna - style handle in RAII way
  */
+typedef uint32_t gna_device_id; // TODO:3:API redesign: remove and use uint32_t instead.
+
 class GNADeviceHelper {
     static std::mutex acrossPluginsSync;
 #if GNA_LIB_VER == 1
