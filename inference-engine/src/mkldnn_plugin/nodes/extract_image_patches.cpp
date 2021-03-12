@@ -37,7 +37,8 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
 
-        //loop(jpp.n);  //loop over input and output to get the work done
+
+        loop();  //loop over input and output to get the work done
 
         this->postamble();
     }
@@ -64,18 +65,45 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
     }
     */
     // The main loop where all the work is done
-    void loop(int n) {
-        /*
-        Xbyak::Label main_ih_loop;
-        Xbyak::Label main_iw_loop;
-        Xbyak::Label main_iw_loop_done;
-
-        Xbyak::Label tail_loop_label;
+    void loop() {
+        //Xbyak::Label tail_loop_label;
         Xbyak::Label exit_label;
+        Xbyak::Label top_pad;
+        //for (int64_t i = 0; i < ih_lpad * OW; i++)
+        //    dst_data[dst_idx++] = T(0);
 
-        Xbyak::Label set_zero;
-        Xbyak::Label set_src;
+        //mov(reg_i, ptr[reg_params + GET_OFF(h_lo_pad)]);
+        mov(reg_i, jpp.block_size);
+        //mov(reg_i, ptr[reg_params + GET_OFF(h_hi_pad)]);
+        uni_vmovups(vmm, 1);
+        uni_vpxor(vmm, vmm, vmm);
+        //pxor(vmm, vmm);
+        L(top_pad);
+        {
+            cmp(reg_i, jpp.block_size);
+            jl(exit_label, T_NEAR);
+            uni_vmovups(ptr[reg_dst], vmm);
+            add(reg_dst, jpp.dtype_size * jpp.block_size); // sure need to mult by dtype_size?
+            sub(reg_i, jpp.block_size);
+            jmp(top_pad, T_NEAR);
+        }
+        // set appropriate dst in case some extra zeros were written
+        //mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+        //mov(reg_i, ptr[reg_params + GET_OFF(h_lo_pad)]);
+        //mul_by_const(reg_i, reg_aux, jpp.dtype_size * jpp.block_size);
+        //add(reg_dst,  reg_i);
+        /*
+        for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {
+            for (int64_t iw = 0; iw < iw_lpad; iw++)
+                dst_data[dst_idx++] = 0;
+            for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
+                dst_data[dst_idx++] = src_data[src_idx];
 
+            for (int64_t i = 0; i < (OW - iw_hpad); i++)
+                dst_data[dst_idx++] = 0;
+        }
+         */
+        /*
         mov(ih_work_amount, jpp.OH);
         L(main_ih_loop);
         {
@@ -130,7 +158,7 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
             jmp(tail_loop_label, T_NEAR);
         }
         */
-        //L(exit_label);
+        L(exit_label);
     }
 
 
@@ -142,6 +170,8 @@ private:
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
     reg64_t reg_work_amount = r10;
+    reg64_t reg_i = r11;
+    reg64_t reg_aux = r12;
     reg64_t reg_params = abi_param1;
 
     Vmm vmm = Vmm(0);
@@ -216,16 +246,16 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         set_pads(_auto_pad, {jcp.IH, jcp.IW, jcp.KH, jcp.KW, jcp.SH, jcp.SW, jcp.RH, jcp.RW});
         jcp.PL = _pads[0];
         jcp.PT = _pads[1];
-
+        jcp.block_size = 1;
         if (mayiuse(x64::avx512_common)) {
+            jcp.block_size = 16;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx512_common>(jcp));
-            //block_size = 16;
         } else if (mayiuse(x64::avx2)) {
+            jcp.block_size = 8;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx2>(jcp));
-            //block_size = 8;
         } else if (mayiuse(x64::sse41)) {
+            jcp.block_size = 4;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jcp));
-            //block_size = 4;
         }
 
         if (eximpat_kernel)
