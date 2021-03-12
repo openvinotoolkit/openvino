@@ -359,8 +359,12 @@ string op::Constant::convert_value_to_string(size_t index) const
     case element::Type_t::f64: rc = to_cpp_string(get_data_ptr<double>()[index]); break;
     case element::Type_t::i4:
     {
-        int8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
-        int8_t data = ((i4data << 4) | i4data) & 0b10000111;
+        uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+        int8_t data = i4data;
+        if ((i4data >> 3) & 0b1) {
+            // negative number
+            data = (i4data & 0x7) | 0xF0;
+        }
         rc = to_string(data);
         break;
     }
