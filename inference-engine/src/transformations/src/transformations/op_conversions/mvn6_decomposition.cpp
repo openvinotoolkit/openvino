@@ -61,7 +61,7 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
                 // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
                 div = std::make_shared<ngraph::opset6::Divide>(mean_normalization, sqrt);
             } else if (eps_mode == op::MVNEpsMode::OUTSIDE_SQRT) {
-                // (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
+                // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
                 sqrt = std::make_shared<ngraph::opset6::Sqrt>(mean2);
                 eps_add = std::make_shared<ngraph::opset6::Add>(sqrt, eps_node);
                 // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
