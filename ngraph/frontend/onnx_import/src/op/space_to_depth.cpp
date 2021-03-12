@@ -28,7 +28,9 @@ namespace ngraph
                 OutputVector space_to_depth(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    NGRAPH_CHECK(data.get_shape().size() == 4, "Input must be 4-dimensional");
+                    const auto& shape = data.get_partial_shape();
+                    NGRAPH_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4,
+                                 "Input must be 4-dimensional");
                     std::size_t block_size = node.get_attribute_value<std::int64_t>("blocksize");
                     const auto mode = default_opset::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
                     return OutputVector{
