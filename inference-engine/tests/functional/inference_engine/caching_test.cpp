@@ -5,6 +5,8 @@
 #include <atomic>
 #include <string>
 #include <vector>
+#include <thread>
+#include <chrono>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -30,6 +32,7 @@ using namespace InferenceEngine;
 using namespace ::testing;
 using namespace InferenceEngine::details;
 using namespace std::placeholders;
+using namespace std::chrono;
 
 enum class TestLoadType {
     ECNN,
@@ -142,17 +145,27 @@ public:
         return CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
     }
 
+    static std::string generateTestFilePrefix() {
+        // Generate unique file names based on test name, thread id and timestamp
+        // This allows execution of tests in parallel (stress mode)
+        auto testInfo = UnitTest::GetInstance()->current_test_info();
+        std::string testName = testInfo->test_case_name();
+        testName += testInfo->name();
+        testName = std::to_string(std::hash<std::string>()(testName));
+        std::stringstream ss;
+        auto ts = duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch());
+        ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
+        testName = ss.str();
+        return testName;
+    }
+
     void initParamTest() {
         m_type = std::get<0>(std::get<0>(GetParam()));
         m_cacheDir = std::get<1>(GetParam());
         m_testFunction = getLoadFunction(m_type);
         m_testFunctionWithCfg = getLoadFunctionWithCfg(m_type);
         m_remoteContext = std::get<2>(std::get<0>(GetParam()));
-
-        auto testInfo = UnitTest::GetInstance()->current_test_info();
-        std::string testName = testInfo->test_case_name();
-        testName += testInfo->name();
-        testName = std::to_string(std::hash<std::string>()(testName));
+        auto testName = generateTestFilePrefix();
         modelName = testName + ".xml";
         weightsName = testName + ".bin";
         m_cacheDir = testName + m_cacheDir;
@@ -718,12 +731,6 @@ TEST_P(CachingTest, TestThrowOnImport) {
 }
 
 TEST_P(CachingTest, TestNetworkModified) {
-    auto testInfo = UnitTest::GetInstance()->current_test_info();
-    std::string testName = testInfo->test_case_name();
-    testName += testInfo->name();
-    testName = std::to_string(std::hash<std::string>()(testName));
-    auto cacheFolder = testName + cacheFolders[0];
-
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -735,7 +742,7 @@ TEST_P(CachingTest, TestNetworkModified) {
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
         EXPECT_CALL(*net, ExportImpl(_)).Times(1);
         testLoad([&](Core &ie) {
-            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolder}}));
+            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}));
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
@@ -758,7 +765,7 @@ TEST_P(CachingTest, TestNetworkModified) {
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
         EXPECT_CALL(*net, ExportImpl(_)).Times(1);
         testLoad([&](Core &ie) {
-            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolder}}));
+            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}));
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
@@ -769,7 +776,7 @@ TEST_P(CachingTest, TestNetworkModified) {
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*net, ExportImpl(_)).Times(0);
         testLoad([&](Core &ie) {
-            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolder}}));
+            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}));
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }

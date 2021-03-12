@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include <thread>
+#include <chrono>
 
 #include "compilation_context.hpp"
 #include "ngraph/function.hpp"
@@ -22,6 +23,7 @@
 using namespace InferenceEngine;
 using namespace ngraph;
 using namespace ::testing;
+using namespace std::chrono;
 
 class NetworkContext_CalcFileInfoTests : public Test {
 public:
@@ -35,12 +37,24 @@ public:
         for (std::size_t i = 0; i < size; i++)
             str.put('a');
     }
-    // Sets up the test fixture.
-    void SetUp() override {
+
+    static std::string generateTestFilePrefix() {
+        // Generate unique file names based on test name, thread id and timestamp
+        // This allows execution of tests in parallel (stress mode)
         auto testInfo = UnitTest::GetInstance()->current_test_info();
         std::string testName = testInfo->test_case_name();
         testName += testInfo->name();
         testName = std::to_string(std::hash<std::string>()(testName));
+        std::stringstream ss;
+        auto ts = duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch());
+        ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
+        testName = ss.str();
+        return testName;
+    }
+
+    // Sets up the test fixture.
+    void SetUp() override {
+        auto testName = generateTestFilePrefix();
         m_fileName = testName + m_fileName;
         createFile(m_fileName);
     }
