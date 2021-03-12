@@ -25,7 +25,7 @@ class PermuteKernel_tile_8x8_4x4_fsv : public PermuteKernelBase {
 public:
     using Parent = PermuteKernelBase;
     using Parent::Parent;
-    PermuteKernel_tile_8x8_4x4_fsv() : PermuteKernelBase("permute_tile_8x8_4x4_fsv16") {}
+    PermuteKernel_tile_8x8_4x4_fsv() : PermuteKernelBase("permute_tile_8x8_4x4_fsv") {}
     virtual ~PermuteKernel_tile_8x8_4x4_fsv() {}
 
     bool Validate(const Params& p, const optional_params& o) const override;
