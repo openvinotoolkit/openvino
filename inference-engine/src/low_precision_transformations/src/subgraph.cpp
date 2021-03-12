@@ -185,6 +185,13 @@ bool Subgraph::empty() const {
 }
 
 bool Subgraph::fillSubgraphForConcat(const std::shared_ptr<ngraph::opset1::Concat>& concat, std::unordered_set<std::string>& handledLayers) {
+    const auto axis = concat->get_axis();
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, concat->get_output_partial_shape(0).rank());
+    // supported only per-channel concat
+    if (normalizedAxis != 1ul) {
+        return false;
+    }
+
     concatLayers.push_back(concat);
     handledLayers.insert(concat->get_friendly_name());
     layers.emplace(concat->get_friendly_name(), concat);

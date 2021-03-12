@@ -230,7 +230,13 @@ bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noe
 
 bool ConcatTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     std::shared_ptr<opset1::Concat> concat = as_type_ptr<opset1::Concat>(layer);
-    return concat && concat->get_axis() == 1ul;
+    if (concat == nullptr) {
+        return false;
+    }
+
+    const auto axis = concat->get_axis();
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, concat->get_output_partial_shape(0).rank());
+    return normalizedAxis == 1ul;
 }
 
 void ConcatTransformation::fillDequantizationNodes(

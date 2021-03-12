@@ -752,7 +752,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const DequantizationOperations::Convert& convert2,
     const DequantizationOperations& dequantization2,
     const ngraph::element::Type precisionAfterOperation,
-    const DequantizationOperations& dequantizationAfter) {
+    const DequantizationOperations& dequantizationAfter,
+    const std::int64_t& axis) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input1->set_friendly_name("input1");
 
@@ -775,7 +776,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
         parent2 = makeDequantization(parent2, dequantization2);
     }
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1);
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, axis);
 
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
