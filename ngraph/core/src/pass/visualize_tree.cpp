@@ -247,12 +247,26 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
         if (is_type<ngraph::op::Constant>(arg) || is_type<ngraph::op::Parameter>(arg))
         {
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
-            auto color = (arg->description() == "Parameter" ? "blue" : "black");
-            m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
-                 << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\n"
-                 << get_constant_value(arg, const_max_elements) << "\"]\n";
-            m_ss << "    " << clone_name << " -> " << node->get_name()
-                 << label_edge(arg, node, arg_index, jump_distance) << "\n";
+            auto color = string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + string("\"");
+            std::vector<std::string> attributes {
+                "shape=\"box\"",
+                "style=\"dashed\"",
+                color,
+                string("label=\"") + get_node_name(arg) + string("\n") + get_constant_value(arg, const_max_elements) + string("\"")
+            };
+
+            if (m_node_modifiers && !arg->output(0).get_rt_info().empty())
+            {
+                m_node_modifiers(*arg, attributes);
+            }
+            m_ss << "    " << clone_name << " -> " << node->get_name();
+            m_ss << "    " << clone_name << "[";
+            for (auto attr : attributes) {
+                m_ss << " " << attr << " ";
+            }
+            m_ss << "]\n";
+
+            m_ss << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
         }
         else if (jump_distance > max_jump_distance)

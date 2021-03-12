@@ -39,7 +39,7 @@ void setMask(Output<Node> output, const Mask::Ptr & mask) {
 }
 
 std::ostream & operator<< (std::ostream & out, const Mask & mask) {
-    out << "Mask [ ";
+    out << "[ ";
     for (auto & dim : mask) {
         out << "{";
         out << dim.size();
