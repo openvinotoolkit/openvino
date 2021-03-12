@@ -138,7 +138,7 @@ static inline size_t GetTileSize(const permute_params& params) {
         rotating_dim = params.inputs[0].Z().v;
     }
 
-    if (rotating_dim < DEFAULT_TILE_SIZE && params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
+    if (rotating_dim < DEFAULT_TILE_SIZE || params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
         return MIN_TILE_SIZE;
     }
 
@@ -150,55 +150,36 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     const size_t f = params.inputs[0].Feature().v;
     const size_t z = params.inputs[0].Z().v;
     const size_t y = params.inputs[0].Y().v;
-    const size_t x = params.inputs[0].X().v;
-
-    const size_t tile_width = GetTileSize(params);
-    const size_t tile_height = tile_width;
-
-    // Note: this is default mode and different vector width is not being used now.
+    const size_t tile_size = GetTileSize(params);
     const uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
-    const uint64_t transpose_buffer_size = tile_width*tile_height * total_lws;
-
     const size_t input_ndims = params.inputs[0].GetDims().size();
     const size_t output_ndims = params.output.GetDims().size();
-
     const size_t fsv_alignment = GetFsvAlignment(params);
 
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
     jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
-
     jit.AddConstant(MakeJitConstant("INPUT0_SIZE_FS", CEIL_DIV(f, fsv_alignment)));
     jit.AddConstant(MakeJitConstant("INPUT0_SIZE_F", f));
-    jit.AddConstant(MakeJitConstant("TILE_WIDTH", tile_width));
-    jit.AddConstant(MakeJitConstant("TILE_HEIGHT", tile_height));
-    jit.AddConstant(MakeJitConstant("TILE_STRIDE", fsv_alignment * x));
+    jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
-    jit.AddConstant(MakeJitConstant("GROUP_STRIDE", tile_width * x * fsv_alignment));
-    jit.AddConstant(MakeJitConstant("INPUTVTYPE", "CAT(INPUT0_TYPE, TILE_WIDTH)"));
-    jit.AddConstant(MakeJitConstant("OUTPUTVTYPE", "CAT(OUTPUT_TYPE, TILE_HEIGHT)"));
-    jit.AddConstant(MakeJitConstant("VLOAD", "CAT(vload, TILE_WIDTH)"));
-    jit.AddConstant(MakeJitConstant("VSTORE", "CAT(vstore, TILE_HEIGHT)"));
-    jit.AddConstant(MakeJitConstant("AS_INPUTVTYPE", "CAT(as_, INPUTVTYPE)"));
-    jit.AddConstant(MakeJitConstant("AS_OUTPUTVTYPE", "CAT(as_, OUTPUTVTYPE)"));
-    jit.AddConstant(MakeJitConstant("LOCAL_BUF_STRIDE", tile_width*tile_height));
-    jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", transpose_buffer_size / tile_height));
+    jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
 
-    // whether F is tile_width-aligned
-    if (f % tile_width != 0) {
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_width));
+    // whether F is tile_size-aligned
+    if (f % tile_size != 0) {
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_size));
         jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "((INPUT0_SIZE_F - F_REMAINDER_SIZE) <= f) && (f < INPUT0_SIZE_F)"));
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_SIZE_F - F_REMAINDER_SIZE))"));
     } else {
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_SIZE_F)"));
     }
 
-    // whether y (or z if b_fs_zyx_fsv16) is tile_height-aligned
-    if ((input_ndims == 4) && (y % tile_height != 0)) {
-        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", y % tile_height));
+    // whether y (or z if b_fs_zyx_fsv16) is tile_size-aligned
+    if ((input_ndims == 4) && (y % tile_size != 0)) {
+        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", y % tile_size));
         jit.AddConstant(MakeJitConstant("YZ_NO_REMAINDER_CONDITION", "y < (INPUT0_SIZE_Y - YZ_REMAINDER_SIZE)"));
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION", "((INPUT0_SIZE_Y - YZ_REMAINDER_SIZE) <= y) && (y < INPUT0_SIZE_Y)"));
-    } else if ((input_ndims == 5) && (z % tile_height != 0)) {
-        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", z % tile_height));
+    } else if ((input_ndims == 5) && (z % tile_size != 0)) {
+        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", z % tile_size));
         jit.AddConstant(MakeJitConstant("YZ_NO_REMAINDER_CONDITION", "z < (INPUT0_SIZE_Z - YZ_REMAINDER_SIZE)"));
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION", "((INPUT0_SIZE_Z - YZ_REMAINDER_SIZE) <= z) && (z < INPUT0_SIZE_Z)"));
     }
@@ -211,7 +192,7 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     return jit;
 }
 
-static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_width, const size_t tile_height) {
+static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_width, const size_t tile_size) {
     std::vector<size_t> lws{1, 1, 1};
     std::vector<size_t> dims{0, 1, 2};
 
@@ -219,7 +200,7 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     const size_t elem_size = sizeof(params.output.GetDType());
     const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
-    size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_height));
+    size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
 
     for (size_t i = 0; i < dims.size(); ++i) {
         size_t dim = dims[i];
@@ -242,22 +223,21 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
 
 static inline std::vector<size_t> GetGWS(const permute_params& params) {
     const auto& in =  params.inputs[0];
-    const size_t tile_width = GetTileSize(params);
-    const size_t tile_height = tile_width;
+    const size_t tile_size = GetTileSize(params);
     const size_t fsv_alignment = GetFsvAlignment(params);
     std::vector<size_t> gws;
     switch (in.GetLayout()) {
         case DataLayout::b_fs_yx_fsv16:
         case DataLayout::b_fs_yx_fsv32:
         case DataLayout::b_fs_yx_fsv4:
-            gws = {CEIL_DIV(fsv_alignment, tile_width),
-                CEIL_DIV(in.Y().v, tile_height) * in.X().v,
+            gws = {CEIL_DIV(fsv_alignment, tile_size),
+                CEIL_DIV(in.Y().v, tile_size) * in.X().v,
                 in.Batch().v * CEIL_DIV(in.Feature().v, fsv_alignment)};
             break;
         case DataLayout::b_fs_zyx_fsv16:
         case DataLayout::b_fs_zyx_fsv32:
-            gws = {CEIL_DIV(fsv_alignment, tile_width),
-                CEIL_DIV(in.Z().v, tile_height) * in.X().v * in.Y().v,
+            gws = {CEIL_DIV(fsv_alignment, tile_size),
+                CEIL_DIV(in.Z().v, tile_size) * in.X().v * in.Y().v,
                 in.Batch().v * CEIL_DIV(in.Feature().v, fsv_alignment)};
             break;
         default:
@@ -268,10 +248,9 @@ static inline std::vector<size_t> GetGWS(const permute_params& params) {
 
 CommonDispatchData PermuteKernel_tile_8x8_4x4_fsv::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
-    const size_t tile_width = GetTileSize(params);
-    const size_t tile_height = tile_width;
+    const size_t tile_size = GetTileSize(params);
     dispatchData.gws = GetGWS(params);
-    dispatchData.lws = GetBestLwsFromGws(params, dispatchData.gws, tile_width, tile_height);
+    dispatchData.lws = GetBestLwsFromGws(params, dispatchData.gws, tile_size, tile_size);
     return dispatchData;
 }
 
@@ -309,11 +288,10 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params&
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 
     // calculate number of working groups
-    const size_t tile_width = GetTileSize(newParams);
-    const size_t tile_height = tile_width;
+    const size_t tile_size = GetTileSize(newParams);
 
     std::vector<size_t> gws = GetGWS(newParams);
-    std::vector<size_t> lws = GetBestLwsFromGws(newParams, gws, tile_width, tile_height);
+    std::vector<size_t> lws = GetBestLwsFromGws(newParams, gws, tile_size, tile_size);
     size_t num_working_groups = 1;
     for (size_t i=0; i < gws.size(); ++i) {
         num_working_groups *= gws.at(i)/lws.at(i);
