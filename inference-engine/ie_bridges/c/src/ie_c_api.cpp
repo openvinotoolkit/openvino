@@ -1424,7 +1424,7 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **bl
             _blob->object = IE::make_shared_blob<uint8_t>(tensor);
         } else if (prec == IE::Precision::U16) {
             _blob->object = IE::make_shared_blob<uint16_t>(tensor);
-        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || IE::Precision::U4) {
+        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || prec == IE::Precision::U4) {
             _blob->object = IE::make_shared_blob<int8_t>(tensor);
         } else if (prec == IE::Precision::I16 || prec == IE::Precision::FP16 || prec == IE::Precision::Q78) {
             _blob->object = IE::make_shared_blob<int16_t>(tensor);
