@@ -40,24 +40,25 @@ namespace gpu {
 
 class gpu_toolkit;
 #if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
-class ThreadPool {
+class thread_pool {
 public:
-    ThreadPool(size_t num_threads) : _num_threads(num_threads), _stop_pool(false) {
+    thread_pool(size_t num_threads) : _stop_pool(false) {
         _workers.reserve(num_threads);
-        for (size_t i = 0; i < _num_threads; ++i) {
-            _workers.emplace_back([this]() { this->WorkerThread(); });
-        }
-    }
-    ~ThreadPool() {
-        _stop_pool = true;
-        _cv.notify_all();
-        for (auto& w : _workers) {
-            w.join();
+        for (size_t i = 0; i < num_threads; ++i) {
+            _workers.emplace_back(std::thread(&thread_pool::worker_thread, this));
         }
     }
 
+    ~thread_pool() {
+        {
+            std::lock_guard<std::mutex> lock(_q_m);
+            _stop_pool = true;
+        }
+        this->wait_all();
+    }
+
     template <class F, class... Args>
-    std::future<typename std::result_of<F(Args...)>::type> Enqueue(F&& f, Args&&... args) {
+    std::future<typename std::result_of<F(Args...)>::type> enqueue(F&& f, Args&&... args) {
         if (_stop_pool) {
             throw std::runtime_error("Thread pool is stoped");
         }
@@ -73,21 +74,27 @@ public:
         return result;
     }
 
+    void wait_all() {
+        _cv.notify_all();
+        for (auto& w : _workers) {
+            w.join();
+        }
+    }
+
 private:
-    size_t _num_threads;
     std::vector<std::thread> _workers;
     std::queue<std::function<void()>> _tasks;
     std::condition_variable _cv;
     std::mutex _q_m;
     bool _stop_pool;
 
-    void WorkerThread() {
+    void worker_thread() {
         while (true) {
-            std::unique_lock<std::mutex> lock(_q_m);
+            std::unique_lock<std::mutex> lock(this->_q_m);
             _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
             if ( (_stop_pool) && (this->_tasks.empty())) return;
-            std::function<void()> task = std::move(_tasks.front());
-            _tasks.pop();
+            auto task = std::move(_tasks.front());
+            this->_tasks.pop();
             lock.unlock();
             task();
         }
@@ -151,7 +158,7 @@ private:
 #if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
     std::unique_ptr<tbb::task_arena> arena;
 #elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
-    std::unique_ptr<ThreadPool> pool;
+    std::unique_ptr<thread_pool> pool;
 #endif
 
 

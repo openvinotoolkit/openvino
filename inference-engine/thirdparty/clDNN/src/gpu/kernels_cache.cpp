@@ -282,7 +282,7 @@ kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(
     arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
     arena->initialize(DEFAULT_NUM_THREADS);
 #elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
-    pool = std::unique_ptr<ThreadPool>(new ThreadPool(DEFAULT_NUM_THREADS));
+    pool = std::unique_ptr<thread_pool>(new thread_pool(DEFAULT_NUM_THREADS));
 #endif
 }
 
@@ -457,12 +457,12 @@ void kernels_cache::build_all() {
     });
 #elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
     std::vector<std::future<void>> builds;
-    for (const auto& batch : batches) {
-        builds.push_back(pool->Enqueue([this, &batch] () {
-            build_batch(batch);
+    for (size_t i = 0; i < batches.size(); ++i) {
+        builds.push_back(pool->enqueue([this, &batches, i] () {
+            build_batch(batches[i]);
         }));
     }
-    std::for_each(builds.begin(), builds.end(), [&] (std::future<void>& f) { f.wait(); });
+    std::for_each(builds.begin(), builds.end(), [] (std::future<void>& f) { f.wait(); });
 #else
     // no parallel build
     for (const auto& batch : batches) {
