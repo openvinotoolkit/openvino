@@ -11,6 +11,7 @@ using ngraph::op::PadType;
 
 namespace {
 
+/*
 const std::vector<std::vector<size_t>> inDataShape = {{1, 1, 10, 10}, {1, 3, 10, 10}};
 const std::vector<std::vector<size_t>> kernels = {{2, 2}, {3, 3}, {4, 4}, {1, 3}, {4, 2}};
 const std::vector<std::vector<size_t>> strides = {{3, 3}, {5, 5}, {9, 9}, {1, 3}, {6, 2}};
@@ -23,7 +24,20 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::I32,
     InferenceEngine::Precision::FP32
 };
+*/
 
+const std::vector<std::vector<size_t>> inDataShape = {{1, 1, 9, 9}};
+const std::vector<std::vector<size_t>> kernels = {{3, 3}};
+const std::vector<std::vector<size_t>> strides = {{4, 4}};
+const std::vector<std::vector<size_t>> rates = {{1, 1}};
+const std::vector<PadType> autoPads = {PadType::SAME_UPPER};
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+        //InferenceEngine::Precision::I8,
+        //InferenceEngine::Precision::U8,
+        //InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::I32,
+        //InferenceEngine::Precision::FP32
+};
 const auto extractImagePatchesParamsSet = ::testing::Combine(
         ::testing::ValuesIn(inDataShape),
         ::testing::ValuesIn(kernels),
