@@ -74,7 +74,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         :return: the list of Nodes visited
         """
         assert visited is not None, 'The "visited" set must be defined'
-        assert start_nodes is not None and len(start_nodes) != 0, 'The list of start nodes must be specified'
+        assert start_nodes is not None, 'The list of start nodes must be specified'
 
         result = list()
         d = deque(start_nodes)
