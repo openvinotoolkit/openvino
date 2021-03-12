@@ -22,9 +22,10 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array, float32_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
+from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -95,86 +96,89 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         if input_rank_of_unsqueeze + 1 != len(second_input_of_tile.value):
             return False
 
-        expected_tile_constant = np.ones(input_rank_of_unsqueeze + 1, dtype=np.int64)
+        expected_tile_constant = np.ones(input_rank_of_unsqueeze + 1)
         expected_tile_constant[d_idx] = float(second_input_of_tile.value[d_idx])
 
         if not np.array_equal(expected_tile_constant, float32_array(second_input_of_tile.value)):
             return False
 
-        reshape_node = match['reshape']
-        new_shape = reshape_node.in_port(1).data.get_value()
-        if new_shape is None or input_rank_of_unsqueeze != len(new_shape):
-            return False
+        # reshape_node = match['reshape']
+        # new_shape = reshape_node.in_port(1).data.get_value()
+        # if new_shape is None or input_rank_of_unsqueeze != len(new_shape):
+        #     return False
 
         return True
 
     def replace_pattern(self, graph: Graph, match: dict):
-        unsqueeze_node = match['unsqueeze']
-        unsqueeze_name = unsqueeze_node.name
-
         if not self.is_applicable(match):
             return
 
+        unsqueeze_node = match['unsqueeze']
+        unsqueeze_name = unsqueeze_node.soft_get('name', unsqueeze_node.id)
+        unsqueeze_shape_node = Shape(graph, dict(name=unsqueeze_name + '/UnsqueezeOutShape')).create_node()
+        unsqueeze_node.out_port(0).get_connection().set_destination(unsqueeze_shape_node.in_port(0))
+        tile_node = match['tile']
+        second_input_of_tile = tile_node.in_port(1).get_connection().get_source().node
+        tail_out_shape = create_op_with_const_inputs(graph,
+                                                     Mul,
+                                                     {1: int64_array(second_input_of_tile.value)},
+                                                     {'name': unsqueeze_name + '/Mul'})
+        unsqueeze_shape_node.out_port(0).connect(tail_out_shape.in_port(0))
+
+        interpolate_reshape = Reshape(graph, {}).create_node()
+        tail_out_shape.out_port(0).connect(interpolate_reshape.in_port(1))
+
+        shape_node = Shape(graph, dict(name=unsqueeze_name + '/InputShape')).create_node()
         second_input_of_unsqueeze = unsqueeze_node.in_port(1).get_connection().get_source().node
-
         d_idx = int(second_input_of_unsqueeze.value)
-
-        second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
-        reshape_node = match['reshape']
-
-        scale = float32_array([second_input_of_tile.value[d_idx]])
         axis = d_idx - 1
-        axis_node = Const(graph, {'name': unsqueeze_name + '/axis', 'value': int64_array([axis])}).create_node()
-
-        shape_node = Shape(graph, dict(name=unsqueeze_name + '/Shape')).create_node()
-        scales_node = Const(graph, dict(name=unsqueeze_name + '/scales', value=scale)).create_node()
-        mul_node = Mul(graph, dict(name=unsqueeze_name + '/Mul')).create_node()
-        scales_node.out_port(0).connect(mul_node.in_port(1))
-
-        slice_begin = Const(graph, dict(name=unsqueeze_name + '/slice_begin', value=int64_array([axis]))).create_node()
-        slice_end = Const(graph, dict(name=unsqueeze_name + '/slice_end', value=int64_array([axis + 1]))).create_node()
-
-        strided_slice_node = StridedSlice(graph,
-                                          {'name': unsqueeze_name + '/StridedSlice',
-                                           'begin_mask': int64_array([1]),
-                                           'end_mask': int64_array([1]),
-                                           'new_axis_mask': int64_array([0]),
-                                           'shrink_axis_mask': int64_array([0]),
-                                           'ellipsis_mask': int64_array([0]),
-                                           }).create_node()
+        second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
+        scale = float32_array([second_input_of_tile.value[d_idx]])
+        strided_slice_node = create_op_with_const_inputs(graph,
+                                                         StridedSlice,
+                                                         {
+                                                             1: int64_array([axis]),
+                                                             2: int64_array([axis + 1])
+                                                         },
+                                                         {
+                                                             'name': unsqueeze_name + '/StridedSlice',
+                                                             'begin_mask': int64_array([1]),
+                                                             'end_mask': int64_array([1]),
+                                                             'new_axis_mask': int64_array([0]),
+                                                             'shrink_axis_mask': int64_array([0]),
+                                                             'ellipsis_mask': int64_array([0]),
+                                                         })
         shape_node.out_port(0).connect(strided_slice_node.in_port(0))
-        slice_begin.out_port(0).connect(strided_slice_node.in_port(1))
-        slice_end.out_port(0).connect(strided_slice_node.in_port(2))
-
         cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
-
         strided_slice_node.out_port(0).connect(cast_shape_to_float.in_port(0))
+        mul_node = create_op_with_const_inputs(graph, Mul, {1: scale}, {'name': unsqueeze_name + '/Mul'})
         cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
-
-        interp_node = Interpolate(graph,
-                                  dict(mode='nearest',
-                                       antialias=0, pads_begin=int64_array([0]),
-                                       pads_end=int64_array([0]), coordinate_transformation_mode='half_pixel',
-                                       nearest_mode='round_prefer_floor', cube_coeff=-0.75,
-                                       version='opset4', shape_calculation_mode='scales',
-                                       in_ports_count=4,
-                                       maybe_part_of_sequence=True)).create_node()
-
         floor_node = Floor(graph, {'name': unsqueeze_name + '/Floor'}).create_node()
         cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
-
         mul_node.out_port(0).connect(floor_node.in_port(0))
         floor_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
-
+        interp_node = create_op_with_const_inputs(graph,
+                                                  Interpolate,
+                                                  {
+                                                      2: scale,
+                                                      3: int64_array([axis])},
+                                                  {
+                                                      'mode': 'nearest',
+                                                      'antialias': 0,
+                                                      'pads_begin': int64_array([0]),
+                                                      'pads_end': int64_array([0]),
+                                                      'coordinate_transformation_mode': 'half_pixel',
+                                                      'nearest_mode': 'round_prefer_floor',
+                                                      'cube_coeff': -0.75,
+                                                      'version': 'opset4',
+                                                      'shape_calculation_mode': 'scales',
+                                                      'in_ports_count': 4,
+                                                      'maybe_part_of_sequence': True
+                                                  })
         cast_mul_result_to_int.out_port(0).connect(interp_node.in_port(1))
-        scales_node.out_port(0).connect(interp_node.in_port(2))
-        axis_node.out_port(0).connect(interp_node.in_port(3))
-
-        reshape_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
-        reshape_name = reshape_node.soft_get('name', reshape_node.id)
-        rename_nodes([(reshape_node, reshape_name + '/delete'), (interp_node, reshape_name)])
-
-        unsqueeze_connection = match['unsqueeze'].in_port(0).get_connection()
-        before_unsqueeze = unsqueeze_connection.get_source().node
-        unsqueeze_connection.set_destination(interp_node.in_port(0))
-        before_unsqueeze.out_port(0).connect(shape_node.in_port(0))
+        interp_node.out_port(0).connect(interpolate_reshape.in_port(0))
+        tile_node.out_port(0).get_connection().set_source(interpolate_reshape.out_port(0))
+        unsqueeze_node.in_port(0).get_source().connect(interp_node.in_port(0))
+        unsqueeze_node.in_port(0).get_source().connect(shape_node.in_port(0))
+        tile_name = tile_node.soft_get('name', tile_node.id)
+        rename_nodes([(tile_node, tile_name + '/delete'), (interp_node, tile_name)])
