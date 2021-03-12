@@ -36,28 +36,17 @@ bool ConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const n
     return WeightableLayerTransformation::isQuantized(layer, false);
 }
 
+
+
 bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
-    if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
-        return false;
-    }
-
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
-    if (!canSubtractBeHandled(convolution, dequantization)) {
-        return false;
-    }
-
-    if ((!supportAsymmetricQuantization) && getDataPrecisionOnWeights(convolution).hasZeroPoint) {
-        return false;
-    }
-
-    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
+    if (!canBeTransformed(context, convolution)) {
         return false;
     }
 
     convolution = NetworkHelper::separateInStandaloneBranch(convolution);
-    dequantization = NetworkHelper::getDequantization(convolution);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
 
     {
         std::shared_ptr<opset1::Subtract> subtract;
@@ -177,7 +166,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
         std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->input_value(1).get_node_shared_ptr());
 
-        const auto dequantization = reshapeFromWeights == nullptr ?
+        dequantization = reshapeFromWeights == nullptr ?
             NetworkHelper::getDequantization(convolution, 1ul) :
             NetworkHelper::getDequantization(reshapeFromWeights);
         assert(!dequantization.empty());
@@ -290,6 +279,46 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         auto& rt = onWeights->get_rt_info();
         rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
     }
+    return true;
+}
+
+bool ConvolutionTransformation::canBeTransformed(const TransformationContext &context,
+                                                 std::shared_ptr<Node> layer) const {
+    if (!WeightableLayerTransformation::canBeTransformed(context, layer)) {
+        return false;
+    }
+
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    if (!canSubtractBeHandled(layer, dequantization)) {
+        return false;
+    }
+
+    if (updatePrecisions && !NetworkHelper::checkZeroPoint(dequantization.subtract)) {
+        return false;
+    }
+
+    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
+        return false;
+    }
+
+    std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(layer->get_input_node_shared_ptr(1));
+    dequantization = reshapeFromWeights == nullptr ?
+                     NetworkHelper::getDequantization(layer, 1ul) :
+                     NetworkHelper::getDequantization(reshapeFromWeights);
+
+    const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
+    if (dequantization.empty()) {
+        const auto dataPrecision = getDataPrecisionOnWeights(layer);
+        if ((!supportAsymmetricQuantization) && dataPrecision.hasZeroPoint) {
+            return false;
+        }
+        if (updatePrecisions && !NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision)) {
+            return false;
+        }
+    } else {
+        return !updatePrecisions || NetworkHelper::checkZeroPoint(dequantization.subtract);
+    }
+
     return true;
 }
 
