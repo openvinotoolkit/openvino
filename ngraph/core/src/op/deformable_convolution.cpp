@@ -65,55 +65,24 @@ bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 void op::v1::DeformableConvolution::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_DeformableConvolution_validate_and_infer_types);
-    const PartialShape& data_batch_shape = get_input_partial_shape(0);
-    const PartialShape& deformable_values_shape = get_input_partial_shape(1);
-    const PartialShape& filters_shape = get_input_partial_shape(2);
+    const PartialShape& data_batch_pshape = get_input_partial_shape(0);
+    const PartialShape& deformable_values_pshape = get_input_partial_shape(1);
+    const PartialShape& filters_pshape = get_input_partial_shape(2);
 
     element::Type data_batch_et = get_input_element_type(0);
+    element::Type deformable_values_et = get_input_element_type(1);
     element::Type filters_et = get_input_element_type(2);
 
-    if (deformable_values_shape.rank().is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            deformable_values_shape.rank().get_length() >= 3u,
-            "The deformable values tensor rank is expected to be at least 3, got: ",
-            deformable_values_shape.rank());
-    }
-
-    if (m_group > 1 && data_batch_shape[1].is_static() && filters_shape[0].is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              data_batch_shape[1].get_length() % m_group == 0,
-                              "The input data shape must be evenly divisible by the 'group' value "
-                              "along the channels axis. Current input shape: ",
-                              data_batch_shape,
-                              ", 'group' attribute value: ",
-                              m_group);
-
-        NODE_VALIDATION_CHECK(
-            this,
-            filters_shape[0].get_length() % m_group == 0,
-            "The weights shape must be evenly divisible by the 'group' value along "
-            "the channels axis. Current weights shape: ",
-            filters_shape,
-            ", 'group' attribute value: ",
-            m_group);
-    }
-
-    if (m_deformable_group > 1 && deformable_values_shape[1].is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              deformable_values_shape[1].get_length() % m_deformable_group == 0,
-                              "The deformable values input must be evenly divisible by the "
-                              "'deformable group' value "
-                              "along the channels axis. Current input shape: ",
-                              deformable_values_shape,
-                              ", 'deformable group' attribute value: ",
-                              m_deformable_group);
-    }
-
     element::Type result_et;
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, data_batch_et, deformable_values_et),
+                          "Element types for data batch and deformable values do not match (data "
+                          "batch element type: ",
+                          data_batch_et,
+                          ", deformable offsets element type: ",
+                          deformable_values_et,
+                          ").");
+
     NODE_VALIDATION_CHECK(
         this,
         element::Type::merge(result_et, data_batch_et, filters_et),
@@ -123,76 +92,199 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
         filters_et,
         ").");
 
+    NODE_VALIDATION_CHECK(
+        this, result_et.is_real(), "Element types must be float point. Got: ", result_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          data_batch_pshape.rank().compatible(4),
+                          "Data batch input must be of rank 4. Got: ",
+                          data_batch_pshape);
+
+    NODE_VALIDATION_CHECK(this,
+                          filters_pshape.rank().compatible(4),
+                          "Filters input must be of rank 4. Got: ",
+                          filters_pshape);
+
+    NODE_VALIDATION_CHECK(this,
+                          deformable_values_pshape.rank().compatible(4),
+                          "Deformable values input must be of rank 4. Got: ",
+                          filters_pshape);
+
+    NODE_VALIDATION_CHECK(
+        this, m_group > 0, "Attribute 'group' must be any value starting from 1. Got: ", m_group);
+
+    NODE_VALIDATION_CHECK(this,
+                          m_deformable_group > 0,
+                          "Attribute 'deformable group' must be any value starting from 1. Got: ",
+                          m_deformable_group);
+
+    if (deformable_values_pshape.rank().is_static())
+    {
+        if (deformable_values_pshape[1].is_static())
+        {
+            if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() &&
+                filters_pshape[3].is_static())
+            {
+                auto deformable_channels = m_deformable_group * filters_pshape[2].get_length() *
+                                           filters_pshape[3].get_length() * 2;
+                NODE_VALIDATION_CHECK(this,
+                                      deformable_values_pshape[1].get_length() ==
+                                          deformable_channels,
+                                      "The channels dimension of deformable values input is not "
+                                      "compatible with filters and 'deformable group' attribute. "
+                                      "Deformable values input shape: ",
+                                      deformable_values_pshape,
+                                      ", deformable 'group' attribute value: ",
+                                      m_deformable_group,
+                                      ", filters shape: ",
+                                      filters_pshape);
+            }
+            else
+            {
+                // At least we can check that deformable channels is evenly divisible by deformable
+                // group attribute
+                NODE_VALIDATION_CHECK(
+                    this,
+                    deformable_values_pshape[1].get_length() % m_deformable_group == 0,
+                    "The channels dimension of deformable values input must be "
+                    "evenly divisible by the 'deformable group' value along the "
+                    "channels axis. Deformable values input shape: ",
+                    deformable_values_pshape,
+                    ", 'deformable group' attribute value: ",
+                    m_deformable_group);
+            }
+        }
+
+        if (data_batch_pshape.rank().is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                deformable_values_pshape[0].compatible(data_batch_pshape[0]),
+                "Data batch and deformable values batch dimension must be same value. Got: ",
+                deformable_values_pshape[0],
+                " and ",
+                data_batch_pshape[0]);
+        }
+    }
+
+    if (data_batch_pshape.rank().is_static() && data_batch_pshape[1].is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              data_batch_pshape[1].get_length() % m_group == 0,
+                              "The input data shape must be evenly divisible by the 'group' value "
+                              "along the channels axis. Current input shape: ",
+                              data_batch_pshape,
+                              ", 'group' attribute value: ",
+                              m_group);
+    }
+
+    if (filters_pshape.rank().is_static() && filters_pshape[0].is_static())
+    {
+        NODE_VALIDATION_CHECK(
+            this,
+            filters_pshape[0].get_length() % m_group == 0,
+            "The filters shape must be evenly divisible by the 'group' value along "
+            "the channels axis. Current weights shape: ",
+            filters_pshape,
+            ", 'group' attribute value: ",
+            m_group);
+    }
+
     PartialShape result_shape = PartialShape::dynamic();
-    if (data_batch_shape.rank().is_static())
+    Rank output_ps_rank{};
+    Rank::merge(output_ps_rank, data_batch_pshape.rank(), filters_pshape.rank());
+    Rank::merge(output_ps_rank, output_ps_rank, deformable_values_pshape.rank());
+    if (output_ps_rank.is_static())
     {
+        const auto num_spatial_dims = output_ps_rank.get_length() - 2;
+        if (m_strides.size() == 0)
+        {
+            m_strides = Strides(num_spatial_dims, 1);
+        }
+
+        if (m_dilations.size() == 0)
+        {
+            m_dilations = Strides(num_spatial_dims, 1);
+        }
+
+        if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_begin = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_end = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        NODE_VALIDATION_CHECK(this,
+                              m_strides.size() == num_spatial_dims,
+                              "Strides should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
+                              m_dilations.size() == num_spatial_dims,
+                              "Dilations should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
+                              m_pads_begin.size() == num_spatial_dims &&
+                                  m_pads_end.size() == num_spatial_dims,
+                              "Pads should be defined for all and only spatial features.");
+
+        result_shape = PartialShape::dynamic(output_ps_rank);
+        if (data_batch_pshape.rank().is_static() && data_batch_pshape[0].is_static())
+        {
+            result_shape[0] = data_batch_pshape[0]; // batch size
+        }
+        if (filters_pshape.rank().is_static())
+        {
+            result_shape[1] = filters_pshape[0]; // filter channel size
+        }
+
+        if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
+        {
+            bool auto_padding_applied = false;
+            if (filters_pshape.rank().is_static() && filters_pshape.rank().get_length() > 2)
+            {
+                m_pads_begin.clear();
+                m_pads_end.clear();
+                const PartialShape filter_spatial_shape = [filters_pshape]() {
+                    vector<Dimension> filter_dims{filters_pshape};
+                    filter_dims.erase(filter_dims.begin(),
+                                      filter_dims.begin() + 2); // Remove {C_OUT, C_IN}
+                    return PartialShape{filter_dims};
+                }();
+                if (filter_spatial_shape.is_static())
+                {
+                    auto_padding_applied = try_apply_auto_padding(data_batch_pshape,
+                                                                  filter_spatial_shape.to_shape(),
+                                                                  m_strides,
+                                                                  m_dilations,
+                                                                  m_auto_pad,
+                                                                  m_pads_end,
+                                                                  m_pads_begin);
+                }
+            }
+            if (!auto_padding_applied)
+            {
+                set_output_type(0, result_et, result_shape);
+                return;
+            }
+        }
         result_shape =
-            std::vector<Dimension>(data_batch_shape.rank().get_length(), Dimension::dynamic());
+            infer_convolution_forward(this,
+                                      data_batch_pshape,
+                                      Strides(m_strides.size(), 1), // dummy data dilations
+                                      m_pads_begin,
+                                      m_pads_end,
+                                      filters_pshape,
+                                      m_strides,
+                                      m_dilations);
 
-        if (data_batch_shape.rank().get_length() > 1)
+        if (result_shape[0].is_dynamic() && deformable_values_pshape.rank().is_static())
         {
-            result_shape[0] = data_batch_shape[0]; // batch size
-        }
-
-        if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
-        {
-            result_shape[1] = filters_shape[0]; // filter channel size
-        }
-    }
-
-    if (m_strides.size() == 0)
-    {
-        m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_dilations.size() == 0)
-    {
-        m_dilations = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_begin.size() == 0)
-    {
-        m_pads_begin = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_end.size() == 0)
-    {
-        m_pads_end = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        bool auto_padding_applied = false;
-        if (filters_shape.is_static())
-        {
-            m_pads_begin.clear();
-            m_pads_end.clear();
-            auto filter_shape = filters_shape.to_shape();
-            filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
-            auto_padding_applied = try_apply_auto_padding(data_batch_shape,
-                                                          filter_shape,
-                                                          m_strides,
-                                                          m_dilations,
-                                                          m_auto_pad,
-                                                          m_pads_end,
-                                                          m_pads_begin);
-        }
-        if (!auto_padding_applied)
-        {
-            set_output_type(0, data_batch_et, result_shape);
-            return;
+            result_shape[0] = deformable_values_pshape[0]; // batch size
         }
     }
-
-    result_shape = infer_convolution_forward(this,
-                                             data_batch_shape,
-                                             Strides(m_strides.size(), 1), // dummy data dilations
-                                             m_pads_begin,
-                                             m_pads_end,
-                                             filters_shape,
-                                             m_strides,
-                                             m_dilations);
-
     set_output_type(0, result_et, result_shape);
 }
 
