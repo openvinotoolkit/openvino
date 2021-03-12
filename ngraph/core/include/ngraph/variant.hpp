@@ -50,7 +50,6 @@ namespace ngraph
         const value_type& get() const { return m_value; }
         value_type& get() { return m_value; }
         void set(const value_type& value) { m_value = value; }
-
     protected:
         value_type m_value;
     };
