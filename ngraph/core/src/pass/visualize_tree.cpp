@@ -237,6 +237,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
                                              unordered_map<Node*, HeightMap>& height_maps,
                                              size_t& fake_node_ctr)
 {
+    static const int const_max_elements = getenv_int("NGRAPH_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
+
     size_t arg_index = 0;
     for (auto input_value : node->input_values())
     {
@@ -248,7 +250,7 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             auto color = (arg->description() == "Parameter" ? "blue" : "black");
             m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
                  << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\n"
-                 << get_constant_value(arg) << "\"]\n";
+                 << get_constant_value(arg, const_max_elements) << "\"]\n";
             m_ss << "    " << clone_name << " -> " << node->get_name()
                  << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
@@ -331,29 +333,26 @@ static std::string pretty_partial_shape(const PartialShape& shape)
 }
 
 template <typename T>
-static std::string pretty_value(const vector<T>& values)
+static std::string pretty_value(const vector<T>& values, size_t max_elements)
 {
     std::stringstream ss;
-    bool first = true;
     for (size_t i = 0; i < values.size(); ++i)
     {
-        if (i > 32)
+        if (i != 0 && i % 8 == 0)
+        {
+            ss << std::endl;
+        }
+
+        if (i >= max_elements)
         {
             ss << "...";
             break;
         }
 
         const auto& value = values[i];
-        if (!first)
+        if (i > 0)
             ss << ", ";
         ss << value;
-
-        if (((i + 1) % 8) == 0)
-        {
-            ss << std::endl;
-        }
-
-        first = false;
     }
     return ss.str();
 }
@@ -363,7 +362,7 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     std::stringstream ss;
     ss << "{" << node->get_element_type().get_type_name() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
-    return ss.str();
+
     if (!op::is_constant(node))
         return ss.str();
 
@@ -378,20 +377,20 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     case element::Type_t::f16:
     case element::Type_t::f32:
     case element::Type_t::f64:
-        ss << "[" << pretty_value(constant->cast_vector<double>()) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements) << "]";
         break;
     case element::Type_t::i8:
     case element::Type_t::i16:
     case element::Type_t::i32:
     case element::Type_t::i64:
-        ss << "[" << pretty_value(constant->cast_vector<int64_t>()) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements) << "]";
         break;
     case element::Type_t::boolean:
     case element::Type_t::u8:
     case element::Type_t::u16:
     case element::Type_t::u32:
     case element::Type_t::u64:
-        ss << "[" << pretty_value(constant->cast_vector<uint64_t>()) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements) << "]";
         break;
     }
     return ss.str();
