@@ -24,10 +24,15 @@ struct jit_eximpat_params {
     int SH, SW; // strides
     int RH, RW; // rates
     int PL, PT; // determine padding
-    int dtype_size; // bit size of the datatype
+    int dtype_size; // byte size of the datatype
+    int block_size; // num of dtype units in the supported vector instruction set
 };
 
 struct jit_eximpat_args {
+    int h_lo_pad;
+    int h_hi_pad;
+    int w_lo_pad;
+    int w_hi_pad;
     const void* src;
     void* dst; // const?
 };
@@ -87,19 +92,34 @@ public:
         const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
         const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
 
-        //if (eximpat_kernel){
-        if (0){
+        // for debug purposes
+        //for(int64_t i=0; i < OW * OH * IC * KW * KH * OB ; i++)
+        //    dst_data[i] = -1;
+
+        if (eximpat_kernel){
+        //if (0){
             auto src_ptr = reinterpret_cast<const char *>(src_data);
             auto dst_ptr = reinterpret_cast<char *>(dst_data);
 
             auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
                 const int64_t ih_start = kh * RH - PT;
+                const int64_t iw_start = kw * RW - PL;
+                const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
+                const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
+                const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
+                const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
+
                 int64_t dst_offset = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
-                int64_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2];
+                int64_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
+                //const int64_t ioffset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start;
 
                 auto args = jit_eximpat_args();
                 args.src = src_ptr + src_offset;
                 args.dst = dst_ptr + dst_offset;
+                args.h_lo_pad = ih_lpad;
+                args.h_hi_pad = ih_hpad;
+                args.w_lo_pad = iw_lpad;
+                args.w_hi_pad = iw_hpad;
                 (*eximpat_kernel)(&args);
             };
             parallel_for4d(OB, KH, KW, IC, thread_body);
@@ -173,6 +193,26 @@ public:
             };
              */
             parallel_for4d(OB, KH, KW, IC, thread_body);
+        }
+        std::cout << "\n======================\n\n";
+        for(int i=0; i < IH; i++){
+            for(int j=0; j < IW; j++) {
+                std::cout << src_data[ i * IW + j ] << " ";
+            }
+            std::cout << "\n";
+        }
+        // NB! works only for IC=1
+        std::cout << "-------------------------\n";
+        for(int kh=0; kh < KH; kh++) {
+            for (int kw = 0; kw < KW; kw++) {
+                std::cout << "KH = " << kh << " KW = " << kw << "\n";
+                for (int i = 0; i < OH; i++) {
+                    for (int j = 0; j < OW; j++) {
+                        std::cout << dst_data[kh * KW * OH * OW + kw * OH * OW + i * OW + j] << " ";
+                    }
+                    std::cout << "\n";
+                }
+            }
         }
     }
 
