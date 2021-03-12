@@ -4,7 +4,7 @@
 
 **Category**: Object detection, Pool
 
-**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the ROIAlign operation applied over a feature pyramid.
+**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the [ROIAlign](../detection/ROIAlign_3.md) operation applied over a feature pyramid.
 
 **Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels. For more details please see the math formulas below and the following sources:
 
@@ -41,7 +41,7 @@
 
 * *aligned*
 
-    * **Description**: *aligned* attribute specifies add offset to ROI sizes or not.
+    * **Description**: *aligned* attribute specifies add offset (`-0.5`) to ROI sizes or not.
     * **Range of values**:
       * `true` - add offset to ROI size 
       * `false` - do not add offset to ROI size 
@@ -59,7 +59,7 @@
 
 *   **1**: 4D output tensor of type *T* with ROIs features. Batch size equals to number of ROIs. Channels number is the same as for all images in the input pyramid.
 
-*   **2**: 2D output tensor of type *T* with reordered ROIs according to their mapping to the pyramid levels. Shape must be the same as for 0 input.
+*   **2**: 2D output tensor of type *T* with reordered ROIs according to their mapping to the pyramid levels. Shape must be the same as for 1 input.
 
 **Types**
 
