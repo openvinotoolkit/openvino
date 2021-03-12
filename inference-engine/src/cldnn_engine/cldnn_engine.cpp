@@ -536,7 +536,12 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     CLDNNPlugin::Config conf = _impl->m_config;
     UpdateConfig(conf, network, config);
 
-    Program prog;
+    if (m_defaultContext == nullptr) {
+        m_defaultContext.reset(new CLDNNRemoteCLContext(
+            std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
+            ParamMap(), conf));
+    }
+    Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     auto function = network.getFunction();
     if (function == nullptr) {
         THROW_IE_EXCEPTION << "CNNetworkImpl representation is not supported anymore";
