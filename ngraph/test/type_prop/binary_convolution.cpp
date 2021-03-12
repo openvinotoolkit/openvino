@@ -273,8 +273,7 @@ TEST(type_prop, bin_convolution_invalid_input_ranks)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Shapes for data batch and filters must have same rank.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Data batch and filters inputs must have same rank");
     }
     catch (...)
     {
@@ -302,8 +301,7 @@ TEST(type_prop, bin_convolution_invalid_input_ranks)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Shapes for data batch and filters must have same rank.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Data batch and filters inputs must have same rank");
     }
     catch (...)
     {
