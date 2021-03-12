@@ -4,3 +4,5 @@
 #
 
 add_subdirectory(test_runner)
+add_subdirectory(subgraphs_dumper)
+add_subdirectory(subgraphs_dumper/tests)

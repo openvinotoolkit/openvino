@@ -113,6 +113,7 @@ void TestEnvironment::saveReport() {
     opsets.push_back(ngraph::get_opset4());
     opsets.push_back(ngraph::get_opset5());
     opsets.push_back(ngraph::get_opset6());
+    opsets.push_back(ngraph::get_opset7());
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto &opset : opsets) {
         const auto &type_info_set = opset.get_type_info_set();
