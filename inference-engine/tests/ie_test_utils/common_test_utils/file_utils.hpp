@@ -173,27 +173,6 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
     return 0;
 }
 
-
-    DIR *directory;
-    struct dirent *entire;
-    directory = opendir(name.c_str());
-    if (directory) {
-        while ((entire = readdir(directory)) != nullptr) {
-            if (std::string(entire->d_name) == ".." || std::string(entire->d_name) == ".") {
-                continue;
-            }
-            std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
-            if (directoryExists(path)) {
-                directoryFileListRecursive(path, file_list);
-            }
-            if (fileExists(path)) {
-                file_list.push_back(path);
-            }
-        }
-        closedir(directory);
-    }
-}
-
 inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
                                                               const std::regex& pattern) {
     auto getFileListByPattern = [&pattern](const std::string& folderPath) {
