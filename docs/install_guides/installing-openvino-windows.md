@@ -16,7 +16,8 @@ Your installation is complete when these are all completed:
 
 2. Install the dependencies:
 
-   - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
+   - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/) 
+   > **NOTE**: Clicking this link will directly download Visual Studio 2019 for Windows that has been validated with OpenVINO™. 
    - [CMake **3.10 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
    - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
