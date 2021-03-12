@@ -108,7 +108,7 @@ the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.shap
 **Example**
 
 ```xml
-<layer id="1" type="Gather">
+<layer id="1" name="gather" type="Gather" version="opset7">
     <data batch_dims="1" />
     <input>
         <port id="0">
