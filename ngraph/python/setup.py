@@ -142,6 +142,8 @@ class BuildCMakeExt(build_ext):
     def run(self):
         """Run CMake build for modules."""
         for extension in self.extensions:
+            if extension.name == "openvino.pyopenvino":
+                self.build_cmake(extension)
             if extension.name == "_pyngraph":
                 self.build_cmake(extension)
 
@@ -168,6 +170,7 @@ class BuildCMakeExt(build_ext):
         ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
+                    "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
                     "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
 
@@ -206,7 +209,7 @@ class InstallCMakeLibs(install_lib):
 
         libs = []
         for ngraph_lib in NGRAPH_LIBS:
-            libs.extend(list(glob.iglob("{0}/**/*{1}*{2}".format(root_dir,
+            libs.extend(list(glob.iglob("{0}/**/*{1}*{2}".format("/home/jiwaszki/openvino_dist/deployment_tools/", # root_dir,
                              ngraph_lib, lib_ext), recursive=True)))
         if not libs:
             raise Exception("NGraph libs not found.")
