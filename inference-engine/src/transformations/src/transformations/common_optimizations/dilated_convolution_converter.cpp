@@ -30,7 +30,7 @@ ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
             crops_begin_pattern, crops_end_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto pattern_map = m.get_pattern_value_map();
+        const auto& pattern_map = m.get_pattern_value_map();
         auto block_shape = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
         if (!block_shape)
             return false;

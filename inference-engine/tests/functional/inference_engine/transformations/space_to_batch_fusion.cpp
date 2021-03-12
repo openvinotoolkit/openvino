@@ -198,3 +198,39 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidMode) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidRank) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
+        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        auto pad = std::make_shared<opset6::Pad>(trans_before,
+                op::Constant::create(element::i64, Shape{5}, {0, 1, 1, 0, 0}),
+                op::Constant::create(element::i64, Shape{5}, {1, 1, 3, 2, 2}),
+                op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
+        auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
+        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        f = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
+
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<pass::SpaceToBatchFusion>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
+        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        auto pad = std::make_shared<opset6::Pad>(trans_before,
+                op::Constant::create(element::i64, Shape{5}, {0, 1, 1, 0, 0}),
+                op::Constant::create(element::i64, Shape{5}, {1, 1, 3, 2, 2}),
+                op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
+        auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
+        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        f_ref = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
+

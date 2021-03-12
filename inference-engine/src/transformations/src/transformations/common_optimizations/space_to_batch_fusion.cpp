@@ -20,41 +20,37 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SpaceToBatchFusion, "SpaceToBatchFusion", 0
 ngraph::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     MATCHER_SCOPE(SpaceToBatchFusion);
     auto data_pattern = pattern::any_input();
-    auto reshape_before_pattern = pattern::wrap_type<opset6::Reshape>({data_pattern, pattern::wrap_type<opset6::Constant>()});
-    auto trans_before_pattern = pattern::wrap_type<opset6::Transpose>({data_pattern, pattern::wrap_type<opset6::Constant>()});
+    auto reshape_before_pattern = pattern::wrap_type<opset6::Reshape>({data_pattern, pattern::wrap_type<opset6::Constant>()}, pattern::rank_equals(4));
+    auto trans_before_pattern = pattern::wrap_type<opset6::Transpose>({data_pattern, pattern::wrap_type<opset6::Constant>()}, pattern::rank_equals(4));
     auto reshape_or_transpose_before_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
     auto pads_begin_pattern = pattern::wrap_type<opset6::Constant>();
     auto pads_end_pattern = pattern::wrap_type<opset6::Constant>();
     auto pad_value = pattern::wrap_type<opset6::Constant>();
     auto pad_pattern = pattern::wrap_type<opset6::Pad>({reshape_or_transpose_before_pattern, pads_begin_pattern, pads_end_pattern, pad_value});
     auto space_to_depth_pattern = pattern::wrap_type<opset6::SpaceToDepth>({pad_pattern}, pattern::has_static_shape());
-    auto reshape_after_pattern = pattern::wrap_type<opset6::Reshape>({space_to_depth_pattern, pattern::wrap_type<opset6::Constant>()});
-    auto trans_after_pattern = pattern::wrap_type<opset6::Transpose>({space_to_depth_pattern, pattern::wrap_type<opset6::Constant>()});
+    auto reshape_after_pattern = pattern::wrap_type<opset6::Reshape>({space_to_depth_pattern, pattern::wrap_type<opset6::Constant>()}, pattern::rank_equals(4));
+    auto trans_after_pattern = pattern::wrap_type<opset6::Transpose>({space_to_depth_pattern, pattern::wrap_type<opset6::Constant>()}, pattern::rank_equals(4));
     auto reshape_or_transpose_after_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto pattern_map = m.get_pattern_value_map();
+        const auto& pattern_map = m.get_pattern_value_map();
 
         auto get_reshape_or_transpose = [&pattern_map] (const std::shared_ptr<Node>& reshape_pattern,
                                                         const std::shared_ptr<Node>& trans_pattern) -> std::shared_ptr<Node> {
-            if (pattern_map.count(reshape_pattern) > 0)
+            if (pattern_map.count(reshape_pattern))
                 return pattern_map.at(reshape_pattern).get_node_shared_ptr();
-            if (pattern_map.count(trans_pattern) > 0)
+            if (pattern_map.count(trans_pattern))
                 return pattern_map.at(trans_pattern).get_node_shared_ptr();
             return nullptr;
         };
         auto check_input_output_shape = [] (const std::shared_ptr<Node>& node) -> bool {
             const auto& input_shape = node->get_input_shape(0);
             const auto& output_shape = node->get_output_shape(0);
-            if (input_shape.size() != 4 || output_shape.size() != 4)
-                return false;
             // Transpose permutation has to be [1, 0, 2, 3]
-            if (!(input_shape[0] == output_shape[1] &&
-                  input_shape[1] == output_shape[0] &&
-                  input_shape[2] == output_shape[2] &&
-                  input_shape[3] == output_shape[3]))
-                return false;
-            return true;
+            return input_shape[0] == output_shape[1] &&
+                   input_shape[1] == output_shape[0] &&
+                   input_shape[2] == output_shape[2] &&
+                   input_shape[3] == output_shape[3];
         };
 
         std::shared_ptr<Node> reshape_or_trans_before = get_reshape_or_transpose(reshape_before_pattern, trans_before_pattern);
