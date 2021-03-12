@@ -208,8 +208,7 @@ void LayerTestsCommon::Serialize() {
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
 
-    InferenceEngine::Core ie;
-    auto result = ie.ReadNetwork(out_xml_path, out_bin_path);
+    auto result = getCore()->ReadNetwork(out_xml_path, out_bin_path);
 
     bool success;
     std::string message;

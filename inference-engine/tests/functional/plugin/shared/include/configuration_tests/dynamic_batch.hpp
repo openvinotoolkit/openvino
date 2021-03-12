@@ -35,7 +35,7 @@ protected:
     void SetUp() override;
     void Run() override;
 
-    void LoadNetwork();
+    void LoadNetwork() override;
     void Infer() override;
     void Validate() override;
 public:
