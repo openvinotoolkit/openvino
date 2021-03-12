@@ -19,6 +19,7 @@
 #include <ngraph/rt_info.hpp>
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -1523,6 +1524,50 @@ std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> no
     }
 
     return NetworkHelper::toScalar(constant);
+}
+
+bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision) {
+    if (!node) {
+        return true;
+    }
+
+    float min, max;
+    if (is_type<opset1::Subtract>(node)) {
+        const auto parent = node->get_input_node_shared_ptr(0);
+        const auto intNode = is_type<opset1::Convert>(parent) ? parent : node;
+        const auto intType = intNode->get_input_element_type(0);
+        if (intType == element::u8 || intType == element::i8) {
+            min = DataPrecision::getMinValue(intType, 256) - 0.5f;
+            max = DataPrecision::getMaxValue(intType, 256) + 0.5f;
+        } else {
+            return false;
+        }
+        auto subtractConst = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
+        if (!subtractConst) {
+            subtractConst = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1)->get_input_node_shared_ptr(0));
+        }
+        const auto subtractValues = subtractConst->cast_vector<float>();
+        if (std::any_of(subtractValues.begin(), subtractValues.end(), [min, max] (const float& val) {
+                return (val < min) || (val > max); })) {
+            return false;
+        }
+    } else if (is_type<opset1::FakeQuantize>(node)) {
+        if (!dataPrecision.hasZeroPoint) {
+            return true;
+        }
+        min = dataPrecision.min - 0.5f;
+        max = dataPrecision.max + 0.5f;
+        const auto quantizationDetails = QuantizationDetails::getDetails(as_type_ptr<opset1::FakeQuantize>(node));
+        for (size_t i = 0; i < quantizationDetails.outputIntervalsCount; ++i) {
+            const float shift =
+                    (dataPrecision.min * quantizationDetails.outputHighValues[i] - dataPrecision.max * quantizationDetails.outputLowValues[i]) /
+                    (quantizationDetails.outputHighValues[i] - quantizationDetails.outputLowValues[i]);
+            if (shift < min || shift > max) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 }  // namespace low_precision
