@@ -66,16 +66,18 @@ public:
 
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
     size_t seed {};
+    auto absPath = filePath;
     try {
-        seed = hash_combine(seed, FileUtils::absoluteFilePath(filePath));
+        absPath = FileUtils::absoluteFilePath(filePath);
     } catch (...) {
-        // can't get absolute path, use filePath for hash calculation
-        seed = hash_combine(seed, filePath);
+        // can't get absolute path, will use filePath for hash
     }
+
+    seed = hash_combine(seed, absPath);
 
     std::string res;
     struct stat result;
-    if (stat(filePath.c_str(), &result) == 0) {
+    if (stat(absPath.c_str(), &result) == 0) {
         seed = hash_combine(seed, result.st_mtime);
         seed = hash_combine(seed, result.st_size);
     }
@@ -162,7 +164,12 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
                                const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
     size_t seed {};
-    seed = hash_combine(seed, modelName);
+    try {
+        seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
+    } catch (...) {
+        // can't get absolute path, use modelName for hash calculation
+        seed = hash_combine(seed, modelName);
+    }
     for (const auto& kvp : compileOptions) {
         seed = hash_combine(seed, kvp.first + kvp.second);
     }

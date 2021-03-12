@@ -25,6 +25,27 @@ using namespace ngraph;
 using namespace ::testing;
 using namespace std::chrono;
 
+static std::string generateTestFilePrefix() {
+    // Generate unique file names based on test name, thread id and timestamp
+    // This allows execution of tests in parallel (stress mode)
+    auto testInfo = UnitTest::GetInstance()->current_test_info();
+    std::string testName = testInfo->test_case_name();
+    testName += testInfo->name();
+    testName = std::to_string(std::hash<std::string>()(testName));
+    std::stringstream ss;
+    auto ts = duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch());
+    ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
+    testName = ss.str();
+    return testName;
+}
+
+class FileGuard {
+    std::string m_fileName;
+public:
+    FileGuard(const std::string& name): m_fileName(name) {}
+    ~FileGuard() { std::remove(m_fileName.c_str()); }
+};
+
 class NetworkContext_CalcFileInfoTests : public Test {
 public:
     std::string m_fileName = "test.blob";
@@ -36,20 +57,6 @@ public:
         }
         for (std::size_t i = 0; i < size; i++)
             str.put('a');
-    }
-
-    static std::string generateTestFilePrefix() {
-        // Generate unique file names based on test name, thread id and timestamp
-        // This allows execution of tests in parallel (stress mode)
-        auto testInfo = UnitTest::GetInstance()->current_test_info();
-        std::string testName = testInfo->test_case_name();
-        testName += testInfo->name();
-        testName = std::to_string(std::hash<std::string>()(testName));
-        std::stringstream ss;
-        auto ts = duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch());
-        ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
-        testName = ss.str();
-        return testName;
     }
 
     // Sets up the test fixture.
@@ -358,3 +365,24 @@ TEST(NetworkContext_ModelName, HashOfSame) {
               NetworkCompilationContext::computeHash("model1", {{"key", "value"}}));
 }
 
+TEST(NetworkContext_ModelName, HashOfExistingFile) {
+    auto file1 = generateTestFilePrefix() + ".xml";
+    auto file2 = std::string(".") + CommonTestUtils::FileSeparator + file1;
+
+    FileGuard guard(file1);
+    {
+        std::ofstream os(file1);
+        os << "test";
+    }
+    ASSERT_EQ(NetworkCompilationContext::computeHash(file1, {}),
+              NetworkCompilationContext::computeHash(file1, {}));
+
+    ASSERT_EQ(NetworkCompilationContext::computeHash(file1, {}),
+              NetworkCompilationContext::computeHash(file2, {}));
+
+    ASSERT_NE(NetworkCompilationContext::computeHash(file1, {{"key", "value"}}),
+              NetworkCompilationContext::computeHash(file2, {}));
+
+    ASSERT_EQ(NetworkCompilationContext::computeHash(file1, {{"key", "value"}}),
+              NetworkCompilationContext::computeHash(file2, {{"key", "value"}}));
+}
