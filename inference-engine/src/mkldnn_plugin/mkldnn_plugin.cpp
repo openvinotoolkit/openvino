@@ -426,17 +426,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     Config conf = engConfig;
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     auto config = orig_config;
-    const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
+    // const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
     // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
-    if (mode != config.end() || !conf.ovPerfMode.empty()) {
-        const auto mode_name = (mode != config.end()) ? mode->second : conf.ovPerfMode;
+    //if (mode != config.end() || !conf.ovPerfMode.empty()) {
+        // const auto mode_name = (mode != config.end()) ? mode->second : conf.ovPerfMode;
         // checking streams (to avoid overriding what user might explicitly set)
-        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
-        if (streams == config.end() && !streamsSet) {
-            if (mode_name == CONFIG_VALUE(LATENCY)) {
-                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-//                const int num_phys_cores = getNumberOfCPUCores();
+        // const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+//        if (streams != config.end() && streamsSet) {
+//            if (mode_name == CONFIG_VALUE(LATENCY)) {
+//                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+//            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                const int num_phys_cores = getNumberOfCPUCores();
 //                const int num_logical_cores = std::thread::hardware_concurrency();
                 const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
                 // this is first heuristic in series (carefully separating int8, bf16 and float32):
@@ -445,12 +445,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 //      Hybrid specific
                 //      etc
                 const bool isNetworkMemLimited = IsNetworkMemBandwidthLimited(network);
-                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << isNetworkMemLimited << std::endl;
+                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited ? "YES" : "NO") << std::endl;
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(
-                        isNetworkMemLimited ? default_num_streams : 2*default_num_streams);
-            }
-        }
-    }
+                        isNetworkMemLimited ? default_num_streams : num_phys_cores);
+//            }
+//        }
+    //}
     conf.readProperties(config);
 
     if (conf.enableDynamicBatch) {
