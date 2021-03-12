@@ -77,35 +77,38 @@ void op::v1::Convolution::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, result_et.is_real(), "Element types must be float point. Got: ", result_et);
 
-    if (m_strides.size() == 0)
-    {
-        m_strides = conv_default_strides(this, data_batch_pshape, filters_pshape);
-    }
-
-    if (m_dilations.size() == 0)
-    {
-        m_dilations = conv_default_strides(this, data_batch_pshape, filters_pshape);
-    }
-
-    if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID)
-    {
-        m_pads_begin = conv_default_padding(this, data_batch_pshape, filters_pshape);
-    }
-
-    if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID)
-    {
-        m_pads_end = conv_default_padding(this, data_batch_pshape, filters_pshape);
-    }
+    Rank result_ps_rank;
+    NODE_VALIDATION_CHECK(
+        this,
+        Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
+        "Data batch and filters inputs must have same rank. Got: ",
+        data_batch_pshape,
+        " and ",
+        filters_pshape);
 
     PartialShape result_shape = PartialShape::dynamic();
-    if (data_batch_pshape.rank().is_static() || filters_pshape.rank().is_static())
+    if (result_ps_rank.is_static())
     {
-        const bool is_data_batch_ps_static = data_batch_pshape.rank().is_static();
-        const auto output_ps_rank =
-            is_data_batch_ps_static ? data_batch_pshape.rank() : filters_pshape.rank();
-        const auto num_spatial_dims = is_data_batch_ps_static
-                                          ? data_batch_pshape.rank().get_length() - 2
-                                          : filters_pshape.rank().get_length() - 2;
+        const auto num_spatial_dims = result_ps_rank.get_length() - 2;
+        if (m_strides.size() == 0)
+        {
+            m_strides = Strides(num_spatial_dims, 1);
+        }
+
+        if (m_dilations.size() == 0)
+        {
+            m_dilations = Strides(num_spatial_dims, 1);
+        }
+
+        if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_begin = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_end = CoordinateDiff(num_spatial_dims, 0);
+        }
 
         NODE_VALIDATION_CHECK(this,
                               m_strides.size() == num_spatial_dims,
@@ -120,7 +123,7 @@ void op::v1::Convolution::validate_and_infer_types()
                                   m_pads_end.size() == num_spatial_dims,
                               "Pads should be defined for all and only spatial features.");
 
-        result_shape = std::vector<Dimension>(output_ps_rank.get_length(), Dimension::dynamic());
+        result_shape = PartialShape::dynamic(result_ps_rank);
         if (data_batch_pshape.rank().is_static())
         {
             result_shape[0] = data_batch_pshape[0]; // batch size
@@ -161,14 +164,15 @@ void op::v1::Convolution::validate_and_infer_types()
                 return;
             }
         }
-        result_shape = infer_convolution_forward(this,
-                                                 data_batch_pshape,
-                                                 Strides(num_spatial_dims, 1),
-                                                 m_pads_begin,
-                                                 m_pads_end,
-                                                 filters_pshape,
-                                                 m_strides,
-                                                 m_dilations);
+        result_shape =
+            infer_convolution_forward(this,
+                                      data_batch_pshape,
+                                      Strides(num_spatial_dims, 1), // dummy data dilations
+                                      m_pads_begin,
+                                      m_pads_end,
+                                      filters_pshape,
+                                      m_strides,
+                                      m_dilations);
     }
     set_output_type(0, result_et, result_shape);
 }
