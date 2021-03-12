@@ -476,7 +476,7 @@ void kernels_cache::build_all() {
             build_batch(batch);
         }));
     }
-    std::for_each(builds.begin(), builds.end(), [&] (std::future<void>& f) { f.wait(); });
+    std::for_each(builds.begin(), builds.end(), [] (std::future<void>& f) { f.wait(); });
 #else
     // no parallel build
     for (const auto& batch : batches) {
