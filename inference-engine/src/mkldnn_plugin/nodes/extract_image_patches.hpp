@@ -11,7 +11,8 @@
 #include <vector>
 #include <set>
 #include <cmath>
-
+// algo is for debug purposes
+#include <algorithm>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -29,10 +30,10 @@ struct jit_eximpat_params {
 };
 
 struct jit_eximpat_args {
-    int h_lo_pad;
-    int h_hi_pad;
-    int w_lo_pad;
-    int w_hi_pad;
+    int64_t h_lo_pad;
+    int64_t h_hi_pad;
+    int64_t w_lo_pad;
+    int64_t w_hi_pad;
     const void* src;
     void* dst; // const?
 };
@@ -95,11 +96,11 @@ public:
         // for debug purposes
         //for(int64_t i=0; i < OW * OH * IC * KW * KH * OB ; i++)
         //    dst_data[i] = -1;
-
+        std::fill(dst_data, dst_data + OW * OH * IC * KW * KH * OB, -1);
         if (eximpat_kernel){
         //if (0){
-            auto src_ptr = reinterpret_cast<const char *>(src_data);
-            auto dst_ptr = reinterpret_cast<char *>(dst_data);
+            //auto src_ptr = reinterpret_cast<const char *>(src_data);
+            //auto dst_ptr = reinterpret_cast<char *>(dst_data);
 
             auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
                 const int64_t ih_start = kh * RH - PT;
@@ -114,8 +115,8 @@ public:
                 //const int64_t ioffset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start;
 
                 auto args = jit_eximpat_args();
-                args.src = src_ptr + src_offset;
-                args.dst = dst_ptr + dst_offset;
+                args.src = reinterpret_cast<const char *>(src_data + src_offset);
+                args.dst = reinterpret_cast<char *>(dst_data + dst_offset);
                 args.h_lo_pad = ih_lpad;
                 args.h_hi_pad = ih_hpad;
                 args.w_lo_pad = iw_lpad;
@@ -145,6 +146,7 @@ public:
                     for (int64_t iw = 0; iw < OW; iw++)
                             dst_data[dst_idx++] = T(0);
                 */
+
                 for (int64_t i = 0; i < ih_lpad * OW; i++)
                         dst_data[dst_idx++] = T(0);
 
