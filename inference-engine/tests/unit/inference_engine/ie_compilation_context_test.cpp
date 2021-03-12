@@ -37,6 +37,11 @@ public:
     }
     // Sets up the test fixture.
     void SetUp() override {
+        auto testInfo = UnitTest::GetInstance()->current_test_info();
+        std::string testName = testInfo->test_case_name();
+        testName += testInfo->name();
+        testName = std::to_string(std::hash<std::string>()(testName));
+        m_fileName = testName + m_fileName;
         createFile(m_fileName);
     }
 

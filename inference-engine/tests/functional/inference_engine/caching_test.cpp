@@ -148,14 +148,22 @@ public:
         m_testFunction = getLoadFunction(m_type);
         m_testFunctionWithCfg = getLoadFunctionWithCfg(m_type);
         m_remoteContext = std::get<2>(std::get<0>(GetParam()));
+
+        auto testInfo = UnitTest::GetInstance()->current_test_info();
+        std::string testName = testInfo->test_case_name();
+        testName += testInfo->name();
+        testName = std::to_string(std::hash<std::string>()(testName));
+        modelName = testName + ".xml";
+        weightsName = testName + ".bin";
+        m_cacheDir = testName + m_cacheDir;
         m_dirCreator = std::unique_ptr<MkDirGuard>(new MkDirGuard(m_cacheDir));
     }
 
     void SetUp() override {
+        initParamTest();
         mockPlugin = std::make_shared<MockCachingInferencePlugin>();
         net = std::make_shared<MockExecutableNetwork>();
         setupMock(*mockPlugin);
-        initParamTest();
         std::string libraryName = get_mock_engine_name();
         sharedObjectLoader.reset(new SharedObjectLoader(libraryName.c_str()));
         injectProxyEngine = make_std_function<void(IInferencePlugin*)>("InjectProxyEngine");
@@ -710,6 +718,12 @@ TEST_P(CachingTest, TestThrowOnImport) {
 }
 
 TEST_P(CachingTest, TestNetworkModified) {
+    auto testInfo = UnitTest::GetInstance()->current_test_info();
+    std::string testName = testInfo->test_case_name();
+    testName += testInfo->name();
+    testName = std::to_string(std::hash<std::string>()(testName));
+    auto cacheFolder = testName + cacheFolders[0];
+
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -721,7 +735,7 @@ TEST_P(CachingTest, TestNetworkModified) {
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
         EXPECT_CALL(*net, ExportImpl(_)).Times(1);
         testLoad([&](Core &ie) {
-            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolders[0]}}));
+            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolder}}));
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
@@ -744,7 +758,7 @@ TEST_P(CachingTest, TestNetworkModified) {
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
         EXPECT_CALL(*net, ExportImpl(_)).Times(1);
         testLoad([&](Core &ie) {
-            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolders[0]}}));
+            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolder}}));
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
@@ -755,7 +769,7 @@ TEST_P(CachingTest, TestNetworkModified) {
         EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*net, ExportImpl(_)).Times(0);
         testLoad([&](Core &ie) {
-            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolders[0]}}));
+            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheFolder}}));
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
