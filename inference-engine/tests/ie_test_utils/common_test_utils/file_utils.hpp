@@ -14,11 +14,9 @@
 
 #ifdef _WIN32
 #include <direct.h>
-#define makedir(dir) _mkdir(dir)
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
-#define makedir(dir) mkdir(dir, 0777)
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -126,10 +124,6 @@ inline std::vector<std::string> listFilesWithExt(const std::string& path, const 
 
 inline int removeDir(const std::string &path) {
     return rmdir(path.c_str());
-}
-
-inline int makeDir(const std::string& path) {
-    return makedir(path.c_str());
 }
 
 inline bool directoryExists(const std::string &path) {

@@ -26,14 +26,6 @@
 #include "ie_network_reader.hpp"
 #include "xml_parse_utils.h"
 
-#ifdef _WIN32
-#include <direct.h>
-#define makedir(dir) _mkdir(dir)
-#else  // _WIN32
-#include <unistd.h>
-#define makedir(dir) mkdir(dir, 0755)
-#endif  // _WIN32
-
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
 
@@ -180,11 +172,7 @@ class Core::Impl : public ICore {
             if (it != config.end()) {
                 std::lock_guard<std::mutex> lock(_cacheConfigMutex);
                 if (!it->second.empty()) {
-                    int err = makedir(it->second.c_str());
-                    if (err != 0 && errno != EEXIST) {
-                        THROW_IE_EXCEPTION << "Couldn't create cache directory ["
-                                           << it->second << "], err=" << strerror(errno) << ")";
-                    }
+                    FileUtils::createDirectoryRecursive(it->second);
                     _cacheConfig._cacheManager = std::make_shared<FileStorageCacheManager>(std::move(it->second));
                 } else {
                     _cacheConfig._cacheManager = nullptr;

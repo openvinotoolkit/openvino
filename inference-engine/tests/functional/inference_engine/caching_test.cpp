@@ -103,7 +103,7 @@ class MkDirGuard {
 public:
     MkDirGuard(const std::string &dir = std::string()): m_dir(dir) {
         if (!m_dir.empty()) {
-            CommonTestUtils::makeDir(m_dir);
+            CommonTestUtils::createDirectory(m_dir);
         }
     }
 
@@ -545,6 +545,7 @@ TEST_P(CachingTest, TestChangeOtherConfig) {
 }
 
 TEST_P(CachingTest, TestChangeCacheDirFailure) {
+    std::string longName(1000000, ' ');
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -568,10 +569,34 @@ TEST_P(CachingTest, TestChangeCacheDirFailure) {
         EXPECT_CALL(*net, ExportImpl(_)).Times(0);
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
-            EXPECT_ANY_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "?*. / *qwe/someFile.tmpCache"}}));
+            EXPECT_ANY_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir + "/" + longName}}));
             m_testFunction(ie);
         });
     }
+}
+
+TEST_P(CachingTest, TestCacheDirCreateRecursive) {
+    std::string newCacheDir1 = m_cacheDir + CommonTestUtils::FileSeparator + "a";
+    std::string newCacheDir2 = newCacheDir1 + CommonTestUtils::FileSeparator + "b";
+    std::string newCacheDir3 = newCacheDir2 + CommonTestUtils::FileSeparator + CommonTestUtils::FileSeparator;
+
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            EXPECT_NO_THROW(ie.SetConfig({{CONFIG_KEY(CACHE_DIR), newCacheDir3}}));
+            EXPECT_NO_THROW(m_testFunction(ie));
+        });
+    }
+    CommonTestUtils::removeFilesWithExt(newCacheDir2, "blob");
+    std::remove(newCacheDir2.c_str());
+    std::remove(newCacheDir1.c_str());
 }
 
 TEST_P(CachingTest, TestDeviceArchitecture) {
