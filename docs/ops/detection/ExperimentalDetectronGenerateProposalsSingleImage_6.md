@@ -1,6 +1,6 @@
-## ExperimentalDetectronGenerateProposalsSingleImage <a name="ExperimentalDetectronGenerateProposalsSingleImage"></a> {#openvino_docs_ops_experimental_ExperimentalDetectronGenerateProposalsSingleImage_6}
+## ExperimentalDetectronGenerateProposalsSingleImage <a name="ExperimentalDetectronGenerateProposalsSingleImage"></a> {#openvino_docs_ops_detection_ExperimentalDetectronGenerateProposalsSingleImage_6}
 
-**Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage*
+**Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage-6*
 
 **Category**: Object detection
 
@@ -65,7 +65,7 @@
 **Example**
 
 ```xml
-<layer ... type="ExperimentalDetectronGenerateProposalsSingleImage">
+<layer ... type="ExperimentalDetectronGenerateProposalsSingleImage" version="opset6">
     <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
     <input>
         <port id="0">

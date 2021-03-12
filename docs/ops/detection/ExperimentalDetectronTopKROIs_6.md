@@ -1,4 +1,4 @@
-## ExperimentalDetectronTopKROIs <a name="ExperimentalDetectronTopKROIs"></a> {#openvino_docs_ops_experimental_ExperimentalDetectronTopKROIs_6}
+## ExperimentalDetectronTopKROIs <a name="ExperimentalDetectronTopKROIs"></a> {#openvino_docs_ops_detection_ExperimentalDetectronTopKROIs_6}
 
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
 
@@ -35,7 +35,7 @@
 **Example**
 
 ```xml
-<layer ... type="ExperimentalDetectronTopKROIs">
+<layer ... type="ExperimentalDetectronTopKROIs" version="opset6">
     <data max_rois="1000"/>
     <input>
         <port id="0">

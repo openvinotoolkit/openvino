@@ -1,6 +1,6 @@
-## ExperimentalDetectronDetectionOutput <a name="ExperimentalDetectronDetectionOutput"></a> {#openvino_docs_ops_experimental_ExperimentalDetectronDetectionOutput_6}
+## ExperimentalDetectronPriorGridGenerator <a name="ExperimentalDetectronPriorGridGenerator"></a> {#openvino_docs_ops_detection_ExperimentalDetectronPriorGridGenerator_6}
 
-**Versioned name**: *ExperimentalDetectronDetectionOutput-6*
+**Versioned name**: *ExperimentalDetectronPriorGridGenerator-6*
 
 **Category**: Object detection
 
@@ -55,7 +55,7 @@
 **Example**
 
 ```xml
-<layer ... type="ExperimentalDetectronPriorGridGenerator">
+<layer ... type="ExperimentalDetectronPriorGridGenerator" version="opset6">
     <data flatten="true" h="0" stride_x="32.0" stride_y="32.0" w="0"/>
     <input>
         <port id="0">

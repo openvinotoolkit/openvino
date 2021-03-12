@@ -1,10 +1,10 @@
-## ExperimentalDetectronROIFeatureExtractor <a name="ExperimentalDetectronDetectionOutput"></a> {#openvino_docs_ops_experimental_ExperimentalDetectronROIFeatureExtractor_6}
+## ExperimentalDetectronROIFeatureExtractor <a name="ExperimentalDetectronROIFeatureExtractor"></a> {#openvino_docs_ops_detection_ExperimentalDetectronROIFeatureExtractor_6}
 
 **Versioned name**: *ExperimentalDetectronROIFeatureExtractor-6*
 
 **Category**: Object detection, Pool
 
-**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the [ROIAlign](../detection/ROIAlign_3.md) operation applied over a feature pyramid.
+**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the [ROIAlign](ROIAlign_3.md) operation applied over a feature pyramid.
 
 **Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels. For more details please see the math formulas below and the following sources:
 
@@ -82,7 +82,7 @@ Here 224 is the "canonical" size, 2 is the pyramid starting level, and w, h are 
 **Example**
 
 ```xml
-<layer ... type="ExperimentalDetectronROIFeatureExtractor">
+<layer ... type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
     <data aligned="false" output_size="7" pyramid_scales="4,8,16,32,64" sampling_ratio="2"/>
     <input>
         <port id="0">

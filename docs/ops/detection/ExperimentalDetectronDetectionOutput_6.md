@@ -1,4 +1,4 @@
-## ExperimentalDetectronDetectionOutput <a name="ExperimentalDetectronDetectionOutput"></a> {#openvino_docs_ops_experimental_ExperimentalDetectronDetectionOutput_6}
+## ExperimentalDetectronDetectionOutput <a name="ExperimentalDetectronDetectionOutput"></a> {#openvino_docs_ops_detection_ExperimentalDetectronDetectionOutput_6}
 
 **Versioned name**: *ExperimentalDetectronDetectionOutput-6*
 
@@ -109,7 +109,7 @@ The layer has 4 inputs: tensor with input ROIs with input deltas with input scor
 **Example**
 
 ```xml
-<layer ... type="ExperimentalDetectronDetectionOutput">
+<layer ... type="ExperimentalDetectronDetectionOutput" version="opset6">
     <data class_agnostic_box_regression="false" deltas_weights="10.0,10.0,5.0,5.0" max_delta_log_wh="4.135166645050049" max_detections_per_image="100" nms_threshold="0.5" num_classes="81" post_nms_count="2000" score_threshold="0.05000000074505806"/>
     <input>
         <port id="0">
