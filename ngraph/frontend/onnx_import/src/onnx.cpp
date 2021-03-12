@@ -15,8 +15,6 @@
 //*****************************************************************************
 
 #include <fstream>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
 #include <memory>
 
 #include "core/graph.hpp"
@@ -82,8 +80,6 @@ namespace ngraph
 
         std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
         {
-            // this overload of the import_onnx_model is friended with the ONNXModelEditor
-            // and thus can access its private members
             return detail::import_onnx_model(model_editor.model(), model_editor.model_path());
         }
 
