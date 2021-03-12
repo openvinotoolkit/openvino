@@ -14,6 +14,7 @@ namespace low_precision {
 class TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
 public:
     ConvolutionTransformation(const Params& params);
+    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;
