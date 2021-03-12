@@ -105,14 +105,16 @@ namespace ngraph
                     check_mode_support(node, mode, version_1);
 
                     const auto data = node.get_ng_inputs().at(0);
-                    NGRAPH_CHECK((data.get_partial_shape().rank().is_static() &&
-                                  data.get_partial_shape().rank().get_length() == 4),
-                                 "Upsample v1 input tensor is required to be 4D.");
-                    const auto rank = data.get_partial_shape().rank().get_length();
 
-                    std::vector<float> scales(rank, 1.f);
-                    scales[rank - 1] = width_scale;
-                    scales[rank - 2] = height_scale;
+                    static const std::string expectation{"Input tensor is required to be 4D."};
+                    const auto rank = data.get_partial_shape().rank();
+                    CHECK_VALID_NODE(node, rank.is_static(), expectation);
+                    const auto rank_size = rank.get_length();
+                    CHECK_VALID_NODE(node, rank_size == 4, expectation);
+
+                    std::vector<float> scales(rank_size, 1.f);
+                    scales[rank_size - 1] = width_scale;
+                    scales[rank_size - 2] = height_scale;
 
                     const auto scales_const = default_opset::Constant::create(
                         ngraph::element::f32, Shape({scales.size()}), scales);
@@ -126,14 +128,17 @@ namespace ngraph
             {
                 OutputVector upsample(const onnx_import::Node& node)
                 {
-                    const auto inputs = node.get_ng_inputs();
-                    const auto data = inputs.at(0);
-
-                    const auto data_shape = data.get_partial_shape();
-
                     const auto scales = node.get_attribute_value<std::vector<float>>("scales");
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
                     check_mode_support(node, mode, version_7);
+
+                    const auto data = node.get_ng_inputs().at(0);
+
+                    const auto rank = data.get_partial_shape().rank();
+                    CHECK_VALID_NODE(node,
+                                     rank.is_static() && scales.size() == rank.get_length(),
+                                     "Input tensor's rank is required to be the same as number of "
+                                     "elements of 'scales' attribute.");
 
                     const auto scales_const = default_opset::Constant::create(
                         ngraph::element::f32, Shape({scales.size()}), scales);
@@ -147,12 +152,12 @@ namespace ngraph
             {
                 OutputVector upsample(const onnx_import::Node& node)
                 {
+                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
+                    check_mode_support(node, mode, version_9);
+
                     const auto inputs = node.get_ng_inputs();
                     const auto data = inputs.at(0);
                     const auto scales = inputs.at(1);
-
-                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
-                    check_mode_support(node, mode, version_9);
 
                     const auto data_shape = data.get_partial_shape();
                     const auto scales_shape = scales.get_partial_shape();
