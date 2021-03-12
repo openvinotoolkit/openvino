@@ -223,7 +223,7 @@ def remove_rpath(file_path):
                '|', 'cut', '-d', '" "', '-f2',
                '|', 'xargs', '-I{{}}',
                'install_name_tool', '-delete_rpath', '{{}}', f'{file_path}']
-        ret_info = subprocess.run(list(cmd.split(" ")), check=True)
+        ret_info = subprocess.run(cmd, check=True)
         if ret_info.returncode != 0:
             sys.exit(f"Could not remove rpath for {file_path}")
     else:
