@@ -21,11 +21,10 @@ import numpy.testing as npt
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.ops.strided_slice import StridedSlice
 from mo.utils.unittest.graph import build_graph
-from mo.utils.unittest.graph import valued_const_with_data, result, regular_op_with_empty_data, shaped_const_with_data, \
-    connect
-from extensions.back.MarkDataTypeInShapeOfSubgraphs import MarkShapeOfSubgraphDataType
+from mo.utils.unittest.graph import valued_const_with_data, result, regular_op_with_empty_data, \
+    shaped_const_with_data, connect
+from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 
 
 class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
@@ -58,6 +57,4 @@ class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
         interp_node = Node(graph, 'interp')
         interp_node.add_input_port(2, skip_if_exist=True)
 
-        MarkShapeOfSubgraphDataType().find_and_replace_pattern(graph)
-
-
+        MarkNodesWithShapeValues().find_and_replace_pattern(graph)

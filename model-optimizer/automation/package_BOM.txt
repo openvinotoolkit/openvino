@@ -33,7 +33,7 @@ extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LinearToLinearONNXReplacer.py
 extensions/back/LRNToNorm.py
-extensions/back/MarkDataTypeInShapeOfSubgraphs.py
+extensions/back/MarkNodesWithShapeValues.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
 extensions/back/NormalizeToNormalizeL2.py

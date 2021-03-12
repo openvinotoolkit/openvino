@@ -32,8 +32,8 @@ class ChangeCastOutputType(BackReplacementPattern):
     force_shape_inference = True
 
     def run_after(self):
-        from extensions.back.MarkDataTypeInShapeOfSubgraphs import MarkShapeOfSubgraphDataType
-        return [MarkShapeOfSubgraphDataType]
+        from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
+        return [MarkNodesWithShapeValues]
 
     def run_before(self):
         return []
@@ -45,10 +45,11 @@ class ChangeCastOutputType(BackReplacementPattern):
                 node.dst_type = np.float32
 
             ir_data_type = data_type_str_to_np(node.graph.graph['cmd_params'].data_type)
-            if node.dst_type == np.float32 and ir_data_type == np.float16 and not node.has_and_set('in_shape_subgraph'):
+            if node.dst_type == np.float32 and ir_data_type == np.float16 and not node.has_and_set('returns_shape_value'):
                 log.warning('Change data type from {} to {} for node {}'.format(node.dst_type, ir_data_type, node.name))
                 node.dst_type = ir_data_type
-            elif node.has_and_set('in_shape_subgraph') and node.dst_type == np.float16:
+            elif node.has_and_set('returns_shape_value') and node.dst_type == np.float16:
+                # return back FP32 for all Convert nodes with shape values
                 log.warning('Change data type from {} to {} for node {} in ShapeOf subgraph'.
-                            format(node.dst_type, ir_data_type, node.name))
+                            format(node.dst_type, np.float32, node.name))
                 node.dst_type = np.float32
