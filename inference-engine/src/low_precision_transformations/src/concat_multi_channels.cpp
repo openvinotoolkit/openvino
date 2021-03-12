@@ -296,18 +296,7 @@ FakeQuantizeDequantization ConcatMultiChannelsTransformation::getFoldedDequantiz
     std::shared_ptr<DequantizationSubtract> subtract;
     std::shared_ptr<ngraph::opset1::Constant> subConst;
     if (dequantization.subtract) {
-        if (NetworkHelper::isScalarLike(dequantization.subtractConstant)) {
-            subConst = NetworkHelper::toScalar(dequantization.subtractConstant);
-        } else {
-            inputs[0] = dequantization.subtractConstant;
-            const auto op = operation->clone_with_new_inputs(inputs);
-
-            // constant folding of subtract constant
-            op->constant_fold(outputs, inputs);
-
-            subConst = as_type_ptr<ngraph::opset1::Constant>(outputs[sourceOutputIdx].get_node_shared_ptr());
-        }
-
+        subConst = NetworkHelper::foldDequantizationConstant(operation, dequantization.subtractConstant, sourceOutputIdx);
         subtract = std::make_shared<DequantizationSubtract>(parent, subConst);
         parent = subtract;
     }
@@ -315,18 +304,7 @@ FakeQuantizeDequantization ConcatMultiChannelsTransformation::getFoldedDequantiz
     std::shared_ptr<DequantizationMultiply> multiply;
     std::shared_ptr<ngraph::opset1::Constant> mulConst;
     if (dequantization.multiply) {
-        if (NetworkHelper::isScalarLike(dequantization.multiplyConstant)) {
-            mulConst = NetworkHelper::toScalar(dequantization.multiplyConstant);
-        } else {
-            inputs[0] = dequantization.multiplyConstant;
-            const auto op = operation->clone_with_new_inputs(inputs);
-
-            // constant folding of multiply constant
-            op->constant_fold(outputs, inputs);
-
-            mulConst = as_type_ptr<ngraph::opset1::Constant>(outputs[sourceOutputIdx].get_node_shared_ptr());
-        }
-
+        mulConst = NetworkHelper::foldDequantizationConstant(operation, dequantization.multiplyConstant, sourceOutputIdx);
         multiply = std::make_shared<DequantizationMultiply>(parent, mulConst);
     }
 
