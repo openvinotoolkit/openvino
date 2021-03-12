@@ -18,12 +18,10 @@
 #include <string>
 #include <functional>
 #include <cmath>
-#include <iostream>
 
 // Tile size : 4x4 or 8x8
 #define MIN_TILE_SIZE 4
 #define DEFAULT_TILE_SIZE 8
-#define MAX_TILE_SIZE 16
 
 #define CEIL_DIV(A, B) ((A + B - 1)/(B))
 
@@ -115,7 +113,7 @@ static inline size_t GetFsvAlignment(const permute_params& params) {
             fsv_alignment = 32;
             break;
         case DataLayout::b_fs_yx_fsv4:
-            fsv_alignment = 32;
+            fsv_alignment = 4;
             break;
         default:
             throw std::runtime_error("Unsupported combination\n");
@@ -124,15 +122,11 @@ static inline size_t GetFsvAlignment(const permute_params& params) {
 }
 
 static inline size_t GetTileSize(const permute_params& params) {
-    // vector type support at most 16 elements
-    // u8 and i8 use the largest vector type: min(16. fsv_alignment)
-    if (((params.inputs[0].GetDType() == Datatype::UINT8) && (params.output.GetDType() == Datatype::UINT8)) ||
-        ((params.inputs[0].GetDType() == Datatype::INT8) && (params.output.GetDType() == Datatype::INT8)) ||
-        ((params.inputs[0].GetDType() == Datatype::F16) && (params.output.GetDType() == Datatype::F16))) {
-        return std::min(static_cast<size_t>(MAX_TILE_SIZE), GetFsvAlignment(params));
-    }
+    const Datatype input_type = params.inputs[0].GetDType();
+    const Datatype output_type = params.output.GetDType();
 
-    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.output.GetDType() == Datatype::INT64)) {
+    // i64 only supports tile size 4
+    if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
         return MIN_TILE_SIZE;
     }
 
@@ -317,7 +311,6 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params&
     // calculate number of working groups
     const size_t tile_width = GetTileSize(newParams);
     const size_t tile_height = tile_width;
-    const size_t fsv_alignment = GetFsvAlignment(newParams);
 
     std::vector<size_t> gws = GetGWS(newParams);
     std::vector<size_t> lws = GetBestLwsFromGws(newParams, gws, tile_width, tile_height);
@@ -336,14 +329,12 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params&
 
     if (num_working_groups == 1) {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    } else if ((rotating_dim >= fsv_alignment) && (feature >= fsv_alignment)) {
-        return FORCE_PRIORITY_1;
     } else if ((rotating_dim >= DEFAULT_TILE_SIZE) && (feature >= DEFAULT_TILE_SIZE)) {
-        return FORCE_PRIORITY_2;
+        return FORCE_PRIORITY_1;
     } else if ((rotating_dim >= DEFAULT_TILE_SIZE) || (feature >= DEFAULT_TILE_SIZE)) {
-        return FORCE_PRIORITY_3;
+        return FORCE_PRIORITY_2;
     } else {
-        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+        return FORCE_PRIORITY_3;
     }
 }
 }  // namespace kernel_selector
