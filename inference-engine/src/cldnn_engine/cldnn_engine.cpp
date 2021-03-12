@@ -18,7 +18,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -221,25 +221,34 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 });
 
             auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-                if (std::dynamic_pointer_cast<const ngraph::op::v0::RNNCell>(node)) {
+                if (std::dynamic_pointer_cast<const ngraph::opset6::RNNCell>(node)) {
                     return false;
-                } else if (std::dynamic_pointer_cast<const ngraph::op::v3::GRUCell>(node)) {
+                } else if (std::dynamic_pointer_cast<const ngraph::opset6::GRUCell>(node)) {
                     return false;
-                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::op::v4::LSTMCell>(node)) {
+                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset6::LSTMCell>(node)) {
                     return lstm_cell->get_clip() == 0.0f && lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::op::v0::LSTMCell>(node)) {
+                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(node)) {
                     return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                 }
                 return false;
             };
 
+            // Sequences supported by the plugin shouldn't be converted to TensorIterator.
+            // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
+            // should always convert to TensorIterator.
+            // RNN/GRU Sequences are not supported in GPU plugin
+            // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
             auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
-                auto max_seq_len = node->input(0).get_shape().at(1);
-                if (std::dynamic_pointer_cast<const ngraph::op::v5::RNNSequence>(node)) {
+                const auto& data = node->input(0);
+                const auto& data_pshape = data.get_partial_shape();
+                if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
                     return false;
-                } else if (std::dynamic_pointer_cast<const ngraph::op::v5::GRUSequence>(node)) {
+                auto max_seq_len = data.get_shape().at(1);
+                if (std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
                     return false;
-                } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::op::v5::LSTMSequence>(node)) {
+                } else if (std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(node)) {
+                    return false;
+                } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(node)) {
                     return lstm_seq->get_clip() == 0.0f &&
                            lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                            !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
