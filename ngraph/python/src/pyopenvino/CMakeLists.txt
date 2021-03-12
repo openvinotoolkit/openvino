@@ -16,6 +16,8 @@
 
 project (openvino.pyopenvino)
 
+set(IE_MAIN_SOURCE_DIR "/home/jiwaszki/openvino_dist/deployment_tools/inference_engine") # 
+
 if(DEFINED IE_MAIN_SOURCE_DIR)
     set(InferenceEngine_LIBRARIES inference_engine)
 else()
