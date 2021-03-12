@@ -122,8 +122,7 @@ def getConfigurationsMap() {
             stage(configuration.name) { CONFIGURATION_WORKFLOW(configuration) }
         }
     }
-
-        return configurationsMap
+    return configurationsMap
 }
 
 CONFIGURATION_WORKFLOW = { configuration ->
