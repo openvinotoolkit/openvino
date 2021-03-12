@@ -687,6 +687,54 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32_neg) {
     constant_convert_test(element::Type_t::i4, element::Type_t::i32, 171, -14);
 }
 
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI16) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i16, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU16) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u16, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 171, 65522);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI64) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::i64, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToU64) {
+    constant_convert_test(element::Type_t::u4, element::Type_t::u64, 171, 10);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 96, 6);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 171, -14);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64_neg) {
+    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 171, -14);
+}
+
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU8) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     uint8_t value = 171;
