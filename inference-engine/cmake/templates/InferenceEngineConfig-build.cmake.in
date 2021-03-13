@@ -51,8 +51,12 @@ else()
     foreach(library IN LISTS InferenceEngine_LIBRARIES)
         if(CMAKE_CROSSCOMPILING AND NOT MSVC)
             set_property(TARGET ${library} PROPERTY
-                         INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined"
-                         INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
+                         INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
         endif()
     endforeach()
+
+    if(NOT MSVC)
+        set_target_properties(${InferenceEngine_LIBRARIES} PROPERTIES
+            INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
+    endif()
 endif()
