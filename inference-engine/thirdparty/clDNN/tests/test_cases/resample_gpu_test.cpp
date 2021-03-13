@@ -769,30 +769,67 @@ INSTANTIATE_TEST_CASE_P(smoke_resample,
 
 
 /////////////////////////////////////////////////////////////////////////
-struct bi_resample_random_test_param_generator : std::vector<resample_random_test_params> {
-    bi_resample_random_test_param_generator& add(resample_random_test_params params) {
-        push_back(params);
-        return *this;
-    }
 
-    bi_resample_random_test_param_generator& smoke_params(data_types type, format::type input_format, format::type output_format) {
-        push_back(resample_random_test_params{ type, {1, 512, 32, 32}, {1, 512, 64, 64}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 512, 64, 64}, {1, 512, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 32, 32, 32}, {1, 32, 64, 64}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 32, 64, 64}, {1, 32, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 10, 32, 32}, {1, 10, 64, 64}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 10, 64, 64}, {1, 10, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 20, 20}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 10, 20, 20}, {1, 10, 10, 10}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-        push_back(resample_random_test_params{ type, {1, 48, 256, 256}, {1, 48, 512, 512}, 1, resample_type::caffe_bilinear, 1, input_format, output_format });
-
-        return *this;
-    }
+struct caffe_resample_random_test_params {
+    data_types input_type;
+    tensor input_size;
+    tensor output_size;
+    uint32_t num_filter;
+    resample_type operation_type;
+    uint32_t align_corners;
+    format::type in_format;
+    format::type out_format;
+    std::vector<int32_t> pads_begin;
+    std::vector<int32_t> pads_end;
 };
 
-
-struct caffe_resample_random_test : resample_random_test
+struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random_test_params>
 {
+    bool enable_profiling = false;
+
+    template <typename T>
+    void fill_random_typed(memory& mem, int min, int max, int k) {
+        auto size = mem.get_layout().size;
+        size_t b = size.batch[0];
+        size_t f = size.feature[0];
+        size_t x = size.spatial[0];
+        size_t y = size.spatial[1];
+
+        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto ptr = mem.pointer<T>();
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem.get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory& mem) {
+        auto dt = mem.get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127, 2);
+            break;
+        case data_types::f16:
+            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            break;
+        case data_types::i8:
+            fill_random_typed<int8_t>(mem, -127, 127, 1);
+            break;
+        case data_types::u8:
+            fill_random_typed<uint8_t>(mem, 0, 255, 1);
+            break;
+        default:
+            break;
+        }
+    }
+
     template <typename T>
     bool compare_outputs(const memory& out_ref, const memory& out_opt) {
         auto output_lay = out_ref.get_layout();
@@ -826,10 +863,15 @@ struct caffe_resample_random_test : resample_random_test
         return true;
     }
 
-    void execute_compare(const resample_random_test_params& params, bool check_result) {
-        // cldnn::engine_configuration cfg{true, false, false, "", "", true, "", "C:/work/cldnn_dump"};
-        // auto eng = cldnn::engine(cfg);
-        auto eng = get_test_engine();
+    cldnn::engine_configuration get_engine_config(bool enable_profiling = false, const std::string& dump_dir = "") {
+        this->enable_profiling = enable_profiling;
+        cldnn::engine_configuration cfg {enable_profiling, false, false, "", "", true, "", dump_dir};
+        return cfg;
+    }
+
+    void execute_compare(const caffe_resample_random_test_params& params, bool check_result) {
+        auto cfg = get_engine_config(false, "/home/jade/work/cl_dump/");
+        auto eng = cldnn::engine(cfg);
 
         auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
         auto in_mem = memory::allocate(eng, in_layout);
@@ -840,6 +882,8 @@ struct caffe_resample_random_test : resample_random_test
         topo.add(input_layout("in", in_layout));
         auto prim = resample("resample", "in", params.output_size, params.num_filter, params.operation_type);
         prim.align_corners = params.align_corners;
+        prim.pads_begin = params.pads_begin;
+        prim.pads_end = params.pads_end;
         topo.add(prim);
 
         auto build_opts = build_options();
@@ -857,25 +901,27 @@ struct caffe_resample_random_test : resample_random_test
                 kernel = info.kernel_id;
         }
 
-        // for (auto& pri : net.get_executed_primitives()) {
-        //     if (pri.first == "resample") {
-        //         std::cout << pri.first.c_str() << std::endl;
-        //         for (auto& pi : pri.second.get_profiling_info()) {
-        //             double ms = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
-        //             std::cout << "      " << pi.name << ":  " << ms << " ms" << std::endl;
-        //         }
-        //     }
-        // }
+        double ref_exec_time = 0;
+        for (auto& pri : net.get_executed_primitives()) {
+            if (pri.first == "resample") {
+                for (auto& pi : pri.second.get_profiling_info()) {
+                    if (pi.name == "executing") {
+                        ref_exec_time = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
+                    }
+                }
+            }
+        }
 
         // Execut resample_opt
-        // auto eng_opt = cldnn::engine(cfg);
-        auto eng_opt = cldnn::engine();
+        auto eng_opt = cldnn::engine(cfg);
 
         cldnn::topology topo_opt;
         topo_opt.add(input_layout("in", in_layout));
         topo_opt.add(reorder("in_to_input_type", "in", params.in_format, params.input_type));
         auto prim_opt = resample("resample_opt", "in_to_input_type", params.output_size, params.num_filter, params.operation_type);
         prim_opt.align_corners = params.align_corners;
+        prim_opt.pads_begin = params.pads_begin;
+        prim_opt.pads_end = params.pads_end;
         topo_opt.add(prim_opt);
         topo_opt.add(reorder("res_to_bfyx", "resample_opt", format::bfyx, params.input_type));
 
@@ -896,15 +942,21 @@ struct caffe_resample_random_test : resample_random_test
                 kernel_opt = info.kernel_id;
         }
 
-        // for (auto& pri : net_opt.get_executed_primitives()) {
-        //     if (pri.first == "resample_opt") {
-        //         std::cout << pri.first.c_str() << std::endl;
-        //         for (auto& pi : pri.second.get_profiling_info()) {
-        //             double ms = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
-        //             std::cout << "      " << pi.name << ":  " << ms << " ms" << std::endl;
-        //         }
-        //     }
-        // }
+        double opt_exec_time = 0;
+        for (auto& pri : net_opt.get_executed_primitives()) {
+            if (pri.first == "resample_opt") {
+                for (auto& pi : pri.second.get_profiling_info()) {
+                    if (pi.name == "executing") {
+                        opt_exec_time = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
+                    }
+                }
+            }
+        }
+
+        if (enable_profiling) {
+            std::cout << "ref: " << ref_exec_time << ", " << "opt: " << opt_exec_time
+                    << ", " << std::setprecision(3) << ref_exec_time/opt_exec_time << " %" << std::endl;
+        }
 
         if (check_result == true) {
             // Check data_types
@@ -923,6 +975,22 @@ struct caffe_resample_random_test : resample_random_test
     }
 };
 
+struct caffe_resample_random_test_param_generator : std::vector<caffe_resample_random_test_params> {
+    caffe_resample_random_test_param_generator& add(caffe_resample_random_test_params params) {
+        push_back(params);
+        return *this;
+    }
+
+    caffe_resample_random_test_param_generator& smoke_params(data_types type, format::type input_format, format::type output_format) {
+        push_back(caffe_resample_random_test_params{ type, {1, 512, 16, 16}, {1, 512, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
+        push_back(caffe_resample_random_test_params{ type, {1, 512, 32, 32}, {1, 512, 16, 16}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
+        // Padding applied
+        push_back(caffe_resample_random_test_params{ type, {1, 512, 16, 16}, {1, 512, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {0, 0, 1, 1}, {0, 0, 1, 1}});
+        push_back(caffe_resample_random_test_params{ type, {1, 512, 32, 32}, {1, 512, 16, 16}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {0, 0, 1, 1}, {0, 0, 1, 1}});
+        return *this;
+    }
+};
+
 TEST_P(caffe_resample_random_test, random) {
     auto param = GetParam();
     execute_compare(param, true);
@@ -931,7 +999,7 @@ TEST_P(caffe_resample_random_test, random) {
 INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv16,
                         caffe_resample_random_test,
                         testing::ValuesIn(
-                            bi_resample_random_test_param_generator()
+                            caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                         ), );
@@ -939,7 +1007,7 @@ INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv16,
 INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv32,
                         caffe_resample_random_test,
                         testing::ValuesIn(
-                            bi_resample_random_test_param_generator()
+                            caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
                         ), );
 
