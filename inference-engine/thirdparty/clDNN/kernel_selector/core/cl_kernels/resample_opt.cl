@@ -3,6 +3,7 @@
 //
 
 #include "include/include_all.cl"
+#include "include/data_types.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
@@ -21,6 +22,7 @@
 #define TO_ACC_VEC_TYPE(x)              CAT(convert_, ACC_VEC_TYPE)(x)
 #define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 #define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
+
 
 inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
 {
@@ -106,17 +108,22 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const ACCUMULATOR_TYPE af = 1.0f / SCALES[1];
     const ACCUMULATOR_TYPE ay = 1.0f / SCALES[3];
     const ACCUMULATOR_TYPE ax = 1.0f / SCALES[4];
+
+    const int rb = (SCALES[0] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ab);
+    const int rf = (SCALES[1] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / af);
+    const int ry = (SCALES[3] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ay);
+    const int rx = (SCALES[4] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ax);
 #else
     const ACCUMULATOR_TYPE ab = 1.0f;
     const ACCUMULATOR_TYPE af = 1.0f;
     const ACCUMULATOR_TYPE ay = 1.0f;
     const ACCUMULATOR_TYPE ax = 1.0f;
-#endif
 
     const int rb = (SCALES[0] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ab);
     const int rf = (SCALES[1] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / af);
     const int ry = (SCALES[3] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ay);
     const int rx = (SCALES[4] < 1.0f) ? 1 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ax);
+#endif
 
     int const b_init = max(-PADS_BEGIN[0], ib_r - rb);
     int const f_init = max(-PADS_BEGIN[1], if_r - rf);
@@ -134,7 +141,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int fp_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
 #endif
 
-    ACCUMULATOR_TYPE sum[fp_max] = {0};
+    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16) sum = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wsum = ACCUMULATOR_VAL_ZERO;
 
     ACCUMULATOR_TYPE wb = ACCUMULATOR_VAL_ZERO;
@@ -165,14 +172,15 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
                             if (w != 0) {
                                 wsum += w;
-                                unroll_for(int fp = 0; fp < min(fp_max, INPUT0_FEATURE_NUM - f); fp++) {
+
 #if PADDING_USED == 1
-                                        if (!isOutOfBounds)
+                                if (!isOutOfBounds)
 #endif
-                                        {
-                                            sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, y, x)]);
-                                        }
-                                }  // unroll_for(int fp = 0; fp < min(fp_max, INPUT0_FEATURE_NUM - f); fp++)
+                                {
+                                    MAKE_VECTOR_TYPE(INPUT0_TYPE, 16) input_vec = vload16(0, &input[FUNC_CALL(get_input_index)(b, f, y, x)]);
+
+                                    sum = fma(convert_float16(input_vec), (float16)w, sum);
+                                }
                             }  // w != 0;
                         }  // unroll_for(int x = x_init; x < x_max; x++)
                     }
@@ -181,18 +189,24 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         }  // unroll_for(int f = f_init; f < f_max; f++)
     }  // unroll_for(int b = b_init; b < b_max; b++)
 
-    unroll_for (int f = 0; f < fp_max; f++) {
-        ACCUMULATOR_TYPE res = (wsum == 0) ? ACCUMULATOR_VAL_ZERO : (sum[f] / wsum);
+    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16) output_vec;
+    ACCUMULATOR_TYPE res;
+
+    if (wsum == 0) {
+        res = ACCUMULATOR_VAL_ZERO;
+    } else {
+        unroll_for (int f = 0; f < fp_max; f++) {
+            res = sum[f] / wsum;
 #if HAS_FUSED_OPS
-        #define OF_ID (feature + f)
-        FUSED_OPS;
-        OUTPUT_TYPE out = FUSED_OPS_RESULT;
-        #undef OF_ID
+            FUSED_OPS;
+            output_vec[f] = FUSED_OPS_RESULT;
 #else
-        OUTPUT_TYPE out = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+            output_vec[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
 #endif
-        output[FUNC_CALL(get_output_index)(batch, feature + f, oy, ox)] = out;
+        }
     }
+
+    vstore16(output_vec, 0, &output[FUNC_CALL(get_output_index)(batch, feature, oy, ox)]);
 
 #else  // SAMPLE_TYPE_CAFFE_INTERP
     const int xy = get_global_id(0);

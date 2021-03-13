@@ -35,7 +35,7 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
     const size_t max_size = 32;
     const size_t min_size = 4;
     size_t feature_block_size = 1;
-    std::vector<size_t> preferred_sizes = { 32, 16, 8 };
+    std::vector<size_t> preferred_sizes = { 16, 8 };
     for (auto& s : preferred_sizes)
         if (params.output.Feature().v % s == 0)
             return s;
@@ -67,16 +67,6 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
     }
-
-    // if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
-    //         printf("resample ref caffe gws: (%zd, %zd, %zd), lws: (%zd, %zd, %zd), (%zd, %zd, %zd) %zd\n",
-    //     dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2],
-    //     dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2],
-    //     dispatchData.gws[0]/dispatchData.lws[0],
-    //     dispatchData.gws[1]/dispatchData.lws[1],
-    //     dispatchData.gws[2]/dispatchData.lws[2],
-    //     dispatchData.gws[0]/dispatchData.lws[0] *  dispatchData.gws[1]/dispatchData.lws[1] * dispatchData.gws[2]/dispatchData.lws[2]);
-    // }
 
     return dispatchData;
 }
