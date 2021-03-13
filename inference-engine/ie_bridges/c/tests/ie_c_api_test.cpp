@@ -53,8 +53,8 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
+        fclose(fp);
     }
-    fclose(fp);
     return read_size;
 }
 
