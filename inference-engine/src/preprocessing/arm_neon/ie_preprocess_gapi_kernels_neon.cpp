@@ -130,7 +130,10 @@ void copyRow_32F(const float in[], float out[], int length) {
 template<int chanNum>
 CV_ALWAYS_INLINE void channels2planes_store(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
                                             const uchar* src, const int width,
-                                            const int nlanes, const int line) {
+                                            const int line) {
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
+    GAPI_Assert(width >= nlanes);
+
     v_uint8 chan;
     int x = 0;
     for (;;) {
@@ -151,9 +154,12 @@ CV_ALWAYS_INLINE void channels2planes_store(std::array<std::array<uint8_t*, 4>, 
 
 CV_ALWAYS_INLINE void vertical_anyLPI(const uchar* src0, const uchar* src1,
                                       uchar* tmp, const int inLength,
-                                      const int nlanes, const short beta) {
-    int w = 0;
+                                      const short beta) {
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
+    GAPI_Assert(inLength >= nlanes);
+
     const int half_nlanes = nlanes/2;
+    int w = 0;
     for (;;) {
         for (; w <= inLength - nlanes; w += nlanes) {
             v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[w]));
@@ -177,9 +183,12 @@ CV_ALWAYS_INLINE void vertical_anyLPI(const uchar* src0, const uchar* src1,
 template<int chanNum>
 CV_ALWAYS_INLINE void horizontal_anyLPI(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
                                         const uchar* src, const short mapsx[],
-                                        const short alpha[], const int nlanes,
-                                        const int width, const int line) {
+                                        const short alpha[], const int width,
+                                        const int line) {
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
     const int half_nlanes = nlanes/2;
+    GAPI_Assert(width >= half_nlanes);
+
     v_int16 t0, t1;//, t2, t3;
     int x = 0;
     for (;;) {
@@ -208,18 +217,21 @@ CV_ALWAYS_INLINE void horizontal_anyLPI(std::array<std::array<uint8_t*, 4>, chan
 
 template<int chanNum>
 CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
-                                      const uchar* tmp, const short mapsx[], const short clone[],
-                                      const int width, const int nlanes) {
-    v_uint8 val_0, val_1, val_2, val_3;
+                                      const uchar* tmp, const short mapsx[],
+                                      const short clone[], const int length) {
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
     const int half_nlanes = nlanes / 2;
+    GAPI_Assert(length >= half_nlanes);
+
     const int shift = static_cast<int>(half_nlanes / 4);
 
     uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15 };
     v_uint8 hmask = vx_load(_mask_horizontal);
 
+    v_uint8 val_0, val_1, val_2, val_3;
     int x = 0;
     for (;;) {
-        for (; x <= width - half_nlanes && x >= 0; x += half_nlanes) {
+        for (; x <= length - half_nlanes && x >= 0; x += half_nlanes) {
             v_int16 a10 = vx_load(&clone[4 * x]);
             v_int16 a32 = vx_load(&clone[4 * (x + 2)]);
             v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
@@ -267,8 +279,8 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
             }
         }
 
-        if (x < width) {
-            x = width - half_nlanes;
+        if (x < length) {
+            x = length - half_nlanes;
             continue;
         }
         break;
@@ -287,7 +299,7 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                                               const Size&    inSz,
                                               const Size&    outSz,
                                               const int      lpi) {
-    constexpr int nlanes = static_cast<int>(v_int8::nlanes);
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
     constexpr int half_nlanes = nlanes / 2;
 
     bool xRatioEq = inSz.width == outSz.width;
@@ -352,12 +364,9 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
             }
 
             // horizontal pass
-            GAPI_Assert(outSz.width >= half_nlanes);
-            horizontal_4LPI<chanNum>(dst, tmp, mapsx, clone, outSz.width, nlanes);
+            horizontal_4LPI<chanNum>(dst, tmp, mapsx, clone, outSz.width);
         } else {  // if any lpi
               int inLength = inSz.width * chanNum;
-              GAPI_Assert(inLength >= half_nlanes);
-              GAPI_Assert(outSz.width >= half_nlanes);
 
               for (int l = 0; l < lpi; ++l) {
                   short beta0 = beta[l];
@@ -365,20 +374,20 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                   const uchar* s1 = src1[l];
 
                   // vertical pass
-                  vertical_anyLPI(s0, s1, tmp, inLength, nlanes, beta0);
+                  vertical_anyLPI(s0, s1, tmp, inLength, beta0);
 
                   // horizontal pass
-                  horizontal_anyLPI<chanNum>(dst, tmp, mapsx, alpha, nlanes, outSz.width, l);
+                  horizontal_anyLPI<chanNum>(dst, tmp, mapsx, alpha, outSz.width, l);
               }
           }
     } else if (!xRatioEq) {
-        GAPI_Assert(yRatioEq);
+        GAPI_DbgAssert(yRatioEq);
 
         if (4 == lpi) {
             int inLength = inSz.width * chanNum;
 
             // vertical pass
-            GAPI_DbgAssert(inLength >= nlanes);
+            GAPI_Assert(inLength >= nlanes);
             v_uint8 s0, s1, s2, s3;
             int w = 0;
             for (;;) {
@@ -398,23 +407,18 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
             }
 
             // horizontal pass
-            GAPI_Assert(outSz.width >= half_nlanes);
-            horizontal_4LPI<chanNum>(dst, tmp, mapsx, clone, outSz.width, nlanes);
+            horizontal_4LPI<chanNum>(dst, tmp, mapsx, clone, outSz.width);
         } else {  // any LPI
-            GAPI_Assert(outSz.width >= half_nlanes);
             for (int l = 0; l < lpi; ++l) {
                 const uchar* src = src0[l];
 
                 // horizontal pass
-                horizontal_anyLPI<chanNum>(dst, src, mapsx, alpha, nlanes, outSz.width, l);
+                horizontal_anyLPI<chanNum>(dst, src, mapsx, alpha, outSz.width, l);
             }
         }
     } else if (!yRatioEq) {
-        GAPI_Assert(xRatioEq);
+        GAPI_DbgAssert(xRatioEq);
         int inLength = inSz.width*chanNum;  // == outSz.width
-
-        GAPI_Assert(inLength >= half_nlanes);
-        GAPI_Assert(outSz.width >= nlanes);
 
         for (int l = 0; l < lpi; ++l) {
             short beta0 = beta[l];
@@ -422,19 +426,18 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
             const uchar* s1 = src1[l];
 
             // vertical pass
-            vertical_anyLPI(s0, s1, tmp, inLength, nlanes, beta0);
+            vertical_anyLPI(s0, s1, tmp, inLength, beta0);
 
             //split channels to planes and store
-            channels2planes_store<chanNum>(dst, tmp, outSz.width, nlanes, l);
+            channels2planes_store<chanNum>(dst, tmp, outSz.width, l);
         }
     } else {
-        GAPI_Assert(xRatioEq && yRatioEq);
-        GAPI_Assert(outSz.width >= nlanes);
+        GAPI_DbgAssert(xRatioEq && yRatioEq);
 
         //split channels to planes and store
         for (int l = 0; l < lpi; ++l) {
             const uchar* src = src0[l];
-            channels2planes_store<chanNum>(dst, src, outSz.width, nlanes, l);
+            channels2planes_store<chanNum>(dst, src, outSz.width, l);
         }
     }
 }
