@@ -460,7 +460,6 @@ void kernels_cache::build_all() {
         get_program_source(_kernels_code, &batches);
         _one_time_kernels.clear();
     }
-
 #if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
     arena->execute([this, &batches] {
         tbb::parallel_for(tbb::blocked_range<size_t>(0, batches.size()), [this, &batches](const tbb::blocked_range<size_t>& r) {
@@ -471,9 +470,9 @@ void kernels_cache::build_all() {
     });
 #elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
     std::vector<std::future<void>> builds;
-    for (const auto& batch : batches) {
-        builds.push_back(pool->Enqueue([this, &batch] () {
-            build_batch(batch);
+    for (size_t i = 0; i < batches.size(); ++i) {
+        builds.push_back(pool->Enqueue([this, &batches, i] () {
+            build_batch(batches[i]);
         }));
     }
     std::for_each(builds.begin(), builds.end(), [] (std::future<void>& f) { f.wait(); });
