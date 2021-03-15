@@ -1,16 +1,8 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(CheckCXXCompilerFlag)
-
-if (ENABLE_SANITIZER OR ENABLE_THREAD_SANITIZER)
-    # This is workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/16609.
-    # It ensures pthread is searched without ASAN linking.
-    # Line bellow must be before adding -fsanitize=address or -fsanitize=thread to
-    # build options for the trick to work.
-    find_package(Threads REQUIRED)
-endif()
 
 if (ENABLE_SANITIZER)
     set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=address -fno-omit-frame-pointer")

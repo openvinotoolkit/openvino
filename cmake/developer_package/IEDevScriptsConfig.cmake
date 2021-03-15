@@ -202,6 +202,9 @@ endif()
 
 # General flags
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 include(compile_flags/sdl)
 include(compile_flags/os_flags)
 include(compile_flags/sanitizer)

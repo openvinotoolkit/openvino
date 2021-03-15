@@ -126,8 +126,4 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-if (ENABLE_SPEECH_DEMO)
-    add_definitions(-DENABLE_SPEECH_DEMO)
-endif()
-
 print_enabled_features()
