@@ -48,13 +48,9 @@ ngraph::CoordinateDiff::CoordinateDiff(size_t n, std::ptrdiff_t initial_value)
 {
 }
 
-ngraph::CoordinateDiff::CoordinateDiff()
-{
-}
+ngraph::CoordinateDiff::CoordinateDiff() {}
 
-ngraph::CoordinateDiff::~CoordinateDiff()
-{
-}
+ngraph::CoordinateDiff::~CoordinateDiff() {}
 
 ngraph::CoordinateDiff& ngraph::CoordinateDiff::operator=(const CoordinateDiff& v)
 {

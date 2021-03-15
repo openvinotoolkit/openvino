@@ -82,6 +82,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
+
             private:
                 InterpolateAttrs m_attrs;
             };
@@ -229,6 +230,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
+
             protected:
                 /// \return The interpolation axes.
                 std::vector<int64_t> get_axes() const;
@@ -282,8 +284,8 @@ namespace ngraph
             };
         } // namespace v4
         NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::InterpolateAttrs;
         using v0::Interpolate;
+        using v0::InterpolateAttrs;
         NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 

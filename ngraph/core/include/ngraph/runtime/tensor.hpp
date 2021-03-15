@@ -91,6 +91,7 @@ namespace ngraph
             /// \brief notify tensor of new data, call may block.
             ///    backends may use this as indication of new data in tensor.
             virtual void wait_for_write_ready() {}
+
         protected:
             std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
             bool m_stale;
