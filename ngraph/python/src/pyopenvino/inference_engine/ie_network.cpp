@@ -17,6 +17,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "ngraph/function.hpp"
 #include <cpp/ie_cnn_network.h>
 #include <ie_input_info.hpp>
 
@@ -58,8 +59,13 @@ void regclass_IENetwork(py::module m)
     /*    cls.def("add_outputs", [](InferenceEngine::CNNNetwork& self, py::list input) {
             self.addOutput(input_shapes);
         });*/
-    /*    cls.def("serialize", );*/
-    /*    cls.def("get_function", );*/
+    cls.def("serialize", &InferenceEngine::CNNNetwork::serialize, py::arg("path_to_xml"), py::arg("path_to_bin")="");
+
+    cls.def("_get_function_capsule",
+            [](InferenceEngine::CNNNetwork& self) {
+        return self.getFunction();
+    });
+
     cls.def_property("batch_size",
                      &InferenceEngine::CNNNetwork::getBatchSize,
                      &InferenceEngine::CNNNetwork::setBatchSize);

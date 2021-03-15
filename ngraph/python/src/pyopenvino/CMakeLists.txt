@@ -20,9 +20,12 @@ set(IE_MAIN_SOURCE_DIR "/home/jiwaszki/openvino_dist/deployment_tools/inference_
 
 if(DEFINED IE_MAIN_SOURCE_DIR)
     set(InferenceEngine_LIBRARIES inference_engine)
+    set(NGRAPH_LIBRARIES ngraph)
 else()
     find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(ngraph QUIET)
     set(InferenceEngine_LIBRARIES IE::inference_engine)
+    set(NGRAPH_LIBRARIES ngraph)
 endif()
 
 # create target
@@ -41,7 +44,7 @@ file(GLOB_RECURSE SOURCES *.cpp)
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${NGRAPH_LIBRARIES})
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
