@@ -45,6 +45,8 @@ const std::vector<ConcatWithSplitTransformationParam> testValues = {
     }
 };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 // TODO: Split/VariadicSplit operations are not supported in ConcatTransformation
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
@@ -52,6 +54,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, ConcatWithSplitTransformation,
         ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::Values(config)),
     ConcatWithSplitTransformation::getTestCaseName);
 }  // namespace

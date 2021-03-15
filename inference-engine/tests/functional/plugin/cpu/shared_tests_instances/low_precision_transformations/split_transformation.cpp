@@ -84,13 +84,16 @@ const std::vector<LayerTestsDefinitions::SplitTransformationParam> params = {
     }
 };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_LPT, SplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(params)),
+        ::testing::ValuesIn(params),
+        ::testing::Values(config)),
     SplitTransformation::getTestCaseName);
 
 }  // namespace

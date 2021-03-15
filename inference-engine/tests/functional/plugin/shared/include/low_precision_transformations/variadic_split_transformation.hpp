@@ -20,7 +20,8 @@ typedef std::tuple<
     ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    VariadicSplitTransformationParam
+    VariadicSplitTransformationParam,
+    std::pair<std::string, std::map<std::string, std::string>>
 > VariadicSplitTransformationParams;
 
 class VariadicSplitTransformation :
