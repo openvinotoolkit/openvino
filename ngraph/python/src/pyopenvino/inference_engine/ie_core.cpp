@@ -187,11 +187,25 @@ void regclass_IECore(py::module m)
         return parse_parameter(self.GetConfig(device_name, config_name));
     }, py::arg("device_name"), py::arg("config_name"));
 
-    cls.def_property_readonly("available_devices", &InferenceEngine::Core::GetAvailableDevices);
+    cls.def("get_metric", [](InferenceEngine::Core& self,
+                             std::string device_name,
+                             std::string metric_name) -> py::handle {
+        return parse_parameter(self.GetMetric(device_name, metric_name));
+    }, py::arg("device_name"), py::arg("metric_name"));
 
-    // cls.def("query_network", );
-    // cls.def("register_plugin", );
-    // cls.def("register_plugins", );
-    // cls.def("unregister_plugin", );
-    // cls.def("get_metric", );
+    cls.def("register_plugin", &InferenceEngine::Core::RegisterPlugin,
+            py::arg("plugin_name"), py::arg("device_name")=py::str());
+
+    cls.def("register_plugins", &InferenceEngine::Core::RegisterPlugins);
+
+    cls.def("unregister_plugin", &InferenceEngine::Core::UnregisterPlugin, py::arg("device_name"));
+
+    cls.def("query_network", [](InferenceEngine::Core& self,
+                             const InferenceEngine::CNNNetwork& network,
+                             const std::string& device_name,
+                             const std::map<std::string, std::string>& config)  {
+        return self.QueryNetwork(network, device_name, config).supportedLayersMap;
+    }, py::arg("network"), py::arg("device_name"), py::arg("config")=py::dict());
+
+    cls.def_property_readonly("available_devices", &InferenceEngine::Core::GetAvailableDevices);
 }
