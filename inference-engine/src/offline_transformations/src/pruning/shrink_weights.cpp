@@ -10,13 +10,13 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/log.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ShrinkWeights, "ShrinkWeights", 0);
 
 bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Function> f) {
     int64_t reduced_weights_count{0};
     int64_t total_weights_count{0};
-    std::cout << "[ INFO ] ShrinkWeights start" << std::endl;
     for (const auto & node : f->get_ordered_ops()) {
         // calculate shape for every node in graph as the input shape may change
         // during Constant shrinking
@@ -46,8 +46,8 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
             }
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
-            std::cout << "Transform shape like (" << last_output.get_node()->get_friendly_name() << "): "
-                      << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
+            NGRAPH_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name() << "): "
+                         << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
             new_const->set_friendly_name(const_node->get_friendly_name());
         } else {
             for (size_t dim = 0; dim < mask->size(); ++dim) {
@@ -62,12 +62,12 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
                     }
                 }
 
-                auto prev_shape = last_output.get_shape();
-                std::cout << "Transform(" << last_output.get_node()->get_friendly_name() << "): " << last_output.get_shape() << " to ";
+                const auto & prev_shape = last_output.get_shape();
+                const auto & prev_name = last_output.get_node()->get_friendly_name();
                 last_output = std::make_shared<opset6::Gather>(last_output,
                                                                opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
                                                                opset6::Constant::create(element::i64, Shape{}, {dim}));
-                std::cout << last_output.get_shape() << std::endl;
+                NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to " << last_output.get_shape();
 
                 reduced_weights_count += shape_size(prev_shape) - shape_size(last_output.get_shape());
             }
@@ -78,8 +78,7 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
             }
         }
     }
-    std::cout << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;
-    std::cout << "[ INFO ] REDUCED WEIGHTS: " << reduced_weights_count << std::endl;
-    std::cout << "[ INFO ] ShrinkWeights end" << std::endl;
+    NGRAPH_DEBUG << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;
+    NGRAPH_DEBUG << "[ INFO ] REDUCED WEIGHTS: " << reduced_weights_count << std::endl;
     return true;
 }

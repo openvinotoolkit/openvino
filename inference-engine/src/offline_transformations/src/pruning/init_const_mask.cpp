@@ -10,6 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/coordinate_transform.hpp>
+#include <ngraph/log.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::InitConstMask, "InitConstMask", 0);
 
@@ -54,7 +55,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
 
         setMask(const_node, mask);
         if (!mask->all_dims_are_empty()) {
-            std::cout << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
+            NGRAPH_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
         }
 
         return false;

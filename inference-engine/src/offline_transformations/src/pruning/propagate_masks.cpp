@@ -7,6 +7,7 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/log.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PropagateMasks, "PropagateMasks", 0);
 
@@ -194,7 +195,7 @@ public:
             auto input_mask = getMask(m_input);
 
             if (!weights_mask || !input_mask) {
-                std::cout << "No mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                NGRAPH_DEBUG << "No mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
 
@@ -404,7 +405,7 @@ public:
                 if (auto mask = getMask(input)) {
                     // Invalidate current mask and its parent masks
                     mask->invalidate();
-                    std::cout << "Invalidate masks for " << *input.get_node() << " because " << node << " is unknown\n";
+                    NGRAPH_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node << " is unknown\n";
                 }
             }
             return true;
