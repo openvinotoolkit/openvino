@@ -40,6 +40,8 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+ie_mark_target_as_cc(${TARGET_NAME})
+
 # LTO
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
