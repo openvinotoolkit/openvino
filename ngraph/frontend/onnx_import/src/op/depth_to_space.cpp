@@ -28,7 +28,9 @@ namespace ngraph
                 OutputVector depth_to_space(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    NGRAPH_CHECK(data.get_shape().size() == 4, "Input must be 4-dimensional");
+                    const auto& shape = data.get_partial_shape();
+                    NGRAPH_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4,
+                                 "Input must be 4-dimensional");
 
                     const auto mode = node.get_attribute_value<std::string>("mode", "DCR");
                     default_opset::DepthToSpace::DepthToSpaceMode ngraph_mode;

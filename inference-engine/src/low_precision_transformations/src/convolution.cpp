@@ -278,6 +278,9 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 
+    // [C, 1, 1] -> [1, C, 1, 1]
+    NetworkHelper::normalizeDequantizationShape(finalDequantization);
+
     auto onWeights = convolution->get_input_node_shared_ptr(1);
     if (is_type<opset1::Reshape>(onWeights)) {
         onWeights = onWeights->get_input_node_shared_ptr(0);
