@@ -116,41 +116,53 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
             //cmp(reg_i, jpp.block_size);
             cmp(reg_i, 0);
             jle(ih_exit, T_NEAR);
+            /*
+            for (int64_t iw = 0; iw < iw_lpad; iw++)
+                dst_data[dst_idx++] = 0;
+            */
             mov(reg_num_pads, ptr[reg_params + GET_OFF(w_lo_pad)]);
-            mov(reg_aux64, reg_num_pads); // will use later
             pad_with_zeros();
+            /*
+            for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
+                dst_data[dst_idx++] = src_data[src_idx];
+            */
 
-            mul_by_const(reg_aux64, reg_num_pads, jpp.SW * jpp.dtype_size);
-            mov(reg_num_pads, reg_src); // store
-            add(reg_src, reg_aux64);
-            mov(reg_j, ptr[reg_params + GET_OFF(w_hi_pad)]);
-            sub(reg_j, ptr[reg_params + GET_OFF(w_lo_pad)]);
+            mov(reg_j, ptr[reg_params + GET_OFF(w_lo_pad)]);
+            mul_by_const(reg_j, reg_aux64, jpp.SW * jpp.dtype_size);
+            add(reg_j, reg_src);
+
+            mov(reg_num_pads, ptr[reg_params + GET_OFF(w_hi_pad)]);
+            mul_by_const(reg_num_pads, reg_aux64, jpp.SW * jpp.dtype_size);
+            add(reg_num_pads, reg_src);
+
             L(iw_loop);
             {
-                cmp(reg_j, 0);
-                jle(iw_exit, T_NEAR);
+                cmp(reg_j, reg_num_pads);
+                jge(iw_exit, T_NEAR);
                 //uni_vmovups(vmm, ptr[reg_src]);
                 //uni_vmovups(ptr[reg_dst], vmm);
                 //add(reg_src, jpp.dtype_size * jpp.block_size);
                 //add(reg_dst, jpp.dtype_size * jpp.block_size);
-                mov(reg_aux32, ptr[reg_src]);
+                mov(reg_aux32, ptr[reg_j]);
                 mov(ptr[reg_dst], reg_aux32);
                 //movss(vmm, ptr[reg_src]);
                 //movss(ptr[reg_dst], vmm);
 
-                add(reg_src, jpp.SW * jpp.dtype_size);
+                add(reg_j, jpp.SW * jpp.dtype_size);
                 add(reg_dst, jpp.dtype_size);
-                sub(reg_j, 1);
                 jmp(iw_loop);
             }
             L(iw_exit);
-            mov(reg_src, reg_num_pads); // restore
 
+            /*
+            for (int64_t i = 0; i < (OW - iw_hpad); i++)
+                dst_data[dst_idx++] = 0;
+            */
             mov(reg_num_pads, jpp.OW);
             sub(reg_num_pads, ptr[reg_params + GET_OFF(w_hi_pad)]);
             pad_with_zeros();
             sub(reg_i, 1);
-            add(reg_src, jpp.SH * jpp.IW);
+            add(reg_src, jpp.SH * jpp.IW * jpp.dtype_size);
             //sub(reg_i, jpp.block_size);
             jmp(ih_loop, T_NEAR);
         }
