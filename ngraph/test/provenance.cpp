@@ -398,7 +398,7 @@ TEST(provenance, fused_copy_origin_tags)
 
     auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
-    auto g = make_shared<op::Gelu>(p1);
+    auto g = make_shared<op::MVN>(p1);
     g->add_provenance_tag("G");
     auto r = make_shared<op::Result>(g);
     auto f = make_shared<Function>(ResultVector{r}, ParameterVector{p1});
@@ -420,7 +420,7 @@ TEST(provenance, fused_copy_origin_tags)
         else
         {
             EXPECT_TRUE(tags.find("G") != tags.end());
-            EXPECT_TRUE(tags.find("<Decomposed from Gelu>") != tags.end());
+            EXPECT_TRUE(tags.find("<Decomposed from MVN>") != tags.end());
         }
     });
 }
