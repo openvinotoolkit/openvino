@@ -44,6 +44,11 @@ enum class InterpolateNearestMode {
     simple
 };
 
+enum class InterpolateShapeCalcMode {
+    sizes,
+    scales
+};
+
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
@@ -98,6 +103,8 @@ public:
     }
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     // nearest neighbor
     void NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
@@ -135,10 +142,10 @@ private:
     SizeVector getPaddedInputShape();
     std::vector<float> getScales();
 
-    const size_t DATA_ID = 0;
-    const size_t TARGET_SHAPE_ID = 1;
-    const size_t SCALES_ID = 2;
-    const size_t AXES_ID = 3;
+    static const size_t DATA_ID = 0;
+    static const size_t TARGET_SHAPE_ID = 1;
+    static const size_t SCALES_ID = 2;
+    static const size_t AXES_ID = 3;
     const int LINEAR_KERNEL = 2;
     const int CUBIC_GRID_LEN = 4;
 
@@ -149,6 +156,8 @@ private:
     std::vector<int> padEnd;
     bool hasPad = false;
     InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
+    InterpolateShapeCalcMode shapeCalcMode;
+
     float cubeCoeff = -0.75;
 
     bool isAxesSpecified = false;
@@ -157,7 +166,6 @@ private:
     std::vector<float> scales;
     // target shape is dst dim, full size.
     SizeVector dstDim;
-    std::string shapeInferMode;
     SizeVector srcDim;
     SizeVector srcDimPad;
     int spatialDimSize;
@@ -173,6 +181,8 @@ private:
     std::vector<int> indexTable;
 
     std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
