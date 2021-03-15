@@ -102,6 +102,7 @@ public:
 private:
     bool m_is_shape_like{false};
 
+    //TODO: use week_ptr to avoid cycle dependencies
     std::map<Mask::Ptr, std::function<bool(Mask::Ptr)>> m_callbacks;
 
     std::vector<Mask::Ptr> m_dependencies;

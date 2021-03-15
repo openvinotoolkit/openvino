@@ -18,9 +18,6 @@ namespace mask_propagation {
 class Convolution;
 class GroupConvolution;
 class Elementwise;
-class Pooling;
-class Reshape;
-class MatMul;
 class PassThrough;
 class StopPropagation;
 
@@ -257,121 +254,6 @@ public:
     }
 };
 
-//class ngraph::pass::mask_propagation::Pooling : public MatcherPass {
-//public:
-//    Pooling() {
-//        MATCHER_SCOPE(Pooling);
-//        auto input = pattern::any_input();
-//        auto pool = pattern::wrap_type<opset6::AvgPool, opset6::MaxPool>({input});
-//
-//        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-//            const auto & pattern_map = m.get_pattern_value_map();
-//            const auto & m_output = pattern_map.at(pool);
-//            const auto & m_input = pattern_map.at(input);
-//
-//            if (auto input_mask = getMask(m_input)) {
-//                auto pool_mask = std::make_shared<Mask>(input_mask->size());
-//                auto channel_input_dim_mask = input_mask->at(1/*input channel dim*/);
-//                auto channel_output_dim_mask = pool_mask->at(1/*input channel dim*/);
-//
-//                *channel_output_dim_mask = *channel_input_dim_mask;
-//
-//                // Each output dim can be mapped to the input dimension with the same index. So
-//                // we add_parent for each output MaskValue.
-//                for (size_t dim = 0; dim < pool_mask->size(); ++dim) {
-//                    pool_mask->at(dim)->add_parent(input_mask->at(dim));
-//                }
-//                pool_mask->update_dependencies();
-//                setMask(m_output, pool_mask);
-//                return true;
-//            }
-//            return false;
-//        };
-//
-//        auto m = std::make_shared<ngraph::pattern::Matcher>(pool, matcher_name);
-//        register_matcher(m, callback);
-//    }
-//};
-//
-//class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
-//public:
-//    Reshape() {
-//        MATCHER_SCOPE(Convolution);
-//        auto input = pattern::any_input();
-//        auto shape_pattern = pattern::any_input();
-//        auto reshape = pattern::wrap_type<opset6::Reshape>({input, shape_pattern});
-//
-//        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-//            const auto & pattern_map = m.get_pattern_value_map();
-//            const auto & m_output = pattern_map.at(reshape);
-//            const auto & m_input = pattern_map.at(input);
-//            const auto & m_shape = pattern_map.at(shape_pattern);
-//
-//            if (auto input_mask = getMask(m_input)) {
-//                const auto & output_shape = m_output.get_shape();
-//                auto reshape_mask = std::make_shared<Mask>(output_shape.size());
-//
-//                auto reshape_constant_mask = std::make_shared<Mask>(output_shape.size());
-//                reshape_constant_mask->set_shape_like(true);
-//
-//                auto channel_input_dim_mask = input_mask->at(1/*input channel dim*/);
-//
-//                // TODO: implement normal check
-//                auto channel_output_dim_mask = reshape_mask->at(1/*input channel dim*/);
-//                auto const_channel_output_dims_mask = reshape_constant_mask->at(1);
-//                *channel_output_dim_mask = *channel_input_dim_mask;
-//                *const_channel_output_dims_mask = *channel_input_dim_mask;
-//                channel_output_dim_mask->add_parent(channel_input_dim_mask);
-//                setMask(m_output, reshape_mask);
-//                setMask(m_shape, reshape_constant_mask);
-//                return true;
-//            }
-//            return false;
-//        };
-//
-//        auto m = std::make_shared<ngraph::pattern::Matcher>(reshape, matcher_name);
-//        register_matcher(m, callback);
-//    }
-//};
-//
-//class ngraph::pass::mask_propagation::MatMul : public MatcherPass {
-//public:
-//    MatMul() {
-//        MATCHER_SCOPE(MatMul);
-//        auto input = pattern::any_input();
-//        auto weights = pattern::any_input();
-//        auto matmul = pattern::wrap_type<opset6::MatMul>({input, weights});
-//
-//        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-//            const auto & pattern_map = m.get_pattern_value_map();
-//            const auto & m_output = pattern_map.at(matmul);
-//            const auto & m_input = pattern_map.at(input);
-//            const auto & m_weights = pattern_map.at(weights);
-//            const auto & m_matmul = std::dynamic_pointer_cast<opset6::MatMul>(m_output.get_node_shared_ptr());
-//            if (!m_matmul) return false;
-//
-//
-//            if (auto input_mask = getMask(m_input)) {
-//                auto weights_mask = std::make_shared<Mask>(m_weights.get_shape().size());
-//
-//                auto channel_input_dim_mask = input_mask->at(1/*input channel dim*/);
-//
-//                // TODO: implement normal check
-//                int64_t input_channel_dim = m_matmul->get_transpose_b() ? 1 : 0;
-//                auto channel_output_dim_mask = weights_mask->at(input_channel_dim);
-//                *channel_output_dim_mask = *channel_input_dim_mask;
-//                channel_output_dim_mask->add_parent(channel_input_dim_mask);
-//                setMask(m_weights, weights_mask);
-//                return true;
-//            }
-//            return false;
-//        };
-//
-//        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
-//        register_matcher(m, callback);
-//    }
-//};
-
 class ngraph::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
     PassThrough() {
@@ -420,9 +302,6 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Convolution>();
     add_matcher<mask_propagation::GroupConvolution>();
     add_matcher<mask_propagation::Elementwise>();
-//    add_matcher<mask_propagation::Pooling>();
-//    add_matcher<mask_propagation::Reshape>();
-//    add_matcher<mask_propagation::MatMul>();
     add_matcher<mask_propagation::PassThrough>();
     add_matcher<mask_propagation::StopPropagation>();
 }
