@@ -451,6 +451,8 @@ endif()
 target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
+add_clang_format_target(unit-test_clang FOR_TARGETS unit-test)
+
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
