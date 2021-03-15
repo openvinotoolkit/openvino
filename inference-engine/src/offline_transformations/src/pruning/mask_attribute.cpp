@@ -2,19 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <assert.h>
 #include <functional>
-#include <memory>
-#include <iterator>
 #include <ostream>
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
-#include "transformations/rt_info/mask_attribute.hpp"
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
+#include "mask_attribute.hpp"
 
 namespace ngraph {
 
@@ -43,9 +37,10 @@ std::ostream & operator<< (std::ostream & out, const Mask & mask) {
     for (auto & dim : mask) {
         out << "{";
         out << dim.size();
-//        for (auto & value : dim) {
-//            out << value << " ";
-//        }
+        // Uncomment this to print values
+        // for (auto & value : dim) {
+        //     out << value << " ";
+        // }
         out << "} ";
     }
     out << " ]";

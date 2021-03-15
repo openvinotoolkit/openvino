@@ -4,9 +4,8 @@
 
 #include <memory>
 
-#include "transformations/common_optimizations/pruning.hpp"
-#include "transformations/rt_info/mask_attribute.hpp"
-#include "itt.hpp"
+#include "pruning.hpp"
+#include "mask_attribute.hpp"
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -16,7 +15,6 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::InitConstMask, "InitConstMask", 0);
 
 ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                                            const std::function<bool(const double & value)> & condition) {
-    MATCHER_SCOPE(InitConstMask);
     auto constant = pattern::wrap_type<opset6::Constant>(
             pattern::type_matches_any({element::f16, element::f32, element::f64}));
 
@@ -62,6 +60,6 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
         return false;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(constant, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(constant, "InitConstMask");
     register_matcher(m, callback);
 }

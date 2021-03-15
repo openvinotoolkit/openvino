@@ -4,13 +4,12 @@
 
 #include <memory>
 
-#include "transformations/common_optimizations/pruning.hpp"
-#include "itt.hpp"
+#include "pruning.hpp"
+#include "mask_attribute.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include <transformations/rt_info/mask_attribute.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ShrinkWeights, "ShrinkWeights", 0);
 

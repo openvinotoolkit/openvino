@@ -4,8 +4,9 @@
 
 #include <algorithm>
 
-#include "transformations/common_optimizations/pruning.hpp"
-#include "transformations/rt_info/mask_attribute.hpp"
+#include "pruning.hpp"
+#include "mask_attribute.hpp"
+
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 

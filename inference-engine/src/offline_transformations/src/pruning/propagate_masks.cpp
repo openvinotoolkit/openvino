@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/pruning.hpp"
-#include "transformations/rt_info/mask_attribute.hpp"
-#include "itt.hpp"
+#include "pruning.hpp"
+#include "mask_attribute.hpp"
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -31,7 +30,6 @@ class StopPropagation;
 class ngraph::pass::mask_propagation::Convolution : public MatcherPass {
 public:
     Convolution() {
-        MATCHER_SCOPE(Convolution);
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
         auto conv = pattern::wrap_type<opset6::Convolution>({input, weights});
@@ -88,7 +86,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvolutionMaskPropagation");
         register_matcher(m, callback);
     }
 };
@@ -96,7 +94,6 @@ public:
 class ngraph::pass::mask_propagation::GroupConvolution : public MatcherPass {
 public:
     GroupConvolution() {
-        MATCHER_SCOPE(GroupConvolution);
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
         auto group_conv = pattern::wrap_type<opset6::GroupConvolution>({input, weights});
@@ -163,7 +160,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv, matcher_name);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv, "GroupConvolutionMaskPropagation");
         register_matcher(m, callback);
     }
 };
@@ -171,7 +168,6 @@ public:
 class ngraph::pass::mask_propagation::Elementwise : public MatcherPass {
 public:
     Elementwise() {
-        MATCHER_SCOPE(Elementwise);
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
         auto eltwise = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({input, weights},
@@ -255,7 +251,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, matcher_name);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, "EltwiseMaskPropagation");
         register_matcher(m, callback);
     }
 };
@@ -378,7 +374,6 @@ public:
 class ngraph::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
     PassThrough() {
-        MATCHER_SCOPE(PassThrough);
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, opset6::Clamp>();
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -393,7 +388,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(unary_op, matcher_name);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(unary_op, "PassThroughMaskPropagation");
         register_matcher(m, callback);
     }
 };
@@ -401,7 +396,6 @@ public:
 class ngraph::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
     StopPropagation() {
-        MATCHER_SCOPE(StopPropagation);
         auto any_node = pattern::any_input();
 
         ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
@@ -416,7 +410,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(any_node, matcher_name);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(any_node, "StopMaskPropagation");
         register_matcher(m, callback);
     }
 };

@@ -10,14 +10,11 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <transformations/common_optimizations/pruning.hpp>
-#include <transformations/rt_info/mask_attribute.hpp>
+#include <pruning.hpp>
+#include <mask_attribute.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/pass/manager.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 using namespace ngraph;
@@ -214,11 +211,10 @@ TEST(TransformationTests, PropagateMasksHardDependencies) {
     auto f = std::make_shared<Function>(NodeVector{matmul, conv3}, ParameterVector{input1, input2});
 
     pass::Manager m;
-    m.register_pass<pass::VisualizeTree>("/tmp/test.svg");
     m.register_pass<pass::Pruning>();
     m.run_passes(f);
 
-    // TODO: add checks
+    // TODO: add checks after MatMul/Reshape/Pooling mask propagation is ready
 //    compare_masks(*getMask(weights),  Mask({{0, 1, 2, 3, 4, 5}, {}, {}, {}}));
 //    compare_masks(*getMask(conv),     Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
 //    compare_masks(*getMask(relu),     Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
