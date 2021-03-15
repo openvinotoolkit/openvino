@@ -348,7 +348,6 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
     dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S");
 
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
-    std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::out);
 
     dumpFile << "Layers (operations) count: " << opsNo << "\n";
 
@@ -379,6 +378,7 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
             } else if (operand.Type == Gna2DataTypeCompoundBias) {
                 DumpCompoundBias(dumpFile, operand);
             } else if (dumpData) {
+                std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::out);
                 std::vector<uint32_t> elementIndex(operand.Shape.NumberOfDimensions);
 
                 datFile << "Layer " << i << ", type " << GetLayerType(operation.Type) <<
