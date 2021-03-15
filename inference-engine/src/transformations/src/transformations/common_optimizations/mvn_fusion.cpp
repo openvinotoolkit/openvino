@@ -18,10 +18,20 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusion, "MVNFusion", 0);
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusionOutsideSqrt, "MVNFusionOutsideSqrt", 0);
 
+template <class T>
+std::function<bool(Output<Node>)> value_is_equal_to(const std::vector<T>& ref_values)
+{
+    return [=](Output<Node> output) -> bool {
+        auto node = output.get_node_shared_ptr();
+        if (auto const_node = std::dynamic_pointer_cast<ngraph::op::Constant>(node)) {
+            return const_node->template cast_vector<T>() == ref_values;
+        }
+        return false;
+    };
+}
+
 ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
     MATCHER_SCOPE(MVNFusionOutsideSqrt);
-    auto single_consumer = pattern::consumers_count(1);
-
     // Detect MVN decomposition pattern:
     // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
     auto x = pattern::any_input();
@@ -29,7 +39,7 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
     // (x - ReduceMean(x, axes))
     //     `------mean1-------'
     auto mean1_axes = pattern::wrap_type<opset6::Constant>();
-    auto mean1 = pattern::wrap_type<opset6::ReduceMean>({ x, mean1_axes }, single_consumer);
+    auto mean1 = pattern::wrap_type<opset6::ReduceMean>({ x, mean1_axes });
 
     // (x - ReduceMean(x, axes))
     // `-sub1------------------'
@@ -38,44 +48,44 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                     `---mean2----------'
     auto mean2_axes = pattern::wrap_type<opset6::Constant>();
-    auto mean2 = pattern::wrap_type<opset6::ReduceMean>({ x, mean2_axes }, single_consumer);
+    auto mean2 = pattern::wrap_type<opset6::ReduceMean>({ x, mean2_axes });
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `-sub2------------------'
-    auto sub2 = pattern::wrap_type<opset6::Subtract>({ x, mean2 }, single_consumer);
+    auto sub2 = pattern::wrap_type<opset6::Subtract>({ x, mean2 });
 
     const auto reuseSub1OrNot = std::make_shared<pattern::op::Or>(OutputVector{ sub1, sub2 });
 
-    auto cast = pattern::wrap_type<opset6::Convert>({ reuseSub1OrNot }, single_consumer);
+    auto cast = pattern::wrap_type<opset6::Convert>({ reuseSub1OrNot });
     const auto hasConvertOrNot = std::make_shared<pattern::op::Or>(OutputVector{ cast, reuseSub1OrNot });
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
-    auto const_2 = pattern::wrap_type<opset6::Constant>();
-    auto power = pattern::wrap_type<opset6::Power>({ hasConvertOrNot, const_2 }, single_consumer);
+    auto const_2 = pattern::wrap_type<opset6::Constant>(value_is_equal_to<float>({ 2.0 }));
+    auto power = pattern::wrap_type<opset6::Power>({ hasConvertOrNot, const_2 });
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //     `---mean3--------------------------------'
     auto mean3_axes = pattern::wrap_type<opset6::Constant>();
-    auto mean3 = pattern::wrap_type<opset6::ReduceMean>({ power, mean3_axes }, single_consumer);
+    auto mean3 = pattern::wrap_type<opset6::ReduceMean>({ power, mean3_axes });
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     // `--Power--------------------------------------'
-    auto const_0_5 = pattern::wrap_type<ngraph::opset6::Constant>();
-    auto power_sqrt = pattern::wrap_type<opset6::Power>({ mean3, const_0_5 }, single_consumer);
+    auto const_0_5 = pattern::wrap_type<ngraph::opset6::Constant>(value_is_equal_to<float>({0.5}));
+    auto power_sqrt = pattern::wrap_type<opset6::Power>({ mean3, const_0_5 });
 
-    auto sqrt = pattern::wrap_type<opset6::Sqrt>({ mean3 }, single_consumer);
+    auto sqrt = pattern::wrap_type<opset6::Sqrt>({ mean3 });
 
     const auto powerOrSqrt = std::make_shared<pattern::op::Or>(OutputVector{ power_sqrt, sqrt });
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
     // `-----------------------------------------------Add---'
     auto eps = pattern::wrap_type<opset6::Constant>();
-    auto add_eps = pattern::wrap_type<opset6::Add>({ powerOrSqrt, eps }, single_consumer);
+    auto add_eps = pattern::wrap_type<opset6::Add>({ powerOrSqrt, eps });
 
     // Final Divide
-    auto const_neg_1 = pattern::wrap_type<opset6::Constant>();
-    auto power_div = pattern::wrap_type<opset6::Power>({ add_eps, const_neg_1 }, single_consumer);
+    auto const_neg_1 = pattern::wrap_type<opset6::Constant>(value_is_equal_to<float>({ -1 }));
+    auto power_div = pattern::wrap_type<opset6::Power>({ add_eps, const_neg_1 });
     auto div = pattern::wrap_type<opset6::Multiply>({ sub1, power_div });
 
     auto div_alt = pattern::wrap_type<opset6::Divide>({ sub1, add_eps });
@@ -84,33 +94,11 @@ ngraph::pass::MVNFusionOutsideSqrt::MVNFusionOutsideSqrt() {
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(x);
-        auto const_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_2).get_node_shared_ptr());
-
-        if (!const_2_node) {
-            return false;
-        }
 
         auto const_eps_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         float eps_value;
-
-        if (!op::util::has_constant_value<float>(const_2_node, 2.0) || !op::util::get_single_value(const_eps_node, eps_value)) {
+        if (!op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
-        }
-
-        if (pattern_to_output.count(const_0_5)) {
-            auto const_0_5_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
-
-            if (!const_0_5_node || !op::util::has_constant_value<float>(const_0_5_node, 0.5)) {
-                return false;
-            }
-        }
-
-        if (pattern_to_output.count(const_neg_1)) {
-            auto const_neg_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_neg_1).get_node_shared_ptr());
-
-            if (!const_neg_1_node || !op::util::has_constant_value<float>(const_neg_1_node, -1)) {
-                return false;
-            }
         }
 
         auto axes_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
