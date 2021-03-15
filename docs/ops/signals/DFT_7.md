@@ -1,4 +1,4 @@
-## DFT <a name="DFT"></a> {#openvino_docs_ops_signals_DFT_7}
+## Discrete Fourier Transformation (DFT) <a name="DFT"></a> {#openvino_docs_ops_signals_DFT_7}
 
 **Versioned name**: *DFT-7*
 
@@ -12,11 +12,11 @@
 
 **Inputs**
 
-*   **1**: `data` - Input tensor of type *T* with data for the DFT transformation. Type of elements is any supported floating point type. The last dimension of the input tensor must be equal to 2, i.e. the input tensor shape must have the form `[D_0, D_1, ..., D_{N-1}, 2]`, representing the real and imaginary components of complex numbers in `[:, ..., :, 0]` and in `[:, ..., :, 1]` correspondingly.  Required.
-*   **2**: `axes` - 1D tensor of type *T_IND* specifying dimension indices where DFT is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`, `[-3, 0, -2]`. These indices should be integers from `-(r - 1)` to `(r - 2)` inclusively, where `r = rank(data)`. A negative axis `a` is interpreted as an axis `r - 1 + a`. Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 3d input `signal_size`. Required.
-*   **Note**: The following constraint must be satisfied: `rank(data) >= len(axes) + 1 and input_shape[-1] == 2 and (rank(data) - 1) not in axes and (-1) not in axes`.
+*   **1**: `data` - Input tensor of type *T* with data for the DFT transformation. Type of elements is any supported floating-point type. The last dimension of the input tensor must be equal to 2, that is the input tensor shape must have the form `[D_0, D_1, ..., D_{N-1}, 2]`, representing the real and imaginary components of complex numbers in `[:, ..., :, 0]` and in `[:, ..., :, 1]` correspondingly. Required.
+*   **2**: `axes` - 1D tensor of type *T_IND* specifying dimension indices where DFT is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, for example, `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`, `[-3, 0, -2]`. These indices should be integers from `-(r - 1)` to `(r - 2)` inclusively, where `r = rank(data)`. A negative axis `a` is interpreted as an axis `r - 1 + a`. Other dimensions do not change. The order of elements in `axes` attribute matters, and is mapped directly to elements in the third input `signal_size`. Required.
+*   **NOTE**: The following constraint must be satisfied: `rank(data) >= len(axes) + 1 and input_shape[-1] == 2 and (rank(data) - 1) not in axes and (-1) not in axes`.
 *   **3**: `signal_size` - 1D tensor of type *T_SIZE* describing signal size with respect to axes from the input `axes`. If `signal_size[i] == -1`, then DFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > input_shape[: r - 1][axes[i]]`, then input data are zero-padded with respect to the axis `axes[i]` at the end. Finally, `signal_size[i] < input_shape[: r - 1][axes[i]]`, then input data are trimmed with respect to the axis `axes[i]`. More precisely, if `signal_size[i] < input_shape[: r - 1][axes[i]]`, the slice `0: signal_size[i]` of the axis `axes[i]` is considered. Optional, with default value `[input_shape[: r - 1][a] for a in axes]`.
-*   **Note**: If the input `signal_size` is specified, then the size of `signal_size` must be the same as the size of `axes`.
+*   **NOTE**: If the input `signal_size` is specified, then the size of `signal_size` must be the same as the size of `axes`.
 
 **Outputs**
 
@@ -24,7 +24,7 @@
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 
@@ -38,9 +38,9 @@ Let `D` be an input tensor `A`, taking into account the `signal_size`, and, henc
 
 Next, put
 \f[X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r}]=D[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r},0]+iD[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r},1]\f]
-for all indices `j_0,...,j_{k+r}`, where `i` is an imaginary unit, i.e. `X` is a complex tensor.
+for all indices `j_0,...,j_{k+r}`, where `i` is an imaginary unit, that is `X` is a complex tensor.
 
-Then the discrete Fourier transform is the tensor `Y` (the shapes of the tensors `X` and `Y` are the same) such that
+Then the discrete Fourier transform is the tensor `Y` of the same shape as the tensor `X`, such that
 \f[Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}]=\sum\limits_{p_0=0}^{S_0}\cdots\sum\limits_{p_{r-1}=0}^{S_{r-1}}X[n_0,\dots,n_{k-1},j_0,\dots,j_{r-1}]\exp\left(-2\pi i\sum\limits_{q=0}^{r-1}\frac{m_qj_q}{S_s}\right)\f]
 for all indices `n_0,...,n_{k-1}`, `m_0,...,m_{r-1}`, and the result of the operation is the real tensor `Z` with the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{r-1}, 2]` and such that
 \f[Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 0]=Re Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}],\f]
