@@ -131,6 +131,9 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
                      "provided {} outputs",
                      layer->type, layer->name, outputs.size());
 
+    DataVector conditionalOutputs(2);
+    conditionalOutputs[0] = outputs[0];
+    conditionalOutputs[1] = outputs[1] != nullptr ? outputs[1] : model->addFakeData();
 
     const auto mergeRepeated = layer->GetParamAsBool("merge_repeated");
     const auto blankIndex = [&] {
@@ -167,7 +170,7 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
                      sequenceLengthType);
 
     _stageBuilder->addCTCGreedyDecoderSeqLenStage(model, layer->name, layer,
-                                                  inputs, outputs, mergeRepeated, blankIndex);
+                                                  inputs, conditionalOutputs, mergeRepeated, blankIndex);
 }
 
 }  // namespace vpu
