@@ -113,11 +113,11 @@ function(add_clang_format_target TARGET_NAME)
     set_target_properties(${TARGET_NAME} ${TARGET_NAME}_fix
                           PROPERTIES FOLDER clang_format)
 
-    # if(CLANG_FORMAT_FOR_TARGETS)
-    #     foreach(target IN LISTS CLANG_FORMAT_FOR_TARGETS)
-    #         add_dependencies(${target} ${TARGET_NAME})
-    #     endforeach()
-    # endif()
+    if(CLANG_FORMAT_FOR_TARGETS)
+        foreach(target IN LISTS CLANG_FORMAT_FOR_TARGETS)
+            add_dependencies(${target} ${TARGET_NAME})
+        endforeach()
+    endif()
 
     add_dependencies(clang_format_check_all ${TARGET_NAME})
     add_dependencies(clang_format_fix_all ${TARGET_NAME}_fix)
