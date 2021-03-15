@@ -781,26 +781,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
-    auto isConvertableToScaleShift = [](MKLDNNNodePtr node) {
-        return one_of(node->getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu) &&
-               node->getParentEdgeAt(1)->getParent()->getType() == Input && node->getParentEdgeAt(1)->getParent()->isConstant() &&
-               MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(node->getParentEdgeAt(0)->getDims().ToSizeVector(),
-                                                                          node->getParentEdgeAt(1)->getDims().ToSizeVector());
-    };
-
-    if (node->getType() == Quantize) {
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-        if (quantizeNode == nullptr)
-            IE_THROW() << "Cannot get quantize layer " << node->getName();
-        return !quantizeNode->isBinarization();
-    } else if (node->getType() == Eltwise) {
-        return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseTanh,
-                                            EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
-                                            EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt, EltwiseMulAdd) ||
-               isConvertableToScaleShift(node);
-    }
-
-    return false;
+    return canFuseSimpleOperation(node);
 }
 
 void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {

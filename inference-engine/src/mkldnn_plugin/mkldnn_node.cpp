@@ -41,6 +41,7 @@
 #include <nodes/mkldnn_space_to_depth_node.h>
 #include <nodes/mkldnn_strided_slice_node.h>
 #include <nodes/mkldnn_reference_node.h>
+#include <nodes/mkldnn_quantize_node.h>
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
@@ -191,7 +192,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ScatterUpdate", ScatterUpdate},
         { "ScatterElementsUpdate", ScatterElementsUpdate},
         { "ScatterNDUpdate", ScatterNDUpdate},
-//        { "Interpolate", Interpolate},
+        { "Interpolate", Interpolate},
 //        { "ReduceAnd", ReduceAnd},
 //        { "ReduceL1", ReduceL1},
 //        { "ReduceL2", ReduceL2},
@@ -228,6 +229,16 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
           type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
     algorithm = Algorithm::Undefined;
     fusingPort = -1;
+
+    const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
+    for (size_t i = 0; i < op->get_input_size(); i++) {
+        if (op->get_input_partial_shape(i).is_dynamic())
+            THROW_IE_EXCEPTION << errorPrefix << " has dynamic input shape on " << i << " port, but CPU plug-in supports only static shape";
+    }
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        if (op->get_output_partial_shape(i).is_dynamic())
+            THROW_IE_EXCEPTION << errorPrefix << " has dynamic output shape on " << i << " port, but CPU plug-in supports only static shape";
+    }
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
         inDims.emplace_back(op->get_input_shape(i));
@@ -1330,4 +1341,32 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     }
 
     return newNode;
+}
+
+bool MKLDNNNode::canBePerformedAsScaleShift() const {
+    bool inputsIsConst = true;
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        if (!getParentEdgeAt(i)->getParent()->isConstant() || getParentEdgeAt(i)->getParent()->getType() != Input) {
+            inputsIsConst = false;
+        }
+    }
+    return one_of(getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd) && inputsIsConst &&
+                  MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(getParentEdgeAt(0)->getDims().ToSizeVector(),
+                                                                             getParentEdgeAt(1)->getDims().ToSizeVector());
+}
+
+bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
+    if (node->getType() == Quantize) {
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
+        return !quantizeNode->isBinarization();
+    } else if (node->getType() == Eltwise) {
+        return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseTanh,
+                                            EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                                            EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt) ||
+                      node->canBePerformedAsScaleShift();
+    }
+
+    return false;
 }

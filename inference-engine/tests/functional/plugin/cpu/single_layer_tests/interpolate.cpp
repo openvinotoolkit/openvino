@@ -12,21 +12,18 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-            LayerTestsDefinitions::InterpolateLayerTestParams,
-            CPUSpecificParams,
-            fusingSpecificParams,
-            std::map<std::string, std::string>
-        > InterpolateLayerCPUTestParamsSet;
+        LayerTestsDefinitions::InterpolateLayerTestParams,
+        CPUSpecificParams,
+        fusingSpecificParams> InterpolateLayerCPUTestParamsSet;
 
 class InterpolateLayerCPUTest : public testing::WithParamInterface<InterpolateLayerCPUTestParamsSet>,
-                                     virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
+                                virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerCPUTestParamsSet> obj) {
         LayerTestsDefinitions::InterpolateLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::InterpolateLayerTestParams>(
@@ -34,13 +31,6 @@ public:
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
-
-        if (!additionalConfig.empty()) {
-            result << "_PluginConf";
-            for (auto& item : additionalConfig) {
-                result << "_" << item.first << "=" << item.second;
-            }
-        }
 
         return result.str();
     }
@@ -50,8 +40,7 @@ protected:
         LayerTestsDefinitions::InterpolateLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+        std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
@@ -73,7 +62,6 @@ protected:
         std::vector<float> scales;
         std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
         inPrc = outPrc = netPrecision;
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -100,8 +88,7 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType.push_back('_');
-        selectedType += netPrecision.name();
+        selectedType = selectedType + "_" + inPrc.name();
     }
 };
 
@@ -132,9 +119,16 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     }
     return resCPUParams;
 }
-/* ========== */
+
+const std::vector<fusingSpecificParams> fusingParamsSet {
+    emptyFusingSpec,
+    fusingRelu,
+    fusingSubtractPerChannel,
+    fusingPReluPerTensor
+};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
+    InferenceEngine::Precision::BF16,
     InferenceEngine::Precision::FP32
 };
 
@@ -266,8 +260,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig())),
+            ::testing::ValuesIn(fusingParamsSet)),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
@@ -283,8 +276,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLaye
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig())),
+            ::testing::ValuesIn(fusingParamsSet)),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerCPUTest,
@@ -300,25 +292,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerCPU
                 ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig())),
-    InterpolateLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
-        ::testing::Combine(
-            ::testing::Combine(
-                interpolateCasesCubic,
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 21, 4, 4})),
-                ::testing::Values(std::vector<size_t>({1, 21, 5, 6})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-            ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig())),
+            ::testing::ValuesIn(fusingParamsSet)),
     InterpolateLayerCPUTest::getTestCaseName);
 
 ////////////////////////5D/////////////////////////////
@@ -366,7 +340,7 @@ const auto interpolateCasesLinearOnnx5D = ::testing::Combine(
         ::testing::ValuesIn(defaultScales5D));
 
 const auto interpolateCasesNN5D = ::testing::Combine(
-        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(defNearestModes),

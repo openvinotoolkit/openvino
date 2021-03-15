@@ -1487,12 +1487,7 @@ void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph)
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        bool isSuitable = (node->getType() == Interpolate);
-        if (isSuitable) {
-            return node->getChildEdges().size() == 1;
-        } else {
-            return false;
-        }
+        return node->getType() == Interpolate && node->getChildEdges().size() == 1;
     };
 
     auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
@@ -1544,11 +1539,7 @@ void MKLDNNGraphOptimizer::FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph)
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        if (node->getType() == NormalizeL2) {
-            return node->getChildEdges().size() == 1;
-        } else {
-            return false;
-        }
+        return node->getType() == NormalizeL2 && node->getChildEdges().size() == 1;
     };
 
     auto parent = graphNodes.begin();
