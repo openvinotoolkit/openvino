@@ -22,7 +22,7 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 protected:
-    void decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> weightableLayer) const;
+    void decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, int outChannelsShapeIndex = 0) const;
     static bool isGroup(const std::shared_ptr<Node>& node);
     static bool isDepthwise(const std::shared_ptr<Node>& node);
 

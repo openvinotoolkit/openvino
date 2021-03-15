@@ -170,10 +170,18 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             return false;
         }
 
-        if ( // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-            (shape_size(constOutputShape) != constOutputShape[0]) ||
-            ((constOutputShape[0] != 1ul) && (fqFromWeights->get_output_shape(0)[0] != constOutputShape[0]))) {
-            return false;
+        if (!is_type<opset1::ConvolutionBackpropData>(layer)) {
+            if ( // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
+                (shape_size(constOutputShape) != constOutputShape[0]) ||
+                ((constOutputShape[0] != 1ul) && (fqFromWeights->get_output_shape(0)[0] != constOutputShape[0]))) {
+                return false;
+            }
+        } else {
+            if ( // Check if all dimensions of scale except the second one (which is O-Output channels dimension) are all ones
+                (shape_size(constOutputShape) != constOutputShape[1]) ||
+                ((constOutputShape[1] != 1ul) && (fqFromWeights->get_output_shape(0)[1] != constOutputShape[1]))) {
+                return false;
+            }
         }
     } else {
         // TODO: LPT: is it possible to share with isQuantized?
@@ -256,7 +264,7 @@ bool WeightableLayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
     return false;
 }
 
-void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> node) const {
+void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& node, const int outChannelsShapeIndex) const {
     const auto fq = getFakeQuantizeOnWeights(node);
     if (fq == nullptr) {
         return;
@@ -270,7 +278,9 @@ void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::sha
         dataPrecision.min,
         dataPrecision.max,
         dataPrecision.hasZeroPoint,
-        updatePrecisions);
+        updatePrecisions,
+        element::f32,
+        outChannelsShapeIndex);
 
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {

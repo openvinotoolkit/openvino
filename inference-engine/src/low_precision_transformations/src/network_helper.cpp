@@ -69,7 +69,8 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
         return is_type<opset1::Parameter>(node) ||
             is_type<opset1::Convolution>(node) ||
             is_type<opset1::GroupConvolution>(node) ||
-            is_type<opset1::MatMul>(node);
+            is_type<opset1::MatMul>(node) ||
+            is_type<opset1::ConvolutionBackpropData>(node);
     };
 
     if (isNotConstantPathOperation(op)) {
@@ -440,8 +441,11 @@ std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<op
     return foldFakeQuantize(fq, false, false);
 }
 
-std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues) {
-    return foldFakeQuantize(fq, roundValues, true);
+std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(
+        const std::shared_ptr<opset1::FakeQuantize>& fq,
+        const bool roundValues,
+        const int outChannelsShapeIndex) {
+    return foldFakeQuantize(fq, roundValues, true, outChannelsShapeIndex);
 }
 
 FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace) {
@@ -591,7 +595,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
     const std::shared_ptr<opset1::FakeQuantize>& fq,
     const bool roundValuesArg,
-    const bool roundValuesWasSet) {
+    const bool roundValuesWasSet,
+    const int outChannelsShapeIndex) {
     if (is_type<opset1::Constant>(fq->get_input_node_shared_ptr(0)) &&
         is_type<opset1::Constant>(fq->get_input_node_shared_ptr(1)) &&
         is_type<opset1::Constant>(fq->get_input_node_shared_ptr(2)) &&
@@ -630,10 +635,20 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         if (constShape.empty() || constShape.size() > 5lu) {
             THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
         }
+        if (outChannelsShapeIndex != 0 && outChannelsShapeIndex != 1) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected outChannelsShapeIndex " << outChannelsShapeIndex;
+        }
 
-        // OIDHW
-        const size_t OC = constShape[0];
-        const size_t IC = constShape.size() > 1lu ? constShape[1] : 1;
+        size_t OC;
+        size_t IC;
+        // OIDHW or IODHW
+        if (constShape.size() == 1) {
+            OC = constShape[0];
+            IC = 1;
+        } else {
+            OC = constShape[outChannelsShapeIndex];
+            IC = constShape[outChannelsShapeIndex == 0 ? 1 : 0];
+        }
         const size_t D = constShape.size() > 4lu ? constShape[constShape.size() - 3] : 1;
         const size_t H = constShape.size() > 2lu ? constShape.size() == 3lu ? constShape[2] : constShape[constShape.size() - 2] : 1;
         const size_t W = constShape.size() > 3lu ? constShape[constShape.size() - 1] : 1;
@@ -667,29 +682,35 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
 
         auto levels_1 = fq->get_levels() - 1.f;
 
-        //const size_t DHW = D * H * W;
+        const size_t DHW = D * H * W;
         const size_t IDHW = IC * D * H * W;
 
         const auto values = constant->cast_vector<float>();
         std::vector<float> quantizedValues(OC * IC * D * H * W);
 
         for (size_t oc = 0; oc < OC; ++oc) {
-            for (size_t iidx = 0; iidx < IDHW; ++iidx) {
-                const float inputLow = inputLowValues[isInputLowBroadcasted ? 0 : oc];
-                const float inputHigh = inputHighValues[isInputHighBroadcasted ? 0 : oc];
-                const float outputLow = outputLowValues[isOutputLowBroadcasted ? 0 : oc];
-                const float outputHigh = outputHighValues[isOutputHighBroadcasted ? 0 : oc];
+            const float inputLow = inputLowValues[isInputLowBroadcasted ? 0 : oc];
+            const float inputHigh = inputHighValues[isInputHighBroadcasted ? 0 : oc];
+            const float outputLow = outputLowValues[isOutputLowBroadcasted ? 0 : oc];
+            const float outputHigh = outputHighValues[isOutputHighBroadcasted ? 0 : oc];
+            for (size_t ic = 0; ic < IC; ++ic) {
+                for (size_t iidx = 0; iidx < DHW; ++iidx) {
+                    size_t idx;
+                    if (outChannelsShapeIndex == 0) {
+                        idx = oc * IDHW + ic * DHW + iidx;
+                    } else {
+                        idx = ic * IDHW + oc * DHW + iidx;
+                    }
 
-                const size_t idx = oc * IDHW + iidx;
-
-                if (values[idx] <= inputLow) {
-                    quantizedValues[idx] = roundValues ? std::roundf(outputLow) : outputLow;
-                } else if (values[idx] > inputHigh) {
-                    quantizedValues[idx] = roundValues ? std::roundf(outputHigh) : outputHigh;
-                } else {
-                    const float value = std::roundf((values[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
-                        levels_1 * (outputHigh - outputLow) + outputLow;
-                    quantizedValues[idx] = roundValues ? std::roundf(value) : value;
+                    if (values[idx] <= inputLow) {
+                        quantizedValues[idx] = roundValues ? std::roundf(outputLow) : outputLow;
+                    } else if (values[idx] > inputHigh) {
+                        quantizedValues[idx] = roundValues ? std::roundf(outputHigh) : outputHigh;
+                    } else {
+                        const float value = std::roundf((values[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
+                            levels_1 * (outputHigh - outputLow) + outputLow;
+                        quantizedValues[idx] = roundValues ? std::roundf(value) : value;
+                    }
                 }
             }
         }
@@ -818,7 +839,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const float max,
     const bool hasZeroPoint,
     const bool updatePrecision,
-    const element::Type deqPrecision) {
+    const element::Type deqPrecision,
+    const int outChannelsShapeIndex) {
     using std::make_shared;
 
     const auto outputLow = fq->input_value(3);
@@ -898,7 +920,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             newMax->output(0),
             fq->get_levels(),
             fq->get_auto_broadcast()),
-        true);
+        true,
+        outChannelsShapeIndex);
     NetworkHelper::copyInfo(fq, newFQ);
 
     std::shared_ptr<ngraph::Node> convert2;
