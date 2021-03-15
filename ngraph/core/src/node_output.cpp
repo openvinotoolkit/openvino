@@ -92,11 +92,13 @@ namespace ngraph
 
     using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 
-    RTMap& Output<Node>::get_rt_info() {
+    RTMap& Output<Node>::get_rt_info()
+    {
         return m_node->get_output_descriptor(m_index).get_rt_info();
     }
 
-    const RTMap& Output<Node>::get_rt_info() const {
+    const RTMap& Output<Node>::get_rt_info() const
+    {
         return m_node->get_output_descriptor(m_index).get_rt_info();
     }
 

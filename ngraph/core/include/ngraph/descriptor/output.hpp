@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include <map>
 
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/tensor.hpp"
@@ -70,7 +70,6 @@ namespace ngraph
 
             RTMap& get_rt_info() { return m_rt_info; }
             const RTMap& get_rt_info() const { return m_rt_info; }
-
             /// \return the shape of the output
             const Shape& get_shape() const;
 
