@@ -25,6 +25,7 @@ from extensions.front.split_normalizer import SqueezeAxis
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
+from extensions.front.tf.KerasRNNTransformation import KerasRNNInputSlicing, KerasRNNOutputConcatenation
 from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
 from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
@@ -41,6 +42,7 @@ from extensions.ops.psroipooling import PSROIPoolingOp
 from extensions.ops.transpose import Transpose
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
@@ -512,6 +514,40 @@ def update_parameter_shape(graph: Graph, match: [SubgraphMatch, None]):
     return initial_input_node_name, parameter_node
 
 
+class ObjectDetectionAPITransformationsStart(FrontReplacementPattern):
+    """
+    This is a anchor transformation which is used to distinguish TF OD API models related transformations.
+    """
+    enabled = True
+
+    def run_after(self):
+        return [CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize, KerasRNNOutputConcatenation,
+                KerasRNNInputSlicing]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        pass
+
+
+class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
+    """
+    This is a anchor transformation which is used to distinguish TF OD API models related transformations.
+    """
+    enabled = True
+    # cleanup the graph after applying of TF OD API transformations to remove a lot of unconnected nodes to avoid issues
+    # with shape inference
+    force_clean_up = True
+
+    def run_before(self):
+        # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
+        # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
+        # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
+        # results in TransposeOrderNormalizer transformation failure.
+        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, StandaloneConstEraser, TFSliceToSliceReplacer]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        pass
+
+
 class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
     """
     The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
@@ -521,11 +557,10 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
     run_not_recursively = True
 
     def run_before(self):
-        # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
-        # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
-        # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
-        # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad]
+        return [ObjectDetectionAPITransformationsFinish]
+
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names()
@@ -599,11 +634,10 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
     run_not_recursively = True
 
     def run_before(self):
-        # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
-        # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
-        # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
-        # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad]
+        return [ObjectDetectionAPITransformationsFinish]
+
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         update_parameter_shape(graph, None)
@@ -638,10 +672,10 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
     run_not_recursively = True
 
     def run_before(self):
-        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement, SqueezeAxis, TransposeOrderNormalizer]
+        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
 
     def run_after(self):
-        return [ObjectDetectionAPIProposalReplacement, CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize]
+        return [ObjectDetectionAPIProposalReplacement]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names().copy()
@@ -827,6 +861,9 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
     replacement_id = 'ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement'
     run_not_recursively = True
 
+    def run_before(self):
+        return [ObjectDetectionAPITransformationsFinish]
+
     def run_after(self):
         return [ObjectDetectionAPIProposalReplacement]
 
@@ -899,6 +936,9 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
     replacement_id = 'ObjectDetectionAPIMaskRCNNSigmoidReplacement'
     run_not_recursively = True
 
+    def run_before(self):
+        return [ObjectDetectionAPITransformationsFinish]
+
     def run_after(self):
         return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
 
@@ -930,7 +970,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def run_before(self):
-        return [CropAndResizeReplacement, TransposeOrderNormalizer, Pack]
+        return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['proposal_node'].id}
@@ -1079,11 +1119,10 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
     run_not_recursively = True
 
     def run_after(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
-                FakeQuantWithMinMaxVarsToQuantize]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def run_before(self):
-        return [StandaloneConstEraser, TransposeOrderNormalizer, TFSliceToSliceReplacer]
+        return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         # the DetectionOutput in IE produces single tensor, but in TF it produces two tensors, so create only one output
@@ -1217,9 +1256,11 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
     replacement_id = 'ObjectDetectionAPIOutputReplacement'
     run_not_recursively = True
 
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
+
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
-                TransposeOrderNormalizer]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         if graph.graph['cmd_params'].output is not None:
@@ -1244,7 +1285,10 @@ class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSu
     run_not_recursively = True
 
     def run_after(self):
-        return [ObjectDetectionAPIProposalReplacement, TransposeOrderNormalizer]
+        return [ObjectDetectionAPIProposalReplacement]
+
+    def run_before(self):
+        return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['output_node'].id}
@@ -1315,9 +1359,11 @@ class ObjectDetectionAPIConstValueOverride(FrontReplacementFromConfigFileGeneral
     replacement_id = 'ObjectDetectionAPIConstValueOverride'
     run_not_recursively = True
 
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
+
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
-                TransposeOrderNormalizer]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         argv = graph.graph['cmd_params']
