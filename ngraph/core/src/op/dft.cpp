@@ -107,7 +107,15 @@ void op::v7::DFT::validate_and_infer_types()
                           input_shape[input_rank - 1]);
 
     const auto& const_axes = get_constant_from_source(input_value(1));
-    const auto axes = const_axes->cast_vector<int64_t>();
+    auto axes = const_axes->cast_vector<int64_t>();
+
+    for (int64_t& axis : axes)
+    {
+        if (axis < 0)
+        {
+            axis += input_rank - 1;
+        }
+    }
 
     NODE_VALIDATION_CHECK(this,
                           input_rank >= axes.size() + 1,
