@@ -70,11 +70,11 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
         auto mean_aligned = make_shared<opset5::Reshape>(m_mean, new_shape, true);
 
         // input_sub_mean = input - mean
-        auto input_sub_mean = register_new_node<opset5::Subtract>(m_input, get_constant_from_source(mean_aligned));
+        auto input_sub_mean = register_new_node<opset5::Subtract>(m_input, mean_aligned);
         // Multiply  `input - mean` and `gamma / sqrt(variance + eps)`
-        auto mul = std::make_shared<opset5::Multiply>(input_sub_mean, get_constant_from_source(gamma_div_scale_aligned));
+        auto mul = std::make_shared<opset5::Multiply>(input_sub_mean, gamma_div_scale_aligned);
         // Add `(input - mean) * gamma / sqrt(variance + eps)` and `beta`
-        auto add = std::make_shared<opset5::Add>(mul, get_constant_from_source(beta_aligned));
+        auto add = std::make_shared<opset5::Add>(mul, beta_aligned);
 
         add->set_friendly_name(m_bn->get_friendly_name());
 
