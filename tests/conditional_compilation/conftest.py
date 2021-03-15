@@ -98,8 +98,11 @@ def test_info(request, pytestconfig):
 def configure_test_info(pytestconfig):
     yield
     ids = [record["test_id"] for record in pytestconfig.session_info]
+    json_context = []
+    for _id in ids:
+        json_context.append(dict([("test_id", _id)]))
     with open(Path(__file__).parent / "cc_tests.json", "w") as file:
-        json.dump(ids, file, ensure_ascii=False, indent=4)
+        json.dump(json_context, file, ensure_ascii=False, indent=4)
 
 
 @pytest.fixture(scope="session")
