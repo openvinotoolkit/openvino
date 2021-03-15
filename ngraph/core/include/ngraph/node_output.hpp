@@ -92,9 +92,10 @@ namespace ngraph
         const PartialShape& get_partial_shape() const;
 
         using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-
+        /// \return The reference to runtime info map
         RTMap& get_rt_info();
-        //const RTMap& get_rt_info() const;
+        /// \return The constant reference to runtime info map
+        const RTMap& get_rt_info() const;
 
         /// \return A set containing handles for all inputs targeted by the output referenced by
         ///        this output handle.

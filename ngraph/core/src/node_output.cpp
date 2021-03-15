@@ -96,9 +96,9 @@ namespace ngraph
         return m_node->get_output_descriptor(m_index).get_rt_info();
     }
 
-//    const RTMap& Output<Node>::get_rt_info() const {
-//        return m_node->get_output_descriptor(m_index).get_rt_info();
-//    }
+    const RTMap& Output<Node>::get_rt_info() const {
+        return m_node->get_output_descriptor(m_index).get_rt_info();
+    }
 
     bool Output<Node>::operator==(const Output& other) const
     {
