@@ -24,7 +24,7 @@ from tests.runtime import get_runtime
 
 
 def test_import_onnx_with_external_data():
-    model_path = os.path.join(os.path.dirname(__file__), "models/external_data.prototxt")
+    model_path = os.path.join(os.path.dirname(__file__), "models/external_data.onnx")
     ie = IECore()
     ie_network = ie.read_network(model=model_path)
 
