@@ -64,7 +64,7 @@ def update_body_graph(body_graph: Graph, subgraph_proto: dict,
                 'out': src_port,
                 'in': dst_port,
                 'name': src_id,
-                'fw_tensor_debug_info': [(src_id, dst_port, orig_src_id + ':' + src_port)],
+                'fw_tensor_debug_info': [(src_id, dst_port, orig_src_id + ':' + str(src_port))],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
