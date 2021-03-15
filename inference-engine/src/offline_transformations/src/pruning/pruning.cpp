@@ -19,6 +19,7 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
 
 #ifdef NGRAPH_DEBUG_ENABLE
     // VisualizeTree modifier helps to print Masks and mark nodes with masks
+    /*
     auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
         std::stringstream ss;
         size_t index{0};
@@ -43,15 +44,18 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
             }
         }
     };
+    */
 
-    manager.register_pass<VisualizeTree>("/tmp/before.svg", modifier);
+    // Uncomment modifier above and following line and change path to resulting svg file
+    // manager.register_pass<VisualizeTree>("/tmp/before.svg", modifier);
 #endif
 
     manager.register_pass<ShrinkWeights>();
     manager.register_pass<ConstantFolding>();
 
 #ifdef NGRAPH_DEBUG_ENABLE
-    manager.register_pass<VisualizeTree>("/tmp/after.svg");
+    // Uncomment following line and change path to resulting svg file
+    // manager.register_pass<VisualizeTree>("/tmp/after.svg");
 #endif
 
     manager.run_passes(f);
