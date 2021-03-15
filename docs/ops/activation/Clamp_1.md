@@ -11,6 +11,7 @@
 *Clamp* performs clipping operation over the input tensor element-wise. Element values of the output are within the range `[min, max]`.
 * Input values that are smaller than *min* are replaced with *min* value. For example, *min* equal 10 means that any value in the input that is smaller than the bound, is replaced by 10.
 * Input values that are greater than *max* are replaced with the *max* value. For example, *max* equals 50 means that any value in the input that is greater than the bound, is replaced by 50.
+* Input values within the range `[min, max]` remain unchanged.
 
 Mathematical formula of *Clamp* is as follows:
 \f[
