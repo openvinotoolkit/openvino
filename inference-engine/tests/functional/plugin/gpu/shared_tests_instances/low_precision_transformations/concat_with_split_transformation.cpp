@@ -45,12 +45,15 @@ const std::vector<ConcatWithSplitTransformationParam> testValues = {
     }
 };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::Values(config)),
     ConcatWithSplitTransformation::getTestCaseName);
 }  // namespace
