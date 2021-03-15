@@ -103,6 +103,7 @@ Engine::Engine() {
 }
 
 Engine::~Engine() {
+    ExecutorManager::getInstance()->clear("CPU");
     ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
