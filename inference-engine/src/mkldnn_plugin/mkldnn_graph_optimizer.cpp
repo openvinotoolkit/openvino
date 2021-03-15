@@ -897,6 +897,35 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         return isSupportedParams;
     };
 
+    auto isFusingWorthwhile = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        auto* layer = dynamic_cast<ConvolutionLayer*>(childNode->getCnnLayer().get());
+        if (layer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get convolution layer " << childNode->getName();
+
+        auto inDims = childNode->inDims[0];
+        auto outDims = childNode->outDims[0];
+        int elemSize = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(layer->precision));
+
+        int L3_cache_size = utils::get_cache_size(3, false);
+        int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
+        int dw_conv_output_size = outDims[0] * outDims[1]* outDims[2] * outDims[3] * elemSize;
+
+        auto* parentConvolutionNode = dynamic_cast<MKLDNNConvolutionNode*>(parentNode.get());
+        if (parentConvolutionNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get convolution node " << parentNode->getName();
+
+        bool isAVX2NotSupported = !impl::cpu::x64::mayiuse(impl::cpu::x64::avx2);
+        if (isAVX2NotSupported) return false;
+
+        bool isInt8 = parentConvolutionNode->canBeExecutedInInt8();
+        bool isAVX512NotSupported = !impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common);
+
+        if (isInt8 || !isAVX512NotSupported) return false;
+
+        return isInt8 ? isAVX512NotSupported : (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
+//        return isInt8 ? isAVX512NotSupported : true;
+    };
+
     for (int i = 0; i < graphNodes.size(); i++) {
         if (!isConvolutionNode(graphNodes[i])) continue;
 
@@ -905,6 +934,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
         auto childConvNode = parentConvNode->getChildEdgeAt(0)->getChild();
         if (!isSutableChildConvolution(parentConvNode, childConvNode)) continue;
+
+        if (!isFusingWorthwhile(parentConvNode, childConvNode)) continue;
 
         parentConvNode->fuseWith(childConvNode);
 
