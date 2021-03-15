@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+
 #include <c_api/ie_c_api.h>
 #include "object_detection_sample_ssd.h"
 #include <opencv_c_wraper.h>
@@ -21,8 +22,8 @@
 static const char *img_msg = NULL;
 static const char *input_model = NULL;
 static const char *device_name = "CPU";
-static const char *custom_cldnn_msg = NULL;
-static const char *custom_cpu_library_msg = NULL;
+static const char *custom_plugin_cfg_msg = NULL;
+static const char *custom_ex_library_msg = NULL;
 static const char *config_msg = NULL;
 static int file_num = 0;
 static char **file_paths = NULL;
@@ -30,6 +31,12 @@ static char **file_paths = NULL;
 const char *info = "[ INFO ] ";
 const char *warn = "[ WARNING ] ";
 
+/**
+* @brief Parse and check command line arguments
+* @param int argc - count of args
+* @param char *argv[] - array values of args
+* @return int - status 1(success) or -1(fail)
+*/
 int ParseAndCheckCommandLine(int argc, char *argv[]) {
     int opt = 0;
     int help = 0;
@@ -53,10 +60,10 @@ int ParseAndCheckCommandLine(int argc, char *argv[]) {
                 device_name = optarg;
                 break;
             case 'c':
-                custom_cldnn_msg = optarg;
+                custom_plugin_cfg_msg = optarg;
                 break;
             case 'l':
-                custom_cpu_library_msg = optarg;
+                custom_ex_library_msg = optarg;
                 break;
             case 'f':
                 config_msg = optarg;
@@ -69,11 +76,15 @@ int ParseAndCheckCommandLine(int argc, char *argv[]) {
     if (help)
         return -1;
     if (input_model == NULL) {
-        printf("Model is required but not set. Please set -m option. \n");
+        printf("Model is required but not set. Please set -m option.\n");
         return -1;
     }
     if (img_msg == NULL) {
-        printf("Input is required but not set.Please set - i option.\n");
+        printf("Input is required but not set.Please set -i option.\n");
+        return -1;
+    }
+    if (custom_plugin_cfg_msg == NULL && device_name != "CPU") {
+        printf("Custom config is required for device plugin custom kernels. Please set -c option.\n");
         return -1;
     }
 
@@ -274,10 +285,13 @@ void int2str(char *str, int num) {
 
 int main(int argc, char **argv) {
     /** This sample covers certain topology and cannot be generalized for any object detection one **/
+    // ------------------------------ Get Inference Engine API version ---------------------------------
     ie_version_t version = ie_c_api_version();
     printf("%sInferenceEngine: \n", info);
     printf("%s\n", version.api_version);
     ie_version_free(&version);
+
+    // ------------------------------ Parsing and validation of input args ---------------------------------
 
     char **argv_temp =(char **)calloc(argc, sizeof(char *));
     if (!argv_temp) {
@@ -296,14 +310,13 @@ int main(int argc, char **argv) {
     ie_infer_request_t *infer_request = NULL;
     ie_blob_t *imageInput = NULL, *output_blob = NULL;
 
-    // --------------------------- 1. Parsing and validation of input args ---------------------------------
     if (ParseAndCheckCommandLine(argc, argv) < 0) {
         free(argv_temp);
         return EXIT_FAILURE;
     }
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 2. Read input -----------------------------------------------------------
+    // --------------------------- Read input -----------------------------------------------------------
     /** This file_paths stores paths to the processed images **/
     parseInputFilesArguments(argc, argv_temp);
     if (!file_num) {
@@ -313,7 +326,8 @@ int main(int argc, char **argv) {
     }
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 3. Load inference engine ------------------------------------------------
+    // --------------------------- Step 1. Initialize inference engine core -------------------------------------
+
     printf("%sLoading Inference Engine\n", info);
     IEStatusCode status = ie_core_create("", &core);
     if (status != OK)
@@ -331,25 +345,25 @@ int main(int argc, char **argv) {
     }
     ie_core_versions_free(&ver);
 
-    if (custom_cpu_library_msg) {
-        // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-        status = ie_core_add_extension(core, custom_cpu_library_msg, "CPU");
+    if (custom_ex_library_msg) {
+        // Custom extension is loaded as a shared library and passed as a pointer to base extension
+        status = ie_core_add_extension(core, custom_ex_library_msg, device_name);
         if (status != OK)
             goto err;
-        printf("%sCPU Extension loaded: %s\n", info, custom_cpu_library_msg);
+        printf("%sCustom extension loaded: %s\n", info, custom_ex_library_msg);
     }
 
-    if (custom_cldnn_msg) {
-        // clDNN Extensions are loaded from an .xml description and OpenCL kernel files
-        ie_config_t cfg = {"CONFIG_FILE", custom_cldnn_msg, NULL};
-        status = ie_core_set_config(core, &cfg, "GPU");
+    if (custom_plugin_cfg_msg) {
+        // Config for device plugin custom extension is loaded from an .xml description
+        ie_config_t cfg = {"CONFIG_FILE", custom_plugin_cfg_msg, NULL};
+        status = ie_core_set_config(core, &cfg, device_name);
         if (status != OK)
             goto err;
-        printf("%sGPU Extension loaded: %s\n", info, custom_cldnn_msg);
+        printf("%sConfig for device plugin custom extension loaded: %s\n", info, custom_plugin_cfg_msg);
     }
     // -----------------------------------------------------------------------------------------------------
 
-    // 4. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+    // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
     printf("%sLoading network:\n", info);
     printf("\t%s\n", input_model);
     status = ie_core_read_network(core, input_model, NULL, &network);
@@ -357,7 +371,8 @@ int main(int argc, char **argv) {
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 5. Prepare input blobs --------------------------------------------------
+    // --------------------------- Step 3. Configure input & output ---------------------------------------------
+    // --------------------------- Prepare input blobs -----------------------------------------------------
     printf("%sPreparing input blobs\n", info);
 
     /** SSD network has one input and one output **/
@@ -494,9 +509,8 @@ int main(int argc, char **argv) {
     size_t batchSize = shapes2.shapes[0].shape.dims[0];
     ie_network_input_shapes_free(&shapes2);
     printf("%sBatch size is %zu\n", info, batchSize);
-    // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 6. Prepare output blobs -------------------------------------------------
+    // --------------------------- Prepare output blobs ----------------------------------------------------
     printf("%sPreparing output blobs\n", info);
 
     size_t output_num = 0;
@@ -534,7 +548,7 @@ int main(int argc, char **argv) {
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 7. Loading model to the device ------------------------------------------
+    // --------------------------- Step 4. Loading model to the device ------------------------------------------
     printf("%sLoading model to the device\n", info);
     if (config_msg) {
         ie_config_t * config = parseConfig(config_msg, '#');
@@ -552,15 +566,14 @@ int main(int argc, char **argv) {
 
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 8. Create infer request -------------------------------------------------
+    // --------------------------- Step 5. Create infer request -------------------------------------------------
     printf("%sCreate infer request\n", info);
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 9. Prepare input --------------------------------------------------------
-
+    // --------------------------- Step 6. Prepare input --------------------------------------------------------
 
     /** Creating input blob **/
     status = ie_infer_request_get_blob(infer_request, imageInputName, &imageInput);
@@ -624,7 +637,7 @@ int main(int argc, char **argv) {
     }
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 10. Do inference ---------------------------------------------------------
+    // --------------------------- Step 7. Do inference --------------------------------------------------------
     printf("%sStart inference\n", info);
     status = ie_infer_request_infer_async(infer_request);
     status |= ie_infer_request_wait(infer_request, -1);
@@ -632,7 +645,7 @@ int main(int argc, char **argv) {
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 11. Process output -------------------------------------------------------
+    // --------------------------- Step 8. Process output ------------------------------------------------------
     printf("%sProcessing output blobs\n", info);
 
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
