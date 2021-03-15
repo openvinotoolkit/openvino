@@ -4,6 +4,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+// to suppress deprecated definition errors
+#define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "gna_model_serial.hpp"
 
 using ::testing::Return;
