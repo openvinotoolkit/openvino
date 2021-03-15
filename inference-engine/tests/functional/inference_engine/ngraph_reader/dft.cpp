@@ -11,7 +11,7 @@ TEST_F(NGraphReaderTests, ReadDFTNetwork) {
 <net name="deformable_convolution" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
-            <data shape="2,180,180,2" element_type="f32"/>
+            <data shape="1,180,180,2" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
