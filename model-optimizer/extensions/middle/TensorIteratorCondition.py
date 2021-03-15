@@ -22,6 +22,7 @@ from extensions.middle.TensorIterator_utils import delete_selects_from
 from extensions.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
+from extensions.ops.identity import Identity
 
 
 def make_nodes_1D(nodes: list):
@@ -381,11 +382,40 @@ class SimpleConditionMatcher(MiddleReplacementPattern):
         condition_attrs = dict(iter=dict(init=init_1, step=step_1),
                                name=match['loop_cond'].name + '/TensorIteratorCondition_')
         condition = TensorIteratorCondition(graph, attrs=condition_attrs)
-        condition.create_node_with_data(inputs=[match['Strided_slice_data']],
-                                        data_nodes=[match['loop_cond_data'], match['Identity_1_data']])
+        condition_data_nodes = condition.create_node_with_data(inputs=[match['Strided_slice_data']],
+                                                         data_nodes=[match['loop_cond_data'], match['Identity_1_data']])
+
+        # check if time_data (aka Identity_1_data) has other consumers unlike
+        other_time_consumers = False
+        time_data = match['Identity_1_data']
+        safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Strided_slice', 'Strided_slice_data']
+        for node in time_data.out_nodes():
+            if node['kind'] == 'op' and node['op'] != 'TensorIteratorInput' and \
+                    node['op'] != 'TensorIteratorOutput' and node.id != match['add_1'].id:
+                other_time_consumers = True
+                break
+        if other_time_consumers:
+            safe_nodes += ['init_1', 'init_1_data', 'Enter_1', 'Enter_1_data', 'Merge_1', 'Merge_1_data',
+                           'Switch_1', 'Switch_1_data', 'add_1', 'add_1_y', 'add_1_y_data', 'add_1_data',
+                           'NextIteration_1']
+            less_node = match['Less_1']
+            less_node.in_port(1).disconnect()
+            switch_node = match['Switch_1']
+            new_identity_node = Identity(graph, {}).create_node()
+            switch_node.out_port(1).connect(new_identity_node.in_port(0))
+
+            # make the graph consistent to avoid multiple producers by the same input port
+            graph.remove_nodes_from([match['Identity_1'].id])
+
+            condition_node = condition_data_nodes[1].in_node(0)
+            dsts = condition_node.out_port(1).get_destinations()
+
+            for dst in dsts:
+                if dst.node.soft_get('op') != 'TensorIteratorInput' and \
+                        dst.node.soft_get('op') != 'TensorIteratorOutput':
+                    dst.get_connection().set_source(new_identity_node.out_port(0))
 
         # Delete useless nodes
-        safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Strided_slice', 'Strided_slice_data']
         nodes_for_remove = []
         for node in match.keys():
             if node not in safe_nodes:
