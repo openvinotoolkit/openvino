@@ -36,7 +36,6 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "op/lstm.hpp"
-#include "op/lstm.hpp"
 
 namespace ngraph
 {
@@ -251,8 +250,9 @@ namespace ngraph
 
                         if (m_input_forget != 0)
                         {
-                            NGRAPH_WARN << (node) << " Attribute `input_forget` is not supported "
-                                                     "and will be ignored ";
+                            NGRAPH_WARN << (node)
+                                        << " Attribute `input_forget` is not supported "
+                                           "and will be ignored ";
                         }
                     }
 

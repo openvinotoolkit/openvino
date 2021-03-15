@@ -61,12 +61,14 @@ void regclass_pyngraph_PartialShape(py::module m)
     shape.def("get_shape", &ngraph::PartialShape::get_shape);
     shape.def("to_shape", &ngraph::PartialShape::to_shape);
 
-    shape.def("__eq__",
-              [](const ngraph::PartialShape& a, const ngraph::PartialShape& b) { return a == b; },
-              py::is_operator());
-    shape.def("__eq__",
-              [](const ngraph::PartialShape& a, const ngraph::Shape& b) { return a == b; },
-              py::is_operator());
+    shape.def(
+        "__eq__",
+        [](const ngraph::PartialShape& a, const ngraph::PartialShape& b) { return a == b; },
+        py::is_operator());
+    shape.def(
+        "__eq__",
+        [](const ngraph::PartialShape& a, const ngraph::Shape& b) { return a == b; },
+        py::is_operator());
 
     shape.def("__str__", [](const ngraph::PartialShape& self) -> std::string {
         std::stringstream ss;

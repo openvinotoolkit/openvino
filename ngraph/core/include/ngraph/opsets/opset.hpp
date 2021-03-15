@@ -110,6 +110,7 @@ namespace ngraph
 
         const std::set<NodeTypeInfo>& get_type_info_set() const { return m_op_types; }
         ngraph::FactoryRegistry<ngraph::Node>& get_factory_registry() { return m_factory_registry; }
+
     protected:
         static std::string to_upper_name(const std::string& name)
         {

@@ -158,10 +158,10 @@ namespace ngraph
                                             float bin_start_w = start_w + sbx * bin_width;
                                             float bin_start_h = start_h + sby * bin_height;
 
-                                            const T* input_offset = input +
-                                                                    (batch_id * channels_in +
-                                                                     c_in * channels_out + c_out) *
-                                                                        height * width;
+                                            const T* input_offset =
+                                                input + (batch_id * channels_in +
+                                                         c_in * channels_out + c_out) *
+                                                            height * width;
                                             float point_x =
                                                 pooling_width > 1
                                                     ? (pw * width_scale + bin_start_w * (width - 1))
@@ -188,9 +188,8 @@ namespace ngraph
                                                 T bottom_right =
                                                     input_offset[bottom * width + right];
 
-                                                T top_interp =
-                                                    top_left +
-                                                    (top_right - top_left) * (point_x - left);
+                                                T top_interp = top_left + (top_right - top_left) *
+                                                                              (point_x - left);
                                                 T bottom_interp =
                                                     bottom_left +
                                                     (bottom_right - bottom_left) * (point_x - left);
