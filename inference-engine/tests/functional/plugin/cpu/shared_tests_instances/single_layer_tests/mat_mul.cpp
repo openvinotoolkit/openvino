@@ -32,6 +32,10 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         // { { {2, 2, 1, 3}, false }, { {3}, false } },
         // { { {3}, false }, { {3}, false } },
         // { { {3}, true }, { {3}, true } }
+        { { {1, 5}, false }, { {5}, false } },
+        { { {5}, false }, { {5, 1}, false } },
+        { { {5}, false }, { {5}, false } },
+        { { {5}, true }, { {5}, true } }
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
