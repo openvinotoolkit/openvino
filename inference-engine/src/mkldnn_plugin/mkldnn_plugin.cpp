@@ -334,9 +334,9 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
     ngraph::NodeVector nodes;
 
     int total_convs = 0, mem_limited_convs = 0, total_gemms = 0, mem_limited_gemms = 0;
-    auto memLimitedFactor = [&] (int size_data_moved) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */ / size_data_moved);};
+    auto memLimitedFactor = [&] (int size_data_moved) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */
+                                                                 / (size_data_moved *sizeof(float)));};
     float worst_case = FLT_MAX;
-    float best_case =  -FLT_MAX;
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
             // todo : bias data size (always fp)
@@ -361,9 +361,8 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
                     total_gemms++;
-                    auto factor = memLimitedFactor(dataSizeInput + dataSizeInput);
+                    auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput);
                     mem_limited_gemms += factor < 1;
-                    best_case = std::max(factor, best_case);
                     worst_case = std::min(factor, worst_case);
                 }
             } else if (!std::strcmp("Convolution", node->get_type_info().name)) {
@@ -378,23 +377,21 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
                     total_convs++;
-                    auto factor = memLimitedFactor(dataSizeInput + dataSizeInput);
+                    auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput);
                     mem_limited_convs += factor < 1;
-                    best_case = std::max(factor, best_case);
                     worst_case = std::min(factor, worst_case);
+                    std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name() << std::endl
+                              << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size
+                              << "   FACTOR: " << factor << std::endl;
                 }
-                std::cout << "Type: " << node->get_type_info().name << std::endl
-                          << "Name: " << node->get_friendly_name() << std::endl
-                          << "dataSize: " << dataSizeInput + dataSizeOutput << std::endl
-                          << "L2_cache_size: " << L2_cache_size << std::endl;
             }
     }
     std::cout << "Total convs: " << total_convs<< ". Mem limited: " << mem_limited_convs << std::endl;
     std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
-    std::cout << "BEST CASE: " << best_case<< ". WORST CASE: " << worst_case << std::endl;
+    std::cout << ". WORST CASE: " << worst_case << std::endl;
 
 
-    return mem_limited_gemms > 0.5*total_gemms || mem_limited_convs > 0.5*total_convs;
+    return mem_limited_gemms || mem_limited_convs;
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
