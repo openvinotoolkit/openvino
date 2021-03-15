@@ -17,6 +17,7 @@
 #else
 #include <mm_malloc.h>
 #include <serial/headers/2dot2/gna_model_header.hpp>
+#include <serial/headers/2dot5/gna_model_header.hpp>
 
 #endif
 
@@ -113,6 +114,12 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                     break;
                 case 2:
                 case 3:
+                {
+                    Header2dot3::ModelHeader tempHeader2dot3;
+                    readBits(tempHeader2dot3, is);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot3);
+                    break;
+                }
                 case 4:
                 {
                     Header2dot4::ModelHeader tempHeader2dot4;
@@ -121,7 +128,8 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                     break;
                 }
                 case 5:
-                    readNBytes(&header, sizeof(Header2dot5::ModelHeader), is);
+                case 6:
+                    readNBytes(&header, sizeof(HeaderLatest::ModelHeader), is);
                     break;
                 default:
                     THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 4 and is: " << header.version.minor;
@@ -282,11 +290,28 @@ void GNAModelSerial::Import(void *basePointer,
 
     for (int i = 0; i != nStates; i++) {
         void *pSegment;
-        readOffset(pSegment, basePointer, is);
-        uint32_t segmentSz;
-        readBits(segmentSz, is);
-        if (pstates) {
-            (*pstates)[i] = { pSegment, segmentSz };
+        if ( modelHeader.version.major == 2 ) {
+            if ( modelHeader.version.minor < 6 ) {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, "noname", 1.0f );
+                }
+            } else {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                uint32_t nameSize = 0;
+                readNBits<32>(nameSize, is);
+                std::string inName("", nameSize);
+                readNBytes(&inName[0], nameSize, is);
+                float scale_factor = 1.0f;
+                readBits(scale_factor, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor);
+                }
+            }
         }
     }
 
@@ -418,8 +443,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     // writing memory information
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
-        writeBits(offsetFromBase(state.first), os);
-        writeBits(state.second, os);
+        void* gna_ptr = nullptr;
+        uint32_t reserved_size = 0;
+        std::string name;
+        float scale_factor = 1.0f;
+        std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
+        writeBits(offsetFromBase(gna_ptr), os);
+        writeBits(reserved_size, os);
+        const auto nameSize = strlen(name.c_str()) + 1;
+        writeBits(static_cast<uint32_t>(nameSize), os);
+        writeNBytes(name.c_str(), nameSize, os);
+        writeBits(scale_factor, os);
     }
 
     // once structure has been written lets push gna graph
@@ -558,11 +592,28 @@ void GNAModelSerial::Import(void *basePointer,
 
     for (int i = 0; i != nStates; i++) {
         void *pSegment;
-        readOffset(pSegment, basePointer, is);
-        uint32_t segmentSz;
-        readBits(segmentSz, is);
-        if (pstates) {
-            (*pstates)[i] = { pSegment, segmentSz };
+        if ( modelHeader.version.major == 2 ) {
+            if ( modelHeader.version.minor < 6 ) {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, "noname", 1.0f);
+                }
+            } else {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                uint32_t nameSize = 0;
+                readNBits<32>(nameSize, is);
+                std::string inName("", nameSize);
+                readNBytes(&inName[0], nameSize, is);
+                float scale_factor = 1.0f;
+                readBits(scale_factor, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor );
+                }
+            }
         }
     }
 
@@ -709,8 +760,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     // writing memory information
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
-        writeBits(offsetFromBase(state.first), os);
-        writeBits(state.second, os);
+        void* gna_ptr = nullptr;
+        uint32_t reserved_size = 0;
+        std::string name;
+        float scale_factor = 1.0f;
+        std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
+        writeBits(offsetFromBase(gna_ptr), os);
+        writeBits(reserved_size, os);
+        const auto nameSize = strlen(name.c_str()) + 1;
+        writeBits(static_cast<uint32_t>(nameSize), os);
+        writeNBytes(name.c_str(), nameSize, os);
+        writeBits(scale_factor, os);
     }
 
     // once structure has been written lets push gna graph

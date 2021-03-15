@@ -17,8 +17,6 @@
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
-set(ONNX_LIBRARIES onnx onnx_proto)
-
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
@@ -73,8 +71,10 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/floor_mod.cpp
+    op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
@@ -269,6 +269,7 @@ set(MULTI_TEST_SRC
     backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution.in.cpp
+    backend/binary_convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -320,6 +321,7 @@ set(MULTI_TEST_SRC
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
+    backend/recurrent_cells.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
     backend/reduce_min.in.cpp
@@ -375,12 +377,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    if(${BACKEND_NAME} MATCHES ^INTERPRETER$)
-        set(TEST_LOOPS 100)
-    else()
-        set(TEST_LOOPS 2)
-    endif()
-
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
     set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
@@ -422,9 +418,15 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+    # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
+    # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
-        SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-    target_link_libraries(unit-test PRIVATE ${Protobuf_LIBRARIES} ${ONNX_LIBRARIES})
+        SYSTEM PRIVATE
+            $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+            ${Protobuf_INCLUDE_DIRS})
+    target_compile_definitions(unit-test
+        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
@@ -446,15 +448,12 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-if (TARGET inference_engine)
-    target_link_libraries(unit-test PRIVATE inference_engine)
-endif()
+target_link_libraries(unit-test PRIVATE inference_engine)
+target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
-
-target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)

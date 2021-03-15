@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -151,6 +151,7 @@ class TestingSimpleProtoParser(unittest.TestCase):
                            'use_matmul_crop_and_resize': False,
                            'add_background_class': True,
                            'share_box_across_classes': False,
+                           'pad_to_max_dimension': False,
                            }
         os.unlink(file_name)
         self.assertDictEqual(pipeline_config._model_params, expected_result)

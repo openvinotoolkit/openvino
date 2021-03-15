@@ -10,8 +10,7 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
-
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <low_precision/convolution.hpp>

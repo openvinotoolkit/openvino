@@ -39,7 +39,7 @@
 #include "legacy/ngraph_ops/rnn_sequence_ie.hpp"
 #include "legacy/ngraph_ops/lstm_sequence_ie.hpp"
 #include "legacy/ngraph_ops/gru_sequence_ie.hpp"
-#include "generic_ie.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "exec_graph_info.hpp"
 
 #include "caseless.hpp"
@@ -55,7 +55,46 @@
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
 #include "ie_legacy_itt.hpp"
-#include "ie_cnn_layer_builder_ngraph.h"
+
+namespace Builder {
+
+template <class T>
+std::string asString(const T& value) {
+    return std::to_string(value);
+}
+
+template <typename T>
+std::string asString(const std::vector<T>& value) {
+    std::string result;
+    for (const auto& item : value) {
+        if (!result.empty()) result += ",";
+        result += asString(item);
+    }
+    return result;
+}
+
+template <>
+std::string asString<double>(const double& value) {
+    std::ostringstream sStrm;
+    sStrm.precision(std::numeric_limits<double>::digits10);
+    sStrm << std::fixed << value;
+    std::string result = sStrm.str();
+
+    auto pos = result.find_last_not_of("0");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    pos = result.find_last_not_of(".");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    return result;
+}
+
+template <>
+std::string asString<float>(const float& value) {
+    return asString(static_cast<double>(value));
+}
+
+}  // namespace Builder
 
 namespace InferenceEngine {
 namespace details {
@@ -1710,36 +1749,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"GenericIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
-                                         const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-        auto type = params.at("__generic_ie_type__");
-        auto castedLayer = ngraph::as_type_ptr<ngraph::op::GenericIE>(node);
-        LayerParams attrs = {node->get_friendly_name(), type, details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-        if (type == "RNNCell") {
-          res = std::make_shared<InferenceEngine::RNNCell>(attrs);
-        }
-        if (type == "GRUCell") {
-          res = std::make_shared<InferenceEngine::GRUCell>(attrs);
-        }
-
-        auto weightableLayer = std::dynamic_pointer_cast<InferenceEngine::WeightableLayer>(res);
-        for (const auto& param : castedLayer->getParameters()) {
-            if (param.second.is<Blob::Ptr>()) {
-                res->blobs[param.first] = param.second.as<Blob::Ptr>();
-            } else if (param.second.is<Blob::CPtr>()) {
-                res->blobs[param.first] = std::const_pointer_cast<Blob>(param.second.as<Blob::CPtr>());
-            } else if (param.second.is<std::string>()) {
-                res->params[param.first] = param.second.as<std::string>();
-            }
-            if (weightableLayer && param.first == "weights")
-                weightableLayer->_weights = res->blobs[param.first];
-            if (weightableLayer && param.first == "biases")
-                weightableLayer->_biases = res->blobs[param.first];
-        }
-        return res;
-    });
-
     addSpecificCreator({"ShuffleChannels"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ShuffleChannels", details::convertPrecision(node->get_output_element_type(0))};
@@ -1968,6 +1977,15 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         std::string originalNames = ::ngraph::getFusedNames(layer);
         if (!originalNames.empty()) {
             cnnLayer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalNames;
+        }
+
+        if (auto subgraph = ::ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(layer)) {
+            std::string names = "";
+            for (const auto& op : subgraph->get_body()->get_ordered_ops()) {
+                names += ", " + op->get_friendly_name();
+            }
+
+            cnnLayer->params["originalLayersNames"] += names;
         }
 
         std::string primitivesPriority = ::ngraph::getPrimitivesPriority(layer);

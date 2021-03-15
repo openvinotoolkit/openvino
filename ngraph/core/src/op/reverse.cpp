@@ -164,7 +164,7 @@ namespace reverseop
 #define GET_AXES(a, ...)                                                                           \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(get_reverse_axes, _, a));                                       \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(get_reverse_axes, _, a));                                       \
         reverseop::get_axes<element::Type_t::a>(__VA_ARGS__);                                      \
     }                                                                                              \
     break;

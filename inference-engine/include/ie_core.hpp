@@ -85,6 +85,9 @@ public:
      * `InferenceEngine::Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const`
      * function overload which takes a filesystem path to the model.
      * For ONNX case the second parameter should contain empty blob.
+     * @note Created InferenceEngine::CNNNetwork object shares the weights with `weights` object.
+     * So, do not create `weights` on temporary data which can be later freed, since the network
+     * constant datas become to point to invalid memory.
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;
@@ -197,7 +200,7 @@ public:
      * The method is targeted to extract information which can be set via SetConfig method.
      *
      * @param deviceName  - A name of a device to get a configuration value.
-     * @param name  - value of config corresponding to config key.
+     * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
     Parameter GetConfig(const std::string& deviceName, const std::string& name) const;

@@ -57,6 +57,7 @@ namespace ngraph
                 "DetectionOutput",
                 "ExperimentalDetectronDetectionOutput",
                 "ExperimentalDetectronGenerateProposalsSingleImage",
+                "ExperimentalDetectronGroupNorm",
                 "ExperimentalDetectronPriorGridGenerator",
                 "ExperimentalDetectronROIFeatureExtractor",
                 "ExperimentalDetectronTopKROIs",
@@ -64,6 +65,7 @@ namespace ngraph
                 "GroupNorm",
                 "Normalize",
                 "PriorBox",
+                "PriorBoxClustered",
                 "Swish"};
 
             /// \brief Add support for models with custom operators mistakenly registered in

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
+#include <signal.h>
 
 #include <transformations/serialize.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -15,6 +16,9 @@
 #include "functional_test_utils/core_config.hpp"
 
 namespace LayerTestsUtils {
+
+bool isReported = false;
+bool extendReport = true;
 
 Summary *Summary::p_instance = nullptr;
 SummaryDestroyer Summary::destroyer;
@@ -41,50 +45,88 @@ void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status)
         auto &passrate = it->second;
         switch (status) {
             case PassRate::PASSED:
-                passrate.passed += 1;
+                passrate.passed++;
+                passrate.crashed--;
                 break;
             case PassRate::FAILED:
-                passrate.failed += 1;
+                passrate.failed++;
+                passrate.crashed--;
                 break;
             case PassRate::SKIPPED:
-                passrate.skipped += 1;
+                passrate.skipped++;
+                break;
+            case PassRate::CRASHED:
+                passrate.crashed++;
                 break;
         }
     } else {
         switch (status) {
             case PassRate::PASSED:
-                opsStats[op] = PassRate(1, 0, 0);
+                opsStats[op] = PassRate(1, 0, 0, 0);
                 break;
             case PassRate::FAILED:
-                opsStats[op] = PassRate(0, 1, 0);
+                opsStats[op] = PassRate(0, 1, 0, 0);
                 break;
             case PassRate::SKIPPED:
-                opsStats[op] = PassRate(0, 0, 1);
+                opsStats[op] = PassRate(0, 0, 1, 0);
+                break;
+            case PassRate::CRASHED:
+                opsStats[op] = PassRate(0, 0, 0, 1);
                 break;
         }
     }
 }
 
-void TestEnvironment::TearDown() {
+std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
+    pugi::xml_document doc;
+
+    std::ifstream file;
+    file.open(CommonTestUtils::REPORT_FILENAME);
+
+    pugi::xml_node root;
+    doc.load_file(CommonTestUtils::REPORT_FILENAME);
+    root = doc.child("report");
+
+    pugi::xml_node resultsNode = root.child("results");
+    pugi::xml_node currentDeviceNode = resultsNode.child(deviceName.c_str());
+    std::map<std::string, PassRate> oldOpsStat;
+    for (auto &child : currentDeviceNode.children()) {
+        std::string entry = child.name();
+        auto p = std::stoi(child.attribute("passed").value());
+        auto f = std::stoi(child.attribute("failed").value());
+        auto s = std::stoi(child.attribute("skipped").value());
+        auto c = std::stoi(child.attribute("crashed").value());
+        PassRate obj(p, f, s, c);
+        oldOpsStat.insert({entry, obj});
+    }
+    return oldOpsStat;
+}
+
+void TestEnvironment::saveReport() {
+    if (isReported) {
+        return;
+    }
     std::vector<ngraph::OpSet> opsets;
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
     opsets.push_back(ngraph::get_opset3());
     opsets.push_back(ngraph::get_opset4());
     opsets.push_back(ngraph::get_opset5());
+    opsets.push_back(ngraph::get_opset6());
+    opsets.push_back(ngraph::get_opset7());
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto &opset : opsets) {
         const auto &type_info_set = opset.get_type_info_set();
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
 
-    auto &s = Summary::getInstance();
-    auto stats = s.getOPsStats();
+    auto &summary = Summary::getInstance();
+    auto stats = summary.getOPsStats();
 
     pugi::xml_document doc;
 
     std::ifstream file;
-    file.open(reportFileName);
+    file.open(CommonTestUtils::REPORT_FILENAME);
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -98,14 +140,14 @@ void TestEnvironment::TearDown() {
 
     pugi::xml_node root;
     if (file) {
-        doc.load_file(reportFileName.c_str());
+        doc.load_file(CommonTestUtils::REPORT_FILENAME);
         root = doc.child("report");
         //Ugly but shorter than to write predicate for find_atrribute() to update existing one
         root.remove_attribute("timestamp");
         root.append_attribute("timestamp").set_value(timeNow);
 
         root.remove_child("ops_list");
-        root.child("results").remove_child(s.deviceName.c_str());
+        root.child("results").remove_child(summary.deviceName.c_str());
     } else {
         root = doc.append_child("report");
         root.append_attribute("timestamp").set_value(timeNow);
@@ -120,19 +162,57 @@ void TestEnvironment::TearDown() {
     }
 
     pugi::xml_node resultsNode = root.child("results");
-    pugi::xml_node currentDeviceNode = resultsNode.append_child(s.deviceName.c_str());
+    pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
+    std::unordered_set<std::string> opList;
     for (const auto &it : stats) {
         std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
+        opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("passed").set_value(it.second.passed);
         entry.append_attribute("failed").set_value(it.second.failed);
         entry.append_attribute("skipped").set_value(it.second.skipped);
+        entry.append_attribute("crashed").set_value(it.second.crashed);
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
-    bool result = doc.save_file(reportFileName.c_str());
-    if (!result) {
-        std::cout << "Failed to write report to " << reportFileName << "!" << std::endl;
+
+    if (extendReport && file) {
+        auto opStataFromReport = summary.getOpStatisticFromReport();
+        for (auto& item : opStataFromReport) {
+            pugi::xml_node entry;
+            if (opList.find(item.first) == opList.end()) {
+                entry = currentDeviceNode.append_child(item.first.c_str());
+                entry.append_attribute("passed").set_value(item.second.passed);
+                entry.append_attribute("failed").set_value(item.second.failed);
+                entry.append_attribute("skipped").set_value(item.second.skipped);
+                entry.append_attribute("crashed").set_value(item.second.crashed);
+                entry.append_attribute("passrate").set_value(item.second.getPassrate());
+            } else {
+                entry = currentDeviceNode.child(item.first.c_str());
+                auto p = std::stoi(entry.attribute("passed").value()) + item.second.passed;
+                auto f = std::stoi(entry.attribute("failed").value()) + item.second.failed;
+                auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
+                auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
+                PassRate obj(p, f, s, c);
+
+                entry.attribute("passed").set_value(obj.passed);
+                entry.attribute("failed").set_value(obj.failed);
+                entry.attribute("skipped").set_value(obj.skipped);
+                entry.attribute("crashed").set_value(obj.crashed);
+                entry.attribute("passrate").set_value(obj.getPassrate());
+            }
+        }
     }
+
+    bool result = doc.save_file(CommonTestUtils::REPORT_FILENAME);
+    if (!result) {
+        std::cout << "Failed to write report to " << CommonTestUtils::REPORT_FILENAME << "!" << std::endl;
+    } else {
+        isReported = true;
+    }
+}
+
+void TestEnvironment::TearDown() {
+    saveReport();
 }
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
@@ -170,13 +250,23 @@ void LayerTestsCommon::Run() {
         }
     };
 
+    auto crashHandler = [](int errCode) {
+        TestEnvironment::saveReport();
+        std::cout << "Unexpected application crash!" << std::endl;
+        std::abort();
+    };
+    signal(SIGSEGV, crashHandler);
+
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
         reportStatus(PassRate::Statuses::SKIPPED);
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    } else {
+        reportStatus(PassRate::Statuses::CRASHED);
     }
 
     try {
         LoadNetwork();
+        GenerateInputs();
         Infer();
         Validate();
         reportStatus(PassRate::Statuses::PASSED);
@@ -205,8 +295,7 @@ void LayerTestsCommon::Serialize() {
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
 
-    InferenceEngine::Core ie;
-    auto result = ie.ReadNetwork(out_xml_path, out_bin_path);
+    auto result = getCore()->ReadNetwork(out_xml_path, out_bin_path);
 
     bool success;
     std::string message;
@@ -223,8 +312,19 @@ void LayerTestsCommon::Serialize() {
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
+void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+                               const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs,
+                               float threshold) {
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex];
+        const auto &actual = actualOutputs[outputIndex];
+        Compare(expected, actual, threshold);
+    }
+}
 
-void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected,
+                               const InferenceEngine::Blob::Ptr &actual,
+                               float threshold) {
     ASSERT_EQ(expected.size(), actual->byteSize());
     const auto &expectedBuffer = expected.data();
 
@@ -282,6 +382,10 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     }
 }
 
+void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+    Compare(expected, actual, threshold);
+}
+
 void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual) {
     auto get_raw_buffer = [](const InferenceEngine::Blob::Ptr &blob) {
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
@@ -335,19 +439,33 @@ void LayerTestsCommon::LoadNetwork() {
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
 
-void LayerTestsCommon::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void LayerTestsCommon::GenerateInputs() {
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
-    for (const auto& param : function->get_parameters()) {
+    const auto& functionParams = function->get_parameters();
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
 
         const auto& info = infoIt->second;
         auto blob = GenerateInput(*info);
-        inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
+    }
+}
+
+void LayerTestsCommon::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+
+    const auto& inputsInfo = executableNetwork.GetInputsInfo();
+    const auto& functionParams = function->get_parameters();
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto& info = infoIt->second;
+        auto blob = inputs[i];
+        inferRequest.SetBlob(info->name(), blob);
     }
     if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
         configuration.count(InferenceEngine::PluginConfigParams::YES)) {
@@ -422,11 +540,7 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
 
 void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
-    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-        const auto &expected = expectedOutputs[outputIndex];
-        const auto &actual = actualOutputs[outputIndex];
-        Compare(expected, actual);
-    }
+    Compare(expectedOutputs, actualOutputs, threshold);
 }
 
 void LayerTestsCommon::Validate() {

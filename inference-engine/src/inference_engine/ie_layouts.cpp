@@ -325,7 +325,7 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
     case Layout::HWC:
         checkDims(dims.size(), 3);
         l_order = {1, 2, 0};
-        l_dims = dims;
+        l_dims = {dims[1], dims[2], dims[0]};
         break;
     case Layout::CN:
         checkDims(dims.size(), 2);

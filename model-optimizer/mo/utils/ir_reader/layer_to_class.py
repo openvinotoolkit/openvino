@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -281,6 +281,35 @@ postprocessing_op_nodes = {
 }
 
 
+def restore_tensor_names(op: Node):
+    for out_port in op.ports:
+        # op.ports is our internal attribute, dictionary, where keys are numbers of output ports
+        # and values are tuples with shape and tensor name:
+        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name),
+        #  out_port_idx_2: (out_port_idx_2_shape, out_port_idx_2_tensor_name)}
+        out_tensor_names = op.ports[out_port][1]
+
+        # handle Constant operations with old style output port numbering
+        if op.soft_get('type') == 'Const':
+            assert len(op.ports) == 1, 'Something wrong with Constant node: {}, wrong number ' \
+                                       'of output ports: {}!'.format(op.soft_get('name'), len(op.ports))
+            out_port = 0
+
+        out_port = out_port - len(op.in_nodes())
+
+        if out_tensor_names is not None:
+            # handle tensor names with commas and add them to dictionary as separate items
+            if out_tensor_names.find(',') >= 0:
+                str_to_replace = '<comma_in_tensor_name>'
+                out_tensor_names = (out_tensor_names.replace('\\,', str_to_replace)).split(',')
+                op.out_node(out_port)['fw_tensor_debug_info'] = []
+                for out_tensor_name in out_tensor_names:
+                    out_tensor_name = out_tensor_name.replace(str_to_replace, ',')
+                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_port, out_tensor_name))
+            else:
+                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_port, out_tensor_names)]
+
+
 def copy_graph_with_ops(graph: Graph) -> Graph:
     """
     Function to copy graph and apply extenders to appropriate nodes
@@ -342,6 +371,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
+        restore_tensor_names(op)
+
+        # operations postprocessing with some special types
         if op.soft_get('type') in postprocessing_op_nodes:
             postprocessing_op_nodes[op.type](op)
 

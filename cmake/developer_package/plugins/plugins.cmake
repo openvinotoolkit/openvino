@@ -55,7 +55,7 @@ function(ie_add_plugin)
     add_library(${IE_PLUGIN_NAME} MODULE ${input_files})
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
+    ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
                            FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
     if(TARGET IE::inference_engine_plugin_api)
@@ -65,7 +65,7 @@ function(ie_add_plugin)
     endif()
 
     if(WIN32)
-        set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+        set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_PLUGIN_NAME})
     endif()
 
     set(custom_filter "")
@@ -75,10 +75,21 @@ function(ie_add_plugin)
 
     add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
 
+    # check that plugin with such name is not registered
+
+    foreach(plugin_entry IN LISTS PLUGIN_FILES)
+        string(REPLACE ":" ";" plugin_entry "${plugin_entry}")
+        list(GET plugin_entry -1 library_name)
+        list(GET plugin_entry 0 plugin_name)
+        if(plugin_name STREQUAL "${IE_PLUGIN_DEVICE_NAME}" AND
+           NOT library_name STREQUAL ${IE_PLUGIN_NAME})
+            message(FATAL_ERROR "${IE_PLUGIN_NAME} and ${library_name} are both registered as ${plugin_name}")
+        endif()
+    endforeach()
+
     # append plugin to the list to register
 
     list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
-    list(REMOVE_DUPLICATES PLUGIN_FILES)
     set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
 
     add_dependencies(ie_plugins ${IE_PLUGIN_NAME})

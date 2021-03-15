@@ -12,7 +12,6 @@
 #include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
 #include "nodes/mkldnn_memory_node.hpp"
-#include "bf16transformer.h"
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -43,7 +42,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
-    _name{network.getName()} {
+    _name{network.getName()},
+    _numaNodesWeights(numaNodesWeights) {
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
 
     // we are cloning network if we have statistics and we can transform network.
@@ -54,25 +54,47 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
         // BF16 + INT8 or BF16 + BIN.
         bool isFloatModel = true;
-        CNNNetworkIterator i(network);
-        while (i != CNNNetworkIterator()) {
-            if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
+        CNNNetworkIterator iter(network);
+        while (iter != CNNNetworkIterator()) {
+            if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
                 isFloatModel = false;
                 break;
             }
-            i++;
+            iter++;
         }
 
+        auto changePrecisionBF16 = [&](Precision current, Precision target) {
+            InputsDataMap inputs = _clonedNetwork.getInputsInfo();
+            OutputsDataMap outputs = _clonedNetwork.getOutputsInfo();
+            CNNNetworkIterator iter(_clonedNetwork);
+            while (iter != CNNNetworkIterator()) {
+                //  check, if memory output node needs to be transformed
+                if (current == Precision::FP32 &&
+                    (*iter)->type == "Memory" && (*iter)->outData.size() == 0 &&
+                    (*iter)->insData[0].lock()->getPrecision() == current) {
+                    (*iter)->insData[0].lock()->setPrecision(target);
+                }
+
+                for (size_t o = 0; o < (*iter)->outData.size(); o++) {
+                    if (inputs.find((*iter)->outData[o]->getName()) == inputs.end()
+                        && outputs.find((*iter)->outData[o]->getName()) == outputs.end()
+                        && !CaselessEq<std::string>()((*iter)->type, "const")
+                        && (*iter)->outData[o]->getPrecision() == current) {
+                        (*iter)->outData[o]->setPrecision(target);
+                    }
+                }
+                iter++;
+            }
+        };
+
         if (with_cpu_x86_avx512_core() && isFloatModel) {
-            BF16Transformer bf16Transformer;
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
-            // Otherwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
+            // Otherwise, only layers marked as BF16 in '_clonedNetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
             if (cfg.enforceBF16 == true)
-                bf16Transformer.convertToBFloat16(_clonedNetwork);
+                changePrecisionBF16(Precision::FP32, Precision::BF16);
         } else {
-            BF16Transformer bf16Transformer;
-            bf16Transformer.convertToFloat(_clonedNetwork);
+            changePrecisionBF16(Precision::BF16, Precision::FP32);
         }
     }
 
@@ -218,33 +240,25 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         _callbackExecutor = _taskExecutor;
     }
 
-    _graphs = decltype(_graphs) {[&] {
-        // TODO: Remove `cloneNet` to `localNetwork` when `MKLDNNGraph::CreateGraph`
-        //       is fixed and does not change content of network passed (CVS-26420)
-        auto localNetwork = cloneNetwork(_clonedNetwork);
-
-        auto graph = std::make_shared<MKLDNNGraph>();
-        {
-            std::unique_lock<std::mutex> lock{_cfgMutex};
-            graph->setConfig(_cfg);
+    int streams = std::max(1, _cfg.streamExecutorConfig._streams);
+    std::vector<Task> tasks; tasks.resize(streams);
+    _graphs.resize(streams);
+    if (_cfg.streamExecutorConfig._streams != 0) {
+        for (auto&& task : tasks) {
+            task = [this] {
+                MKLDNNExecNetwork::GetGraph();
+            };
         }
-        int numaNode = 0;
-        auto* streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
-        if (nullptr != streamExecutor) {
-            numaNode = streamExecutor->GetNumaNodeId();
-        }
-
-        graph->CreateGraph(localNetwork, extensionManager, numaNodesWeights[numaNode]);
-        return graph;
-    }};
-
-    _taskExecutor->runAndWait({std::thread::hardware_concurrency(), [this] {_graphs.local();}});
+        _taskExecutor->runAndWait(tasks);
+    } else {
+        MKLDNNExecNetwork::GetGraph();
+    }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     if (_graphs.size() == 1) {
-        for (auto &node : _graphs.begin()->get()->GetNodes()) {
+        for (auto &node : GetGraph()._graph.GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
                 auto state_store = memoryNode->getStore();
@@ -261,13 +275,51 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
 }
 
+MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
+    int streamId = 0;
+    int numaNodeId = 0;
+    auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
+    if (nullptr != streamsExecutor) {
+        streamId = streamsExecutor->GetStreamId();
+        numaNodeId = streamsExecutor->GetNumaNodeId();
+    }
+    auto graphLock = Graph::Lock(_graphs[streamId % _graphs.size()]);
+    if (!graphLock._graph.IsReady()) {
+        std::exception_ptr exception;
+        auto makeGraph = [&] {
+            try {
+                auto localNetwork = cloneNetwork(_clonedNetwork);
+                {
+                    std::lock_guard<std::mutex> lock{_cfgMutex};
+                    graphLock._graph.setConfig(_cfg);
+                }
+                graphLock._graph.CreateGraph(localNetwork, extensionManager, _numaNodesWeights[numaNodeId]);
+            } catch(...) {
+                exception = std::current_exception();
+            }
+        };
+        if (nullptr != streamsExecutor) {
+            streamsExecutor->Execute(makeGraph);
+        } else {
+            makeGraph();
+        }
+        if (exception) {
+            std::rethrow_exception(exception);
+        }
+    }
+    return graphLock;
+}
+
 void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
     {
         std::lock_guard<std::mutex> lock{_cfgMutex};
         _cfg.readProperties(properties);
     }
-    for (auto g : _graphs) {
-        g->setProperty(properties);
+    for (auto& g : _graphs) {
+        auto graphLock = Graph::Lock(g);
+        if (graphLock._graph.IsReady()) {
+            graphLock._graph.setProperty(properties);
+        }
     }
 }
 
@@ -279,16 +331,16 @@ InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
 
-    return _graphs.begin()->get()->dump();
+    return GetGraph()._graph.dump();
 }
 
 Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
-    Config engConfig = _graphs.begin()->get()->getProperty();
-    auto it = engConfig._config.find(name);
-    if (it != engConfig._config.end()) {
-        return it->second;
+    Config engConfig = const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty();
+    auto option = engConfig._config.find(name);
+    if (option != engConfig._config.end()) {
+        return option->second;
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }
@@ -299,7 +351,8 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         THROW_IE_EXCEPTION << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, _graphs.begin()->get()->GetName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME,
+                               const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.dump().getName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
@@ -309,12 +362,12 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : _graphs.begin()->get()->getProperty()._config) {
+        for (auto && key : const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = _graphs.begin()->get()->getProperty();
+        Config engConfig = const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);

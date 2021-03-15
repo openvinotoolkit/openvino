@@ -53,6 +53,7 @@ limitations under the License.
                             <tab type="user" title="Convert ONNX* Faster R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN"/>
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
                             <tab type="user" title="Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
+                            <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_QuartzNet"/>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
                         <tab type="user" title="Cutting off Parts of a Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model"/>
@@ -81,6 +82,8 @@ limitations under the License.
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                <tab type="user" title="opset7 Specification" url="@ref openvino_docs_ops_opset7"/>
+                <tab type="user" title="opset6 Specification" url="@ref openvino_docs_ops_opset6"/>
                 <tab type="user" title="opset5 Specification" url="@ref openvino_docs_ops_opset5"/>
                 <tab type="user" title="opset4 Specification" url="@ref openvino_docs_ops_opset4"/>
                 <tab type="user" title="opset3 Specification" url="@ref openvino_docs_ops_opset3"/>
@@ -143,6 +146,7 @@ limitations under the License.
                 <tab type="user" title="GatherElements-6" url="@ref openvino_docs_ops_movement_GatherElements_6"/>
                 <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
+                <tab type="user" title="Gelu-7" url="@ref openvino_docs_ops_activation_GELU_7"/>
                 <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
                 <tab type="user" title="Greater-1" url="@ref openvino_docs_ops_comparison_Greater_1"/>
                 <tab type="user" title="GroupConvolutionBackpropData-1" url="@ref openvino_docs_ops_convolution_GroupConvolutionBackpropData_1"/>
@@ -214,6 +218,7 @@ limitations under the License.
                 <tab type="user" title="RNNSequence-5" url="@ref openvino_docs_ops_sequence_RNNSequence_5"/>
                 <tab type="user" title="ROIAlign-3" url="@ref openvino_docs_ops_detection_ROIAlign_3"/>
                 <tab type="user" title="ROIPooling-1" url="@ref openvino_docs_ops_detection_ROIPooling_1"/>
+                <tab type="user" title="Roll-7" url="@ref openvino_docs_ops_movement_Roll_7"/>
                 <tab type="user" title="Round-5" url="@ref openvino_docs_ops_arithmetic_Round_5"/>
                 <tab type="user" title="ScatterElementsUpdate-3" url="@ref openvino_docs_ops_movement_ScatterElementsUpdate_3"/>
                 <tab type="user" title="ScatterNDUpdate" url="@ref openvino_docs_ops_movement_ScatterNDUpdate_3"/>
@@ -282,6 +287,7 @@ limitations under the License.
                 <tab type="usergroup" title="Utilities to Validate Your Converted Model" url="@ref openvino_inference_engine_tools_cross_check_tool_README">
                     <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
                 </tab>
+                <tab type="user" title="Introduction to OpenVINO state API" url="@ref openvino_docs_IE_DG_network_state_intro"/>
                 <tab type="usergroup" title="Supported Devices" url="@ref openvino_docs_IE_DG_supported_plugins_Supported_Devices">
                     <tab type="usergroup" title="GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CL_DNN">
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>

@@ -39,7 +39,6 @@
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
 #include "default_opset.hpp"
-#include "exceptions.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/constant_folding.hpp"
@@ -86,6 +85,96 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box)
     test_case.add_input<float>(B);
     test_case.add_expected_output<float>(Shape{1, 2, 32}, output);
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    std::vector<float> A{15.0};
+    std::vector<float> B{10.0};
+    std::vector<float> output = {
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2,
+    };
+    test_case.add_input<float>(A);
+    test_case.add_input<float>(B);
+    test_case.add_expected_output<float>(Shape{1, 2, 16}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/priorbox_clustered_most_attrs_default.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    std::vector<float> A(1 * 1 * 2 * 1);
+    std::iota(std::begin(A), std::end(A), 0.0f);
+    std::vector<float> B(1 * 1 * 3 * 3);
+    std::iota(std::begin(B), std::end(B), 0.0f);
+    std::vector<float> output = {-0.1666666716337203979,
+                                 -0.1666666716337203979,
+                                 0.1666666716337203979,
+                                 0.1666666716337203979,
+                                 -0.1666666716337203979,
+                                 0.3333333432674407959,
+                                 0.1666666716337203979,
+                                 0.6666666865348815918,
+                                 0.1,
+                                 0.1,
+                                 0.2,
+                                 0.2,
+                                 0.1,
+                                 0.1,
+                                 0.2,
+                                 0.2};
+    test_case.add_input<float>(A);
+    test_case.add_input<float>(B);
+    test_case.add_expected_output<float>(Shape{1, 2, 8}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/priorbox_clustered_first_input_bad_shape.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string("Only 4D inputs are supported. First input rank: 5 (should be 4)"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/priorbox_clustered_second_input_bad_shape.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string("Only 4D inputs are supported. Second input rank: 5 (should be 4)"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
@@ -138,6 +227,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
         -2.6376252,  -0.45544672, 1.726732,  3.9089108,  7.309307,  9.927921,  12.546536, 15.165151,
         -3.6926756,  -0.6376257,  2.4174247, 5.472475,   9.745743,  13.237228, 16.728714, 20.2202,
     };
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm_5d.prototxt"));
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    Shape shape{2, 8, 1, 2, 1};
+    int size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0);
+    std::vector<float> output = {-0.34163546562, 0.55278813838, 2.89442372322,  4.68327093124,
+                                 -1.02490639686, 1.65836453437, 5.78884744644,  9.36654186248,
+                                 -1.70817732810, 2.76394081115, 8.68327140808,  14.04981231689,
+                                 -2.39144825935, 3.86951708793, 11.57769489288, 18.73308372497,
+                                 -0.34163546562, 0.55278813838, 2.89442372322,  4.68327093124,
+                                 -1.02490639686, 1.65836453437, 5.78884744644,  9.36654186248,
+                                 -1.70817732810, 2.76394081115, 8.68327140808,  14.04981231689,
+                                 -2.39144825935, 3.86951708793, 11.57769489288, 18.73308372497};
 
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(shape, output);

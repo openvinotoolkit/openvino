@@ -9,6 +9,7 @@
 #include <algorithm>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
+#include "common/cpu_convert.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -118,7 +119,8 @@ namespace {
         return std::make_tuple(true, dim);
     }
 
-    bool isCompatibleTensors(const InferenceEngine::TensorDesc &lhs, const InferenceEngine::TensorDesc &rhs) {
+    bool isCompatibleTensors(const InferenceEngine::TensorDesc &lhs, const InferenceEngine::TensorDesc &rhs,
+                             bool isNeedPrecValid = true) {
         auto const &lhsBlockingDesc = lhs.getBlockingDesc();
         auto const &rhsBlockingDesc = rhs.getBlockingDesc();
 
@@ -127,13 +129,13 @@ namespace {
 
         std::tie(lhsDefaultStrides, lhsSize) = isDefaultStrides(lhsBlockingDesc.getStrides(), lhs.getDims());
         std::tie(rhsDefaultStrides, rhsSize) = isDefaultStrides(rhsBlockingDesc.getStrides(), rhs.getDims());
+        bool isCompatTensors = lhsSize == rhsSize
+                               && lhsDefaultStrides
+                               && rhsDefaultStrides
+                               && isDefaultOrder(lhsBlockingDesc.getOrder())
+                               && isDefaultOrder(rhsBlockingDesc.getOrder());
 
-        return lhs.getPrecision() == rhs.getPrecision()
-                && lhsSize == rhsSize
-                && lhsDefaultStrides
-                && rhsDefaultStrides
-                && isDefaultOrder(lhsBlockingDesc.getOrder())
-                && isDefaultOrder(rhsBlockingDesc.getOrder());
+        return (isNeedPrecValid ? lhs.getPrecision() == rhs.getPrecision() : true) && isCompatTensors;
     }
 }   // namespace
 
@@ -159,51 +161,12 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
         int8_t *dstData = dstBlob->buffer();
 
         cpu_memcpy_s(dstData, dstSize, srcData, constBlob->byteSize());
+    } else if (constBlob->getTensorDesc().getPrecision() != dstBlob->getTensorDesc().getPrecision() &&
+               isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc(), false)) {
+        cpu_convert(constBlob->cbuffer().as<const void *>(), dstBlob->buffer().as<void *>(),
+                    constBlob->getTensorDesc().getPrecision(), dstBlob->getTensorDesc().getPrecision(), dstBlob->size());
     } else {
-        if (constBlob->size() != dstBlob->size()) {
-            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
-        }
-
-        switch (precision.size()) {
-            case 1: {
-                const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
-                int8_t *dstData = dstBlob->buffer();
-
-                for (size_t i = 0; i < constBlob->size(); i++)
-                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
-
-                break;
-            }
-            case 2: {
-                const int16_t *srcData = constBlob->cbuffer().as<int16_t *>();
-                int16_t *dstData = dstBlob->buffer();
-
-                for (size_t i = 0; i < constBlob->size(); i++)
-                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
-
-                break;
-            }
-            case 4: {
-                const int32_t *srcData = constBlob->cbuffer().as<int32_t *>();
-                int32_t *dstData = dstBlob->buffer();
-
-                for (size_t i = 0; i < constBlob->size(); i++)
-                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
-
-                break;
-            }
-            case 8: {
-                const int64_t *srcData = constBlob->cbuffer().as<int64_t *>();
-                int64_t *dstData = dstBlob->buffer();
-
-                for (size_t i = 0; i < constBlob->size(); i++)
-                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
-
-                break;
-            }
-            default:
-                THROW_IE_EXCEPTION << "Unsupported precision for node " << getName();
-        }
+        THROW_IE_EXCEPTION << "Input node with name: '" << getName() << "' has incompatible tensors";
     }
 }
 

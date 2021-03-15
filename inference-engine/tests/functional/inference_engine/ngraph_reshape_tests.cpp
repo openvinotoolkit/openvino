@@ -30,7 +30,6 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "generic_ie.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 
@@ -260,8 +259,6 @@ public:
 
     void Unload() noexcept override {}
 
-    void Release() noexcept override {}
-
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
         if (opsets.empty()) {
@@ -426,8 +423,6 @@ public:
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
 
     void Unload() noexcept override {};
-
-    void Release() noexcept override {}
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;

@@ -123,12 +123,12 @@ class GroupNormToMVN(MiddleReplacementPattern):
         mvn_node.in_port(0).connect(reshape_for_mvn_node.out_port(0))
 
         # MVN axes
-        _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0), return_as_a_scalar=True)
+        _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0).get_connection().get_source(),
+                                                   return_as_a_scalar=True)
         rng = create_op_with_const_inputs(graph, Range, {0: int64_array(1), 2: int64_array(1)},
                                           {'name': group_norm_node.name + '/Range', 'output_type': np.int64})
         mvn_node.in_port(1).connect(rng.out_port(0))
         rng.in_port(1).connect(rank.out_port(0))
-        mvn_node.in_port(0).get_connection().add_destination(rank.in_port(0))
 
         # reshape to the initial shape before multiplying with gamma and adding beta
         reshape_to_initial_shape_node = Reshape(graph, {}).create_node()

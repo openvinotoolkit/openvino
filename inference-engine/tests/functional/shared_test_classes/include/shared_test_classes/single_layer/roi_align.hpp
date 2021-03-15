@@ -23,7 +23,9 @@ class ROIAlignLayerTest : public testing::WithParamInterface<roialignParams>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<roialignParams> obj);
-    void Infer() override;
+    static void fillCoordTensor(std::vector<float>& coords, int height, int width,
+                                float spatialScale, int pooledRatio, int pooledH, int pooledW);
+    static void fillIdxTensor(std::vector<int>& idx, int batchSize);
 
 protected:
     void SetUp() override;

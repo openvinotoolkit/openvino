@@ -267,16 +267,8 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        if ((m_node_type_name == "GenericIE") &&
-            (name == "__generic_ie_type__")) {
-            // __generic_ie_type__  in GenericIE should not be serialized as a
-            // <data> since it's purpose is to hold name of the layer type
-            // it is a WA to not introduce dependency on plugin_api library
-            m_node_type_name = adapter.get();
-        } else {
-            m_xml_node.append_attribute(name.c_str())
-                .set_value(adapter.get().c_str());
-        }
+        m_xml_node.append_attribute(name.c_str())
+            .set_value(adapter.get().c_str());
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<int64_t>& adapter) override {
@@ -400,9 +392,10 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 6>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 7>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
-        ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6()};
+        ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
+        ngraph::get_opset7()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
@@ -544,15 +537,18 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 
         // dynamic_to_static function converts dynamic dimensions to static using
         // upperbound (get_max_length) dimension value.
-        auto dynamic_to_static = [](const PartialShape & shape) -> PartialShape {
+        auto dynamic_to_static = [&op](const PartialShape & shape) -> PartialShape {
             if (shape.is_static() || shape.rank().is_dynamic()) {
                 return shape;
             }
-            auto out_shape = PartialShape::dynamic(shape.rank());
-            for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
-                const auto & in_dim = shape[i];
-                out_shape[i] = (in_dim.is_dynamic() ? Dimension(in_dim.get_max_length()) : in_dim);
-            }
+            std::vector<Dimension> out_shape;
+            std::transform(std::begin(shape), std::end(shape),
+                           std::back_inserter(out_shape),
+                           [](const Dimension& d) -> Dimension {
+                               return d.get_max_length();
+                           });
+            NGRAPH_CHECK(PartialShape(out_shape).is_static(),
+                         "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
