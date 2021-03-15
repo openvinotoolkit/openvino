@@ -6,7 +6,7 @@
 
 To download the pre-trained model or train model by yourself, refer to the 
 [instruction](https://github.com/weijun88/F3Net/blob/master/README.md) in F3Net model repository. 
-Here are the instructions on how to obtain F3Net in ONNX* format.
+To obtain F3Net in ONNX* format you need to put script with next code in `src` folder of model repository and run it:
 ```python
 import torch
 
