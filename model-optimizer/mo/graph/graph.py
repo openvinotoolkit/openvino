@@ -1110,6 +1110,7 @@ def get_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
     Also there are cases when graph transformations lead to mismatch of tensor name
     and input node, so manual attribute change is needed.
     This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
     """
     for edge_idx in node1.out_edges():
         edge = node1.out_edge(edge_idx)
@@ -1129,6 +1130,7 @@ def set_edge_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, n
     Also there are cases when graph transformations lead to mismatch of tensor name
     and input node, so manual attribute change is needed.
     This method should only be used during the front phase.
+    And it is applicable only for cases when there is just one edge between two given nodes.
     """
     for edge_idx in node1.out_edges():
         edge = node1.out_edge(edge_idx)

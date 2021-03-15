@@ -25,7 +25,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
-from mo.graph.graph import Node, Graph, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
+from mo.graph.graph import Node, Graph
 from mo.ops.broadcast import Broadcast
 from mo.ops.concat import Concat
 from mo.ops.const import Const

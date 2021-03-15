@@ -23,7 +23,7 @@ import numpy as np
 from extensions.ops.elementwise import Mul
 from extensions.ops.split import AttributedVariadicSplit
 from mo.front.common.partial_infer.utils import float_array
-from mo.front.extractor import add_fake_outputs
+from mo.front.extractor import add_outputs_identity
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
@@ -181,7 +181,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
     output_layers = graph.nodes - used_layers
-    add_fake_outputs(graph, output_layers, lambda g, output, fake_output: g.create_edge(
+    add_outputs_identity(graph, output_layers, lambda g, output, fake_output: g.create_edge(
         Node(g, output), Node(g, fake_output), 0, 0, create_edge_attrs(output, fake_output, output)))
 
 
@@ -213,7 +213,7 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
     output_layers = graph.nodes - used_layers
-    add_fake_outputs(graph, output_layers, lambda g, output, fake_output: g.create_edge(
+    add_outputs_identity(graph, output_layers, lambda g, output, fake_output: g.create_edge(
         Node(g, output), Node(g, fake_output), 0, 0, create_edge_attrs(output, fake_output, output)))
 
 

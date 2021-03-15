@@ -33,14 +33,14 @@ class OutputCut(FrontReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         add_output_ops(graph, graph.graph['packed_outputs'], inputs=graph.graph['user_shapes'])
 
-        # For keeping tensor names information for output nodes fake outputs
-        # are added to graph. In the following code fake outputs are removed
+        # For keeping tensor names information for output nodes fake outputs are added
+        # to graph during the model loading. In the following code fake outputs are removed
         # and tensor names information is moved to output->Result edge.
         for node in graph.get_op_nodes(needs_removal=True):
             fw_info = None
             in_node = None
-            for idx in node.in_edges():
-                node_idx = node.in_edge(idx)['in']
+            for in_port_idx in node.in_edges():
+                node_idx = node.in_edge(in_port_idx)['in']
                 if node_idx in node.in_nodes():
                     in_node = node.in_node(node_idx)
                     fw_info_value = get_edge_attribute_between_nodes(in_node, node, 'fw_tensor_debug_info')

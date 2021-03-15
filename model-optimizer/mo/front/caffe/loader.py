@@ -24,7 +24,7 @@ import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
-from mo.front.extractor import add_fake_outputs
+from mo.front.extractor import add_outputs_identity
 from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
@@ -313,8 +313,8 @@ def caffe_pb_to_nx(graph, proto, model):
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
     all_blobs = set(blob_producers.keys())
-    add_fake_outputs(graph, all_blobs - used_blobs, add_edge_caffe,
-                     {'blob_producers': blob_producers, 'dst_port': 0})
+    add_outputs_identity(graph, all_blobs - used_blobs, add_edge_caffe,
+                         {'blob_producers': blob_producers, 'dst_port': 0})
 
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +
@@ -329,7 +329,7 @@ def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: di
     src_layer = blob_producers[bottom][0]
     src_port = blob_producers[bottom][1]
     edge_attrs = {
-        'out': blob_producers[bottom][1],
+        'out': src_port,
         'in': dst_port,
         'name': bottom,
         # debug anchor for a framework name, out port and tensor name

@@ -46,7 +46,7 @@ from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
     mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
-from mo.graph.graph import Graph, Node, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
+from mo.graph.graph import Graph, Node
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
