@@ -35,7 +35,7 @@ namespace ngraph
             {
                 for (size_t idx = 0; idx < in_spatial_shape.size(); idx++)
                 {
-                    size_t in_padded_dim = (in_spatial_shape[idx] * strides[idx] - 1) -
+                    size_t in_padded_dim = (in_spatial_shape[idx] - 1) * strides[idx] -
                                            pads_begin[idx] - pads_end[idx];
                     size_t filter_dilated_dim = dilations[idx] * (f_spatial_shape[idx] - 1) + 1;
                     size_t out_spatial_dim = in_padded_dim + filter_dilated_dim;
