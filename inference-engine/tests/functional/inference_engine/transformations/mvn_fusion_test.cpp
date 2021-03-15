@@ -44,7 +44,7 @@ TEST(TransformationTests, MVNFusionTestOutside) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionOutsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -84,7 +84,7 @@ TEST(TransformationTests, MVNFusionTestReuseSub) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionOutsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -125,7 +125,7 @@ TEST(TransformationTests, MVNFusionTestWithConvert) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionOutsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -164,7 +164,7 @@ TEST(TransformationTests, MVNFusionTestSqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionOutsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -202,7 +202,7 @@ TEST(TransformationTests, MVNFusionTestAltDiv) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionOutsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -245,7 +245,7 @@ TEST(TransformationTests, MVNFusionTestInsideSqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionInsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -285,7 +285,7 @@ TEST(TransformationTests, MVNFusionTestReuseSubInsideSqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionInsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -326,7 +326,7 @@ TEST(TransformationTests, MVNFusionTestWithConvertInsideSqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionInsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -365,7 +365,7 @@ TEST(TransformationTests, MVNFusionTestSqrtInsideSqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionInsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -403,7 +403,7 @@ TEST(TransformationTests, MVNFusionTestAltDivInsideSqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNFusionInsideSqrt>();
+        manager.register_pass<ngraph::pass::MVNFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
