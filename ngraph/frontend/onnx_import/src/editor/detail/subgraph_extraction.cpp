@@ -87,9 +87,9 @@ namespace
             }
         }
 
-        throw ngraph::ngraph_error{"Source node not found in the graph for node: " +
-                                   std::to_string(current_node_idx) + " and input name: " +
-                                   input_name};
+        throw ngraph::ngraph_error{
+            "Source node not found in the graph for node: " + std::to_string(current_node_idx) +
+            " and input name: " + input_name};
     }
 
     /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred

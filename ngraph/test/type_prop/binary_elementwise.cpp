@@ -179,7 +179,6 @@ void test_binary_logical(std::string /* node_type */,
         {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
-
     };
 
     test_binary_differ_arguments_view_element_types(tv0_2_4_param_0, tv0_2_4_param_2);

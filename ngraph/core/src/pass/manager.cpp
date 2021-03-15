@@ -83,9 +83,7 @@ pass::Manager::Manager()
 {
 }
 
-pass::Manager::~Manager()
-{
-}
+pass::Manager::~Manager() {}
 
 pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config)
     : m_pass_config(std::move(pass_config))

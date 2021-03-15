@@ -52,9 +52,9 @@ namespace ngraph
                 UnsupportedVersion(const std::string& name,
                                    std::int64_t version,
                                    const std::string& domain)
-                    : ngraph_error{"Unsupported operator version: " +
-                                   (domain.empty() ? "" : domain + ".") + name + ":" +
-                                   std::to_string(version)}
+                    : ngraph_error{
+                          "Unsupported operator version: " + (domain.empty() ? "" : domain + ".") +
+                          name + ":" + std::to_string(version)}
                 {
                 }
             };

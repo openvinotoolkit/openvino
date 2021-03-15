@@ -3,14 +3,14 @@ on: [push, pull_request]
 
 jobs:
   nGraph:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
 
-      - name: Install clang-format-3.9
-        run: sudo apt --assume-yes install clang-format-3.9
+      - name: Install clang-format-9
+        run: sudo apt --assume-yes install clang-format-9
 
       - name: Install dependencies
         run: |

@@ -272,9 +272,9 @@ void onnx_import::ONNXModelEditor::set_input_types(
         }
         else
         {
-            throw ngraph_error("Could not set a custom element type for input: " +
-                               input_desc.first +
-                               ". Such input was not found in the original ONNX model.");
+            throw ngraph_error(
+                "Could not set a custom element type for input: " + input_desc.first +
+                ". Such input was not found in the original ONNX model.");
         }
     }
 }

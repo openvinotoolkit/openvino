@@ -135,6 +135,7 @@ public:
     /// \brief Get the version of the backend
     /// The default value of 0.0.0 is chosen to be a parsable version number
     virtual std::string get_version() const { return "0.0.0"; }
+
 private:
     // mutex to modify s_backend_shared_library_search_directory thread safe
     static std::mutex m_mtx;

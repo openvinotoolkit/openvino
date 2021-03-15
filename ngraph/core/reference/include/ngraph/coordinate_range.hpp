@@ -154,6 +154,7 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
+
             private:
                 const Shape m_source_shape;
                 const CoordinateBounds m_bounds;
@@ -200,6 +201,7 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
+
             private:
                 const Shape m_source_shape;
                 const std::vector<size_t> m_memory_strides;

@@ -81,6 +81,7 @@ namespace ngraph
                 virtual void post_validate_and_infer_types() override;
 
                 bool has_groups_in_filters() const { return m_groups_in_filters; }
+
             protected:
                 Strides m_window_movement_strides;
                 Strides m_window_dilation_strides;

@@ -108,6 +108,7 @@ namespace ngraph
         }
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Position>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         Position& m_ref;
     };

@@ -163,8 +163,8 @@ void op::DetectionOutput::validate_and_infer_types()
                 this,
                 proposals_1st_dim == 1 || proposals_1st_dim == num_images_val,
                 "Proposals' first dimension is must be equal to either batch size (" +
-                    std::to_string(num_images_val) + ") or 1. Got: " +
-                    std::to_string(proposals_1st_dim) + ".");
+                    std::to_string(num_images_val) +
+                    ") or 1. Got: " + std::to_string(proposals_1st_dim) + ".");
         }
         if (proposals_pshape[1].is_static())
         {

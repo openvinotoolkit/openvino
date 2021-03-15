@@ -70,7 +70,6 @@ namespace ngraph
                         size_t output_index,
                         T& prev,
                         std::vector<std::pair<size_t, T>>& tensor_vec) -> void {
-
                     tensor_vec[input_index].second = prev + tensor_vec[input_index].second;
                     out[tensor_vec[output_index].first] = tensor_vec[input_index].second;
 

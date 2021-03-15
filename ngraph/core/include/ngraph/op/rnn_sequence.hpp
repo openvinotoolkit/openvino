@@ -58,6 +58,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 op::RecurrentSequenceDirection get_direction() const { return m_direction; }
+
             protected:
                 op::RecurrentSequenceDirection m_direction;
             };

@@ -127,10 +127,9 @@ namespace ngraph
                 , m_clip_threshold{node.get_attribute_value<float>("clip", 0.f)}
                 // Recurrent Operators which have more activation functions should override
                 // this value in constructor of respective Attributes' struct.
-                , m_activations{node.get_attribute_value<std::vector<std::string>>("activations",
-                                                                                   {"tanh"})}
-                // Default values for activation functions are same as for corresponding
-                // ONNX operator.
+                , m_activations{node.get_attribute_value<std::vector<std::string>>(
+                      "activations", {"tanh"})} // Default values for activation functions are same
+                                                // as for corresponding ONNX operator.
                 , m_activations_alpha{node.get_attribute_value<std::vector<float>>(
                       "activation_alpha", std::vector<float>{})}
                 , m_activations_beta{node.get_attribute_value<std::vector<float>>(

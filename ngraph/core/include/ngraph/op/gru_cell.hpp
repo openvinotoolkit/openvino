@@ -153,6 +153,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool get_linear_before_reset() const { return m_linear_before_reset; }
+
             private:
                 /// brief Add and initialize bias input to all zeros.
                 void add_default_bias_input();

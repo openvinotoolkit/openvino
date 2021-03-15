@@ -50,6 +50,7 @@ namespace ngraph
         }
         constexpr const char* get_ptr(size_t offset) const { return &m_string[offset]; }
         constexpr size_t size() const { return m_size; }
+
     private:
         const char* m_string;
         size_t m_size;
@@ -57,8 +58,9 @@ namespace ngraph
 
     constexpr const char* find_last(ConstString s, size_t offset, char ch)
     {
-        return offset == 0 ? s.get_ptr(0) : (s[offset] == ch ? s.get_ptr(offset + 1)
-                                                             : find_last(s, offset - 1, ch));
+        return offset == 0
+                   ? s.get_ptr(0)
+                   : (s[offset] == ch ? s.get_ptr(offset + 1) : find_last(s, offset - 1, ch));
     }
 
     constexpr const char* find_last(ConstString s, char ch)
@@ -89,6 +91,7 @@ namespace ngraph
         ~LogHelper();
 
         std::ostream& stream() { return m_stream; }
+
     private:
         std::function<void(const std::string&)> m_handler_func;
         std::stringstream m_stream;

@@ -253,9 +253,7 @@ void Node::invalidate_values()
         output.get_tensor().invalidate_values();
 }
 
-void Node::validate_and_infer_types()
-{
-}
+void Node::validate_and_infer_types() {}
 
 void Node::set_input_is_relevant_to_shape(size_t i, bool relevant)
 {

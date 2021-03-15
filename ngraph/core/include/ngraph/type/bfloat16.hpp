@@ -117,6 +117,7 @@ namespace ngraph
         }
 
         static uint16_t truncate(float x) { return static_cast<uint16_t>((cu32(x)) >> 16); }
+
     private:
         constexpr bfloat16(uint16_t x, bool)
             : m_value{x}

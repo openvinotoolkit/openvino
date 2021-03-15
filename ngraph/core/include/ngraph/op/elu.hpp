@@ -48,6 +48,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 double get_alpha() const { return m_alpha; }
+
             private:
                 double m_alpha;
             };

@@ -91,6 +91,7 @@ namespace ngraph
                 int64_t get_spatial_bins_y() const { return m_spatial_bins_y; }
                 float get_trans_std() const { return m_trans_std; }
                 int64_t get_part_size() const { return m_part_size; }
+
             private:
                 int64_t m_output_dim;
                 float m_spatial_scale;

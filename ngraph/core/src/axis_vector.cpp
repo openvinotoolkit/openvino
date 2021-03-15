@@ -45,13 +45,9 @@ ngraph::AxisVector::AxisVector(size_t n)
 {
 }
 
-ngraph::AxisVector::AxisVector()
-{
-}
+ngraph::AxisVector::AxisVector() {}
 
-ngraph::AxisVector::~AxisVector()
-{
-}
+ngraph::AxisVector::~AxisVector() {}
 
 ngraph::AxisVector& ngraph::AxisVector::operator=(const AxisVector& v)
 {

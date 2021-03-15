@@ -192,7 +192,9 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
     // /
     // block_size])
     case SpaceToDepthMode::BLOCKS_FIRST:
-    default: { axes_order.insert(axes_order.begin() + spatial_dims + 1, 1);
+    default:
+    {
+        axes_order.insert(axes_order.begin() + spatial_dims + 1, 1);
     }
     }
     std::vector<char> transposed_data(shape_size(data_shape) * elem_size);

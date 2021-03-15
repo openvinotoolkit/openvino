@@ -47,6 +47,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 int64_t get_axis() const { return m_axis; }
+
             private:
                 int64_t m_axis;
             };

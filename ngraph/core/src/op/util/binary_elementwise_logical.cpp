@@ -24,9 +24,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseLogical, "BinaryElementwiseLogical", 0);
 
-op::util::BinaryElementwiseLogical::BinaryElementwiseLogical()
-{
-}
+op::util::BinaryElementwiseLogical::BinaryElementwiseLogical() {}
 
 op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<Node>& arg0,
                                                              const Output<Node>& arg1,

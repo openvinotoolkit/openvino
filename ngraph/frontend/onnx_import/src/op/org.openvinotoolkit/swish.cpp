@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "default_opset.hpp"
-#include "default_opset.hpp"
 #include "ngraph/op/normalize_l2.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "utils/common.hpp"

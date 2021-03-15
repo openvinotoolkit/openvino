@@ -63,6 +63,7 @@ namespace ngraph
                 int get_spatial_bins_x() const { return m_spatial_bins_x; }
                 int get_spatial_bins_y() const { return m_spatial_bins_y; }
                 const std::string& get_mode() const { return m_mode; }
+
             private:
                 size_t m_output_dim;
                 size_t m_group_size;
