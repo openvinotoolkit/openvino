@@ -2,11 +2,12 @@
 
 [F3Net](https://github.com/weijun88/F3Net): Fusion, Feedback and Focus for Salient Object Detection.
 
-## Download the F3Net Model
+## Download and Convert the Model to ONNX*
 
-To download the pre-trained model or train model by yourself, refer to the 
-[instruction](https://github.com/weijun88/F3Net/blob/master/README.md) in F3Net model repository. 
-To obtain F3Net in ONNX* format you need to put script with next code in `src` folder of model repository and run it:
+To download the pre-trained model or train the model by yourself, refer to the 
+[instruction](https://github.com/weijun88/F3Net/blob/master/README.md) in the F3Net model repository. Firstly, 
+the model should be converted to ONNX\* format. Create and run the script with the following content in the `src` 
+directory of the model repository:
 ```python
 import torch
 
@@ -18,10 +19,9 @@ net = F3Net(cfg)
 image = torch.zeros([1, 3, 352, 352])
 torch.onnx.export(net, image, 'f3net.onnx', export_params=True, do_constant_folding=True, opset_version=11)
 ```
-This code produces ONNX* model file `f3net.onnx`. It was tested on commit eecace3adf1e8946b571a4f4397681252f9dc1b8 on
-master branch.
+The script generates the ONNX* model file f3net.onnx. The model conversion was tested with repository hash commit eecace3adf1e8946b571a4f4397681252f9dc1b8.
 
-## Convert ONNX* F3Net model to IR
+## Convert ONNX* F3Net Model to IR
 
 ```sh
 ./mo.py --input_model <MODEL_DIR>/f3net.onnx
