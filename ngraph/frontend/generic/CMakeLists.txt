@@ -19,6 +19,11 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 find_package(Protobuf REQUIRED IMPORTED)
+
+set(PROTOBUF_GENERATE_CPP_APPEND_PATH ON)
+file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/pdpd/*.proto)
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${proto_files})
+
 include_directories(${Protobuf_INCLUDE_DIRS})
 
 set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -31,10 +36,10 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 # Create shared library
-add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
+add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(ngraph::frontend_manager ALIAS frontend_manager)
 
-target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../tensorflow/include)
+target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../tensorflow/include ${CMAKE_CURRENT_BINARY_DIR})
 MESSAGE("HERE4: " ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(COMMAND ie_add_vs_version_file)
