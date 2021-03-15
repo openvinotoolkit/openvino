@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <regex>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
+
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -115,4 +117,104 @@ inline bool directoryExists(const std::string &path) {
     return false;
 }
 
+
+inline void directoryFileListRecursive(const std::string& name, std::vector<std::string>& file_list) {
+    struct CloseDir {
+        void operator()(DIR* d) const noexcept {
+            if (d) {
+                closedir(d);
+            }
+        }
+    };
+    using Dir = std::unique_ptr<DIR, CloseDir>;
+    Dir directory(opendir(name.c_str()));
+    struct dirent *entire;
+    if (directory) {
+        const std::string current_dir{"."};
+        const std::string parent_dir{".."};
+        while ((entire = readdir(directory.get())) != nullptr) {
+            if (entire->d_name == parent_dir || entire->d_name == current_dir) {
+                continue;
+            }
+            std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
+            if (directoryExists(path)) {
+                directoryFileListRecursive(path, file_list);
+            }
+            if (fileExists(path)) {
+                file_list.push_back(path);
+            }
+        }
+    }
+}
+
+inline int createDirectory(const std::string& dirPath) {
+#ifdef _WIN32
+    return _mkdir(dirPath.c_str());
+#else
+    return mkdir(dirPath.c_str(), mode_t(0777));
+#endif
+}
+
+inline int createDirectoryRecursive(const std::string& dirPath) {
+    std::string copyDirPath = dirPath;
+    std::vector<std::string> nested_dir_names;
+    while (!directoryExists(copyDirPath)) {
+        auto pos = copyDirPath.rfind(CommonTestUtils::FileSeparator);
+        nested_dir_names.push_back(copyDirPath.substr(pos, copyDirPath.length() - pos));
+        copyDirPath = copyDirPath.substr(0, pos);
+    }
+    while (!nested_dir_names.empty()) {
+        std::string a = copyDirPath + nested_dir_names.back();
+        if (createDirectory(a) != 0) {
+            return -1;
+        }
+        nested_dir_names.pop_back();
+    }
+    return 0;
+}
+
+inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
+                                                              const std::regex& pattern) {
+    auto getFileListByPattern = [&pattern](const std::string& folderPath) {
+        std::vector<std::string> allFilePaths;
+        CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
+        std::set<std::string> result;
+        for (auto& filePath : allFilePaths) {
+            if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
+                result.insert(filePath);
+            }
+        }
+        return result;
+    };
+
+    std::vector<std::string> result;
+    for (auto &&folderPath : folderPaths) {
+        if (!CommonTestUtils::directoryExists(folderPath)) {
+            continue;
+        }
+        auto fileListByPattern = getFileListByPattern(folderPath);
+        result.insert(result.end(), fileListByPattern.begin(), fileListByPattern.end());
+    }
+    return result;
+}
+
+inline std::string replaceExt(std::string file, const std::string& newExt) {
+    std::string::size_type i = file.rfind('.', file.length());
+
+    if (i != std::string::npos) {
+        file.replace(i + 1, newExt.length(), newExt);
+    }
+    return file;
+}
+
+inline std::vector<std::string> splitStringByDelimiter(std::string paths, const std::string& delimiter = ",") {
+    size_t delimiterPos;
+    std::vector<std::string> splitPath;
+    while ((delimiterPos = paths.find(delimiter)) != std::string::npos) {
+        splitPath.push_back(paths.substr(0, delimiterPos));
+        paths = paths.substr(delimiterPos + 1);
+    }
+    splitPath.push_back(paths);
+    return splitPath;
+}
 }  // namespace CommonTestUtils

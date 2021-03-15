@@ -31,6 +31,8 @@
 
 namespace LayerTestsUtils {
 
+extern bool extendReport;
+
 // filename length limitation due to Windows constraints (max 256 characters)
 constexpr std::size_t maxFileNameLength = 140;
 
@@ -53,25 +55,28 @@ struct PassRate {
     enum Statuses {
         PASSED,
         FAILED,
-        SKIPPED
+        SKIPPED,
+        CRASHED
     };
     unsigned long passed = 0;
     unsigned long failed = 0;
     unsigned long skipped = 0;
+    unsigned long crashed = 0;
 
     PassRate() = default;
 
-    PassRate(unsigned long p, unsigned long f, unsigned long s) {
+    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c) {
         passed = p;
         failed = f;
         skipped = s;
+        crashed = c;
     }
 
     float getPassrate() const {
-        if (passed + failed == 0) {
+        if (passed + failed + crashed == 0) {
             return 0.f;
         } else {
-            return passed * 100.f / (passed + failed + skipped);
+            return passed * 100.f / (passed + failed + skipped + crashed);
         }
     }
 };
@@ -96,6 +101,8 @@ protected:
 
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
+    std::map<std::string, PassRate> getOpStatisticFromReport();
+
     std::string getDeviceName() const { return deviceName; }
 
     void setDeviceName(std::string device) { deviceName = device; }
@@ -113,9 +120,7 @@ public:
 class TestEnvironment : public ::testing::Environment {
 public:
     void TearDown() override;
-
-private:
-    std::string reportFileName = "report.xml";
+    static void saveReport();
 };
 
 using TargetDevice = std::string;
@@ -140,6 +145,14 @@ public:
 
     virtual void Serialize();
 
+    static void Compare(const std::vector<std::vector<std::uint8_t>> &expected,
+                        const std::vector<InferenceEngine::Blob::Ptr> &actual,
+                        float threshold);
+
+    static void Compare(const std::vector<std::uint8_t> &expected,
+                        const InferenceEngine::Blob::Ptr &actual,
+                        float threshold);
+
     virtual void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
@@ -154,9 +167,6 @@ public:
     std::map<std::string, std::string>& GetConfiguration();
 
     std::string getRuntimePrecision(const std::string& layerName);
-
-protected:
-    LayerTestsCommon();
 
     template<class T>
     static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
@@ -177,6 +187,9 @@ protected:
         }
     }
 
+protected:
+    LayerTestsCommon();
+
     RefMode GetRefMode() {
         return refMode;
     }
@@ -187,7 +200,7 @@ protected:
 
     virtual void ConfigureNetwork();
 
-    void LoadNetwork();
+    virtual void LoadNetwork();
 
     virtual void GenerateInputs();
 
@@ -211,7 +224,7 @@ protected:
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
 
-    std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
+    virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
 
