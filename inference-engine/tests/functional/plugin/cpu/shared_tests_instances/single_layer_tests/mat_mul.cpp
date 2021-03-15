@@ -26,12 +26,11 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {2, 1, 2, 3}, true }, { {3, 2, 4}, false } },
         { { {2, 1, 3, 2}, false }, { {3, 4, 2}, true } },
         { { {2, 1, 2, 3}, true }, { {3, 4, 2}, true } },
-        { { {1, 3}, false }, { {3, 1}, false } },
         { { {3}, false }, { {2, 2, 3, 1}, false } },
-        // TO ENABLE AFTER PR #4509
-        // { { {2, 2, 1, 3}, false }, { {3}, false } },
-        // { { {3}, false }, { {3}, false } },
-        // { { {3}, true }, { {3}, true } }
+        { { {2, 2, 1, 3}, false }, { {3}, false } },
+        { { {1, 5}, false }, { {5, 1}, false } },
+        { { {5, 1}, true }, { {5, 1}, false } },
+        { { {1, 5}, false }, { {1, 5}, true } },
         { { {1, 5}, false }, { {5}, false } },
         { { {5}, false }, { {5, 1}, false } },
         { { {5}, false }, { {5}, false } },
