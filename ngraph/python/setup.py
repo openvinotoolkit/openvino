@@ -142,6 +142,8 @@ class BuildCMakeExt(build_ext):
     def run(self):
         """Run CMake build for modules."""
         for extension in self.extensions:
+            if extension.name == "openvino.pyopenvino":
+                self.build_cmake(extension)
             if extension.name == "_pyngraph":
                 self.build_cmake(extension)
 
@@ -168,6 +170,7 @@ class BuildCMakeExt(build_ext):
         ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
+                    "-DPYTHON_EXECUTABLE={}".format(sys.executable),
                     "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
                     "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
 
