@@ -26,35 +26,42 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const InferenceEngine::CNNLayerPt
         MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNStridedSliceNode::getSupportedDescriptors() {
-    StridedSliceLayer* stridedSliceLayer = dynamic_cast<StridedSliceLayer*>(getCnnLayer().get());
+    auto stridedSliceLayer = getCnnLayer();
 
     if (stridedSliceLayer == nullptr)
         THROW_ERROR << "cannot convert from CNN layer";
 
-    if (stridedSliceLayer->insData[DATA_ID].lock() == nullptr)
+    auto inData = stridedSliceLayer->insData[DATA_ID].lock();
+    auto beginData = stridedSliceLayer->insData[BEGIN_ID].lock();
+    auto endData = stridedSliceLayer->insData[END_ID].lock();
+    if (!inData || !beginData || !endData)
         THROW_ERROR << "has nullable input data";
 
-    const SizeVector srcDims = stridedSliceLayer->insData[DATA_ID].lock()->getTensorDesc().getDims();
+    const SizeVector srcDims = inData->getTensorDesc().getDims();
     const SizeVector dstDims = stridedSliceLayer->outData[0]->getTensorDesc().getDims();
 
-    if (getParentEdges().size() < 3)
+    if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
         THROW_ERROR << "has incorrect number of input edges";
     if (!getChildEdges().size())
         THROW_ERROR << "has incorrect number of output edges";
 
-    SizeVector beginDims = stridedSliceLayer->insData[BEGIN_ID].lock()->getTensorDesc().getDims();
+    SizeVector beginDims = beginData->getTensorDesc().getDims();
     if (beginDims.size() != 1)
         THROW_ERROR << " should have begin vector with 1 dimension";
 
-    SizeVector endDims = stridedSliceLayer->insData[END_ID].lock()->getTensorDesc().getDims();
+    SizeVector endDims = endData->getTensorDesc().getDims();
     if (endDims.size() > 1)
         THROW_ERROR << "should have end vector with 1 dimension";
     if (beginDims[0] != endDims[0])
         THROW_ERROR << "should have begin vector with size equal to end vector size";
 
     SizeVector strideDims;
-    if (stridedSliceLayer->insData.size() > 3) {
-        strideDims = stridedSliceLayer->insData[STRIDE_ID].lock()->getTensorDesc().getDims();
+    if (stridedSliceLayer->insData.size() > STRIDE_ID) {
+        auto strideData = stridedSliceLayer->insData[STRIDE_ID].lock();
+        if (!strideData)
+            THROW_ERROR << "has nullable input data";
+
+        strideDims = strideData->getTensorDesc().getDims();
         if (strideDims.size() > 1)
             THROW_ERROR << "should have stride vector with 1 dimension";
         if (beginDims[0] != strideDims[0])
@@ -103,8 +110,8 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     params.equalDims = srcDims.size() == maxDims && shrinkAxis == 0;
 
     auto fillingInParameters = [&](std::vector<int>& parameter, const size_t type, const size_t size, const int bit) {
-        auto blob = dynamic_cast<TBlob<int>*>(getParentEdgesAtPort(type)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
-        int* ptr = blob->buffer().as<int*>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        auto blob = getParentEdgesAtPort(type)[0]->getParent()->getCnnLayer()->blobs["custom"];
+        const int* ptr = blob->cbuffer().as<const int*>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding();
         parameter.assign(ptr, ptr + size);
 
         if (ellipsisMaskCounter == 0 && size < dstDims.size()) {
