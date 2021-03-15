@@ -1365,6 +1365,14 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_2channel_2group_4d
                                     3.0f, 0.0f,
                                     3.0f, 0.0f,
                                     1.0f, 0.0f,
+                                    3.0f, 0.0f,
+                                    1.0f, 0.0f, 
+                                    3.0f, 0.0f,
+                                    3.0f, 0.0f,
+                                    1.0f, 0.0f,
+                                    3.0f, 0.0f,
+                                    3.0f, 0.0f,
+                                    1.0f, 0.0f,
                                     3.0f, 0.0f};
     
     const Shape offsets_shape{1, 32, 4, 4};
@@ -1423,7 +1431,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_2group)
                                     0.0f, 0.0f,
                                     0.0f, 0.0f};
 
-    const Shape offsets_shape{1, 18, 4, 4};
+    const Shape offsets_shape{1, 8, 4, 4};
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 2, 4, 4};
@@ -1496,7 +1504,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_4group)
                                     3.0f, 3.0f,
                                     3.0f, 3.0f};
 
-    const Shape offsets_shape{1, 18, 2, 2};
+    const Shape offsets_shape{1, 8, 2, 2};
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 4, 2, 2};
