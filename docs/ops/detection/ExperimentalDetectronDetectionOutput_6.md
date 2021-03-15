@@ -6,10 +6,14 @@
 
 **Short description**: An operation *ExperimentalDetectronDetectionOutput* performs non-maximum suppression to generate the detection output using information on location and score predictions.
 
-**Detailed description**: Applies threshold on detection probabilities and apply NMS class-wise. Leaves only max_detections_per_image_ detections.
+**Detailed description**: Operation doing next steps:
 
-The layer has 4 inputs: tensor with input ROIs, with input deltas, with input scores and with input data.
-
+1.  Applies deltas to boxes sizes;
+2.  If *class_agnostic_box_regression* is `True` then operation removes predictions for background classes;
+3.  Clips boxes to image;
+4.  Applies *score_threshold* on detection scores;
+5.  Applies non-maximum suppression class-wise with *nms_threshold*;
+6.  If total number of detections then operation leaves only *max_detections_per_image* detections.
 
 **Attributes**:
 

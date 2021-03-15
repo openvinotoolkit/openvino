@@ -54,8 +54,8 @@
 
 Operation computes prior grids by following:
 
-    for (int ih = 0; ih < h; ++ih)
-        for (int iw = 0; iw < w; ++iw)
+    for (int ih = 0; ih < featmap_height; ++ih)
+        for (int iw = 0; iw < featmap_width; ++iw)
             for (int s = 0; s < number_of_priors; ++s)
                 data[0] = priors[4 * s + 0] + stride_x * (iw + 0.5)
                 data[1] = priors[4 * s + 1] + stride_y * (ih + 0.5)

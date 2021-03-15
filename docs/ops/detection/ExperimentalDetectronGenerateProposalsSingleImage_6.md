@@ -13,7 +13,7 @@
 3.  Removes predicted boxes with either height or width < *min_size*;
 4.  Sorts all `(proposal, score)` pairs by score from highest to lowest;
 5.  Takes top *pre_nms_count* proposals;
-6.  Applies non maximum suppression with *nms_threshold*;
+6.  Applies non-maximum suppression with *nms_threshold*;
 7.  Takes *post_nms_count* proposals and return these top proposals and their scores.
        
 **Attributes**:
