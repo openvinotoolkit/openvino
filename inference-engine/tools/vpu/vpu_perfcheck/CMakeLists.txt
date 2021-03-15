@@ -17,8 +17,6 @@
 disable_deprecated_warnings()
 
 function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
-    find_package(Threads REQUIRED)
-
     file(GLOB SOURCES *.cpp)
 
     add_executable(${TARGET_NAME} ${SOURCES})
