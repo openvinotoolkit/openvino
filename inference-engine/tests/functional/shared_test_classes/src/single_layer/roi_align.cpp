@@ -47,8 +47,8 @@ static int randInt(int low, int high) {
     return dis(gen);
 }
 
-static void fillCoordTensor(std::vector<float> & coords, int height, int width,
-                            float spatialScale, int pooledRatio, int pooledH, int pooledW) {
+void ROIAlignLayerTest::fillCoordTensor(std::vector<float>& coords, int height, int width,
+                                        float spatialScale, int pooledRatio, int pooledH, int pooledW) {
     int minRoiWidth = pooledW;
     int maxRoiWidth = width / pooledRatio;
     int minRoiHeight = pooledH;
@@ -66,7 +66,7 @@ static void fillCoordTensor(std::vector<float> & coords, int height, int width,
         coords[i * 4 + 3] = (startY + sizeY - 1) / spatialScale;
     }
 }
-static void fillIdxTensor(std::vector<int> & idx, int batchSize) {
+void ROIAlignLayerTest::fillIdxTensor(std::vector<int>& idx, int batchSize) {
     int batchId = 0;
     for (int i = 0; i < idx.size(); i++) {
         idx[i] = batchId;

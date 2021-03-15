@@ -46,7 +46,7 @@
         {% if op in results[d] -%}
         <td>
             {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
-            <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }})
+            <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }}</span>,c:{{ results[d][op].crashed }})
         </td>
         {% else -%}
         <td class="table-warning">No tests</td>

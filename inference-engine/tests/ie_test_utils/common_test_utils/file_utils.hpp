@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <regex>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -116,6 +117,7 @@ inline bool directoryExists(const std::string &path) {
     return false;
 }
 
+
 inline void directoryFileListRecursive(const std::string& name, std::vector<std::string>& file_list) {
     struct CloseDir {
         void operator()(DIR* d) const noexcept {
@@ -169,6 +171,31 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
         nested_dir_names.pop_back();
     }
     return 0;
+}
+
+inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
+                                                              const std::regex& pattern) {
+    auto getFileListByPattern = [&pattern](const std::string& folderPath) {
+        std::vector<std::string> allFilePaths;
+        CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
+        std::set<std::string> result;
+        for (auto& filePath : allFilePaths) {
+            if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
+                result.insert(filePath);
+            }
+        }
+        return result;
+    };
+
+    std::vector<std::string> result;
+    for (auto &&folderPath : folderPaths) {
+        if (!CommonTestUtils::directoryExists(folderPath)) {
+            continue;
+        }
+        auto fileListByPattern = getFileListByPattern(folderPath);
+        result.insert(result.end(), fileListByPattern.begin(), fileListByPattern.end());
+    }
+    return result;
 }
 
 inline std::string replaceExt(std::string file, const std::string& newExt) {

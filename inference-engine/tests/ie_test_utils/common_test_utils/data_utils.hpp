@@ -323,8 +323,8 @@ void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr &blob,
     }
 }
 
-template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const float values[], const size_t size) {
+template<InferenceEngine::Precision::ePrecision PRC, typename T>
+void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const T values[], const size_t size) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
 
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
