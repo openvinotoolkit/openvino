@@ -91,6 +91,10 @@ static const char input_layer_names_message[] = "Optional. Layer names for input
                                           "The names are separated with \",\" " \
                                           "Example: Input1,Input2 ";
 
+/// @brief message for PWL max error percent
+static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function." \
+                                                    "The value must be in <0, 100> range. The default value is 1.0.";
+
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -161,6 +165,9 @@ DEFINE_string(oname, "", output_layer_names_message);
 /// @brief Input layer name
 DEFINE_string(iname, "", input_layer_names_message);
 
+/// @brief PWL max error percent
+DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
+
 /**
  * \brief This function show a help message
  */
@@ -191,5 +198,6 @@ static void showUsage() {
     std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;
     std::cout << "    -oname \"<string>\"       " << output_layer_names_message << std::endl;
     std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
+    std::cout << "    -pwl_me \"<double>\"      " << pwl_max_error_percent_message << std::endl;
 }
 

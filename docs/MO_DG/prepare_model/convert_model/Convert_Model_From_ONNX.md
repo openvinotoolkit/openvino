@@ -23,6 +23,7 @@
 | VGG19 | [model archive](https://s3.amazonaws.com/download.onnx/models/opset_8/vgg19.tar.gz) |
 | zfnet512 | [model archive](https://s3.amazonaws.com/download.onnx/models/opset_8/zfnet512.tar.gz) |
 | GPT-2 | [model archive](https://github.com/onnx/models/blob/master/text/machine_comprehension/gpt-2/model/gpt2-10.tar.gz) |
+| YOLOv3 | [model archive](https://github.com/onnx/models/blob/master/vision/object_detection_segmentation/yolov3/model/yolov3-10.tar.gz) |
 
 Listed models are built with the operation set version 8 except the GPT-2 model. Models that are upgraded to higher operation set versions may not be supported.
 
