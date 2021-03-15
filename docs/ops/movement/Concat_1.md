@@ -11,7 +11,7 @@
 * *axis*
 
   * **Description**: *axis* specifies dimension to concatenate along
-  * **Range of values**: integer number. Negative value means counting dimension from the end
+  * **Range of values**: integer number. Negative value means counting dimension from the end. The range is `[-R, R-1]`, where `R` is the rank of all inputs.
   * **Type**: int
   * **Default value**: None
   * **Required**: *yes*
@@ -28,11 +28,46 @@
 
 * *T*: any numeric type.
 
-**Example**
+**Examples**
 
 ```xml
 <layer id="1" type="Concat">
     <data axis="1" />
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>8</dim>  <!-- axis for concatenation -->
+            <dim>50</dim>
+            <dim>50</dim>
+        </port>
+        <port id="1">
+            <dim>1</dim>
+            <dim>16</dim>  <!-- axis for concatenation -->
+            <dim>50</dim>
+            <dim>50</dim>
+        </port>
+        <port id="2">
+            <dim>1</dim>
+            <dim>32</dim>  <!-- axis for concatenation -->
+            <dim>50</dim>
+            <dim>50</dim>
+        </port>
+    </input>
+    <output>
+        <port id="0">
+            <dim>1</dim>
+            <dim>56</dim>  <!-- concatenated axis: 8 + 16 + 32 = 48 -->
+            <dim>50</dim>
+            <dim>50</dim>
+        </port>
+    </output>
+</layer>
+
+```
+
+```xml
+<layer id="1" type="Concat">
+    <data axis="-3" />
     <input>
         <port id="0">
             <dim>1</dim>
