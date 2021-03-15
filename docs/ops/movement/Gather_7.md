@@ -5,12 +5,13 @@
 **Category**: Data movement operations
 
 **Short description**: *Gather* operation takes slices of data in the first input tensor according to the indices
- specified in the second input tensor and axis from the third input.
+ specified in the second input tensor and axis from the third input. Semantic of this operation is identical to 
+*Tensorflow* GatherV2.
 
 **Detailed description**
 
-    output[p_0, p_1, ..., p_{axis-1}, i, ..., j, ...] = 
-       data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, i, ..., j], ...]
+    output[p_0, p_1, ..., p_{axis-1}, p_axis, ..., p_{axis + k}, ...] = 
+       data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, p_b, ..., p_{axis}, j], ...]
 
 Where `data`, `indices` and `axis` are tensors from first, second and third inputs correspondingly, and `b` is 
 the number of batch dimensions.
@@ -44,12 +45,12 @@ indices = [[0, 0, 4], <-- this is applied to the first batch
            [4, 0, 0]]  <-- this is applied to the second batch
 indices_shape = (2, 3)
 
-data    = [[1,  2,  3,  4, 5],  <-- the first batch
-           [6,  7,  8,  9, 10]]  <-- the second batch 
+data    = [[1, 2, 3, 4, 5],  <-- the first batch
+           [6, 7, 8, 9, 10]]  <-- the second batch 
 data_shape = (2, 5)
 
-output  = [[ 1,  1,  5],
-           [10,  6,  6]]
+output  = [[ 1, 1, 5],
+           [10, 6, 6]]
 output_shape = (2, 3)
 ```
 
@@ -65,19 +66,50 @@ indices = [[[0, 0, 4],  <-- this is applied to the first batch, index = (0, 0)
             [4, 3, 2]]]  <-- this is applied to the fourth batch, index = (1, 1) 
 indices_shape = (2, 2, 3)
 
-data    = [[[1,  2,  3,  4,  5],  <-- the first batch, index = (0, 0)
-            [6,  7,  8,  9, 10]],  <-- the second batch, index = (0, 1)
+data    = [[[1, 2, 3, 4, 5],  <-- the first batch, index = (0, 0)
+            [6, 7, 8, 9, 10]],  <-- the second batch, index = (0, 1)
           
-           [[11,  12,  13,  14, 15],  <-- the third batch, index = (1, 0)
-            [16,  17,  18,  19, 20]]]  <-- the fourth batch, index = (1, 1)
+           [[11, 12, 13, 14, 15],  <-- the third batch, index = (1, 0)
+            [16, 17, 18, 19, 20]]]  <-- the fourth batch, index = (1, 1)
 data_shape = (2, 2, 5)
 
-output  = [[[ 1,  1,  5],
-            [10,  6,  6]],
+output  = [[[ 1, 1, 5],
+            [10, 6, 6]],
 
            [[12, 13, 15],
             [20, 19, 18]]] 
 output_shape = (2, 2, 3)
+```
+Example 4 with *axis* > *batch_dims*:
+```
+batch_dims = 1
+axis = 2
+
+indices = [[1, 2, 4],  <-- this is applied to the first batch 
+           [4, 3, 2]]  <-- this is applied to the second batch
+indices_shape = (2, 3)
+
+data = [[[[ 1,  2,  3,  4], <-- first batch
+          [ 5,  6,  7,  8],
+          [ 9, 10, 11, 12],
+          [13, 14, 15, 16],
+          [17, 18, 19, 20]]],
+  
+        [[[21, 22, 23, 24], <-- second batch
+          [25, 26, 27, 28],
+          [29, 30, 31, 32],
+          [33, 34, 35, 36],
+          [37, 38, 39, 40]]]]
+data_shape = (2, 1, 5, 4)
+
+output = [[[[ 5,  6,  7,  8],
+            [ 9, 10, 11, 12],
+            [17, 18, 19, 20]]],
+
+          [[[37, 38, 39, 40],
+            [33, 34, 35, 36],
+            [29, 30, 31, 32]]]]
+output_shape = (2, 1, 3, 4)
 ```
 
 **Inputs**
