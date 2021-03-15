@@ -33,21 +33,35 @@ from mo.ops.strided_slice import StridedSlice
 class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
     """
     This transformation looks for Interpolation layer implemented using simple operations, i.e. Unsqueeze,
-    Tile, Reshape, and replaces found pattern with a sequence of Shape, StridedSlice, Const, Mul, Interpolate.
+    Tile, Reshape, and replaces found pattern with a sequence of Shape, StridedSlice, Mul, Interpolate.
 
-    Found pattern will be replaced with
+    Found pattern
+        'something' -> Unsqueeze -> Tile -> Reshape
+    will be replaced with
         nodes=[
             ('shape', dict(kind='op', op='Shape')),
             ('strided_slice', dict(kind='op', op='StridedSlice')),
-            ('scales', dict(kind='op', op='Const')),
+            ('to_float', dict(kind='op', op='StridedSlice', dst_type=np.float32)),
+            ('m_scales', dict(kind='op', op='Const')),
             ('scaled_shape', dict(kind='op', op='Mul')),
+            ('floor', dict(kind='op', op='Floor')),
+            ('to_int', dict(kind='op', op='StridedSlice', dst_type=np.float32)),
+            ('scales', dict(kind='op', op='Const')),
+            ('axes', dict(kind='op', op='Const')),
             ('interp', dict(kind='op', op='Interpolate'))
         ],
         edges=[
+            ('something', 'interp', {'in': 0}),
+            ('something', 'shape', {'in': 0}),
             ('shape', 'strided_slice', {'in': 0}),
-            ('strided_slice', 'scaled_shape', {'in': 0}),
-            ('scales', 'scaled_shape', {'in': 1}),
-            ('scaled_shape', 'interp', {'in': 1}),
+            ('strided_slice', 'to_float', {'in': 0}),
+            ('to_float', 'scaled_shape', {'in': 0}),
+            ('m_scales', 'scaled_shape', {'in': 1}),
+            ('scaled_shape', 'floor'),
+            ('floor', 'to_int'),
+            ('to_int', 'interp', {'in': 1}),
+            ('scales', 'interp', {'in': 2}),
+            ('axes', 'interp', {'in': 3}),
         ]
     """
     enabled = True
