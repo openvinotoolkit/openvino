@@ -21,7 +21,6 @@
 using namespace std;
 using namespace ngraph;
 
-
 TEST(type_prop, minimum_2D_same)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{2, 2});
@@ -61,14 +60,12 @@ TEST(type_prop, minimum_no_autobroadcast)
     auto A = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto B = make_shared<op::Parameter>(element::f32, Shape{2, 2});
 
-    auto minimum = make_shared<op::v1::Minimum>(A, B, op::AutoBroadcastSpec::NONE
-    );
+    auto minimum = make_shared<op::v1::Minimum>(A, B, op::AutoBroadcastSpec::NONE);
 
     ASSERT_EQ(minimum->get_element_type(), element::f32);
     ASSERT_EQ(minimum->get_shape(), (Shape{2, 2}));
     ASSERT_EQ(minimum->get_autob(), op::AutoBroadcastType::NONE);
 }
-
 
 TEST(type_prop, minimum_4D_x_scalar_numpy_broadcast)
 {
@@ -160,7 +157,8 @@ TEST(type_prop, minimum_incompatible_boolean_type)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments cannot have boolean element type"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Arguments cannot have boolean element type"));
     }
     catch (...)
     {
@@ -234,16 +232,13 @@ TEST(type_prop, minimum_5D_x_5D_incompatible)
 TEST(type_prop, minimum_3D_dynamic_shape)
 {
     Dimension dynamic = Dimension::dynamic();
-    auto A =
-        make_shared<op::Parameter>(element::f32, PartialShape{dynamic, dynamic, 6});
-    auto B = 
-        make_shared<op::Parameter>(element::f32, PartialShape{dynamic, dynamic, 6});
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape{dynamic, dynamic, 6});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{dynamic, dynamic, 6});
 
     auto minimum = make_shared<op::v1::Minimum>(A, B);
 
     ASSERT_EQ(minimum->get_element_type(), element::f32);
-    ASSERT_EQ(minimum->get_output_partial_shape(0),
-              (PartialShape{dynamic, dynamic, 6}));
+    ASSERT_EQ(minimum->get_output_partial_shape(0), (PartialShape{dynamic, dynamic, 6}));
 }
 
 TEST(type_prop, minimum_5D_dynamic_shape)
@@ -251,7 +246,7 @@ TEST(type_prop, minimum_5D_dynamic_shape)
     Dimension dynamic = Dimension::dynamic();
     auto A =
         make_shared<op::Parameter>(element::f32, PartialShape{dynamic, 4, dynamic, dynamic, 6});
-    auto B = 
+    auto B =
         make_shared<op::Parameter>(element::f32, PartialShape{dynamic, 4, dynamic, dynamic, 6});
 
     auto minimum = make_shared<op::v1::Minimum>(A, B);
