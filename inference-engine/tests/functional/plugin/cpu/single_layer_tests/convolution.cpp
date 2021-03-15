@@ -68,6 +68,8 @@ protected:
 
         if (inPrc == Precision::UNSPECIFIED) {
             selectedType += std::string("_") + Precision(Precision::FP32).name();
+        } else if (inPrc == Precision::BF16) {
+            selectedType += std::string("_") + inPrc.name();
         } else {
             selectedType += std::string("_") + Precision(netPrecision).name();
         }
