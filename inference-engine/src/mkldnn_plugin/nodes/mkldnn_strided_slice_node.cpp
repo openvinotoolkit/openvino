@@ -12,6 +12,7 @@
 #include "common/dnnl_thread.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
+#include "common/dnnl_thread.hpp"
 
 #include <string>
 #include <algorithm>
@@ -21,6 +22,14 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector& dims, SizeVector& indexes) {
+    for (int j = nDims - 1; j >= 0; j--) {
+        indexes[j] = start % dims[j];
+        start = start / dims[j];
+    }
+    return start;
+}
 
 MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(layer, eng, cache) {}
@@ -365,7 +374,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 
     // gluing dimensions (reshaping)
     std::pair<size_t, size_t> secondDim = { 0, begin.size() };
-    std::vector<size_t> indexes(1, 0);
+    SizeVector indexes(1, 0);
     for (int idx = 0; idx < begin.size(); idx++) {
         if (begin[idx] != 0 || end[idx] != params.srcDims[idx] - 1 || stride[idx] != 1) {
             indexes.push_back(std::max(idx - 1, 0));
@@ -436,6 +445,51 @@ void MKLDNNStridedSliceNode::createPrimitive() {
         if (params.dstDims.size() > 2)
             params.lastDstDim /= newDstDims[secondDim.first];
     }
+
+    // calculate src and dst indices
+    if (params.dstDims.size() == 1 || params.nDimsForWork != 1) {
+        params.nThreads = dnnl_get_max_threads();
+        params.srcIndices.resize(params.workAmount, 0);
+        params.dstIndices.resize(params.workAmount, 0);
+        indexes.clear();
+
+        auto getSrcIdx = [this](const SizeVector& indexes){
+            size_t srcIdx = 0;
+            for (int i = 0; i < params.nDimsForWork; ++i)
+                srcIdx += (begin[i] + indexes[i] * stride[i]) * params.srcStrides[i];
+            return srcIdx * params.dataSize;
+        };
+
+        for (size_t t = 0; t < params.nThreads; t++) {
+            size_t start = 0, end = 0;
+            indexes.resize(params.nDimsForWork, 0);
+            splitter(params.workAmount, params.nThreads, t, start, end);
+            parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
+
+            srcIdx = getSrcIdx(indexes);
+            for (size_t j = start; j < end; j++) {
+                params.dstIndices[j] = j * params.lastDstDim;
+                params.srcIndices[j] = srcIdx;
+
+                bool out = false;
+                for (int k = params.nDimsForWork - 1; k >= 0; k--) {
+                    indexes[k]++;
+                    if (indexes[k] < params.dstDims[k]) {
+                        srcIdx += stride[k] * params.srcStrides[k] * params.dataSize;
+                        break;
+                    } else {
+                        indexes[k] = 0;
+                        out = true;
+                    }
+                }
+
+                if (out) {
+                    srcIdx = getSrcIdx(indexes);
+                    out = false;
+                }
+            }
+        }
+    }
 }
 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
@@ -443,14 +497,6 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
         stridedSliceV();
     else
         stridedSlice();
-}
-
-static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector& dims, SizeVector& indexes) {
-    for (int j = nDims - 1; j >= 0; j--) {
-        indexes[j] = start % dims[j];
-        start = start / dims[j];
-    }
-    return start;
 }
 
 void MKLDNNStridedSliceNode::stridedSliceV() {
@@ -479,41 +525,13 @@ void MKLDNNStridedSliceNode::stridedSlice() {
             (stride.back() == 1 && stride.size() > 1 ? begin[params.nDimsForWork] * params.srcStrides[params.nDimsForWork] * params.dataSize : 0);
     uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        SizeVector indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
-        parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
 
-        size_t srcIdx;
-        getSrcIdx(srcIdx, indexes);
-
-        for (size_t iwork = start, dstIdx = start * params.lastDstDim, i = 1; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
-            cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], params.lastDstDim);
-
-            for (int j = params.nDimsForWork - 1; j >= 0; j--) {
-                indexes[j]++;
-                if (indexes[j] < params.dstDims[j]) {
-                    srcIdx += stride[j] * params.srcStrides[j] * params.dataSize;
-                    break;
-                } else {
-                    indexes[j] = i = 0;
-                }
-            }
-
-            if (!i) {
-                getSrcIdx(srcIdx, indexes);
-                i++;
-            }
-        }
+        for (size_t iwork = start; iwork < end; ++iwork)
+            cpu_memcpy(&dstData[params.dstIndices[iwork]], &srcData[params.srcIndices[iwork]], params.lastDstDim);
     });
-}
-
-inline void MKLDNNStridedSliceNode::getSrcIdx(size_t& srcIdx, const SizeVector& indexes) {
-    srcIdx = 0;
-    for (int i = 0; i < params.nDimsForWork; ++i)
-        srcIdx += (begin[i] + indexes[i] * stride[i]) * params.srcStrides[i];
-    srcIdx *= params.dataSize;
 }
 
 bool MKLDNNStridedSliceNode::created() const {

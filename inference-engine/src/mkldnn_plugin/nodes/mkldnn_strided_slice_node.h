@@ -29,8 +29,6 @@ private:
     void stridedSliceV();
     void stridedSlice();
 
-    inline void getSrcIdx(size_t& srcIdx, const InferenceEngine::SizeVector& indexes);
-
     const size_t DATA_ID = 0;
     const size_t BEGIN_ID = 1;
     const size_t END_ID = 2;
@@ -51,11 +49,14 @@ private:
         InferenceEngine::SizeVector dstDims;
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
-        size_t nDimsForWork;
-        size_t workAmount;
-        size_t lastDstDim;
-        size_t dataSize;
-        bool equalDims;
+        InferenceEngine::SizeVector srcIndices;
+        InferenceEngine::SizeVector dstIndices;
+        size_t nThreads = 0;
+        size_t nDimsForWork = 0;
+        size_t workAmount = 0;
+        size_t lastDstDim = 0;
+        size_t dataSize = 0;
+        bool equalDims = false;
     } params;
 };
 
