@@ -22,9 +22,7 @@
 using namespace std;
 using namespace ngraph;
 
-op::util::ArithmeticReduction::ArithmeticReduction()
-{
-}
+op::util::ArithmeticReduction::ArithmeticReduction() {}
 
 op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg,
                                                    const AxisSet& reduction_axes)

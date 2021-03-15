@@ -242,6 +242,9 @@ IE_CPU.nothing_to_reverse
 onnx_size_dyn_op
 onnx_model_gru_defaults_fwd_const_dynamic
 onnx_model_rnn_defaults_fwd_const_dynamic
+onnx_model_depth_to_space_dynamic_input
+onnx_model_space_to_depth_dynamic_input
+
 
 # Constant network
 # MKLDNNGraph::CreateGraph: No inputs for the topology
@@ -452,9 +455,6 @@ dynamic_reverse_shape
 # Error of validate layer: Tile_1082 with type: Tile. Layer is not instance of TileLayer class
 tile_3d_small_data_rank
 tile_3d_few_repeats
-
-# Error of validate layer: MatMul_683292 with type: Gemm. Gemm input shapes must have at least 2 dimensions
-matmul_2_2
 
 # Result mismatch
 sum_large_1d_to_scalar

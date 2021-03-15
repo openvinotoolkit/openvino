@@ -65,9 +65,9 @@ TEST(coordinate_range, slice_range_shape1d)
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, slice_range_shape2d)
@@ -92,9 +92,9 @@ TEST(coordinate_range, slice_range_shape2d)
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, slice_range_shape3d)
@@ -203,9 +203,9 @@ TEST(coordinate_range, slice_range_corner)
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, slice_range_strides)
@@ -238,9 +238,9 @@ TEST(coordinate_range, slice_range_strides)
             ++expected_val;
         }
     }
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 ///
@@ -282,9 +282,9 @@ TEST(coordinate_range, reverse_range_shape1d)
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, reverse_range_shape2d)
@@ -311,9 +311,9 @@ TEST(coordinate_range, reverse_range_shape2d)
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, reverse_range_shape3d)
@@ -344,9 +344,9 @@ TEST(coordinate_range, reverse_range_shape3d)
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, reverse_range_zero_sized_axis)
@@ -390,9 +390,9 @@ TEST(coordinate_range, reverse_range_2d)
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, reverse_1_range_3d)
@@ -427,9 +427,9 @@ TEST(coordinate_range, reverse_1_range_3d)
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
 
 TEST(coordinate_range, reverse_2_range_3d)
@@ -464,7 +464,7 @@ TEST(coordinate_range, reverse_2_range_3d)
         }
     }
 
-    EXPECT_TRUE(expected_val == end(expected)) << "not all expected values return, ("
-                                               << std::distance(expected_val, end(expected))
-                                               << " is missing)";
+    EXPECT_TRUE(expected_val == end(expected))
+        << "not all expected values return, (" << std::distance(expected_val, end(expected))
+        << " is missing)";
 }
