@@ -19,6 +19,7 @@
 #include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "ngraph/pass/visualize_tree.hpp"
 
 namespace LayerTestsUtils {
 
@@ -260,6 +261,8 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     // nGraph interpreter does not support f16/bf16
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+
+    ngraph::pass::VisualizeTree("/home/vzinoviev/work/model_dumps/model_after_convert.dot").run_on_function(function);
 
     function->validate_nodes_and_infer_types();
 

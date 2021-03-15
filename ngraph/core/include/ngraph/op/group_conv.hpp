@@ -85,8 +85,8 @@ namespace ngraph
             class NGRAPH_API GroupConvolutionBackpropData : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"GroupConvolutionBackpropData", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a batched-convolution data batch-backprop operation.
                 GroupConvolutionBackpropData();
                 // clang-format off

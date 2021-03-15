@@ -27,7 +27,8 @@ bool ConcatMultiChannelsTransformation::isMultiChannel(const std::vector<std::sh
     for (const std::shared_ptr<ngraph::opset1::Concat>& concat : concatLayers) {
         const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(concat);
         for (const std::shared_ptr<ngraph::Node>& child : children) {
-            if (is_type<ngraph::opset1::Convolution>(child.get())) {
+            if (is_type<ngraph::opset1::Convolution>(child.get()) ||
+                is_type<ngraph::opset1::ConvolutionBackpropData>(child.get())) {
                 return false;
             }
         }
