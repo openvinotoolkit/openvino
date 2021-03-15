@@ -33,7 +33,7 @@ if(ENABLE_MKL_DNN)
 endif()
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs imgproc QUIET)
+find_package(OpenCV COMPONENTS core imgproc QUIET)
 if(OpenCV_FOUND)
     target_compile_definitions(${TARGET_NAME} PUBLIC USE_OPENCV)
 else()

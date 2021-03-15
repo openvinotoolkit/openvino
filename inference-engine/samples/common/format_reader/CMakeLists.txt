@@ -21,7 +21,7 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio imgproc QUIET)
+find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} will be built without OPENCV support")
 else()
