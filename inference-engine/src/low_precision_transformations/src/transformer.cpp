@@ -46,6 +46,7 @@
 #include "low_precision/reduce_max.hpp"
 #include "low_precision/reduce_mean.hpp"
 #include "low_precision/reduce_min.hpp"
+#include "low_precision/reduce_sum.hpp"
 #include "low_precision/reshape.hpp"
 #include "low_precision/relu.hpp"
 #include "low_precision/squeeze.hpp"
@@ -232,6 +233,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<ReduceMaxTransformation, opset1::ReduceMax>(params).
         add<ReduceMeanTransformation, opset1::ReduceMean>(params).
         add<ReduceMinTransformation, opset1::ReduceMin>(params).
+        add<ReduceSumTransformation, opset1::ReduceSum>(params).
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
@@ -338,6 +340,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::PRelu>(this);
     make_matcher_type_relaxed<opset1::ReduceMean>(this);
+    make_matcher_type_relaxed<opset1::ReduceSum>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::Interpolate>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
