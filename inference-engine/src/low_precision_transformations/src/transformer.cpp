@@ -45,6 +45,7 @@
 #include "low_precision/prelu.hpp"
 #include "low_precision/reduce_max.hpp"
 #include "low_precision/reduce_mean.hpp"
+#include "low_precision/reduce_min.hpp"
 #include "low_precision/reshape.hpp"
 #include "low_precision/relu.hpp"
 #include "low_precision/squeeze.hpp"
@@ -230,6 +231,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<PReluTransformation, opset1::PRelu>(params).
         add<ReduceMaxTransformation, opset1::ReduceMax>(params).
         add<ReduceMeanTransformation, opset1::ReduceMean>(params).
+        add<ReduceMinTransformation, opset1::ReduceMin>(params).
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
