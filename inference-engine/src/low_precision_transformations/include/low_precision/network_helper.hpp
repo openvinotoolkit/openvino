@@ -136,6 +136,8 @@ public:
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
+
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
     // 3. remove Subtract if Constant on the second branch is zero

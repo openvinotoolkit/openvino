@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 #include <queue>
+#include <numeric>
 
 #include <ngraph/rt_info.hpp>
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -1211,6 +1212,40 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         dequantization.subtract = normalized_subtract;
     }
     return dequantization;
+}
+
+std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise) {
+    const size_t constantIdx = getConstantInputIndex(eltwise);
+    const auto constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(constantIdx));
+
+    const auto getConstWithNormalizeShape = [](
+        const std::shared_ptr<Node>& eltwise,
+        const std::shared_ptr<opset1::Constant>& constant) {
+        const auto constantShape = constant->get_shape();
+        if (constantShape.empty()) {
+            return constant;
+        }
+
+        const auto eltwiseShape = eltwise->get_output_shape(0);
+        if (constantShape.size() < eltwiseShape.size()) {
+            Shape unsqueezeConstantShape(eltwiseShape.size() - constantShape.size());
+            std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
+
+            const auto newConstant = fold<opset1::Unsqueeze>(
+                constant,
+                op::Constant::create(element::i32, Shape{ unsqueezeConstantShape.size() }, unsqueezeConstantShape));
+
+            return as_type_ptr<opset1::Constant>(newConstant);
+        } else {
+            return constant;
+        }
+    };
+
+    const auto normalizedConstant = getConstWithNormalizeShape(eltwise, constant);
+    replace_node(constant, normalizedConstant);
+    copy_runtime_info(constant, normalizedConstant);
+
+    return normalizedConstant;
 }
 
 FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization) {
