@@ -255,34 +255,26 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel
 #endif
 
 void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_component_t &comp,
-                                         uint32_t num_rows_in,
-                                         uint32_t num_columns_in,
-                                         uint32_t num_rows_out,
-                                         uint32_t num_columns_out,
-                                         uint32_t num_bytes_per_input,
-                                         uint32_t num_bytes_per_output,
-                                         uint32_t num_pool_size,
-                                         uint32_t num_pool_step,
-                                         uint32_t num_pool_stride,
-                                         bool do_sum_not_max,
-                                         float output_scale_factor,
-                                         void *&ptr_inputs,
-                                         void *&ptr_outputs,
-                                         bool postInitMem) {
-    comp.num_rows_in = num_rows_in;
-    comp.num_columns_in = num_columns_in;
-    comp.num_rows_out = num_rows_out;
-    comp.num_columns_out = num_columns_out;
+    std::array<uint32_t, 3> inCHW,
+    std::array<uint32_t, 3> outCHW,
+    uint32_t num_bytes_per_input,
+    uint32_t num_bytes_per_output,
+    std::array<uint32_t, 2> poolingWindowXY,
+    std::array<uint32_t, 2> poolingStrideXY,
+    float output_scale_factor,
+    void *&ptr_inputs,
+    void *&ptr_outputs,
+    bool postInitMem) {
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnMaxPoolOp;
     comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnNonInterleavedOrientation;
-    comp.op.maxpool.num_inputs = num_pool_size;
-    comp.op.maxpool.num_inputs_step = num_pool_step;
-    comp.op.maxpool.num_inputs_stride = num_pool_stride;
-    comp.op.maxpool.do_sum_not_max = do_sum_not_max;
+    comp.op.maxpool.inCHW = inCHW;
+    comp.op.maxpool.outCHW = outCHW;
+    comp.op.maxpool.poolingWindowXY = poolingWindowXY;
+    comp.op.maxpool.poolingStrideXY = poolingStrideXY;
     comp.output_scale_factor = output_scale_factor;
     comp.input_scale_factor = output_scale_factor;
     if (!postInitMem) {
@@ -1209,11 +1201,17 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                 }
                     break;
                 case kDnnMaxPoolOp: {
-                    uint32_t num_pool_type = (component[i].op.maxpool.do_sum_not_max) ? 2 : 1;
-                    out_file << "<pool_type> " << std::dec << num_pool_type << "\n";
-                    out_file << "<pool_size> " << std::dec << component[i].op.maxpool.num_inputs << "\n";
-                    out_file << "<pool_step> " << std::dec << component[i].op.maxpool.num_inputs_step << "\n";
-                    out_file << "<pool_num_rows> " << std::dec << component[i].op.maxpool.num_inputs_stride << "\n";
+                    out_file << "<pool_type> MAX\n";
+                    out_file << "<pool_window_x> " << std::dec << component[i].op.maxpool.poolingWindowXY[0] << "\n";
+                    out_file << "<pool_window_y> " << std::dec << component[i].op.maxpool.poolingWindowXY[1] << "\n";
+                    out_file << "<pool_stride_x> " << std::dec << component[i].op.maxpool.poolingStrideXY[0] << "\n";
+                    out_file << "<pool_stride_y> " << std::dec << component[i].op.maxpool.poolingStrideXY[1] << "\n";
+                    out_file << "<c_dim_in> " << std::dec << component[i].op.maxpool.inCHW[0] << "\n";
+                    out_file << "<h_dim_in> " << std::dec << component[i].op.maxpool.inCHW[1] << "\n";
+                    out_file << "<w_dim_in> " << std::dec << component[i].op.maxpool.inCHW[2] << "\n";
+                    out_file << "<c_dim_out> " << std::dec << component[i].op.maxpool.outCHW[0] << "\n";
+                    out_file << "<h_dim_out> " << std::dec << component[i].op.maxpool.outCHW[1] << "\n";
+                    out_file << "<w_dim_out> " << std::dec << component[i].op.maxpool.outCHW[2] << "\n";
                     out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> "
                              << component[i].output_scale_factor << "\n";
                 }
@@ -1343,6 +1341,26 @@ uint32_t GNAPluginNS::backend::AMIntelDNN::CountLayers() {
     }
     return n;
 }
+
+namespace {
+uint32_t outputFromConv(const uint32_t in, const uint32_t flt, const uint32_t stride) {
+    // floor[(in - flt)/stride] + 1, GNA Spec 1.24
+    if (flt > in || flt == 0 || stride == 0) {
+        THROW_GNA_EXCEPTION << "Invalid (input, filter, stride) = (" << in << "," << flt << "," << stride << ")";
+    }
+    return (in - flt) / stride + 1;
+}
+
+uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride) {
+    // ceil[(in - window)/stride] + 1, GNA Spec 1.24
+    if (window > in || window == 0 || stride == 0) {
+        THROW_GNA_EXCEPTION << "Invalid (input, window, stride) = (" << in << "," << window << "," << stride << ")";
+    }
+    if (window == in) return 1;
+
+    return (in - window - 1) / stride + 2;
+}
+} // namespace
 
 #if GNA_LIB_VER == 2
 void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel) {
@@ -1622,18 +1640,29 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
 #if  GNA_LIB_VER == 2
                 } else if (gnaOperation->Type == Gna2OperationTypeConvolution) {
                     auto pwlOperand = gnaOperation->Operands[PwlOpIdx];
-                    if (pwlOperand != nullptr && pwlOperand->Shape.Dimensions[0] != 0) {
-                        THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
+                    if (pwlOperand != nullptr && pwlOperand->Shape.Dimensions[0] != 0 &&
+                        gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp
+                        THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at index == " << i;
                     } else {
                         const auto poolMode = reinterpret_cast<Gna2PoolingMode*>(gnaUserAllocator(sizeof(Gna2PoolingMode)));
                         IE_ASSERT(poolMode != nullptr);
-                        *poolMode = (comp.op.maxpool.do_sum_not_max) ? Gna2PoolingModeSum : Gna2PoolingModeMax;
-                        const auto poolWindow = create_shape1D_parameter(comp.op.maxpool.num_inputs);
-                        const auto poolStride = create_shape1D_parameter(comp.op.maxpool.num_inputs_step);
+                        *poolMode = Gna2PoolingModeMax;
+
+                        Gna2Shape* poolWindow{};
+                        Gna2Shape* poolStride{};
+
+                        if (gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp
+                            // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
+                            poolWindow = create_shape1D_parameter(comp.op.maxpool.poolingWindowXY[0]);
+                            poolStride = create_shape1D_parameter(comp.op.maxpool.poolingWindowXY[0]);
+                        } else {
+                            poolWindow = create_shape2D_parameter(comp.op.maxpool.poolingWindowXY[1], comp.op.maxpool.poolingWindowXY[0]);
+                            poolStride = create_shape2D_parameter(comp.op.maxpool.poolingStrideXY[1], comp.op.maxpool.poolingStrideXY[0]);
+                        }
 
                         // number of output columns correction - based on GNA-library expectations
 
-                        if ((gnaOperation->NumberOfParameters > PoolModeParamIdx && gnaOperation->Parameters[PoolModeParamIdx] !=nullptr) ||
+                        if ((gnaOperation->NumberOfParameters > PoolModeParamIdx && gnaOperation->Parameters[PoolModeParamIdx] != nullptr) ||
                             (gnaOperation->NumberOfParameters > PoolWinParamIdx && gnaOperation->Parameters[PoolWinParamIdx] != nullptr) ||
                             (gnaOperation->NumberOfParameters > PoolStrideParamIdx && gnaOperation->Parameters[PoolStrideParamIdx] != nullptr)) {
                             THROW_GNA_EXCEPTION << "Pooling parameters should not be initialized";
@@ -1642,15 +1671,41 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         HelperGna2OperationSetParameter(gnaOperation, gnaUserAllocator, gnaUserFree, PoolWinParamIdx, poolWindow);
                         HelperGna2OperationSetParameter(gnaOperation, gnaUserAllocator, gnaUserFree, PoolStrideParamIdx, poolStride);
 
-                        const auto inVecCnt = gnaOperation->Operands[InOpIdx]->Shape.Dimensions[1];
+                        auto& outputTensor = const_cast<Gna2Tensor&>(*gnaOperation->Operands[OutOpIdx]);
+                        const auto fltStrideShape = reinterpret_cast<Gna2Shape*>(gnaOperation->Parameters[ConvStrideParamIdx]);
+                        // adjust Gna2OperationTypeConvolution fused layer output dimensions to reflect convolution zeroPadding and pooling
+                        if (gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp
+                            const auto inVecCnt = gnaOperation->Operands[InOpIdx]->Shape.Dimensions[1];
 
-                        const auto nFltSize = gnaOperation->Operands[FilterOpIdx]->Shape.Dimensions[1];
-                        //  Always move 1 "row"
-                        const auto fltStrideSz = reinterpret_cast<Gna2Shape*>(gnaOperation->Parameters[ConvStrideParamIdx])->Dimensions[0];
-                        const auto maxNCOE = (inVecCnt - nFltSize) / fltStrideSz + 1;
-                        //  FLAT input matrix, pooled outputs per filter
-                        const_cast<Gna2Tensor*>(gnaOperation->Operands[OutOpIdx])->Shape.Dimensions[1] =
-                            (maxNCOE - 1) / poolStride->Dimensions[0] + 1;
+                            const auto nFltSize = gnaOperation->Operands[FilterOpIdx]->Shape.Dimensions[1];
+                            //  Always move 1 "row"
+                            const auto fltStride = fltStrideShape->Dimensions[0];
+                            const auto outFromConv = outputFromConv(inVecCnt, nFltSize, fltStride);
+                            //  FLAT input matrix, pooled outputs per filter
+                            // TODO: Issue 50386 check why (outFromConv - 1) an not (outFromConv - poolingWindow)
+                            outputTensor.Shape.Dimensions[1] =
+                                (outFromConv - 1) / poolStride->Dimensions[0] + 1;
+                        } else { // kDnnConvolutional2dOp
+                            // Override GNA operation output pointer with the one from pooling component
+                            outputTensor.Data = comp.ptr_outputs;
+
+                            Gna2Shape zeroPadding{};
+                            if (gnaOperation->NumberOfParameters > ZeroPaddingParamIdx && gnaOperation->Parameters[ZeroPaddingParamIdx] != nullptr) {
+                                zeroPadding = *reinterpret_cast<Gna2Shape*>(gnaOperation->Parameters[ZeroPaddingParamIdx]);
+                            }
+                            const int beginOfHInNHWC = 1;
+                            const int beginOfHInHW = 0;
+                            for (auto&& dimHW : { 0, 1 }) {
+                                const auto inputPadded = gnaOperation->Operands[InOpIdx]->Shape.Dimensions[beginOfHInNHWC + dimHW]
+                                    + zeroPadding.Dimensions[beginOfHInHW + dimHW] * 2;
+                                const auto nFltSize = gnaOperation->Operands[FilterOpIdx]->Shape.Dimensions[beginOfHInNHWC + dimHW];
+                                const auto fltStride = fltStrideShape->Dimensions[beginOfHInHW + dimHW];
+                                const auto outFromConv = outputFromConv(inputPadded, nFltSize, fltStride);
+                                outputTensor.Shape.Dimensions[beginOfHInNHWC + dimHW] =
+                                    outputFromPooling(outFromConv, poolWindow->Dimensions[beginOfHInHW + dimHW], poolStride->Dimensions[beginOfHInHW + dimHW]);
+                            }
+                            AdvanceOperationIfAllApplied(component, i, gnaOperation);
+                        }
                     }
 #else
                 } else if (pLayer->nLayerKind == INTEL_CONVOLUTIONAL) {
@@ -1662,21 +1717,18 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     if (pConvolutionalLayer->pwl.nSegments != 0) {
                         THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
                     } else {
-                        pConvolutionalLayer->poolType =
-                                (component[i].op.maxpool.do_sum_not_max) ? INTEL_SUM_POOLING : INTEL_MAX_POOLING;
-                        pConvolutionalLayer->nPoolSize = component[i].op.maxpool.num_inputs;
-                        pConvolutionalLayer->nPoolStride = component[i].op.maxpool.num_inputs_step;
-
+                        pConvolutionalLayer->poolType = INTEL_MAX_POOLING;
+                        // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
+                        pConvolutionalLayer->nPoolSize = component[i].op.maxpool.poolingWindowXY[0];
+                        pConvolutionalLayer->nPoolStride = component[i].op.maxpool.poolingWindowXY[0];
 
                         // number of output columns correction - based on GNA-library expectations
                         auto nFltSize = pConvolutionalLayer->nFilterCoefficients;
                         auto fltStrideSz = pConvolutionalLayer->nFeatureMaps * pConvolutionalLayer->nFeatureMapColumns;  // always move 1 "row"
-                        auto maxNCOE = (pLayer->nInputColumns - nFltSize) / fltStrideSz + 1;
+                        auto outFromConv = outputFromConv(pLayer->nInputColumns, nFltSize, fltStrideSz);
                         // FLAT input matrix, pooled outputs per filter
-                        pLayer->nOutputColumns = pConvolutionalLayer->nFilters * ((maxNCOE - 1) / pConvolutionalLayer->nPoolStride + 1);
-
-                        // old code
-                        // pLayer->nOutputColumns /= pConvolutionalLayer->nPoolStride;
+                        // TODO: Issue 50386 check why (outFromConv - 1) an not (outFromConv - nPoolSize)
+                        pLayer->nOutputColumns = pConvolutionalLayer->nFilters * ((outFromConv - 1) / pConvolutionalLayer->nPoolStride + 1);
                     }
 #endif
                 } else {
@@ -1729,7 +1781,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         }
                     }
                 }
-                gnaOperation++;
+                AdvancePwlOperationIfAllApplied(component, i, gnaOperation);
 #else
                 pLayer->pOutputs = component[i].ptr_outputs;
                 pLayer->nBytesPerOutput = component[i].num_bytes_per_output;
