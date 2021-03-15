@@ -13,8 +13,6 @@ include(cmake/features.cmake)
 # resolving dependencies for the project
 include(cmake/dependencies.cmake)
 
-find_package(Threads REQUIRED)
-
 function(ie_developer_export_targets)
     openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${ARGN})
 endfunction()

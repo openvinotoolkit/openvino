@@ -31,6 +31,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     precisionsOnActivations(params.precisionsOnActivations),
     precisionsOnWeights(params.precisionsOnWeights),
     deqPrecision(params.deqPrecision),
+    support3DTensorOnActivations(params.support3DTensorOnActivations),
     quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
     minQuantizationLevels(2ul),
