@@ -4,27 +4,17 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* computes ROIs and ROI's scores based on input data.
+**Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* computes ROIs and their scores based on input data.
 
-**Detailed description**:
+**Detailed description**: Operation doing next steps:
 
-   Transpose and reshape predicted bbox transformations to get them into the same order as the anchors:
-     - bbox deltas will be (4 * A, H, W) format from convolution output
-     - transpose to (H, W, 4 * A)
-     - reshape to (H * W * A, 4) where rows are ordered by (H, W, A) in slowest to fastest order to match the enumerated anchors
-       
-   Same story for the scores:
-     - Scores are (A, H, W) format from convolution output
-     - Transpose to (H, W, A)
-     - Reshape to (H * W * A, 1) where rows are ordered by (H, W, A) to match the order of anchors and bbox_deltas
-
-   Transform anchors into proposals and clip proposals to image.
-   Remove predicted boxes with either height or width < *min_size*, sort all `(proposal, score)` pairs by score from highest to lowest.
-   Take top *pre_nms_count*.
-   
-   Apply *nms_threshold*.
-   Take *post_nms_count*.
-   Return the top proposals (-> ROIs top).
+1.  Transposes and reshape predicted deltas and scores to get them into the same order as the anchors;
+2.  Transforms anchors into proposals and clips proposals to image;
+3.  Removes predicted boxes with either height or width < *min_size*;
+4.  Sorts all `(proposal, score)` pairs by score from highest to lowest;
+5.  Takes top *pre_nms_count* proposals;
+6.  Applies non maximum suppression with *nms_threshold*;
+7.  Takes *post_nms_count* proposals and return these top proposals and their scores.
        
 **Attributes**:
 
@@ -64,9 +54,9 @@
 
 * **1**: A 1D tensor of type *T* with shape `[3]` with input data. **Required.**
 
-* **2**: A 2D tensor of type *T* with input anchors. The second dimension of 'input_anchors' should be 4. **Required.**
+* **2**: A 2D tensor of type *T* with input anchors. The second dimension of this input should be 4. **Required.**
 
-* **3**: A 3D tensor of type *T* with input deltas. Height and width for third and fourth inputs must be equal. **Required.** 
+* **3**: A 3D tensor of type *T* with input deltas. Height and width for third and fourth inputs must be equal. **Required.**
 
 * **4**: A 3D tensor of type *T* with input scores. **Required.**
 
@@ -78,7 +68,7 @@
 
 **Types**
 
-* *T*: any supported numeric type.
+* *T*: any supported floating point type.
 
 **Example**
 

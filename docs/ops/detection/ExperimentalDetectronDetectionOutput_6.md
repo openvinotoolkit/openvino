@@ -6,7 +6,7 @@
 
 **Short description**: An operation *ExperimentalDetectronDetectionOutput* performs non-maximum suppression to generate the detection output using information on location and score predictions.
 
-**Detailed description**: Apply threshold on detection probabilities and apply NMS class-wise. Leave only max_detections_per_image_ detections.
+**Detailed description**: Applies threshold on detection probabilities and apply NMS class-wise. Leaves only max_detections_per_image_ detections.
 
 The layer has 4 inputs: tensor with input ROIs, with input deltas, with input scores and with input data.
 
@@ -76,7 +76,7 @@ The layer has 4 inputs: tensor with input ROIs, with input deltas, with input sc
     * **Description**: *deltas_weights* attribute specifies deltas of weights.
     * **Range of values**: a list of non-negative floating point numbers
     * **Type**: float[]
-    * **Default value**: None
+    * **Default value**: `[10., 10., 5., 5.]`
     * **Required**: *yes*
 
 **Inputs**
