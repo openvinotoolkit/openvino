@@ -1267,19 +1267,19 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                  << GNAPluginNS::memory::MemoryOffset(component[i].op.pwl.ptr_segments, ptr_dnn_memory_) << "\n";
                         if (compute_precision_ == kDnnInt) {
                             out_file << "<slope> ";
-                            for (int segment = 0; segment < num_segments; segment++) {
+                            for (uint32_t segment = 0; segment < num_segments; segment++) {
                                 out_file << "0x" << std::setfill('0') << std::setw(4) << std::hex
                                          << ptr_segment[segment].slope << " ";
                             }
                             out_file << "\n";
                             out_file << "<intercept> ";
-                            for (int segment = 0; segment < component[i].op.pwl.num_segments; segment++) {
+                            for (uint32_t segment = 0; segment < component[i].op.pwl.num_segments; segment++) {
                                 out_file << "0x" << std::setfill('0') << std::setw(4) << std::hex
                                          << ptr_segment[segment].yBase << " ";
                             }
                             out_file << "\n";
                             out_file << "<offset> ";
-                            for (int segment = 0; segment < component[i].op.pwl.num_segments; segment++) {
+                            for (uint32_t segment = 0; segment < component[i].op.pwl.num_segments; segment++) {
                                 out_file << "0x" << std::setfill('0') << std::setw(8) << std::hex
                                          << ptr_segment[segment].xBase << " ";
                             }

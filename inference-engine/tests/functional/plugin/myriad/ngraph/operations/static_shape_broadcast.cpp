@@ -144,9 +144,10 @@ std::vector<ngraph::element::Type> testNGraphNumericTypes {
 TEST_P(StaticShapeBroadcastNumpyTests, CanValidateAndInferTypes) {
     const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(m_tensorWithTargetShape);
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> op;
+    std::shared_ptr<ngraph::Function> fun;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
             m_tensor, shapeOf));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
     ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->output(0).get_shape());
@@ -160,9 +161,10 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastNumpyTests, testing::C
 TEST_P(StaticShapeBroadcastExplicitTests, CanValidateAndInferTypes) {
     const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(m_tensorWithTargetShape);
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> op;
+    std::shared_ptr<ngraph::Function> fun;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
             m_tensor, shapeOf, m_axesMapping));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
     ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->get_output_shape(0));
@@ -176,9 +178,10 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastExplicitTests, testing
 TEST_P(StaticShapeBroadcastBidirectionalTests, CanValidateAndInferTypes) {
     const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(m_tensorWithTargetShape);
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> op;
+    std::shared_ptr<ngraph::Function> fun;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
             m_tensor, shapeOf, ngraph::op::BroadcastType::BIDIRECTIONAL));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
     ASSERT_EQ(m_tensorWithOutput->get_shape(), op->output(0).get_shape());

@@ -1271,9 +1271,9 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+        if (!(outputBlob->getTensorDesc().getLayout() == Layout::C) && !(outputBlob->getTensorDesc().getLayout() == Layout::NC) &&
+            !(outputBlob->getTensorDesc().getLayout() == Layout::CN) && !(outputBlob->getTensorDesc().getLayout() == Layout::NCHW) &&
+            !(outputBlob->getTensorDesc().getLayout() == Layout::CHW)) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
         }

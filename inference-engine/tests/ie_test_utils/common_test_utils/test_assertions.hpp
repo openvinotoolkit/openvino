@@ -19,7 +19,6 @@ bool strContains(const std::string & str, const std::string & substr) {
 }
 
 bool strDoesnotContain(const std::string & str, const std::string & substr) {
-    (void)strDoesnotContain;  // to overcome unused warning
     return !strContains(str, substr);
 }
 

@@ -83,8 +83,9 @@ std::vector<ngraph::element::Type> outputTypes {
 
 TEST_P(StaticShapeNonZeroTests, CanValidateAndInferTypes) {
     std::shared_ptr<ngraph::vpu::op::StaticShapeNonZero> op;
+    std::shared_ptr<ngraph::Function> fun;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(m_param, m_outputType));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0), op->output(1)},
             ngraph::ParameterVector{m_param}));
 }

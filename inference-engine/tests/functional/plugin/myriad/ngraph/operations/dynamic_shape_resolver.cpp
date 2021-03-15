@@ -41,8 +41,9 @@ protected:
 
 TEST_P(DynamicShapeResolverTests, CanValidateAndInferTypes) {
     std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dynamicShapeResolver;
+    std::shared_ptr<ngraph::Function> fun;
     ASSERT_NO_THROW(dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(ngraph::NodeVector{dynamicShapeResolver}, ngraph::ParameterVector{data, dims}));
+    ASSERT_NO_THROW(fun = std::make_shared<ngraph::Function>(ngraph::NodeVector{dynamicShapeResolver}, ngraph::ParameterVector{data, dims}));
 }
 
 std::set<ngraph::element::Type_t> allNGraphTypes() {
@@ -117,7 +118,8 @@ protected:
 
 using DynamicShapeResolverNegativeTestsDataType = DynamicShapeResolverNegativeTests;
 TEST_P(DynamicShapeResolverNegativeTestsDataType, ThrowsOnInvalidDimsType) {
-    ASSERT_THROW(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
+    std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dynamicShapeResolver;
+    ASSERT_THROW(dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDataType, testing::Combine(
@@ -128,7 +130,8 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDataType,
 
 using DynamicShapeResolverNegativeTestsDimsType = DynamicShapeResolverNegativeTests;
 TEST_P(DynamicShapeResolverNegativeTestsDimsType, ThrowsOnInvalidDimsType) {
-    ASSERT_THROW(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
+    std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dynamicShapeResolver;
+    ASSERT_THROW(dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
 }
 
 std::set<ngraph::element::Type_t> allNGraphNotIntegralTypes() {
@@ -148,7 +151,8 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDimsType,
 
 using DynamicShapeResolverNegativeTestsDataShape = DynamicShapeResolverNegativeTests;
 TEST_P(DynamicShapeResolverNegativeTestsDataShape, ThrowsOnInvalidDimsType) {
-    ASSERT_THROW(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
+    std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dynamicShapeResolver;
+    ASSERT_THROW(dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDataShape, testing::Combine(
@@ -163,7 +167,8 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDataShape
 
 using DynamicShapeResolverNegativeTestsDimsShape = DynamicShapeResolverNegativeTests;
 TEST_P(DynamicShapeResolverNegativeTestsDimsShape, ThrowsOnInvalidDimsType) {
-    ASSERT_THROW(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
+    std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dynamicShapeResolver;
+    ASSERT_THROW(dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDimsShape, testing::Combine(

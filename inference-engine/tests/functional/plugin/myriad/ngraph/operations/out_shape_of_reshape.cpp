@@ -92,9 +92,10 @@ std::set<ngraph::element::Type> allNGraphIntegralNumberTypes() {
 
 TEST_P(OutShapeOfReshapeTests, CanValidateAndInferTypes) {
     std::shared_ptr<ngraph::vpu::op::OutShapeOfReshape> op;
+    std::shared_ptr<ngraph::Function> fun;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::OutShapeOfReshape>(
             m_inDataShapeParam, m_outShapeDescriptorParam, true));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_inDataShapeParam, m_outShapeDescriptorParam}));
 }

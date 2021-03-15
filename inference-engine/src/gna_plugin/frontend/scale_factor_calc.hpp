@@ -72,7 +72,7 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
             auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
-            if (slope < std::numeric_limits<int16_t>::min() && slope > std::numeric_limits<int16_t>::max()) {
+            if (slope < static_cast<uint32_t>(std::numeric_limits<int16_t>::min()) && slope > static_cast<uint32_t>(std::numeric_limits<int16_t>::max())) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
             }
@@ -119,7 +119,7 @@ static float selectBestWeightsScaleFactors(float inScale, float outScale, std::v
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale * weightScale, outScale);
             auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
-            if (slope < std::numeric_limits<int16_t>::min() && slope > std::numeric_limits<int16_t>::max()) {
+            if (slope < static_cast<uint32_t>(std::numeric_limits<int16_t>::min()) && slope > static_cast<uint32_t>(std::numeric_limits<int16_t>::max())) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
             }
