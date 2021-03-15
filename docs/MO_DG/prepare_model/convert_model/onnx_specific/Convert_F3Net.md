@@ -18,7 +18,8 @@ net = F3Net(cfg)
 image = torch.zeros([1, 3, 352, 352])
 torch.onnx.export(net, image, 'f3net.onnx', export_params=True, do_constant_folding=True, opset_version=11)
 ```
-This code produces ONNX* model file `f3net.onnx`.
+This code produces ONNX* model file `f3net.onnx`. It was tested on commit eecace3adf1e8946b571a4f4397681252f9dc1b8 on
+master branch.
 
 ## Convert ONNX* F3Net model to IR
 
