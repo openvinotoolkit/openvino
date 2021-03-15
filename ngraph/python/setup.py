@@ -328,61 +328,103 @@ class BuildCMakeExt(build_ext):
             else:
                 return ["-O0", "-g"]
         else:
-            if sys.platform == "win32":
-                return ["/O2"]
-            else:
-                return ["-O2", "-D_FORTIFY_SOURCE=2"]
+            build_types = [item.lower() for item in self.cmake_build_types]
+            try:
+                i = build_types.index(str(self.config).lower())
+                self.config = self.cmake_build_types[i]
+                self.debug = True if "Debug" == self.config else False
+            except ValueError:
+                self.announce("Unsupported CMAKE_BUILD_TYPE value: " + self.config, level=4)
+                self.announce("Supported values: {}".format(", ".join(self.cmake_build_types)), level=4)
+                sys.exit(1)
+        if self.jobs is None and os.getenv("MAX_JOBS") is not None:
+            self.jobs = os.getenv("MAX_JOBS")
+        self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
-    def _add_win_compiler_flags(self, ext):
-        self._add_extra_compile_arg("/GL", ext.extra_compile_args)  # Whole Program Optimization
-        self._add_extra_compile_arg("/analyze", ext.extra_compile_args)
+    def run(self):
+        """Run CMake build for modules."""
+        for extension in self.extensions:
+            if extension.name == "openvino.pyopenvino":
+                self.build_cmake(extension)
+            if extension.name == "_pyngraph":
+                self.build_cmake(extension)
 
-    def _add_unix_compiler_flags(self, ext):
-        if not self._add_extra_compile_arg("-fstack-protector-strong", ext.extra_compile_args):
-            self._add_extra_compile_arg("-fstack-protector", ext.extra_compile_args)
+    def build_cmake(self, extension: Extension):
+        """Cmake configure and build steps."""
+        self.announce("Preparing the build environment", level=3)
+        plat_specifier = ".%s-%d.%d" % (self.plat_name, *sys.version_info[:2])
+        self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier, self.config)
+        build_dir = pathlib.Path(self.build_temp)
 
-        self._add_extra_compile_arg("-fvisibility=hidden", ext.extra_compile_args)
-        self._add_extra_compile_arg("-flto", ext.extra_compile_args)
-        self._add_extra_compile_arg("-fPIC", ext.extra_compile_args)
+        extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
 
-        ext.extra_compile_args += ["-Wformat", "-Wformat-security"]
+        os.makedirs(build_dir, exist_ok=True)
+        os.makedirs(extension_path.parent.absolute(), exist_ok=True)
 
-    def _customize_compiler_flags(self):
-        """Modify standard compiler flags."""
-        try:
-            # -Wstrict-prototypes is not a valid option for c++
-            self.compiler.compiler_so.remove("-Wstrict-prototypes")
+        # If ngraph_DIR is not set try to build from OpenVINO root
+        root_dir = OPENVINO_ROOT_DIR
+        bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
+        if os.environ.get("ngraph_DIR") is not None:
+            root_dir = PYNGRAPH_ROOT_DIR
+            bin_dir = build_dir
 
-        except (AttributeError, ValueError):
-            pass
+        self.announce("Configuring cmake project", level=3)
+        ext_args = self.cmake_args.split() if self.cmake_args else []
+        self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
+                    "-DCMAKE_BUILD_TYPE={}".format(self.config),
+                    "-DPYTHON_EXECUTABLE={}".format(sys.executable),
+                    "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
+                    "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
 
-    def build_extensions(self):
-        """Build extension providing extra compiler flags."""
-        self._customize_compiler_flags()
+        self.announce("Building binaries", level=3)
 
-        for ext in self.extensions:
-            ext.extra_compile_args += [cpp_flag(self.compiler)]
+        self.spawn(["cmake", "--build", self.build_temp, "--target", extension.name,
+                    "--config", self.config, "-j", str(self.jobs)])
 
-            if sys.platform == "win32":
-                self._add_win_compiler_flags(ext)
-            else:
-                self._add_unix_compiler_flags(ext)
-
-            add_platform_specific_link_args(ext.extra_link_args)
-
-            ext.extra_compile_args += self._add_debug_or_release_flags()
-
-            if sys.platform == "darwin":
-                ext.extra_compile_args += ["-stdlib=libc++"]
-
-        if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-            _remove_compiler_flags(self)
-
-        build_ext.build_extensions(self)
+        self.announce("Moving built python module to " + str(extension_path), level=3)
+        pyds = list(glob.iglob("{0}/**/{1}*{2}".format(bin_dir,
+                    extension.name,
+                    sysconfig.get_config_var("EXT_SUFFIX")), recursive=True))
+        for name in pyds:
+            self.announce("copy " + os.path.join(name), level=3)
+            shutil.copy(name, extension_path)
 
 
-with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
-    requirements = req.read().splitlines()
+class InstallCMakeLibs(install_lib):
+    """Finds and installs NGraph libraries to a package location."""
+
+    def run(self):
+        """Copy libraries from the bin directory and place them as appropriate."""
+        self.announce("Adding library files", level=3)
+
+        root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
+        if os.environ.get("ngraph_DIR") is not None:
+            root_dir = pathlib.Path(os.environ["ngraph_DIR"]) / ".."
+
+        lib_ext = ""
+        if "linux" in sys.platform:
+            lib_ext = ".so"
+        elif sys.platform == "darwin":
+            lib_ext = ".dylib"
+        elif sys.platform == "win32":
+            lib_ext = ".dll"
+
+        libs = []
+        for ngraph_lib in NGRAPH_LIBS:
+            libs.extend(list(glob.iglob("{0}/**/*{1}*{2}".format(root_dir,
+                             ngraph_lib, lib_ext), recursive=True)))
+        if not libs:
+            raise Exception("NGraph libs not found.")
+
+        self.announce("Adding library files" + str(libs), level=3)
+
+        self.distribution.data_files.extend([("lib", [os.path.normpath(lib) for lib in libs])])
+        self.distribution.run_command("install_data")
+        super().run()
+
+
+cmdclass["build_ext"] = BuildCMakeExt
+cmdclass["install_lib"] = InstallCMakeLibs
 
 setup(
     name="ngraph-core",
