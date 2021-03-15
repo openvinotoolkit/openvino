@@ -9,6 +9,7 @@
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ngraph_functions/common/reshape.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
@@ -25,6 +26,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     ngraph::builder::subgraph::DequantizationOperations::Convert convertOnWeights;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
+    ngraph::builder::subgraph::Reshape reshape;
 
     std::string layerName;
     std::string expectedKernelType;

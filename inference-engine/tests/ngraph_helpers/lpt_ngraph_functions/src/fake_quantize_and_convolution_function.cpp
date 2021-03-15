@@ -61,8 +61,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const DequantizationOperations::Convert& convertOnWeights,
     const DequantizationOperations& dequantizationOnWeights,
     const DequantizationOperations& dequantizationAfter,
-    const std::string operation,
-    bool multiplyAfter) {
+    const std::string operation) {
     return FakeQuantizeAndConvolutionFunction::get(
         precision,
         inputShape,
@@ -78,8 +77,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         {},
         {},
         dequantizationAfter,
-        operation,
-        multiplyAfter);
+        operation);
 }
 
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
@@ -164,12 +162,6 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         if (!reshape2.empty()) {
             parentOnWeights = makeReshape(parentOnWeights, reshape2);
         }
-        if (operation == "GroupConvolution") {
-            Shape new_shape{numGroups, outputChannelsCount / numGroups, inputChannelsCount};
-            for (size_t i = 2; i < shape.size(); i++)
-                new_shape.push_back(shape[i]);
-            parentOnWeights = std::make_shared<opset1::Reshape>(parentOnWeights, op::Constant::create(element::i64, Shape{new_shape.size()}, new_shape), false);
-        }
     }
 
     std::shared_ptr<Node> lastOperation;
@@ -196,9 +188,9 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
         if (multiplyAfter) {
-            const auto& weights_shape = parentOnWeights->get_shape();
-            std::vector<float> cc(weights_shape[0], 1);
-            auto constant = op::Constant::create(element::f32, Shape{weights_shape[0], 1, 1}, cc);
+            const auto& O = lastOperation->get_shape()[1];
+            std::vector<float> weights_val(O, 1);
+            auto constant = op::Constant::create(element::f32, Shape{O, 1, 1}, weights_val);
             lastOperation = std::make_shared<ngraph::opset1::Multiply>(lastOperation, constant);
         }
     } else {

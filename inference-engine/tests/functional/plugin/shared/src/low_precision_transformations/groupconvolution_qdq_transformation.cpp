@@ -52,7 +52,7 @@ void GroupConvolutionQDqTransformation::SetUp() {
         param.fakeQuantizeOnWeights,
         param.convertOnWeights,
         param.dequantizationOnWeights,
-        {}, "GroupConvolution", param.multiplyAfter);
+        {}, {}, {}, param.reshape, {}, "GroupConvolution", param.multiplyAfter);
 }
 
 void GroupConvolutionQDqTransformation::Run() {

@@ -40,8 +40,7 @@ public:
         const DequantizationOperations::Convert& convertOnWeights,
         const DequantizationOperations& dequantizationOnWeights,
         const DequantizationOperations& dequantizationAfter,
-        const std::string operation = "Convolution",
-        bool multiplyAfter = false);
+        const std::string operation = "Convolution");
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
