@@ -193,7 +193,7 @@ static Status GetInputNode(const Builder::OpMap& ng_op_map, const NodeWrapper* o
 
 #endif
 
-  throw "Not supported!";
+    NGRAPH_TF_FE_NOT_IMPLEMENTED
 }
 
 namespace detail {
@@ -311,7 +311,7 @@ static Status TensorDataToVector(const TensorWrapper& tensor, std::vector<T>* ve
   return Status::OK();
     #endif
 
-  throw "Not implemented!";
+    NGRAPH_TF_FE_NOT_IMPLEMENTED
 }
 
 template <typename T>
@@ -489,7 +489,7 @@ static Status ValuesFromConstNode(const NodeWrapper* node,
   return Status::OK();
 #endif
 
-  throw "Not implemented";
+            NGRAPH_TF_FE_NOT_IMPLEMENTED
 }
 
 // Helper for Builder::TranslateGraph ("Const" op)
@@ -2826,6 +2826,55 @@ const static std::map<
         {"Xdivy", TranslateXdivyOp},
         {"ZerosLike", TranslateZerosLikeOp}};
 
+class NodeProtoWrapper : public NodeWrapper
+{
+    const NodeDef* node_def;
+public:
+
+    NodeProtoWrapper(const NodeDef* _node_def) : node_def(_node_def) {}
+
+    virtual void getAttrValue (const char* name, std::vector<int32_t>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, std::vector<float>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, int32_t* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, DataType* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, std::string* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, bool* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, long int* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, float* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, std::vector<std::string>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+
+    // a way to read Const value as a tensor
+    virtual void getAttrValue (const char* name, TensorWrapper** x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+
+    virtual unsigned int num_inputs () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual std::string name () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual bool IsArg () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual std::string type_string () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+
+    virtual Status input_node (size_t index, NodeWrapper**) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual DataType input_type (size_t index) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual DataType output_type (size_t index) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+
+    virtual bool IsSink () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual bool IsSource () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual bool IsControlFlow () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual std::string DebugString () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual bool IsRetval () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+
+};
+
+void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<NodeWrapper*>* result)
+{
+    // WARNING! We suppose that input_graph contains nodes in topologically sorted order
+    // TODO: sort it if it is not the case
+
+    result->reserve(input_graph->node_size());
+    for(int i = 0; i < input_graph->node_size(); ++i)
+    {
+        result->push_back(new NodeProtoWrapper(&input_graph->node(i)));
+    }
+}
+
 Status Builder::TranslateGraph(
         const std::vector<ngraph::PartialShape>& inputs,
         const std::vector<const TensorWrapper*>& static_input_map, const GraphDef* input_graph,
@@ -2835,9 +2884,9 @@ Status Builder::TranslateGraph(
   //
   // ought to be `const NodeWrapper*`, but GetReversePostOrder doesn't use `const`
 
-  vector<NodeWrapper*> ordered;
-  throw "Not impelemnted GetReversePostOrder";
+  std::vector<NodeWrapper*> ordered;
   //GetReversePostOrder(*input_graph, &ordered, NodeComparatorName());
+  PopulateNodesTopologicallySorted(input_graph, &ordered);
 
   //
   // Split ops into params, retvals, and all others.

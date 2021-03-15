@@ -20,6 +20,8 @@
 
 #include "../include/tensorflow_frontend/tensorflow.hpp"
 
+#include "ngraph_builder.h"
+
 using namespace google;
 
 std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert (InputModel::Ptr model) const
@@ -30,7 +32,9 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert 
     std::ifstream pb_stream(path, std::ios::binary);
     std::cout << "[ INFO ] Model Parsed: " << fw_model.ParseFromIstream(&pb_stream) << std::endl;
     std::cout << "[ INFO ] Loaded model contains " << fw_model.node_size() << " nodes." << std::endl;
-    auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{}, ngraph::ParameterVector{});
+    std::shared_ptr<ngraph::Function> f;
+    tensorflow::ngraph_bridge::Builder::TranslateGraph({}, {}, &fw_model, "here_should_be_a_graph_name", f);
+    //auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{}, ngraph::ParameterVector{});
     std::cerr << "[ ERROR ] Convetion functionality is not implemented; an empty function will be returned.";
     std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
     return f;

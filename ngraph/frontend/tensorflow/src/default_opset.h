@@ -26,6 +26,8 @@ namespace ngraph_bridge {
 namespace opset = ngraph::opset5;
 namespace default_opset = ngraph::opset5;
 
+#define NGRAPH_TF_FE_NOT_IMPLEMENTED { std::cerr << "[ NOT IMPLEMENTED ] source: " << __FILE__ << ":" << __LINE__ << "\n"; throw "NOT IMPLEMENTED"; }
+
 }  // namespace ngraph_bridge
 }  // namespace tensorflow
 
