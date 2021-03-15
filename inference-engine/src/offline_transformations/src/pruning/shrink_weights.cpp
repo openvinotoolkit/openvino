@@ -29,7 +29,7 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
         const auto & const_shape = const_node->get_shape();
         total_weights_count += shape_size(const_shape);
 
-        auto mask = getMask(const_node);
+        auto mask = getMask(const_node->output(0));
         if (!mask) continue;
 
         auto last_output = const_node->output(0);

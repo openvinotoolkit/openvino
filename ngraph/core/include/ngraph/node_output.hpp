@@ -173,6 +173,9 @@ namespace ngraph
         /// \return The partial shape of the output referred to by this output handle.
         const PartialShape& get_partial_shape() const;
 
+        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+        /// \return The constant reference to runtime info map
+        const RTMap& get_rt_info() const;
         /// \return A set containing handles for all inputs targeted by the output referenced by
         ///        this output handle.
         std::set<Input<Node>> get_target_inputs() const;

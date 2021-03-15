@@ -129,7 +129,9 @@ public:
     explicit VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 };
 
-TRANSFORMATIONS_API Mask::Ptr getMask(Output<Node> output);
+TRANSFORMATIONS_API Mask::Ptr getMask(const Output<const Node> & output);
+
+TRANSFORMATIONS_API Mask::Ptr getMask(const Output<Node> & output);
 
 TRANSFORMATIONS_API void setMask(Output<Node> output, const Mask::Ptr & mask);
 

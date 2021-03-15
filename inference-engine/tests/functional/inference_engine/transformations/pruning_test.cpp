@@ -48,7 +48,7 @@ TEST(TransformationTests, InitMasksOI) {
     auto weights = opset5::Constant::create(element::f32, weights_shape, {0});
     pass::InitConstMask({0, 1}).apply(weights);
 
-    compare_masks(*getMask(weights), {{0, 1, 2, 3, 4, 5}, {0, 1, 2}, {}, {}});
+    compare_masks(*getMask(weights->output(0)), {{0, 1, 2, 3, 4, 5}, {0, 1, 2}, {}, {}});
 }
 
 TEST(TransformationTests, InitMasksOutputChannel) {
@@ -64,7 +64,7 @@ TEST(TransformationTests, InitMasksOutputChannel) {
     auto weights = std::make_shared<opset5::Constant>(element::f32, weights_shape, values);
     pass::InitConstMask({1}).apply(weights);
 
-    compare_masks(*getMask(weights), {{}, {1}, {}, {}});
+    compare_masks(*getMask(weights->output(0)), {{}, {1}, {}, {}});
 }
 
 TEST(TransformationTests, InitMasksNegative) {
@@ -72,7 +72,7 @@ TEST(TransformationTests, InitMasksNegative) {
     auto weights = opset5::Constant::create(element::f32, weights_shape, {0.5});
     pass::InitConstMask({0, 1, 2, 3}).apply(weights);
 
-    compare_masks(*getMask(weights), {{}, {}, {}, {}});
+    compare_masks(*getMask(weights->output(0)), {{}, {}, {}, {}});
 }
 
 TEST(TransformationTests, PropagateMasksNegative) {
@@ -88,8 +88,8 @@ TEST(TransformationTests, PropagateMasksNegative) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights), {{}, {}, {}, {}});
-    compare_masks(*getMask(conv), {{}, {}, {}, {}});
+    compare_masks(*getMask(weights->output(0)), {{}, {}, {}, {}});
+    compare_masks(*getMask(conv->output(0)), {{}, {}, {}, {}});
 }
 
 TEST(TransformationTests, PropagateMasksBasic) {
@@ -117,13 +117,13 @@ TEST(TransformationTests, PropagateMasksBasic) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights),  Mask({{2}, {}, {}, {}}));
-    compare_masks(*getMask(conv),     Mask({{}, {2}, {}, {}}));
-    compare_masks(*getMask(relu),     Mask({{}, {2}, {}, {}}));
+    compare_masks(*getMask(weights->output(0)),  Mask({{2}, {}, {}, {}}));
+    compare_masks(*getMask(conv->output(0)),     Mask({{}, {2}, {}, {}}));
+    compare_masks(*getMask(relu->output(0)),     Mask({{}, {2}, {}, {}}));
     compare_masks(*getMask(sub_const), Mask({{2}, {}, {}}));
     compare_masks(*getMask(mul_const), Mask({{2}, {}, {}}));
-    compare_masks(*getMask(weights2), Mask({{}, {2}, {}, {}}));
-    compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(weights2->output(0)), Mask({{}, {2}, {}, {}}));
+    compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
 }
 
 TEST(TransformationTests, PropagateMasksEmpty) {
@@ -151,13 +151,13 @@ TEST(TransformationTests, PropagateMasksEmpty) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights),  Mask({{}, {}, {}, {}}));
-    compare_masks(*getMask(conv),     Mask({{}, {}, {}, {}}));
-    compare_masks(*getMask(relu),     Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(weights->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv->output(0)),     Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(relu->output(0)),     Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(sub_const), Mask({{}, {}, {}}));
     compare_masks(*getMask(mul_const), Mask({{}, {}, {}}));
-    compare_masks(*getMask(weights2), Mask({{}, {}, {}, {}}));
-    compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(weights2->output(0)), Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
 }
 
 TEST(TransformationTests, PropagateMasksHardDependencies) {

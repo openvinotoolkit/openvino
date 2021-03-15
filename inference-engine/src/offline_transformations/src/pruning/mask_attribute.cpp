@@ -16,7 +16,17 @@ template class ngraph::VariantImpl<Mask::Ptr>;
 
 constexpr VariantTypeInfo VariantWrapper<Mask::Ptr>::type_info;
 
-Mask::Ptr getMask(Output<Node> output) {
+Mask::Ptr getMask(const Output<const Node> & output) {
+    auto &rtInfo = output.get_rt_info();
+    using MaskWraper = VariantWrapper<Mask::Ptr>;
+
+    if (!rtInfo.count(MaskWraper::type_info.name)) return nullptr;
+
+    const auto &attr = rtInfo.at(MaskWraper::type_info.name);
+    return as_type_ptr<MaskWraper>(attr)->get();
+}
+
+Mask::Ptr getMask(const Output<Node> & output) {
     auto &rtInfo = output.get_rt_info();
     using MaskWraper = VariantWrapper<Mask::Ptr>;
 

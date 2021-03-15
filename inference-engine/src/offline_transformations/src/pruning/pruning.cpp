@@ -19,11 +19,11 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
 
 #ifdef NGRAPH_DEBUG_ENABLE
     // VisualizeTree modifier helps to print Masks and mark nodes with masks
-    auto modifier = [](Node& node, std::vector<std::string>& attributes) {
+    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
         std::stringstream ss;
         size_t index{0};
-        for (auto output : node.outputs()) {
-            if (auto mask = getMask(output)) {
+        for (const auto & output : node.outputs()) {
+            if (const auto & mask = getMask(output)) {
                 if (!mask->all_dims_are_empty()) {
                     attributes.emplace_back("color=green");
                     attributes.emplace_back("penwidth=2");
