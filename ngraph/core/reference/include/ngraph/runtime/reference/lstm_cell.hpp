@@ -139,8 +139,9 @@ namespace ngraph
                                  4,
                                  pointers.data());
 
-                auto clip_activation = [&clip](
-                    std::vector<T>& gate, const std::string& activation, bool enable_clip = true) {
+                auto clip_activation = [&clip](std::vector<T>& gate,
+                                               const std::string& activation,
+                                               bool enable_clip = true) {
                     if (clip > 0.f && enable_clip)
                     {
                         reference::clamp(gate.data(),
