@@ -52,6 +52,10 @@ class Scatter(Op):
         updates_shape = node.in_port(2).data.get_shape()
         assert input_shape is not None and updates_shape is not None and indices_shape is not None, \
             'The node "{}" input shape is None'.format(node_name)
+        assert len(input_shape) == len(indices_shape), 'data and indices inputs for node {} must be of the ' \
+            'same rank. Instead got {} and {}'.format(node_name, len(input_shape), len(indices_shape))
+        assert np.array_equal(indices_shape, updates_shape), 'updates and indices shapes for node {} must be equal. ' \
+            'Instead got {} and {}'.format(node_name, indices_shape, updates_shape)
 
         node.out_port(0).data.set_shape(input_shape)
 
@@ -106,24 +110,15 @@ class ScatterElementsUpdate(Scatter):
             "Incorrect number of inputs for {} node".format(node_name)
 
         input_value = node.in_port(0).data.get_value()
-        input_shape = node.in_port(0).data.get_shape()
         indices_value = node.in_port(1).data.get_value()
         indices_shape = node.in_port(1).data.get_shape()
         updates_value = node.in_port(2).data.get_value()
-        updates_shape = node.in_port(2).data.get_shape()
         axis = node.in_port(3).data.get_value()
-
-        data_rank = len(input_shape)
-        assert data_rank == len(indices_shape), 'data and indices inputs for node {} must be of the ' \
-                                                'same rank. Instead got {} and {}'. \
-            format(node.name, data_rank, len(indices_shape))
-
-        assert np.array_equal(indices_shape, updates_shape), 'updates and indices shapes for node {} must be equal. ' \
-                                                             'Instead got {} and {}'. \
-            format(node.name, indices_shape, updates_shape)
+        if axis.size == 1:
+            axis = axis.item()
 
         # compute output value if all inputs are constant
-        if input_value is not None and indices_value is not None and updates_value is not None:
+        if input_value is not None and indices_value is not None and updates_value is not None and axis is not None:
             out_value = input_value.copy()
             for idx in np.ndindex(*indices_shape):
                 data_idx = list(idx)
