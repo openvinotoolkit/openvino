@@ -78,6 +78,9 @@ const int gna_header_magic = is_little_endian() ?  0x4d414e47 : 0x474e414d;
 GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
     is.exceptions(std::istream::failbit);
     auto startPos = is.tellg();
+    if (startPos == -1) {
+        THROW_GNA_EXCEPTION << "Can't open stream to import";
+    }
     is.seekg(0, is.end);
     auto stream_len = is.tellg();
     if (stream_len == -1) {
