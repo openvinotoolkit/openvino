@@ -71,10 +71,14 @@ void op::Concat::validate_and_infer_types()
             }
             auto concat_axis = get_concatenation_axis();
             NODE_VALIDATION_CHECK(this,
-                                  concat_axis < this_input_rank.get_length(),
+                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0,
                                   "Concatenation axis (",
                                   concat_axis,
-                                  ") is out of bounds for ",
+                                  ") is out of bounds [",
+                                  -this_input_rank.get_length(),
+                                  ", ",
+                                  this_input_rank.get_length() - 1,
+                                  "] for ",
                                   "argument ",
                                   i,
                                   ", which has shape ",
