@@ -82,6 +82,7 @@
 #include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/convolution.hpp>
+#include <low_precision/convolution_backprop_data.hpp>
 #include <low_precision/group_convolution.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
@@ -320,7 +321,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
             .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
+            .remove<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>());
 
         transformer.transform(nGraphFunc);
     }

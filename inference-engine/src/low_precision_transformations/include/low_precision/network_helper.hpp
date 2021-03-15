@@ -109,7 +109,8 @@ public:
         const float max,
         const bool hasZeroPoint,
         const bool updatePrecision,
-        const element::Type deqPrecision = element::f32);
+        const element::Type deqPrecision = element::f32,
+        const int outChannelsShapeIndex = 0);
 
     static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -183,7 +184,7 @@ public:
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
-    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, int outChannelsShapeIndex = 0);
 
     static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
 
@@ -192,7 +193,11 @@ public:
     static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
 private:
-    static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
+    static std::shared_ptr<Node> foldFakeQuantize(
+            const std::shared_ptr<opset1::FakeQuantize>& fq,
+            const bool roundValues,
+            const bool roundValuesWasSet,
+            int outChannelsShapeIndex = 0);
 
     // 1  - on weights
     // 0  - weightable layer was not found

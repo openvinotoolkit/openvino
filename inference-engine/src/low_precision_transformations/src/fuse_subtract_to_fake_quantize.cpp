@@ -45,11 +45,18 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
     const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
 
+    const auto inputLow = fold<opset1::Convert>(fakeQuantize->input_value(1), deqPrecision);
+    const auto inputHigh = fold<opset1::Convert>(fakeQuantize->input_value(2), deqPrecision);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(1), inputLow);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(2), inputHigh);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
+
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantizeParent->output(parentIndex),
-            fold<opset1::Convert>(fakeQuantize->input_value(1), deqPrecision),
-            fold<opset1::Convert>(fakeQuantize->input_value(2), deqPrecision),
+            inputLow,
+            inputHigh,
             outputLowConst_f32,
             outputHighConst_f32,
             fakeQuantize->get_levels()),
@@ -76,7 +83,8 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
     for (const auto& target : childs) {
         const auto convolution = is_type<opset1::Convolution>(target.get_node());
         const auto groupConvolution = is_type<opset1::GroupConvolution>(target.get_node());
-        if (convolution || groupConvolution) {
+        const auto convolutionBackpropData = is_type<opset1::ConvolutionBackpropData>(target.get_node());
+        if (convolution || groupConvolution || convolutionBackpropData) {
             return false;
         }
     }
