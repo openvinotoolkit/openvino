@@ -76,8 +76,7 @@ void regclass_InferRequest(py::module m)
             profile_info["cpu_time"] = it.second.cpu_uSec;
             profile_info["real_time"] = it.second.realTime_uSec;
             profile_info["execution_index"] = it.second.execution_index;
-            std::string str = it.first;
-            perf_map[str.c_str()] = profile_info;
+            perf_map[it.first.c_str()] = profile_info;
         }
         return perf_map;
     });

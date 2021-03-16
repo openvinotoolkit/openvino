@@ -21,7 +21,7 @@ from openvino.inference_engine import IENetwork
 
 def function_from_cnn(cnn_network: IENetwork) -> Function:
     """Get nGraph function from Inference Engine CNN network."""
-    ng_function = cnn_network._get_function_capsule()
+    ng_function = cnn_network.get_function()
     return ng_function
 
 
