@@ -39,8 +39,8 @@ op::v7::IDFT::IDFT(const Output<Node>& data, const Output<Node>& axes)
 }
 
 op::v7::IDFT::IDFT(const Output<Node>& data,
-                 const Output<Node>& axes,
-                 const Output<Node>& signal_size)
+                   const Output<Node>& axes,
+                   const Output<Node>& signal_size)
     : Op({data, axes, signal_size})
 {
     constructor_validate_and_infer_types();
