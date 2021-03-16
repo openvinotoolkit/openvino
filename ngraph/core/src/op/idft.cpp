@@ -23,7 +23,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/dft.hpp"
+#include "ngraph/op/idft.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
