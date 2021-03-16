@@ -140,7 +140,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
     if (arg_shape.rank().get_length() == 0 && axes_mapping_val.size() > 0)
     {
         NODE_VALIDATION_CHECK(this,
-                              target_shape[axes_mapping_val[i]].is_dynamic() ||
+                              target_shape[axes_mapping_val[0]].is_dynamic() ||
                                   target_shape[axes_mapping_val[0]] == 1,
                               "Broadcast target[axes_mapping[0]]. Expected 1. Got ",
                               target_shape[axes_mapping_val[0]]);
