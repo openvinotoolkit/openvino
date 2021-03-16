@@ -16,7 +16,7 @@
     * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 0
-    * **Required**: *yes*
+    * **Required**: *no*
 
 **Inputs**
 

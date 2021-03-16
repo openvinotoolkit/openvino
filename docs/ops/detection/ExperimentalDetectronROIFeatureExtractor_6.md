@@ -28,7 +28,7 @@
     * **Description**: *sampling_ratio* attribute specifies the number of sampling points per the output value. If 0, then use adaptive number computed as `ceil(roi_width / output_width)`, and likewise for height.
     * **Range of values**: a non-negative integer number
     * **Type**: int
-    * **Default value**: 0
+    * **Default value**: None
     * **Required**: *yes*
 
 * *pyramid_scales*

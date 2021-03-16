@@ -16,7 +16,7 @@
       * `false` - the output tensor should be 4D tensor
     * **Type**: boolean
     * **Default value**: true
-    * **Required**: *yes*
+    * **Required**: *no*
 
 * *h* (*w*)
 
@@ -24,7 +24,7 @@
     * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 0
-    * **Required**: *yes*
+    * **Required**: *no*
 
 * *stride_x* (*stride_y*)
 

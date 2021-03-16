@@ -22,7 +22,7 @@
     * **Description**: *score_threshold* attribute specifies threshold to consider only detections whose score are larger than a threshold.
     * **Range of values**: non-negative floating point number
     * **Type**: float
-    * **Default value**: 0.05
+    * **Default value**: None
     * **Required**: *yes*
 
 * *nms_threshold*
@@ -30,7 +30,7 @@
     * **Description**: *nms_threshold* attribute specifies threshold to be used in the NMS stage.
     * **Range of values**: non-negative floating point number
     * **Type**: float
-    * **Default value**: 0.5
+    * **Default value**: None
     * **Required**: *yes*
 
 * *num_classes*
@@ -38,7 +38,7 @@
     * **Description**: *num_classes* attribute specifies number of detected classes.
     * **Range of values**: non-negative integer number
     * **Type**: int
-    * **Default value**: 81
+    * **Default value**: None
     * **Required**: *yes*
 
 * *post_nms_count*
@@ -46,7 +46,7 @@
     * **Description**: *sampling_ratio* attribute specifies the maximal number of detections per class.
     * **Range of values**: non-negative integer number
     * **Type**: int
-    * **Default value**: 2000
+    * **Default value**: None
     * **Required**: *yes*
 
 * *max_detections_per_image*
@@ -54,7 +54,7 @@
     * **Description**: *max_detections_per_image* attribute specifies maximal number of detections per image.
     * **Range of values**: non-negative integer number
     * **Type**: int
-    * **Default value**: 100
+    * **Default value**: None
     * **Required**: *yes*
 
 * *class_agnostic_box_regression*
@@ -65,14 +65,14 @@
       * `false` means background classes shouldn't be deleted
     * **Type**: boolean
     * **Default value**: false
-    * **Required**: *yes*
+    * **Required**: *no*
 
 * *max_delta_log_wh*
 
     * **Description**: *max_delta_log_wh* attribute specifies maximal delta of logarithms for width and height.
     * **Range of values**: floating point number
     * **Type**: float
-    * **Default value**: log(1000.0f / 16.0f)
+    * **Default value**: None
     * **Required**: *yes*
 
 * *deltas_weights*
@@ -80,7 +80,7 @@
     * **Description**: *deltas_weights* attribute specifies deltas of weights.
     * **Range of values**: a list of non-negative floating point numbers
     * **Type**: float[]
-    * **Default value**: `[10., 10., 5., 5.]`
+    * **Default value**: None
     * **Required**: *yes*
 
 **Inputs**
