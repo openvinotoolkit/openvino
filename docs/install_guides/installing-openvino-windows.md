@@ -137,7 +137,7 @@ You must update several environment variables before you can compile and run Ope
 ```sh
 "C:\Program Files (x86)\Intel\openvino_2021\bin\setupvars.bat"
 ```
-> **IMPORTANT**: Windows PowerShell* is not recommended to run the command, please use the Command Prompt instead.
+> **IMPORTANT**: Windows PowerShell* is not recommended to run the configuration commands, please use the Command Prompt instead.
 
 <strong>(Optional)</strong>: OpenVINO toolkit environment variables are removed when you close the Command Prompt window. As an option, you can permanently set the environment variables manually.
 
