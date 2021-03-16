@@ -96,9 +96,9 @@ public:
         // for debug purposes
         //for(int64_t i=0; i < OW * OH * IC * KW * KH * OB ; i++)
         //    dst_data[i] = -1;
-        std::fill(dst_data, dst_data + OW * OH * IC * KW * KH * OB, -1);
-        if (eximpat_kernel){
-        //if (0){
+        //std::fill(dst_data, dst_data + OW * OH * IC * KW * KH * OB, -1);
+        //if (eximpat_kernel){
+        if (1){
             //auto src_ptr = reinterpret_cast<const char *>(src_data);
             //auto dst_ptr = reinterpret_cast<char *>(dst_data);
 
@@ -196,6 +196,7 @@ public:
              */
             parallel_for4d(OB, KH, KW, IC, thread_body);
         }
+        /*
         std::cout << "\n======================\n\n";
         for(int i=0; i < IH; i++){
             for(int j=0; j < IW; j++) {
@@ -203,6 +204,7 @@ public:
             }
             std::cout << "\n";
         }
+         */
         // NB! works only for IC=1
         std::cout << "-------------------------\n";
         for(int kh=0; kh < KH; kh++) {
