@@ -53,6 +53,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 size_t get_max_rois() const { return m_max_rois; }
+
             private:
                 size_t m_max_rois;
             };

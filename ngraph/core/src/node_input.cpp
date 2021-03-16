@@ -152,15 +152,15 @@ namespace ngraph
     bool Input<const Node>::operator>=(const Input& other) const { return !(*this < other); }
     std::ostream& operator<<(std::ostream& out, const Input<Node>& input)
     {
-        return input.get_node()->write_description(out, 0) << ".input(" << input.get_index()
-                                                           << "):" << input.get_element_type()
-                                                           << input.get_partial_shape();
+        return input.get_node()->write_description(out, 0)
+               << ".input(" << input.get_index() << "):" << input.get_element_type()
+               << input.get_partial_shape();
     }
 
     std::ostream& operator<<(std::ostream& out, const Input<const Node>& input)
     {
-        return input.get_node()->write_description(out, 0) << ".input(" << input.get_index()
-                                                           << "):" << input.get_element_type()
-                                                           << input.get_partial_shape();
+        return input.get_node()->write_description(out, 0)
+               << ".input(" << input.get_index() << "):" << input.get_element_type()
+               << input.get_partial_shape();
     }
 }

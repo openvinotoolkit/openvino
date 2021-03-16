@@ -21,7 +21,6 @@ file (GLOB HDR
 add_executable(${TARGET_NAME} ${HDR} ${SRC})
 
 find_package(gflags REQUIRED)
-find_package(Threads REQUIRED)
 
 target_link_libraries(${TARGET_NAME}
         IE::gtest
