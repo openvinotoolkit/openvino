@@ -114,6 +114,7 @@ class ScatterElementsUpdate(Scatter):
         indices_shape = node.in_port(1).data.get_shape()
         updates_value = node.in_port(2).data.get_value()
         axis = node.in_port(3).data.get_value()
+        assert axis is not None and axis.size <= 1
         if axis.size == 1:
             axis = axis.item()
 
