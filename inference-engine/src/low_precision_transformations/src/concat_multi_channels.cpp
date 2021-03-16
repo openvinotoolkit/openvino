@@ -296,7 +296,7 @@ FakeQuantizeDequantization ConcatMultiChannelsTransformation::getFoldedDequantiz
     std::shared_ptr<DequantizationSubtract> subtract;
     std::shared_ptr<ngraph::opset1::Constant> subConst;
     if (dequantization.subtract) {
-        subConst = NetworkHelper::foldDequantizationConstant(operation, dequantization.subtractConstant, sourceOutputIdx);
+        subConst = NetworkHelper::foldDequantizationConstant(dequantization.subtractConstant, operation, sourceOutputIdx);
         subtract = std::make_shared<DequantizationSubtract>(parent, subConst);
         parent = subtract;
     }
@@ -304,7 +304,7 @@ FakeQuantizeDequantization ConcatMultiChannelsTransformation::getFoldedDequantiz
     std::shared_ptr<DequantizationMultiply> multiply;
     std::shared_ptr<ngraph::opset1::Constant> mulConst;
     if (dequantization.multiply) {
-        mulConst = NetworkHelper::foldDequantizationConstant(operation, dequantization.multiplyConstant, sourceOutputIdx);
+        mulConst = NetworkHelper::foldDequantizationConstant(dequantization.multiplyConstant, operation, sourceOutputIdx);
         multiply = std::make_shared<DequantizationMultiply>(parent, mulConst);
     }
 

@@ -88,22 +88,27 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
 }
 
 std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
+    const std::shared_ptr<opset1::Constant> foldingConstant,
     const std::shared_ptr<Node> operation,
-    const std::shared_ptr<opset1::Constant> constant,
-    const size_t operationOutIdx) {
+    const size_t outIdx) {
     OutputVector inputs = operation->input_values();
     OutputVector outputs(operation->get_output_size());
 
-    if (isScalarLike(constant)) {
-        return toScalar(constant);
+    if (shape_size(foldingConstant) == 1ul) {
+        return toScalar(foldingConstant);
     } else {
-        inputs[0] = constant;
+        inputs[0] = foldingConstant;
         const auto op = operation->clone_with_new_inputs(inputs);
 
         // constant folding of constant
         op->constant_fold(outputs, inputs);
 
-        return as_type_ptr<opset1::Constant>(outputs[operationOutIdx].get_node_shared_ptr());
+        const auto result = as_type_ptr<opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
+        if (result == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*result) << "result of constant folding is not constant";
+        }
+
+        return result;
     }
 }
 
