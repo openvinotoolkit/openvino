@@ -94,47 +94,35 @@ bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVe
 NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
 
 op::Clamp::Clamp()
-    : FusedOp()
+    : Op()
     , m_min()
     , m_max()
 {
 }
 
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
-    : FusedOp({data})
+    : Op({data})
     , m_min{min}
     , m_max{max}
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Clamp::pre_validate_and_infer_types()
+void op::Clamp::validate_and_infer_types()
 {
-    NODE_VALIDATION_CHECK(
-        this, m_min < m_max, "The 'min' parameter needs to be less than 'max' for Clamp");
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-}
-
-OutputVector op::Clamp::decompose_op() const
-{
-    const auto data = input_value(0);
-    const auto type = data.get_element_type();
-    const auto shape = data.get_shape();
-
-    // the clamp op is defined with doubles (attributes) for min/max
-    // this means the user can create a clamp op with ...
-    // 1. an integer type input and
-    // 2. non-integral min/max values
-    // this forces us to have a policy for dealing with this situation
-    // the policy is to use ceil for min, floor for max when converting
-    //  from type double to an integer type T
-    // in this way we select the nearest integer value between min and max
-    //  for both min and max
-    shared_ptr<Node> clamp_min = builder::make_constant_from_double(type, shape, m_min);
-    shared_ptr<Node> clamp_max = builder::make_constant_from_double(type, shape, m_max);
-
-    auto max = make_shared<op::v1::Maximum>(clamp_min, data);
-    return {make_shared<op::v1::Minimum>(clamp_max, max)};
+    NGRAPH_OP_SCOPE(v0_Clamp_validate_and_infer_types);
+    const element::Type& input_et = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_integral_number() || input_et.is_real(),
+                          "Input element type must be numeric. Got: ",
+                          input_et);
+    NODE_VALIDATION_CHECK(this,
+                          m_min < m_max,
+                          "Attribute 'min' must be less than 'max'. Got: ",
+                          m_min,
+                          " and ",
+                          m_max);
+    set_output_type(0, input_et, get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const
