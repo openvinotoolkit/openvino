@@ -80,11 +80,13 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv,
                                                            const Output<ngraph::Node>& bias)
                     {
-                        const auto rank_of_conv = ng_conv.get_partial_shape().rank().get_length();
+                        const int64_t bias_axis = 1;
+                        const auto broadcast_bias = std::make_shared<default_opset::Broadcast>(
+                            bias,
+                            std::make_shared<default_opset::ShapeOf>(ng_conv),
+                            default_opset::Constant::create(element::i64, Shape{1}, {bias_axis}));
 
-                        return {std::make_shared<default_opset::Add>(
-                            ng_conv,
-                            reshape::reshape_channel_shaped_node_to_nchw(bias, rank_of_conv))};
+                        return {std::make_shared<default_opset::Add>(ng_conv, broadcast_bias)};
                     }
                 } // namespace
 
@@ -123,11 +125,11 @@ namespace ngraph
                     }
                     else
                     {
-                        const auto bias = inputs.at(2);
-                        const auto bias_ps = bias.get_partial_shape();
+                        const auto& bias = inputs.at(2);
+                        const auto& bias_ps = bias.get_partial_shape();
 
-                        NGRAPH_CHECK(bias_ps.is_static() && is_vector(bias_ps.to_shape()),
-                                     "The bias input needs to be a static 1D vector");
+                        NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
+                                     "The bias input needs to be 1D vector");
 
                         return {add_bias(conv_node, bias)};
                     }
