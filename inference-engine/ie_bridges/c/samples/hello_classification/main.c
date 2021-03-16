@@ -39,6 +39,9 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
     *n = output_dim.dims[1];
 
     struct classify_res *cls = (struct classify_res *)malloc(sizeof(struct classify_res) * (*n));
+    if (!cls) {
+        return NULL;
+    }
 
     ie_blob_buffer_t blob_cbuffer;
     status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
