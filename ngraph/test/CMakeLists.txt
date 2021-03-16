@@ -270,6 +270,7 @@ set(MULTI_TEST_SRC
     backend/convert_like.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
+    backend/clamp.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
