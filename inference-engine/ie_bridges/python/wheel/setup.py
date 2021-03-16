@@ -210,6 +210,24 @@ def is_tool(name):
     return True
 
 
+def remove_rpath(file_path):
+    """
+        Remove rpath from binaries
+        :param file_path: binary path
+        :type file_path: pathlib.Path
+    """
+    if sys.platform == "darwin":
+        cmd = f'otool -l {file_path} ' \
+              f'| grep LC_RPATH -A3 ' \
+              f'| grep -o "path.*" ' \
+              f'| cut -d " " -f2 ' \
+              f'| xargs -I{{}} install_name_tool -delete_rpath {{}} {file_path}'
+        if os.WEXITSTATUS(os.system(cmd)) != 0:
+            sys.exit(f"Could not remove rpath for {file_path}")
+    else:
+        sys.exit(f"Unsupported platform: {sys.platform}")
+
+
 def set_rpath(rpath, executable):
     """Setting rpath for linux and macOS libraries"""
     print(f"Setting rpath {rpath} for {executable}")
@@ -225,6 +243,8 @@ def set_rpath(rpath, executable):
         sys.exit(f"Unsupported platform: {sys.platform}")
 
     if is_tool(rpath_tool):
+        if sys.platform == "darwin":
+            remove_rpath(executable)
         ret_info = subprocess.run(cmd, check=True)
         if ret_info.returncode != 0:
             sys.exit(f"Could not set rpath: {rpath} for {executable}")
