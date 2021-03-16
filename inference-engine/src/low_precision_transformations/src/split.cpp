@@ -33,52 +33,61 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     newSplit->set_friendly_name(split->get_friendly_name());
     ngraph::copy_runtime_info(split, newSplit);
 
-    int64_t axis = as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
-    size_t normalizeAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
+    const int64_t axis = as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    const size_t normalizedAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
+    const size_t outputSize = newSplit->get_output_size();
+
+    const auto splitConstant = [&](const std::shared_ptr<Node> operation) {
+        // if batch is absent in constant shape - add batch
+        const auto normalizedConstant = NetworkHelper::normalizeDequantizationShape(operation);
+        const auto constantShape = normalizedConstant->get_shape();
+
+        OutputVector results(outputSize);
+        if ((shape_size(constantShape) == 1ul) || (constantShape[normalizedAxis] == 1ul)) {
+            std::for_each(results.begin(), results.end(), [&](Output<Node>& elem) { elem = normalizedConstant->clone_with_new_inputs({}); });
+        } else {
+            // prepare new inputs for constant folding
+            OutputVector inputs = newSplit->input_values();
+            inputs[0] = normalizedConstant;
+            const auto foldSplit = newSplit->clone_with_new_inputs(inputs);
+
+            // fold and fill results
+            foldSplit->constant_fold(results, inputs);
+        }
+
+        for (auto& result : results) {
+            result = NetworkHelper::toScalarIfPossible(result.get_node_shared_ptr());
+        }
+
+        return results;
+    };
+
+    // get splited dequantization constants
+    OutputVector splitedSub = dequantization.subtract ? splitConstant(dequantization.subtract) : OutputVector{};
+    OutputVector splitedMul = splitConstant(dequantization.multiply);
 
     NodeVector lastNodes;
     OutputVector replacement;
-    for (size_t i = 0; i < newSplit->get_output_size(); ++i) {
-        Output<Node> previous = newSplit->output(i);
-
-        const auto splitConstant = [&](const std::shared_ptr<opset1::Constant> constant, const std::shared_ptr<Node> eltwise) {
-            if (constant->get_shape().empty()) {
-                return constant;
-            } else {
-                // if batch is absent in constant shape - add batch
-                const auto normalizedConstant = NetworkHelper::normalizeDequantizationShape(eltwise);
-                if (normalizedConstant->get_shape()[normalizeAxis] == 1) {
-                    return normalizedConstant;
-                } else {
-                    return NetworkHelper::foldDequantizationConstant(newSplit, normalizedConstant, i);
-                }
-            }
-        };
+    for (size_t i = 0; i < outputSize; ++i) {
+        Output<Node> parent = newSplit->output(i);
 
         if (dequantization.convert) {
             const auto convert = dequantization.convert->clone_with_new_inputs({ newSplit->output(i) });
             copy_runtime_info({ newSplit, convert }, convert);
-            previous = convert;
+            parent = convert;
         }
 
         if (dequantization.subtract) {
-            const auto subConst = splitConstant(dequantization.subtractConstant, dequantization.subtract);
-            const auto subtract = std::make_shared<DequantizationSubtract>(previous, subConst);
-
+            const auto subtract = std::make_shared<DequantizationSubtract>(parent, splitedSub[i]);
             copy_runtime_info({ newSplit, subtract }, subtract);
-            previous = subtract;
+            parent = subtract;
         }
 
-        if (dequantization.multiply) {
-            const auto mulConst = splitConstant(dequantization.multiplyConstant, dequantization.multiply);
-            const auto multiply = std::make_shared<DequantizationMultiply>(previous, mulConst);
+        const auto multiply = std::make_shared<DequantizationMultiply>(parent, splitedMul[i]);
+        copy_runtime_info({ newSplit, multiply }, multiply);
 
-            copy_runtime_info({ newSplit, multiply }, multiply);
-            previous = multiply;
-        }
-
-        lastNodes.push_back(previous.get_node_shared_ptr());
-        replacement.push_back(previous);
+        lastNodes.push_back(multiply);
+        replacement.push_back(multiply);
     }
 
     replace_node(split, replacement);

@@ -94,7 +94,7 @@ std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
     OutputVector inputs = operation->input_values();
     OutputVector outputs(operation->get_output_size());
 
-    if (shape_size(foldingConstant) == 1ul) {
+    if (shape_size(foldingConstant->get_shape()) == 1ul) {
         return toScalar(foldingConstant);
     } else {
         inputs[0] = foldingConstant;
