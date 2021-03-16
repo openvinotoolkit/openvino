@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/validation_util.hpp>
 #include "ngraph/op/swish.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -112,8 +112,7 @@ namespace swish
         return true;
     }
 
-    bool
-        evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out)
+    bool evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out)
     {
         bool rc = true;
         size_t count = shape_size(inputs[0]->get_shape());
@@ -135,7 +134,9 @@ namespace swish
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_Swish_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(
+        this,
+        validate_host_tensor_vector(outputs, 1) &&
+            (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
     return swish::evaluate_swish(inputs, outputs[0]);
 }
