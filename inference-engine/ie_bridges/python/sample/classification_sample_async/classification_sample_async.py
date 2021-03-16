@@ -1,173 +1,141 @@
-#!/usr/bin/env python
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-from __future__ import print_function
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+import argparse
+import logging as log
 import sys
-import os
-from argparse import ArgumentParser, SUPPRESS
+
 import cv2
 import numpy as np
-import logging as log
 from openvino.inference_engine import IECore
-import threading
 
 
-class InferReqWrap:
-    def __init__(self, request, id, num_iter):
-        self.id = id
-        self.request = request
-        self.num_iter = num_iter
-        self.cur_iter = 0
-        self.cv = threading.Condition()
-        self.request.set_completion_callback(self.callback, self.id)
-
-    def callback(self, statusCode, userdata):
-        if (userdata != self.id):
-            log.error(f"Request ID {self.id} does not correspond to user data {userdata}")
-        elif statusCode != 0:
-            log.error(f"Request {self.id} failed with status code {statusCode}")
-        self.cur_iter += 1
-        log.info(f"Completed {self.cur_iter} Async request execution")
-        if self.cur_iter < self.num_iter:
-            # here a user can read output containing inference results and put new input
-            # to repeat async request again
-            self.request.async_infer(self.input)
-        else:
-            # continue sample execution after last Asynchronous inference request execution
-            self.cv.acquire()
-            self.cv.notify()
-            self.cv.release()
-
-    def execute(self, mode, input_data):
-        if (mode == "async"):
-            log.info(f"Start inference ({self.num_iter} Asynchronous executions)")
-            self.input = input_data
-            # Start async request for the first time. Wait all repetitions of the async request
-            self.request.async_infer(input_data)
-            self.cv.acquire()
-            self.cv.wait()
-            self.cv.release()
-        elif (mode == "sync"):
-            log.info(f"Start inference ({self.num_iter} Synchronous executions)")
-            for self.cur_iter in range(self.num_iter):
-                # here we start inference synchronously and wait for
-                # last inference request execution
-                self.request.infer(input_data)
-                log.info(f"Completed {self.cur_iter + 1} Sync request execution")
-        else:
-            log.error("wrong inference mode is chosen. Please use \"sync\" or \"async\" mode")
-            sys.exit(1)
-
-
-
-def build_argparser():
-    parser = ArgumentParser(add_help=False)
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
-    args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
-    args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
-                      required=True, type=str)
-    args.add_argument("-i", "--input", help="Required. Path to an image files",
-                      required=True, type=str, nargs="+")
-    args.add_argument("-l", "--cpu_extension",
-                      help="Optional. Required for CPU custom layers. Absolute path to a shared library with the"
-                           " kernels implementations.", type=str, default=None)
-    args.add_argument("-d", "--device",
-                      help="Optional. Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is "
-                           "acceptable. The sample will look for a suitable plugin for device specified. Default value is CPU",
-                      default="CPU", type=str)
-    args.add_argument("--labels", help="Optional. Labels mapping file", default=None, type=str)
-    args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
+    args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
+    args.add_argument('-m', '--model', required=True, type=str,
+                      help='Required. Path to an .xml or .onnx file with a trained model.')
+    args.add_argument('-i', '--input', required=True, type=str, nargs='+', help='Required. Path to an image file(s).')
+    args.add_argument('-l', '--extension', type=str, default=None,
+                      help='Optional. Required by the CPU Plugin for executing the custom operation on a CPU. '
+                      'Absolute path to a shared library with the kernels implementations.')
+    args.add_argument('-c', '--config', type=str, default=None,
+                      help='Optional. Required by GPU or VPU Plugins for the custom operation kernel. '
+                      'Absolute path to operation description file (.xml).')
+    args.add_argument('-d', '--device', default='CPU', type=str,
+                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
+                      'is acceptable. The sample will look for a suitable plugin for device specified. '
+                      'Default value is CPU.')
+    args.add_argument('--labels', default=None, type=str, help='Optional. Path to a labels mapping file.')
+    args.add_argument('-nt', '--number_top', default=10, type=int, help='Optional. Number of top results.')
 
-    return parser
+    return parser.parse_args()
+
 
 def main():
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
-    args = build_argparser().parse_args()
+    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO)
+    args = parse_args()
 
-    # Plugin initialization for specified device and load extensions library if specified
-    log.info("Creating Inference Engine")
+# ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
+    log.info('Creating Inference Engine')
     ie = IECore()
-    if args.cpu_extension and 'CPU' in args.device:
-        ie.add_extension(args.cpu_extension, "CPU")
 
-    # Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
-    model = args.model
-    log.info(f"Loading network:\n\t{model}")
-    net = ie.read_network(model=model)
+    if args.extension and args.device == 'CPU':
+        log.info(f'Loading the {args.device} extension: {args.extension}')
+        ie.add_extension(args.extension, args.device)
 
-    assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
-    assert len(net.outputs) == 1, "Sample supports only single output topologies"
+    if args.config and args.device in ('GPU', 'MYRIAD', 'HDDL'):
+        log.info(f'Loading the {args.device} configuration: {args.config}')
+        ie.set_config({'CONFIG_FILE': args.config}, args.device)
 
-    log.info("Preparing input blobs")
+# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation------------------------------
+    log.info(f'Reading the network: {args.model}')
+    # (.xml and .bin files) or ONNX (.onnx file) format
+    net = ie.read_network(model=args.model)
+
+    if len(net.input_info) != 1:
+        log.error('Sample supports only single input topologies')
+        return -1
+    if len(net.outputs) != 1:
+        log.error('Sample supports only single output topologies')
+        return -1
+
+# ---------------------------Step 3. Configure input & output----------------------------------------------------------
+    log.info('Configuring input and output blobs')
+    # Get names of input and output blobs
     input_blob = next(iter(net.input_info))
     out_blob = next(iter(net.outputs))
-    net.batch_size = len(args.input)
 
-    # Read and pre-process input images
-    n, c, h, w = net.input_info[input_blob].input_data.shape
-    images = np.ndarray(shape=(n, c, h, w))
-    for i in range(n):
+    # Set input and output precision manually
+    net.input_info[input_blob].precision = 'U8'
+    net.outputs[out_blob].precision = 'FP32'
+
+    # Get a number of input images
+    num_of_input = len(args.input)
+
+# ---------------------------Step 4. Loading model to the device-------------------------------------------------------
+    log.info('Loading the model to the plugin')
+    exec_net = ie.load_network(network=net, device_name=args.device, num_requests=num_of_input)
+
+# ---------------------------Step 5. Create infer request--------------------------------------------------------------
+# To make a valid InferRequest instance, use load_network() method of the IECore class with specified number of
+# requests (1 by default) to get ExecutableNetwork instance which stores infer requests.
+
+# ---------------------------Step 6. Prepare input---------------------------------------------------------------------
+    input_data = []
+    _, _, h, w = net.input_info[input_blob].input_data.shape
+
+    for i in range(num_of_input):
         image = cv2.imread(args.input[i])
+
         if image.shape[:-1] != (h, w):
-            log.warning(f"Image {args.input[i]} is resized from {image.shape[:-1]} to {(h, w)}")
+            log.warning(f'Image {args.input[i]} is resized from {image.shape[:-1]} to {(h, w)}')
             image = cv2.resize(image, (w, h))
-        image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-        images[i] = image
-    log.info(f"Batch size is {n}")
 
-    # Loading model to the plugin
-    log.info("Loading model to the plugin")
-    exec_net = ie.load_network(network=net, device_name=args.device)
+        # Change data layout from HWC to CHW
+        image = image.transpose((2, 0, 1))
+        # Add N dimension to transform to NCHW
+        image = np.expand_dims(image, axis=0)
 
-    # create one inference request for asynchronous execution
-    request_id = 0
-    infer_request = exec_net.requests[request_id]
+        input_data.append(image)
 
-    num_iter = 10
-    request_wrap = InferReqWrap(infer_request, request_id, num_iter)
-    # Start inference request execution. Wait for last execution being completed
-    request_wrap.execute("async", {input_blob: images})
+# ---------------------------Step 7. Do inference----------------------------------------------------------------------
+    log.info('Starting inference in asynchronous mode')
+    for i in range(num_of_input):
+        exec_net.requests[i].async_infer({input_blob: input_data[i]})
 
-    # Processing output blob
-    log.info("Processing output blob")
-    res = infer_request.output_blobs[out_blob]
-    log.info(f"Top {args.number_top} results: ")
+# ---------------------------Step 8. Process output--------------------------------------------------------------------
+    # Generate a label list
     if args.labels:
         with open(args.labels, 'r') as f:
-            labels_map = [x.split(sep=' ', maxsplit=1)[-1].strip() for x in f]
-    else:
-        labels_map = None
-    classid_str = "classid"
-    probability_str = "probability"
-    for i, probs in enumerate(res.buffer):
-        probs = np.squeeze(probs)
-        top_ind = np.argsort(probs)[-args.number_top:][::-1]
-        print(f"Image {args.input[i]}\n")
-        print(classid_str, probability_str)
-        print(f"{'-' * len(classid_str)} {'-' * len(probability_str)}")
-        for id in top_ind:
-            det_label = labels_map[id] if labels_map else f"{id}"
-            label_length = len(det_label)
-            space_num_before = (7 - label_length) // 2
-            space_num_after = 7 - (space_num_before + label_length) + 2
-            print(f"{' ' * space_num_before}{det_label}"
-                  f"{' ' * space_num_after}{probs[id]:.7f}")
-        print("\n")
-    log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n")
+            labels = [line.split(',')[0].strip() for line in f]
+
+    for i in range(num_of_input):
+        infer_status = exec_net.requests[i].wait()
+        log.info(f'Infer request {i} returned {infer_status}')
+        res = exec_net.requests[i].output_blobs[out_blob].buffer
+
+        log.info(f'Image path: {args.input[i]}')
+        log.info(f'Top {args.number_top} results: ')
+        log.info('---------------------')
+        log.info('probability | classid')
+        log.info('---------------------')
+
+        probs = res[0]
+        top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
+
+        for class_id in top_n_idexes:
+            label = labels[class_id] if args.labels else class_id
+            log.info(f'{probs[class_id]:.9f} | {label}')
+        log.info('')
+
+# ----------------------------------------------------------------------------------------------------------------------
+    log.info('This sample is an API example, '
+             'for any performance measurements please use the dedicated benchmark_app tool\n')
+    return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main() or 0)
+    sys.exit(main())
