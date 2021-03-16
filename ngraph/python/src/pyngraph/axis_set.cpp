@@ -37,9 +37,10 @@ void regclass_pyngraph_AxisSet(py::module m)
 
     axis_set.def("__len__", [](const ngraph::AxisSet& v) { return v.size(); });
 
-    axis_set.def("__iter__",
-                 [](ngraph::AxisSet& v) { return py::make_iterator(v.begin(), v.end()); },
-                 py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
+    axis_set.def(
+        "__iter__",
+        [](ngraph::AxisSet& v) { return py::make_iterator(v.begin(), v.end()); },
+        py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
 
     axis_set.def("__repr__", [](const ngraph::AxisSet& self) -> std::string {
         std::stringstream data_ss;
