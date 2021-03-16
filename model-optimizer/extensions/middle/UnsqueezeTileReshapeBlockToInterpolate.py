@@ -32,42 +32,22 @@ from mo.ops.strided_slice import StridedSlice
 
 class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
     """
-    This transformation looks for Interpolation layer implemented using simple operations, i.e. Unsqueeze,
-    Tile, Reshape, and replaces found pattern with a sequence of Shape, StridedSlice, Mul, Interpolate.
+    The transformation looks for a sub-graph performing unsqueeze-ing input tensor by some "axis" and then tiling over
+    it fixed number of "times". This pattern can be represented with the Interpolate operation  of mode "nearest"
+    performing interpolation over specific "axis" with fixed output dimension size equal to "times".
 
-    Found pattern
-        'something' -> Unsqueeze -> Tile -> Reshape
-    will be replaced with
-        nodes=[
-            ('shape', dict(kind='op', op='Shape')),
-            ('strided_slice', dict(kind='op', op='StridedSlice')),
-            ('to_float', dict(kind='op', op='StridedSlice', dst_type=np.float32)),
-            ('m_scales', dict(kind='op', op='Const')),
-            ('scaled_shape', dict(kind='op', op='Mul')),
-            ('floor', dict(kind='op', op='Floor')),
-            ('to_int', dict(kind='op', op='StridedSlice', dst_type=np.float32)),
-            ('scales', dict(kind='op', op='Const')),
-            ('axes', dict(kind='op', op='Const')),
-            ('interp', dict(kind='op', op='Interpolate'))
-        ],
-        edges=[
-            ('something', 'interp', {'in': 0}),
-            ('something', 'shape', {'in': 0}),
-            ('shape', 'strided_slice', {'in': 0}),
-            ('strided_slice', 'to_float', {'in': 0}),
-            ('to_float', 'scaled_shape', {'in': 0}),
-            ('m_scales', 'scaled_shape', {'in': 1}),
-            ('scaled_shape', 'floor'),
-            ('floor', 'to_int'),
-            ('to_int', 'interp', {'in': 1}),
-            ('scales', 'interp', {'in': 2}),
-            ('axes', 'interp', {'in': 3}),
-        ]
+    Note, that the transformation expects that the output from Tile is reshaped back to the tensor with rank equal to
+    the input tensor rank. This constraints occurs because the pattern appears in the models where these patterns appear
+    one after another, performing unsqueeze-ing over different dimensions, effectively performing interpolation over
+    several dimensions.
 
-    This transformation is applicable only all following conditions are fulfilled:
+    These sequences are merged in the 'optimizer/extensions/middle/InterpolateSequenceToInterpolate.py' transformation
+    into a single Interpolate operation.
+
+    The transformation is applicable only when all following conditions are fulfilled:
 
     1. 'Unsqueeze' must be performed with respect to only one axis.
-    2. the length of the value of the second input of 'Tile' must be equal to the input rank of 'Unsqueeze' plus 1.
+    2. The length of the value of the second input of 'Tile' must be equal to the input rank of 'Unsqueeze' plus 1.
     3. All elements of the value of the second input of 'Tile' must be equal to 1,
        except the value corresponding the interpolated axis.
     4. The input rank of 'Unsqueeze' and the output rank of 'Reshape' must be equal.
