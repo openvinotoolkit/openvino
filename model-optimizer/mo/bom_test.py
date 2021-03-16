@@ -130,7 +130,6 @@ class TestBOMFile(unittest.TestCase):
                 for f in files:
                     ignores = [
                         '^__init__.py$',
-                        '^__main__.py$',
                         '^caffe_pb2.py$',
                         '^.*.pyc$',
                         '^generate_caffe_pb2.py$'
