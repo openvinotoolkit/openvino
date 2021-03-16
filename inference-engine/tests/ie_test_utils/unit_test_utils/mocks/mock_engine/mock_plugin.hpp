@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,34 @@ public:
     explicit MockPlugin(InferenceEngine::IInferencePlugin*target);
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
+
     InferenceEngine::ExecutableNetwork
     LoadNetwork(const InferenceEngine::CNNNetwork &network,
                 const std::map<std::string, std::string> &config) override;
+
+    InferenceEngine::ExecutableNetwork
+    LoadNetwork(const InferenceEngine::CNNNetwork& network,
+                const std::map<std::string, std::string>& config,
+                InferenceEngine::RemoteContext::Ptr context) override;
+
     InferenceEngine::ExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+        const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+        const InferenceEngine::RemoteContext::Ptr& context,
+        const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::Parameter GetMetric(const std::string& name,
+                        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap& params) override;
+
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                                                     const std::map<std::string, std::string>& config) const override;
 
     std::map<std::string, std::string> config;
 };

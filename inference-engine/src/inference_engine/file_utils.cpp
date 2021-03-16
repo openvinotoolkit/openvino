@@ -13,6 +13,8 @@
 
 #include <file_utils.h>
 #include <details/ie_exception.hpp>
+#include <stdlib.h>
+#include <sys/stat.h>
 
 #ifndef _WIN32
 # include <limits.h>
@@ -30,6 +32,38 @@
 #  define NOMINMAX
 # endif
 # include <Windows.h>
+#endif
+
+#ifdef _WIN32
+
+#include <direct.h>
+
+// Copied from linux libc sys/stat.h:
+# define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+
+/// @brief Windows-specific 'mkdir' wrapper
+#define makedir(dir) _mkdir(dir)
+
+/// @brief Max length of absolute file path
+#define MAX_ABS_PATH _MAX_PATH
+/// @brief Get absolute file path, returns NULL in case of error
+#define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
+
+/// @brief Windows-specific 'stat' wrapper
+#define stat _stat
+
+#else
+
+#include <unistd.h>
+
+/// @brief mkdir wrapper
+#define makedir(dir) mkdir(dir, 0755)
+
+/// @brief Max length of absolute file path
+#define MAX_ABS_PATH PATH_MAX
+/// @brief Get absolute file path, returns NULL in case of error
+#define get_absolute_path(result, path) realpath(path.c_str(), result)
+
 #endif
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
@@ -71,6 +105,44 @@ long long FileUtils::fileSize(const char* charfilepath) {
 #endif
     std::ifstream in(fileName, std::ios_base::binary | std::ios_base::ate);
     return in.tellg();
+}
+
+std::string FileUtils::absoluteFilePath(const std::string& filePath) {
+    std::string absolutePath;
+    absolutePath.resize(MAX_ABS_PATH);
+    auto absPath = get_absolute_path(&absolutePath[0], filePath);
+    if (!absPath) {
+        THROW_IE_EXCEPTION << "Can't get absolute file path for [" << filePath << "], err = " << strerror(errno);
+    }
+    absolutePath.resize(strlen(absPath));
+    return absolutePath;
+}
+
+bool FileUtils::directoryExists(const std::string &path) {
+    struct stat sb;
+
+    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        return true;
+    }
+    return false;
+}
+
+void FileUtils::createDirectoryRecursive(const std::string& dirPath) {
+    if (dirPath.empty() || directoryExists(dirPath)) {
+        return;
+    }
+
+    std::size_t pos = dirPath.rfind(FileUtils::FileSeparator);
+    if (pos != std::string::npos) {
+        createDirectoryRecursive(dirPath.substr(0, pos));
+    }
+
+    int err = makedir(dirPath.c_str());
+    if (err != 0 && errno != EEXIST) {
+        // TODO: in case of exception it may be needed to remove all created sub-directories
+        THROW_IE_EXCEPTION << "Couldn't create directory ["
+                           << dirPath << "], err=" << strerror(errno) << ")";
+    }
 }
 
 namespace InferenceEngine {

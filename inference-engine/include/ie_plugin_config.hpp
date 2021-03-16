@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,6 +142,16 @@ DECLARE_METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS, unsigned int);
  * String value is "NUMBER_OF_EXEC_INFER_REQUESTS". This can be used as an executable network metric as well
  */
 DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
+
+/**
+ * @brief Metric which defines the device architecture.
+ */
+DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
+
+/**
+ * @brief Metric which defines support of import/export functionality by plugin
+ */
+DECLARE_METRIC_KEY(IMPORT_EXPORT_SUPPORT, bool);
 
 /**
  * @brief Metric to get a name of network. String value is "NETWORK_NAME".
@@ -363,16 +373,23 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
-* @brief This key defines the directory which will be used to store any data cached by plugins.
-*
-* This key supports unicode symbols in path
-* The underlying cache structure is not defined and might differ between OpenVINO releases
-* Cached data might be platform/device specific and might be invalid after OpenVINO version change
-* If this key is not specified or value is empty string, then caching is disabled.
-* The key might enable caching for all plugin or some specific ones, e.g.:
-* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}) - enables cache for all plugins that might want to use it
-* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, {"GPU"}) - enables cache only for GPU plugin
-*/
+ * @brief This key defines the directory which will be used to store any data cached by plugins.
+ *
+ * The underlying cache structure is not defined and might differ between OpenVINO releases
+ * Cached data might be platform / device specific and might be invalid after OpenVINO version change
+ * If this key is not specified or value is empty string, then caching is disabled.
+ * The key might enable caching for the plugin using the following code:
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, "GPU"); // enables cache for GPU plugin
+ * @endcode
+ *
+ * The following code enables caching of compiled network blobs for devices where import/export is supported
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}); // enables models cache
+ * @endcode
+ */
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
 }  // namespace PluginConfigParams
