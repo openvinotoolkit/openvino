@@ -31,8 +31,13 @@ int image_read(const char *img_path, c_mat_t *img) {
     img->mat_width = mat.size().width;
     img->mat_height = mat.size().height;
     img->mat_type = mat.type();
-    img->mat_data_size = img->mat_channels * img->mat_width * img->mat_height;
+    img->mat_data_size = mat.elemSize() * img->mat_width * img->mat_height;
     img->mat_data = (unsigned char *)malloc(sizeof(unsigned char) * img->mat_data_size);
+
+    if (img->mat_data == NULL) {
+        return -1;
+    }
+
     for (int i = 0; i < img->mat_data_size; ++i) {
         img->mat_data[i] = mat.data[i];
     }
@@ -54,8 +59,13 @@ int image_resize(const c_mat_t *src_img, c_mat_t *dst_img, const int width, cons
         dst_img->mat_width = mat_dst.size().width;
         dst_img->mat_height = mat_dst.size().height;
         dst_img->mat_type = mat_dst.type();
-        dst_img->mat_data_size = dst_img->mat_channels * dst_img->mat_width * dst_img->mat_height;
+        dst_img->mat_data_size = mat_dst.elemSize() * dst_img->mat_width * dst_img->mat_height;
         dst_img->mat_data = (unsigned char *)malloc(sizeof(unsigned char) * dst_img->mat_data_size);
+
+        if (dst_img->mat_data == NULL) {
+            return -1;
+        }
+
         for (int i = 0; i < dst_img->mat_data_size; ++i) {
             dst_img->mat_data[i] = mat_dst.data[i];
         }
