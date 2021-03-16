@@ -26,6 +26,11 @@ from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
 from openvino.pyopenvino import StatusCode
 from openvino.pyopenvino import Blob
+from openvino.pyopenvino import PreProcessInfo
+from openvino.pyopenvino import MeanVariant
+from openvino.pyopenvino import ResizeAlgorithm
+from openvino.pyopenvino import ColorFormat
+from openvino.pyopenvino import PreProcessChannel
 
 from openvino.inference_engine.ie_api import BlobPatch
 # Patching for Blob class

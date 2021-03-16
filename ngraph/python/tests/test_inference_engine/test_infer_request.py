@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pytest
 
-from openvino.inference_engine import IECore, Blob, TensorDesc
+from openvino.inference_engine import IECore, Blob, TensorDesc, PreProcessInfo, MeanVariant, ResizeAlgorithm
 
 def image_path():
     path_to_repo = os.environ["DATA_PATH"]
@@ -65,7 +65,7 @@ def test_set_batch_size(device):
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
     net = ie_core.read_network(test_net_xml, test_net_bin)
     net.batch_size = 10
-    data = np.zeros(shape=net.input_info['data'].input_data.shape)
+    data = np.ones(shape=net.input_info['data'].input_data.shape)
     exec_net = ie_core.load_network(net, device)
     data[0] = read_image()[0]
     request = exec_net.create_infer_request()
@@ -104,3 +104,52 @@ def test_set_negative_batch_size(device):
     del exec_net
     del ie_core
     del net
+
+
+def test_getting_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net = ie_core.load_network(network=net, device_name=device)
+    request = exec_net.create_infer_request()
+    preprocess_info = request.preprocess_info("data")
+    assert isinstance(preprocess_info, PreProcessInfo)
+    assert preprocess_info.mean_variant == MeanVariant.NONE
+
+
+def test_resize_algorithm_work(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net_1 = ie_core.load_network(network=net, device_name=device)
+    request1 = exec_net_1.create_infer_request()
+
+    img = read_image()
+
+    tensor_desc = TensorDesc("FP32", [1, 3, img.shape[2], img.shape[3]], "NCHW")
+    img_blob1 = Blob(tensor_desc, img)
+    request1.set_input({'data': img_blob1})
+    request1.infer()
+    res_1 = np.sort(request1.get_blob('fc_out').buffer)
+
+    net.input_info['data'].preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
+
+    exec_net_2 = ie_core.load_network(net, device)
+
+    import cv2
+
+    image = cv2.imread(path_to_img)
+    if image is None:
+        raise FileNotFoundError("Input image not found")
+
+    image = image / 255
+    image = image.transpose((2, 0, 1)).astype(np.float32)
+    image = np.expand_dims(image, 0)
+
+    tensor_desc = TensorDesc("FP32", [1, 3, image.shape[2], image.shape[3]], "NCHW")
+    img_blob = Blob(tensor_desc, image)
+    request = exec_net_2.create_infer_request()
+    assert request.preprocess_info("data").resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
+    request.set_input({'data': img_blob})
+    request.infer()
+    res_2 = np.sort(request.get_blob('fc_out').buffer)
+
+    assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)

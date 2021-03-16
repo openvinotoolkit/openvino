@@ -80,7 +80,6 @@ void regclass_InputInfo(py::module m) {
             self.setPrecision(InferenceEngine::Precision::FromStr(precision));
         });
     cls.def_property_readonly("tensor_desc", &InferenceEngine::InputInfo::getTensorDesc);
-
     cls.def_property_readonly("name", &InferenceEngine::InputInfo::name);
-    // cls.def_property_readonly("preprocess_info", );
+    cls.def_property_readonly("preprocess_info", &InferenceEngine::InputInfo::getPreProcess);
 }

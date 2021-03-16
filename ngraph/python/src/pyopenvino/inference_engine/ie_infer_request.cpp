@@ -24,6 +24,8 @@
 #include <cpp/ie_infer_request.hpp>
 #include <ie_common.h>
 
+#include "pyopenvino/inference_engine/ie_infer_request.hpp"
+#include "pyopenvino/inference_engine/ie_preprocess_info.hpp"
 #include "pyopenvino/inference_engine/ie_executable_network.hpp"
 
 namespace py = pybind11;
@@ -80,6 +82,12 @@ void regclass_InferRequest(py::module m)
         }
         return perf_map;
     });
+
+    cls.def("preprocess_info", &InferenceEngine::InferRequest::GetPreProcess, py::arg("name"));
+
+//    cls.def_property_readonly("preprocess_info", [](InferenceEngine::InferRequest& self) {
+//
+//    });
 //    cls.def_property_readonly("input_blobs", [](){
 //
 //    });
@@ -91,9 +99,7 @@ void regclass_InferRequest(py::module m)
 //    cls.def("set_completion_callback")
 //    cls.def("async_infer",);
 //    latency
-//    cls.def_property_readonly("preprocess_info", [](){
-//
-//    });
+
 //   set_blob
 
     //&InferenceEngine::InferRequest::SetOutput);
