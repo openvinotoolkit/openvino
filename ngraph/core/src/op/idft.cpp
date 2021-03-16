@@ -23,7 +23,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/idft.hpp"
+#include "ngraph/op/dft.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
@@ -39,8 +39,8 @@ op::v7::IDFT::IDFT(const Output<Node>& data, const Output<Node>& axes)
 }
 
 op::v7::IDFT::IDFT(const Output<Node>& data,
-                   const Output<Node>& axes,
-                   const Output<Node>& signal_size)
+                 const Output<Node>& axes,
+                 const Output<Node>& signal_size)
     : Op({data, axes, signal_size})
 {
     constructor_validate_and_infer_types();
@@ -57,7 +57,7 @@ std::shared_ptr<Node> op::v7::IDFT::clone_with_new_inputs(const OutputVector& ne
     NGRAPH_OP_SCOPE(v7_IDFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(
-        this, new_args.size() == 2 || new_args.size() == 6, "Number of inputs must be 2 or 3");
+        this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
 
     if (new_args.size() == 2)
     {
@@ -107,7 +107,15 @@ void op::v7::IDFT::validate_and_infer_types()
                           input_shape[input_rank - 1]);
 
     const auto& const_axes = get_constant_from_source(input_value(1));
-    const auto axes = const_axes->cast_vector<int64_t>();
+    auto axes = const_axes->cast_vector<int64_t>();
+
+    for (int64_t& axis : axes)
+    {
+        if (axis < 0)
+        {
+            axis += input_rank - 1;
+        }
+    }
 
     NODE_VALIDATION_CHECK(this,
                           input_rank >= axes.size() + 1,
@@ -130,7 +138,7 @@ void op::v7::IDFT::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
-                          "FFT axis cannot be the last axis. Got axes: ",
+                          "IDFT axis cannot be the last axis. Got axes: ",
                           axes_vector);
 
     if (input_values().size() == 2)
