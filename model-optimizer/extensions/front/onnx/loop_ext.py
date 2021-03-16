@@ -77,7 +77,7 @@ class LoopExtractor(FrontExtractorOp):
                             # need to manually update necessary attrs for the node because extractor will not be called
                             # for it because the node does not have .pb attribute
                             Parameter.update_node_stat(parameter_node, {})
-                            external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node))
+                            external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node, inp))
                             src_id, src_port = param_id, 0
                             additional_params[main_graph.graph['tensor_mapping'][inp]] = parameter_node
                         else:
@@ -93,7 +93,7 @@ class LoopExtractor(FrontExtractorOp):
                     'out': src_port,
                     'in': dst_port,
                     'name': inp,
-                    'fw_tensor_debug_info': [(inp, inp)],
+                    'fw_tensor_debug_info': [(src_id, dst_port, inp)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']
@@ -144,11 +144,11 @@ class LoopExtractor(FrontExtractorOp):
         # some of the inputs/outputs may not be connected but the normalization transformation will take care of it
         # connection Loop body nodes with external input edges
         next_loop_input_port_idx = sorted(loop_node.in_edges().keys())[-1] + 1
-        for (src_node, src_port), body_node in external_edges:
+        for (src_node, src_port), body_node, tensor_name in external_edges:
             main_graph.add_edge(src_node, loop_node.id, **{'out': src_port,
                                                            'in': next_loop_input_port_idx,
                                                            'name': src_node,
-                                                           'fw_tensor_debug_info': [(src_node, src_node)],
+                                                           'fw_tensor_debug_info': [(src_node, next_loop_input_port_idx, tensor_name)],
                                                            'in_attrs': ['in', 'name'],
                                                            'out_attrs': ['out', 'name'],
                                                            'data_attrs': ['fw_tensor_debug_info']}
