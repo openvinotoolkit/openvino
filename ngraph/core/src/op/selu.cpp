@@ -42,7 +42,8 @@ op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Ou
     constructor_validate_and_infer_types();
 }
 
-void ngraph::op::v0::Selu::pre_validate_and_infer_types() {
+void ngraph::op::v0::Selu::pre_validate_and_infer_types()
+{
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
