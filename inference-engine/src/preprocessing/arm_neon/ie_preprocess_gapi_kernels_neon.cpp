@@ -475,6 +475,396 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4>& dst,
     calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx,
                                      beta, tmp, inSz, outSz, lpi);
 }
+
+// 8UC1 Resize (bi-linear)
+void calcRowLinear_8UC1(uint8_t* dst[],
+                        const uint8_t* src0[],
+                        const uint8_t* src1[],
+                        const short    alpha[],
+                        const short    clone[],  // 4 clones of alpha
+                        const short    mapsx[],
+                        const short    beta[],
+                            uint8_t    tmp[],
+                        const Size&    inSz,
+                        const Size&    outSz,
+                        const int      lpi) {
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
+    constexpr int half_nlanes = nlanes / 2;
+
+    bool xRatioEq = inSz.width == outSz.width;
+    bool yRatioEq = inSz.height == outSz.height;
+
+    if (!xRatioEq && !yRatioEq) {
+        if (4 == lpi) {
+            // vertical pass
+            GAPI_Assert(inSz.width >= half_nlanes);
+
+            v_int16 b0 = vx_setall_s16(beta[0]);
+            v_int16 b1 = vx_setall_s16(beta[1]);
+            v_int16 b2 = vx_setall_s16(beta[2]);
+            v_int16 b3 = vx_setall_s16(beta[3]);
+
+            uchar _mask_vertical[nlanes] = { 0, 8, 4, 12, 1, 9, 5, 13,
+                                            2, 10, 6, 14, 3, 11, 7, 15 };
+            v_uint8 vmask = vx_load(_mask_vertical);
+
+            uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
+                                              1, 5, 9, 13, 3, 7, 11, 15 };
+            v_uint8 hmask = vx_load(_mask_horizontal);
+
+            int w = 0;
+            for (;;) {
+                for (; w <= inSz.width - half_nlanes; w += half_nlanes) {
+#if 1
+                    v_int16 val0_0 = v_reinterpret_as_s16(vx_load_expand(&src0[0][w]));
+                    v_int16 val0_1 = v_reinterpret_as_s16(vx_load_expand(&src0[1][w]));
+                    v_int16 val0_2 = v_reinterpret_as_s16(vx_load_expand(&src0[2][w]));
+                    v_int16 val0_3 = v_reinterpret_as_s16(vx_load_expand(&src0[3][w]));
+
+                    v_int16 val1_0 = v_reinterpret_as_s16(vx_load_expand(&src1[0][w]));
+                    v_int16 val1_1 = v_reinterpret_as_s16(vx_load_expand(&src1[1][w]));
+                    v_int16 val1_2 = v_reinterpret_as_s16(vx_load_expand(&src1[2][w]));
+                    v_int16 val1_3 = v_reinterpret_as_s16(vx_load_expand(&src1[3][w]));
+
+                    v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), b0);
+                    v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), b1);
+                    v_int16 t2 = v_mulhrs(v_sub_wrap(val0_2, val1_2), b2);
+                    v_int16 t3 = v_mulhrs(v_sub_wrap(val0_3, val1_3), b3);
+
+                    v_int16 r0 = v_add_wrap(val1_0, t0);
+                    v_int16 r1 = v_add_wrap(val1_1, t1);
+                    v_int16 r2 = v_add_wrap(val1_2, t2);
+                    v_int16 r3 = v_add_wrap(val1_3, t3);
+
+                    v_uint8 q0 = v_pack_u(r0, r1);
+                    v_uint8 q1 = v_pack_u(r2, r3);
+
+                    v_uint8 q2 = v_blend<0xCC /*0b11001100*/>(q0, v_shift_left<4>(q1));
+                    v_uint8 q3 = v_blend<0xCC /*0b11001100*/>(v_shift_right<4>(q0), q1);
+
+                    v_uint8 q4 = v_shuffle(q2, vmask);
+                    v_uint8 q5 = v_shuffle(q3, vmask);
+
+                    vx_store(&tmp[4 * w + 0], q4);
+                    vx_store(&tmp[4 * w + 2 * half_nlanes], q5);
+#else
+                    // let: t[i] = src0[i][w]*beta0[i] + src1[i][w]*beta1
+                    // here: beta0[i] = beta[i], beta1 = 1 - beta0[i]
+                    v_int16 t0, t1, t2, t3;
+                    {
+                        v_int16 s0, s1;
+
+                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[0][w]));
+                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[0][w]));
+                        t0 = v_mulhrs(s0 - s1, beta[0]) + s1;
+
+                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[1][w]));
+                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[1][w]));
+                        t1 = v_mulhrs(s0 - s1, beta[1]) + s1;
+
+                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[2][w]));
+                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[2][w]));
+                        t2 = v_mulhrs(s0 - s1, beta[2]) + s1;
+
+                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[3][w]));
+                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[3][w]));
+                        t3 = v_mulhrs(s0 - s1, beta[3]) + s1;
+                    }
+                    // store as groups of 4 pixels: each group to have a pixel per row
+                    {
+                        v_uint8 a0, a1, a2, a3;
+                        a0 = v_pack_u(t0, vx_setall_s16(0));
+                        a1 = v_pack_u(t1, vx_setall_s16(0));
+                        a2 = v_pack_u(t2, vx_setall_s16(0));
+                        a3 = v_pack_u(t3, vx_setall_s16(0));
+
+                        v_int16 b0, b1;
+                        b0 = v_reinterpret_as_s16(v_interleave_low(a0, a1));  // 0th, 1st
+                        b1 = v_reinterpret_as_s16(v_interleave_low(a2, a3));  // 2nd, 3rd
+
+                        v_uint8 d0, d1;
+                        d0 = v_reinterpret_as_u8(v_interleave_low(b0, b1));
+                        d1 = v_reinterpret_as_u8(v_interleave_high(b0, b1));
+
+                        vx_store(&tmp[4 * w + 0], d0);
+                        vx_store(&tmp[4 * w + 16], d1);
+                    }
+#endif
+                }
+
+                if (w < inSz.width) {
+                    w = inSz.width - half_nlanes;
+                    continue;
+                }
+                break;
+            }
+
+            // horizontal pass
+            GAPI_Assert(outSz.width >= half_nlanes);
+            int x = 0;
+            for (;;) {
+                for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
+#if 1
+                    v_int16 a10 = vx_load(&clone[4 * x]);
+                    v_int16 a32 = vx_load(&clone[4 * (x + 2)]);
+                    v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
+                    v_int16 a76 = vx_load(&clone[4 * (x + 6)]);
+
+                    v_uint8 val_0 = v_gather_lines(tmp, &mapsx[x]);
+                    v_uint8 val_1 = v_gather_lines(tmp, &mapsx[x + 2]);
+                    v_uint8 val_2 = v_gather_lines(tmp, &mapsx[x + 4]);
+                    v_uint8 val_3 = v_gather_lines(tmp, &mapsx[x + 6]);
+
+                    v_int16 val0_0 = v_reinterpret_as_s16(v_expand_low(val_0));
+                    v_int16 val0_1 = v_reinterpret_as_s16(v_expand_low(val_1));
+                    v_int16 val0_2 = v_reinterpret_as_s16(v_expand_low(val_2));
+                    v_int16 val0_3 = v_reinterpret_as_s16(v_expand_low(val_3));
+
+                    v_int16 val1_0 = v_reinterpret_as_s16(v_expand_high(val_0));
+                    v_int16 val1_1 = v_reinterpret_as_s16(v_expand_high(val_1));
+                    v_int16 val1_2 = v_reinterpret_as_s16(v_expand_high(val_2));
+                    v_int16 val1_3 = v_reinterpret_as_s16(v_expand_high(val_3));
+
+                    v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), a10);
+                    v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), a32);
+                    v_int16 t2 = v_mulhrs(v_sub_wrap(val0_2, val1_2), a54);
+                    v_int16 t3 = v_mulhrs(v_sub_wrap(val0_3, val1_3), a76);
+
+                    v_int16 r0 = v_add_wrap(val1_0, t0);
+                    v_int16 r1 = v_add_wrap(val1_1, t1);
+                    v_int16 r2 = v_add_wrap(val1_2, t2);
+                    v_int16 r3 = v_add_wrap(val1_3, t3);
+
+                    v_uint8 q0 = v_pack_u(r0, r1);
+                    v_uint8 q1 = v_pack_u(r2, r3);
+
+                    v_uint8 q2 = v_shuffle(q0, hmask);
+                    v_uint8 q3 = v_shuffle(q1, hmask);
+
+                    v_uint8 q4 = v_blend<0xCC /*0b11001100*/>(q2, v_shift_left<4>(q3));
+                    v_uint8 q5 = v_blend<0xCC /*0b11001100*/>(v_shift_right<4>(q2), q3);
+
+                    v_store_low(&dst[0][x],  q4);
+                    v_store_high(&dst[1][x], q4);
+                    v_store_low(&dst[2][x],  q5);
+                    v_store_high(&dst[3][x], q5);
+
+#else
+                    // let: t be 2 pairs of groups of 4 pixels (each group is for 4 dst rows)
+                    // each pair of gorups corresponds to pixels indexed as sx0 and sx1=sx0+1
+                    // so: low part of t0 is 2x4 pixels corresponding to sx0=mapsx[x+0], etc.
+                    v_uint8 t0, t1, t2, t3;
+                    {
+                        t0.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 0]])),
+                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
+                        t1.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 2]])),
+                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
+                        t2.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 4]])),
+                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
+                        t3.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 6]])),
+                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
+                    }
+
+                    // let: r0 be pixels for 0th row, etc
+                    v_uint8 r0, r1, r2, r3;
+                    v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
+
+                    // let: dl be resulting 8 pixels for l'th row
+                    //      dl = alpha0*s0l + alpha1*s1l
+                    // note that alpha0 + alpha1 = 1
+                    {
+                        v_int16 s0, s1, d, alpha0;
+
+                        alpha0 = vx_load(&alpha[x]);  // 8 coefficients
+
+                        v_deinterleave_expand(r0, s0, s1);
+                        d = v_mulhrs(s0 - s1, alpha0) + s1;
+                        v_pack_u_store(&dst[0][x], d);
+
+                        v_deinterleave_expand(r1, s0, s1);
+                        d = v_mulhrs(s0 - s1, alpha0) + s1;
+                        v_pack_u_store(&dst[1][x], d);
+
+                        v_deinterleave_expand(r2, s0, s1);
+                        d = v_mulhrs(s0 - s1, alpha0) + s1;
+                        v_pack_u_store(&dst[2][x], d);
+
+                        v_deinterleave_expand(r3, s0, s1);
+                        d = v_mulhrs(s0 - s1, alpha0) + s1;
+                        v_pack_u_store(&dst[3][x], d);
+                    }
+#endif
+                }
+
+                if (x < outSz.width) {
+                    x = outSz.width - half_nlanes;
+                    continue;
+                }
+                break;
+            }
+
+        } else {  // if any lpi
+            for (int l = 0; l < lpi; ++l) {
+                short beta0 = beta[l];
+                //  short beta1 = saturate_cast<short>(ONE - beta[l]);
+
+                    // vertical pass
+                GAPI_Assert(inSz.width >= half_nlanes);
+                for (int w = 0; w < inSz.width; ) {
+                    for (; w <= inSz.width - half_nlanes; w += half_nlanes) {
+                        v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[l][w]));
+                        v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[l][w]));
+                        v_int16 t = v_mulhrs(s0 - s1, beta0) + s1;
+                        v_pack_u_store(tmp + w, t);
+                    }
+
+                    if (w < inSz.width) {
+                        w = inSz.width - half_nlanes;
+                    }
+                }
+
+                // horizontal pass
+                GAPI_Assert(outSz.width >= half_nlanes);
+                v_int16 t0, t1;
+                for (int x = 0; x < outSz.width; ) {
+                    for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
+                        v_int16 a0 = vx_load(&alpha[x]);
+                        //v_int16 sx = vx_load(&mapsx[x]);
+                        v_uint8 t = v_gather_pairs(tmp, &mapsx[x]);
+
+                        v_deinterleave_expand(t, t0, t1);
+                        v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
+                        v_pack_u_store(&dst[l][x], d);
+                    }
+
+                    if (x < outSz.width) {
+                        x = outSz.width - half_nlanes;
+                    }
+                }
+            }
+        }  // if lpi == 4
+
+    } else if (!xRatioEq) {
+        GAPI_DbgAssert(yRatioEq);
+
+        if (4 == lpi) {
+            // vertical pass
+            GAPI_Assert(inSz.width >= nlanes);
+            v_uint8 s0, s1, s2, s3;
+            for (int w = 0; w < inSz.width; ) {
+                for (; w <= inSz.width - nlanes; w += nlanes) {
+                    s0 = vx_load(&src0[0][w]);
+                    s1 = vx_load(&src0[1][w]);
+                    s2 = vx_load(&src0[2][w]);
+                    s3 = vx_load(&src0[3][w]);
+                    v_store_interleave(&tmp[4 * w], s0, s1, s2, s3);
+                }
+
+                if (w < inSz.width) {
+                    w = inSz.width - nlanes;
+                }
+            }
+
+            // horizontal pass
+            GAPI_Assert(outSz.width >= half_nlanes);
+            v_uint8 t0, t1, t2, t3;
+            for (int x = 0; x < outSz.width; ) {
+                for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
+                    v_uint8 a1 = v_load_low(&tmp[4 * mapsx[x + 0]]);
+                    v_uint8 a2 = v_load_low(&tmp[4 * mapsx[x + 2]]);
+                    v_uint8 a3 = v_load_low(&tmp[4 * mapsx[x + 4]]);
+                    v_uint8 a4 = v_load_low(&tmp[4 * mapsx[x + 6]]);
+                    t0 = v_insert<1>(a1, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]));
+                    t1 = v_insert<1>(a2, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]));
+                    t2 = v_insert<1>(a3, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]));
+                    t3 = v_insert<1>(a4, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]));
+
+                    v_uint8 r0, r1, r2, r3;
+                    v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
+
+                    v_int16 s0, s1, d, alpha0;
+
+                    alpha0 = vx_load(&alpha[x]);  // 8 coefficients
+
+                    v_deinterleave_expand(r0, s0, s1);
+                    d = v_mulhrs(s0 - s1, alpha0) + s1;
+                    v_pack_u_store(&dst[0][x], d);
+
+                    v_deinterleave_expand(r1, s0, s1);
+                    d = v_mulhrs(s0 - s1, alpha0) + s1;
+                    v_pack_u_store(&dst[1][x], d);
+
+                    v_deinterleave_expand(r2, s0, s1);
+                    d = v_mulhrs(s0 - s1, alpha0) + s1;
+                    v_pack_u_store(&dst[2][x], d);
+
+                    v_deinterleave_expand(r3, s0, s1);
+                    d = v_mulhrs(s0 - s1, alpha0) + s1;
+                    v_pack_u_store(&dst[3][x], d);
+                }
+
+                if (x < outSz.width) {
+                    x = outSz.width - half_nlanes;
+                }
+            }
+
+        } else {  // any LPI
+            for (int l = 0; l < lpi; ++l) {
+                const uchar* src = src0[l];
+
+                // horizontal pass
+                GAPI_Assert(outSz.width >= half_nlanes);
+                v_int16 t0, t1;
+                for (int x = 0; x < outSz.width; ) {
+                    for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
+                        v_int16 a0 = vx_load(&alpha[x]);
+                        //v_int16 sx = vx_load(&mapsx[x]);
+                        v_uint8 t = v_gather_pairs(src, &mapsx[x]);
+
+                        v_deinterleave_expand(t, t0, t1);
+                        v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
+                        v_pack_u_store(&dst[l][x], d);
+                    }
+
+                    if (x < outSz.width) {
+                        x = outSz.width - half_nlanes;
+                    }
+                }
+            }
+        }
+
+    } else if (!yRatioEq) {
+        GAPI_DbgAssert(xRatioEq);
+        int length = inSz.width;  // == outSz.width
+
+        for (int l = 0; l < lpi; ++l) {
+            short beta0 = beta[l];
+
+            // vertical pass
+            GAPI_Assert(length >= half_nlanes);
+            for (int w = 0; w < outSz.width; ) {
+                for (; w <= length - half_nlanes; w += half_nlanes) {
+                    v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(src0[l] + w));
+                    v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(src1[l] + w));
+                    v_int16 t = v_mulhrs(s0 - s1, beta0) + s1;
+                    v_pack_u_store(dst[l] + w, t);
+                }
+
+                if (w < length) {
+                    w = length - half_nlanes;
+                }
+            }
+        }
+
+    } else {
+        GAPI_DbgAssert(xRatioEq && yRatioEq);
+        int length = inSz.width;  // == outSz.width
+
+        for (int l = 0; l < lpi; ++l) {
+            memcpy(dst[l], src0[l], length);
+        }
+    }
+}
 }  // namespace neon
 }  // namespace kernels
 }  // namespace gapi
