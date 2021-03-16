@@ -12,7 +12,7 @@
 #include <cpu/ref_eltwise.hpp>
 
 #include "mkldnn_extension_utils.h"
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 #include "mkldnn_input_node.h"
 #include "common/cpu_convert.h"
@@ -121,9 +121,9 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
         for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
             if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
                 post_op_emitters.push_back(create_eltwise_emitter(*eltwiseNode.getFusedWith()[i].get(), exec_prc));
-            } else if (eltwiseNode.getFusedWith()[i].get()->getType() == Quantize) {
-                auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
-                quantizeNode->appendPostOps(post_ops);
+            } else if (eltwiseNode.getFusedWith()[i].get()->getType() == FakeQuantize) {
+                auto fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
+                fakeQuantizeNode->appendPostOps(post_ops);
 
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
                         this, post_ops.get()->entry_[post_ops.len() - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
@@ -516,9 +516,7 @@ private:
 
                 eltwise_post_op_idx++;
             } else {
-                auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
-
-                bool do_dequantization = quantizeNode->getOpType() == QuantizeOpType::FakeQuantization;
+                bool do_dequantization = eltwiseNode.getFusedWith()[i]->getAlgorithm() == FQCommon;
                 bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwiseNode.getFusedWith().size() - 1;
                 int s_idx = vmm_dst.getIdx();
 
@@ -1305,7 +1303,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
     auto outOrder = config.outConfs[0].desc.getBlockingDesc().getOrder();
     size_t oc_size = 0;
     offsets_oc.resize(tensorRank, 0);
-    if (isFusedWith(Quantize)) {
+    if (isFusedWith(FakeQuantize)) {
         size_t offset_oc = 1;
         for (int i = outOrder.size() - 1; i >= 0; i--) {
             if (outOrder[i] == 1) {
@@ -1375,7 +1373,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
                 }
                 collapseLastDims(dims_out, 1);
 
-                if (isFusedWith(Quantize)) {
+                if (isFusedWith(FakeQuantize)) {
                     collapseLastOffsets(offsets_oc, 1);
                 }
             } else {
@@ -1703,16 +1701,8 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
     return getParentEdgesAtPort(0)[0].get()->getDims() == getChildEdgesAtPort(0)[0].get()->getDims();
 }
 
-void MKLDNNEltwiseNode::fillScalesAndShifts() {
-    std::shared_ptr<const ngraph::opset1::Constant> secondIn;
+void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode) {
     const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
-        if (getParentEdgeAt(1)->getParent()->getType() != Input ||
-            !getParentEdgeAt(1)->getParent()->isConstant() ||
-            !MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(getParentEdgesAtPort(0)[0]->getDims().ToSizeVector(),
-                                                                        constInput->getChildEdgesAtPort(0)[0]->getDims().ToSizeVector())) {
-            IE_THROW() << "Fusing Eltwise node with name '" + getName() + "' " << "as post operation is not supported";
-        }
-
         auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
         auto constBlob = constInputNode->getConstBlob();
         auto srtPtr = constBlob->cbuffer().as<int8_t *>();
@@ -1720,10 +1710,12 @@ void MKLDNNEltwiseNode::fillScalesAndShifts() {
         cpu_convert(srtPtr, &buffer[0], constBlob->getTensorDesc().getPrecision(), Precision::FP32, constBlob->size());
     };
 
+    const size_t constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
+
     if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
-        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
     } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
-        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), shifts);
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
     } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
         fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
         fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
@@ -1775,8 +1767,8 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
     bool isSpecialConvolutionAddFusing = parentNode->getType() == Convolution && getAlgorithm() == EltwiseAdd &&
             getParentEdgesAtPort(0)[0]->getDims().ToSizeVector() == getParentEdgesAtPort(1)[0]->getDims().ToSizeVector();
-    if (!isSpecialConvolutionAddFusing && canBePerformedAsScaleShift()) {
-        fillScalesAndShifts();
+    if (!isSpecialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
+        fillScalesAndShifts(parentNode.get());
     }
     MKLDNNNode::fuseInto(parentNode);
 }
@@ -1854,7 +1846,7 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
     }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
-    size_t addedInputEdgesNum = node->getType() != Quantize ? (node->getParentEdges().size() - 1) : 0;
+    size_t addedInputEdgesNum = node->getType() != FakeQuantize ? (node->getParentEdges().size() - 1) : 0;
     if (getParentEdges().size() + addedInputEdgesNum > MAX_ELTWISE_INPUTS)
         return false;
 
@@ -1878,11 +1870,8 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
         return true;
     }
 
-    if (node->getType() == Quantize) {
-        auto *quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode == nullptr)
-            IE_THROW() << "Cannot get quantize layer " << node->getName();
-        return !quantizeNode->isBinarization();
+    if (node->getType() == FakeQuantize) {
+        return node->getAlgorithm() != FQBinarization;
     }
 
     return false;

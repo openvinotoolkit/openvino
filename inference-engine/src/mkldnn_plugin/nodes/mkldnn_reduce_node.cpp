@@ -4,7 +4,7 @@
 
 #include "mkldnn_reduce_node.h"
 
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 #include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>

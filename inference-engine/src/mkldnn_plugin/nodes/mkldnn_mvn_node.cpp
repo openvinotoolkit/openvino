@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_eltwise_node.h"
 #include <mkldnn_extension_utils.h>
 #include "utils/bfloat16.hpp"
@@ -876,9 +876,9 @@ void MKLDNNMVNNode::createPrimitive() {
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     mkldnn::post_ops ops;
     for (auto &node : fusedWith) {
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode) {
-            quantizeNode->appendPostOps(ops);
+        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        if (fakeQuantizeNode) {
+            fakeQuantizeNode->appendPostOps(ops);
             continue;
         }
 
@@ -1385,6 +1385,14 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
             }
         }
     }
+}
+
+bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
+    if (!mayiuse(cpu::x64::sse41)) {
+        return false;
+    }
+
+   return canFuseSimpleOperation(node);
 }
 
 bool MKLDNNMVNNode::created() const {

@@ -75,7 +75,7 @@
 #include <low_precision/network_helper.hpp>
 
 #include "nodes/mkldnn_mvn_node.h"
-#include "nodes/mkldnn_quantize_node.h"
+#include "nodes/mkldnn_fake_quantize_node.h"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 # ifdef _WIN32
@@ -313,7 +313,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     legacyPassConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        return !MKLDNNQuantizeNode::isNeedToDecompose(node);
+        std::string errMsg;
+        return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
     });
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
