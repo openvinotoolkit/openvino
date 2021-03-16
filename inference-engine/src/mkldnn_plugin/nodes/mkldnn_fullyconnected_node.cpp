@@ -4,7 +4,7 @@
 
 #include "mkldnn_fullyconnected_node.h"
 #include "mkldnn_eltwise_node.h"
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 
 #include <legacy/ie_layers.h>
 #include <string>
@@ -179,9 +179,9 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
 //    mkldnn::post_ops ops;
 //
 //    for (auto &node : fusedWith) {
-//        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-//        if (quantizeNode) {
-//            quantizeNode->appendPostOps(ops);
+//        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+//        if (fakeQuantizeNode) {
+//            fakeQuantizeNode->appendPostOps(ops);
 //            continue;
 //        }
 //

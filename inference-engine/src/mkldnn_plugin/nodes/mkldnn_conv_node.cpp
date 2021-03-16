@@ -6,7 +6,7 @@
 #include "mkldnn_reorder_node.h"
 #include "mkldnn_input_node.h"
 #include "mkldnn_eltwise_node.h"
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 #include "mkldnn_concat_node.h"
 #include <string>
@@ -320,9 +320,9 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
             continue;
         }
 
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode) {
-            quantizeNode->appendPostOps(ops);
+        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        if (fakeQuantizeNode) {
+            fakeQuantizeNode->appendPostOps(ops);
             continue;
         }
 

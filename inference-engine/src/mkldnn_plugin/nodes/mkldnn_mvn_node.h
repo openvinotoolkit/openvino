@@ -93,6 +93,8 @@ public:
         return normalizeVariance_;
     };
 
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
 private:
     void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
 

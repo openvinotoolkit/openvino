@@ -16,7 +16,7 @@
 #include "mkldnn_memory.h"
 #include "ie_parallel.hpp"
 #include "mkldnn_conv_node.h"
-#include "mkldnn_quantize_node.h"
+#include "mkldnn_fake_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 #include "mkldnn_eltwise_node.h"
 #include <limits>

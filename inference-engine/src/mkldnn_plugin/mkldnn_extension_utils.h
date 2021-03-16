@@ -79,6 +79,14 @@ public:
     static bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
     static std::string getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc);
     static InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions);
+    /**
+    * @brief Checked that secondInputDims unidirectional broadcastable per tensor or per channel to firstInputDims
+    * @param firstInputDims
+    * shape on which should be broadcastable
+    * @param secondInputDims
+    * shape which should be broadcastable
+    * @return true if broadcastable, false otherwise.
+    */
     static bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, InferenceEngine::SizeVector secondInputDims);
 };
 
