@@ -218,7 +218,7 @@ namespace
     // {0, 1}       {0, 1}
     void shift_node_indexes(std::vector<std::vector<int>>& node_indexes)
     {
-        for (int i = node_indexes.size() - 1; i >= 1; --i)
+        for (size_t i = node_indexes.size() - 1; i >= 1; --i)
         {
             std::vector<int> shifts(node_indexes[i].size());
             for (int j = 0; j < i; ++j)
