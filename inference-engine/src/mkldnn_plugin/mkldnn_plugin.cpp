@@ -91,6 +91,8 @@
 #  include <windows.h>
 # else
 #  include <cpuid.h>
+#include <ngraph/type/element_type.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 # endif
 #endif
@@ -108,18 +110,27 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
+static const std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
+        {ngraph::element::i64,     ngraph::element::i32},
+        {ngraph::element::u64,     ngraph::element::i32},
+        {ngraph::element::i16,     ngraph::element::i32},
+        {ngraph::element::u16,     ngraph::element::i32},
+        {ngraph::element::u32,     ngraph::element::i32},
+        {ngraph::element::f16,     ngraph::element::f32},
+        {ngraph::element::boolean, ngraph::element::u8},
+};
+
+static void TransformationUpToLegacy(CNNNetwork& clonedNetwork, bool useLPT) {
     auto nGraphFunc = clonedNetwork.getFunction();
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
-    const bool useLpt =
-        (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
-        ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+    const bool useLpt = useLPT &&
+            ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+                std::vector<ngraph::element::Type>{ngraph::element::i8, ngraph::element::u8});
     }
 
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
@@ -138,16 +149,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::GRUCellDecomposition>();
     manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
-    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
-            {ngraph::element::i64,     ngraph::element::i32},
-            {ngraph::element::u64,     ngraph::element::i32},
-            {ngraph::element::i16,     ngraph::element::i32},
-            {ngraph::element::u16,     ngraph::element::i32},
-            {ngraph::element::u32,     ngraph::element::i32},
-            {ngraph::element::f16,     ngraph::element::f32},
-            {ngraph::element::boolean, ngraph::element::u8},
-    };
-
     for (auto &precision : convert_precision_list) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
     }
@@ -155,7 +156,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto pass_config = manager.get_pass_config();
 
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
-
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
             ngraph::pass::ConvertDepthToSpace>(
@@ -274,7 +274,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
         transformer.transform(nGraphFunc);
     }
+}
 
+static void TransformationToLegacy(CNNNetwork& clonedNetwork) {
+    auto nGraphFunc = clonedNetwork.getFunction();
+    using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
     bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
 
     ngraph::pass::Manager legacyManager;
@@ -327,21 +331,37 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     }
 }
 
+static void Transformation(CNNNetwork& clonedNetwork, bool useLPT) {
+    TransformationUpToLegacy(clonedNetwork, useLPT);
+    TransformationToLegacy(clonedNetwork);
+}
+
 bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network) {
-    // bool isLayerINT8()
     float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
     const auto nGraphFunc = network.getFunction();
     ngraph::NodeVector nodes;
 
     int total_convs = 0, mem_limited_convs = 0, total_gemms = 0, mem_limited_gemms = 0;
-    auto memLimitedFactor = [&] (int size_data_moved) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */
-                                                                 / (size_data_moved *sizeof(float)));};
+    auto memLimitedFactor = [&] (int size_data_moved, int datatype_size = 4) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */
+                                                                 / (size_data_moved * datatype_size));};
+    auto isLowPrecision = [&] (ngraph::element::Type type) -> bool {
+        return (type == ngraph::element::i8) || (type == ngraph::element::u8);
+    };
+    auto isHalfPrecision = [&] (ngraph::element::Type type) -> bool {
+        return (type == ngraph::element::bf16) || (type == ngraph::element::f16);
+    };
+
     float worst_case = FLT_MAX;
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
             // todo : bias data size (always fp)
             if (std::strcmp("MatMul", node->get_type_info().name) && std::strcmp("Convolution", node->get_type_info().name))
                 continue;
+            // todo: asymmetric conv (zero-point comes via Sub/Mul)
+            // auto type0 = node->input_value(0).get_element_type(); //input
+            auto type1 = node->input_value(1).get_element_type(); //weights
+            const bool isINT8 = isLowPrecision(type1); // bf16 tbd
+            const int data_type_size = isINT8 ? 1 :4;
 
             int dataSizeInput = 0, dataSizeOutput = 0;
             if (!std::strcmp("MatMul", node->get_type_info().name)) {
@@ -361,14 +381,24 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
                     total_gemms++;
-                    auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput);
+                    auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                     mem_limited_gemms += factor < 1;
                     worst_case = std::min(factor, worst_case);
                 }
             } else if (!std::strcmp("Convolution", node->get_type_info().name)) {
-                // Check that input and output shape a fully defined (not dynamic)
+                 // Check that input and output shape a fully defined (not dynamic)
                 ngraph::Input<ngraph::Node> input = node->input(0);
                 ngraph::Output<ngraph::Node> output = node->output(0);
+                ngraph::Input<ngraph::Node> kernels = node->input(1);
+                auto shape = kernels.get_shape();
+                total_convs++;
+
+                if (shape.size() == 4 /* conventional 2D conv */ && shape[2] > 3 && shape[3] > 3) {
+                    std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name()
+                    << "is "<< shape[2]<< "x" << shape[2] << ", considering flops/byte amortizing the mem"  << std::endl;
+                    continue;
+                }
+
                 if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
                     auto shapeInput = input.get_shape();
                     auto shapeOutput = output.get_shape();
@@ -376,22 +406,18 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
                                                          std::multiplies<int>());
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
-                    total_convs++;
-                    auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput);
+                    auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                     mem_limited_convs += factor < 1;
                     worst_case = std::min(factor, worst_case);
-                    std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name() << std::endl
-                              << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size
-                              << "   FACTOR: " << factor << std::endl;
+                    std::cout << "Type: " << node->get_type_info().name << (isINT8 ? " INT8," : " FP32,") << "  Name: " << node->get_friendly_name()
+                              << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
                 }
             }
     }
     std::cout << "Total convs: " << total_convs<< ". Mem limited: " << mem_limited_convs << std::endl;
     std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
-    std::cout << ". WORST CASE: " << worst_case << std::endl;
-
-
-    return mem_limited_gemms || mem_limited_convs;
+    std::cout << "WORST CASE: " << worst_case << std::endl;
+    return (total_convs || total_gemms) ? (mem_limited_gemms || mem_limited_convs) : true /*conservatively assume mem limited*/;
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
@@ -423,44 +449,50 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     Config conf = engConfig;
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     auto config = orig_config;
+
+    CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(network);
+    const auto& lptProp = config.find(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    const bool useLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES)
+            || (conf.lpTransformsMode == Config::LPTransformsMode::On);
+    bool is_transformed = false;
+    bool isNetworkMemLimited = true;
+
+    if (clonedNetwork.getFunction()) {
+        TransformationUpToLegacy(clonedNetwork, useLPT);
+        isNetworkMemLimited = IsNetworkMemBandwidthLimited(clonedNetwork);
+        TransformationToLegacy(clonedNetwork);
+        is_transformed = true;
+    }
     // const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
     // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
     //if (mode != config.end() || !conf.ovPerfMode.empty()) {
-        // const auto mode_name = (mode != config.end()) ? mode->second : conf.ovPerfMode;
-        // checking streams (to avoid overriding what user might explicitly set)
-        // const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+    // const auto mode_name = (mode != config.end()) ? mode->second : conf.ovPerfMode;
+    // checking streams (to avoid overriding what user might explicitly set)
+    // const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
 //        if (streams != config.end() && streamsSet) {
 //            if (mode_name == CONFIG_VALUE(LATENCY)) {
 //                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
 //            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-                const int num_phys_cores = getNumberOfCPUCores();
+    const int num_phys_cores = getNumberOfCPUCores();
 //                const int num_logical_cores = std::thread::hardware_concurrency();
-                const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
-                // this is first heuristic in series (carefully separating int8, bf16 and float32):
-                //      memory bandwidth limited
-                //      compute limited
-                //      Hybrid specific
-                //      etc
-                const bool isNetworkMemLimited = IsNetworkMemBandwidthLimited(network);
-                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited ? "YES" : "NO") << std::endl;
-                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(
-                        isNetworkMemLimited ? default_num_streams : num_phys_cores);
+    const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+    // this is first heuristic in series (carefully separating int8, bf16 and float32):
+    //      memory bandwidth limited
+    //      compute limited
+    //      Hybrid specific
+    //      etc
+    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited ? "YES" : "NO") << std::endl;
+    config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(
+            isNetworkMemLimited ? default_num_streams : num_phys_cores);
 //            }
 //        }
     //}
+    // update the props after the perf mode translated to configs
     conf.readProperties(config);
-
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(network);
-
-    bool is_transformed = false;
-    if (clonedNetwork.getFunction()) {
-        Transformation(clonedNetwork, conf);
-        is_transformed = true;
-    }
     IE_SUPPRESS_DEPRECATED_START
     auto icnnnet = static_cast<ICNNNetwork::Ptr>(clonedNetwork);
     IE_SUPPRESS_DEPRECATED_END
@@ -600,7 +632,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         auto clonedNetwork = InferenceEngine::cloneNetwork(network);
-        Transformation(clonedNetwork, conf);
+        bool useLPT = (conf.lpTransformsMode == Config::LPTransformsMode::On);
+        Transformation(clonedNetwork, useLPT);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
         for (details::CNNNetworkIterator itLayer{clonedNetwork}; itLayer != details::CNNNetworkIterator(); itLayer++) {
