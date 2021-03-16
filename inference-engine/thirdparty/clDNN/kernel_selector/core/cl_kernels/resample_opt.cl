@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/fetch.cl"
 #include "include/data_types.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
@@ -28,8 +28,6 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
 {
 #if INPUT0_DIMS < 5
     return INPUT0_GET_INDEX(b, f, y, x);
-// #elif INPUT0_DIMS == 5
-//     return INPUT0_GET_INDEX(b, f, z, y, x);
 #else
 #error [clDNN resample_ref.cl]: input format - not supported
 #endif
@@ -39,8 +37,6 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint y, uint x)
 {
 #if OUTPUT_DIMS < 5
     return OUTPUT_GET_INDEX(b, f, y, x);
-// #elif OUTPUT_DIMS == 5
-//     return OUTPUT_GET_INDEX(b, f, z, y, x);
 #else
 #error [clDNN resample_ref.cl]: output format - not supported
 #endif
@@ -226,12 +222,12 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         return;
 
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
-#ifdef SAMPLE_TYPE_NEAREST  // FEATURE_PACKED_MODE
+#ifdef SAMPLE_TYPE_NEAREST
         const int ix = floor((x + out_x) * SCALES[4]);
         const int iy = floor(y * SCALES[3]);
 
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iy, ix));
-#elif defined(SAMPLE_TYPE_INTERP)  // FEATURE_PACKED_MODE
+#elif defined(SAMPLE_TYPE_INTERP)
         const ACCUMULATOR_TYPE ix = TO_ACCUMULATOR_TYPE(SCALES[4]) * (x + out_x);
         const ACCUMULATOR_TYPE iy = TO_ACCUMULATOR_TYPE(SCALES[3]) * y;
 
@@ -251,7 +247,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         const acc_vec_t top    = TO_ACC_VEC_TYPE(top_left) + (TO_ACC_VEC_TYPE(top_right) - TO_ACC_VEC_TYPE(top_left)) * dx;
         const acc_vec_t bottom = TO_ACC_VEC_TYPE(bottom_left) + (TO_ACC_VEC_TYPE(bottom_right) - TO_ACC_VEC_TYPE(bottom_left)) * dx;
         acc_vec_t res = top + (bottom - top) * dy;
-#else  // defined(SAMPLE_TYPE_LINEAR_ONNX) && FEATURE_PACKED_MODE
+#else  // defined(SAMPLE_TYPE_LINEAR_ONNX)
         const int PADDED_Y = INPUT0_SIZE_Y + PADS_BEGIN[3] + PADS_END[3];
         const int PADDED_X = INPUT0_SIZE_X + PADS_BEGIN[4] + PADS_END[4];
 
@@ -297,7 +293,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                         TO_ACC_VEC_TYPE(dx1 * dy2 * top_right) +
                         TO_ACC_VEC_TYPE(dx2 * dy1 * bottom_left) +
                         TO_ACC_VEC_TYPE(dx1 * dy1 * bottom_right);
-#endif  // FEATURE_PACKED_MODE
+#endif
 
 #if HAS_FUSED_OPS
         FUSED_OPS;

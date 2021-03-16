@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/fetch.cl"
+#include "include/data_types.cl"
 
 inline uint FUNC(get_input_index)(uint b, uint f, uint z, uint y, uint x)
 {

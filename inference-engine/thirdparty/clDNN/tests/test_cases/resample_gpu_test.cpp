@@ -91,8 +91,6 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
     }
 }
 
-#include "api/engine.hpp"
-
 TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
     //  Input  : 1x1x2x2
     //  Output : 1x1x4x4
@@ -854,7 +852,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
 
                         EXPECT_EQ(ref_out_offset, opt_out_offset);
                         EXPECT_EQ(opt_out_val, ref_out_val);
-                        //EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        // EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                     }
                 }
             }
@@ -870,7 +868,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
     }
 
     void execute_compare(const caffe_resample_random_test_params& params, bool check_result) {
-        // auto cfg = get_engine_config(false, "/home/jade/work/cl_dump/");
+        // auto cfg = get_engine_config(false, "/home/work/cl_dump/");
         // auto eng = cldnn::engine(cfg););
         auto eng = cldnn::engine();
 
@@ -991,7 +989,7 @@ struct caffe_resample_random_test_param_generator : std::vector<caffe_resample_r
         push_back(caffe_resample_random_test_params{ type, {1, 10, 32, 32}, {1, 10, 64, 64}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 10, 64, 64}, {1, 10, 32, 32}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 20, 20}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
-        push_back(caffe_resample_random_test_params{ type, {1, 10, 20, 20}, {1, 10, 10, 10}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}}););
+        push_back(caffe_resample_random_test_params{ type, {1, 10, 20, 20}, {1, 10, 10, 10}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 96, 128, 128}, {1, 96, 256, 256}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         // Padding applied
         push_back(caffe_resample_random_test_params{ type, {1, 512, 16, 16}, {1, 512, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {0, 0, 1, 1}, {0, 0, 1, 1}});

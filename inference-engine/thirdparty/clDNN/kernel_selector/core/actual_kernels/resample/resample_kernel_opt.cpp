@@ -64,7 +64,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         if ((out.Feature().v % GetDataTypeSize(arg)) == 0) {
             dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
         } else {
-            dispatchData.lws[0] = GetOptimalBlockSize(arg);
+            dispatchData.lws[0] = 1;
             dispatchData.lws[1] = sub_group_size;
             dispatchData.lws[2] = 1;
         }
@@ -77,16 +77,6 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
    }
-
-    // printf("resample opt type[%d] gws: (%zd, %zd, %zd), lws: (%zd, %zd, %zd), (%zd, %zd, %zd) %zd\n",
-    //     (int)arg.resampleType,
-    //     dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2],
-    //     dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2],
-    //     dispatchData.gws[0]/dispatchData.lws[0],
-    //     dispatchData.gws[1]/dispatchData.lws[1],
-    //     dispatchData.gws[2]/dispatchData.lws[2],
-    //     dispatchData.gws[0]/dispatchData.lws[0] *  dispatchData.gws[1]/dispatchData.lws[1] * dispatchData.gws[2]/dispatchData.lws[2]
-    // );
 
     return dispatchData;
 }
