@@ -26,11 +26,22 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 */
 
+/*
 const std::vector<std::vector<size_t>> inDataShape = {{1, 1, 9, 9}};
 const std::vector<std::vector<size_t>> kernels = {{3, 3}};
 const std::vector<std::vector<size_t>> strides = {{4, 4}};
 const std::vector<std::vector<size_t>> rates = {{1, 1}};
 const std::vector<PadType> autoPads = {PadType::SAME_UPPER};
+*/
+
+
+const std::vector<std::vector<size_t>> inDataShape = {{1, 1, 201, 201}};
+const std::vector<std::vector<size_t>> kernels = {{20, 20}};
+const std::vector<std::vector<size_t>> strides = {{20, 20}};
+const std::vector<std::vector<size_t>> rates = {{1, 1}};
+const std::vector<PadType> autoPads = {PadType::SAME_UPPER};
+
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         //InferenceEngine::Precision::I8,
         //InferenceEngine::Precision::U8,

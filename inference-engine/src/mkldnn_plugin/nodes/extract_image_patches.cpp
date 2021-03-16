@@ -89,6 +89,65 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
         }
         L(exit);
     }
+
+    void read_src2vmm() {
+        /*
+        //vgatherdps(vmm, indicex, mask);
+        for (int k = 0; k < jpp.block_size/2 ; k++) {
+            mov(reg_aux32, ptr[reg_num_pads]);
+            pinsrd(xmm, reg_aux32, k);
+            add(reg_num_pads, jpp.SW * jpp.dtype_size);
+        }
+        //movdq2q(vmm, xmm);
+        //pshufd(vmm, vmm, );
+        vinsertf128(static_cast<Ymm &>(vmm), static_cast<const Ymm &>(vmm), xmm, 1);
+         */
+        Xbyak::Label read_next, exit_read;
+        mov(reg_aux32_2, jpp.block_size);
+        L(read_next);
+        {
+            cmp(reg_aux32_2, 0);
+            jle(exit_read);
+            //mov(reg_aux32, ptr[reg_num_pads]);
+            //mov(ptr[reg_dst], reg_aux32);
+            //movss(xmm, ptr[reg_num_pads]);
+
+            //shl(xmm, jpp.dtype_size * 8);
+            for (int i = 0; i < 4; i++)
+                pinsrd(xmm, ptr[reg_num_pads + i * jpp.SW * jpp.dtype_size], i);
+            //mov(reg_aux32, ptr[reg_num_pads]);
+            //movss(xmm, ptr[reg_num_pads]);
+            //add(reg_num_pads, jpp.SW * jpp.dtype_size);
+            //pinsrd(xmm, reg_aux32, 0);
+            //movlps(ptr[reg_dst], xmm);
+            movups(ptr[reg_dst], xmm);
+            //
+            add(reg_dst, jpp.dtype_size * 4);
+            add(reg_num_pads, jpp.SW * jpp.dtype_size * 4);
+            sub(reg_aux32_2, 4);
+            jmp(read_next);
+        }
+        L(exit_read);
+        /*
+        Xbyak::Label read_next, exit_read;
+        mov(reg_aux32_2, jpp.block_size);
+        L(read_next);
+        {
+            cmp(reg_aux32_2, 0);
+            jle(exit_read);
+            mov(reg_aux32, ptr[reg_num_pads]);
+            //mov(vmm, reg_aux32);
+            //shl(vmm, jpp.dtype_size);
+            pinsrw(vmm, reg_aux32, );
+            //shl(vmm, 1);
+            add(reg_num_pads, jpp.SW * jpp.dtype_size);
+            sub(reg_aux32_2, 1);
+            jmp(read_next);
+        }
+        L(exit_read);
+         */
+    }
+
     // The main loop where all the work is done
     void loop() {
         //for (int64_t i = 0; i < ih_lpad * OW; i++)
@@ -127,30 +186,34 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
                 dst_data[dst_idx++] = src_data[src_idx];
             */
 
-            mov(reg_j, ptr[reg_params + GET_OFF(w_lo_pad)]);
-            mul_by_const(reg_j, reg_aux64, jpp.SW * jpp.dtype_size);
-            add(reg_j, reg_src);
-
-            mov(reg_num_pads, ptr[reg_params + GET_OFF(w_hi_pad)]);
+            mov(reg_j, ptr[reg_params + GET_OFF(w_hi_pad)]);
+            mov(reg_num_pads, ptr[reg_params + GET_OFF(w_lo_pad)]);
+            sub(reg_j, reg_num_pads);
             mul_by_const(reg_num_pads, reg_aux64, jpp.SW * jpp.dtype_size);
             add(reg_num_pads, reg_src);
 
             L(iw_loop);
             {
-                cmp(reg_j, reg_num_pads);
-                jge(iw_exit, T_NEAR);
-                //uni_vmovups(vmm, ptr[reg_src]);
+                cmp(reg_j, jpp.block_size);
+                jle(iw_tail, T_NEAR);
+                read_src2vmm();
                 //uni_vmovups(ptr[reg_dst], vmm);
-                //add(reg_src, jpp.dtype_size * jpp.block_size);
                 //add(reg_dst, jpp.dtype_size * jpp.block_size);
-                mov(reg_aux32, ptr[reg_j]);
-                mov(ptr[reg_dst], reg_aux32);
-                //movss(vmm, ptr[reg_src]);
-                //movss(ptr[reg_dst], vmm);
-
-                add(reg_j, jpp.SW * jpp.dtype_size);
-                add(reg_dst, jpp.dtype_size);
+                sub(reg_j, jpp.block_size);
                 jmp(iw_loop);
+            }
+            L(iw_tail);
+            {
+                cmp(reg_j, 0);
+                jle(iw_exit, T_NEAR);
+                movss(vmm, ptr[reg_num_pads]);
+                movss(ptr[reg_dst], vmm);
+                mov(reg_aux32, ptr[reg_num_pads]);
+                mov(ptr[reg_dst], reg_aux32);
+                sub(reg_j, 1);
+                add(reg_num_pads, jpp.SW * jpp.dtype_size);
+                add(reg_dst, jpp.dtype_size);
+                jmp(iw_tail);
             }
             L(iw_exit);
 
@@ -183,14 +246,16 @@ private:
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     reg64_t reg_src = r8;
-    reg64_t reg_src_tmp = r10;
     reg64_t reg_dst = r9;
 
-    reg64_t reg_i = r11;
+    reg64_t reg_i = r10;
+    reg64_t reg_j = r11;
     reg64_t reg_num_pads = r12; // reserved. used to specify padding
     reg64_t reg_aux64 = r13;
-    reg64_t reg_j = r14;
-    reg32_t reg_aux32 = r15d;
+    reg32_t reg_aux32 = r13d;
+    //reg64_t reg_aux64_2 = r14;
+    reg32_t reg_aux32_2 = r14d;
+
     reg64_t reg_params = abi_param1;
 
     Vmm vmm = Vmm(0);
