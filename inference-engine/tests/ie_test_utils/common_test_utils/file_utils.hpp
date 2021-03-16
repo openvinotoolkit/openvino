@@ -1,8 +1,9 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
+#include <regex>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -17,7 +18,6 @@
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
-
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -102,6 +102,27 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
     return ret;
 }
 
+// Lists all files with extension=ext from the given directory
+// Return value:
+// vector of strings representing file paths
+inline std::vector<std::string> listFilesWithExt(const std::string& path, const std::string& ext) {
+    struct dirent *ent;
+    DIR *dir = opendir(path.c_str());
+    std::vector<std::string> res;
+    if (dir != nullptr) {
+        while ((ent = readdir(dir)) != NULL) {
+            auto file = makePath(path, std::string(ent->d_name));
+            struct stat stat_path;
+            stat(file.c_str(), &stat_path);
+            if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext)) {
+                res.push_back(std::move(file));
+            }
+        }
+        closedir(dir);
+    }
+    return res;
+}
+
 inline int removeDir(const std::string &path) {
     return rmdir(path.c_str());
 }
@@ -115,6 +136,7 @@ inline bool directoryExists(const std::string &path) {
 
     return false;
 }
+
 
 inline void directoryFileListRecursive(const std::string& name, std::vector<std::string>& file_list) {
     struct CloseDir {
@@ -169,6 +191,31 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
         nested_dir_names.pop_back();
     }
     return 0;
+}
+
+inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
+                                                              const std::regex& pattern) {
+    auto getFileListByPattern = [&pattern](const std::string& folderPath) {
+        std::vector<std::string> allFilePaths;
+        CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
+        std::set<std::string> result;
+        for (auto& filePath : allFilePaths) {
+            if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
+                result.insert(filePath);
+            }
+        }
+        return result;
+    };
+
+    std::vector<std::string> result;
+    for (auto &&folderPath : folderPaths) {
+        if (!CommonTestUtils::directoryExists(folderPath)) {
+            continue;
+        }
+        auto fileListByPattern = getFileListByPattern(folderPath);
+        result.insert(result.end(), fileListByPattern.begin(), fileListByPattern.end());
+    }
+    return result;
 }
 
 inline std::string replaceExt(std::string file, const std::string& newExt) {

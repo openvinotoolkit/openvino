@@ -247,12 +247,22 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                     ptr_src_vec, num_active_elements * sizeof(int16_t));
             }
         } else if (num_bytes_per_element == 4) {  // should work for both int and float
-            for (uint32_t i = 0; i < num_frames; i++) {
-                void *ptr_dst_vec = reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(float);
-                const void *ptr_src_vec = reinterpret_cast<const uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(float);
-                memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
-                ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
-                    ptr_src_vec, num_active_elements * sizeof(float));
+            if (num_bytes_per_element_input == 2) {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
+                    auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
+                        ptr_dst_vec[j] = ptr_src_vec[j];
+                    }
+                }
+            } else {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
+                    const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
+                    memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
+                    ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
+                        ptr_src_vec, num_active_elements * sizeof(float));
+                }
             }
         } else {
             THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
