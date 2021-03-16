@@ -57,7 +57,7 @@ std::shared_ptr<Node> op::v7::DFT::clone_with_new_inputs(const OutputVector& new
     NGRAPH_OP_SCOPE(v7_DFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(
-        this, new_args.size() == 2 || new_args.size() == 6, "Number of inputs must be 2 or 3");
+        this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
 
     if (new_args.size() == 2)
     {
