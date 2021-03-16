@@ -460,10 +460,10 @@ void MKLDNNStridedSliceNode::createPrimitive() {
             return srcIdx * params.dataSize;
         };
 
-        for (size_t t = 0; t < params.nThreads; t++) {
+        parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
             indexes.resize(params.nDimsForWork, 0);
-            splitter(params.workAmount, params.nThreads, t, start, end);
+            splitter(params.workAmount, nthr, ithr, start, end);
             parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
 
             srcIdx = getSrcIdx(indexes);
@@ -488,7 +488,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
                     out = false;
                 }
             }
-        }
+        });
     }
 }
 
