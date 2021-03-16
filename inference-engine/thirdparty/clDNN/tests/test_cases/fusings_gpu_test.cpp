@@ -35,6 +35,7 @@
 #include "api/permute.hpp"
 #include "api/gather.hpp"
 #include "api/scatter_update.hpp"
+#include "api/scatter_nd_update.hpp"
 #include "api/scatter_elements_update.hpp"
 #include "api/depth_to_space.hpp"
 #include "api/space_to_depth.hpp"
@@ -164,7 +165,7 @@ public:
         bo_not_fused.set_option(build_option::allow_static_input_reorder(true));
     }
 
-    void compare(network& not_fused, network& fused, T& p) {
+    void compare(network& not_fused, network& fused, T& p, bool count_reorder = false) {
         auto outputs_ref = not_fused.execute();
         auto outputs_fused = fused.execute();
 
@@ -199,8 +200,8 @@ public:
         SCOPED_TRACE(description.str());
 
         // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
-        ASSERT_EQ(fused.get_executed_primitives().size() - reorders_count_fused, p.expected_fused_primitives);
-        ASSERT_EQ(not_fused.get_executed_primitives().size() - reorders_count_not_fused, p.expected_not_fused_primitives);
+        ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), p.expected_fused_primitives);
+        ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), p.expected_not_fused_primitives);
         ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
         ASSERT_EQ(outputs_ref.size(), size_t(1));
 
@@ -6362,6 +6363,84 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                             permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_3, 2, 7},
                         }), );
 
+/* ------------------------------------------------------------------------------------------------------------ */
+/* ---------------------------- PERMUTE FUSE REDUNDANT REORDER cases ------------------------------------------ */
+/* ------------------------------------------------------------------------------------------------------------ */
+
+struct permute_reorder_params {
+    tensor in_shape;
+    tensor out_shape;
+    std::vector<uint16_t> permute_order1;
+    std::vector<uint16_t> permute_order2;
+    data_types permute_type;
+    data_types output_type;
+    format permute_format;
+    format output_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_PERMUTE_REORDER_F32_0 {1, 16, 32, 2},    {1, 16, 32, 2},    {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv16,  format::bfyx
+#define CASE_PERMUTE_REORDER_F32_1 {2, 16, 16, 16},   {2, 16, 16, 16},   {0, 3, 2, 1},    {0, 3, 2, 1},    data_types::f32, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
+#define CASE_PERMUTE_REORDER_F32_2 {1, 16, 4, 5, 16}, {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+
+#define CASE_PERMUTE_REORDER_F16_0 {1, 16, 2, 4},     {1, 16, 2, 4},     {0, 2, 1, 3},    {0, 2, 1, 3},    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
+#define CASE_PERMUTE_REORDER_F16_1 {1, 16, 4, 5, 16}, {1, 16, 4, 5, 16}, {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_2 {1, 5, 1, 2, 14},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+
+#define CASE_PERMUTE_REORDER_S8_0 {1, 15, 4, 5},    {1, 15, 4, 5},    {0, 2, 3, 1},    {0, 3, 1, 2},    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
+#define CASE_PERMUTE_REORDER_S8_1 {1, 2, 15, 4, 5}, {1, 2, 15, 4, 5}, {0, 2, 4, 1, 3}, {0, 3, 1, 4, 2}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+
+#define CASE_PERMUTE_REORDER_F32_TO_F16_0 {1, 5, 1, 2, 14},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::f32, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_S8_TO_F32_0 {1, 18, 1, 2, 2},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_U8_TO_F16_0 {1, 17, 1, 2, 7},  {1, 5, 1, 2, 14},  {0, 2, 3, 4, 1}, {0, 4, 1, 2, 3}, data_types::u8, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+
+class PermuteReorderFusingTest : public ::BaseFusingTest<permute_reorder_params> {
+public:
+
+    void execute(permute_reorder_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+        compare(network_not_fused, network_fused, p, true);
+    }
+
+    layout get_input_layout(permute_reorder_params& p) {
+        return layout{ p.permute_type, p.permute_format, p.in_shape, padding{} };
+    }
+};
+
+class permute_redundant_reorder : public PermuteReorderFusingTest {};
+
+TEST_P(permute_redundant_reorder, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        permute("permute1", "input",    p.permute_order1),
+        reorder("reorder1", "permute1", p.output_format, p.output_type), // to be fused
+        permute("permute2", "reorder1", p.permute_order2)                // dummy last op to make reorder n
+    );
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_redundant_reorder,
+                            ::testing::ValuesIn(std::vector<permute_reorder_params> {
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_2, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F16_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F16_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F16_2, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_S8_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_S8_1, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_F32_TO_F16_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_S8_TO_F32_0, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_U8_TO_F16_0, 3, 4},
+                                }),);
+
 class NormalizeFusingTest : public ::BaseFusingTest<normalize_test_params> {
 public:
     void execute(normalize_test_params& p) {
@@ -7491,3 +7570,224 @@ INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
                             reduce_test_params{CASE_REDUCE_I8_3, 2, 4, reduce_mode::mean, {reduce::along_x}, true, "reduce_ref"},
                             reduce_test_params{CASE_REDUCE_U8_3, 2, 4, reduce_mode::l2, {reduce::along_x}, true, "reduce_ref"}
                         }), );
+
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* ------------------------------------------ ScatterNDUpdate cases ------------------------------ */
+/* ----------------------------------------------------------------------------------------------------- */
+struct scatter_nd_update_test_params {
+    tensor input_shape;
+    tensor indices_shape;
+    tensor updates_shape;
+    int max_number_in_indices;
+    int indices_rank;
+    data_types data_type;
+    format input_format;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_SCATTER_ND_UPDATE_FP16_4D_1 {6, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 1, 1}, 6, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_4D_2 {6, 6, 1, 1}, {3, 2, 1, 1}, {3, 1, 1, 1}, 6, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_4D_3 {6, 7, 8, 9}, {5, 1, 1, 1}, {5, 7, 8, 9}, 6, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_4D_4 {6, 7, 8, 9}, {5, 1, 1, 1}, {5, 7, 8, 9}, 6, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_4D_5 {6, 7, 8, 9}, {6, 2, 1, 1}, {6, 9, 1, 8}, 6, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_4D_6 {6, 7, 8, 9}, {6, 3, 1, 1}, {6, 8, 1, 1}, 6, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_1 {6, 7, 8, 9, 10}, {5, 1, 1, 1, 1}, {5, 7, 8, 9, 10}, 6, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_2 {6, 7, 8, 9, 10}, {5, 2, 1, 1, 1}, {5, 10, 1, 8, 9}, 6, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_3 {6, 7, 8, 9, 10}, {5, 3, 1, 1, 1}, {5, 9, 1, 1, 8}, 6, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_4 {6, 7, 8, 9, 10}, {5, 4, 1, 1, 1}, {5, 8, 1, 1, 1}, 6, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_5 {6, 7, 8, 9, 10}, {5, 5, 1, 1, 1}, {5, 1, 1, 1, 1}, 6, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_6 {6, 7, 8, 9, 10}, {5, 2, 1, 1, 2}, {5, 2, 8, 9, 10}, 6, 3, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_7 {6, 7, 8, 9, 10}, {5, 2, 1, 1, 3}, {5, 2, 1, 8, 9}, 6, 3, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_8 {6, 7, 8, 9, 10}, {5, 2, 1, 4, 3}, {5, 2, 1, 8, 3}, 6, 4, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_5D_9 {6, 7, 8, 9, 10}, {5, 2, 1, 3, 3}, {5, 2, 8, 9, 3}, 6, 4, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
+
+#define CASE_SCATTER_ND_UPDATE_FP16_6D_1 {6, 7, 8, 9, 10, 11}, {5, 1, 1, 1}, {5, 7, 8, 9, 10, 11}, 6, 1, data_types::f16, format::bfwzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_6D_2 {6, 7, 8, 9, 10, 11}, {5, 2, 1, 1}, {5, 11, 1, 8, 9, 10}, 6, 2, data_types::f16, format::bfwzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_6D_3 {6, 7, 8, 9, 10, 11}, {5, 3, 1, 1}, {5, 10, 1, 1, 8, 9}, 6, 2, data_types::f16, format::bfwzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_6D_4 {6, 7, 8, 9, 10, 11}, {5, 4, 1, 1}, {5, 9, 1, 1, 1, 8}, 6, 2, data_types::f16, format::bfwzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_6D_5 {6, 7, 8, 9, 2, 2}, {5, 5, 1, 1}, {5, 8, 1, 1, 1, 1}, 6, 2, data_types::f16, format::bfwzyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP16_6D_6 {6, 7, 8, 9, 2, 2}, {5, 6, 1, 1}, {5, 1, 1, 1, 1, 1}, 6, 2, data_types::f16, format::bfwzyx, data_types::f16, format::bfyx
+
+#define CASE_SCATTER_ND_UPDATE_FP32_4D_1 {6, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 1, 1}, 6, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_4D_2 {6, 6, 1, 1}, {3, 2, 1, 1}, {3, 1, 1, 1}, 6, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_4D_3 {6, 7, 8, 1}, {5, 1, 1, 1}, {5, 7, 8, 1}, 6, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_4D_4 {6, 7, 8, 9}, {5, 1, 1, 1}, {5, 7, 8, 9}, 6, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_4D_5 {6, 7, 8, 9}, {6, 2, 1, 1}, {6, 9, 1, 8}, 6, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_4D_6 {6, 7, 8, 9}, {6, 3, 1, 1}, {6, 8, 1, 1}, 6, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+
+#define CASE_SCATTER_ND_UPDATE_FP32_5D_1 {6, 7, 8, 9, 10}, {5, 1, 1, 1, 1}, {5, 7, 8, 9, 10}, 6, 1, data_types::f32, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_5D_2 {6, 7, 8, 9, 10}, {5, 2, 1, 1, 1}, {5, 10, 1, 8, 9}, 6, 2, data_types::f32, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_5D_3 {6, 7, 8, 9, 10}, {5, 3, 1, 1, 1}, {5, 9, 1, 1, 8}, 6, 2, data_types::f32, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_5D_4 {6, 7, 8, 9, 10}, {5, 4, 1, 1, 1}, {5, 8, 1, 1, 1}, 6, 2, data_types::f32, format::bfzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_5D_5 {6, 7, 8, 9, 10}, {5, 5, 1, 1, 1}, {5, 1, 1, 1, 1}, 6, 2, data_types::f32, format::bfzyx, data_types::f32, format::bfyx
+
+#define CASE_SCATTER_ND_UPDATE_FP32_6D_1 {6, 7, 8, 9, 10, 11}, {5, 1, 1, 1}, {5, 7, 8, 9, 10, 11}, 6, 1, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_6D_2 {6, 7, 8, 9, 10, 11}, {5, 2, 1, 1}, {5, 11, 1, 8, 9, 10}, 6, 2, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_6D_3 {6, 7, 8, 9, 10, 11}, {5, 3, 1, 1}, {5, 10, 1, 1, 8, 9}, 6, 2, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_6D_4 {6, 7, 8, 9, 10, 11}, {5, 4, 1, 1}, {5, 9, 1, 1, 1, 8}, 6, 2, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_6D_5 {6, 7, 8, 9, 2, 2}, {5, 5, 1, 1}, {5, 8, 1, 1, 1, 1}, 6, 2, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_ND_UPDATE_FP32_6D_6 {6, 7, 8, 9, 2, 2}, {5, 6, 1, 1}, {5, 1, 1, 1, 1, 1}, 6, 2, data_types::f32, format::bfwzyx, data_types::f32, format::bfyx
+
+class ScatterNDUpdatePrimitiveFusingTest : public ::BaseFusingTest<scatter_nd_update_test_params> {
+public:
+    void execute(scatter_nd_update_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(scatter_nd_update_test_params& p) {
+        return layout{ p.data_type, p.input_format, p.input_shape };
+    }
+
+    layout get_indices_layout(scatter_nd_update_test_params& p) {
+        return layout{ p.data_type, p.input_format, p.indices_shape };
+    }
+
+    layout get_updates_layout(scatter_nd_update_test_params& p) {
+        return layout{ p.data_type, p.input_format, p.updates_shape };
+    }
+
+    layout get_per_channel_layout(scatter_nd_update_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.input_shape.feature[0], 1, 1} };
+    }
+};
+
+class scatter_nd_update_quantize : public ScatterNDUpdatePrimitiveFusingTest {};
+TEST_P(scatter_nd_update_quantize, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("scatter_nd_update_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices)),
+        data("scatter_nd_update_updates", get_mem(get_updates_layout(p), 0, 100)),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        scatter_nd_update("scatter_nd_update_prim", "input", "scatter_nd_update_indices", "scatter_nd_update_updates", p.indices_rank),
+        quantize("quantize", "scatter_nd_update_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_nd_update_quantize,
+    ::testing::ValuesIn(std::vector<scatter_nd_update_test_params>{
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_1, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_2, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_3, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_4, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_5, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_6, 2, 3 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_1, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_2, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_3, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_4, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_5, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_6, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_7, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_8, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_9, 2, 3 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_1, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_2, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_3, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_4, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_5, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_6, 2, 3 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_1, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_2, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_3, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_4, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_5, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_6, 2, 3 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_1, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_2, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_3, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_4, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_5, 2, 3 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_1, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_2, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_3, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_4, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_5, 2, 3 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_6, 2, 3 },
+}), );
+
+class scatter_nd_update_scale_activation_eltwise : public ScatterNDUpdatePrimitiveFusingTest {};
+TEST_P(scatter_nd_update_scale_activation_eltwise, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("scatter_nd_update_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices)),
+        data("scatter_nd_update_updates", get_mem(get_updates_layout(p), 0, 100)),
+        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.input_shape })),
+        scatter_nd_update("scatter_nd_update_prim", "input", "scatter_nd_update_indices", "scatter_nd_update_updates", p.indices_rank),
+        activation("activation", "scatter_nd_update_prim", activation_func::abs),
+        scale("scale", "activation", "scale_data"),
+        eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_nd_update_scale_activation_eltwise,
+    ::testing::ValuesIn(std::vector<scatter_nd_update_test_params>{
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_1, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_2, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_3, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_4, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_5, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_4D_6, 2, 5 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_1, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_2, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_3, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_4, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_5, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_6, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_7, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_8, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_5D_9, 2, 5 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_1, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_2, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_3, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_4, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_5, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP16_6D_6, 2, 5 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_1, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_2, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_3, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_4, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_5, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_4D_6, 2, 5 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_1, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_2, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_3, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_4, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_5D_5, 2, 5 },
+
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_1, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_2, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_3, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_4, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_5, 2, 5 },
+        scatter_nd_update_test_params{ CASE_SCATTER_ND_UPDATE_FP32_6D_6, 2, 5 },
+}), );

@@ -31,7 +31,7 @@ namespace InferenceEngine {
 /**
  * @brief This class stores pre-process information for exact input
  */
-class IPreProcessData : public details::IRelease {
+class IPreProcessData : public std::enable_shared_from_this<IPreProcessData> {
 public:
     /**
      * @brief Sets ROI blob to be resized and placed to the default input blob during pre-processing.
@@ -58,9 +58,12 @@ public:
 
     //FIXME: rename to verifyAplicable
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
+
+protected:
+    ~IPreProcessData() = default;
 };
 
-INFERENCE_PRERPOC_PLUGIN_API(StatusCode) CreatePreProcessData(IPreProcessData *& data, ResponseDesc *resp) noexcept;
+INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
 namespace details {
 

@@ -599,7 +599,7 @@ void InferenceEnginePython::IECore::registerPlugins(const std::string &xmlConfig
 }
 
 void InferenceEnginePython::IECore::addExtension(const std::string &ext_lib_path, const std::string &deviceName) {
-    auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(ext_lib_path);
+    auto extension_ptr = std::make_shared<InferenceEngine::Extension>(ext_lib_path);
     auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
     actual.AddExtension(extension, deviceName);
 }

@@ -62,15 +62,12 @@ protected:
      */
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
     IInferRequest::Ptr CreateAsyncInferRequestFromSync() {
-        IInferRequest::Ptr asyncRequest;
-
         auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
         auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(
             syncRequestImpl, _taskExecutor, _callbackExecutor);
-        asyncRequest.reset(new InferRequestBase(asyncThreadSafeImpl),
-            [](IInferRequest *p) { p->Release(); });
+        IInferRequest::Ptr asyncRequest = std::make_shared<InferRequestBase>(asyncThreadSafeImpl);
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 
         return asyncRequest;

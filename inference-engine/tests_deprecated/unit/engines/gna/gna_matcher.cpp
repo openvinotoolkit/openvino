@@ -63,9 +63,6 @@ public:
     bool   free(void* handle) noexcept override {
         return true;
     }
-    void Release() noexcept override {
-        delete this;
-    }
 };
 #if GNA_LIB_VER == 2
 void expect_enqueue_calls(GNACppApi &mockApi, bool enableHardwareConsistency = true){

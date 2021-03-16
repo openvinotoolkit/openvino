@@ -22,9 +22,7 @@ using namespace ngraph;
 constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
 constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
 
-Variant::~Variant()
-{
-}
+Variant::~Variant() {}
 
 std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node)
 {

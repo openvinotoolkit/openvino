@@ -62,10 +62,6 @@ class Reader: public IReader {
         return const_cast<Reader*>(this)->getReaderPtr();
     }
 
-    void Release() noexcept override {
-        delete this;
-    }
-
 public:
     using Ptr = std::shared_ptr<Reader>;
     Reader(const std::string& name, const std::string location): name(name), location(location) {}

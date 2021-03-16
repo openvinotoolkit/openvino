@@ -21,7 +21,8 @@ const auto combinations = testing::Combine(
             ngraph::element::i32),
     testing::Values(
             TopKTestCase{{{12345}, {80000}}, 75, 0},
-            TopKTestCase{{{1234}, {4663}}, 70, 0}),
+            TopKTestCase{{{1234}, {4663}}, 70, 0},
+            TopKTestCase{{{1234}, {4663}}, 70, -1}),
     testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 

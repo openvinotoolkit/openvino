@@ -21,7 +21,7 @@ CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
     uint32_t plane,
     BlobType mem_type) :
     m_context(context), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr) {
+    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
 }
 
 ParamMap CLDNNRemoteBlobImpl::getParams() const {
@@ -151,7 +151,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
 
 const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
     if (!_allocator) {
-        _allocator = shared_from_irelease(reinterpret_cast<IAllocator*>(&m_allocator));
+        _allocator = std::shared_ptr<IAllocator>(&m_allocator, [] (IAllocator*) {});
     }
     return _allocator;
 };

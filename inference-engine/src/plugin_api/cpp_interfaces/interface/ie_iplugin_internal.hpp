@@ -83,8 +83,7 @@ inline void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePlugin : public details::IRelease,
-                         public std::enable_shared_from_this<IInferencePlugin> {
+class IInferencePlugin : public std::enable_shared_from_this<IInferencePlugin> {
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -112,12 +111,6 @@ class IInferencePlugin : public details::IRelease,
         }
     } _version;
 
-protected:
-    /**
-     * @brief      Destroys the object.
-     */
-    ~IInferencePlugin() override = default;
-
 public:
     /**
      * @brief A shared pointer to IInferencePlugin interface
@@ -138,10 +131,6 @@ public:
      */
     Version GetVersion() const {
         return _version;
-    }
-
-    void Release() noexcept override {
-        delete this;
     }
 
     /**
@@ -271,6 +260,9 @@ public:
      * @return     The result of query operator containing supported layers map
      */
     virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
+
+protected:
+    ~IInferencePlugin() = default;
 };
 
 }  // namespace InferenceEngine
@@ -280,16 +272,16 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
-    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                                   \
-            InferenceEngine::IInferencePlugin *&plugin,                                                     \
-            InferenceEngine::ResponseDesc *resp) noexcept {                                                 \
-        try {                                                                                               \
-            plugin = new PluginType(__VA_ARGS__);                                                           \
-            plugin->SetVersion(version);                                                                    \
-            return InferenceEngine::OK;                                                                     \
-        }                                                                                                   \
-        catch (std::exception &ex) {                                                                        \
-            return InferenceEngine::DescriptionBuffer(InferenceEngine::GENERAL_ERROR, resp) << ex.what();   \
-        }                                                                                                   \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                  \
+    INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
+        try {                                                                                                       \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
+        } catch (const InferenceEngine::details::InferenceEngineException& e) {                                     \
+            throw;                                                                                                  \
+        } catch (const std::exception& ex) {                                                                        \
+            THROW_IE_EXCEPTION << ex.what();                                                                        \
+        } catch (...) {                                                                                             \
+            THROW_IE_EXCEPTION_WITH_STATUS(UNEXPECTED);                                                             \
+        }                                                                                                           \
+        plugin->SetVersion(version);                                                                                \
     }

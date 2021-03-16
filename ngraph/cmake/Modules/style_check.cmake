@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(CLANG_FORMAT_FILENAME clang-format-3.9)
+set(CLANG_FORMAT_FILENAME clang-format-9)
 find_program(CLANG_FORMAT ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
 
 macro(STYLE_CHECK_FILE PATH)

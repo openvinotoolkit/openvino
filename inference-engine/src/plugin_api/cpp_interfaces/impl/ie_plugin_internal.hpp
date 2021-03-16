@@ -47,12 +47,6 @@ static inline void parsePluginName(std::istream& networkModel) {
  * @ingroup ie_dev_api_plugin_api
  */
 class InferencePluginInternal : public IInferencePlugin {
-protected:
-    /**
-     * @brief Destroys the object.
-     */
-    ~InferencePluginInternal() override = default;
-
 public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                   const std::map<std::string, std::string>& config) override {

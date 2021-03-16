@@ -33,6 +33,9 @@ public:
                     const element::Type& index_element_type = element::i32);
 
     void validate_and_infer_types() override;
+
+protected:
+    ngraph::PartialShape m_evaluatedOutputShape;
 };
 
 }  // namespace op
