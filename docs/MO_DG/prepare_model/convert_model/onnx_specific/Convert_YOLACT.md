@@ -142,16 +142,16 @@ git checkout 57b8f2d95e62e2e649b382f516ab41f949b57239
 
 1. Apply the `YOLACT_onnx_export.patch` patch to the repository. Refer to the <a href="#patch-file">Create a Patch File</a> instructions if you do not have it:
 ```sh
- git apply /path/to/patch/YOLACT_onnx_export.patch
+git apply /path/to/patch/YOLACT_onnx_export.patch
 ```
 
 2. Evaluate the YOLACT mode in order to export to ONNX* format:
 
 ```sh
-python3 eval.py
-    --trained_model=/path/to/yolact_base_54_800000.pth
-    --score_threshold=0.3
-    --top_k=10
+python3 eval.py \
+    --trained_model=/path/to/yolact_base_54_800000.pth \
+    --score_threshold=0.3 \
+    --top_k=10 \
     --image=/path/to/image.jpg
 ```
 
@@ -162,3 +162,28 @@ python3 eval.py
 ```sh
 python path/to/model_optimizer/mo.py --input_model /path/to/yolact.onnx
 ```
+
+**Step 4**. Embed input preprocessing into the IR:
+
+In order to get performance gain by offloading to OpenVINO application of mean/scale values and RGB->BGR conversion, use the following options of Model Optimizer:
+
+* If backbone of the model is Resnet50-FPN or Resnet101-FPN use the following MO command line:
+
+```sh
+python path/to/model_optimizer/mo.py \
+    --input_model /path/to/yolact.onnx \
+    --reverse_input_channels \
+    --mean_values "[123.68, 116.78, 103.94]" \
+    --scale_values "[58.40, 57.12, 57.38]"
+```
+
+* If backbone of the model is Darknet53-FPN use the following MO command line:
+
+```sh
+python path/to/model_optimizer/mo.py \
+    --input_model /path/to/yolact.onnx \
+    --reverse_input_channels \
+    --scale 255
+```
+
+
