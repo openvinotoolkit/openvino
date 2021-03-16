@@ -25,7 +25,7 @@ struct ctc_greedy_decoder_params : public base_params {
     ctc_greedy_decoder_params() : base_params(KernelType::CTC_GREEDY_DECODER) {}
 
     bool merge_repeated = true;
-    uint32_t blank_index;
+    uint32_t blank_index = 0;
     uint32_t outputs_num = 1;
 };
 
