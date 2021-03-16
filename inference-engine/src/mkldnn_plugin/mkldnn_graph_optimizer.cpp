@@ -1087,6 +1087,11 @@ void MKLDNNGraphOptimizer::FusePoolingAndQuantize(MKLDNNGraph &graph) {
             if (poolingLayer == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get Pooling layer " << node->getName();
 
+            // Optimized FP32 Pooling doesn't support fusing with FQ
+            auto inputPrecision = poolingLayer->insData[0].lock()->getPrecision();
+            if (inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
+                return false;
+
             return node->getChildEdges().size() == 1 && poolingLayer->_type == PoolingLayer::AVG;
         } else {
             return false;
