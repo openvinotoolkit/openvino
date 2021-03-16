@@ -256,21 +256,19 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
         ngraph::pass::Manager manager;
-        auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-        const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
-        lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-        manager.run_passes(nGraphFunc);
+        manager.register_pass<ngraph::pass::low_precision::LowPrecision>(); // LayerTransformation::Params(true) - updatePrecisions configuration
 
-        auto params = LayerTransformation::Params(
-            true,  // updatePrecisions
-            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true);  // supportAsymmetricQuantization
-        ngraph::pass::Manager lowPrecisionManager;
-        lowPrecisionManager.register_pass<ngraph::pass::low_precision::LowPrecision>(params);
-        lowPrecisionManager.run_passes(nGraphFunc);
+        const auto supportedPrecisionsOnActivations = { ngraph::element::u8 };
+        // TODO: comment: apply callback for a transformation from all groups
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ConvolutionTransformation, GroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
+            return WeightableLayerTransformation::checkPrecisionOnActivation(node, supportedPrecisionsOnActivations);
+        });
+        pass_config->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
+            return MultiplyToGroupConvolutionTransformation::checkPrecisionOnActivation(node, supportedPrecisionsOnActivations);
+        });
+
+        manager.run_passes(nGraphFunc);
     }
 
     bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);

@@ -25,8 +25,7 @@ class TRANSFORMATIONS_API LowPrecision;
 class ngraph::pass::low_precision::LowPrecision: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    LowPrecision();
-    LowPrecision(const LayerTransformation::Params&);
+    LowPrecision(const LayerTransformation::Params = LayerTransformation::Params());
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 protected:

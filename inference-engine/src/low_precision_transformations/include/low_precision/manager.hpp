@@ -31,7 +31,7 @@ public:
     explicit Manager(
         std::shared_ptr<PassConfig> pass_config,
         TransformationContext* context,
-        const ILayerTransformationsManager* manager);
+        const ILayerTransformationsManager* manager = nullptr);
 
     template <typename T, typename Operation, bool Enable = true, class... Args>
     std::shared_ptr<T> register_pass(Args&&... args)

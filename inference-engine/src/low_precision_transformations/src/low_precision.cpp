@@ -9,6 +9,10 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <low_precision/manager.hpp>
 
+//#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
+
 // branch specific transformations
 #include "low_precision/concat.hpp"
 #include "low_precision/concat_multi_channels.hpp"
@@ -49,23 +53,26 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
 
-ngraph::pass::low_precision::LowPrecision::LowPrecision() {
-    //
-}
-
-ngraph::pass::low_precision::LowPrecision::LowPrecision(const LayerTransformation::Params& params) : params(params){
+ngraph::pass::low_precision::LowPrecision::LowPrecision(const LayerTransformation::Params params) : params(params){
     //
 }
 
 bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     TransformationContext context(f);
 
+    const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+    ngraph::pass::Manager prerequisites;
+    prerequisites.register_pass<PullReshapeThroughDequantization>(supportedTypes);
+    prerequisites.register_pass<PullTransposeThroughDequantization>(supportedTypes);
+    //prerequisites.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    prerequisites.run_passes(f);
+
     // step #1
-    ngraph::pass::low_precision::Manager branchSpecificStep1(get_pass_config(), &context, nullptr);
+    ngraph::pass::low_precision::Manager branchSpecificStep1(get_pass_config(), &context);
     branchSpecificStep1.register_pass<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params);
     branchSpecificStep1.run_passes(f);
 
-    ngraph::pass::low_precision::Manager quantizationStep3(get_pass_config(), &context, nullptr);
+    ngraph::pass::low_precision::Manager quantizationStep3(get_pass_config(), &context);
     quantizationStep3.register_pass<ngraph::pass::low_precision::AddTransformation, opset1::Add>(params);
     quantizationStep3.register_pass<ngraph::pass::low_precision::AvgPoolTransformation, opset1::AvgPool>(params);
     quantizationStep3.register_pass<ngraph::pass::low_precision::ClampTransformation, opset1::Clamp>(params);
@@ -96,12 +103,12 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     quantizationStep3.run_passes(f);
 
     // step #4
-    ngraph::pass::low_precision::Manager cleanupStep4(get_pass_config(), &context, nullptr);
+    ngraph::pass::low_precision::Manager cleanupStep4(get_pass_config(), &context);
     cleanupStep4.register_pass<ngraph::pass::low_precision::FuseConvertTransformation, opset1::Multiply>(params);
     cleanupStep4.run_passes(f);
 
     // step #5
-    ngraph::pass::low_precision::Manager cleanupStep5(get_pass_config(), &context, nullptr);
+    ngraph::pass::low_precision::Manager cleanupStep5(get_pass_config(), &context);
     cleanupStep5.register_pass<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params);
     cleanupStep5.register_pass<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params);
     cleanupStep5.register_pass<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, opset1::Multiply>(params);

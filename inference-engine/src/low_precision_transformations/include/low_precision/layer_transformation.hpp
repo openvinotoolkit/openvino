@@ -169,7 +169,7 @@ public:
                 const bool updatePrecisions = true,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                bool supportAsymmetricQuantization = false,
+                bool supportAsymmetricQuantization = true,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
                 std::vector<element::Type> precisionsOnWeights = { element::i8 },
                 element::Type deqPrecision = element::f32,

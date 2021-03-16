@@ -24,6 +24,13 @@ public:
 
     void setGroupSize(const size_t groupSize);
     size_t getGroupSize() const;
+
+    // TODO: stub
+    static bool checkPrecisionOnActivation(
+        const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& supportedPrecisionsOnActivations) {
+        return true;
+    }
 private:
     size_t groupSize;
 };
