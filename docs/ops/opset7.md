@@ -69,6 +69,7 @@ declared in `namespace opset7`.
 * [HardSigmoid](activation/HardSigmoid_1.md)
 * [HSigmoid](activation/HSigmoid_5.md)
 * [HSwish](activation/HSwish_4.md)
+* [IDFT](signals/IDFT_7.md)
 * [Interpolate](image/Interpolate_4.md)
 * [Less](comparison/Less_1.md)
 * [LessEqual](comparison/LessEqual_1.md)
