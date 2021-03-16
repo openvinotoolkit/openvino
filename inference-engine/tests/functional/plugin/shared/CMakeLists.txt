@@ -32,6 +32,7 @@ addIeTarget(
             PRIVATE
                 inference_engine_transformations
         DEPENDENCIES
+            inference_engine
             mock_engine
             HeteroPlugin
             MultiDevicePlugin
