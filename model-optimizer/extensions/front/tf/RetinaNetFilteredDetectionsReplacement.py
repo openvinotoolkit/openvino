@@ -33,6 +33,7 @@ from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 from mo.utils.error import Error
+from mo.utils.graph import clear_tensor_names_info_from_nodes
 
 
 class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGraph):
@@ -262,6 +263,9 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
 
         # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer
         # correspond to original tensors and should be removed from output->Result edges
-        match.clear_tensors_info_from_outputs()
+        # out_nodes = []
+        # for out in range(match.outputs_count()):
+        #     out_nodes.append(match.output_node(out)[0])
+        # clear_tensor_names_info_from_nodes(out_nodes)
 
         return {'detection_output_node': detection_output_node}

@@ -32,8 +32,7 @@ import logging as log
 from extensions.load.loader import Loader
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
-from mo.front.extractor import add_outputs_identity
-from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs
+from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs, add_outputs_identity
 from mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
@@ -99,14 +98,13 @@ class TFLoader(Loader):
         del variables_values
 
         used_tensors = restore_edges(graph, get_tf_edges)
-        outputs = graph.nodes - used_tensors
 
         # Tensor names information corresponding to a node is stored on outgoing edges.
         # As output nodes do not have outgoing edges, fake outputs are required. In the following code
         # for each output Identity node is added, and tensor name for the output is kept
         # on (output, fake output) edge. After Result nodes adding transformation fake outputs
         # are deleted from graph.
-        add_outputs_identity(graph, outputs, lambda g, output, fake_node_name: g.add_edges_from([
+        add_outputs_identity(graph, graph.nodes - used_tensors, lambda g, output, fake_node_name: g.add_edges_from([
             create_tf_edge(output, fake_node_name, 0)]))
 
         remove_control_dependency_inputs(graph)
