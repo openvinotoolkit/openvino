@@ -112,6 +112,14 @@ else()
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
     endif()
+    if(NGRAPH_USE_PROTOBUF_LITE)
+        # if only libprotobuf-lite is used, both libprotobuf and libprotobuf-lite are built
+        # libprotoc target needs symbols from libprotobuf, even in libprotobuf-lite configuration
+        set_target_properties(libprotobuf PROPERTIES
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
+    endif()
 endif()
 
 # Now make sure we restore the original flags
