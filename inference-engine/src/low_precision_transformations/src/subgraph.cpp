@@ -22,6 +22,37 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+bool operationIsSupportedInConcat(const std::shared_ptr<ngraph::Node>& node) {
+    // list of operations, which change channels, but supported in ConcatTransformation
+    if (ngraph::is_type<opset1::StridedSlice>(node) ||
+        ngraph::is_type<opset1::Split>(node) ||
+        ngraph::is_type<opset1::VariadicSplit>(node)) {
+        return true;
+    }
+
+    // operations, which change channels, usually don't support in ConcatTransformation
+    const auto inputs = node->input_values();
+    for (const auto& input : inputs) {
+        if (ngraph::is_type<opset1::Constant>(input.get_node())) {
+            continue;
+        }
+
+        const Shape& in = input.get_shape();
+        const Shape& out = node->output(0).get_shape();
+        for (size_t i = 0; i < 2; ++i) {
+            if ((i >= in.size()) || (i >= out.size())) {
+                // all previous dimensions are equal
+                return true;
+            }
+            if (in[i] != out[i]) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 Subgraph::Subgraph(ngraph::pass::ILayerTransformationsManager* layerTransformationsManager) : layerTransformationsManager(layerTransformationsManager) {
 }
 
@@ -50,7 +81,7 @@ bool Subgraph::fillSubgraphForQuantization(
                 if (fakeQuantizeChild != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(child)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(child) && operationIsSupportedInConcat(child)) {
                         if (!fillSubgraphForIntermediate(child, handledLayers)) {
                             return false;
                         }
@@ -72,7 +103,7 @@ bool Subgraph::atLeastOneIsIntermediate(const std::shared_ptr<ngraph::Node>& nod
                 return true;
             }
 
-            if (!layerTransformationsManager->isPrecisionPreserved(child)) {
+            if (!layerTransformationsManager->isPrecisionPreserved(child) || !operationIsSupportedInConcat(child)) {
                 // child branch is out of subgraph
                 continue;
             }
@@ -125,7 +156,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 if (constant != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(parent)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(parent) && operationIsSupportedInConcat(parent)) {
                         if (!fillSubgraphForIntermediate(parent, handledLayers)) {
                             return false;
                         }
@@ -161,7 +192,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeChild = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(child);
                 if (fakeQuantizeChild != nullptr) {
                     //
-                } else if (layerTransformationsManager->isPrecisionPreserved(child)) {
+                } else if (layerTransformationsManager->isPrecisionPreserved(child) && operationIsSupportedInConcat(child)) {
                     if (!fillSubgraphForIntermediate(child, handledLayers)) {
                         return false;
                     }
