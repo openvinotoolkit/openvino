@@ -55,7 +55,6 @@
 #include <ngraph/runtime/reference/mvn.hpp>
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include <ngraph/runtime/reference/normalize_l2.hpp>
-#include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
@@ -1493,46 +1492,6 @@ namespace
         }
         return true;
     }
-
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::OneHot>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        switch (inputs[0]->get_element_type())
-        {
-        case element::Type_t::i32:
-            runtime::reference::
-                one_hot<typename element_type_traits<element::Type_t::i32>::value_type, T>(
-                    inputs[0]->get_data_ptr<element::Type_t::i32>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    inputs[0]->get_shape(),
-                    outputs[0]->get_shape(),
-                    op->get_axis(),
-                    inputs[2]->get_data_ptr<T>()[0],
-                    inputs[3]->get_data_ptr<T>()[0]);
-            break;
-        case element::Type_t::i64:
-            runtime::reference::
-                one_hot<typename element_type_traits<element::Type_t::i64>::value_type, T>(
-                    inputs[0]->get_data_ptr<element::Type_t::i64>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    inputs[0]->get_shape(),
-                    outputs[0]->get_shape(),
-                    op->get_axis(),
-                    inputs[2]->get_data_ptr<T>()[0],
-                    inputs[3]->get_data_ptr<T>()[0]);
-            break;
-        default:
-            std::stringstream ss;
-            ss << "Unhandled input precision " << inputs[0]->get_element_type().get_type_name()
-               << " in v1::OneHot evaluate call";
-            throw ngraph_error(ss.str());
-        }
-        return true;
-    }
-
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::RNNCell>& op,
                   const HostTensorVector& outputs,
