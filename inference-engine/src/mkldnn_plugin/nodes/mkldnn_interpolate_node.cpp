@@ -3184,7 +3184,9 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
     };
 
-    if (!mayiuse(cpu::x64::sse41) || mode == InterpolateMode::linear) {
+    if (!mayiuse(cpu::x64::sse41)
+        || mode == InterpolateMode::linear
+        || mode == InterpolateMode::linear_onnx) {
         return false;
     }
 
