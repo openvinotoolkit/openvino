@@ -14,13 +14,23 @@ namespace {
 class ImportReshapePermuteConvGNA : public ImportReshapePermuteConv {
 private:
     void exportImportNetwork() override {
-        executableNetwork.Export(fileName);
-        std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
-        if (inputStream.fail()) {
-            FAIL() << "Cannot open file to import model: " << fileName;
+        {
+            std::ofstream out(fileName);
+            out.write(applicationHeader.c_str(), applicationHeader.size());
+            executableNetwork.Export(out);
         }
-        executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        {
+            std::string appHeader(applicationHeader.size(), ' ');
+            std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
+            if (inputStream.fail()) {
+                FAIL() << "Cannot open file to import model: " << fileName;
+            }
+            inputStream.read(&appHeader[0], applicationHeader.size());
+            ASSERT_EQ(appHeader, applicationHeader);
+            executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        }
     }
+
 protected:
     void TearDown() override {
         if (remove(fileName.c_str()) != 0) {
@@ -59,12 +69,18 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
     },
 };
 
+const std::vector<std::string> appHeaders = {
+        "",
+        "APPLICATION_HEADER"
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportReshapePermuteConvGNA,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
-                            ::testing::ValuesIn(importConfigs)),
+                            ::testing::ValuesIn(importConfigs),
+                            ::testing::ValuesIn(appHeaders)),
                         ImportReshapePermuteConvGNA::getTestCaseName);
 
 } // namespace
