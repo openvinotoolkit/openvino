@@ -217,7 +217,7 @@ def remove_rpath(file_path):
         :type file_path: pathlib.Path
     """
     if sys.platform == "darwin":
-        сmd = f'otool -l {file_path} ' \
+        cmd = f'otool -l {file_path} ' \
               f'| grep LC_RPATH -A3 ' \
               f'| grep -o "path.*" ' \
               f'| cut -d " " -f2 ' \
