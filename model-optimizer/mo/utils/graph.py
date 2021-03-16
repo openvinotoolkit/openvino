@@ -299,7 +299,7 @@ def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str='/'):
     return [Node(graph, node_id) for node_id in result]
 
 
-def clear_tensor_names_info_from_nodes(nodes: list):
+def clear_tensor_names_info(nodes: list):
     """
     Clears tensor names information from 'fw_tensor_debug_info' attribute for all edges outgoing from
     given nodes.

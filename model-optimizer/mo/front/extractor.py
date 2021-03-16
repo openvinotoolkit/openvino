@@ -753,8 +753,9 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
 
 def add_outputs_identity(graph: Graph, outputs: list, add_edge: callable, params: dict = {}):
     """
-    Adds identity nodes after each output of the graph. These nodes are used for
-    storing tensor names information.
+    Adds identity nodes marked with needs_removal=True attribute after each output of the graph.
+    These nodes are used for storing tensor names information at the incoming edge
+    and are removed with the OutputCut transformation.
     :param graph: graph to operate on.
     :param outputs: list of output node ids.
     :param add_edge: method which adds an edge to the graph with the following signature:
