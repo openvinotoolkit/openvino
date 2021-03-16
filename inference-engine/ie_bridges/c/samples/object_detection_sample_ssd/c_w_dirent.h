@@ -128,7 +128,7 @@ static DIR *opendir(const char *dirPath) {
     dp->hFind = FindFirstFileA(ws, &dp->FindFileData);
     dp->FindFileData.dwReserved0 = dp->hFind != INVALID_HANDLE_VALUE;
     free(ws);
-    if (!isValid(dp)) {
+    if (isValid(dp)) {
         free(dp);
         return NULL;
     }

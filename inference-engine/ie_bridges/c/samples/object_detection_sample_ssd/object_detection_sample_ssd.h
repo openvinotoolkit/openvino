@@ -25,7 +25,7 @@ static const char *custom_plugin_config_message = "Required for GPU, MYRIAD, HDD
 "Absolute path to the .xml config file with the kernels descriptions.";
 
 /// @brief message for user extension library argument
-static const char *custom_ex_library_message = "Required for device custom layers. " \
+static const char *custom_ex_library_message = "Required for CPU plugin custom layers. " \
 "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for config argument
@@ -40,7 +40,7 @@ static void showUsage() {
     printf("    -m \"<path>\"             %s\n", model_message);
     printf("    -i \"<path>\"             %s\n", image_message);
     printf("      -l \"<absolute_path>\"  %s\n", custom_ex_library_message);
-    printf("          And\n");
+    printf("          Or\n");
     printf("      -c \"<absolute_path>\"  %s\n", custom_plugin_config_message);
     printf("    -d \"<device>\"           %s\n", target_device_message);
     printf("    -g                  %s\n", config_message);

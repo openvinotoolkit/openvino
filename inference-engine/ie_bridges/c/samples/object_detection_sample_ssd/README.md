@@ -58,8 +58,8 @@ Options:
     -h                      Print a usage message.
     -i "<path>"             Required. Path to one or more .bmp images.
     -m "<path>"             Required. Path to an .xml file with a trained model.
-      -l "<absolute_path>"  Required for device plugin custom layers. Absolute path to a shared library with the kernels implementations.
-          And
+      -l "<absolute_path>"  Required for CPU plugin custom layers. Absolute path to a shared library with the kernels implementations.
+          Or
       -c "<absolute_path>"  Required for GPU, MYRIAD, HDDL custom kernels. Absolute path to the .xml file with the kernels descriptions.
     -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
     -g                      Path to the configuration file. Default value: "config".

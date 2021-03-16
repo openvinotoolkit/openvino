@@ -83,10 +83,6 @@ int ParseAndCheckCommandLine(int argc, char *argv[]) {
         printf("Input is required but not set.Please set -i option.\n");
         return -1;
     }
-    if (custom_plugin_cfg_msg == NULL && device_name != "CPU") {
-        printf("Custom config is required for device plugin custom kernels. Please set -c option.\n");
-        return -1;
-    }
 
     return 1;
 }
@@ -346,8 +342,8 @@ int main(int argc, char **argv) {
     ie_core_versions_free(&ver);
 
     if (custom_ex_library_msg) {
-        // Custom extension is loaded as a shared library and passed as a pointer to base extension
-        status = ie_core_add_extension(core, custom_ex_library_msg, device_name);
+        // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
+        status = ie_core_add_extension(core, custom_ex_library_msg, "CPU");
         if (status != OK)
             goto err;
         printf("%sCustom extension loaded: %s\n", info, custom_ex_library_msg);
