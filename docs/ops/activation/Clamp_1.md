@@ -13,13 +13,9 @@
 * Input values that are greater than *max* are replaced with the *max* value. For example, *max* equals 50 means that any value in the input that is greater than the bound, is replaced by 50.
 * Input values within the range `[min, max]` remain unchanged.
 
-Mathematical formula of *Clamp* is as follows:
+Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematical formula of *Clamp* is as follows:
 \f[
-clamp( x )=\left\{\begin{array}{ll}
-    input( x ) \quad \mbox{if } \quad min \leq input( x ) \leq max \\
-    max \quad \mbox{if } \quad input( x ) > max \\
-    min \quad \mbox{if } \quad input( x ) < min
-\end{array}\right.
+clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
 \f]
 
 **Attributes**:
