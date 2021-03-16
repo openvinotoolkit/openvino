@@ -106,6 +106,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node> get_default_value() const override;
                 bool is_exclusive() const { return m_exclusive; }
                 bool is_reverse() const { return m_reverse; }
+
             private:
                 bool m_exclusive;
                 bool m_reverse;
