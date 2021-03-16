@@ -38,6 +38,9 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
     *n = output_dim.dims[1];
 
     struct classify_res *cls = (struct classify_res *)malloc(sizeof(struct classify_res) * (*n));
+    if (!cls) {
+        return NULL;
+    }
 
     ie_blob_buffer_t blob_cbuffer;
     status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
@@ -76,8 +79,8 @@ size_t read_image_from_file(const char *img_path, unsigned char *img_data, size_
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
+        fclose(fp);
     }
-    fclose(fp);
     return read_size;
 }
 
