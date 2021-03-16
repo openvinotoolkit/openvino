@@ -114,5 +114,4 @@ class ScatterElementsInferTest(unittest.TestCase):
         self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
 
         res_output_value = scatter_el_node.out_node().value
-        if res_output_value is not None:
-            self.assertTrue(np.array_equal(ref_res, res_output_value))
+        self.assertTrue(np.array_equal(ref_res, res_output_value))
