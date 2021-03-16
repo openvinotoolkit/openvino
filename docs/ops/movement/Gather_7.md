@@ -4,9 +4,9 @@
 
 **Category**: Data movement operations
 
-**Short description**: *Gather* operation takes slices of data in the first input tensor according to the indices
- specified in the second input tensor and axis from the third input. Semantic of this operation is identical to 
-*Tensorflow* GatherV2.
+**Short description**: *Gather* operation takes slices of data of the first input tensor according to the indices
+ specified with the second input tensor and axis from the third input. Semantic of this operation is identical to 
+Tensorflow* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) operation.
 
 **Detailed description**
 
@@ -140,7 +140,7 @@ the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.shap
 **Example**
 
 ```xml
-<layer id="1" name="gather" type="Gather" version="opset7">
+<layer ... type="Gather" version="opset7">
     <data batch_dims="1" />
     <input>
         <port id="0">
