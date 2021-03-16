@@ -482,8 +482,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     //      Hybrid specific
     //      etc
     std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited ? "YES" : "NO") << std::endl;
-    config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(
-            isNetworkMemLimited ? default_num_streams : num_phys_cores);
+    if (isNetworkMemLimited) {
+        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_phys_cores);
+        config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(num_phys_cores);
+    } else {
+        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(default_num_streams);
+    }
 //            }
 //        }
     //}
