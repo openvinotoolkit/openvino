@@ -44,6 +44,19 @@ TEST_F(TensorDescTests, CreateBlockedBlobNCDHW) {
     ASSERT_EQ(Layout::BLOCKED, blockedBlob->getTensorDesc().getLayout());
 }
 
+TEST_F(TensorDescTests, CompareHWCandCHWLayouts) {
+    TensorDesc descCHW(Precision::FP32, {1, 3, 4}, Layout::CHW);
+    TensorDesc descHWC(Precision::FP32, {1, 3, 4}, Layout::HWC);
+    SizeVector chw = {0, 1, 2};
+    SizeVector hwc = {1, 2, 0};
+
+    ASSERT_NE(descCHW, descHWC);
+    ASSERT_NE(descCHW.getBlockingDesc(), descHWC.getBlockingDesc());
+    ASSERT_NE(descCHW.getBlockingDesc().getOrder(), descHWC.getBlockingDesc().getOrder());
+    ASSERT_EQ(descCHW.getBlockingDesc().getOrder(), chw);
+    ASSERT_EQ(descHWC.getBlockingDesc().getOrder(), hwc);
+}
+
 TEST_F(TensorDescTests, CompareNHWCandNCHWLayouts) {
     TensorDesc descNCHW(Precision::FP32, {1, 3, 4, 2}, Layout::NCHW);
     TensorDesc descNHWC(Precision::FP32, {1, 3, 4, 2}, Layout::NHWC);
