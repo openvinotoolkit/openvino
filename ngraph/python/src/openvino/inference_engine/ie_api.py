@@ -28,29 +28,37 @@ class BlobPatch:
     def __new__(cls, tensor_desc, arr : np.ndarray = None):
         # TODO: create tensor_desc based on arr itself
         # if tenosr_desc is not given
-        arr = np.array(arr) # Keeping array as numpy array
-        size_arr = np.prod(arr.shape)
         if arr is not None:
-            if np.isfortran(arr):
-                arr = arr.ravel(order="F")
-            else:
-                arr = arr.ravel(order="C")
+            arr = np.array(arr) # Keeping array as numpy array
+            size_arr = np.prod(arr.shape)
+            if arr is not None:
+                if np.isfortran(arr):
+                    arr = arr.ravel(order="F")
+                else:
+                    arr = arr.ravel(order="C")
         # Return TBlob depends on numpy array dtype
         # TODO: add dispatching based on tensor_desc precision value
-        if arr.dtype in [np.float32]:
-            return TBlobFloat32(tensor_desc, arr, size_arr)
-        # elif arr.dtype in [np.float64]:
-        #     return TBlobFloat32(tensor_desc, arr.view(dtype=np.float32), size_arr)
-        # elif arr.dtype in [np.int64]:
-        #     return TBlobInt64(tensor_desc, arr, size)
-        # elif arr.dtype in [np.int32]:
-        #     return TBlobInt32(tensor_desc, arr, size)
-        # elif arr.dtype in [np.int16]:
-        #     return TBlobInt16(tensor_desc, arr, size)
-        # elif arr.dtype in [np.int8]:
-        #     return TBlobInt8(tensor_desc, arr, size)
-        # elif arr.dtype in [np.uint8]:
-        #     return TBlobUint8(tensor_desc, arr, size)
+        if tensor_desc is not None and arr is None:
+            precision = tensor_desc.precision
+            if precision == "FP32":
+                return TBlobFloat32(tensor_desc)
+            else:
+                raise ValueError("not supported precision")
+        elif tensor_desc is not None and arr is not None:
+            if arr.dtype in [np.float32]:
+                return TBlobFloat32(tensor_desc, arr, size_arr)
+            # elif arr.dtype in [np.float64]:
+            #     return TBlobFloat32(tensor_desc, arr.view(dtype=np.float32), size_arr)
+            # elif arr.dtype in [np.int64]:
+            #     return TBlobInt64(tensor_desc, arr, size)
+            # elif arr.dtype in [np.int32]:
+            #     return TBlobInt32(tensor_desc, arr, size)
+            # elif arr.dtype in [np.int16]:
+            #     return TBlobInt16(tensor_desc, arr, size)
+            # elif arr.dtype in [np.int8]:
+            #     return TBlobInt8(tensor_desc, arr, size)
+            # elif arr.dtype in [np.uint8]:
+            #     return TBlobUint8(tensor_desc, arr, size)
         else:
             # TODO: raise error
             return None
