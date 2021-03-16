@@ -1,7 +1,5 @@
 # Inference Engine Developer Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
 
-# Introduction to Inference Engine {#openvino_docs_IE_DG_inference_engine_intro}
-
 > **NOTE:** [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 This Guide provides an overview of the Inference Engine describing the typical workflow for performing
