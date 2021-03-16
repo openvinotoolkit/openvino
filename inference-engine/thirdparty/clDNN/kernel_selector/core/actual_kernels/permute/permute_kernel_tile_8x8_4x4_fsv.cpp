@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2021 Intel Corporation
+﻿// Copyright (c) 2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 
 #include "permute_kernel_tile_8x8_4x4_fsv.h"
 #include "kernel_selector_utils.h"
+#include "common_tools.h"
 #include <string>
 #include <functional>
 #include <cmath>
@@ -22,8 +23,6 @@
 // Tile size : 4x4 or 8x8
 #define MIN_TILE_SIZE 4
 #define DEFAULT_TILE_SIZE 8
-
-#define CEIL_DIV(A, B) ((A + B - 1)/(B))
 
 namespace kernel_selector {
 
@@ -158,8 +157,7 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
 
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
     jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
-    jit.AddConstant(MakeJitConstant("INPUT0_SIZE_FS", CEIL_DIV(f, fsv_alignment)));
-    jit.AddConstant(MakeJitConstant("INPUT0_SIZE_F", f));
+    jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_SLICE_NUM", CeilDiv(f, fsv_alignment)));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
@@ -167,10 +165,10 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     // whether F is tile_size-aligned
     if (f % tile_size != 0) {
         jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_size));
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "((INPUT0_SIZE_F - F_REMAINDER_SIZE) <= f) && (f < INPUT0_SIZE_F)"));
-        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_SIZE_F - F_REMAINDER_SIZE))"));
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "((INPUT0_FEATURE_NUM - F_REMAINDER_SIZE) <= f) && (f < INPUT0_FEATURE_NUM)"));
+        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE))"));
     } else {
-        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_SIZE_F)"));
+        jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
     }
 
     // whether y (or z if b_fs_zyx_fsv16) is tile_size-aligned
@@ -197,7 +195,7 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     std::vector<size_t> dims{0, 1, 2};
 
     // SLM size: elemsize * tile_width * tile_width * work_items <= 64K
-    const size_t elem_size = sizeof(params.output.GetDType());
+    const size_t elem_size = params.output.ElementSize();
     const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
     size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
@@ -230,15 +228,15 @@ static inline std::vector<size_t> GetGWS(const permute_params& params) {
         case DataLayout::b_fs_yx_fsv16:
         case DataLayout::b_fs_yx_fsv32:
         case DataLayout::b_fs_yx_fsv4:
-            gws = {CEIL_DIV(fsv_alignment, tile_size),
-                CEIL_DIV(in.Y().v, tile_size) * in.X().v,
-                in.Batch().v * CEIL_DIV(in.Feature().v, fsv_alignment)};
+            gws = {CeilDiv(fsv_alignment, tile_size),
+                CeilDiv(in.Y().v, tile_size) * in.X().v,
+                in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
             break;
         case DataLayout::b_fs_zyx_fsv16:
         case DataLayout::b_fs_zyx_fsv32:
-            gws = {CEIL_DIV(fsv_alignment, tile_size),
-                CEIL_DIV(in.Z().v, tile_size) * in.X().v * in.Y().v,
-                in.Batch().v * CEIL_DIV(in.Feature().v, fsv_alignment)};
+            gws = {CeilDiv(fsv_alignment, tile_size),
+                CeilDiv(in.Z().v, tile_size) * in.X().v * in.Y().v,
+                in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
             break;
         default:
             throw std::runtime_error("Unsupported combination\n");
@@ -294,7 +292,7 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params&
     std::vector<size_t> lws = GetBestLwsFromGws(newParams, gws, tile_size, tile_size);
     size_t num_working_groups = 1;
     for (size_t i=0; i < gws.size(); ++i) {
-        num_working_groups *= gws.at(i)/lws.at(i);
+        num_working_groups *= gws.at(i) / lws.at(i);
     }
 
     const size_t feature = newParams.inputs[0].Feature().v;

@@ -28,6 +28,10 @@
 #define VSTORE CAT(vstore, TILE_SIZE)
 #define AS_INPUTVTYPE CAT(as_, INPUTVTYPE)
 
+#define GET_GLOBAL_ID(IDX) ((uint)get_global_id(IDX))
+#define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))
+#define GET_LOCAL_SIZE(IDX) ((uint)get_local_size(IDX))
+
 KERNEL (permute_tile_8x8_4x4_fsv)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -37,23 +41,23 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
     )
 {
 #if INPUT0_DIMS == 4
-    const uint y = (get_global_id(1) / INPUT0_SIZE_X) * TILE_SIZE;
-    const uint x = get_global_id(1) % INPUT0_SIZE_X;
+    const uint y = (GET_GLOBAL_ID(1) / INPUT0_SIZE_X) * TILE_SIZE;
+    const uint x = (GET_GLOBAL_ID(1)) % INPUT0_SIZE_X;
 #elif INPUT0_DIMS == 5
-    const uint z = (get_global_id(1)/ (INPUT0_SIZE_X * INPUT0_SIZE_Y)) * TILE_SIZE;
-    const uint yx = get_global_id(1) % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
+    const uint z = (GET_GLOBAL_ID(1)/ (INPUT0_SIZE_X * INPUT0_SIZE_Y)) * TILE_SIZE;
+    const uint yx = GET_GLOBAL_ID(1) % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
     const uint y = yx / INPUT0_SIZE_X ;
     const uint x = yx % INPUT0_SIZE_X;
 #endif
-    const uint fsv = get_global_id(0) * TILE_SIZE;
-    const uint fs = get_global_id(2) % (INPUT0_SIZE_FS);
-    const uint b = get_global_id(2) / (INPUT0_SIZE_FS);
+    const uint fsv = GET_GLOBAL_ID(0) * TILE_SIZE;
+    const uint fs = GET_GLOBAL_ID(2) % INPUT0_FEATURE_SLICE_NUM;
+    const uint b = GET_GLOBAL_ID(2) / INPUT0_FEATURE_SLICE_NUM;
     const uint f = fsv + fs * FSV_ALIGNMENT;
 
     __local OUTPUTVTYPE transpose_buf[TRANS_BUF_SIZE];
-    const uint local_id = get_local_id(0) * get_local_size(2) * get_local_size(1)
-                    + get_local_id(1) * get_local_size(2)
-                    + get_local_id(2);
+    const uint local_id = GET_LOCAL_ID(0) * GET_LOCAL_SIZE(2) * GET_LOCAL_SIZE(1)
+                    + GET_LOCAL_ID(1) * GET_LOCAL_SIZE(2)
+                    + GET_LOCAL_ID(2);
     const uint local_buf_offset = local_id * TILE_SIZE;
 
     if (F_NO_REMAINDER_CONDITION) {
