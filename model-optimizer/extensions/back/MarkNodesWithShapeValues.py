@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from logging import log
+import logging as log
 
 import numpy as np
 
@@ -78,5 +78,5 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
                 if node.value.dtype == np.float32:
                     node.out_node(0)['correct_data_type'] = True
                 elif node.value.dtype in [np.float16, np.float64]:
-                    log.warning("Const nodes {} with shape values have {} type".format(node.soft_get('name', node.id),
+                    log.debug('Const nodes {} with shape values have {} type'.format(node.soft_get('name', node.id),
                                                                                        node.value.dtype))
