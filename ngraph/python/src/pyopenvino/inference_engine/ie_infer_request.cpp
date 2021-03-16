@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <cpp/ie_infer_request.hpp>
+#include <ie_common.h>
 
 #include "pyopenvino/inference_engine/ie_executable_network.hpp"
 
@@ -48,14 +49,45 @@ void regclass_InferRequest(py::module m)
             self.SetBlob(name, blob);
         }
     });
+    cls.def("set_batch", &InferenceEngine::InferRequest::SetBatch, py::arg("size"));
+
+    cls.def("get_perf_counts", [](InferenceEngine::InferRequest& self) {
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
+        perfMap = self.GetPerformanceCounts();
+        py::dict perf_map;
+
+        for (auto it : perfMap) {
+            py::dict profile_info;
+            switch (it.second.status) {
+                case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
+                    profile_info["status"] = "EXECUTED";
+                    break;
+                case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
+                    profile_info["status"] = "NOT_RUN";
+                    break;
+                case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
+                    profile_info["status"] = "OPTIMIZED_OUT";
+                    break;
+                default:
+                    profile_info["status"] = "UNKNOWN";
+            }
+            profile_info["exec_type"] = it.second.exec_type;
+            profile_info["layer_type"] = it.second.layer_type;
+            profile_info["cpu_time"] = it.second.cpu_uSec;
+            profile_info["real_time"] = it.second.realTime_uSec;
+            profile_info["execution_index"] = it.second.execution_index;
+            std::string str = it.first;
+            perf_map[str.c_str()] = profile_info;
+        }
+        return perf_map;
+    });
 //    cls.def_property_readonly("input_blobs", [](){
 //
 //    });
 //    cls.def_property_readonly("output_blobs", [](){
 //
 //    });
-//    cls.def("set_batch", );
-//    cls.def("get_perf_counts", );
+
 //    cls.def("wait");
 //    cls.def("set_completion_callback")
 //    cls.def("async_infer",);

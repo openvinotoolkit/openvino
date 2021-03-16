@@ -20,6 +20,8 @@
 #include <cpp/ie_executable_network.hpp>
 #include <ie_input_info.hpp>
 
+#include "common.hpp"
+
 #include "pyopenvino/inference_engine/ie_executable_network.hpp"
 #include "pyopenvino/inference_engine/ie_input_info.hpp"
 
@@ -40,11 +42,20 @@ void regclass_ExecutableNetwork(py::module m)
 
     cls.def("get_exec_graph_info", &InferenceEngine::ExecutableNetwork::GetExecGraphInfo);
 
-    // cls.def("export", );
+    cls.def("export", [](InferenceEngine::ExecutableNetwork& self,
+                        const std::string& modelFileName) {
+        self.Export(modelFileName);
+        }, py::arg("model_file"));
 
-    // cls.def("get_config", );
+    cls.def("get_config",
+            [](InferenceEngine::ExecutableNetwork& self, const std::string& config_name) -> py::handle {
+        return Common::parse_parameter(self.GetConfig(config_name));
+    }, py::arg("config_name"));
 
-    // cls.def("get_metric", );
+    cls.def("get_metric",
+            [](InferenceEngine::ExecutableNetwork& self, const std::string& metric_name) -> py::handle {
+        return Common::parse_parameter(self.GetMetric(metric_name));
+    }, py::arg("metric_name"));
 
     //    cls.def("get_idle_request_id", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
     //
