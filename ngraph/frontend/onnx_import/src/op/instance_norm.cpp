@@ -70,7 +70,7 @@ namespace ngraph
                         bias.get_element_type(),
                         ").");
 
-                    if (data_pshape.rank().is_static())
+                    if (data_pshape.is_static())
                     {
                         CHECK_VALID_NODE(node,
                                          scale_pshape.is_dynamic() ||
