@@ -31,20 +31,20 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"patternAnyType", 0};
                 const NodeTypeInfo& get_type_info() const override;
 
-                explicit WrapType(NodeTypeInfo wrapped_type,
-                                  const ValuePredicate& pred =
-                                      [](const Output<Node>& output) { return true; },
-                                  const OutputVector& input_values = {})
+                explicit WrapType(
+                    NodeTypeInfo wrapped_type,
+                    const ValuePredicate& pred = [](const Output<Node>& output) { return true; },
+                    const OutputVector& input_values = {})
                     : Pattern(input_values, pred)
                     , m_wrapped_types({wrapped_type})
                 {
                     set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
                 }
 
-                explicit WrapType(std::vector<NodeTypeInfo> wrapped_types,
-                                  const ValuePredicate& pred =
-                                      [](const Output<Node>& output) { return true; },
-                                  const OutputVector& input_values = {})
+                explicit WrapType(
+                    std::vector<NodeTypeInfo> wrapped_types,
+                    const ValuePredicate& pred = [](const Output<Node>& output) { return true; },
+                    const OutputVector& input_values = {})
                     : Pattern(input_values, pred)
                     , m_wrapped_types(std::move(wrapped_types))
                 {
