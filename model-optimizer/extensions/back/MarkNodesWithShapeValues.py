@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+from logging import log
+
 import numpy as np
 
 from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
@@ -45,7 +47,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
         return []
 
     @staticmethod
-    def get_ops_with_shape_input():
+    def get_operations_with_shape_inputs():
         return {
             'Interpolate': [1, 2],
             'Reshape': [1],
@@ -58,7 +60,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
         }
 
     def find_and_replace_pattern(self, graph: Graph):
-        shape_input_ops_map = self.get_ops_with_shape_input()
+        shape_input_ops_map = self.get_operations_with_shape_inputs()
         nodes_with_shape_inputs = []
         for op_type in shape_input_ops_map:
             nodes_with_shape_inputs.extend(graph.get_op_nodes(type=op_type))
@@ -69,9 +71,12 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
             start_nodes.extend([node.in_port(port_idx).get_source().node for port_idx in start_ports])
 
         condition = lambda node: node.soft_get('type') != 'ShapeOf'
-        nodes_with_shape_values = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, set(), condition,
-                                                                     forward=False)
+        nodes_with_shape_values = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, set(), condition, forward=False)
         for node in nodes_with_shape_values:
             node['returns_shape_value'] = True
-            if node.type == 'Const' and node.value.dtype == np.float32:
-                node.out_node(0)['correct_data_type'] = True
+            if node.type == 'Const':
+                if node.value.dtype == np.float32:
+                    node.out_node(0)['correct_data_type'] = True
+                elif node.value.dtype in [np.float16, np.float64]:
+                    log.warning("Const nodes {} with shape values have {} type".format(node.soft_get('name', node.id),
+                                                                                       node.value.dtype))
