@@ -105,6 +105,14 @@ static const char shape_message[] = "Optional. Set shape for input. For example,
 static const char layout_message[] = "Optional. Prompts how network layouts should be treated by application. "
                                      "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
+// @brief message for enabling caching
+static const char cache_dir_message[] = "Optional. Enables caching of loaded models to specified directory. "
+                                        "List of devices which support caching is shown at the end of this message.";
+
+// @brief message for single load network
+static const char single_load_message[] = "Optional. Calls LoadNetwork by name (without need of ReadNetwork). "
+                                          "All CNNNetwork options (like re-shape) will be ignored";
+
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
@@ -198,6 +206,12 @@ DEFINE_string(layout, "", layout_message);
 /// @brief Define flag for quantization bits (default 16)
 DEFINE_int32(qb, 16, gna_qb_message);
 
+/// @brief Define parameter for cache model dir <br>
+DEFINE_string(cache, "", cache_dir_message);
+
+/// @brief Define flag for load network by model file name without ReadNetwork <br>
+DEFINE_bool(single_load, false, single_load_message);
+
 /**
 * @brief This function show a help message
 */
@@ -222,6 +236,8 @@ static void showUsage() {
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
+    std::cout << "    -cache \"<path>\"           " << cache_dir_message << std::endl;
+    std::cout << "    -single_load              " << single_load_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;

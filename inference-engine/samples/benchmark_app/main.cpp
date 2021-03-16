@@ -37,6 +37,29 @@ uint64_t getDurationInNanoseconds(uint32_t duration) {
     return duration * 1000000000LL;
 }
 
+static void showCacheSupportedDevices() {
+    InferenceEngine::Core ie;
+    std::vector<std::string> devices = ie.GetAvailableDevices();
+    std::stringstream out;
+
+    for (const auto& device : devices) {
+        std::vector<std::string> supportedMetricKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_METRICS));
+        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
+                            METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+        bool supported = (it != supportedMetricKeys.end()) &&
+                         ie.GetMetric(device, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+        if (supported) {
+            out << "  " << device;
+        }
+    }
+    auto outStr = out.str();
+    if (!outStr.empty()) {
+        std::cout << "Model caching is supported for devices:" << outStr << std::endl;
+    } else {
+        std::cout << "Model caching is not supported by any device in the system" << std::endl;
+    }
+}
+
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validating input arguments--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -44,6 +67,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     if (FLAGS_help || FLAGS_h) {
         showUsage();
         showAvailableDevices();
+        showCacheSupportedDevices();
         return false;
     }
 
@@ -322,7 +346,31 @@ int main(int argc, char *argv[]) {
         std::string topology_name = "";
         benchmark_app::InputsInfo app_inputs_info;
         std::string output_name;
-        if (!isNetworkCompiled) {
+
+        if (!FLAGS_cache.empty()) {
+            ie.SetConfig({ {CONFIG_KEY(CACHE_DIR), FLAGS_cache} });
+        }
+
+        if (FLAGS_single_load) {
+            next_step();
+            slog::info << "Skipping the step for loading network by name" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading network by name" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading network by name" << slog::endl;
+            auto startTime = Time::now();
+            exeNetwork = ie.LoadNetwork(FLAGS_m, device_name);
+            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            slog::info << "Load network by name took " << duration_ms << " ms" << slog::endl;
+            if (statistics)
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                                  {"load network by name time (ms)", duration_ms}
+                                          });
+            if (batchSize == 0) {
+                batchSize = 1;
+            }
+        } else if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network ----------------------------------------
             next_step();
 
