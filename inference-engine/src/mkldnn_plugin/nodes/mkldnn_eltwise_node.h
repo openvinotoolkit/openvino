@@ -123,7 +123,7 @@ private:
 
     static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
 
-    void fillScalesAndShifts();
+    void fillScalesAndShifts(const MKLDNNNode *parentNode);
 };
 
 }  // namespace MKLDNNPlugin

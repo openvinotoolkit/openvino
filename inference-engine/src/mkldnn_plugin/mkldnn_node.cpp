@@ -41,7 +41,7 @@
 #include <nodes/mkldnn_space_to_depth_node.h>
 #include <nodes/mkldnn_strided_slice_node.h>
 #include <nodes/mkldnn_reference_node.h>
-#include <nodes/mkldnn_quantize_node.h>
+#include <nodes/mkldnn_fake_quantize_node.h>
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
@@ -178,8 +178,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "LSTMSequence", RNNSeq },
 //        { "GRUSequence", RNNSeq },
 //        { "RNNSequence", RNNSeq },
-//        { "Quantize", Quantize },
-//        { "FakeQuantize", Quantize },
+        { "FakeQuantize", FakeQuantize },
 //        { "BinaryConvolution", BinaryConvolution },
 //        { "DeformableConvolution", DeformableConvolution },
 //        { "TensorIterator", TensorIterator },
@@ -1343,29 +1342,44 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     return newNode;
 }
 
-bool MKLDNNNode::canBePerformedAsScaleShift() const {
-    bool inputsIsConst = true;
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        if (!getParentEdgeAt(i)->getParent()->isConstant() || getParentEdgeAt(i)->getParent()->getType() != Input) {
-            inputsIsConst = false;
+bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const {
+    size_t fusingPort = 0;
+    for (size_t i = (parentNode == nullptr ? 1 : 0); i < getParentEdges().size(); i++) {
+        MKLDNNNode *node = getParentEdgeAt(i)->getParent().get();
+        if (node == nullptr) {
+            THROW_IE_EXCEPTION << "Cannot get parent node for " << getName() << " on " << i << " port";
+        }
+        if (node == parentNode) {
+            fusingPort = i;
+            continue;
+        }
+        if (!node->isConstant() || node->getType() != Input) {
+            return false;
         }
     }
-    return one_of(getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd) && inputsIsConst &&
-                  MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(getParentEdgeAt(0)->getDims().ToSizeVector(),
-                                                                             getParentEdgeAt(1)->getDims().ToSizeVector());
+
+    const auto isBroadcastableToDataInput = [&]() {
+        const auto dataShape = getParentEdgeAt(fusingPort)->getDims().ToSizeVector();
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            if (i == fusingPort)
+                continue;
+            if (!MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(dataShape, getParentEdgeAt(i)->getDims().ToSizeVector()))
+                return false;
+        }
+        return true;
+    };
+
+    return one_of(getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd) && isBroadcastableToDataInput();
 }
 
 bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
-    if (node->getType() == Quantize) {
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-        if (quantizeNode == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
-        return !quantizeNode->isBinarization();
+    if (node->getType() == FakeQuantize) {
+        return node->getAlgorithm() != FQBinarization;
     } else if (node->getType() == Eltwise) {
         return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseTanh,
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
                                             EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt) ||
-                      node->canBePerformedAsScaleShift();
+                      node->canBePerformedAsScaleShift(this);
     }
 
     return false;
