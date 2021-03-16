@@ -1590,9 +1590,6 @@ evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
 
-# The test randomly fails in CI (MSVC2019 Debug)
-onnx_model_experimental_detectron_generate_proposals_single_image
-
 # Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
 bin_convolution_2D_1batch_1channel
 bin_convolution_2D_1batch_1channel_padding_pad_val_0
