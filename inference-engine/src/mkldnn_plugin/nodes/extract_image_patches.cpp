@@ -42,10 +42,8 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
 
         this->postamble();
     }
-    // some additional functions to facilitate the main loop
-    /*
     void load(const Xbyak::Xmm &xmm, const Xbyak::Address &addr) {
-        switch (jpp.data_size) {
+        switch (jpp.dtype_size) {
             case 16: movups(xmm, addr); break;
             case 8: movsd(xmm, addr); break;
             case 4: movss(xmm, addr); break;
@@ -55,7 +53,7 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
     }
 
     void store(const Xbyak::Address &addr, const Xbyak::Xmm &xmm) {
-        switch (jpp.data_size) {
+        switch (jpp.dtype_size) {
             case 16: movups(addr, xmm); break;
             case 8: movsd(addr, xmm); break;
             case 4: movss(addr, xmm); break;
@@ -63,7 +61,6 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
             case 1: pextrb(addr, xmm, 0x0); break;
         }
     }
-    */
     // uses reg_num_pads as an argument
     // advances reg_dst
     void pad_with_zeros() {
@@ -82,70 +79,44 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
         {
             cmp(reg_num_pads, 0);
             jle(exit, T_NEAR);
-            movss(ptr[reg_dst], vmm); // will it work for 64 types?
+            uni_vmovss(ptr[reg_dst], vmm); // will it work for 64 types?
             add(reg_dst, jpp.dtype_size);
             sub(reg_num_pads, 1);
             jmp(tail, T_NEAR);
         }
         L(exit);
     }
-
+    inline void stack_2xmm(const Xbyak::Xmm &xmm, const Xbyak::Address &addr, const int offset) {
+        switch (jpp.dtype_size) {
+            case 8: uni_vpinsrq(xmm, xmm, addr, offset); break;
+            case 4: uni_vpinsrd(xmm, xmm, addr, offset); break;
+            case 2: uni_vpinsrw(xmm, xmm, addr, offset); break;
+            case 1: uni_vpinsrb(xmm, xmm, addr, offset); break;
+        }
+    }
+    void read_src2xmm() {
+        const int xmm_size = 16; // bytes
+        const int xmm_block_size = xmm_size / jpp.dtype_size;
+        for (int i = 0; i < xmm_block_size; i++) {
+            stack_2xmm(xmm, ptr[reg_num_pads + i * jpp.SW * jpp.dtype_size], i);
+        }
+        add(reg_num_pads, jpp.SW * jpp.dtype_size * xmm_block_size);
+    }
     void read_src2vmm() {
-        /*
-        //vgatherdps(vmm, indicex, mask);
-        for (int k = 0; k < jpp.block_size/2 ; k++) {
-            mov(reg_aux32, ptr[reg_num_pads]);
-            pinsrd(xmm, reg_aux32, k);
-            add(reg_num_pads, jpp.SW * jpp.dtype_size);
+        read_src2xmm();
+        switch (isa) {
+            case x64::avx2: {
+                Xbyak::Ymm ymm = static_cast<const Xbyak::Ymm &>(vmm);
+                vinserti128(ymm, ymm, xmm, 0);
+                read_src2xmm();
+                vinserti128(ymm, ymm, xmm, 1);
+                break;
+            }
+            //case x64::sse41:// Xmm
+            //case x64::avx2 // YMM
         }
-        //movdq2q(vmm, xmm);
-        //pshufd(vmm, vmm, );
-        vinsertf128(static_cast<Ymm &>(vmm), static_cast<const Ymm &>(vmm), xmm, 1);
-         */
-        Xbyak::Label read_next, exit_read;
-        mov(reg_aux32_2, jpp.block_size);
-        L(read_next);
-        {
-            cmp(reg_aux32_2, 0);
-            jle(exit_read);
-            //mov(reg_aux32, ptr[reg_num_pads]);
-            //mov(ptr[reg_dst], reg_aux32);
-            //movss(xmm, ptr[reg_num_pads]);
-
-            //shl(xmm, jpp.dtype_size * 8);
-            for (int i = 0; i < 4; i++)
-                pinsrd(xmm, ptr[reg_num_pads + i * jpp.SW * jpp.dtype_size], i);
-            //mov(reg_aux32, ptr[reg_num_pads]);
-            //movss(xmm, ptr[reg_num_pads]);
-            //add(reg_num_pads, jpp.SW * jpp.dtype_size);
-            //pinsrd(xmm, reg_aux32, 0);
-            //movlps(ptr[reg_dst], xmm);
-            movups(ptr[reg_dst], xmm);
-            //
-            add(reg_dst, jpp.dtype_size * 4);
-            add(reg_num_pads, jpp.SW * jpp.dtype_size * 4);
-            sub(reg_aux32_2, 4);
-            jmp(read_next);
-        }
-        L(exit_read);
-        /*
-        Xbyak::Label read_next, exit_read;
-        mov(reg_aux32_2, jpp.block_size);
-        L(read_next);
-        {
-            cmp(reg_aux32_2, 0);
-            jle(exit_read);
-            mov(reg_aux32, ptr[reg_num_pads]);
-            //mov(vmm, reg_aux32);
-            //shl(vmm, jpp.dtype_size);
-            pinsrw(vmm, reg_aux32, );
-            //shl(vmm, 1);
-            add(reg_num_pads, jpp.SW * jpp.dtype_size);
-            sub(reg_aux32_2, 1);
-            jmp(read_next);
-        }
-        L(exit_read);
-         */
+        uni_vmovups(ptr[reg_dst], vmm);
+        add(reg_dst, jpp.dtype_size * jpp.block_size);
     }
 
     // The main loop where all the work is done
@@ -259,7 +230,7 @@ private:
     reg64_t reg_params = abi_param1;
 
     Vmm vmm = Vmm(0);
-    Xbyak::Xmm xmm = Xbyak::Xmm(0);
+    Xbyak::Xmm xmm = Xbyak::Xmm(1);
 };
 
 ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
