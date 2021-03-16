@@ -183,12 +183,17 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
     size_t i = 0;
     for (auto axis : axes)
     {
-        if (padded_input_shape[axis].is_static())
-        {
-            float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>(padded_len * (scales[i] + epsilon));
-            output_shape[axis] = Dimension(new_dim);
-        }
+        const auto& current_dim = padded_input_shape[axis];
+        float lower_bound = static_cast<float>(current_dim.get_min_length());
+        float upper_bound = static_cast<float>(current_dim.get_max_length());
+
+        float multiplier = scales[i] + epsilon;
+
+        int64_t new_lower_bound = static_cast<int64_t>(multiplier * lower_bound);
+        int64_t new_upper_bound = static_cast<int64_t>(multiplier * upper_bound);
+
+        output_shape[axis] = Dimension(new_lower_bound, new_upper_bound);
+
         ++i;
     }
 }
