@@ -42,6 +42,7 @@ declared in `namespace opset7`.
 * [DeformablePSROIPooling](detection/DeformablePSROIPooling_1.md)
 * [DepthToSpace](movement/DepthToSpace_1.md)
 * [DetectionOutput](detection/DetectionOutput_1.md)
+* [DFT](signals/DFT_7.md)
 * [Divide](arithmetic/Divide_1.md)
 * [Elu](activation/Elu_1.md)
 * [EmbeddingBagOffsetsSum](sparse/EmbeddingBagOffsetsSum_3.md)
