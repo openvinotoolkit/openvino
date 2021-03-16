@@ -31,25 +31,6 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
             break;
         }
 
-        bool valid_mask = true;
-        for (auto& m : op->get_begin_mask()) {
-            if (m != 0) {
-                valid_mask = false;
-                break;
-            }
-        }
-
-        for (auto& m : op->get_end_mask()) {
-            if (m != 0) {
-                valid_mask = false;
-                break;
-            }
-        }
-
-        if (!valid_mask) {
-            break;
-        }
-
         auto input_shape = op->get_input_shape(0);
         auto output_shape = op->get_output_shape(0);
 
@@ -125,9 +106,13 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
                     offset.emplace_back(0);
                 } else if (shrink_axis_mask.count(axis)) {
                     // skip this dimension if shrink_axis_mask is set (input_shape_idx++)
-                    dim.emplace_back(1);
-                    offset.emplace_back(begin_mask.count(axis) ? 0 : begin[axis]);
                     reshape_pattern.emplace_back(1);
+                    dim.emplace_back(1);
+                    int64_t lb = begin[axis];
+                    if (lb < 0)
+                        lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb,
+                                        static_cast<int64_t>(0));
+                    offset.emplace_back(begin_mask.count(axis) ? 0 : lb);
                     input_shape_idx++;
                 } else {
                     // calculate dimension using begin, end, begin_mask, end_mask, stride
