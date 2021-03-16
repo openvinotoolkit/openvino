@@ -63,6 +63,17 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
             ('scales', 'interp', {'in': 2}),
             ('axes', 'interp', {'in': 3}),
         ]
+
+    This transformation is applicable only all following conditions are fulfilled:
+
+    1. 'Unsqueeze' must be performed with respect to only one axis.
+    2. the length of the value of the second input of 'Tile' must be equal to the input rank of 'Unsqueeze' plus 1.
+    3. All elements of the value of the second input of 'Tile' must be equal to 1,
+       except the value corresponding the interpolated axis.
+    4. The input rank of 'Unsqueeze' and the output rank of 'Reshape' must be equal.
+
+    Finally, because plugins support only Interpolate-4 with 4D or 5D tensor with interpolated data,
+    we need to check that the input rank of 'Unsqueeze' is equal to 4 or 5.
     """
     enabled = True
     force_shape_inference = True
@@ -91,6 +102,12 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
 
     @staticmethod
     def is_applicable(match: dict) -> bool:
+        """
+        This function checks whether this transformation is applicable.
+        :param match: dictionary with nodes from the found pattern
+        :return: True, if the transformation is applicable
+                 False, otherwise
+        """
         unsqueeze_node = match['unsqueeze']
         second_input_of_unsqueeze = unsqueeze_node.in_port(1).get_connection().get_source().node
         if not second_input_of_unsqueeze.has_valid('value') or len(second_input_of_unsqueeze.value) != 1:
