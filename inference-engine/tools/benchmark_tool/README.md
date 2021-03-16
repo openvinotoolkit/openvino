@@ -8,6 +8,9 @@ This topic demonstrates how to run the Benchmark Python* Tool, which performs in
 > [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare
 > performance of deep learning models on various Intel® architecture
 > configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
+> DL Workbench also provides [JupyterLab Playground](@ref workbench_docs_Workbench_DG_Jupyter_Notebooks) 
+> where you can learn how to use OpenVINO™, its Python* API, and its components that enable you to 
+> analyze and optimize your models.
 > <br>
 > Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
 
