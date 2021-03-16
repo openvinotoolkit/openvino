@@ -2930,8 +2930,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_instance_normalization_dynamic)
 {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_dynamic.prototxt"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_dynamic.prototxt"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     std::vector<float> input_data(3);
