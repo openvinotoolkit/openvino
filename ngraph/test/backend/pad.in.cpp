@@ -30,6 +30,31 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
+NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d_set_default_zero_if_no_pad_value_provided)
+{
+    const Shape data_shape{3};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {2});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT),
+        ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3}));
+    auto result = backend->create_tensor(element::f32, Shape{6});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        {0, 1, 2, 3, 0, 0}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
 {
     const Shape data_shape{6};

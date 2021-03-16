@@ -23,6 +23,15 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
+TEST(type_prop, pad_v1_arg_pad_constant_with_default_padded_value)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
+
+    EXPECT_NO_THROW(make_shared<op::v1::Pad>(arg, pads_begin, pads_end, op::PadMode::CONSTANT));
+}
+
 TEST(type_prop, pad_v1_arg_pad_value_type_mismatch)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
