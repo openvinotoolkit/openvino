@@ -23,7 +23,7 @@ The section additionally provides small examples of stateful network and code to
  
 ## OpenVINO state representation
 
- OpenVINO contains special abstraction `Variable` to represent state in a network. There are two operations to work with state: 
+ OpenVINO contains a special abstraction `Variable` to represent a state in a network. There are two operations to work with the state: 
 * `Assign` to save value in state
 * `ReadValue` to read value saved on previous iteration
 
@@ -160,8 +160,8 @@ The `bin` file for this graph should contain float 0 in binary form. Content of 
     auto arg = make_shared<ngraph::opset6::Parameter>(element::f32, Shape{1, 1});
     auto init_const = ngraph::opset6::Constant::create(element::f32, Shape{1, 1}, {0});
 
-	// Operations ReadValue/Assign must be in pairs on the network.
-	// For each such a pair its own variable object must be created.
+	// The ReadValue/Assign operations must be used in pairs in the network.
+	// For each such a pair, its own variable object must be created.
 	const std::string variable_name("variable0");
     auto variable = std::make_shared<ngraph::Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name});
 
@@ -215,11 +215,11 @@ Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
 
 If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers. For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after the execution of whole TensorIterator primitive, intermediate values from each iteration will not be available. To be able to work with these intermediate values of each iteration and receive them with a low latency after each infer request, a special LowLatency transformation was introduced.
 
-LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with state, inserting Assign/ReadValue layers as it is shown in the picture below.
+LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
 
 ![applying_low_latency_example](./img/applying_low_latency.png)
 
-Note: After applying the transformation, ReadValue operations can receive other operations as input as shown in the pic above. These inputs should set the initial value for initialization of ReadValue ops, however, such initialization is not supported in the current State API implementation. Input values will be ignored and initialization will be zeros unless otherwise specified by the user via [State API](#openvino-state-api).
+Note: After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of ReadValue operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and initialization will be zeros unless otherwise specified by the user via [State API](#openvino-state-api).
 
 ### Steps to apply LowLatency transformation
 
@@ -229,9 +229,9 @@ Note: After applying the transformation, ReadValue operations can receive other 
 	* [from nGraph Function](../nGraph_DG/build_function.md)
 
 2. [Reshape](ShapeInference) CNNNetwork network if necessary 
-**Necessary case:** the sequence_lengths dimension of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension exactly to 1.
+**Necessary case:** the sequence_lengths dimension of input > 1, it means the TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension exactly to 1.
 
-Usually, the following exception that occurs after applying a transform when trying to infer the network in a plugin indicates the need to apply reshape feature: `C++ exception with description "Function is incorrect. Assign and ReadValue operations must be in pairs on the network."`
+Usually, the following exception, which occurs after applying a transform when trying to infer the network in a plugin, indicates the need to apply reshape feature: `C++ exception with description "Function is incorrect. Assign and ReadValue operations must be used in pairs in the network."`
 This means that there are several pairs of Assign/ReadValue operations with the same variable_id in the network, operations were inserted into each iteration of the TensorIterator.
 
 ```cpp
@@ -252,7 +252,7 @@ cnnNetwork.reshape({"X" : {1, 1, 16});
 
 InferenceEngine::LowLatency(cnnNetwork);
 ```
-**State naming rule:**  a name of state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator). You can use these rules to predict what the name of the inserted State will be after the transformation is applied. For example:
+**State naming rule:**  a name of a state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator). You can use these rules to predict what the name of the inserted State will be after the transformation is applied. For example:
 ```cpp
 	// Precondition in ngraph::function.
 	// Created TensorIterator and Parameter in body of TensorIterator with names
@@ -313,23 +313,23 @@ InferenceEngine::LowLatency(cnnNetwork);
 
 	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
 
-	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output`. For example, we can trim the Parameter and the problematic Constant in the picture above, using following cli option: 
-	`--input Reshape_layer_name`. We can also replace the problematic Constant using ngraph, an example is shown below.
+	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output`. For example, we can trim the Parameter and the problematic Constant in the picture above, using the following command line option: 
+	`--input Reshape_layer_name`. We can also replace the problematic Constant using ngraph, as shown in the example below.
 
 ```cpp
 	// nGraph example. How to replace a Constant with hardcoded values of shapes in the network with another one with the new values.
-	// Let's say we know which Constant (const_with_hardcoded_shape) prevents the reshape from being applied.
+	// Assume we know which Constant (const_with_hardcoded_shape) prevents the reshape from being applied.
 	// Then we can find this Constant by name on the network and replace it with a new one with the correct shape.
 	auto func = cnnNetwork.getFunction();
 	// Creating the new Constant with a correct shape.
-	// e.g. for the example shown in the picture above, the new values of the Constant should be 1, 1, 10 instead of 1, 49, 10
+	// For the example shown in the picture above, the new values of the Constant should be 1, 1, 10 instead of 1, 49, 10
 	auto new_const = std::make_shared<ngraph::opset6::Constant>( /*type, shape, value_with_correct_shape*/ );
 	for (const auto& node : func->get_ops()) {
 		// Trying to find the problematic Constant by name.
 		if (node->get_friendly_name() == "name_of_non_reshapable_const") {
 			auto const_with_hardcoded_shape = std::dynamic_pointer_cast<ngraph::opset6::Constant>(node);
-			// Replacing the problematic Constant with a new one. This procedure must be done with all the problematic Constants in the network, then 
-			// the reshape feature can be applied.
+			// Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the network, then 
+			// you can apply the reshape feature.
 			ngraph::replace_node(const_with_hardcoded_shape, new_const);
 		}
 	}
