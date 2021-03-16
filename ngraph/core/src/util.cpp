@@ -155,6 +155,14 @@ size_t ngraph::hash_combine(const std::vector<size_t>& list)
     return seed;
 }
 
+size_t ngraph::hash_combine(const char* v, int64_t size) {
+    size_t seed = static_cast<size_t>(size);
+    for (int i=0; i < size; i++) {
+        seed ^= std::hash<char> {}(v[i]) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    return seed;
+}
+
 void* ngraph::ngraph_malloc(size_t size)
 {
     auto ptr = malloc(size);

@@ -57,10 +57,13 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
+using const_hash_map_t = std::unordered_map<size_t, int64_t>;
+
 void ngfunction_2_irv10(pugi::xml_node& node,
                         std::ostream& bin_file,
                         const ngraph::Function& f,
-                        const std::map<std::string, ngraph::OpSet>& custom_opsets);
+                        const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                        const_hash_map_t& hash_to_const_off_map);
 
 // Some of the operators were added to wrong opsets. This is a mapping
 // that allows such operators to be serialized with proper opsets.
@@ -118,6 +121,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     std::ostream& m_bin_data;
     std::string& m_node_type_name;
     const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
+    const_hash_map_t& m_hash_to_const_off_map;
 
     template <typename T>
     std::string create_atribute_list(
@@ -129,11 +133,13 @@ public:
     XmlSerializer(pugi::xml_node& data,
                   std::ostream& bin_data,
                   std::string& node_type_name,
-                  const std::map<std::string, ngraph::OpSet>& custom_opsets)
+                  const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                  const_hash_map_t& hash_to_const_off_map)
         : m_xml_node(data)
         , m_bin_data(bin_data)
         , m_node_type_name(node_type_name)
-        , m_custom_opsets(custom_opsets) {
+        , m_custom_opsets(custom_opsets)
+        , m_hash_to_const_off_map(hash_to_const_off_map) {
     }
 
     std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
@@ -250,13 +256,20 @@ public:
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
-                const int64_t offset = m_bin_data.tellp();
+                int64_t offset = m_bin_data.tellp();
 
+                const size_t hash = hash_combine(
+                    static_cast<const char *>(a->get()->get_ptr()), size);
+                auto it = m_hash_to_const_off_map.find(hash);
+                if (it == m_hash_to_const_off_map.end()) {
+                    m_hash_to_const_off_map.emplace(hash, offset);
+                    auto data = static_cast<const char *>(a->get()->get_ptr());
+                    m_bin_data.write(data, size);
+                } else {
+                    offset = it->second;
+                }
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
-
-                auto data = static_cast<const char*>(a->get()->get_ptr());
-                m_bin_data.write(data, size);
             }
         }
     }
@@ -316,11 +329,11 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
+            ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets, m_hash_to_const_off_map);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
-            ngfunction_2_irv10(m_xml_node, m_bin_data, *adapter.get(), m_custom_opsets);
+            ngfunction_2_irv10(m_xml_node, m_bin_data, *adapter.get(), m_custom_opsets, m_hash_to_const_off_map);
         } else {
             NGRAPH_CHECK(false, "Unsupported Function name.");
         }
@@ -581,7 +594,8 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 void ngfunction_2_irv10(pugi::xml_node& netXml,
                         std::ostream& bin_file,
                         const ngraph::Function& f,
-                        const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+                        const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                        const_hash_map_t& hash_to_const_off_map) {
     const bool exec_graph = is_exec_graph(f);
 
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
@@ -617,7 +631,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
         } else {
-            XmlSerializer visitor(data, bin_file, node_type_name, custom_opsets);
+            XmlSerializer visitor(data, bin_file, node_type_name, custom_opsets, hash_to_const_off_map);
             NGRAPH_CHECK(node->visit_attributes(visitor),
                          "Visitor API is not supported in ", node);
             rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
@@ -728,7 +742,8 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
                 std::string name = "net";
                 pugi::xml_document xml_doc;
                 pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-                XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
+                const_hash_map_t hash_to_const_off_map; // creating the original map that will be passed down
+                XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets, hash_to_const_off_map);
                 visitor.on_attribute(name, f);
 
                 xml_doc.save(xml_file);
