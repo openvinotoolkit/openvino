@@ -1,6 +1,6 @@
 # Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
-Inference Engine Extension API enables you to register operation sets (opsets) with custom nGraph operations and to support Networks with unknown operations.
+Inference Engine Extension API enables you to register operation sets (opsets) with custom nGraph operations to support models with operations which OpenVINO™ does not support out-of-the-box.
 
 ## Operation Class
 
@@ -10,11 +10,11 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 2. Implement constructors that optionally take the operation inputs and attributes as parameters. 
 
-3. Override the shape inference method `validate_and_infer_types`. This method is called multiple times during graph manipulations to determine the shapes and element types of the outputs of the operations. To access the input shapes and input element types, use the `get_input_partial_shape()` and `get_input_element_type()` methods of `ngraph::Node`. Set the inferred shape and element type of the output using `set_output_type`.
+3. Override the shape inference method `validate_and_infer_types`. This method is called multiple times during graph manipulations to determine the shapes and element types of the operations outputs. To access the input shapes and input element types, use the `get_input_partial_shape()` and `get_input_element_type()` methods of `ngraph::Node`. Set the inferred shape and element type of the output using `set_output_type`.
 
 4. Override the `clone_with_new_inputs` method, which enables graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
 
-5. Override the `visit_attributes` method, which enables serialization and deserialization of attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector`, and for existing nGraph defined types.
+5. Override the `visit_attributes` method, which enables serialization and deserialization of operation attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector`, and for existing nGraph defined types.
 
 6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch.
 
@@ -45,7 +45,7 @@ nGraph operation contains two constructors:
 
 ### `clone_with_new_inputs()`
 
-`ngraph::Node::clone_with_new_inputs` method creates a copy of an nGraph operation with new inputs.
+`ngraph::Node::clone_with_new_inputs` method creates a copy of the nGraph operation with new inputs.
 
 @snippet template_extension/op.cpp op:copy
 
@@ -69,7 +69,7 @@ To add custom operations to the [Extension](Extension.md) class, create an opera
 
 This method returns a map of opsets that exist in the extension library.
 
-nGraph provides an opset mechanism for operation versioning. Different opsets distinguish between different versions of one operation.
+nGraph provides an opset mechanism to group operations into clusters. S. Different opsets distinguish between different versions of one operation.
 
 When specifying opset names, follow the rules below:
 * Use unique opset names.

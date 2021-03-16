@@ -23,7 +23,7 @@ Also, an `Extension` object should implement the following methods:
 @snippet template_extension/extension.cpp extension:GetVersion
 
 Implement the InferenceEngine::IExtension::getOpSets method if the extension contains custom layers. 
-Read the [guide about custom operations](AddingNGraphOps.md) for more information.
+Read [Custom nGraph Operation](AddingNGraphOps.md) for more information.
 
-To integrate execution kernels to the extension library, read the [guide about development of custom CPU kernels](CPU_Kernel.md).
-To register a custom ONNX operator to the extension library, read the [guide about custom ONNX operators](Custom_ONNX_Ops.md).
+To integrate execution kernels to the extension library, read [How to Implement Custom CPU Operations](CPU_Kernel.md).
+To register a custom ONNX\* operator to the extension library, read [Custom ONNX Operators](Custom_ONNX_Ops.md).
