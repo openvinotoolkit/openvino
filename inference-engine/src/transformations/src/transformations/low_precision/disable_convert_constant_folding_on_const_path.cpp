@@ -26,7 +26,7 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        const auto convert = opsMap.find(matcherConvert)->second.get_node()->shared_from_this();
+        const auto convert = opsMap.at(matcherConvert).get_node_shared_ptr();
 
         // validation by Convert operation input precisions
         if (!inputPrecisions.empty()) {
@@ -47,7 +47,11 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
         //           Multiply
         //
         auto parent = convert->get_input_node_ptr(0);
-        auto child = convert->output(0).get_target_inputs().begin()->get_node();
+        auto target_inputs = convert->output(0).get_target_inputs();
+        if (target_inputs.empty()) {
+            return false;
+        }
+        auto child = target_inputs.begin()->get_node();
         if (is_type<ngraph::opset1::Constant>(parent) &&
             (is_type<ngraph::opset1::Subtract>(child) || is_type<ngraph::opset1::Multiply>(child))) {
             auto& rtInfo = convert->get_rt_info();

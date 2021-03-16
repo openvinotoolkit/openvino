@@ -16,13 +16,12 @@ using namespace mkldnn;
 class MKLDNNTestExecNetwork: public MKLDNNPlugin::MKLDNNExecNetwork {
 public:
     MKLDNNPlugin::MKLDNNGraph& getGraph() {
-        return *(_graphs.begin()->get());
+        return _graphs.front();
     }
 };
 
 struct TestExecutableNetworkBase : public InferenceEngine::ExecutableNetworkBase {
     using InferenceEngine::ExecutableNetworkBase::_impl;
-    ~TestExecutableNetworkBase() override = default;
 };
 
 static MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetwork::Ptr execNetwork) {

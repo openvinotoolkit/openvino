@@ -32,7 +32,7 @@ The package contains the following components:
 
 * [Kaldi Statistical Language Model Conversion Tool](Kaldi_SLM_conversion_tool.md), which converts custom language models to use in the decoder
 
-Additionally, [new acoustic and language models](http://download.01.org/opencv/2020/openvinotoolkit/2020.1/models_contrib/speech/kaldi/librispeech_s5/) to be used by new demos are located at [download.01.org](https://01.org/).
+Additionally, new acoustic and language models are available in the OpenVINO&trade; [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/librispeech_s5/).
 
 ## <a name="run-demos">Run Speech Recognition Demos with Pretrained Models</a>
 

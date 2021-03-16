@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -57,6 +57,13 @@ class SplitRecurrentMemoryOffset(FrontReplacementSubgraph):
                 # MemoryOffset node is not in a recurrent block -- no splitting is needed
                 return
 
+            # check that node has information for future partial infer
+            # element_size is set in loader based on dimensions of previous layer from original Kaldi model
             if not offset_node.has_valid('element_size'):
-                raise Error("In a recurrent block 'element_size' for node {} is not set".format(offset_node.id))
+                # check if previous layer contains information about its shape in out-size
+                # out-size is set in extractor of some nodes like affinecomponent based on weight's size
+                if offset_node.in_port(0).get_source().node.has_valid('out-size'):
+                    offset_node['element_size'] = offset_node.in_port(0).get_source().node['out-size']
+                else:
+                    raise Error("In a recurrent block 'element_size' for node {} is not set".format(offset_node.id))
             SplitRecurrentMemoryOffset.split_offset(offset_node)

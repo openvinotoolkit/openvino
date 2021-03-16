@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -363,7 +363,8 @@ def skip_nodes_by_condition(current_node: Node, condition: callable):
     return current_node
 
 
-def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int):
+def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int,
+                                         pad_to_max_dimension: bool = False):
     """
     The function scales spatial sizes of the image keeping aspect ratio to satisfy provided requirements.
     The behavior of this function is equivalent to the output shape calculation of the Preprocessor block of TensorFlow
@@ -372,8 +373,11 @@ def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int,
     :param width: input width.
     :param min_size: size limit.
     :param max_size: size limit.
+    :param pad_to_max_dimension: scale the input image size to the maximum value specified
     :return: the tuple with scaled image height, width.
     """
+    if pad_to_max_dimension:
+        return max_size, max_size
     ratio_min = min_size / min(height, width)
     ratio_max = max_size / max(height, width)
     ratio = min(ratio_min, ratio_max)
@@ -441,6 +445,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
 
     # if the model is created with an input image resizer keeping aspect ratio
     if resizer_min_dimension and resizer_max_dimension:
+        pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
         print('[ WARNING ] Model Optimizer removes pre-processing block of the model which resizes image keeping '
               'aspect ratio. The Inference Engine does not support dynamic image size so the Intermediate '
               'Representation file is generated with the input image size of a fixed size.')
@@ -448,7 +453,8 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
             scaled_height, scaled_width = calculate_shape_keeping_aspect_ratio(user_defined_height,
                                                                                user_defined_width,
                                                                                resizer_min_dimension,
-                                                                               resizer_max_dimension)
+                                                                               resizer_max_dimension,
+                                                                               pad_to_max_dimension)
             if scaled_height != user_defined_height or scaled_width != user_defined_width:
                 log.error('The model resizes the input image keeping aspect ratio with min dimension {}, max '
                           'dimension {}. The provided input height {}, width {} is transformed to height {}, width '
@@ -457,7 +463,10 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
             height = scaled_height
             width = scaled_width
         else:
-            height = width = resizer_min_dimension
+            if pad_to_max_dimension:
+                height = width = resizer_max_dimension
+            else:
+                height = width = resizer_min_dimension
             print('Specify the "--input_shape" command line parameter to override the default shape which is equal to '
                   '({}, {}).'.format(height, width))
 
@@ -1171,6 +1180,12 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
             prior_boxes = prior_boxes.reshape((1, 2, -1))
             node.in_node(2).shape = int64_array(prior_boxes.shape)
             node.in_node(2).value = prior_boxes
+
+            # create Const node with an updated prior boxes values. Cannot use Port/Connection API here because we are
+            # in the middle of the partial inference phase and graph is in the intermediate step
+            graph.remove_edge(node.in_node(2).in_node(0).id, node.in_node(2).id)
+            const = Const(graph, {'name': 'prior_boxes', 'executable': True, 'value': prior_boxes}).create_node()
+            graph.create_edge(const, node.in_node(2))
 
         node.old_infer(node)
 

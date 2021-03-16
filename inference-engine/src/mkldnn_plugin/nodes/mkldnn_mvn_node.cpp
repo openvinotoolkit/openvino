@@ -942,7 +942,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     arg.src_stride = src_stride_size;
                     arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);  // work amount for vector part
-                    arg.oc_off = static_cast<size_t>(c * sizeof(float));
+                    arg.oc_off = sizeof(float) * c;
                     (*mvn_kernel)(&arg);
                 });
             } else {
@@ -956,7 +956,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     arg.src_stride = src_stride_size;
                     arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);
-                    arg.oc_off = static_cast<size_t>(c * sizeof(float));
+                    arg.oc_off = sizeof(float) * c;
                     (*mvn_kernel)(&arg);
                 });
             }

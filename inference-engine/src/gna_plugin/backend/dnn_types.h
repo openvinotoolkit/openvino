@@ -34,9 +34,25 @@ enum DnnActivationType : uint8_t {
     kActNumType
 };
 
+struct FakeQuantizeParams {
+    int8_t set;
+    int32_t levels;
+    // if input is per-channel quantization - input pointers contains per-channel ranges
+    int8_t  inputPerChannel;
+    float* input_low;
+    float* input_high;
+    // if output is per-channel quantization - output pointers contains per-channel ranges
+    int8_t  outputPerChannel;
+    float* output_low;
+    float* output_high;
+};
+
 struct DnnActivation {
     // for prelu
     DnnActivationType type;
+    FakeQuantizeParams fqParams;
+    FakeQuantizeParams srcFQParams;
+
     union {
         struct {
             float negative_slope;
@@ -50,17 +66,6 @@ struct DnnActivation {
             float low;
             float high;
         } clamp;
-        struct {
-            int32_t levels;
-            // if input is per-channel quantization - input pointers contains per-channel ranges
-            int8_t  inputPerChannel;
-            float  *input_low;
-            float  *input_high;
-            // if output is per-channel quantization - output pointers contains per-channel ranges
-            int8_t  outputPerChannel;
-            float  *output_low;
-            float  *output_high;
-        } fakeQuantize;
     } args;
     operator DnnActivationType () const noexcept {
         return type;
@@ -159,10 +164,10 @@ typedef struct {
 } intel_convolutional2D_t;
 
 typedef struct {
-    uint32_t num_inputs;         // pool size
-    uint32_t num_inputs_step;     // pool step
-    uint32_t num_inputs_stride;  // pool stride (number of convolution filters)
-    bool do_sum_not_max;
+    std::array<uint32_t, 2> poolingWindowXY;
+    std::array<uint32_t, 2> poolingStrideXY;
+    std::array<uint32_t, 3> inCHW;
+    std::array<uint32_t, 3> outCHW;
 } intel_maxpool_t;
 
 typedef struct {

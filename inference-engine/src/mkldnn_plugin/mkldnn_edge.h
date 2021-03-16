@@ -5,9 +5,11 @@
 #pragma once
 
 #include <ie_blob.h>
-
+#include <memory>
+#include <details/ie_no_copy.hpp>
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"
+#include "mkldnn_weights_cache.hpp"
 #include "mkldnn/ie_mkldnn.h"
 
 #include <map>
@@ -42,9 +44,10 @@ public:
 
     void changeStatus(Status state);
 
-    virtual void init();
-    virtual void allocate(const void* mem_ptr = nullptr);
-    virtual void validate();
+    void init();
+    void allocate(const void* mem_ptr = nullptr);
+    void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
+    void validate();
     void drop();
 
     const std::shared_ptr<MKLDNNNode> getParent() const;
@@ -59,12 +62,17 @@ public:
 
     bool needReorder();
     bool isDropped();
+    bool isUseExternalMemory() const;
 
     int getInputNum();
     int getOutputNum();
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
+    MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
+
+private:
+    std::string name() const;
 
 private:
     std::weak_ptr<MKLDNNNode> parent;
@@ -72,6 +80,7 @@ private:
     int parent_port;
     int child_port;
 
+    bool externalMemoryPtr = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
     MKLDNNDims dims;
     MKLDNNMemoryPtr memoryPtr;

@@ -23,6 +23,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_import/editor/detail/subgraph_extraction.hpp"
 #include "onnx_import/utils/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE
@@ -53,7 +54,7 @@ namespace ngraph
             /// \param model_path Path to the file containing the model.
             ONNXModelEditor(const std::string& model_path);
 
-            /// \brief Modifies the in-memory representation of the model (m_model_proto) by setting
+            /// \brief Modifies the in-memory representation of the model by setting
             ///        custom input types for all inputs specified in the provided map.
             ///
             /// \param input_types A collection of pairs {input_name: new_input_type} that should be
@@ -62,7 +63,7 @@ namespace ngraph
             ///                    the inputs specified in its parameter.
             void set_input_types(const std::map<std::string, element::Type_t>& input_types);
 
-            /// \brief Modifies the in-memory representation of the model (m_model_proto) by setting
+            /// \brief Modifies the in-memory representation of the model by setting
             ///        custom input shapes for all inputs specified in the provided map.
             ///
             /// \param input_shapes A collection of pairs {input_name: new_input_shape} that should
@@ -71,6 +72,18 @@ namespace ngraph
             ///                     the inputs specified in its parameter.
             void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
 
+            /// \brief Extracts a subgraph constrained by input edges and output edges. In the end
+            ///        the underlying ModelProto is modified - obsolete inputs, initializers, nodes
+            ///        and outputs are removed from the in-memory model.
+            ///
+            /// \node Please look at the declaration of InputEdge and OutputEdge for explanation
+            ///       how those objects can be created. If the outputs parameter is empty
+            ///       this method keeps all of the original outputs of the model.
+            ///
+            /// \param inputs A collection of input edges which become new inputs to the graph
+            /// \param outputs A collection of output edges which become new outputs of the graph
+            void cut_graph_fragment(const std::vector<InputEdge>& inputs,
+                                    const std::vector<OutputEdge>& outputs);
             /// \brief Modifies the in-memory representation of the model by setting custom input
             ///        values for inputs specified in the provided map.
             ///
@@ -91,11 +104,20 @@ namespace ngraph
             /// \return A reference to ONNX ModelProto object containing the in-memory model
             ONNX_NAMESPACE::ModelProto& model() const;
 
+            /// \brief Returns a serialized ONNX model, possibly modified by the editor.
+            std::string model_string() const;
+
+            /// \brief Returns a list of all inputs of the in-memory model, including initializers.
+            ///        The returned value might depend on the previous operations executed on an
+            ///        instance of the model editor, in particular the subgraph extraction which
+            ///        can discard some inputs and initializers from the original graph.
+            std::vector<std::string> model_inputs() const;
+
             /// \brief Returns the path to the original model file
             const std::string& model_path() const;
 
-            /// \brief Saves the possibly model held by this class to a file. Serializes in binary
-            /// mode.
+            /// \brief Saves the possibly modified model held by this class to a file.
+            /// Serializes in binary mode.
             ///
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
@@ -103,7 +125,7 @@ namespace ngraph
         private:
             const std::string m_model_path;
 
-            class Impl;
+            struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
         };
     } // namespace onnx_import

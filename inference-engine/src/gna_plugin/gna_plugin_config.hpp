@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,13 @@ struct Config {
         AdjustKeyMapValues();
     }
     Config(const Config& r) {
+        Copy(r);
+    }
+    Config& operator=(const Config& r) {
+        Copy(r);
+        return *this;
+    }
+    void Copy(const Config& r) {
         gnaPrecision = r.gnaPrecision;
         dumpXNNPath = r.dumpXNNPath;
         dumpXNNGeneration = r.dumpXNNGeneration;

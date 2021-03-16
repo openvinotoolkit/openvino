@@ -184,7 +184,7 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
 
 void ActivationParamLayerTest::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
+
     auto blobInput = inferRequest.GetBlob("Input");
     blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
 

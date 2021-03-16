@@ -367,6 +367,38 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
             {}
         }
     },
+    // quantization after convolution
+    {
+        ngraph::Shape{1, 3, 24, 24},
+        LayerTransformation::createParamsU8I8(),
+        specialDimensionSlice,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {3, 1, 1} }}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {1, 3, 1, 1} }}
+        }
+    },
+    // quantization after convolution
+    {
+        ngraph::Shape{1, 3, 24, 24},
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {3, 1, 1} }}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f}, ngraph::element::f32, {1, 2, 1, 1} }}
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

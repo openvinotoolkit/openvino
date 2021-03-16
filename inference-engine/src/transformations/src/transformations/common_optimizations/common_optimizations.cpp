@@ -15,7 +15,6 @@
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
-#include "transformations/common_optimizations/mish_fusion.hpp"
 #include "transformations/common_optimizations/softplus_fusion.hpp"
 #include "transformations/common_optimizations/softplus_to_mish_fusion.hpp"
 #include "transformations/common_optimizations/swish_fusion.hpp"
@@ -45,6 +44,7 @@
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
+#include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
@@ -102,6 +102,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
     decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();

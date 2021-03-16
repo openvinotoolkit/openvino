@@ -136,6 +136,8 @@ public:
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
+
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
     // 3. remove Subtract if Constant on the second branch is zero
@@ -162,8 +164,6 @@ public:
     static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
     static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
-
-    static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
 
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 

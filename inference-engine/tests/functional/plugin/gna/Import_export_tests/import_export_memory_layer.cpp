@@ -53,6 +53,7 @@ public:
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
         LoadNetwork();
+        GenerateInputs();
         Infer();
         executableNetwork.Export("exported_model.blob");
         for (auto const &configItem : importConfiguration) {
