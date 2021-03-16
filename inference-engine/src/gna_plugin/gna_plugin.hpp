@@ -232,12 +232,11 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     bool TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer);
 
     /**
-     * @brief Converts a model from NCHW to NHWC. It fills inputs and outputs transposition info and
-     *        changes weights order for affine, eltwise and scaleshift layers. Information for transposition
-     *        is found from convolution/pooling input or output dimensions.
+     * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
+     *        Information for transposition is found from convolution/pooling input or output dimensions.
      * @param layers model sorted layers
      */
-    void ConvertModelLayoutFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr> &layers);
+    void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
 #ifdef PLOT
     void AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
         InferenceEngine::ordered_properties& printed_properties,

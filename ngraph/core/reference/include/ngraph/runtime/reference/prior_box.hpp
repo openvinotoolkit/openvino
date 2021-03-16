@@ -107,8 +107,11 @@ namespace ngraph
                     step_y = step;
                 }
 
-                auto calculate_data = [&dst_data, &IWI, &IHI, &idx](
-                    float center_x, float center_y, float box_width, float box_height, bool clip) {
+                auto calculate_data = [&dst_data, &IWI, &IHI, &idx](float center_x,
+                                                                    float center_y,
+                                                                    float box_width,
+                                                                    float box_height,
+                                                                    bool clip) {
                     if (clip)
                     {
                         // order: xmin, ymin, xmax, ymax

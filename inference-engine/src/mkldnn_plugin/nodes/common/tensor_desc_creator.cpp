@@ -91,7 +91,7 @@ TensorDescCreator::makeFilteredRange(const CreatorsMap &map, unsigned int rank) 
 
 std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
 TensorDescCreator::makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<TensorDescCreatorTypes>& supportedTypes) {
-    size_t bitMask = 0ul;
+    unsigned bitMask = 0ul;
     for (auto& item : supportedTypes) {
         bitMask |= 1 << static_cast<unsigned>(item);
     }

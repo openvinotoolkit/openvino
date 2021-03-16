@@ -6,7 +6,6 @@
 #include <memory>
 #include <ngraph/opsets/opset2.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/rt_info.hpp>

@@ -48,6 +48,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 size_t get_batch_dims() const { return m_batch_dims; }
+
             private:
                 size_t m_batch_dims;
             };
