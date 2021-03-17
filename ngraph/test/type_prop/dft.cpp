@@ -36,12 +36,12 @@ TEST_P(ConstantAxesAndNoSignalSizeTest, dft_constant_axes_there_are_no_signal_si
 {
     auto params = GetParam();
 
-    auto data = std::make_shared<op::Parameter>(element::f32, s.input_shape);
-    auto axes_input = op::Constant::create<int64_t>(element::i64, s.axes_shape, s.axes);
+    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
     auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
 
     EXPECT_EQ(dft->get_element_type(), element::f32);
-    ASSERT_TRUE(dft->get_output_partial_shape(0).same_scheme(s.ref_output_shape));
+    ASSERT_TRUE(dft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
 }
 
 INSTANTIATE_TEST_CASE_P(
