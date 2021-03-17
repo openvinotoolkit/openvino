@@ -34,7 +34,7 @@ const std::vector<ngraph::element::Type> LoadNetworkCacheTestBase::precisions = 
 
 static std::shared_ptr<ngraph::Function> create_simple_function(ngraph::element::Type type) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{2, 2});
+    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{1, 2});
     data->set_friendly_name("Parameter");
 
     auto relu = std::make_shared<ngraph::opset6::Relu>(data);
@@ -60,31 +60,43 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     };
 
     std::vector<nGraphFunctionWithName> res;
-    res.push_back({create_simple_function, "SimpleFunction"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
-                   "ConvPoolRelu"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
-                   "SplitConvConcat"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
-                   "KSOFunction"});
-    res.push_back({ngraph::builder::subgraph::makeTIwithLSTMcell,
-                   "TIwithLSTMcell"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
-                   "SingleConv"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
-                   "2InputSubtract"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
-                   "NestedSplitConvConcat"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
-                   "SplitConvConcatInputInBranch"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
-                   "SplitConvConcatNestedInBranch"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
-                   "SplitConvConcatNestedInBranchNestedOut"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
-                   "ConvBias"});
-    res.push_back({inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
-                   "ReadConcatSplitAssign"});
+    res.push_back(nGraphFunctionWithName {create_simple_function, "SimpleFunction"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
+        "ConvPoolRelu"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
+        "SplitConvConcat"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
+        "KSOFunction"});
+    res.push_back(nGraphFunctionWithName {
+        ngraph::builder::subgraph::makeTIwithLSTMcell,
+        "TIwithLSTMcell"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
+        "SingleConv"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::make2InputSubtract, {1, 3, 24, 24}),
+        "2InputSubtract"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeNestedSplitConvConcat, {1, 4, 20, 20}),
+        "NestedSplitConvConcat"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatInputInBranch, {1, 4, 20, 20}),
+        "SplitConvConcatInputInBranch"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch, {1, 4, 20, 20}),
+        "SplitConvConcatNestedInBranch"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut, {1, 4, 20, 20}),
+        "SplitConvConcatNestedInBranchNestedOut"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
+        "ConvBias"});
+    res.push_back(nGraphFunctionWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
+        "ReadConcatSplitAssign"});
 
     return res;
 }
@@ -119,7 +131,7 @@ void LoadNetworkCacheTestBase::SetUp() {
 
     std::stringstream ss;
     auto hash = std::hash<std::string>()(GetTestName());
-    ss << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
     m_cacheFolderName = ss.str();
 }
 
@@ -149,7 +161,7 @@ void LoadNetworkCacheTestBase::Run() {
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
     try {
-        core = std::make_shared<Core>();
+        core->SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         GenerateInputs();
         Infer();
@@ -162,20 +174,14 @@ void LoadNetworkCacheTestBase::Run() {
         SKIP(); // skip caching test if such network is not supported by device at all
     }
     auto originalOutputs = GetOutputs();
-    {
-        core = std::make_shared<Core>();
-        core->SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
-        ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration));
-        Infer();
-    }
     // cache is created
     ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
-    compareOutputs(originalOutputs, GetOutputs());
+    executableNetwork = {}; // Destroy network object
     {
-        core = std::make_shared<Core>();
         core->SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
         ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration));
-        Infer();
+        GenerateInputs();
+        ASSERT_NO_THROW(Infer());
     }
     // no new cache is created
     ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);

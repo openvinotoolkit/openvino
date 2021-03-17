@@ -11,7 +11,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::precisions),
+                                    ::testing::ValuesIn({ngraph::element::f32}),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace
