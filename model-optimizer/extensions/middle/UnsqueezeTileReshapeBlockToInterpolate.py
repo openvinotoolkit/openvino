@@ -15,19 +15,18 @@
 """
 
 import logging as log
+
 import numpy as np
 
-from extensions.ops.activation_ops import Floor
-from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
+from mo.utils.shape import node_to_get_shape_value_of_indices
 
 
 class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
@@ -158,28 +157,14 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         axis = d_idx - 1
 
         shape_node = Shape(graph, dict(name=unsqueeze_name + '/Shape')).create_node()
-        strided_slice_node = create_op_with_const_inputs(graph,
-                                                         StridedSlice,
-                                                         {
-                                                             1: int64_array([axis]),
-                                                             2: int64_array([axis + 1])
-                                                         },
-                                                         {
-                                                             'name': unsqueeze_name + '/StridedSlice',
-                                                             'begin_mask': int64_array([1]),
-                                                             'end_mask': int64_array([1]),
-                                                             'new_axis_mask': int64_array([0]),
-                                                             'shrink_axis_mask': int64_array([0]),
-                                                             'ellipsis_mask': int64_array([0]),
-                                                         })
-        shape_node.out_port(0).connect(strided_slice_node.in_port(0))
+        axis_len_node = node_to_get_shape_value_of_indices(shape_node, [axis])
 
         second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
         scale = int64_array([second_input_of_tile.value[d_idx]])
         float_scale = float32_array([second_input_of_tile.value[d_idx]])
         mul_node = create_op_with_const_inputs(graph, Mul, {1: scale}, {'name': unsqueeze_name + '/Mul'})
 
-        strided_slice_node.out_port(0).connect(mul_node.in_port(0))
+        axis_len_node.out_port(0).connect(mul_node.in_port(0))
 
         interp_node = create_op_with_const_inputs(graph,
                                                   Interpolate,
