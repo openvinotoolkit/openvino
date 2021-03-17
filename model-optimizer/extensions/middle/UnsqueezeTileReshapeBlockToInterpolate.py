@@ -94,6 +94,8 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
             return False
 
         d_idx = int(second_input_of_unsqueeze.value)
+        if d_idx == 0:
+            return False
 
         second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
         if not second_input_of_tile.has_valid('value'):
