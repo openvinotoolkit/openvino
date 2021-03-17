@@ -43,6 +43,13 @@ if(TARGET _pyngraph)
     add_dependencies(ie_wheel _pyngraph)
 endif()
 
+if(LINUX)
+    find_host_program(patchelf_program NAMES patchelf)
+    if(NOT patchelf_program)
+        message(FATAL_ERROR "patchelf is not found, which is needed to build ie_wheel")
+    endif()
+endif()
+
 add_custom_command(TARGET ie_wheel
     POST_BUILD
     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} bdist_wheel
