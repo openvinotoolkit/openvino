@@ -215,9 +215,13 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
     auto param2 = make_shared<op::Parameter>(et, Shape{3, 1});
     auto param3 = make_shared<op::Parameter>(et, Shape{2, 3, 6});
     auto param4 = make_shared<op::Parameter>(et, Shape{6});
+    auto param5 = make_shared<op::Parameter>(et, Shape{});
+
     EXPECT_EQ(make_shared<T>(param1, param2, autob)->get_shape(), (Shape{1, 3, 6}));
     EXPECT_EQ(make_shared<T>(param1, param3, autob)->get_shape(), (Shape{2, 3, 6}));
     EXPECT_EQ(make_shared<T>(param4, param3, autob)->get_shape(), (Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param5, param3, autob)->get_shape(), (Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param3, param5, autob)->get_shape(), (Shape{2, 3, 6}));
 
     auto pp1 = make_shared<op::Parameter>(et, PartialShape{1, Dimension::dynamic(), 6});
     auto pp2 = make_shared<op::Parameter>(et, PartialShape{3, 1});
