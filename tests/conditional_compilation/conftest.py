@@ -7,9 +7,9 @@
 """ Pytest configuration for compilation tests.
 
 Sample usage:
-python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
+python3 -m pytest --test_conf=<path to test config> \
     --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py \
-    --benchmark_app=./bin/benchmark_app test_collect.py
+    --benchmark_app=./bin/benchmark_app --artifacts ./compiled test_collect.py
 """
 
 import sys
@@ -42,9 +42,9 @@ def pytest_addoption(parser):
         help="Path to sea_runtool.py"
     )
     parser.addoption(
-        "--benchmark_app",
+        "--infer_tool",
         type=Path,
-        help="Path to the benchmark_app tool",
+        help="Path to the infer tool",
     )
     parser.addoption(
         "--collector_dir",
@@ -54,9 +54,21 @@ def pytest_addoption(parser):
     parser.addoption(
         "-A",
         "--artifacts",
-        required=True,
+        required=False,
         type=Path,
-        help="Artifacts directory where tests write output or read input",
+        help="Artifacts is na directory where tests write output",
+    )
+    parser.addoption(
+        "--install_dir",
+        required=False,
+        type=Path,
+        help="Path to install directory before conditional compilation",
+    )
+    parser.addoption(
+        "--install_cc_dir",
+        required=False,
+        type=Path,
+        help="Path to install directory after conditional compilation",
     )
 
 
@@ -84,22 +96,34 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope="session")
 def sea_runtool(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("sea_runtool")
+    return request.config.getoption("--sea_runtool")
 
 
 @pytest.fixture(scope="session")
-def benchmark_app(request):
+def infer_tool(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("benchmark_app")
+    return request.config.getoption("--infer_tool")
 
 
 @pytest.fixture(scope="session")
 def collector_dir(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("collector_dir")
+    return request.config.getoption("--collector_dir")
 
 
 @pytest.fixture(scope="session")
 def artifacts(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("artifacts")
+    return request.config.getoption("--artifacts")
+
+
+@pytest.fixture(scope="session")
+def install_dir(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption("--install_dir")
+
+
+@pytest.fixture(scope="session")
+def install_cc_dir(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption("--install_cc_dir")

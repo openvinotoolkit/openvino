@@ -12,31 +12,32 @@ import sys
 from proc_utils import cmd_exec  # pylint: disable=import-error
 
 
-def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, artifacts):
+def test_cc_collect(test_id, model, sea_runtool, infer_tool, collector_dir, artifacts):
     """ Test conditional compilation statistics collection
     """
-    out = artifacts / test_id
+    out = os.path.join(*list(artifacts.parts), model.stem)
     # cleanup old data if any
     prev_results = glob.glob(f"{out}.pid*.csv")
     for path in prev_results:
         os.remove(path)
     # run use case
+    model_result_path = os.path.join(*list(artifacts.parts), model.stem)
     returncode, output = cmd_exec(
         [
             sys.executable,
             str(sea_runtool),
-            f"--output={out}",
+            f"--output={model_result_path}",
             f"--bindir={collector_dir}",
-            "--app_status",
             "!",
-            str(benchmark_app),
-            "-d=CPU",
+            sys.executable,
+            str(infer_tool),
             f"-m={model}",
-            "-niter=1",
-            "-nireq=1",
+            "-d=CPU",
+            f"-r={model_result_path}",
         ]
     )
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
+    print(output)
     assert (
-        len(glob.glob(f"{out}.pid*.csv")) == 1
-    ), f'Multiple or none "{out}.pid*.csv" files'
+        len(glob.glob(f"{model_result_path}.pid*.csv")) == 1
+    ), f'Multiple or none "{model_result_path}.pid*.csv" files'
