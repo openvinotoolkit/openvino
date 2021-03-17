@@ -27,7 +27,7 @@ verified_operations = [
     'AvgPool-1',
     'BatchNormInference-5',
     'BinaryConvolution-1',
-    # 'Broadcast-1',
+    'Broadcast-1',
     'Broadcast-3',
     'Bucketize-3',
     'CTCGreedyDecoder-0',
@@ -82,7 +82,7 @@ verified_operations = [
     'ReorgYOLO-0',
     'GRUSequence-5',
     'Round-5',
-    # 'ShapeOf-0',
+    'ShapeOf-0',
     'ShapeOf-3',
     'Sigmoid-0',
     'Sin-0',
@@ -92,7 +92,7 @@ verified_operations = [
     'Substract-1',
     'Swish-4',
     'Tile-0',
-    # 'TopK-1',
+    'TopK-1',
     'TopK-3'
 ]
 
