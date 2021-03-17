@@ -103,8 +103,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32::SetDef
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
     dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     size_t ow_group = 8;
     while (ow_group > 1) {
         if (CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth) % ow_group == 0)
@@ -121,6 +119,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32::SetDef
     dispatchData.lws[2] = 1;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_mmad_b_fs_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolution_params& params,
@@ -175,9 +177,6 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
 
 KernelsData ConvolutionKernel_mmad_b_fs_yx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_2;
-
     return kd;
 }
 

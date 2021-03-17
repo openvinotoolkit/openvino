@@ -106,7 +106,10 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(dlstm_params, kernel);
 
-    kd.estimatedTime = FORCE_PRIORITY_5;
     return { kd };
+}
+
+KernelsPriority LSTM_DynamicInputKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

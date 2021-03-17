@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -279,9 +279,7 @@ bool runtime::dynamic::DynamicExecutable::call(
             num_dyn_nodes_last_pass = num_dyn_nodes_this_pass;
         }
 
-        pass::Manager pass_val;
-        pass_val.register_pass<pass::Validate>();
-        pass_val.run_passes(clone);
+        clone->validate_nodes_and_infer_types();
 
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_outputs;
 

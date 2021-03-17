@@ -29,6 +29,7 @@ public:
 
 protected:
     CommonDispatchData SetDefault(const deconvolution_params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {

@@ -565,8 +565,10 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
 template <typename From, typename To>
 void constant_convert_test(element::Type_t type_from, element::Type_t type_to, From value, To expected) {
     std::shared_ptr<ngraph::Function> f(nullptr);
+    std::string expected_friendly_name;
     {
         auto c = opset4::Constant::create(type_from, Shape{}, {value});
+        expected_friendly_name = c->get_friendly_name();
         f = std::make_shared<Function>(NodeVector{c}, ParameterVector{});
 
         pass::Manager manager;
@@ -576,6 +578,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
     auto ops = f->get_ordered_ops();
     auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
     ASSERT_NE(c, nullptr);
+    ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
 
     auto actual = c->cast_vector<To>()[0];
     ASSERT_EQ(expected, actual);
@@ -621,4 +624,9 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32MaxToI32) {
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32ToI32) {
     constant_convert_test(element::Type_t::u32, element::Type_t::i32, 42, 42);
+}
+
+TEST(TransformationTests, ConvertPrecision_ConstantConversion_BoolToU8) {
+    constant_convert_test(element::Type_t::boolean, element::Type_t::u8, true, 1);
+    constant_convert_test(element::Type_t::boolean, element::Type_t::u8, false, 0);
 }

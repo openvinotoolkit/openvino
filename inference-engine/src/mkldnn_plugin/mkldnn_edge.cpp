@@ -27,6 +27,10 @@ const MKLDNNNodePtr MKLDNNEdge::getChild() const {
     return childPtr;
 }
 
+bool MKLDNNEdge::isUseExternalMemory() const {
+    return externalMemoryPtr;
+}
+
 bool MKLDNNEdge::isDropped() {
     bool not_in_parent = true;
     bool not_in_child = true;
@@ -93,7 +97,7 @@ bool MKLDNNEdge::needReorder() {
     };
 
     const auto portChildEdges = getParent()->getChildEdgesAtPort(inNumber);
-    if (in_place && detectInPlaceChildsNum(portChildEdges) > 1 && childCanChangeMem)
+    if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildsNum(portChildEdges) > 1)
         canBeInPlaceConflicts = true;
     if (!canBeInPlaceConflicts && in_place && !getParent()->getChildEdges().empty()) {
         for (auto &p_edge_peer : portChildEdges) {
@@ -162,6 +166,31 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
     memoryPtr->Create(MKLDNNMemoryDesc(inputDesc), mem_ptr, false);  // no pads zeroing
     status = Status::Allocated;
+}
+
+std::string MKLDNNEdge::name() const {
+    auto parentPtr = getParent();
+    auto childPtr = getChild();
+    return parentPtr->getName() + std::to_string(parent_port) + "<->" + childPtr->getName() + std::to_string(child_port);
+}
+
+void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
+    if (status != Status::NeedAllocation)
+        return;
+
+    if (weightsCache) {
+        auto alloc = [this] () {
+            allocate();
+            return memoryPtr;
+        };
+
+        auto ptr = weightsCache->findOrCreate(name(), alloc, false);
+        memoryPtr = *ptr;
+        externalMemoryPtr = true;
+        status = Status::Allocated;
+    } else {
+        allocate();
+    }
 }
 
 void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
@@ -270,7 +299,7 @@ bool MKLDNNEdge::nodeCanChangeDesc(const MKLDNNNodePtr &node) const {
 /// In we have {any, any, any} -> {any} or {any} -> {any, any, any} or {any} -> {any} it means that
 /// layer doesn't change memory format
 /// We don't support {any, any, nchw} -> {any}
-InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
+InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<memory::format_tag, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
     InferenceEngine::TensorDesc inDesc;
 
     if (inputDesc.getLayout() != InferenceEngine::Layout::ANY) {
@@ -312,8 +341,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
         }
         if (child->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size() <= childIdx)
             childIdx = 0;
-        memory::format childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
-        if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+        memory::format_tag childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
+        if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
             if (formats.find(childInDesc) == formats.end())
                 formats[childInDesc] = 1;
             else
@@ -325,7 +354,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
 
         if (enterCountUp < 2) {
             childInDesc = MKLDNNMemoryDesc(childEdge->getSpecifiedOutputDesc(formats, enterCountUp, ++enterCountDown)).getFormat();
-            if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+            if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
                 if (formats.find(childInDesc) == formats.end())
                     formats[childInDesc] = 1;
                 else
@@ -346,8 +375,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
             if (parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size() <= parentIdx) {
                 parentIdx = 0;
             }
-            memory::format parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
-            if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+            memory::format_tag parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
+            if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
                 if (formats.find(parentOutDesc) == formats.end())
                     formats[parentOutDesc] = 1;
                 else
@@ -359,7 +388,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
 
             if (enterCountUp < 2) {
                 parentOutDesc = MKLDNNMemoryDesc(parentEdge->getSpecifiedInputDesc(formats, ++enterCountUp, enterCountDown)).getFormat();
-                if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+                if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
                     if (formats.find(parentOutDesc) == formats.end())
                         formats[parentOutDesc] = 1;
                     else
@@ -370,7 +399,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
     }
 
     size_t maxFormatCount = 0;
-    memory::format desc =  MKLDNNMemory::GetPlainFormat(getDims());
+    memory::format_tag desc =  MKLDNNMemory::GetPlainFormat(getDims());
     for (auto &it : formats) {
         if (maxFormatCount < it.second && MKLDNNMemory::isConsistant(getDims(), it.first)) {
             maxFormatCount = it.second;
@@ -389,7 +418,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
     return MKLDNNMemoryDesc(getDims(), inDataType, desc);
 }
 
-InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
+InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<memory::format_tag, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
     InferenceEngine::TensorDesc outDesc;
 
     if (outputDesc.getLayout() != InferenceEngine::Layout::ANY) {
@@ -446,8 +475,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
         if (parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size() <= parentIdx) {
             parentIdx = 0;
         }
-        memory::format parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
-        if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+        memory::format_tag parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
+        if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
             if (formats.find(parentOutDesc) == formats.end())
                 formats[parentOutDesc] = 1;
             else
@@ -459,7 +488,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
 
         if (enterCountDown < 2) {
             parentOutDesc = MKLDNNMemoryDesc(parentEdge->getSpecifiedInputDesc(formats, ++enterCountUp, enterCountDown)).getFormat();
-            if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+            if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
                 if (formats.find(parentOutDesc) == formats.end())
                     formats[parentOutDesc] = 1;
                 else
@@ -480,8 +509,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
             if (child->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size() <= childIdx) {
                 childIdx = 0;
             }
-            memory::format childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
-            if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+            memory::format_tag childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
+            if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
                 if (formats.find(childInDesc) == formats.end())
                     formats[childInDesc] = 1;
                 else
@@ -493,7 +522,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
 
             if (enterCountDown < 2) {
                 childInDesc = MKLDNNMemoryDesc(childEdge->getSpecifiedOutputDesc(formats, enterCountUp, ++enterCountDown)).getFormat();
-                if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+                if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
                     if (formats.find(childInDesc) == formats.end())
                         formats[childInDesc] = 1;
                     else
@@ -504,7 +533,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
     }
 
     size_t maxFormatCount = 0;
-    memory::format format =  MKLDNNMemory::GetPlainFormat(getDims());
+    memory::format_tag format =  MKLDNNMemory::GetPlainFormat(getDims());
     for (auto &it : formats) {
         if (maxFormatCount < it.second && MKLDNNMemory::isConsistant(getDims(), it.first)) {
             maxFormatCount = it.second;
@@ -570,6 +599,7 @@ void MKLDNNEdge::validate() {
     getParent();
     getChild();
     getDims();
+
     if (status != Status::Allocated) {
         THROW_IE_EXCEPTION << "Error memory is not allocated!";
     }
@@ -583,6 +613,10 @@ MKLDNNEdgePtr MKLDNNEdge::getSharedEdge() const {
                            << getChild()->getName() << "). The pointer on the edge with memory is empty!";
     }
     return memoryFromEdgePtr;
+}
+
+MKLDNNEdgePtr MKLDNNEdge::getSharedEdge(std::nothrow_t) const {
+    return memoryFromEdge.lock();
 }
 
 void MKLDNNEdge::init() {

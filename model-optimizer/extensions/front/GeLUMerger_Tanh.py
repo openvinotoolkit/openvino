@@ -1,5 +1,5 @@
 """
- Copyright (C) 2017-2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -74,6 +74,6 @@ class GeLUMergerTanh(FrontReplacementSubgraph):
             # check that the values match the approximation
             if fabs(mul0_param - sqrt2pi) < 1e-06 and fabs(mul_param - 0.044715) < 1e-06 and mul1_param == 0.5:
                 log.debug('Confirmed TanH-based GELU pattern after {} with name {}'.format(inp.op, inp.name))
-                gelu = GeLUOP(graph, dict(name=inp.name + '/GELU_')).create_node()
+                gelu = GeLUOP(graph, dict(name=inp.name + '/GELU_', approximation='tanh')).create_node()
                 inp_port.connect(gelu.in_port(0))
                 match['mul2'].out_port(0).get_connection().set_source(gelu.out_port(0))

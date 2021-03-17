@@ -15,8 +15,10 @@
 #include <ngraph/rt_info.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox, "ConvertPriorBox", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBoxToLegacy, "ConvertPriorBoxToLegacy", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBoxClusteredToLegacy, "ConvertPriorBoxClusteredToLegacy", 0);
 
-void ngraph::pass::ConvertPriorBox::convert_prior_box() {
+ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto axes = ngraph::opset1::Constant::create(element::i64, Shape{1}, {0});
     auto image = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -35,14 +37,14 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto prior_box = std::make_shared<ngraph::opset1::PriorBox>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
         }
         auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBox> (unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
+        if (!prior_box_node || transformation_callback(prior_box_node)) {
             return false;
         }
 
@@ -153,11 +155,11 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "CPUFusion.ConvertPriorBoxToPriorBoxIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "ConvertPriorBoxToLegacy");
+    register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
+ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy() {
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto axes = ngraph::opset1::Constant::create(element::i64, Shape{1}, {0});
     auto image = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -174,14 +176,14 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
     auto prior_box = std::make_shared<ngraph::opset1::PriorBoxClustered>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
         }
         auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered>(unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
+        if (!prior_box_node || transformation_callback(prior_box_node)) {
             return false;
         }
 
@@ -291,6 +293,6 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "CPUFusion.ConvertPriorBoxClusteredToPriorBoxClusteredIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "ConvertPriorBoxClusteredToLegacy");
+    register_matcher(m, callback);
 }

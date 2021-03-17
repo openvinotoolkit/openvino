@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/swish.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 
@@ -40,11 +41,13 @@ op::v4::Swish::Swish(const Output<Node>& arg, const Output<Node>& beta)
 
 bool op::v4::Swish::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_Swish_visit_attributes);
     return true;
 }
 
 void op::v4::Swish::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_Swish_validate_and_infer_types);
     auto inputs_count = input_values().size();
     NODE_VALIDATION_CHECK(this,
                           inputs_count == 1 || inputs_count == 2,
@@ -75,6 +78,7 @@ void op::v4::Swish::validate_and_infer_types()
 
 shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_Swish_clone_with_new_inputs);
     if (new_args.size() == 1)
     {
         return make_shared<op::v4::Swish>(new_args.at(0));
@@ -107,20 +111,18 @@ namespace swish
         return true;
     }
 
-    bool evaluate_swish(const HostTensorPtr& arg0,
-                        const HostTensorPtr& arg1,
-                        const HostTensorPtr& out,
-                        const size_t count)
+    bool
+        evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out, const size_t count)
     {
         bool rc = true;
+        const HostTensorPtr arg0 = inputs[0];
+        const HostTensorPtr arg1 = inputs.size() == 2 ? inputs[1] : nullptr;
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(f16)(arg0, arg1, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_swish, f16, arg0, arg1, out, count);
+            NGRAPH_TYPE_CASE(evaluate_swish, f32, arg0, arg1, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -129,14 +131,6 @@ namespace swish
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    if (inputs.size() == 2)
-    {
-        return swish::evaluate_swish(
-            inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
-    }
-    else
-    {
-        return swish::evaluate_swish(
-            inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
-    }
+    NGRAPH_OP_SCOPE(v4_Swish_evaluate);
+    return swish::evaluate_swish(inputs, outputs[0], shape_size(get_output_shape(0)));
 }

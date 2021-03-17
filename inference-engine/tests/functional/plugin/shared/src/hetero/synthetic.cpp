@@ -110,13 +110,14 @@ void HeteroSyntheticTest::SetUp() {
 }
 
 void HeteroSyntheticTest::TearDown() {
-    for (auto&& pluginName : _registredPlugins) {
-        PluginCache::get().ie()->UnregisterPlugin(pluginName);
+    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        for (auto&& pluginName : _registredPlugins) {
+            PluginCache::get().ie()->UnregisterPlugin(pluginName);
+        }
     }
 }
 
 std::string HeteroSyntheticTest::SetUpAffinity() {
-    int id = 0;
     auto& param = GetParam();
     std::string affinities;
     auto& pluginParameters = std::get<Plugin>(param);
@@ -144,7 +145,9 @@ TEST_P(HeteroSyntheticTest, someLayersToMajorPluginOthersToFallback) {
     auto affinities = SetUpAffinity();
     SCOPED_TRACE(affinities);
     Run();
-    ASSERT_NE(nullptr, cnnNetwork.getFunction());
+    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        ASSERT_NE(nullptr, cnnNetwork.getFunction());
+    }
 }
 
 }  //  namespace HeteroTests

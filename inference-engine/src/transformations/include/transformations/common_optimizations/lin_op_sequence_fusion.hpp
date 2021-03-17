@@ -21,16 +21,6 @@ class TRANSFORMATIONS_API MultiplyMultiplyFusion;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::LinOpSequenceFusion: public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    LinOpSequenceFusion() {
-        add_matcher<ngraph::pass::AddMultiplyFusion>();
-        add_matcher<ngraph::pass::AddAddFusion>();
-        add_matcher<ngraph::pass::MultiplyMultiplyFusion>();
-    }
-};
-
 class ngraph::pass::AddMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -47,4 +37,14 @@ class ngraph::pass::MultiplyMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MultiplyMultiplyFusion();
+};
+
+class ngraph::pass::LinOpSequenceFusion: public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    LinOpSequenceFusion() {
+        add_matcher<ngraph::pass::AddMultiplyFusion>();
+        add_matcher<ngraph::pass::AddAddFusion>();
+        add_matcher<ngraph::pass::MultiplyMultiplyFusion>();
+    }
 };

@@ -77,7 +77,14 @@ def gitSubmoduleUpdate(String repository_name) {
     }
 }
 
+def updateModels() {
+    sh """
+        ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data -o
+    """
+}
+
 def buildDockerImage() {
+    updateModels()
     sh """
         docker build --tag=${DOCKER_IMAGE_TAG}  --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
@@ -88,11 +95,11 @@ def buildDockerImage() {
 def runTests() {
     sh """
         docker run --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/onnx-models-28-Oct/.onnx/model_zoo:/root/.onnx/model_zoo \
-        --volume ${HOME}/ONNX_CI/onnx-models/.onnx/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
+        --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
         ${DOCKER_IMAGE_TAG}
     """
 }
+
 
 pipeline {
     agent {
@@ -104,7 +111,7 @@ pipeline {
     }
     options {
         skipDefaultCheckout true
-        timeout(activity: true, time: 10, unit: 'MINUTES')
+        timeout(activity: true, time: 60, unit: 'MINUTES')
     }
     stages {
         stage("Clone repository") {
@@ -118,14 +125,14 @@ pipeline {
         }
         stage("Prepare Docker environment") {
             steps{
-                dir("${WORKDIR}") {
+              dir("${WORKDIR}") {
                     buildDockerImage()
                 }
             }
         }
         stage("Run tests") {
             options {
-                  timeout(time: 15, unit: 'MINUTES')
+                  timeout(time: 60, unit: 'MINUTES')
               }
             steps{
                 runTests()

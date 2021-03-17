@@ -28,15 +28,6 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
-    const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
-
-    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
-
-    const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
-
-    if (!bWeightsOK) {
-        return false;
-    }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
@@ -191,7 +182,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     dispatchData.gemmStyle.subBlockDimK = 1;
     dispatchData.gemmStyle.subBlockDimM = 0;
     dispatchData.gemmStyle.subBlockDimN = 0;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -202,6 +192,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
                                        GetPreferredWeightsLayout(newParams),
@@ -210,11 +204,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                        newParams.groups,
                                        newParams.transposed);
 
-    if (!succeed) {
-        return {};
-    }
+    bool bSupportedWeightsLayout = newParams.weights.GetLayout() == GetPreferredWeightsLayout(newParams);
+    const bool bWeightsOK = bSupportedWeightsLayout || options.allowStaticInputReordering;
 
-    if (!Validate(params, options)) {
+    if (!succeed || !bWeightsOK) {
         return {};
     }
 
@@ -268,7 +261,6 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

@@ -13,7 +13,6 @@
 #include <opencv2/gapi/gcompiled.hpp>
 #include <opencv2/gapi/gcomputation.hpp>
 #include <opencv2/gapi/util/optional.hpp>
-#include "ie_profiling.hpp"
 #include <openvino/itt.hpp>
 
 // FIXME: Move this definition back to ie_preprocess_data,
@@ -45,16 +44,15 @@ class PreprocEngine {
                       Update update);
 
     template<typename BlobTypePtr>
-    bool preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
+    void preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
         ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
         int batch_size);
 
 public:
     PreprocEngine();
-    static bool useGAPI();
     static void checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst);
     static int getCorrectBatchSize(int batch_size, const Blob::Ptr& roiBlob);
-    bool preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
+    void preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
         ColorFormat in_fmt, bool omp_serial, int batch_size = -1);
 };
 

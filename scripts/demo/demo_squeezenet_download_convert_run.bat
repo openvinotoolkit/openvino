@@ -1,4 +1,4 @@
-:: Copyright (C) 2018-2019 Intel Corporation
+:: Copyright (C) 2018-2021 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
 
 @echo off
@@ -57,29 +57,30 @@ echo INTEL_OPENVINO_DIR is set to %INTEL_OPENVINO_DIR%
 :: Check if Python is installed
 python --version 2>NUL
 if errorlevel 1 (
-   echo Error^: Python is not installed. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
-   goto error
+    echo Error^: Python is not installed. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+    goto error
 )
 
 :: Check if Python version is equal or higher 3.4
 for /F "tokens=* USEBACKQ" %%F IN (`python --version 2^>^&1`) DO (
-   set version=%%F
+    set version=%%F
 )
 echo %var%
 
 for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
-   set Major=%%b
-   set Minor=%%c
+    set Major=%%b
+    set Minor=%%c
 )
 
 if "%Major%" geq "3" (
-   if "%Minor%" geq "5" (
-	set python_ver=okay
-   )
+    if "%Minor%" geq "5" (
+        set python_ver=okay
+    )
 )
+
 if not "%python_ver%"=="okay" (
-   echo Unsupported Python version. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
-   goto error
+    echo Unsupported Python version. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+    goto error
 )
 
 :: install yaml python modules required for downloader.py
@@ -116,7 +117,7 @@ echo.
 echo ###############^|^| Install Model Optimizer prerequisites ^|^|###############
 echo.
 CALL :delay 3
-cd "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer\install_prerequisites"
+cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer\install_prerequisites"
 call install_prerequisites_caffe.bat
 if ERRORLEVEL 1 GOTO errorHandling
 
@@ -140,73 +141,75 @@ echo.
 CALL :delay 3
 
 if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
-   set "PLATFORM=x64"
+    set "PLATFORM=x64"
 ) else (
-   set "PLATFORM=Win32"
+    set "PLATFORM=Win32"
 )
 
 set VSWHERE="false"
 if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
-   set VSWHERE="true"
-   cd "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
+    set VSWHERE="true"
+    cd /d "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
 ) else if exist "%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe" (
-      set VSWHERE="true"
-      cd "%ProgramFiles%\Microsoft Visual Studio\Installer"
+    set VSWHERE="true"
+    cd /d "%ProgramFiles%\Microsoft Visual Studio\Installer"
 ) else (
-   echo "vswhere tool is not found"
+    echo "vswhere tool is not found"
 )
-
-set MSBUILD_BIN=
-set VS_PATH=
 
 if !VSWHERE! == "true" (
-   for /f "usebackq tokens=*" %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath`) do (
-      set VS_PATH=%%i
-   )
-   if exist "!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe"
-   )
-   if exist "!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe"
-   )
-   if exist "!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe"
-   )
+    for /f "usebackq tokens=*" %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath`) do (
+        set VS_PATH=%%i
+    )
+    if exist "!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe" (
+        set "MSBUILD_BIN=!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe"
+    )
+    if exist "!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe" (
+        set "MSBUILD_BIN=!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe"
+    )
+    if exist "!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe" (
+        set "MSBUILD_BIN=!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe"
+    )
+    for /f "usebackq tokens=1 delims=." %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationVersion`) do (
+        set VS_MAJOR_VER=%%i
+    )
+    if "!VS_MAJOR_VER!"=="16" set "MSBUILD_VERSION=16 2019"
+    if "!VS_MAJOR_VER!"=="15" set "MSBUILD_VERSION=15 2017"
 )
 
 if "!MSBUILD_BIN!" == "" (
-   if exist "C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe"
-      set "MSBUILD_VERSION=14 2015"
-   )
-   if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe"
-      set "MSBUILD_VERSION=15 2017"
-   )
-   if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe"
-      set "MSBUILD_VERSION=15 2017"
-   )
-   if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
-      set "MSBUILD_VERSION=15 2017"
-   )
+    if exist "C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" (
+        set "MSBUILD_BIN=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe"
+        set "MSBUILD_VERSION=14 2015"
+    )
+    if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe" (
+        set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe"
+        set "MSBUILD_VERSION=15 2017"
+    )
+    if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe" (
+        set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe"
+        set "MSBUILD_VERSION=15 2017"
+    )
+    if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe" (
+        set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
+        set "MSBUILD_VERSION=15 2017"
+    )
 ) else (
-   if not "!MSBUILD_BIN:2019=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=16 2019"
-   if not "!MSBUILD_BIN:2017=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=15 2017"
-   if not "!MSBUILD_BIN:2015=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=14 2015"
+    if not "!MSBUILD_BIN:2019=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=16 2019"
+    if not "!MSBUILD_BIN:2017=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=15 2017"
+    if not "!MSBUILD_BIN:2015=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=14 2015"
 )
 
 if "!MSBUILD_BIN!" == "" (
-   echo Build tools for Visual Studio 2015 / 2017 / 2019 cannot be found. If you use Visual Studio 2017, please download and install build tools from https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
-   GOTO errorHandling
+    echo Build tools for Visual Studio 2015 / 2017 / 2019 cannot be found. If you use Visual Studio 2017, please download and install build tools from https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
+    GOTO errorHandling
 )
 
 set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_samples_build"
 
 echo Creating Visual Studio !MSBUILD_VERSION! %PLATFORM% files in %SOLUTION_DIR64%... && ^
 if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
-cd "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp"
+cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\samples\cpp"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
@@ -228,9 +231,9 @@ echo ###############^|^| Run Inference Engine classification sample ^|^|########
 echo.
 CALL :delay 3
 copy /Y "%ROOT_DIR%%model_name%.labels" "%ir_dir%"
-cd "%SOLUTION_DIR64%\intel64\Release"
+cd /d "%SOLUTION_DIR64%\intel64\Release"
 if not exist classification_sample_async.exe (
-   cd "%INTEL_OPENVINO_DIR%\inference_engine\samples\cpp\intel64\Release"
+   cd /d "%INTEL_OPENVINO_DIR%\inference_engine\samples\cpp\intel64\Release"
 )
 echo classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
 classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
@@ -241,13 +244,13 @@ echo.
 echo ###############^|^| Classification demo completed successfully ^|^|###############
 
 CALL :delay 10
-cd "%ROOT_DIR%"
+cd /d "%ROOT_DIR%"
 
 goto :eof
 
 :errorHandling
 echo Error
-cd "%ROOT_DIR%"
+cd /d "%ROOT_DIR%"
 
 :delay
 timeout %~1 2> nul

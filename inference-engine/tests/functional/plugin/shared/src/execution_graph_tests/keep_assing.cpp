@@ -6,6 +6,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <inference_engine.hpp>
 
 namespace ExecutionGraphTests {
@@ -27,15 +28,15 @@ TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
     ngraph::element::Type type = ngraph::element::f32;
 
     using std::make_shared;
-    using namespace ngraph::op;
+    using namespace ngraph::opset5;
 
-    // Some simple graph with Memory(Assign) node            //    in   read     //
-    auto input = make_shared<Parameter>(type, shape);        //    | \  /        //
-    auto mem_i = make_shared<Constant>(type, shape, 0);      //    |  mul        //
-    auto mem_r = make_shared<ReadValue>(mem_i, "id");        //    | /  \        //
-    auto mul   = make_shared<Multiply>(mem_r, input);        //    sum  assign   //
-    auto mem_w = make_shared<Assign>(mul, "id");             //     |            //
-    auto sum   = make_shared<Add>(mul, input);               //    out           //
+    // Some simple graph with Memory(Assign) node                     //    in   read     //
+    auto input = make_shared<Parameter>(type, shape);                 //    | \  /        //
+    auto mem_i = make_shared<Constant>(type, shape, 0);               //    |  mul        //
+    auto mem_r = make_shared<ReadValue>(mem_i, "id");                 //    | /  \        //
+    auto mul   = make_shared<ngraph::op::v1::Multiply>(mem_r, input); //    sum  assign   //
+    auto mem_w = make_shared<Assign>(mul, "id");                      //     |            //
+    auto sum   = make_shared<ngraph::op::v1::Add>(mul, input);        //    out           //
 
     mem_w->add_control_dependency(mem_r);
     sum->add_control_dependency(mem_w);

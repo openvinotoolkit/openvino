@@ -45,5 +45,4 @@ INSTANTIATE_TEST_CASE_P(smoke_Proposal_tests, ProposalLayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ProposalLayerTest::getTestCaseName
 );
-
 }  // namespace

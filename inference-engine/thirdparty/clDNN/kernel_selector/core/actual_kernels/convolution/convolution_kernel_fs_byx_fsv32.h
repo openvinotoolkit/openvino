@@ -30,6 +30,7 @@ public:
     KernelsData GetTunedKernelsDataByIndex(const Params& params,
                                            const optional_params& options,
                                            int autoTuneIndex = -1) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {

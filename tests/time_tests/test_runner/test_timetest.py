@@ -82,4 +82,3 @@ def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir
                              .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
 
     assert comparison_status == 0, "Comparison with references failed"
-

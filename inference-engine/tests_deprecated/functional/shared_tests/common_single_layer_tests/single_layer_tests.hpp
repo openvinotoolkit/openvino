@@ -484,7 +484,6 @@ TEST_P(CommonSingleLayerTest, inferAfterReshape) {
 
         BufferWrapper src_ptr(src);
         BufferWrapper trans_ptr(trans);
-        float* weights_ptr = weights->buffer().as<float*>();
         BufferWrapper dst_ptr(dst_ref);
     } else {
         request.Infer();

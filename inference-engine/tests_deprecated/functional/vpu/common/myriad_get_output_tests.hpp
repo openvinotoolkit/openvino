@@ -18,8 +18,6 @@ public:
 };
 
 TEST_P(myriadGetOutput_nightly, AddOutput) {
-    StatusCode st;
-
     name_model_full = (*(std::get<0>(std::get<0>(GetParam()))));
     name_model_crop = (*(std::get<1>(std::get<0>(GetParam()))));
     name_output = std::get<1>(GetParam());
@@ -39,26 +37,19 @@ TEST_P(myriadGetOutput_nightly, AddOutput) {
 
     InferenceEngine::Blob::Ptr inputBlob;
 
-    InferenceEngine::IExecutableNetwork::Ptr exeNetwork;
+    InferenceEngine::ExecutableNetwork exeNetwork;
     std::map<std::string, std::string> networkConfig;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, crop_network, networkConfig, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(crop_network, networkConfig));
 
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
 
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = inferRequest->GetBlob(networkInputs.begin()->first.c_str(), inputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(networkInputs.begin()->first.c_str()));
     GenRandomData(inputBlob);
 
     InferenceEngine::Blob::Ptr output_crop;
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob(networkOutputs.begin()->first.c_str(), output_crop, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.Infer());
+    ASSERT_NO_THROW(output_crop = inferRequest.GetBlob(networkOutputs.begin()->first.c_str()));
 
     /*Full Network Infer */
 
@@ -66,31 +57,24 @@ TEST_P(myriadGetOutput_nightly, AddOutput) {
 
     full_network.addOutput(name_output, 0);
 
-    InferenceEngine::InputsDataMap networkInputsFull;
-    networkInputsFull = full_network.getInputsInfo();
-    InferenceEngine::OutputsDataMap networkOutputsFull;
-    networkOutputsFull = full_network.getOutputsInfo();
+    InferenceEngine::InputsDataMap networkInputsFull = full_network.getInputsInfo();
+    InferenceEngine::OutputsDataMap networkOutputsFull = full_network.getOutputsInfo();
 
     networkInputsFull.begin()->second->setPrecision(InferenceEngine::Precision::FP16);
     networkOutputsFull.begin()->second->setPrecision(InferenceEngine::Precision::FP16);
     (++networkOutputsFull.begin())->second->setPrecision(InferenceEngine::Precision::FP16);
 
-    InferenceEngine::IExecutableNetwork::Ptr exeNetworkFull;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetworkFull, full_network, networkConfig, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferenceEngine::ExecutableNetwork exeNetworkFull;
+    ASSERT_NO_THROW(exeNetworkFull = _vpuPluginPtr->LoadNetwork(full_network, networkConfig));
 
-    InferenceEngine::IInferRequest::Ptr inferRequestFull;
-    ASSERT_NO_THROW(st = exeNetworkFull->CreateInferRequest(inferRequestFull, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferenceEngine::InferRequest inferRequestFull;
+    ASSERT_NO_THROW(inferRequestFull = exeNetworkFull.CreateInferRequest());
 
-    ASSERT_NO_THROW(st = inferRequestFull->SetBlob("data", inputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequestFull.SetBlob("data", inputBlob));
 
     InferenceEngine::Blob::Ptr output_full;
-    ASSERT_NO_THROW(st = inferRequestFull->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequestFull->GetBlob(name_output.c_str(), output_full, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequestFull.Infer());
+    ASSERT_NO_THROW(output_full = inferRequestFull.GetBlob(name_output.c_str()));
 
     CompareCommonAbsolute(output_full, output_crop, 0.0f);
 }

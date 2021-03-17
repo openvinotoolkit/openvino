@@ -45,18 +45,19 @@ FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spat
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
-    const auto& input = arg.inputs[0];
-    const auto& output = arg.output;
-
-    if (input.Batch().v == 1 && output.Batch().v == 1) {
-        if ((input.LogicalSize() / output.Batch().v >= 4096) && (output.Feature().v >= 4096)) {
-            dispatchData.efficiency = FORCE_PRIORITY_1;
-        }
-    }
-
     return dispatchData;
+}
+
+KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const fully_connected_params&>(params);
+    const auto& input = p.inputs[0];
+    const auto& output = p.output;
+
+    if (input.Batch().v == 1 && output.Batch().v == 1)
+        if ((input.LogicalSize() / output.Batch().v >= 4096) && (output.Feature().v >= 4096))
+            return FORCE_PRIORITY_1;
+
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optional_params& o) const {
@@ -78,21 +79,7 @@ bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optiona
 
 KernelsData FullyConnected_bf_io_input_spatial::GetKernelsData(const Params& params,
                                                                const optional_params& optParams) const {
-    KernelsData res = {};
-    const auto& orgParams = static_cast<const fully_connected_params&>(params);
-
-    const auto& input = orgParams.inputs[0];
-    const auto& output = orgParams.output;
-
-    float efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
-    if (input.GetLayout() == DataLayout::bfyx &&
-        input.Batch().v == 1 && output.Batch().v == 1 &&
-        input.LogicalSize() >= 4096 && output.Feature().v >= 4096) {
-        efficiency = FORCE_PRIORITY_1;
-    }
-
-    return GetCommonKernelsData(params, optParams, DataLayout::bf, WeightsLayout::io, efficiency);
+    return GetCommonKernelsData(params, optParams, DataLayout::bf, WeightsLayout::io);
 }
 
 KernelsData FullyConnected_bf_io_input_spatial::GetKernelsDataForAutoTune(const Params& params, const optional_params& optParams) const {
@@ -103,7 +90,6 @@ KernelsData FullyConnected_bf_io_input_spatial::GetKernelsDataForAutoTune(const 
                                                     optParams,
                                                     DataLayout::bf,
                                                     WeightsLayout::io,
-                                                    DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

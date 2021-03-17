@@ -30,7 +30,7 @@
 
 **Outputs**:
 
-*   **1**: Multidimensional output tensor with shape and type matching the input tensor. Required.
+*   **1**: Multidimensional output tensor with shape and type matching the input tensor.
 
 **Detailed description**:
 

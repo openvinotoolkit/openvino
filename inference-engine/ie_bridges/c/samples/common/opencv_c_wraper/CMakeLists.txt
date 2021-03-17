@@ -5,7 +5,6 @@
 project(OpenCV_C_Wraper)
 set(TARGET_NAME opencv_c_wraper)
 
-#set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
@@ -13,9 +12,9 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio  QUIET)
+find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
 if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, " ${TARGET_NAME} " is built without OPENCV support")
+    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is built without OPENCV support")
 else()
     add_definitions(-DUSE_OPENCV)
 endif()

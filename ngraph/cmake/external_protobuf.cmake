@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 if (MSVC)
     set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
 endif()
 
 # This version of PROTOBUF is required by Microsoft ONNX Runtime.
@@ -68,7 +66,7 @@ endif()
 set(NGRAPH_PROTOBUF_GIT_TAG "v${PROTOC_VERSION}")
 
 
-if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
+if (CMAKE_GENERATOR STREQUAL "Ninja")
     set(MAKE_UTIL make)
 else()
     set(MAKE_UTIL $(MAKE))
@@ -77,7 +75,7 @@ endif()
 if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 else()
-    if(CMAKE_CXX_COMPILER_ID MATCHES ".*[Cc]lang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         include(ExternalProject)
         set(Protobuf_INSTALL_PREFIX ${EXTERNAL_PROJECTS_ROOT}/protobuf)
         set(Protobuf_PROTOC_EXECUTABLE ${Protobuf_INSTALL_PREFIX}/bin/protoc)
@@ -92,7 +90,7 @@ else()
             UPDATE_COMMAND ""
             PATCH_COMMAND ""
             CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf --disable-shared
-            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${NGRAPH_CXX_STANDARD} -fPIC"
+            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${CMAKE_CXX_STANDARD} -fPIC"
             TMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/tmp"
             STAMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/stamp"
             DOWNLOAD_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/download"
@@ -145,11 +143,20 @@ else()
             message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
         endif()
 
-        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR})
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
         if(NGRAPH_USE_PROTOBUF_LITE)
             set(Protobuf_LIBRARIES libprotobuf-lite)
         else()
             set(Protobuf_LIBRARIES libprotobuf)
+        endif()
+
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            set(_proto_libs ${Protobuf_LIBRARIES})
+            if(TARGET libprotoc)
+                list(APPEND _proto_libs libprotoc)
+            endif()
+            set_target_properties(${_proto_libs} PROPERTIES
+                                   COMPILE_FLAGS "-Wno-unused-variable")
         endif()
     endif()
 endif()

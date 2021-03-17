@@ -14,6 +14,10 @@
 
 *   **2**: 0D or 1D tensor of type *T_SHAPE* with dimensions indices to squeeze. Values could be negative. *Optional*.
 
+**Outputs**:
+
+*   **1**: Tensor with squeezed values of type *T*.
+
 **Types**
 
 * *T*: supported type.

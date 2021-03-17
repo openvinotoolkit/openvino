@@ -9,13 +9,13 @@
 #include <string>
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
 using namespace CPUTestUtils;
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using FusePermuteAndReorderParams = std::tuple<
         InferenceEngine::SizeVector,    // Input shape
@@ -46,4 +46,4 @@ protected:
     void CreateGraph() override;
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

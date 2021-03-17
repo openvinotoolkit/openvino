@@ -338,8 +338,8 @@ public:
             if (_flags[ind] != other._flags[ind]) {
                 return !_flags[ind];
             }
-            if (_flags[ind] && _values[ind].second < other._values[ind].second) {
-                return true;
+            if (_flags[ind] && _values[ind].second != other._values[ind].second) {
+                return _values[ind].second < other._values[ind].second;
             }
         }
         return false;

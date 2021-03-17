@@ -4,8 +4,6 @@
 
 set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
-include(dependency_solver)
-
 if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
     set(protoc_version "3.7.1")
 

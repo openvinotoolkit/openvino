@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,84 +28,12 @@
 #include "int_backend_visibility.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/reference/abs.hpp"
-#include "ngraph/runtime/reference/acos.hpp"
-#include "ngraph/runtime/reference/asin.hpp"
-#include "ngraph/runtime/reference/atan.hpp"
-#include "ngraph/runtime/reference/atan2.hpp"
-#include "ngraph/runtime/reference/avg_pool.hpp"
-#include "ngraph/runtime/reference/batch_norm.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
-#include "ngraph/runtime/reference/ceiling.hpp"
-#include "ngraph/runtime/reference/concat.hpp"
-#include "ngraph/runtime/reference/constant.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
-#include "ngraph/runtime/reference/convolution.hpp"
-#include "ngraph/runtime/reference/cos.hpp"
-#include "ngraph/runtime/reference/cosh.hpp"
-#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
-#include "ngraph/runtime/reference/ctc_loss.hpp"
-#include "ngraph/runtime/reference/cum_sum.hpp"
-#include "ngraph/runtime/reference/detection_output.hpp"
-#include "ngraph/runtime/reference/elu.hpp"
-#include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
-#include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
-#include "ngraph/runtime/reference/embedding_segments_sum.hpp"
-#include "ngraph/runtime/reference/erf.hpp"
-#include "ngraph/runtime/reference/exp.hpp"
-#include "ngraph/runtime/reference/extract_image_patches.hpp"
-#include "ngraph/runtime/reference/floor.hpp"
-#include "ngraph/runtime/reference/gather.hpp"
-#include "ngraph/runtime/reference/gather_nd.hpp"
-#include "ngraph/runtime/reference/gather_tree.hpp"
-#include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/hard_sigmoid.hpp"
-#include "ngraph/runtime/reference/log.hpp"
-#include "ngraph/runtime/reference/log_softmax.hpp"
-#include "ngraph/runtime/reference/lrn.hpp"
-#include "ngraph/runtime/reference/lstm_cell.hpp"
-#include "ngraph/runtime/reference/matmul.hpp"
-#include "ngraph/runtime/reference/max.hpp"
-#include "ngraph/runtime/reference/max_pool.hpp"
-#include "ngraph/runtime/reference/min.hpp"
-#include "ngraph/runtime/reference/negate.hpp"
 #include "ngraph/runtime/reference/non_max_suppression.hpp"
-#include "ngraph/runtime/reference/normalize_l2.hpp"
-#include "ngraph/runtime/reference/not.hpp"
-#include "ngraph/runtime/reference/one_hot.hpp"
-#include "ngraph/runtime/reference/pad.hpp"
-#include "ngraph/runtime/reference/prior_box.hpp"
-#include "ngraph/runtime/reference/product.hpp"
-#include "ngraph/runtime/reference/quantize.hpp"
-#include "ngraph/runtime/reference/region_yolo.hpp"
-#include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
-#include "ngraph/runtime/reference/result.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
-#include "ngraph/runtime/reference/reverse_sequence.hpp"
-#include "ngraph/runtime/reference/rnn_cell.hpp"
-#include "ngraph/runtime/reference/round.hpp"
-#include "ngraph/runtime/reference/scatter_nd_update.hpp"
-#include "ngraph/runtime/reference/select.hpp"
-#include "ngraph/runtime/reference/sequences.hpp"
-#include "ngraph/runtime/reference/sigmoid.hpp"
-#include "ngraph/runtime/reference/sign.hpp"
-#include "ngraph/runtime/reference/sin.hpp"
-#include "ngraph/runtime/reference/sinh.hpp"
-#include "ngraph/runtime/reference/softmax.hpp"
-#include "ngraph/runtime/reference/sqrt.hpp"
-#include "ngraph/runtime/reference/sum.hpp"
-#include "ngraph/runtime/reference/tan.hpp"
-#include "ngraph/runtime/reference/tanh.hpp"
 #include "ngraph/runtime/reference/tensor_iterator.hpp"
-#include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "op/avg_pool.hpp"
-#include "op/convolution.hpp"
-#include "op/group_conv.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -115,50 +43,9 @@ namespace ngraph
         {
             class INTBackend;
             class INTExecutable;
-
-            // This expands the op list in op_tbl.hpp into a list of enumerations that look like
-            // this:
-            // Abs,
-            // Acos,
-            // ...
-            enum class OP_TYPEID
-            {
-#define NGRAPH_OP(NAME, NAMESPACE) ID_SUFFIX(NAME),
-#include "opset_int_tbl.hpp"
-#undef NGRAPH_OP
-                UnknownOp
-            };
         } // namespace interpreter
     }     // namespace runtime
 } // namespace ngraph
-
-class TemporaryOverrideOutputs
-{
-    std::shared_ptr<Node> node;
-    std::vector<PartialShape> orig_shapes;
-
-public:
-    TemporaryOverrideOutputs(std::shared_ptr<Node> node,
-                             const std::vector<std::shared_ptr<HostTensor>>& args)
-        : node(node)
-    {
-        for (size_t i = 0; i < args.size(); ++i)
-        {
-            auto output = node->get_input_source_output(i);
-            orig_shapes.push_back(output.get_partial_shape());
-            output.get_tensor().set_partial_shape(args[i]->get_shape());
-        }
-    }
-
-    ~TemporaryOverrideOutputs()
-    {
-        for (size_t i = 0; i < orig_shapes.size(); ++i)
-        {
-            auto output = node->get_input_source_output(i);
-            output.get_tensor().set_partial_shape(orig_shapes[i]);
-        }
-    }
-};
 
 class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTExecutable : public Executable
 {
@@ -188,25 +75,18 @@ public:
 protected:
     std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
     std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
-    int get_alignment() const { return 64; }
+    bool evaluate_node(const std::shared_ptr<Node>& node,
+                       const HostTensorVector& outputs,
+                       const HostTensorVector& inputs) const;
     bool m_is_compiled = false;
     bool m_nan_check_enabled = false;
     bool m_performance_counters_enabled = false;
     std::shared_ptr<Function> m_function;
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
     std::vector<std::shared_ptr<Node>> m_nodes;
-    std::set<std::string> m_unsupported_op_name_list;
-
-    static OP_TYPEID get_typeid(const Node& node);
 
     static void perform_nan_check(const std::vector<std::shared_ptr<HostTensor>>&,
                                   const Node* op = nullptr);
-
-    virtual void generate_calls(const element::Type& type,
-                                const Node& op,
-                                const std::vector<std::shared_ptr<HostTensor>>& outputs,
-                                const std::vector<std::shared_ptr<HostTensor>>& inputs);
-
     struct InfoForNMS5
     {
         int64_t max_output_boxes_per_class;
@@ -225,6 +105,9 @@ protected:
 
     InfoForNMS5 get_info_for_nms5_eval(const op::v5::NonMaxSuppression* nms5,
                                        const std::vector<std::shared_ptr<HostTensor>>& inputs);
+
+#if 0
+<<<<<<< HEAD
 
     template <typename T>
     void op_engine(const Node& orig_node,
@@ -1556,6 +1439,7 @@ protected:
 #endif
         }
     }
+=======
+>>>>>>> openvino/master
+#endif
 };
-
-NGRAPH_SUPPRESS_DEPRECATED_END

@@ -7,8 +7,8 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -31,7 +31,9 @@ public:
 
 protected:
     void SetUp() override;
-    void validateNGraph();
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -7,21 +7,18 @@
 #include <unordered_set>
 
 #include <legacy/ie_layers.h>
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 
 using namespace InferenceEngine;
 
 IE_SUPPRESS_DEPRECATED_START
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network) {
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network) {
     std::vector<CNNLayerPtr> ordered;
     std::unordered_set<std::string> used;
 
-    OutputsDataMap outputs;
-    network.getOutputsInfo(outputs);
-
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
+    OutputsDataMap outputs = network.getOutputsInfo();
+    InputsDataMap inputs = network.getInputsInfo();
 
     auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
         std::vector<CNNLayerPtr> consumers;

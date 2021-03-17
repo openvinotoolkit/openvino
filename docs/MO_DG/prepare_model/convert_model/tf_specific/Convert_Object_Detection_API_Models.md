@@ -8,29 +8,33 @@
 
 With 2018 R3 release, the Model Optimizer introduces a new approach to convert models created using the TensorFlow\* Object Detection API. Compared with the previous approach, the new process produces inference results with higher accuracy and does not require modifying any configuration files and providing intricate command line parameters.
 
-You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md">Object Detection Model Zoo</a>.
+You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a>
+or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
 
 <strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../Config_Model_Optimizer.md).
 
 To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory and run the `mo_tf.py` script with the following required parameters:
 
-* `--input_model <path_to_frozen.pb>` --- File with a pre-trained model (binary or text .pb file after freezing)
+* `--input_model <path_to_frozen.pb>` --- File with a pre-trained model (binary or text .pb file after freezing) OR `--saved_model_dir <path_to_saved_model>` for the TensorFlow\* 2 models
 * `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf` directory. Use:
     * `ssd_v2_support.json` --- for frozen SSD topologies from the models zoo version up to 1.13.X inclusively
-    * `ssd_support_api_v.1.14.json` --- for frozen SSD topologies trained manually using the TensorFlow* Object Detection API version 1.14 up to 1.14.X inclusively
-    * `ssd_support_api_v.1.15.json` --- for frozen SSD topologies trained manually using the TensorFlow* Object Detection API version 1.15 or higher
+    * `ssd_support_api_v.1.14.json` --- for frozen SSD topologies trained using the TensorFlow\* Object Detection API version 1.14 up to 1.14.X inclusively
+    * `ssd_support_api_v.1.15.json` --- for frozen SSD topologies trained using the TensorFlow\* Object Detection API version 1.15 up to 2.0
+    * `ssd_support_api_v.2.0.json` --- for frozen SSD topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
     * `faster_rcnn_support.json` --- for frozen Faster R-CNN topologies from the models zoo
-    * `faster_rcnn_support_api_v1.7.json` --- for Faster R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.7.0 up to 1.9.X inclusively
-    * `faster_rcnn_support_api_v1.10.json` --- for Faster R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.10.0 up to 1.12.X inclusively
-    * `faster_rcnn_support_api_v1.13.json` --- for Faster R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.13.X
-    * `faster_rcnn_support_api_v1.14.json` --- for Faster R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.14.0 up to 1.14.X inclusively
-    * `faster_rcnn_support_api_v1.15.json` --- for Faster R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.15.0 or higher
+    * `faster_rcnn_support_api_v1.7.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.7.0 up to 1.9.X inclusively
+    * `faster_rcnn_support_api_v1.10.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.10.0 up to 1.12.X inclusively
+    * `faster_rcnn_support_api_v1.13.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.13.X
+    * `faster_rcnn_support_api_v1.14.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.14.0 up to 1.14.X inclusively
+    * `faster_rcnn_support_api_v1.15.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.15.0 up to 2.0
+    * `faster_rcnn_support_api_v2.0.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
     * `mask_rcnn_support.json` --- for frozen Mask R-CNN topologies from the models zoo
-    * `mask_rcnn_support_api_v1.7.json` --- for Mask R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.7.0 up to 1.9.X inclusively
-    * `mask_rcnn_support_api_v1.11.json` --- for Mask R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.11.0 up to 1.12.X inclusively
-    * `mask_rcnn_support_api_v1.13.json` --- for Mask R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.13.0 up to 1.13.X inclusively
-    * `mask_rcnn_support_api_v1.14.json` --- for Mask R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.14.0 up to 1.14.X inclusively
-    * `mask_rcnn_support_api_v1.15.json` --- for Mask R-CNN topologies trained manually using the TensorFlow* Object Detection API version 1.15.0 or higher
+    * `mask_rcnn_support_api_v1.7.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.7.0 up to 1.9.X inclusively
+    * `mask_rcnn_support_api_v1.11.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.11.0 up to 1.12.X inclusively
+    * `mask_rcnn_support_api_v1.13.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.13.0 up to 1.13.X inclusively
+    * `mask_rcnn_support_api_v1.14.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.14.0 up to 1.14.X inclusively
+    * `mask_rcnn_support_api_v1.15.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.15.0 up to 2.0
+    * `mask_rcnn_support_api_v2.0.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
     * `rfcn_support.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.9.0 or lower.
     * `rfcn_support_api_v1.10.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.10.0 up to 1.12.X inclusively
     * `rfcn_support_api_v1.13.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.13.X.

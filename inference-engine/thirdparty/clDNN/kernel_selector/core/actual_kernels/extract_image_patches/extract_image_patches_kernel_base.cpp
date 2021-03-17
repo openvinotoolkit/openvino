@@ -64,8 +64,7 @@ ExtractImagePatchesKernelBase::DispatchData ExtractImagePatchesKernelBase::SetDe
 }
 
 KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& params,
-                                                                const optional_params& options,
-                                                                float estimated_time) const {
+                                                                const optional_params& options) const {
     if (!Validate(params, options)) {
         return KernelsData();
     }
@@ -81,8 +80,6 @@ KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& pa
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

@@ -51,7 +51,7 @@ public:
      *
      * @param that An rvalue reference for the other LockedMemoryBase instance
      */
-    LockedMemoryBase(LockedMemoryBase&& that)
+    LockedMemoryBase(LockedMemoryBase&& that) noexcept
         : _allocator(that._allocator), _handle(that._handle), _lockFlag(that._lockFlag), _offset(that._offset) {
         that._locked = nullptr;
     }

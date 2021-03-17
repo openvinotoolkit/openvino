@@ -6,7 +6,7 @@
 
 #include "subgraph_tests/split_concat_memory.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 

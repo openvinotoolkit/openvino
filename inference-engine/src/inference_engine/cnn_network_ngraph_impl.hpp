@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <unordered_map>
 #include <map>
 #include <memory>
 #include <string>
@@ -20,7 +21,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
 
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
@@ -35,12 +36,11 @@ namespace details {
 /**
  * @brief Ngraph-based implementation of the ICNNNetwork interface.
  */
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl): public ICNNNetwork {
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
                          const std::vector<IExtensionPtr>& exts = {});
-    CNNNetworkNGraphImpl(const ICNNNetwork& nGraph);
-    ~CNNNetworkNGraphImpl() override = default;
+    CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
@@ -62,10 +62,6 @@ public:
 
     void addOutput(const ::ngraph::Output<::ngraph::Node> & dataName);
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     std::shared_ptr<const ::ngraph::Function> getFunction() const noexcept override {
         return _ngraph_function;
     }
@@ -84,6 +80,8 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
+    StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept override;
+
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 protected:
@@ -94,6 +92,7 @@ private:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
     const std::vector<IExtensionPtr> _ie_extensions;
+    std::unordered_map<std::string, std::string> _tensorNames;
 
     /**
      * @brief Create DataPtr for nGraph operation
@@ -109,17 +108,7 @@ private:
      */
     void reshape();
     void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
+    void reshape(const InputPartialShapes & inputShapes);
 };
-
-class TINGraphBody : public CNNNetworkNGraphImpl {
-public:
-    explicit TINGraphBody(const std::shared_ptr<::ngraph::Function>& func): CNNNetworkNGraphImpl(func) {}
-
-protected:
-    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding) const override {
-        return _ngraph_function;
-    }
-};
-
 }  // namespace details
 }  // namespace InferenceEngine

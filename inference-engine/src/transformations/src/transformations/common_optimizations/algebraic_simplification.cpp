@@ -19,11 +19,13 @@
 #include <set>
 
 #include "transformations/common_optimizations/algebraic_simplification.hpp"
+#include "itt.hpp"
 
 #include <ngraph/log.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -181,7 +183,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
     };
     std::vector<DimensionToPosition> dims;
     for (size_t i = 0; i < input_shape_rank; ++i) {
-        if (order_value[i] != i) {
+        if (order_value[i] != static_cast<int64_t>(i)) {
             dims.push_back({input_shape[order_value[i]], i});
         }
     }
@@ -233,30 +235,32 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
     return true;
 }
 
-bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f) {
-    static const unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> ops_to_simplifiers =
-        {{opset3::Gather::type_info, simplify_gather},
-         {opset2::ShapeOf::type_info, simplify_gather_shapeof},
-         {opset3::ShapeOf::type_info, simplify_gather_shapeof},
-         {opset3::Transpose::type_info, replace_transpose_with_reshape}};
+#define ECHO(NAME) #NAME
+#define STR(NAME) ECHO(NAME)
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC) \
+class NAME : public ngraph::pass::MatcherPass { \
+public: \
+NGRAPH_RTTI_DECLARATION; \
+NAME() { \
+    MATCHER_SCOPE(NAME);    \
+    auto match_node = ngraph::pattern::wrap_type<OP>(); \
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) { \
+        return FUNC(m.get_match_root()); \
+    }; \
+    auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
+    register_matcher(m, callback); \
+}  \
+}; \
+NGRAPH_RTTI_DEFINITION(NAME, STR(NAME), 0);
 
-    bool replaced = false;
-    for (auto n : f->get_ordered_ops()) {
-        if (op::is_output(n) || op::is_parameter(n)) {
-            continue;
-        }
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, opset3::Gather, simplify_gather);
+SIMPLE_MATCHER_PASS_DEFINITION(SimplifyShapeOf2Gather, opset2::ShapeOf, simplify_gather_shapeof);
+SIMPLE_MATCHER_PASS_DEFINITION(SimplifyShapeOf3Gather, opset3::ShapeOf, simplify_gather_shapeof);
+SIMPLE_MATCHER_PASS_DEFINITION(ConvertTransposeToReshape, opset3::Transpose, replace_transpose_with_reshape);
 
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(n)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                replaced |= run_on_function(sub_graph);
-            }
-        }
-
-        auto eh = ops_to_simplifiers.find(n->get_type_info());
-        if (eh != ops_to_simplifiers.end()) {
-            replaced |= eh->second(n);
-        }
-    }
-    return replaced;
+ngraph::pass::AlgebraicSimplification::AlgebraicSimplification() {
+    add_matcher<EliminateGather>();
+    add_matcher<SimplifyShapeOf2Gather>();
+    add_matcher<SimplifyShapeOf3Gather>();
+    add_matcher<ConvertTransposeToReshape>();
 }

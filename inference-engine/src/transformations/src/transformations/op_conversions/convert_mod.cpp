@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMod, "ConvertMod", 0);
 
 ngraph::pass::ConvertMod::ConvertMod() {
+    MATCHER_SCOPE(ConvertMod);
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -45,6 +47,6 @@ ngraph::pass::ConvertMod::ConvertMod() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mod, "ConvertMod");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mod, matcher_name);
     this->register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

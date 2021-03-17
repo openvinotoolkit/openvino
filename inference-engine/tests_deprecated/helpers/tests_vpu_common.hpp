@@ -28,7 +28,7 @@ static constexpr char ENV_HDDL_R[]  = "IE_VPU_ENABLE_PER_LAYER_TESTS_HDDL";
     }                                                            \
 }
 
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     #define DISABLE_ON_WINDOWS_IF(expr) DISABLE_IF((expr))
 #else
     #define DISABLE_ON_WINDOWS_IF(expr)

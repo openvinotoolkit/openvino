@@ -32,7 +32,8 @@ MYRIAD.1.4-ma2480
 FPGA.0
 FPGA.1
 CPU
-GPU
+GPU.0
+GPU.1
 ...
 ```
 

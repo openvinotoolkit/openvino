@@ -50,25 +50,19 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     (++++networkInputsFull.begin())->second->setPrecision(InferenceEngine::Precision::FP16);
     networkOutputsFull.begin()->second->setPrecision(InferenceEngine::Precision::FP16);
 
-    InferenceEngine::IExecutableNetwork::Ptr exeNetworkFull;
+    InferenceEngine::ExecutableNetwork exeNetworkFull;
     std::map<std::string, std::string> networkConfig;
-    StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetworkFull, full_network, networkConfig, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = exeNetworkFull->CreateInferRequest(inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(exeNetworkFull = _vpuPluginPtr->LoadNetwork(full_network, networkConfig));
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetworkFull.CreateInferRequest());
 
     InferenceEngine::Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("RNNInput", inputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob("RNNInput"));
 
     InferenceEngine::Blob::Ptr inputBlobHidden;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("RNNInput_Hidden", inputBlobHidden, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inputBlobHidden = inferRequest.GetBlob("RNNInput_Hidden"));
     InferenceEngine::Blob::Ptr inputBlobCellState;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("RNNInput_CellState", inputBlobCellState, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inputBlobCellState = inferRequest.GetBlob("RNNInput_CellState"));
 
     /* input tensors generating */
     ie_fp16 *src_data_cell_state = static_cast<ie_fp16*>(inputBlobCellState->buffer());
@@ -156,18 +150,14 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
         }
     }
 
-    ASSERT_NO_THROW(st = inferRequest->SetBlob("RNNInput_Hidden", inputBlobHidden, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequest->SetBlob("RNNInput_CellState", inputBlobCellState, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequest->SetBlob("RNNInput", inputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.SetBlob("RNNInput_Hidden", inputBlobHidden));
+    ASSERT_NO_THROW(inferRequest.SetBlob("RNNInput_CellState", inputBlobCellState));
+    ASSERT_NO_THROW(inferRequest.SetBlob("RNNInput", inputBlob));
 
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
+    ASSERT_NO_THROW(inferRequest.Infer());
 
     InferenceEngine::Blob::Ptr output;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("RNNOutput", output, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(output = inferRequest.GetBlob("RNNOutput"));
 
     CompareCommonAbsolute(output, refOut0, ERROR_BOUND);
 }

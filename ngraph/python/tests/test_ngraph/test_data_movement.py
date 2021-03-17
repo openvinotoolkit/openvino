@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
-import pytest
 
 import ngraph as ng
-from ngraph.impl import Type
+from ngraph.impl import Type, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -167,7 +166,6 @@ def test_pad_edge():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="AssertionError")
 def test_pad_constant():
     input_data = np.arange(1, 13).reshape([3, 4])
     pads_begin = np.array([0, 1], dtype=np.int32)
@@ -212,6 +210,21 @@ def test_gather_nd():
 
     node = ng.gather_nd(data, indices, batch_dims)
     assert node.get_type_name() == "GatherND"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_gather_elements():
+    indices_type = np.int32
+    data_dtype = np.float32
+    data = ng.parameter(Shape([2, 5]), dtype=data_dtype, name="data")
+    indices = ng.parameter(Shape([2, 100]), dtype=indices_type, name="indices")
+    axis = 1
+    expected_shape = [2, 100]
+
+    node = ng.gather_elements(data, indices, axis)
+    assert node.get_type_name() == "GatherElements"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.f32

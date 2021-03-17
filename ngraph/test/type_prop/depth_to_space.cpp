@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -111,4 +111,24 @@ TEST(type_prop, depth_to_space_blocksize_not_matched)
     {
         FAIL() << "DepthToSpace decomposition failed for unexpected reason";
     }
+}
+
+TEST(type_prop, depth_to_space_dynamic_shape_static_rank)
+{
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto space_to_depth =
+        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
+
+    ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
+    ASSERT_EQ(space_to_depth->get_output_partial_shape(0), PartialShape::dynamic(4));
+}
+
+TEST(type_prop, depth_to_space_dynamic_shape_dynamic_rank)
+{
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto space_to_depth =
+        make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
+
+    ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
+    ASSERT_EQ(space_to_depth->get_output_partial_shape(0), PartialShape::dynamic());
 }

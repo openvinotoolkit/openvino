@@ -46,6 +46,7 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     k.EnableSubGroup();
     k.EnableSubGroupShort();
     return k;
@@ -63,9 +64,11 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
     dispatchData.lws[1] = sub_group_size;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     return dispatchData;
+}
+
+KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) const {

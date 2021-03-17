@@ -413,6 +413,9 @@ struct layout {
         if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32))) {
             sizes[0] = align_to(sizes[0], 8);
             sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && !(is_aligned_to(sizes[0], 16)) && !(is_aligned_to(sizes[1], 32))) {
+            sizes[0] = align_to(sizes[0], 16);
+            sizes[1] = align_to(sizes[1], 32);
         } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(sizes[0], 32)) && !(is_aligned_to(sizes[1], 32))) {
             sizes[0] = align_to(sizes[0], 32);
             sizes[1] = align_to(sizes[1], 32);

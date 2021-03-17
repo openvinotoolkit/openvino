@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -186,8 +186,8 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
             input.replace_source_output(replacement->output(output_order[i]));
         }
     }
-
     replacement->add_node_control_dependents(target);
+    replacement->add_node_control_dependencies(target);
     target->clear_control_dependents();
 }
 
@@ -212,6 +212,7 @@ void ngraph::replace_node(const std::shared_ptr<Node>& target,
         if (replacement_nodes.find(replacement_node) == replacement_nodes.end())
         {
             replacement_node->add_node_control_dependents(target);
+            replacement_node->add_node_control_dependencies(target);
             target->transfer_provenance_tags(replacement_node);
             replacement_nodes.insert(replacement_node);
         }
@@ -315,11 +316,6 @@ std::vector<std::shared_ptr<ngraph::Node>>
             auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
-            //  TODO: workaround for shape inference, delete it after fix
-            if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
-            {
-                cloned_node->validate_and_infer_types();
-            }
             auto rt_info = node->get_rt_info();
             cloned_node->get_rt_info() = rt_info;
 
@@ -383,11 +379,6 @@ std::list<std::shared_ptr<ngraph::Node>>
                 cloned_nodes.push_back(cloned_node);
                 // There is a friendly name for this node so copy it
                 cloned_node->set_friendly_name(node->get_friendly_name());
-                //  TODO: workaround for shape inference, delete it after fix
-                if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
-                {
-                    cloned_node->validate_and_infer_types();
-                }
                 auto rt_info = node->get_rt_info();
                 cloned_node->get_rt_info() = rt_info;
 
@@ -923,7 +914,9 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
             // Update output tensor name
+            NGRAPH_SUPPRESS_DEPRECATED_START
             replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
         output.replace(replacement);
         copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},

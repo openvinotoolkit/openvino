@@ -115,8 +115,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(c
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     dispatchData.cldnnStyle.blockHeight = 1;
     dispatchData.cldnnStyle.blockWidth = option.blockWidth;
     dispatchData.cldnnStyle.inputBlockWidth = getInputWidth(arg, option.blockWidth);
@@ -130,6 +128,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(c
     dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_fs_byx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool ConvolutionKernel_fs_byx_fsv32::Validate(const Params& p, const optional_params& o) const {

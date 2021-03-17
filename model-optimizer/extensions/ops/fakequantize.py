@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ class FakeQuantize(Op):
             'infer': self.infer,
             'in_ports_count': 5,
             'out_ports_count': 1,
+            'auto_broadcast': 'numpy'
         }
         super().__init__(graph, mandatory_props, attrs)
         if self.attrs['levels'] is None:
@@ -57,6 +58,7 @@ class FakeQuantize(Op):
     def supported_attrs(self):
         return [
             'levels',
+            'auto_broadcast'
         ]
 
     @staticmethod

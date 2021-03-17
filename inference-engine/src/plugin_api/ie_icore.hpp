@@ -85,7 +85,7 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) const = 0;
 
     /**

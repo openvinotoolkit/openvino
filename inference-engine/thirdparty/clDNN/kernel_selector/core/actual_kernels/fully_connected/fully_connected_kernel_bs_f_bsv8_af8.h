@@ -24,6 +24,7 @@ public:
     FullyConnected_bs_f_bsv8_af8() : FullyConnectedBlockKernelBase("fully_connected_gpu_bs_f_bsv8_af8_vload") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

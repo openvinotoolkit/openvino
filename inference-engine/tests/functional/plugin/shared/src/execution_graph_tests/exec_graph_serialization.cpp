@@ -139,7 +139,7 @@ const char expected_serialized_model[] = R"V0G0N(
 <net name="addmul_abc" version="10">
 	<layers>
 		<layer id="0" name="C" type="Input">
-			<data execOrder="3" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" />
+			<data execOrder="3" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
@@ -147,7 +147,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="1" name="B" type="Input">
-			<data execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" />
+			<data execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
@@ -155,7 +155,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="2" name="A" type="Input">
-			<data execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" />
+			<data execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
@@ -163,7 +163,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="3" name="add_node2" type="Eltwise">
-			<data execOrder="2" execTimeMcs="not_executed" originalLayersNames="add_node2" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" />
+			<data execOrder="2" execTimeMcs="not_executed" originalLayersNames="add_node2" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -179,7 +179,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="4" name="add_node1" type="Eltwise">
-			<data execOrder="4" execTimeMcs="not_executed" originalLayersNames="add_node1,add_node3,add_node4" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" />
+			<data execOrder="4" execTimeMcs="not_executed" originalLayersNames="add_node1,add_node3,add_node4" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -201,7 +201,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="5" name="Y" type="Eltwise">
-			<data execOrder="5" execTimeMcs="not_executed" originalLayersNames="Y" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" />
+			<data execOrder="5" execTimeMcs="not_executed" originalLayersNames="Y" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -217,7 +217,7 @@ const char expected_serialized_model[] = R"V0G0N(
 			</output>
 		</layer>
 		<layer id="6" name="out_Y" type="Output">
-			<data execOrder="6" execTimeMcs="not_executed" originalLayersNames="" outputLayouts="undef" outputPrecisions="FP32" primitiveType="unknown_FP32" />
+			<data execOrder="6" execTimeMcs="not_executed" originalLayersNames="" outputLayouts="undef" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>

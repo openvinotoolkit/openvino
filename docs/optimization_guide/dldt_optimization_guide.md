@@ -13,11 +13,11 @@ Deep Learning Inference Engine is a part of Intel&reg; Deep Learning Deployment 
 Below, there are the three main steps of the deployment process:
 
 1.	**Conversion**<br>
-	Trained models are converted from a specific framework (like Caffe\* or TensorFlow\*) to a framework-agnostic Intermediate Representation (IR) format.
+	Trained models are converted from a specific framework, like TensorFlow\*, or format, like ONNX\*, to the framework-agnostic Intermediate Representation (IR) format.
 
 	- *Performance flow*: This is an offline step where general topology-level optimizations happen automatically (see <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>).
 
-	- *Tools*: Intel DL Deployment Toolkit features the Model Optimizer that enables automatic and seamless transition from the training environment to the deployment environment.
+	- *Tools*: OpenVINO™ features the Model Optimizer that enables automatic and seamless transition from a training to deployment environment.
 
 2.	**Model Inference/Execution**<br>
 	After conversion, Inference Engine consumes the IR to perform inference. While Inference Engine API itself is target-agnostic, internally, it has a notion of plugins, which are device-specific libraries facilitating the hardware-assisted acceleration.
@@ -55,14 +55,16 @@ In contrast, for the latency-oriented tasks, the time to a single frame is more 
 
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
 
-> **NOTE**: Most samples also support batching (automatically packing multiple input images into a single request). However, high batch size results in a latency penalty. So for more real-time oriented usages, lower batch sizes (as low as a single input) are usually used. However, devices like CPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPU require a number of parallel requests instead of batching to leverage the performance.
+> **NOTE**: The [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample also supports batching, that is automatically packing multiple input images into a single request. However, high batch size results in a latency penalty. So for more real-time oriented usages, batch sizes that are as low as a single input are usually used. Still, devices like CPU, Intel®Movidius™ Myriad™ 2 VPU, Intel® Movidius™ Myriad™ X VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPU require a number of parallel requests instead of batching to leverage the performance. Running multiple requests should be coupled with a device configured to the corresponding number of streams. See <a href="#cpu-streams">details on CPU streams</a> for an example.
+
+[OpenVINO™ Deep Learning Workbench tool](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) provides throughput versus latency charts for different numbers of streams, requests, and batch sizes to find the performance sweet spot.
 
 ### Comparing Performance with Native/Framework Code <a name="comparing-performance-with-native-framework-code"></a>
 
 When comparing the Inference Engine performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
--	Wrap exactly the inference execution (refer to the [Inference Engine Samples](../IE_DG/Samples_Overview.md) for examples).
--	Do not include model loading time.
+-	Wrap exactly the inference execution (refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for an example).
+-	Track model loading time separately.
 -	Ensure the inputs are identical for the Inference Engine and the framework. For example, Caffe\* allows to auto-populate the input with random values. Notice that it might give different performance than on real images.
 -	Similarly, for correct performance comparison, make sure the access pattern, for example, input layouts, is optimal for Inference Engine (currently, it is NCHW).
 -	Any user-side pre-processing should be tracked separately.
@@ -77,7 +79,7 @@ You need to build your performance conclusions on reproducible data. Do the perf
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	 For time values that range too much, use geomean.
 
-Refer to the [Inference Engine Samples](../IE_DG/Samples_Overview.md) for code examples for the performance measurements. Almost every sample, except interactive demos, has a `-ni` option to specify the number of iterations.
+Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) for code examples of performance measurements. Almost every sample, except interactive demos, has the `-ni` option to specify the number of iterations.
 
 ## Model Optimizer Knobs Related to Performance <a name="mo-knobs-related-to-performance"></a>
 
@@ -110,6 +112,26 @@ Also:
 The resulting IR precision, for instance, `FP16` or `FP32`, directly affects performance. As CPU now supports `FP16` (while internally upscaling to `FP32` anyway) and because this is the best precision for a GPU target, you may want to always convert models to `FP16`. Notice that this is the only precision that Intel&reg; Movidius&trade; Myriad&trade; 2 and Intel&reg; Myriad&trade; X VPUs support.
 
 
+## Multi-Device Execution <a name="multi-device-optimizations"></a>
+OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../IE_DG/supported_plugins/MULTI.md).
+In the next chapter you can find the device-specific tips, while this section covers few recommendations 
+for the multi-device execution:
+-	MULTI usually performs best when the fastest device is specified first in the list of the devices. 
+    This is particularly important when the parallelism is not sufficient 
+    (e.g. the number of request in the flight is not enough to saturate all devices).
+- It is highly recommended to query the optimal number of inference requests directly from the instance of the ExecutionNetwork 
+  (resulted from the LoadNetwork call with the specific multi-device configuration as a parameter). 
+Please refer to the code of the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for details.    
+-   Notice that for example CPU+GPU execution performs better with certain knobs 
+    which you can find in the code of the same [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample.
+    One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams (which is already a default for the GPU) to amortize slower 
+    inference completion from the device to the host.
+-	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 
+    and device-specific 'worker' requests that are being actually scheduled behind the scene. 
+    To facilitate the copy savings, it is recommended to start the requests in the order that they were created 
+    (with ExecutableNetwork's CreateInferRequest).
+  
+
 ## Device-Specific Optimizations <a name="device-specific-optimizations"></a>
 
 The Inference Engine supports several target devices (CPU, GPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, Intel® Vision Accelerator Design with Intel® Movidius™ Vision Processing Units (VPU) and FPGA), and each of them has a corresponding plugin. If you want to optimize a specific device, you must keep in mind the following tips to increase the performance.
@@ -123,7 +145,7 @@ The only hint you can get from that is how the major primitives are accelerated 
 Internally, the Inference Engine has a threading abstraction level, which allows for compiling the [open source version](https://github.com/opencv/dldt) with either Intel&reg; Threading Building Blocks (Intel&reg; TBB) which is now default, or OpenMP* as an alternative parallelism solution. When using inference on the CPU, this is particularly important to align threading model with the rest of your application (and any third-party libraries that you use) to avoid oversubscription. For more information, see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a> section.
 
  Since R1 2019, the OpenVINO&trade; toolkit comes pre-compiled with Intel TBB,
- so any  OpenMP* API or environment settings (like `OMP_NUM_THREADS`) has no effect anymore.
+ so any  OpenMP* API or environment settings (like `OMP_NUM_THREADS`) has no effect.
  Certain tweaks (like number of threads used for inference on the CPU) are still possible via  [CPU configuration options](../IE_DG/supported_plugins/CPU.md).
  Finally, the OpenVINO CPU inference is NUMA-aware, please refer to the <a href="#note-on-numa">Tips for inference on NUMA systems</a> section.
 

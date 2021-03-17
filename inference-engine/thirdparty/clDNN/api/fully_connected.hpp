@@ -61,10 +61,12 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& input,
                     const primitive_id& weights,
                     const primitive_id& bias = "",
-                    const padding& output_padding = padding())
+                    const padding& output_padding = padding(),
+                    const size_t input_size = 2)
         : primitive_base(id, {input}, output_padding),
           weights(weights),
-          bias(bias)
+          bias(bias),
+          input_size(input_size)
     {}
 
     /// @brief Constructs fully connected layer.
@@ -77,16 +79,20 @@ struct fully_connected : public primitive_base<fully_connected> {
         const primitive_id& weights,
         const primitive_id& bias,
         const data_types data_type,
-        const padding& output_padding = padding())
+        const padding& output_padding = padding(),
+        const size_t input_size = 2)
         : primitive_base(id, { input }, output_padding, optional_data_type{data_type}),
         weights(weights),
-        bias(bias)
+        bias(bias),
+        input_size(input_size)
     {}
 
     /// @brief Primitive id containing weights data.
     primitive_id weights;
     /// @brief Primitive id containing bias data.
     primitive_id bias;
+    /// @brief Primitive dimension size.
+    size_t input_size;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

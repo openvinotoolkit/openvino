@@ -208,8 +208,6 @@ TEST_P(myriadLayersTestsReshapeBeforeFC_smoke, OptimizeReshapeIfItIsPlacedBefore
     }
 
     std::string outputName = "fc6";
-    StatusCode st = InferenceEngine::OK;
-    InferenceEngine::ResponseDesc resp;
     TBlob<uint8_t>::Ptr weights(GenWeights(9280 / sizeof(ie_fp16)));
 
     Core ie;
@@ -221,27 +219,21 @@ TEST_P(myriadLayersTestsReshapeBeforeFC_smoke, OptimizeReshapeIfItIsPlacedBefore
     auto outputsInfo = network.getOutputsInfo();
     outputsInfo[outputName]->setPrecision(Precision::FP16);
 
-    InferenceEngine::IExecutableNetwork::Ptr exeNetwork;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network,
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network,
             { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
               {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue},
-              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}, &resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}));
 
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
 
     Blob::Ptr input;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("input", input, &resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << resp.msg;
+    ASSERT_NO_THROW(input = inferRequest.GetBlob("input"));
+    ASSERT_NO_THROW(inferRequest.Infer());
 
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    ASSERT_NO_THROW(st = inferRequest->GetPerformanceCounts(perfMap, &resp));
-    ASSERT_EQ(StatusCode::OK, st) << resp.msg;
+    ASSERT_NO_THROW(perfMap = inferRequest.GetPerformanceCounts());
 
     auto layerInfo = perfMap["flatten_0"];
     EXPECT_EQ(InferenceEngineProfileInfo::NOT_RUN, layerInfo.status);

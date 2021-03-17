@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 //*****************************************************************************
 #include <algorithm>
 #include <iterator>
+#include <ngraph/validation_util.hpp>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/norm.hpp"
@@ -32,6 +34,13 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
+op::NormalizeL2::NormalizeL2()
+    : FusedOp()
+    , m_eps()
+    , m_eps_mode()
+{
+}
+
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
                              float eps,
@@ -45,6 +54,7 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
 
 bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
@@ -58,7 +68,8 @@ void op::NormalizeL2::pre_validate_and_infer_types()
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
-    NODE_VALIDATION_CHECK(this, op::is_constant(axes_node), "Input axes must be Constant type");
+    NODE_VALIDATION_CHECK(
+        this, has_and_set_equal_bounds(input_value(1)), "Input axes must be Constant type");
 
     if (axes_rank.is_static())
     {
@@ -84,13 +95,13 @@ void op::NormalizeL2::pre_validate_and_infer_types()
             }
         }
     }
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 AxisSet op::NormalizeL2::get_reduction_axes() const
 {
     AxisSet axes;
-    auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (auto const_op = get_constant_from_source(input_value(1)))
     {
         axes = const_op->get_axis_set_val();
     }
@@ -108,13 +119,14 @@ OutputVector op::NormalizeL2::decompose_op() const
     const auto axes = input_value(1);
     Output<Node> norm = builder::opset1::l2_norm(data, axes, m_eps, builder_bias_mode, true);
 
-    data = make_shared<op::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+    data = make_shared<op::v1::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     return OutputVector{data};
 }
 
 shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");

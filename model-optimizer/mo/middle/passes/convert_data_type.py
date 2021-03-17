@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ SUPPORTED_DATA_TYPES = {
     'FP16': (np.float16, 'FP16', 'f16'),
     'I32': (np.int32, 'I32', 'i32'),
     'I64': (np.int64, 'I64', 'i64'),
+    'int8': (np.int8, 'I8', 'i8'),
     'uint8': (np.uint8, 'U8', 'u8'),
     'int32': (np.int32, 'I32', 'i32'),
     'int64': (np.int64, 'I64', 'i64'),

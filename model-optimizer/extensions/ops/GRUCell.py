@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
  limitations under the License.
 """
 from mo.front.common.partial_infer.utils import mark_input_bins
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -39,13 +40,13 @@ class GRUCell(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
-            'version': 'experimental',
             'infer': __class__.infer,
             'in_ports_count': 4,
             'out_ports_count': 1,
             'version': 'opset3',
             'wr_input_id': 2,
-            'gates_count': 3
+            'gates_count': 3,
+            'linear_before_reset': False,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -66,7 +67,7 @@ class GRUCell(Op):
             'activation_alpha',
             'activation_beta',
             'clip',
-            'linear_before_reset',
+            ('linear_before_reset',  lambda node: bool_to_str(node, 'linear_before_reset')),
         ]
 
     @staticmethod

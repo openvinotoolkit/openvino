@@ -4,7 +4,6 @@
 
 #include "ie_reader.hpp"
 #include "ie_ir_parser.hpp"
-#include "ie_blob_stream.hpp"
 #include "ie_cnn_net_reader_impl.h"
 
 using namespace InferenceEngine;
@@ -37,17 +36,6 @@ public:
 };
 
 std::shared_ptr<ICNNNetwork> CNNParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
-    auto getBlobStream = [](std::istream& binStream) {
-        details::BlobStream* blobStream = dynamic_cast<details::BlobStream*>(&binStream);
-        if (blobStream == nullptr) {
-            details::BlobStream helper({});
-            std::string typeStream = typeid(binStream).name();
-            std::string typeBlobStream = typeid(helper).name();
-            if (typeStream == typeBlobStream)
-                blobStream = static_cast<details::BlobStream*>(&binStream);
-        }
-        return blobStream;
-    };
     details::CNNNetReaderImpl reader(std::make_shared<details::V2FormatParserCreator>());
     ResponseDesc resp;
     StatusCode ret = reader.ReadNetwork(root, &resp);

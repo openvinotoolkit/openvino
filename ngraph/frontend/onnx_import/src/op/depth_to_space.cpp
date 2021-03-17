@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "depth_to_space.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "op/depth_to_space.hpp"
+#include "default_opset.hpp"
 
 namespace ngraph
 {
@@ -28,7 +28,9 @@ namespace ngraph
                 OutputVector depth_to_space(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    NGRAPH_CHECK(data.get_shape().size() == 4, "Input must be 4-dimensional");
+                    const auto& shape = data.get_partial_shape();
+                    NGRAPH_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4,
+                                 "Input must be 4-dimensional");
 
                     const auto mode = node.get_attribute_value<std::string>("mode", "DCR");
                     default_opset::DepthToSpace::DepthToSpaceMode ngraph_mode;

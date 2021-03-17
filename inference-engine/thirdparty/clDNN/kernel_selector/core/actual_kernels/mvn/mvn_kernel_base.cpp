@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (c) 2018-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelB
         MakeJitConstant("EPSILON", params.epsilon),
         MakeJitConstant(toString(params.mvnMode), ""),
         MakeJitConstant("NORMALIZE_VARIANCE", params.mvnNormalizeVariance),
+        MakeJitConstant("EPS_" + toString(params.mvnEpsMode), ""),
     });
 
     return jit;
@@ -58,8 +59,7 @@ MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) 
 }
 
 KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options,
-                                                float estimated_time) const {
+                                                const optional_params& options) const {
     assert(params.GetType() == KernelType::MVN);
 
     if (!Validate(params, options))
@@ -88,8 +88,6 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

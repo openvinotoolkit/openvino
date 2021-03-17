@@ -6,7 +6,7 @@
 #include <ie_precision.hpp>
 #include <subgraph_tests/broadcast_power.hpp>
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {

@@ -77,12 +77,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Set
                                                                                         int /*autoTuneIndex*/) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     dispatchData.gws = { cp.output.Feature().v, cp.output.X().v * cp.output.Y().v, cp.output.Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, cp.engineInfo);
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 // TODO: optimize this kernel
@@ -103,8 +105,6 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetJitConstants(const conv
 KernelsData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetKernelsData(const Params& params,
                                                                     const optional_params& options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_3;
     return kd;
 }
 

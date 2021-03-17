@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -65,6 +65,15 @@ nodes_attributes = {
     'reshape_to_orig': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
     'reshape_to_orig_data': {'value': None, 'shape': None, 'kind': 'data'},
 
+    'start': {'kind': 'op', 'op': 'Const'},
+    'start_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'stop': {'kind': 'op', 'op': 'Const'},
+    'stop_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'step': {'kind': 'op', 'op': 'Const'},
+    'step_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'mvn_axes': {'kind': 'op', 'op': 'Range'},
+    'mvn_axes_data': {'value': None, 'shape': None, 'kind': 'data'},
+
     'mvn': {'type': 'MVN', 'value': None, 'kind': 'op', 'op': 'MVN', 'eps': 1e-3},
     'mvn_data': {'value': None, 'shape': None, 'kind': 'data'},
 
@@ -115,6 +124,14 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
                                  ('reshape_1_data', 'mvn', {'in': 0}),
                                  ('mvn', 'mvn_data'),
                                  ('mvn_data', 'reshape_to_orig', {'in': 0}),
+                                 ('start', 'start_data'),
+                                 ('start_data', 'mvn_axes'),
+                                 ('stop', 'stop_data'),
+                                 ('stop_data', 'mvn_axes'),
+                                 ('step', 'step_data'),
+                                 ('step_data', 'mvn_axes'),
+                                 ('mvn_axes', 'mvn_axes_data'),
+                                 ('mvn_axes_data', 'mvn'),
                                  ('placeholder_data', 'shapeof', {'in': 0}),
                                  ('shapeof', 'shapeof_data'),
                                  ('shapeof_data', 'reshape_to_orig', {'in': 1}),

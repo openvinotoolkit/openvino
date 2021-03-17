@@ -24,18 +24,14 @@ convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& gr
 
 INFERENCE_ENGINE_API_CPP(void)
 convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                             const ICNNNetwork &ngraphNetwork, 
+                             const ICNNNetwork &ngraphNetwork,
                              CNNNetworkImpl* cnnNetworkImpl,
                              bool keep_constant_inputs = false);
 
-// TODO: move ConstAllocatorWrapper class, shareWeights add addBlob into CNNLayerCreator when NodeConverter class is removed 
+// TODO: move ConstAllocatorWrapper class, shareWeights add addBlob into CNNLayerCreator when NodeConverter class is removed
 class ConstAllocatorWrapper : public IAllocator {
 public:
     explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp): _constOp(std::move(constOp)) {}
-
-    void Release() noexcept override {
-        delete this;
-    }
 
     void* lock(void* handle, LockOp) noexcept override {
         return handle;
@@ -55,7 +51,7 @@ private:
     std::shared_ptr<ngraph::op::Constant> _constOp;
 };
 
-enum BlobType { 
+enum BlobType {
     weights,
     biases };
 

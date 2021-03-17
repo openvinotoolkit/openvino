@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ from ngraph.utils.types import (
 
 
 def _get_node_factory(opset_version: Optional[str] = None) -> NodeFactory:
-    """! Return NodeFactory configured to create operators from specified opset version."""
+    """Return NodeFactory configured to create operators from specified opset version."""
     if opset_version:
         return NodeFactory(opset_version)
     else:

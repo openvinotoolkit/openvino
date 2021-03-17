@@ -51,5 +51,9 @@ public:
      * gna memory of this offset from gna_ptr
      */
     size_t  reserved_offset = 0;
+    /**
+     * scale factor to gna memory layer
+     */
+    float scale_factor = 1.0f;
 };
 }  // namespace GNAPluginNS

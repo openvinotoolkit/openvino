@@ -14,9 +14,11 @@
 #include <string>
 
 #include "cpp/ie_memory_state.hpp"
+#include "ie_remote_context.hpp"
 #include "ie_iinfer_request.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 
@@ -123,8 +125,9 @@ public:
         CALL_STATUS_FNC(GetBlob, name.c_str(), data);
         std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
         auto blobPtr = data.get();
+        const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
         if (blobPtr == nullptr) THROW_IE_EXCEPTION << error;
-        if (blobPtr->buffer() == nullptr) THROW_IE_EXCEPTION << error;
+        if (!remoteBlobPassed && blobPtr->buffer() == nullptr) THROW_IE_EXCEPTION << error;
         return data;
     }
 
@@ -158,6 +161,15 @@ public:
      */
     void Infer() {
         CALL_STATUS_FNC_NO_ARGS(Infer);
+    }
+
+    /**
+     * @copybrief IInferRequest::Cancel
+     *
+     * Wraps IInferRequest::Cancel
+     */
+    void Cancel() {
+        CALL_STATUS_FNC_NO_ARGS(Cancel);
     }
 
     /**
@@ -235,8 +247,9 @@ public:
         ResponseDesc resp;
         if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
         auto res = actual->Wait(millis_timeout, &resp);
-        if (res != OK && res != RESULT_NOT_READY && res != INFER_NOT_STARTED) {
-            InferenceEngine::details::extract_exception(res, resp.msg);
+        if (res != OK && res != RESULT_NOT_READY &&
+            res != INFER_NOT_STARTED && res != INFER_CANCELLED) {
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << res << resp.msg;
         }
         return res;
     }
@@ -262,6 +275,7 @@ public:
      * @return A vector of Memory State objects
      */
     std::vector<VariableState> QueryState() {
+        IE_SUPPRESS_DEPRECATED_START
         if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
         IVariableState::Ptr pState = nullptr;
         auto res = OK;
@@ -276,6 +290,7 @@ public:
                 controller.push_back(VariableState(pState, plg));
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
 
         return controller;
     }

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
 //*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/op/convert.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/reference/select.hpp"
@@ -43,6 +43,7 @@ op::v1::Select::Select(const Output<Node>& arg0,
 
 void op::v1::Select::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Select_validate_and_infer_types);
     // Condition element type check
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_dynamic() ||
@@ -87,6 +88,7 @@ void op::v1::Select::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Select_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Select>(
         new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
@@ -94,6 +96,7 @@ shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Select_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
 }
@@ -133,30 +136,19 @@ namespace detail
 
         switch (et)
         {
-            TYPE_CASE(i8)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u8)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(bf16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(f32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(f64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(boolean)(output_values, input_values, autob);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
         default: rc = false; break;
         }
 
@@ -167,49 +159,10 @@ namespace detail
 bool op::v1::Select::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
+    NGRAPH_OP_SCOPE(v1_Select_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 3));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     const auto autob = get_auto_broadcast();
-
-    return detail::evaluate_select(output_values, input_values, autob, get_output_element_type(0));
-}
-
-constexpr NodeTypeInfo op::v0::Select::type_info;
-
-op::v0::Select::Select(const Output<Node>& arg0, const Output<Node>& arg1, const Output<Node>& arg2)
-    : Op({arg0, arg1, arg2})
-{
-    constructor_validate_and_infer_types();
-}
-
-void op::v0::Select::validate_and_infer_types()
-{
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_dynamic() ||
-                              get_input_element_type(0) == element::boolean,
-                          "Argument 0 must have boolean element type (element type: ",
-                          get_input_element_type(0),
-                          ").");
-
-    PartialShape result_shape = get_input_partial_shape(0);
-
-    NODE_VALIDATION_CHECK(this,
-                          PartialShape::merge_into(result_shape, get_input_partial_shape(1)),
-                          "Argument shapes are inconsistent.");
-    NODE_VALIDATION_CHECK(this,
-                          PartialShape::merge_into(result_shape, get_input_partial_shape(2)),
-                          "Argument shapes are inconsistent.");
-
-    element::Type result_et;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
-        "Argument 1 and 2 element types are inconsistent.");
-
-    set_output_type(0, result_et, result_shape);
-}
-
-shared_ptr<Node> op::v0::Select::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Select>(new_args.at(0), new_args.at(1), new_args.at(2));
+    return detail::evaluate_select(
+        output_values, input_values, autob, output_values[0]->get_element_type());
 }

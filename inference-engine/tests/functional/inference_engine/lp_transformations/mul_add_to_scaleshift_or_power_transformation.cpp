@@ -13,12 +13,13 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/common/add.hpp"
-#include "ngraph_functions/low_precision_transformations/mul_add_to_scaleshift_or_power_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/add.hpp"
+#include "lpt_ngraph_functions/mul_add_to_scaleshift_or_power_function.hpp"
 
 using namespace testing;
 using namespace ngraph;

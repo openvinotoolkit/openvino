@@ -80,8 +80,6 @@ ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(
 
     constexpr size_t sub_group_size = 8;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     auto block = get_out_block_size(cp);
 
     dispatchData.gws[0] = cp.output.X().v / block.out_width;
@@ -94,6 +92,10 @@ ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(
     dispatchData.lws[2] = 2 * sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority convolution_kernel_bfyx_1x1_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_params& o) const {
@@ -154,8 +156,6 @@ WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const c
 KernelsData convolution_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params,
                                                             const optional_params& options) const {
     KernelsData kd = GetCommonKernelsData(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_1;
     return kd;
 }
 

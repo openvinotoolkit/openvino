@@ -146,7 +146,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // todo: we need add padding support for all optimized kernels to remove this condition
         if (!input->is_type<pooling>() && !input->is_type<convolution>() &&
             !input->is_type<activation>() && !input->is_type<deconvolution>() &&
-            !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<scale>() &&
+            !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<scale>() && !input->is_type<eltwise>() &&
             !input->is_type<resample>())
             return false;
 

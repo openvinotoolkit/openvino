@@ -136,7 +136,7 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
 
 void TemplateInferRequest::allocateBlobs() {
     auto&& parameters = _executableNetwork->_function->get_parameters();
-    AllocateImpl(_networkInputs, _inputs, _networkInputBlobs, [&] (const std::string& blobName) {
+    AllocateImpl(_networkInputs, _inputs, _deviceInputs, [&] (const std::string& blobName) {
         return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
     });
     auto&& results = _executableNetwork->_function->get_results();
@@ -200,21 +200,16 @@ void TemplateInferRequest::inferPreprocess() {
     auto start = Time::now();
     // NOTE: After InferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
-    InferRequestInternal::execDataPreprocessing(_inputs);
-    for (auto&& input : _inputs) {
-        auto inputBlob = input.second;
-        auto networkInput = _networkInputBlobs[input.first];
-        if (inputBlob->getTensorDesc().getPrecision() == networkInput->getTensorDesc().getPrecision()) {
-            networkInput = inputBlob;
-        } else {
-            blobCopy(inputBlob, networkInput);
-        }
-        auto index = _executableNetwork->_inputIndex[input.first];
+    InferRequestInternal::execDataPreprocessing(_deviceInputs);
+    for (auto&& networkInput : _deviceInputs) {
+        auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _parameters[index];
-        auto parameterShape = m_realShapes.find(input.first) != m_realShapes.end() ? ngraph::Shape(m_realShapes.at(input.first)) : parameter->get_shape();
+        auto parameterShape = m_realShapes.find(networkInput.first) != m_realShapes.end() ?
+                ngraph::Shape(m_realShapes.at(networkInput.first)) :
+                parameter->get_shape();
         const auto& parameterType = parameter->get_element_type();
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape,
-            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput)->rmap().as<void*>());
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
     }
     // Go over all outputs in the model, not over all allocated blobs because for a part of the outputs
     // blobs may not be yet allocated due to unknown dimensions
@@ -251,7 +246,7 @@ void TemplateInferRequest::inferPostprocess() {
         {
             // Touch blob to allocate it
             Blob::Ptr blob;
-            GetBlob(networkOutput.first.c_str(), blob);
+            GetBlob(networkOutput.first);
         }
         auto outputBlob = _outputs.at(networkOutput.first);
         auto networkOutputBlob = _networkOutputBlobs[networkOutput.first];
@@ -265,10 +260,11 @@ void TemplateInferRequest::inferPostprocess() {
 }
 // ! [infer_request:infer_postprocess]
 
-void TemplateInferRequest::GetBlob(const char* name, Blob::Ptr& data) {
+Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "GetBlob");
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
+    Blob::Ptr data;
     const SizeVector oneVector = { 1 };
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
@@ -280,7 +276,7 @@ void TemplateInferRequest::GetBlob(const char* name, Blob::Ptr& data) {
             const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name] : foundInput->getTensorDesc().getDims();
             if (!data) {
                 auto&& parameters = _executableNetwork->_function->get_parameters();
-                AllocateImplSingle(_inputs, _networkInputBlobs, *_networkInputs.find(name), [&] (const std::string& blobName) {
+                AllocateImplSingle(_inputs, _deviceInputs, *_networkInputs.find(name), [&] (const std::string& blobName) {
                     return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
                 }, dims);
                 data = _inputs[name];
@@ -315,10 +311,12 @@ void TemplateInferRequest::GetBlob(const char* name, Blob::Ptr& data) {
                   ? dims
                   : oneVector);
     }
+    return data;
 }
 
 // ! [infer_request:get_performance_counts]
-void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {
+    std::map<std::string, InferenceEngineProfileInfo> perfMap;
     InferenceEngineProfileInfo info;
     info.execution_index = 0;
     info.status = InferenceEngineProfileInfo::EXECUTED;
@@ -333,5 +331,6 @@ void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceE
     perfMap["4. output transfer from a device"] = info;
     info.cpu_uSec = info.realTime_uSec = _durations[Postprocess].count();
     perfMap["5. output postprocessing"] = info;
+    return perfMap;
 }
 // ! [infer_request:get_performance_counts]

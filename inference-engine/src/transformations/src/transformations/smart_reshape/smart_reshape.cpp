@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <memory>
 
 #include <ngraph/pass/manager.hpp>
@@ -17,6 +18,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
 
 bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(SmartReshape);
     ngraph::pass::Manager static_manager;
     // This pass must be called first in pipeline
     static_manager.register_pass<ngraph::pass::InitNodeInfo>();

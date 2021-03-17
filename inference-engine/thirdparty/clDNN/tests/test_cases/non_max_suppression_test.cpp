@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     topology topo;
     topo.add(input_layout("boxes", this->boxes_layout));
     topo.add(input_layout("scores", this->scores_layout));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -125,57 +125,12 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     auto result = net.execute();
 
     std::vector<int> expected_out = {
-        0, 0, 2,
-        0, 1, 0,
-        1, 0, 2,
-        0, 1, 2,
-        0, 0, 1,
-        1, 0, 1,
-    };
-
-    auto out_mem = result.at("nms").get_memory();
-    auto out_ptr = out_mem.pointer<int>();
-
-    ASSERT_EQ(expected_out.size(), out_ptr.size());
-    for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
-    }
-}
-
-TYPED_TEST(non_max_suppression_basic, basic_all) {
-    auto engine = tests::get_test_engine();
-
-    topology topo;
-    topo.add(input_layout("boxes", this->boxes_layout));
-    topo.add(input_layout("scores", this->scores_layout));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 12, false));
-
-    build_options build_opts(
-        build_option::optimize_data(true)
-    );
-    auto net = network(engine, topo, build_opts);
-
-    auto boxes_mem = this->get_boxes_memory(engine);
-    auto scores_mem = this->get_scores_memory(engine);
-
-    net.set_input_data("boxes", boxes_mem);
-    net.set_input_data("scores", scores_mem);
-
-    auto result = net.execute();
-
-    std::vector<int> expected_out = {
-        0, 0, 2,
-        0, 1, 0,
-        1, 0, 2,
-        0, 1, 2,
-        0, 0, 1,
-        1, 0, 1,
-        0, 0, 0,
-        1, 1, 2,
-        1, 0, 0,
-        0, 1, 1,
-        1, 1, 1,
-        1, 1, 0
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad,
+        this->pad, this->pad, this->pad
     };
 
     auto out_mem = result.at("nms").get_memory();
@@ -197,7 +152,7 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
     topo.add(input_layout("boxes", this->boxes_layout));
     topo.add(input_layout("scores", this->scores_layout));
     topo.add(data("num_per_class", num_per_class_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, "num_per_class"));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class"));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -243,7 +198,7 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
     topo.add(input_layout("scores", this->scores_layout));
     topo.add(data("num_per_class", num_per_class_mem));
     topo.add(data("iou_threshold", iou_threshold_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, "num_per_class", "iou_threshold"));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class", "iou_threshold"));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -292,7 +247,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
     topo.add(data("num_per_class", num_per_class_mem));
     topo.add(data("iou_threshold", iou_threshold_mem));
     topo.add(data("score_threshold", score_threshold_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, "num_per_class", "iou_threshold", "score_threshold"));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class", "iou_threshold", "score_threshold"));
 
     build_options build_opts(
         build_option::optimize_data(true)
@@ -314,6 +269,58 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
         0, 0, 1,
         1, 0, 1,
         this->pad, this->pad, this->pad,
+    };
+
+    auto out_mem = result.at("nms").get_memory();
+    auto out_ptr = out_mem.pointer<int>();
+
+    ASSERT_EQ(expected_out.size(), out_ptr.size());
+    for (size_t i = 0; i < expected_out.size(); ++i) {
+        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+    }
+}
+
+TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
+    auto engine = tests::get_test_engine();
+
+    auto num_per_class_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    tests::set_values(num_per_class_mem, { 3.f });
+    auto iou_threshold_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    tests::set_values(iou_threshold_mem, { 0.4f });
+    auto score_threshold_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    tests::set_values(score_threshold_mem, { 0.4f });
+    auto soft_nms_sigma_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));
+    tests::set_values(soft_nms_sigma_mem, { 0.5f });
+
+    topology topo;
+    topo.add(input_layout("boxes", this->boxes_layout));
+    topo.add(input_layout("scores", this->scores_layout));
+    topo.add(data("num_per_class", num_per_class_mem));
+    topo.add(data("iou_threshold", iou_threshold_mem));
+    topo.add(data("score_threshold", score_threshold_mem));
+    topo.add(data("soft_nms_sigma", soft_nms_sigma_mem));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, "num_per_class", "iou_threshold", "score_threshold", "soft_nms_sigma"));
+
+    build_options build_opts(
+        build_option::optimize_data(true)
+    );
+    auto net = network(engine, topo, build_opts);
+
+    auto boxes_mem = this->get_boxes_memory(engine);
+    auto scores_mem = this->get_scores_memory(engine);
+
+    net.set_input_data("boxes", boxes_mem);
+    net.set_input_data("scores", scores_mem);
+
+    auto result = net.execute();
+
+    std::vector<int> expected_out = {
+        0, 0, 2,
+        0, 1, 0,
+        1, 0, 2,
+        0, 0, 1,
+        1, 0, 1,
+        this->pad, this->pad, this->pad
     };
 
     auto out_mem = result.at("nms").get_memory();

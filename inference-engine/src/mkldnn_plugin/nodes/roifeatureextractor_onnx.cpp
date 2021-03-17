@@ -328,8 +328,8 @@ public:
             pooled_height_ = output_dim_;
             pooled_width_ = output_dim_;
 
-            std::vector<DataConfigurator> inputs_layouts(layer->insData.size(), DataConfigurator(ConfLayout::PLN));
-            std::vector<DataConfigurator> outputs_layouts(layer->outData.size(), DataConfigurator(ConfLayout::PLN));
+            std::vector<DataConfigurator> inputs_layouts(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
+            std::vector<DataConfigurator> outputs_layouts(layer->outData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
             addConfig(layer, inputs_layouts, outputs_layouts);
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();

@@ -83,7 +83,7 @@ void calcRowLinear_8UC(std::array<std::array<uint8_t*, 4>, numChan> &dst,
 }
 
 // Resize (bi-linear, 32F)
-void calcRowLinear_32F(      float *dst[],
+void calcRowLinear_32F(float       *dst[],
                        const float *src0[],
                        const float *src1[],
                        const float  alpha[],

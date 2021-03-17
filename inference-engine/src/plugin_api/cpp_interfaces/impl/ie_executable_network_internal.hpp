@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
@@ -63,8 +64,11 @@ public:
     }
 
     void Export(const std::string& modelFileName) override {
-        (void)modelFileName;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        // we need to write to stringstream first
+        // because in case of exception in ExportImpl the file is not created
+        std::stringstream strm;
+        ExportImpl(strm);
+        std::ofstream(modelFileName.c_str()) << strm.rdbuf();
     }
 
     void Export(std::ostream& networkModel) override {
@@ -76,7 +80,7 @@ public:
     }
 
     CNNNetwork GetExecGraphInfo() override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     /**
@@ -89,7 +93,7 @@ public:
     }
 
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     void SetConfig(const std::map<std::string, Parameter>& config) override {
@@ -107,11 +111,11 @@ public:
 
     Parameter GetMetric(const std::string& name) const override {
         (void)name;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     RemoteContext::Ptr GetContext() const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
 protected:
@@ -123,7 +127,7 @@ protected:
      */
     virtual void ExportImpl(std::ostream& networkModel) {
         (void)networkModel;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds infromation about network inputs info

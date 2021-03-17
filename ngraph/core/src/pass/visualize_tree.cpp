@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -234,82 +234,41 @@ pass::VisualizeTree::VisualizeTree(const string& file_name, node_modifiers_t nm,
 {
 }
 
-namespace
+static std::string pretty_partial_shape(const PartialShape& shape)
 {
-    std::string pretty_partial_shape(const PartialShape& shape)
+    std::stringstream ss;
+
+    if (shape.rank().is_dynamic())
     {
-        std::stringstream ss;
+        ss << "?";
+    }
+    else
+    {
+        bool first = true;
 
-        /*
-        if (shape.rank().is_dynamic())
+        ss << "[";
+        for (size_t i = 0; i < shape.rank().get_length(); i++)
         {
-            ss << "?";
-        }
-        else
-        {
-            bool first = true;
-
-            ss << "[";
-            for (size_t i = 0; i < shape.rank().get_length(); i++)
+            if (!first)
             {
-                if (!first)
-                {
-                    ss << ",";
-                }
-                if (shape[i].is_dynamic())
-                {
-                    ss << "?";
-                }
-                else
-                {
-                    ss << shape[i].get_length();
-                }
-                first = false;
+                ss << ",";
             }
-            ss << "]";
+            if (shape[i].is_dynamic())
+            {
+                ss << shape[i];
+            }
+            else
+            {
+                ss << shape[i].get_length();
+            }
+            first = false;
         }
-         */
-        ss << shape;
-
-        return ss.str();
+        ss << "]";
     }
 
-    string get_output_attributes(shared_ptr<Node> node)
-    {
-        ostringstream label;
-
-        static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
-        static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
-        static const bool nvtio = getenv_bool("NGRAPH_VISUALIZE_TREE_IO");
-
-        if (nvtos || nvtot || nvtio)
-        {
-            if (nvtio)
-            {
-                for (const auto& input : node->inputs())
-                {
-                    label << "\\nin" << to_string(input.get_index()) << ": ";
-                    if (nvtot)
-                        label << "{" << input.get_element_type().get_type_name() << "}";
-                    if (nvtos)
-                        label << pretty_partial_shape(input.get_partial_shape());
-                    label << ": " << node->get_input_node_ptr(input.get_index())->get_name()
-                          << ": out" << input.get_source_output().get_index();
-                }
-            }
-            for (const auto& output : node->outputs())
-            {
-                if (nvtio)
-                    label << "\\nout" << to_string(output.get_index()) << ": ";
-                if (nvtot)
-                    label << "{" << output.get_element_type().get_type_name() << "}";
-                if (nvtos)
-                    label << pretty_partial_shape(output.get_partial_shape());
-            }
-        }
-        return label.str();
-    }
+    return ss.str();
 }
+
 
 void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
                                              unordered_map<Node*, HeightMap>& height_maps,
@@ -372,6 +331,42 @@ string pass::VisualizeTree::add_attributes(shared_ptr<Node> node)
         rc = get_attributes(node);
     }
     return rc;
+}
+
+string get_output_attributes(shared_ptr<Node> node)
+{
+    ostringstream label;
+
+    static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
+    static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
+    static const bool nvtio = getenv_bool("NGRAPH_VISUALIZE_TREE_IO");
+
+    if (nvtos || nvtot || nvtio)
+    {
+        if (nvtio)
+        {
+            for (const auto& input : node->inputs())
+            {
+                label << "\\nin" << to_string(input.get_index()) << ": ";
+                if (nvtot)
+                    label << "{" << input.get_element_type().get_type_name() << "}";
+                if (nvtos)
+                    label << pretty_partial_shape(input.get_partial_shape());
+                label << ": " << node->get_input_node_ptr(input.get_index())->get_name()
+                      << ": out" << input.get_source_output().get_index();
+            }
+        }
+        for (const auto& output : node->outputs())
+        {
+            if (nvtio)
+                label << "\\nout" << to_string(output.get_index()) << ": ";
+            if (nvtot)
+                label << "{" << output.get_element_type().get_type_name() << "}";
+            if (nvtos)
+                label << pretty_partial_shape(output.get_partial_shape());
+        }
+    }
+    return label.str();
 }
 
 template <typename T>

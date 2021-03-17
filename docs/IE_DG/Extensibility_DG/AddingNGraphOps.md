@@ -1,4 +1,4 @@
-# Add Custom nGraph Operations {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
+# Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
 Inference Engine Extension API allows to register operation sets (opsets) with custom nGraph operations, it allows to support Networks with unknown operations.
 
@@ -6,7 +6,7 @@ Inference Engine Extension API allows to register operation sets (opsets) with c
 
 To add your custom nGraph operation, create a new class that extends `ngraph::Op`, which is in turn derived from `ngraph::Node`, the base class for all graph operations in nGraph. Follow the steps below:
 
-1. Define a `NodeTypeInfo` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an nGraph operation currently consists of a string identifier and a version number, but this may change in the future.
+1. Add the `NGRAPH_RTTI_DECLARATION` and `NGRAPH_RTTI_DEFINITION` macros which define a `NodeTypeInfo` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an nGraph operation currently consists of a string identifier and a version number, but this may change in the future.
 
 2. Implement constructors that can optionally take the operation inputs and attributes as parameters. 
 
@@ -71,10 +71,9 @@ nGraph provides opsets mechanism for operation versioning. Different opsets dist
 
 When specifying opset names, follow the rules below:
 * Use unique opset names.
-* Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opest2`.
+* Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opset2`, `opset3`, ... , `opsetN`.
 * Make sure that the Model Optimizer and your extension use the same opset names.
-* IR v10 layers have the mandatory `version` attribute  specifying the opset. 
-* `opset1` is the name of default operations set.
+* IR v10 operations have the mandatory `version` attribute specifying the opset.
 Operations from the default opset cannot be redefined.
 
 Use a custom opset to create a new operation or extend functionality of an existing operation from another opset.

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/transformation_context.hpp"
 #include "low_precision/transformer.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 typedef std::tuple<
     ngraph::element::Type,
@@ -27,6 +28,9 @@ public:
         const ngraph::element::Type& type,
         const ngraph::Shape& shape,
         const ngraph::pass::low_precision::LayerTransformation::Params& params);
+
+    static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
+        const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
 protected:
     void transform(std::shared_ptr<ngraph::Function> function);

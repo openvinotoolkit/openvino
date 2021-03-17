@@ -64,7 +64,7 @@ public:
 
     using DispatchData = CommonDispatchData;
 
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
 
 protected:
     virtual JitConstants GetJitConstants(const roi_pooling_params& params) const;

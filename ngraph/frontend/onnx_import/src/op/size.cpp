@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "size.hpp"
+#include "op/size.hpp"
 
 namespace ngraph
 {
@@ -34,13 +34,9 @@ namespace ngraph
                 OutputVector size(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    std::int64_t tensor_elements_count{
-                        static_cast<std::int64_t>(shape_size(data.get_shape()))};
-
-                    return {std::make_shared<default_opset::Constant>(
-                        ngraph::element::i64,
-                        Shape{},
-                        std::vector<std::int64_t>{tensor_elements_count})};
+                    auto axes = default_opset::Constant::create(ngraph::element::i32, Shape{}, {0});
+                    auto input_shape = std::make_shared<default_opset::ShapeOf>(data);
+                    return {std::make_shared<default_opset::ReduceProd>(input_shape, axes)};
                 }
 
             } // namespace set_1

@@ -32,6 +32,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     const PriorBoxAttrs& get_attrs() const { return m_attrs; }
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
     PriorBoxAttrs m_attrs;

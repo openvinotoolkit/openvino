@@ -35,7 +35,7 @@ const auto normL2params = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        NormalizeL2,
+        smoke_NormalizeL2,
         NormalizeL2LayerTest,
         normL2params,
         NormalizeL2LayerTest::getTestCaseName

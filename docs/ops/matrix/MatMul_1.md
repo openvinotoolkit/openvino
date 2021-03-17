@@ -40,18 +40,18 @@ Two attributes, `transpose_a` and `transpose_b` specify embedded transposition f
 
 * *transpose_a*
 
-  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 1st input; **False** means no transpose, **True** means transpose. It is ignored if first input is 1D tensor.
-  * **Range of values**: False or True
+  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 1st input; **false** means no transpose, **true** means transpose. It is ignored if first input is 1D tensor.
+  * **Range of values**: false or true
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *transpose_b*
 
-  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 2nd input; **False** means no transpose, **True** means transpose. It is ignored if second input is 1D tensor.
-  * **Range of values**: False or True
+  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 2nd input; **false** means no transpose, **true** means transpose. It is ignored if second input is 1D tensor.
+  * **Range of values**: false or true
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 

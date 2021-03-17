@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
         return dequantizationOpConstant;
     };
 
-    const std::shared_ptr<Node> unsqueeze = separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> unsqueeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(unsqueeze);
 
     if (dequantization.multiply != nullptr) {

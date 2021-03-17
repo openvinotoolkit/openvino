@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -90,9 +90,6 @@ namespace ngraph
         {
             return create(DERIVED_TYPE::type_info);
         }
-
-        /// \brief Get the factory for BASE_TYPE
-        static FactoryRegistry<BASE_TYPE>& get();
 
     protected:
         FactoryMap m_factory_map;

@@ -10,8 +10,17 @@ namespace MultiDevicePlugin {
     using namespace InferenceEngine;
 // ------------------------------MultiDeviceInferRequest----------------------------
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
-                                                 const OutputsDataMap&  networkOutputs)
+                                                 const OutputsDataMap&  networkOutputs,
+                                                 InferRequest request_to_share_blobs_with)
         : InferRequestInternal(networkInputs, networkOutputs) {
+    if (request_to_share_blobs_with) {
+        // borrow device-friendly blobs from the request
+        for (const auto &it : _networkInputs)
+            _inputs[it.first] = request_to_share_blobs_with.GetBlob(it.first);
+        for (const auto &it : _networkOutputs)
+            _outputs[it.first] = request_to_share_blobs_with.GetBlob(it.first);
+        return;
+    }
     // Allocate all input blobs
     for (const auto &it : networkInputs) {
         Layout l = it.second->getLayout();
@@ -36,18 +45,18 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
 
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
     for (const auto &it : _networkInputs) {
-        Blob::Ptr blob;
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
-        GetBlob(name.c_str(), blob);
-        req.SetBlob(name.c_str(), blob);
+        auto blob = GetBlob(name);
+        if (req.GetBlob(name) != blob)
+            req.SetBlob(name, blob);
     }
     for (const auto &it : _networkOutputs) {
-        Blob::Ptr blob;
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
-        GetBlob(name.c_str(), blob);
-        req.SetBlob(name.c_str(), blob);
+        auto blob = GetBlob(name);
+        if (req.GetBlob(name) != blob)
+            req.SetBlob(name, blob);
     }
 }
 

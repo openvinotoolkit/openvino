@@ -135,6 +135,9 @@ protected:
                 case 5:
                     layout = InferenceEngine::NCDHW;
                     break;
+                case 6:
+                    layout = InferenceEngine::BLOCKED;
+                    break;
             }
 
             InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, layout});
@@ -318,8 +321,8 @@ protected:
             InferenceEngine::CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
-            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
-            ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
+            ASSERT_EQ(nullptr, network.getFunction());
+            auto implNet = static_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             InferenceEngine::ResponseDesc resp;
             InferenceEngine::StatusCode sts  = implNet->setBatchSizeReshape(MB, &resp);
             ASSERT_EQ((int)InferenceEngine::StatusCode::OK, sts) << resp.msg;
@@ -337,6 +340,9 @@ protected:
                     break;
                 case 5:
                     layout = InferenceEngine::NCDHW;
+                    break;
+                case 6:
+                    layout = InferenceEngine::BLOCKED;
                     break;
             }
 
@@ -985,12 +991,9 @@ protected:
             graph.Infer(srcs, outputBlobs);
 
             float *src1_ptr = src2->buffer();
-            size_t src1_size = src2->size();
             float *src2_ptr = src1->buffer();
-            size_t src2_size = src1->size();
 
             float *dst_ptr = outputBlobs["o_concat"]->buffer();
-            size_t dst_size = outputBlobs["o_concat"]->size();
 
             int len1 = 1, len2 = 1, cycles;
             for (int dim = 1; dim < outputBlobs["o_concat"]->getTensorDesc().getDims().size(); dim++) {

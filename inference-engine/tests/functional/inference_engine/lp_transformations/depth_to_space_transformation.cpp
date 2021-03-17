@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/depth_to_space_function.hpp"
+#include "lpt_ngraph_functions/depth_to_space_function.hpp"
 
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
@@ -34,6 +34,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ngraph::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -68,6 +69,7 @@ public:
             testValues.blockSize,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
+            testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter);
     }
 
@@ -110,7 +112,33 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {{}, {}, {}},
+            ngraph::element::u8,
             {{ngraph::element::f32}, {0.32f}, {0.45f}}
+        }
+    },
+    // blockSize = 2
+    {
+        ngraph::Shape{ 1, 4, 3, 3 },
+        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        2,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {0.45f}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {0.45f}
+            }
         }
     },
     // blockSize = 3
@@ -126,6 +154,7 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {{}, {}, {}},
+            ngraph::element::u8,
             {{ngraph::element::f32}, {0.32f}, {0.45f}}
         }
     },
@@ -142,10 +171,11 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {{}, {}, {}},
+            ngraph::element::u8,
             {{ngraph::element::f32}, {0.32f}, {0.45f}}
         }
     },
-    // not scalar-like dequantizations
+    // not scalar-like dequantizations with different values
     {
         ngraph::Shape{ 1, 4, 3, 3 },
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
@@ -166,9 +196,56 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
                 {{0.32f, 0.5f, 0.6f, 0.77f}},
                 {{0.1f, 0.55f, 0.3f, 0.8f}}
             },
+            ngraph::element::f32,
+            { {}, {}, {}}
+        }
+    },
+    // not scalar-like dequantizations with the same values
+    {
+        ngraph::Shape{ 1, 4, 3, 3 },
+        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        2,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.32f, 0.32f, 0.32f, 0.32f}},
+                {{0.1f, 0.1f, 0.1f, 0.1f}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            { {}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.32f, 0.32f, 0.32f, 0.32f}},
+                {{0.1f, 0.1f, 0.1f, 0.1f}}
+            }
+        }
+    },
+    // without dequantization
+    {
+        ngraph::Shape{ 1, 4, 3, 3 },
+        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        2,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            { {}, {}, {}},
+            ngraph::element::u8,
             { {}, {}, {}}
         }
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, DepthToSpaceTransformation, ::testing::ValuesIn(testValues), DepthToSpaceTransformation::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(
+    smoke_LPT,
+    DepthToSpaceTransformation,
+    ::testing::ValuesIn(testValues),
+    DepthToSpaceTransformation::getTestCaseName);

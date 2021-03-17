@@ -65,9 +65,11 @@ DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_
     dispatchData.lws[1] = 16;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
+}
+
+KernelsPriority DeformableConvolutionKernel_bfyx_conv::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 JitConstants DeformableConvolutionKernel_bfyx_conv::GetJitConstants(const convolution_params& params,

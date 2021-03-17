@@ -92,13 +92,13 @@ def pytest_addoption(parser):
     db_args_parser.addoption(
         '--db_metadata',
         type=str,
-        default="{}",
-        help='add extra commit information, json formatted')
+        default=None,
+        help='path to JSON-formatted file to extract additional information')
     db_args_parser.addoption(
         '--manifest',
         type=Path,
         required=is_db_used,
-        help='extract commit information from build manifest')
+        help='path to build manifest to extract commit information')
 
 
 @pytest.fixture(scope="session")
@@ -226,7 +226,10 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
         return
 
     # add db_metadata
-    test_info["db_info"].update(json.loads(request.config.getoption("db_metadata")))
+    db_meta_path = request.config.getoption("db_metadata")
+    if db_meta_path:
+        with open(db_meta_path, "r") as db_meta_f:
+            test_info["db_info"].update(json.load(db_meta_f))
 
     # add test info
     info = {

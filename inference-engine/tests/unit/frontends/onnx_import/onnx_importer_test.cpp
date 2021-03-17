@@ -64,7 +64,6 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 
     int count_topk = 0;
     int count_constants = 0;
-    int count_goe = 0;
     int count_parameters = 0;
 
     for (auto op : function->get_ops()) {

@@ -7,7 +7,7 @@
 #include "subgraph_tests/convert_pad_to_group_conv.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     const std::vector<std::vector<int64_t>> pads_1d{

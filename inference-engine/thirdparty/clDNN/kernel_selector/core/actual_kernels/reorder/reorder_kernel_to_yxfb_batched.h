@@ -23,6 +23,7 @@ public:
     ReorderKernel_to_yxfb_batched() : ReorderKernelBase("reorder_data_to_yxfb_batched") {}
     ParamsKey GetSupportedKey() const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     JitConstants GetJitConstants(const reorder_params& params) const override;

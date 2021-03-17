@@ -76,32 +76,22 @@ protected:
             _outputsInfo["topk.1"]->setLayout(defaultLayout(outputDims.size()));
         }
 
-        StatusCode st = OK;
-
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, _config));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr inputValuesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("topk_input", inputValuesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(inputValuesBlob = _inferRequest.GetBlob("topk_input"));
+        
         GenRandomData(inputValuesBlob);
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        
         Blob::Ptr outputValuesBlob, outputIndicesBlob;
         if (outputValues) {
-            ASSERT_NO_THROW(st = _inferRequest->GetBlob("topk.0", outputValuesBlob, &_resp));
-            ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+            ASSERT_NO_THROW(outputValuesBlob = _inferRequest.GetBlob("topk.0"));
         }
         if (outputIndices) {
-            ASSERT_NO_THROW(st = _inferRequest->GetBlob("topk.1", outputIndicesBlob, &_resp));
-            ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+            ASSERT_NO_THROW(outputIndicesBlob = _inferRequest.GetBlob("topk.1"));
         }
 
         const InferenceEngine::TensorDesc valuesDesc{dataPrecision, outputDims, defaultLayout(outputDims.size())};

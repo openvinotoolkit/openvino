@@ -246,7 +246,6 @@ TEST_F(GNAMemoryTest, canPushLocal) {
     }
 
     //poison stack
-    float input [] = {11,21,31,41};
     mem.commit();
 
     ASSERT_FLOAT_EQ(pFuture[0], 1);

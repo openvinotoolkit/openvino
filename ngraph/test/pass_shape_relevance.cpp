@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ TEST(shape_relevance, simple)
 {
     auto param0 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
-    auto x = make_shared<op::Add>(param0, param1);
+    auto x = make_shared<op::v1::Add>(param0, param1);
 
     auto f = make_shared<Function>(x, ParameterVector{param0, param1});
 

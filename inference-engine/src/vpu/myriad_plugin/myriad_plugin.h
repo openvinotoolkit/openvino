@@ -21,18 +21,18 @@ class Engine : public ie::InferencePluginInternal {
 public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
-    ~Engine() override {
+    ~Engine() {
         MyriadExecutor::closeDevices(_devicePool, _mvnc);
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
     ie::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const ie::ICNNNetwork& network,
+            const ie::CNNNetwork& network,
             const std::map<std::string, std::string>& config) override;
 
     ie::QueryNetworkResult QueryNetwork(
-            const ie::ICNNNetwork& network,
+            const ie::CNNNetwork& network,
             const std::map<std::string, std::string>& config) const override;
 
     using ie::InferencePluginInternal::ImportNetwork;

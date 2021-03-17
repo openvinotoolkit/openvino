@@ -61,7 +61,7 @@ KERNEL(lstm_dynamic_timeloop_ref)(
     #else
     bool use_cell = false;
     #endif //cell_term
-   
+
     for(int timestep = 0; timestep < MAX_SEQUENCE_LENGTH; timestep++)
     {
         //not all workitems will do computations
@@ -155,6 +155,6 @@ KERNEL(lstm_dynamic_timeloop_ref)(
         } //second if(timestep < unroll_timesteps)
 
         //all workitems needs to hit the barrier after writing to global output memory
-        barrier(CLK_GLOBAL_MEM_FENCE);         
+        barrier(CLK_GLOBAL_MEM_FENCE);
     }
 }

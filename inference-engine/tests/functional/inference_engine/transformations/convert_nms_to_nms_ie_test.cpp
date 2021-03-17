@@ -37,7 +37,6 @@ TEST(TransformationTests, ConvertNMSToNMSIEStatic) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
@@ -156,7 +155,6 @@ TEST(TransformationTests, ConvertNMST1oNMSIE) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -196,7 +194,6 @@ TEST(TransformationTests, ConvertNMST3oNMSIE) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -235,7 +232,6 @@ TEST(TransformationTests, ConvertNMST4oNMSIE) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();

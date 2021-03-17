@@ -64,7 +64,8 @@ public:
     }
 
     operator mkldnn::memory::dims() const {
-        return dims;
+        // TODO: it will convert each time.. not good
+        return mkldnn::memory::dims(dims.begin(), dims.end());
     }
 
     bool operator == (const MKLDNNDims& rhs) const {

@@ -8,36 +8,29 @@
 TEST_F(myriadEliminateReshapeTests_smoke, SplitConvConcat) {
     ASSERT_NO_THROW(_cnnNetwork = InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
 
-    StatusCode st;
-
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork,
-                                                        {
-                                                            {
-                                                                InferenceEngine::MYRIAD_PERF_REPORT_MODE,
-                                                                InferenceEngine::MYRIAD_PER_STAGE
-                                                            },
-                                                            {
-                                                                InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
-                                                                CONFIG_VALUE(NO)
-                                                            },
-                                                            {
-                                                                CONFIG_KEY(PERF_COUNT),
-                                                                CONFIG_VALUE(YES)
-                                                            }
-                                                        },
-                                                      &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork,
+        {
+            {
+                InferenceEngine::MYRIAD_PERF_REPORT_MODE,
+                InferenceEngine::MYRIAD_PER_STAGE
+            },
+            {
+                InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
+                CONFIG_VALUE(NO)
+            },
+            {
+                CONFIG_KEY(PERF_COUNT),
+                CONFIG_VALUE(YES)
+            }
+        }));
+    
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
+    ASSERT_NO_THROW(_inferRequest.Infer());
+    
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
+    
     auto layerInfo = perfMap["MobilenetV1/Logits/SpatialSqueeze"];
     ASSERT_EQ(InferenceEngineProfileInfo::NOT_RUN, layerInfo.status);
 }
@@ -192,8 +185,6 @@ TEST_F(myriadLayersTests_nightly, ReshapeAfterConcat_Eliminate) {
         </net>
     )V0G0N";
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model));
 
     const auto& network = _cnnNetwork;
@@ -206,38 +197,30 @@ TEST_F(myriadLayersTests_nightly, ReshapeAfterConcat_Eliminate) {
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["reshape_copy"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
             { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
               {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)},
-              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)} }, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)} }));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
     Blob::Ptr input1;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("input1", input1, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(input1 = _inferRequest.GetBlob("input1"));
     GenRandomData(input1);
 
     Blob::Ptr input2;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("input2", input2, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(input2 = _inferRequest.GetBlob("input2"));
     GenRandomData(input2);
 
     Blob::Ptr input3;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("input3", input3, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(input3 = _inferRequest.GetBlob("input3"));
     GenRandomData(input3);
 
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     Blob::Ptr output;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("reshape_copy", output, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(output = _inferRequest.GetBlob("reshape_copy"));
+    
     _refBlob = make_shared_blob<ie_fp16>({Precision::FP16, output->getTensorDesc().getDims(), Layout::ANY});
     _refBlob->allocate();
     {
@@ -259,9 +242,8 @@ TEST_F(myriadLayersTests_nightly, ReshapeAfterConcat_Eliminate) {
     CompareCommonAbsolute(output, _refBlob, 0);
 
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
+    
     auto layerInfo = perfMap["reshape"];
     EXPECT_EQ(InferenceEngineProfileInfo::NOT_RUN, layerInfo.status);
 }

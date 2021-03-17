@@ -5,6 +5,7 @@
 #include "layer_transformation.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <low_precision/network_helper.hpp>
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -75,4 +76,55 @@ std::string LayerTransformation::getTestCaseNameByParams(
     std::ostringstream result;
     result << type << "_" << shape << "_" << toString(params);
     return result.str();
+}
+
+ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequantizationOperations(
+    const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization) {
+    const auto convert = dequantization.convert != nullptr ?
+        ngraph::builder::subgraph::DequantizationOperations::Convert(dequantization.convert->output(0).get_element_type()) :
+        ngraph::builder::subgraph::DequantizationOperations::Convert();
+
+    ngraph::builder::subgraph::DequantizationOperations::Subtract subtract;
+    {
+        const bool addDequantizationAttribute = dequantization.subtract != nullptr ?
+            dequantization.subtract->get_rt_info().count("DEQUANTIZATION") != 0 :
+            true;
+
+        const size_t constantIndex = dequantization.subtractConstant && dequantization.subtract ?
+            ngraph::pass::low_precision::NetworkHelper::getChildInputIndex(
+                dequantization.subtractConvert ? std::dynamic_pointer_cast<ngraph::Node>(dequantization.subtractConvert) : dequantization.subtractConstant,
+                dequantization.subtract) :
+            0ul;
+
+        subtract = dequantization.subtractConstant != nullptr ?
+            ngraph::builder::subgraph::DequantizationOperations::Subtract(
+                dequantization.subtractConstant->cast_vector<float>(),
+                dequantization.subtractConstant->output(0).get_element_type(),
+                dequantization.subtractConstant->output(0).get_shape(),
+                addDequantizationAttribute,
+                constantIndex) :
+            ngraph::builder::subgraph::DequantizationOperations::Subtract();
+    }
+
+    ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
+    {
+        const bool addDequantizationAttribute = dequantization.multiply != nullptr ?
+            dequantization.multiply->get_rt_info().count("DEQUANTIZATION") != 0 :
+            true;
+
+        const size_t constantIndex = dequantization.multiplyConstant && dequantization.multiply ?
+            ngraph::pass::low_precision::NetworkHelper::getChildInputIndex(dequantization.multiplyConstant, dequantization.multiply) :
+            0ul;
+
+        multiply = dequantization.multiplyConstant != nullptr ?
+            ngraph::builder::subgraph::DequantizationOperations::Multiply(
+                dequantization.multiplyConstant->cast_vector<float>(),
+                dequantization.multiplyConstant->output(0).get_element_type(),
+                dequantization.multiplyConstant->output(0).get_shape(),
+                addDequantizationAttribute,
+                constantIndex) :
+            ngraph::builder::subgraph::DequantizationOperations::Multiply();
+    }
+
+    return ngraph::builder::subgraph::DequantizationOperations(convert, subtract, multiply);
 }

@@ -28,6 +28,7 @@ public:
     virtual ~Convolution_kernel_b_fs_zyx_fsv16_imad() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -61,6 +62,7 @@ protected:
     };
 
     BlockParams GetBlockParams(const convolution_params& params) const;
+    float EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const;
     float EstimateRegPressure(const convolution_params& params, const BlockParams& block) const;
     float EstimateOccupancy(const convolution_params& params, const BlockParams& block) const;
     float EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const;

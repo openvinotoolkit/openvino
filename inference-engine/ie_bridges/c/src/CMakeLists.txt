@@ -24,7 +24,8 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+       APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
 
 # install
 

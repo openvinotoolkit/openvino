@@ -40,7 +40,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         _networkOutputs = plg->GetOutputs();
     }
 
-    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
+    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
     }
@@ -49,7 +49,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {
     }
 
-    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config)
+    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config)
         : GNAExecutableNetwork(network, std::make_shared<GNAPlugin>(config)) {
     }
 
@@ -74,8 +74,8 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
 
     using ExecutableNetworkInternal::Export;
 
-    void ExportImpl(std::ostream&) override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    void Export(std::ostream& modelStream) override {
+        plg->Export(modelStream);
     }
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {

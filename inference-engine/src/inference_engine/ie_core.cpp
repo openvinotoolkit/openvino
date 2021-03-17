@@ -90,12 +90,7 @@ template <typename F>
 void allowNotImplemented(F && f) {
     try {
         f();
-    } catch (const details::InferenceEngineException & ex) {
-        std::string message = ex.what();
-        if (message.find(NOT_IMPLEMENTED_str) == std::string::npos) {
-            throw ex;
-        }
-    }
+    } catch (const NotImplemented & ex) { }
 }
 
 }  // namespace
@@ -197,8 +192,7 @@ public:
         pugi::xml_node ieNode = xmlDoc.document_element();
         pugi::xml_node devicesNode = ieNode.child("plugins");
 
-        for (auto pluginNode = devicesNode.child("plugin"); !pluginNode.empty();
-             pluginNode = pluginNode.next_sibling("plugin")) {
+        FOREACH_CHILD(pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
             FileUtils::FilePath pluginPath = FileUtils::toFilePath(GetStrAttr(pluginNode, "location").c_str());
 
@@ -217,8 +211,7 @@ public:
             std::map<std::string, std::string> config;
 
             if (propertiesNode) {
-                for (auto propertyNode = propertiesNode.child("property"); !propertyNode.empty();
-                     propertyNode = propertyNode.next_sibling("property")) {
+                FOREACH_CHILD(propertyNode, propertiesNode, "property") {
                     std::string key = GetStrAttr(propertyNode, "key");
                     std::string value = GetStrAttr(propertyNode, "value");
                     config[key] = value;
@@ -230,8 +223,7 @@ public:
             std::vector<FileUtils::FilePath> listOfExtentions;
 
             if (extensionsNode) {
-                for (auto extensionNode = extensionsNode.child("extension"); !extensionNode.empty();
-                     extensionNode = extensionNode.next_sibling("extension")) {
+                FOREACH_CHILD(extensionNode, extensionsNode, "extension") {
                     FileUtils::FilePath extensionLocation = FileUtils::toFilePath(GetStrAttr(extensionNode, "location").c_str());
                     listOfExtentions.push_back(extensionLocation);
                 }
@@ -292,10 +284,30 @@ public:
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
-    QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
+        auto res = GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
+        if (!network.getFunction() || res.supportedLayersMap.empty())
+            return res;
+
+        const auto& func = network.getFunction();
+        auto specialized_function = ngraph::clone_function(*func);
+
+        std::string defDevice = res.supportedLayersMap.begin()->second;
+        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
+        std::unordered_set<std::string> opNames;
+
+        for (const auto& op : specialized_function->get_ops())
+            opNames.emplace(op->get_friendly_name());
+
+        for (const auto& op : func->get_ops()) {
+            if (opNames.find(op->get_friendly_name()) == opNames.end() ||
+                (!res.supportedLayersMap.count(op->get_friendly_name()) &&
+                 std::dynamic_pointer_cast<ngraph::op::Constant>(op)))
+                res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+        }
+        return res;
     }
 
     Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
@@ -372,7 +384,7 @@ public:
 
                     allowNotImplemented([&]() {
                         for (auto&& extensionLocation : desc.listOfExtentions) {
-                            plugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
+                            plugin.AddExtension(std::make_shared<Extension>(extensionLocation));
                         }
                     });
                 }
@@ -422,7 +434,7 @@ public:
         // append IR library path for default IE plugins
         FileUtils::FilePath pluginPath;
         {
-            pluginPath = FileUtils::makeSharedLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
+            pluginPath = FileUtils::makePluginLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
 
             FileUtils::FilePath absFilePath = FileUtils::makePath(getInferenceEngineLibraryPath(), pluginPath);
             if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;
@@ -746,11 +758,10 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 
     for (auto&& deviceName : _impl->GetListOfDevicesInRegistry()) {
         std::vector<std::string> devicesIDs;
-
         try {
             Parameter p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
-        } catch (details::InferenceEngineException&) {
+        } catch (details::InferenceEngineException& e) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
             THROW_IE_EXCEPTION << "An exception is thrown while trying to create the " << deviceName

@@ -88,10 +88,8 @@ public:
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
-
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
-            arg, split, 1);
+            arg, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
 
@@ -112,11 +110,12 @@ public:
         conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
         conv_params.groups = groups;
-        conv_params.filterSize = {
-            (uint32_t)weights_size.spatial[0],
-            (uint32_t)weights_size.spatial[1],
-            (uint32_t)weights_size.spatial[2],
-        };
+
+        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
+        uint32_t kx = weights_size.spatial[0];
+        uint32_t ky = weights_size.spatial[1];
+        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        conv_params.filterSize = { kx, ky, kz };
 
         conv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
                                (uint32_t)std::max(-input_offset.spatial[1], 0),

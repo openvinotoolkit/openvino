@@ -80,6 +80,10 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
 
                 bindData(inputFP16, input->origData());
 
+                for (const auto consumerEdge : input->consumerEdges()) {
+                    model->replaceStageInput(consumerEdge, inputFP16);
+                }
+
                 _stageBuilder->createConvertStage(
                         model,
                         inputFP16->name(),
@@ -125,6 +129,10 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
         output->attrs().set<Data>("fp16_copy", outputFP16);
 
         bindData(outputFP16, output->origData());
+
+        if (const auto producerEdge = output->producerEdge()) {
+            model->replaceStageOutput(producerEdge, outputFP16);
+        }
 
         const auto stage = _stageBuilder->createConvertStage(
             model,

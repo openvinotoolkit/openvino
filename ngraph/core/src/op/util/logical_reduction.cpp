@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/logical_reduction.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -42,13 +43,13 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg,
 
 bool op::util::LogicalReduction::reduction_axes_constant() const
 {
-    return is_type<op::Constant>(input_value(1).get_node());
+    return has_and_set_equal_bounds(input_value(1));
 }
 
 const AxisSet op::util::LogicalReduction::get_reduction_axes() const
 {
     AxisSet axes;
-    if (auto const_op = as_type<op::Constant>(input_value(1).get_node()))
+    if (auto const_op = get_constant_from_source(input_value(1)))
     {
         axes = const_op->get_axis_set_val();
     }
@@ -64,16 +65,27 @@ void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axe
 
 void op::util::LogicalReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
     auto input_rank = input_shape.rank();
 
     PartialShape result_shape{PartialShape::dynamic()};
 
-    if (input_rank.is_static() && reduction_axes_constant())
+    set_input_is_relevant_to_shape(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).compatible(element::boolean),
+                          "Input element type must be boolean.");
+
+    set_output_type(0, element::boolean, result_shape);
+
+    if (input_rank.is_dynamic())
+        return;
+
+    if (const auto axes_const = get_constant_from_source(input_value(1)))
     {
         AxisSet reduction_axes;
-        auto reduction_axes_val =
-            as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+        auto reduction_axes_val = axes_const->cast_vector<int64_t>();
         for (auto axis : reduction_axes_val)
         {
             try
@@ -107,12 +119,6 @@ void op::util::LogicalReduction::validate_and_infer_types()
 
         result_shape = PartialShape(dims);
     }
-
-    set_input_is_relevant_to_shape(1);
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).compatible(element::boolean),
-                          "Input element type must be boolean.");
 
     set_output_type(0, element::boolean, result_shape);
 }

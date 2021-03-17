@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,10 +37,18 @@ public:
     static primitive_impl* create(const ctc_greedy_decoder_node& arg) {
         auto ctc_gd_params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(arg);
         auto ctc_gd_optional_params = get_default_optional_params<kernel_selector::ctc_greedy_decoder_optional_params>(arg.get_program());
+        auto prim = arg.get_primitive();
 
         ctc_gd_params.inputs.push_back(
             convert_data_tensor(arg.seq_indicators().get_output_layout()));
-        ctc_gd_params.merge_repeated = arg.get_primitive()->ctc_merge_repeated;
+        ctc_gd_params.merge_repeated = prim->ctc_merge_repeated;
+        ctc_gd_params.blank_index = prim->blank_index;
+        ctc_gd_params.outputs_num = arg.has_second_output() ? 2 : 1;
+
+        if (ctc_gd_params.outputs_num == 2) {
+            ctc_gd_params.inputs.push_back(
+                convert_data_tensor(arg.second_output().get_output_layout()));
+        }
 
         auto& kernel_selector = kernel_selector::ctc_greedy_decoder_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(
@@ -62,6 +70,8 @@ namespace detail {
 attach_ctc_greedy_decoder_gpu::attach_ctc_greedy_decoder_gpu() {
     implementation_map<ctc_greedy_decoder>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), ctc_greedy_decoder_gpu::create);
     implementation_map<ctc_greedy_decoder>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), ctc_greedy_decoder_gpu::create);
+    implementation_map<ctc_greedy_decoder>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), ctc_greedy_decoder_gpu::create);
+    implementation_map<ctc_greedy_decoder>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), ctc_greedy_decoder_gpu::create);
 }
 
 }  // namespace detail

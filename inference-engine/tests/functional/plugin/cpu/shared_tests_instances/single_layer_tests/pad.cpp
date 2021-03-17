@@ -11,12 +11,17 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::U16,
+        InferenceEngine::Precision::I8,
+        InferenceEngine::Precision::U8,
 };
 
 const std::vector<std::vector<int64_t>> padsBegin2D = {{0, 0}, {1, 1}, {2, 0}, {0, 3}};
 const std::vector<std::vector<int64_t>> padsEnd2D   = {{0, 0}, {1, 1}, {0, 1}, {3, 2}};
-const std::vector<float> argPadValue = {0.f, 1.f, 2.f, -1.f};
+const std::vector<float> argPadValue = {0.f, 1.f, -1.f, 2.5f};
 
 const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::EDGE,
@@ -64,8 +69,8 @@ INSTANTIATE_TEST_CASE_P(
         PadLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 1, 0}, {0, 3, 0, 1}};
-const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 0, 1}, {1, 3, 2, 0}};
+const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 0, 1}, {0, 0, 1, 1}, {2, 0, 0, 0}, {0, 3, 0, 1}};
+const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {0, 3, 0, 0}, {1, 0, 0, 0}, {0, 0, 0, 2}, {1, 3, 0, 0}, {0, 3, 0, 1}};
 
 const auto pad4DConstparams = testing::Combine(
         testing::ValuesIn(padsBegin4D),

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeReshapeFusion, "FakeQuantizeReshapeFusion", 0);
 
 ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
+    MATCHER_SCOPE(FakeQuantizeReshapeFusion);
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
             {ngraph::pattern::wrap_type<opset4::Constant>(), // for weights only
              ngraph::pattern::any_input(),
@@ -74,6 +76,6 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, "FakeQuantizeReshapeFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, matcher_name);
     this->register_matcher(m, callback);
 }

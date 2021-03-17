@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     }
 
     auto dequantization = NetworkHelper::getDequantization(multiply, inputIndex);
+    if (dequantization.subtractConvert != nullptr) {
+        dequantization = NetworkHelper::foldDequantization(multiply, inputIndex);
+    }
 
     const element::Type weightsPrecision = updatePrecisions ? precisionsOnWeights[0] : dequantization.data.get_element_type();
 
@@ -88,8 +91,8 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     if (dequantization.subtract != nullptr) {
         lastNode = std::make_shared<opset1::Add>(
             convolution,
-            fold<opset1::Negative>(fold<opset1::Convert>(dequantization.subtract->get_input_node_shared_ptr(1), element::f32)));
-        lastNode->set_friendly_name(dequantization.subtract->get_friendly_name());
+            fold<opset1::Negative>(fold<opset1::Convert>(dequantization.subtractConstant, element::f32)));
+        lastNode->set_friendly_name(convolution->get_friendly_name() + "/Add");
     }
 
     lastNode = multiply->copy_with_new_inputs({ lastNode, constant });
@@ -123,26 +126,29 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
         return false;
     }
 
+    const auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
+
+    if (dequantization.empty()) {
+        return false;
+    }
+
     const Shape outShape = operation->get_output_shape(0);
     if (outShape[1] % groupSize != 0) {
         return false;
     }
 
-    for (int i = 2; i < constShape.size(); ++i) {
+    for (size_t i = 2; i < constShape.size(); ++i) {
         if (constShape[i] != 1) {
             return false;
         }
     }
 
     if (updatePrecisions) {
-        auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
         const element::Type parentPrecision = dequantization.data.get_element_type();
         if (std::find(precisionsOnActivations.begin(), precisionsOnActivations.end(), parentPrecision) == precisionsOnActivations.end()) {
             return false;
         }
     }
-
-
 
     return true;
 }

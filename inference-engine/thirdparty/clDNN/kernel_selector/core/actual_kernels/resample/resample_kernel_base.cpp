@@ -22,7 +22,7 @@
 
 namespace {
 int getAxisIndex(kernel_selector::InterpolateAxis axis) {
-    switch(axis) {
+    switch (axis) {
     case kernel_selector::InterpolateAxis::BATCH:
         return 0;
     case kernel_selector::InterpolateAxis::FEATURE:
@@ -77,8 +77,6 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
     }
-
-    dispatchData.efficiency = FORCE_PRIORITY_7;
 
     return dispatchData;
 }
@@ -179,7 +177,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant("SCALES", scales),
         MakeJitConstant("PADS_BEGIN", pads_begin),
         MakeJitConstant("PADS_END", pads_end),
-        MakeJitConstant("PADDING_USED", (int)paddingUsed),
+        MakeJitConstant("PADDING_USED", static_cast<int>(paddingUsed)),
         MakeJitConstant("AXES_USED", axesUsed),
         MakeJitConstant("ALIGN_CORNERS", align_corners),
         MakeJitConstant("KERNEL_W", 2),
@@ -224,8 +222,6 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

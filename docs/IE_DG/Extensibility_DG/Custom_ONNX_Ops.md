@@ -24,11 +24,11 @@ The `ngraph::onnx_import::Node` class represents a node in ONNX model. It provid
 New operator registration must happen before the ONNX model is read, for example, if an ONNX model uses the 'CustomRelu' operator, `register_operator("CustomRelu", ...)` must be called before InferenceEngine::Core::ReadNetwork.
 Re-registering ONNX operators within the same process is supported. During registration of the existing operator, a warning is printed.
 
-The example below demonstrates an examplary model that requires previously created 'CustomRelu' operator:
+The example below demonstrates an exemplary model that requires previously created 'CustomRelu' operator:
 @snippet onnx_custom_op/onnx_custom_op.cpp onnx_custom_op:model
 
 
-For a reference on how to create a graph with nGraph operations, visit [nGraph tutorial](../nGraphTutorial.md).
+For a reference on how to create a graph with nGraph operations, visit [Custom nGraph Operations](AddingNGraphOps.md).
 For a complete list of predefined nGraph operators, visit [available operations sets](../../ops/opset.md).
 
 If operator is no longer needed, it can be unregistered by calling `unregister_operator`. The function takes three arguments `op_type`, `version`, and `domain`.

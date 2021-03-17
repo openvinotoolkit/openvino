@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 #include <numeric>
 #include <sstream>
 
-#include "onnx_import/utils/provenance_tag.hpp"
+#include "utils/provenance_tag.hpp"
 
 namespace ngraph
 {

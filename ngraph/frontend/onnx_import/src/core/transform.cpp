@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 #include <onnx/defs/function.h>
 #include <onnx/defs/schema.h>
 
-#include "model.hpp"
-#include "transform.hpp"
+#include "core/model.hpp"
+#include "core/transform.hpp"
 
 #include "ngraph/file_util.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "ops_bridge.hpp"
 
 void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto)
 {

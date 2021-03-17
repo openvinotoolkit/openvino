@@ -57,7 +57,6 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
@@ -82,12 +81,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
-    auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertConvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupConvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertDeconvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
-    convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
 
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -140,7 +134,10 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     // List of final conversion transformations that must to be executed
     // after previous group of transformations
-    manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+
+    if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(f)) {
+        manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+    }
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
     manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
@@ -148,5 +145,10 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     manager.run_passes(f);
-    return true;
+
+    // Returning value is false because pass::Manager always apply Validation pass
+    // if function was changed. This helps to avoid excess Validations after applying
+    // this pass. In future when we will return more meaningful status code it will be
+    // replaced with real status reported by manager.run_passes() method call.
+    return false;
 }

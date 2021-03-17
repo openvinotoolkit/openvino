@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    auto normalize = as_type_ptr<opset1::NormalizeL2>(separateInStandaloneBranch(operation));
+    auto normalize = as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
 
     const auto axes = as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize);
@@ -120,7 +120,8 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     }
 
     auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
-        std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+        std::vector<ngraph::element::Type>{ element::f32, element::f32 },
+        std::vector<ngraph::element::Type>{deqPrecision},
         ngraph::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(axes->clone_with_new_inputs({}), element::f32).get(),
         normalize->get_eps(),
@@ -128,7 +129,8 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     NetworkHelper::copyInfo(normalize, newNormalize);
 
     auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
-        std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+        std::vector<ngraph::element::Type>{ element::f32, element::f32 },
+        std::vector<ngraph::element::Type>{normalize->get_output_element_type(0)},
         ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
 

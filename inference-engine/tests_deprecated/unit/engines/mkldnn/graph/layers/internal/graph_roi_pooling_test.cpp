@@ -298,7 +298,7 @@ protected:
 
 TEST_P(MKLDNNGraphRoiPoolingTests, TestsRoiPooling) {}
 
-const size_t expect_num_impl = InferenceEngine::with_cpu_x86_avx2() ? 5 : 4;
+const size_t expect_num_impl = 1;
 
 INSTANTIATE_TEST_CASE_P(
         TestsRoiPooling, MKLDNNGraphRoiPoolingTests,

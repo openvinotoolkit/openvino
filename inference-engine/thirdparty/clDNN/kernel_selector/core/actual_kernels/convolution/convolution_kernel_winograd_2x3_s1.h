@@ -27,6 +27,7 @@ public:
     virtual ~ConvolutionKernel_Winograd_2x3_s1() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

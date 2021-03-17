@@ -8,10 +8,13 @@
 #include <ngraph/function.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/operations/static_shape_topk.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
+#include <vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp>
 
 namespace {
 
@@ -161,5 +164,51 @@ TEST_P(DynamicToStaticTopKPropagationShapeOfGather, KPropagation) {
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationShapeOfGather, ::testing::ValuesIn(kVec));
+
+class KPropagationAfterShapeOfElimination : public DynamicToStaticTopKPropagationShapeOfBased {
+    void SetUp() override {
+        const auto& k = GetParam();
+
+        const auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{static_cast<size_t>(k)});
+        const auto shape = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
+
+        const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
+                data,
+                shape);
+
+        const auto shapeOf = std::make_shared<ngraph::opset5::ShapeOf>(dsr);
+        const auto builtSubgraph = buildSubgraph(shapeOf);
+
+        const auto staticShapeTopK = std::make_shared<ngraph::vpu::op::StaticShapeTopK>(dsr, builtSubgraph, 0, "max", "value");
+
+        const auto function = std::make_shared<ngraph::Function>(
+            staticShapeTopK->outputs(),
+            ngraph::ParameterVector{data, shape},
+            "KPropagationAfterShapeOfElimination");
+
+        validate(*function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
+        function->validate_nodes_and_infer_types();
+        validate(*function);
+    }
+
+    std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
+        const auto concat = std::make_shared<ngraph::opset6::Concat>(
+            ngraph::NodeVector{
+                node,
+                ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {upperBoundK})},
+            0);
+        return std::make_shared<ngraph::opset6::ReduceMin>(
+            concat,
+            ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+    }
+};
+
+TEST_P(KPropagationAfterShapeOfElimination, KPropagation) {
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, KPropagationAfterShapeOfElimination, ::testing::ValuesIn(kVec));
 
 }  // namespace

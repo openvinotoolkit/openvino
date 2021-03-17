@@ -32,7 +32,7 @@ protected:
         //        |
         //       ReLU1      (Fused)
         //        |
-        //     Pooling1     (FP32)
+        //     Pooling1     (BF16)
         //        |
         //    Convolution2  (BF16)
         //        |
@@ -164,7 +164,7 @@ protected:
         // performance counters
         expectedPrecisions["Convolution_1"] = "FP32";
         expectedPrecisions["ReLU_1"] = "ndef";
-        expectedPrecisions["AvgPool_1"] = "FP32";
+        expectedPrecisions["AvgPool_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";
         expectedPrecisions["ReLU_2"] = "ndef";
         expectedPrecisions["MaxPool_2"] = "BF16";

@@ -44,3 +44,11 @@ void op::PadIE::validate_and_infer_types() {
 shared_ptr<Node> op::PadIE::clone_with_new_inputs(const OutputVector& new_args) const {
     return nullptr;
 }
+
+bool op::PadIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("pads_begin", m_pads_begin);
+    visitor.on_attribute("pads_end", m_pads_end);
+    visitor.on_attribute("pad_mode", m_pad_mode);
+    visitor.on_attribute("pad_value", m_pad_value);
+    return true;
+}

@@ -47,17 +47,9 @@ void ref_pad(const Blob::Ptr src,
     ASSERT_NE(src_data, nullptr);
     ASSERT_NE(dst_data, nullptr);
 
-    int32_t padb_begin = pad_params.padb_begin;
-    int32_t padb_end = pad_params.padb_end;
-
     int32_t padc_begin = pad_params.padc_begin;
-    int32_t padc_end = pad_params.padc_end;
-
     int32_t padh_begin = pad_params.padh_begin;
-    int32_t padh_end = pad_params.padh_end;
-
     int32_t padw_begin = pad_params.padw_begin;
-    int32_t padw_end = pad_params.padw_end;
 
     int32_t IW = 0;
     int32_t IH = 0;

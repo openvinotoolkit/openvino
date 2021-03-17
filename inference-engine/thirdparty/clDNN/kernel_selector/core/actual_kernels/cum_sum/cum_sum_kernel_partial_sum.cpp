@@ -39,8 +39,7 @@ JitConstants CumSumKernelPartialSum::GetJitConstants(const cum_sum_params& param
 }
 
 KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& params,
-                                                             const optional_params& options,
-                                                             float estimated_time) const {
+                                                             const optional_params& options) const {
     if (!Validate(params, options))
         return {};
 
@@ -77,7 +76,6 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
         kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     }
     kd.internalBufferDataType = Datatype::F32;
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }
@@ -124,6 +122,10 @@ CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForM
 }
 
 KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetMultiStageKernelsData(params, options, FORCE_PRIORITY_7);
+    return GetMultiStageKernelsData(params, options);
+}
+
+KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

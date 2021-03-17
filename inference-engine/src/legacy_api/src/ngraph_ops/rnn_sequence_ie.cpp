@@ -52,7 +52,7 @@ void op::RNNSequenceIE::validate_and_infer_types() {
     // num_direction dimension should be squeezed, we don't support bidirectional case
     std::vector<size_t> ranks = {3, 2, 1, 2, 1};
     for (size_t i = 0; i < pshapes.size(); ++i) {
-        NGRAPH_CHECK((pshapes[i].rank().get_length() == ranks[i]),
+        NGRAPH_CHECK((pshapes[i].rank().get_length() == static_cast<int64_t>(ranks[i])),
                      "RNNSequenceIE ",
                      in_names[i],
                      " input rank is not correct.");

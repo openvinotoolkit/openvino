@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ class DepthToSpaceFrontExtractor(FrontExtractorOp):
         onnx_mode = onnx_attr(node, 'mode', 's', default=b'DCR').decode()
         assert onnx_mode in ['DCR', 'CRD'], 'Unrecognized mode provided for DepthToSpace node {}'.format(node_name)
         if onnx_mode == 'DCR':
-            mode = 'depth_first'
-        else:
             mode = 'blocks_first'
+        else:
+            mode = 'depth_first'
 
         DepthToSpaceOp.update_node_stat(node, {'block_size': block_size, 'mode': mode})
         return cls.enabled

@@ -188,7 +188,11 @@ memory_impl::ptr primitive_inst::allocate_output() {
                                       false);
     } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
                engine.supports_allocation(allocation_type::usm_device)) {
-        return engine.allocate_memory(layout, allocation_type::usm_device, net_id);
+        return engine.allocate_memory(layout, allocation_type::usm_device, net_id, false);
+    } else if (_network.is_internal() && !_node.is_output() && _node.is_type<input_layout>()) {
+        // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
+        // or just reuse primitive's memory
+        return engine.allocate_memory(layout, alloc_type, net_id, false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         return engine.allocate_memory(layout, alloc_type, net_id);
     }

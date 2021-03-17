@@ -41,6 +41,11 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         mvnc inference_engine inference_engine_legacy vpu_graph_transformer)
 
+# MyriadPlugin is not safe to unload it at runtime
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
+endif()
+
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
@@ -48,7 +53,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # install
-
-install(FILES ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/src/97-myriad-usbboot.rules
+if (LINUX)
+    install(FILES ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/src/97-myriad-usbboot.rules
         DESTINATION ${IE_CPACK_IE_DIR}/external
         COMPONENT myriad)
+endif()

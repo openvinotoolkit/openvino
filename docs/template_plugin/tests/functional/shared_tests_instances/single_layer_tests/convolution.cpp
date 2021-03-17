@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values("TEMPLATE")),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 // ! [test_convolution:instantiate]
 
@@ -78,7 +78,7 @@ INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
-                                ::testing::Values("TEMPLATE")),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D Convolution ============= */
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_CASE_P(Convolution3D_ExplicitPadding, ConvolutionLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
-                                ::testing::Values("TEMPLATE")),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Convolution3D_AutoPadValid, ConvolutionLayerTest,
@@ -133,7 +133,7 @@ INSTANTIATE_TEST_CASE_P(Convolution3D_AutoPadValid, ConvolutionLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
-                                ::testing::Values("TEMPLATE")),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         ConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

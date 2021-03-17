@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,21 +20,15 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_VERSION 1.7.0)
+set(ONNX_VERSION 1.8.1)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
 #------------------------------------------------------------------------------
 
-# Since this file is going to be modifying CMAKE_CXX_FLAGS we need to preserve
-# it so we won't overwrite the caller's CMAKE_CXX_FLAGS
-set(PUSH_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-
-set(CMAKE_CXX_FLAGS ${CMAKE_ORIGINAL_CXX_FLAGS})
 
 FetchContent_Declare(
     ext_onnx
@@ -43,13 +37,14 @@ FetchContent_Declare(
 )
 
 macro(onnx_set_target_properties)
-    target_include_directories(onnx PRIVATE "${Protobuf_INCLUDE_DIRS}")
-    target_include_directories(onnx_proto PRIVATE "${Protobuf_INCLUDE_DIRS}")
+    target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
+    target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(onnx PRIVATE /WX-)
-    else()
-        target_compile_options(onnx PRIVATE -Wno-error)
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
+        target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
     endif()
 endmacro()
 
@@ -71,6 +66,3 @@ endif()
 
 set(ONNX_INCLUDE_DIR ${ext_onnx_SOURCE_DIR})
 set(ONNX_PROTO_INCLUDE_DIR ${ext_onnx_BINARY_DIR})
-
-# Now make sure we restore the original CMAKE_CXX_FLAGS for the caller
-set(CMAKE_CXX_FLAGS ${PUSH_CMAKE_CXX_FLAGS})

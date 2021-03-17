@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -216,6 +216,22 @@ namespace ngraph
             ///
             Output<Node> get_axes_mapping_output(const Shape& output_shape,
                                                  const Shape& input_shape,
+                                                 std::size_t start_match_axis);
+
+            ///
+            /// \brief      Creates Node returning the axes mapping for Broadcast operation.
+            /// \note       Shapes' ranks need to be static.
+            ///
+            /// \param[in]  output_shape      The output shape of Broadcast operation.
+            /// \param[in]  input_shape       The input shape.
+            /// \param[in]  start_match_axis  The axis index at which input shape starts to be
+            ///                               identical to consecutive subset of output shape
+            ///                               dimensions.
+            ///
+            /// \return     Returns the Output object pointing to node with the axes mapping.
+            ///
+            Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
+                                                 const PartialShape& input_shape,
                                                  std::size_t start_match_axis);
 
             ///

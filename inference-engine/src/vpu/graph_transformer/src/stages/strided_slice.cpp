@@ -77,10 +77,17 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        std::string beginMask = origLayer()->GetParamAsString("begin_mask", "");
-        std::string endMask = origLayer()->GetParamAsString("end_mask", "");
+        const auto& beginMask = origLayer()->GetParamAsString("begin_mask", "");
+        const auto& endMask = origLayer()->GetParamAsString("end_mask", "");
         serializer.append(maskStrToInt(beginMask));
         serializer.append(maskStrToInt(endMask));
+
+        const auto& newAxisMask = origLayer()->GetParamAsString("new_axis_mask", "");
+        const auto& shrinkAxisMask = origLayer()->GetParamAsString("shrink_axis_mask", "");
+        const auto& ellipsisMask = origLayer()->GetParamAsString("ellipsis_mask", "");
+        serializer.append(maskStrToInt(newAxisMask));
+        serializer.append(maskStrToInt(shrinkAxisMask));
+        serializer.append(maskStrToInt(ellipsisMask));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -102,33 +109,9 @@ void FrontEnd::parseStridedSlice(const Model& model, const ie::CNNLayerPtr& laye
         "Parsing layer {} with type {} failed: number of outputs should be 1, but {} were provided",
         layer->name, layer->type, outputs.size());
 
-    std::string newAxisMask = layer->GetParamAsString("new_axis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(newAxisMask) == 0,
-                     "Checking {} with type {} failed: new_axis_mask parameter is not supported",
-                     layer->name, layer->type);
-    std::string shrinkAxisMask = layer->GetParamAsString("shrink_axis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(shrinkAxisMask) == 0,
-                     "Checking {} with type {} failed: shrink_axis_mask parameter is not supported",
-                     layer->name, layer->type);
-    std::string ellipsisMask = layer->GetParamAsString("ellipsis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(ellipsisMask) == 0,
-                     "Checking {} with type {} failed: ellipsis_mask parameter is not supported",
-                     layer->name, layer->type);
-
     DataVector extendedInputs{inputs.begin(), inputs.end()};
     if (inputs.size() == 3) {
         extendedInputs.push_back(model->addFakeData());
-    } else {
-        const auto& strides = inputs[3];
-        const auto stridesPtr = strides->content()->get<int32_t>();
-        VPU_THROW_UNLESS(stridesPtr != nullptr,
-                         "Checking {} with type {} failed: pointer for strides is null",
-                         layer->name, layer->type);
-        for (int i = 0; i < strides->desc().totalDimSize(); i++) {
-            VPU_THROW_UNLESS(stridesPtr[i] > 0,
-                             "Checking {} with type {} failed: negative stride is not supported",
-                             layer->name, layer->type);
-        }
     }
 
     model->addNewStage<StridedSliceStage>(layer->name, StageType::StridedSlice, layer, extendedInputs, outputs);

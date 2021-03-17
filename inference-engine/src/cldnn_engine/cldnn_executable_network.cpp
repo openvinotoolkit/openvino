@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,10 @@
 #include <cmath>
 #include <algorithm>
 #include "cldnn_graph.h"
+#include "cldnn_itt.h"
 
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
-#include <legacy/graph_tools.hpp>
-#include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include "cldnn_async_infer_request.h"
@@ -34,7 +33,7 @@ using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, RemoteContext::Ptr context, Config config) :
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
         if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
@@ -65,6 +64,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, Remote
 
 InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                    OutputsDataMap networkOutputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     if (m_graphs.empty()) {
         THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
     }
@@ -92,6 +92,7 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
 }
 
 IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequest");
     return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 

@@ -23,10 +23,12 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
 
             src_dims = layer->insData[REVERSESEQUENCE_DATA].lock()->getTensorDesc().getDims();
+
+            Precision lengthsPrecision = layer->insData[REVERSESEQUENCE_LENGTHS].lock()->getTensorDesc().getPrecision();
+            if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
+                lengthsPrecision = Precision::I32;
+
             SizeVector seq_lengths_dims = layer->insData[REVERSESEQUENCE_LENGTHS].lock()->getTensorDesc().getDims();
-            if (layer->insData[REVERSESEQUENCE_LENGTHS].lock()->getTensorDesc().getPrecision() != Precision::I32 &&
-                layer->insData[REVERSESEQUENCE_LENGTHS].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'seq_lengths' input precision. Only FP32 and I32 are supported!";
             if (seq_lengths_dims.size() > 1)
                 THROW_IE_EXCEPTION << layer->name << " Seq_lengths vector should be 1 dimension";
 
@@ -60,7 +62,7 @@ public:
             work_amount_dst = srcStrides[0] * src_dims[0];
 
             addConfig(layer,
-                    { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, lengthsPrecision) },
                     { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();

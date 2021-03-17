@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "builder/autobroadcast.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 
 #include <memory>
 #include <numeric>
 #include <sstream>
 
-#include "builder/reshape.hpp"
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -432,6 +432,22 @@ namespace ngraph
             {
                 NGRAPH_CHECK((input_shape.size() + start_match_axis <= output_shape.size()));
                 vector<size_t> mapping(input_shape.size());
+                iota(begin(mapping), end(mapping), start_match_axis);
+
+                return op::Constant::create(element::i64, Shape{mapping.size()}, mapping);
+            }
+
+            Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
+                                                 const PartialShape& input_shape,
+                                                 std::size_t start_match_axis)
+            {
+                NGRAPH_CHECK((input_shape.rank().is_static() && output_shape.rank().is_static()),
+                             "Tensor's rank has to be static.");
+                NGRAPH_CHECK((input_shape.rank().get_length() + start_match_axis <=
+                              output_shape.rank().get_length()),
+                             "Unable to figure out axes mapping.");
+
+                vector<int64_t> mapping(input_shape.rank().get_length());
                 iota(begin(mapping), end(mapping), start_match_axis);
 
                 return op::Constant::create(element::i64, Shape{mapping.size()}, mapping);

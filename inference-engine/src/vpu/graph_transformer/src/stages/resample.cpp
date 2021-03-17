@@ -3,6 +3,7 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/stages/interpolate_stages.hpp>
 
 #include <vector>
 #include <unordered_set>
@@ -51,13 +52,13 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto antialias = attrs().get<bool>("antialias");
-        auto factor = attrs().get<float>("factor");
-        auto sampleType = attrs().get<ResampleType>("type");
-        auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>("coordinate_transformation_mode");
-        auto nearestMode = attrs().get<InterpolateNearestMode>("nearest_mode");
+        auto align_corners = attrs().get<bool>(g_antialias);
+        auto factor = attrs().get<float>(g_factor);
+        auto sampleType = attrs().get<ResampleType>(g_type);
+        auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>(g_coordinate_transformation_mode);
+        auto nearestMode = attrs().get<InterpolateNearestMode>(g_nearest_mode);
 
-        serializer.append(static_cast<int32_t>(antialias));
+        serializer.append(static_cast<int32_t>(align_corners));
         serializer.append(static_cast<float>(factor));
         serializer.append(static_cast<uint32_t>(sampleType));
         serializer.append(static_cast<uint32_t>(coordinateTransformationMode));
@@ -87,11 +88,11 @@ Stage StageBuilder::addResampleNearestStage(
             const Data& output) {
     auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, {input}, {output});
 
-    stage->attrs().set<bool>("antialias", antialias);
-    stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", coordinateTransformationMode);
-    stage->attrs().set<InterpolateNearestMode>("nearest_mode", nearestMode);
-    stage->attrs().set<float>("factor", factor);
-    stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
+    stage->attrs().set<bool>(g_antialias, antialias);
+    stage->attrs().set<InterpolateCoordTransMode>(g_coordinate_transformation_mode, coordinateTransformationMode);
+    stage->attrs().set<InterpolateNearestMode>(g_nearest_mode, nearestMode);
+    stage->attrs().set<float>(g_factor, factor);
+    stage->attrs().set<ResampleType>(g_type, ResampleType::Nearest);
 
     return stage;
 }
@@ -105,26 +106,24 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
                      "actually provided {}", layer->name, outputs.size());
 
     ie::details::CaselessEq<std::string> cmp;
-    const auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
-    const auto coord = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
-    const auto nearest = layer->GetParamAsString("nearest_mode", "round_prefer_ceil");
-    InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-    InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
+    const auto method  = layer->GetParamAsString(g_type, "caffe.ResampleParameter.NEAREST");
+    const auto coord   = layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
+    const auto nearest = layer->GetParamAsString(g_nearest_mode, g_round_prefer_ceil);
 
-    if (cmp(coord, "asymmetric")) {
-        coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
-    }
-    if (cmp(nearest, "floor")) {
-        nearestMode = InterpolateNearestMode::Floor;
-    }
+    const auto coordModeIt   = coordTransformModeMap.find(coord);
+    const auto nearestModeIt = nearestModeMap.find(nearest);
+    VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Resample stage does not support this coordinate transforation mode");
+    VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Resample stage does not support this nearest transforation mode");
+    auto coordinateTransformationMode = coordModeIt->second;
+    auto nearestMode = nearestModeIt->second;
 
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         _stageBuilder->addResampleNearestStage(model,
                                                layer->name,
                                                layer,
-                                               layer->GetParamAsInt("antialias", 0),
+                                               layer->GetParamAsInt(g_antialias, 0),
                                                coordinateTransformationMode, nearestMode,
-                                               layer->GetParamAsFloat("factor", -1),
+                                               layer->GetParamAsFloat(g_factor, -1),
                                                inputs[0],
                                                outputs[0]);
     } else {

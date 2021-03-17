@@ -51,7 +51,7 @@
 
 *   **1**: Output tensor of type *T* with top *k* values from the input tensor along specified dimension *axis*. The shape of the tensor is `[input1.shape[0], ..., input1.shape[axis-1], k, input1.shape[axis+1], ...]`.
 
-*   **2**: Output tensor with top *k* indices for each slice along *axis* dimension of type *T_IND*. The shape of the tensor is the same as for the 1st output, that is `[input1.shape[0], ..., input1.shape[axis-1], k, input1.shape[axis+1], ...]`
+*   **2**: Output tensor with top *k* indices for each slice along *axis* dimension of type *T_IND*. The shape of the tensor is the same as for the 1st output, that is `[input1.shape[0], ..., input1.shape[axis-1], k, input1.shape[axis+1], ...]`.
 
 **Types**
 
@@ -74,6 +74,8 @@ Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
   * *mode*=`min`, *sort*=`value` - ascending by value
   * *mode*=`min`, *sort*=`index` - ascending by index
   * *mode*=`min`, *sort*=`none`  - undefined
+
+If there are several elements with the same value then their output order is not determined.
 
 **Example**
 

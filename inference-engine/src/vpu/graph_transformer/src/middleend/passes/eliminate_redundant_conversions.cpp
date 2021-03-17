@@ -30,6 +30,17 @@ void PassImpl::runForStage(const Model& model, const Stage& convert) {
     const auto output = convert->output(0);
 
     //
+    // Check and remove the convert that was added to unused input
+    // In this case we will have the converted intermediate data object which is not consumed
+    //
+
+    if (output->usage() == DataUsage::Intermediate && !output->isConsumed()) {
+        model->removeStage(convert);
+        model->removeUnusedData(output);
+        return;
+    }
+
+    //
     // We remove Convert stage if input and output data types are equal.
     // It could happen if there was a non-IO FP16 <-> FP32 conversion in
     // original net and GraphTransformer's frontend had changed FP32 to FP16

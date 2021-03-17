@@ -259,6 +259,10 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
         blobLayout = NCHW;
         blobDims.insert(blobDims.begin(), blobs.size());
         break;
+    case HWC:
+        blobLayout = NHWC;
+        blobDims.insert(blobDims.begin(), blobs.size());
+        break;
     default:
         THROW_IE_EXCEPTION << "Unsupported sub-blobs layout - to be one of: [NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW]";
     }

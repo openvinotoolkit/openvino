@@ -165,12 +165,15 @@ KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optio
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params));
 
+    return {k_data};
+}
+
+KernelsPriority GemmKernelMMADint8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& prim_params = static_cast<const gemm_params&>(params);
     GemmTuningData tuning_data = InitGemmTuningData(prim_params);
     auto mmad_operations_number = GetMmadOperationsNumber(tuning_data);
 
-    k_data.estimatedTime = mmad_operations_number < 4096 ? DONT_USE_IF_HAVE_SOMETHING_ELSE : FORCE_PRIORITY_3;
-
-    return {k_data};
+    return mmad_operations_number < 4096 ? DONT_USE_IF_HAVE_SOMETHING_ELSE : FORCE_PRIORITY_3;
 }
 
 bool GemmKernelMMADint8::Validate(const Params& params, const optional_params& options) const {

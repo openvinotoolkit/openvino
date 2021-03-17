@@ -54,9 +54,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
-    int64_t m_seq_axis;
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
+    int64_t m_seq_axis;
 };
 
     }  // namespace op

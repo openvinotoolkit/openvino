@@ -174,7 +174,6 @@ void RawMatcher::match() {
             for (auto &&item : out) {
                 Blob::Ptr output;
                 auto  outputName = item.first;
-                auto& outBlob    = item.second;
                 if (!inferRequest) {
                     output = allocateBlob(item.second->getTensorDesc());
                 } else {

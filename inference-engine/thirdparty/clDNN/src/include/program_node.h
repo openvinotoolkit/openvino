@@ -340,7 +340,7 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
-    std::array<bool, tensor_dim_max> _support_padding_in_axis = {};  // zero-initialization
+    std::array<bool, tensor_dim_max> _support_padding_in_axis;
 
     mutable bool has_reused_memory = false;
     mutable uint32_t reused_memory_color = 0;

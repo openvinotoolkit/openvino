@@ -30,7 +30,7 @@ public:
     virtual ~IPassManager() = default;
     virtual int &getIntVar(std::string name) = 0;
     virtual const Policy &getPolicy() const = 0;
-    virtual const InferenceEngine::CNNNetPtr &getNetwork() const = 0;
+    virtual InferenceEngine::CNNNetwork &getNetwork() = 0;
 };
 
 class BasePass : public Pass {
@@ -142,9 +142,9 @@ DECL_PASS(InsertCopyLayer);
 DECL_PASS(InsertSplitAligningFilter);
 
 /**
-* @brief Pass that changes 4D concat to 2D concat in cases that would have to use ConcatAlignFilter
+* @brief Pass that flattens trivial concatenations inputs and output and changes its axis to 1
 */
-DECL_PASS(Concat4Dto2D);
+DECL_PASS(FlattenTrivialConcat);
 
 /**
  * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not 64-aligned
@@ -209,6 +209,13 @@ DECL_PASS(FuseFQIntoWeights);
 */
 DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
 
+/**
+* @brief convert FullyConnected, ScaleShift and Eltwise layers weights order from NCHW to NHWC.
+* Information for transposition is found from convolution/pooling input or output dimensions.
+* Convolution weights are transposed in finalizeConvolution1DPrimitive() method (gna_graph_compiler.cpp).
+* They are transposed for the both, NCHW and NHWC models since MO always stores them in NCHW layout.
+*/
+DECL_PASS(TransposeWeightsFromNCHWToNHWC);
 
 struct PassManagerSettings {
     Policy policy;
@@ -219,12 +226,12 @@ struct PassManagerSettings {
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
     PassManagerSettings settings;
-    InferenceEngine::CNNNetPtr network;
+    InferenceEngine::CNNNetwork network;
     std::vector<std::shared_ptr<Pass>> passes;
     std::map<std::string, int> intMap;
 
 public:
-    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetPtr network) noexcept
+    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetwork network) noexcept
     : settings(settings)
     , network(network) {}
 
@@ -238,7 +245,7 @@ public:
     const Policy & getPolicy() const override {
         return settings.policy;
     }
-    const InferenceEngine::CNNNetPtr & getNetwork() const override {
+    InferenceEngine::CNNNetwork& getNetwork() override {
         return network;
     }
     /**

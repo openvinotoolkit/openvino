@@ -18,6 +18,12 @@ using namespace InferenceEngine;
 using namespace Extensions;
 using namespace ::Cpu;
 
+namespace {
+
+OV_CC_DOMAINS(GraphPermuteTests);
+
+}   // namespace
+
 struct permute_test_params {
     Layout layout_in, layout_out;
     Precision precision;
@@ -255,10 +261,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_permute",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(GraphPermuteTests, FakeLayer_permute, "FakeLayer_permute", Cpu::ImplFactory<FakeLayerImpl_permute>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);
@@ -551,8 +554,8 @@ protected:
             InferenceEngine::CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
-            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
-            ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
+            ASSERT_EQ(nullptr, network.getFunction());
+            auto implNet = static_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             InferenceEngine::ResponseDesc resp;
             InferenceEngine::StatusCode sts  = implNet->setBatchSizeReshape(MB, &resp);
             ASSERT_EQ((int)InferenceEngine::StatusCode::OK, sts) << resp.msg;
@@ -560,10 +563,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_permute",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(GraphPermuteTests, FakeLayer_permute, "FakeLayer_permute", Cpu::ImplFactory<FakeLayerImpl_permute>);
                 manager->AddExtension(defaultExt);
             }
             MKLDNNGraphTestClass graph;

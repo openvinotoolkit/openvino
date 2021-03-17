@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -295,6 +295,14 @@ std::string toString(MVNMode mode) {
     }
 }
 
+std::string toString(MVNEpsMode mode) {
+    switch (mode) {
+        case MVNEpsMode::INSIDE_SQRT : return "INSIDE_SQRT";
+        case MVNEpsMode::OUTSIDE_SQRT : return "OUTSIDE_SQRT";
+        default: return "";
+    }
+}
+
 std::string toString(WeightsLayout layout) {
    switch (layout) {
         case WeightsLayout::oi:                                          return "OI";
@@ -330,8 +338,10 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb:      return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
         case WeightsLayout::dlstm_dir_io:                                return "DLSTM_DIR_IO";
         case WeightsLayout::os_is_yx_isa8_osv8_isv4:                     return "OS_IS_YX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_isa8_osv16_isv4:                    return "OS_IS_YX_ISA8_OSV16_ISV4";
         case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4:       return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_zyx_isa8_osv8_isv4:                    return "OS_IS_ZYX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_zyx_isa8_osv16_isv4:                   return "OS_IS_ZYX_ISA8_OSV16_ISV4";
         case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4: return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::is_o_yx_isv32:                               return "IS_O_YX_ISV32";

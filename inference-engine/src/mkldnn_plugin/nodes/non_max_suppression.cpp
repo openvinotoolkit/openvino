@@ -12,7 +12,6 @@
 #include <utility>
 #include <queue>
 #include "ie_parallel.hpp"
-#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -400,6 +399,9 @@ public:
             }
         }
         std::fill(selectedIndicesPtr, selectedIndicesPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1);
+        if (outputs.size() > NMS_SELECTEDSCORES) {
+            std::fill(selectedScoresPtr, selectedScoresPtr + (selectedBoxesNum - idx) * selectedIndicesStride, -1.f);
+        }
         if (outputs.size() > NMS_VALIDOUTPUTS)
             *valid_outputs = static_cast<int>(validOutputs);
 
@@ -431,11 +433,11 @@ private:
     size_t num_boxes;
     size_t num_classes;
 
-    size_t max_output_boxes_per_class;
-    float iou_threshold;
-    float score_threshold;
-    float soft_nms_sigma;
-    float scale;
+    size_t max_output_boxes_per_class = 0lu;
+    float iou_threshold = 0.0f;
+    float score_threshold = 0.0f;
+    float soft_nms_sigma = 0.0f;
+    float scale = 1.f;
 
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";

@@ -116,6 +116,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     return dispatchData;
 }
 
+KernelsPriority ConvolutionKernel_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+
 bool ConvolutionKernel_Ref::Validate(const Params& params, const optional_params& options) const {
     if (!ConvolutionKernelBase::Validate(params, options))
         return false;

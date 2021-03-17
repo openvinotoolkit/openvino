@@ -58,6 +58,6 @@ protected:
     virtual bool Validate(const Params&, const optional_params&) const;
     virtual JitConstants GetJitConstants(const space_to_batch_params& params) const;
     virtual CommonDispatchData SetDefault(const space_to_batch_params& params, const optional_params&) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

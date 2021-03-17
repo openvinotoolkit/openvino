@@ -89,12 +89,12 @@ KernelsData ReorderKernel_to_yxfb_batched::GetKernelsData(const Params& params, 
 
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
 
-    auto estimatedTime = FORCE_PRIORITY_1;
+    return GetCommonKernelsData(orgParams, options);
+}
 
-    // this algorithm is designed to perform well on multiple batches, so if batch is 1, then don't use it
-    if (orgParams.inputs[0].Batch().v == 1)
-        estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+KernelsPriority ReorderKernel_to_yxfb_batched::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const reorder_params&>(params);
 
-    return GetCommonKernelsData(orgParams, options, estimatedTime);
+    return p.inputs[0].Batch().v == 1 ? DONT_USE_IF_HAVE_SOMETHING_ELSE : FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

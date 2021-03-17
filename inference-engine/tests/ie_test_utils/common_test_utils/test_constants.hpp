@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -13,7 +13,10 @@ const char DEVICE_FPGA[] = "FPGA";
 const char DEVICE_MYRIAD[] = "MYRIAD";
 const char DEVICE_KEEMBAY[] = "VPUX";
 const char DEVICE_MULTI[] = "MULTI";
+const char DEVICE_TEMPLATE[] = "TEMPLATE";
 const char DEVICE_HETERO[] = "HETERO";
+
+const char REPORT_FILENAME[] = "report.xml";
 
 #ifdef _WIN32
     #ifdef __MINGW32__
@@ -26,7 +29,7 @@ const char DEVICE_HETERO[] = "HETERO";
 #else
     #if defined __APPLE__
         const char pre[] = "lib";
-        const char ext[] = ".dylib";
+        const char ext[] = ".so";
     #else
         const char pre[] = "lib";
         const char ext[] = ".so";

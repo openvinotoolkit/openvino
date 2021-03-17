@@ -5,7 +5,6 @@
 #include <file_utils.h>
 #include <description_buffer.hpp>
 #include <ie_cnn_net_reader_impl.h>
-#include <ie_blob_stream.hpp>
 
 #include <fstream>
 #include <map>

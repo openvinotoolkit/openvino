@@ -6,7 +6,7 @@
 
 #include "subgraph_tests/quantized_mat_mul.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 using namespace ngraph::helpers;
 
 namespace {

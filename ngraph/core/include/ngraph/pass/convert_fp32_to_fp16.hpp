@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,24 +22,21 @@ namespace ngraph
 {
     namespace pass
     {
-        class ConvertFP32ToFP16;
+        class NGRAPH_API ConvertFP32ToFP16 : public ngraph::pass::GraphRewrite
+        {
+        public:
+            NGRAPH_RTTI_DECLARATION;
+            ConvertFP32ToFP16()
+                : GraphRewrite()
+            {
+                convert_constants_precision();
+                convert_parameters_precision();
+            }
 
+        private:
+            void convert_constants_precision();
+
+            void convert_parameters_precision();
+        };
     } // namespace pass
 } // namespace ngraph
-
-class NGRAPH_API ngraph::pass::ConvertFP32ToFP16 : public ngraph::pass::GraphRewrite
-{
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertFP32ToFP16()
-        : GraphRewrite()
-    {
-        convert_constants_precision();
-        convert_parameters_precision();
-    }
-
-private:
-    void convert_constants_precision();
-
-    void convert_parameters_precision();
-};

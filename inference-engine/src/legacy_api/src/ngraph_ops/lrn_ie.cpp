@@ -32,3 +32,12 @@ shared_ptr<Node> op::LRN_IE::clone_with_new_inputs(const OutputVector& new_args)
     check_new_args_count(this, new_args);
     return make_shared<op::LRN_IE>(new_args.at(0), m_alpha, m_beta, m_bias, m_size, m_region);
 }
+
+bool op::LRN_IE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("alpha", m_alpha);
+    visitor.on_attribute("beta", m_beta);
+    visitor.on_attribute("k", m_bias);
+    visitor.on_attribute("local-size", m_size);
+    visitor.on_attribute("region", m_region);
+    return true;
+}

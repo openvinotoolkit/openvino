@@ -247,7 +247,7 @@ TEST_P(MKLDNNGraphBatchNormScaleShiftTests, TestsBatchNormWithScaleShift) {}
 
 using namespace  MKLDNNPlugin;
 
-const size_t expect_num_impl = InferenceEngine::with_cpu_x86_avx2() ? 5 : 4;
+const size_t expect_num_impl = InferenceEngine::with_cpu_x86_avx2() ? 3 : 2;
 
 INSTANTIATE_TEST_CASE_P(
         TestsBatchNormWithScaleShift, MKLDNNGraphBatchNormScaleShiftTests,
@@ -285,8 +285,8 @@ protected:
             InferenceEngine::CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
-            ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
+            ASSERT_EQ(nullptr, network.getFunction());
+            auto implNet = static_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             InferenceEngine::ResponseDesc resp;
             InferenceEngine::StatusCode sts  = implNet->setBatchSizeReshape(MB, &resp);
             ASSERT_EQ((int)InferenceEngine::StatusCode::OK, sts) << resp.msg;
@@ -340,5 +340,5 @@ INSTANTIATE_TEST_CASE_P(
                 // TODO: rewrite to ngraph to have reshape functionality
                 // batchnorm_scaleshift_test_params{{1, 32, 128, 256}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::jit},
                 // batchnorm_scaleshift_test_params{{1, 32, 128, 256}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                batchnorm_scaleshift_test_params{{4, 3, 227, 227}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::jit},
+                // batchnorm_scaleshift_test_params{{4, 3, 227, 227}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::jit},
                 batchnorm_scaleshift_test_params{{4, 3, 227, 227}, 1e-6, 2, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));

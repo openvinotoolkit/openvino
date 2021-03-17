@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -31,6 +31,11 @@ class Div(FrontReplacementPattern):
         # we execute this transformation for V10 IR later on middle phase despite graph_condition
         # so we prevent Div replacement on shape-calculating sub-graphs
         if div.in_port(0).data.get_value() is not None and div.in_port(1).data.get_value() is not None:
+            return
+
+        # cannot replace Div with Mul when the divisor is integer because the reciprocal number will be 0
+        value = div.in_port(1).data.get_value()
+        if value is not None and type(value.item(0)) == int:
             return
 
         graph = div.graph

@@ -22,7 +22,7 @@
 namespace vpu {
 
 void FrontEnd::detectNetworkBatch(
-        ie::ICNNNetwork& network,
+        ie::CNNNetwork& network,
         const Model& model) {
     VPU_PROFILE(detectNetworkBatch);
 
@@ -36,9 +36,12 @@ void FrontEnd::detectNetworkBatch(
     env.log->trace("Batch size = %d", batchSize);
 
     auto checkForDeprecatedCnn = [&network, &env]() {
+        IE_SUPPRESS_DEPRECATED_START
+        auto & icnnnet = static_cast<ie::ICNNNetwork &>(network);
         return !network.getFunction()
                && !env.config.forceDeprecatedCnnConversion
-               && !dynamic_cast<const ie::details::CNNNetworkImpl*>(&network);
+               && !dynamic_cast<const ie::details::CNNNetworkImpl*>(&icnnnet);
+        IE_SUPPRESS_DEPRECATED_END
     };
     VPU_THROW_UNLESS(!checkForDeprecatedCnn(), "Unexpected CNNNetwork format: it was converted to deprecated format prior plugin's call");
 
@@ -53,11 +56,8 @@ void FrontEnd::detectNetworkBatch(
     // Get information about Network inputs and outputs.
     //
 
-    ie::InputsDataMap inputsInfo;
-    ie::OutputsDataMap outputsInfo;
-
-    network.getInputsInfo(inputsInfo);
-    network.getOutputsInfo(outputsInfo);
+    ie::InputsDataMap inputsInfo = network.getInputsInfo();
+    ie::OutputsDataMap outputsInfo = network.getOutputsInfo();
 
     std::map<std::string, ie::Precision> outputsPresisions;
     for (const auto& pair : outputsInfo)
@@ -104,7 +104,7 @@ void FrontEnd::detectNetworkBatch(
     //
 
     if (!network.getFunction()) {
-        for (auto it = ie::details::CNNNetworkIterator(&network); it != ie::details::CNNNetworkIterator(); ++it) {
+        for (auto it = ie::details::CNNNetworkIterator(network); it != ie::details::CNNNetworkIterator(); ++it) {
             const auto& layer = *it;
 
             if (!cmp(layer->type, "DetectionOutput")) {
@@ -118,7 +118,7 @@ void FrontEnd::detectNetworkBatch(
             }
 
             // 1. Don't support if DetectionOutput is not the last layer in network
-            if (!getInputTo(layer->outData.front()).empty()) {
+            if (!ie::getInputTo(layer->outData.front()).empty()) {
                 VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->name);
             }
 
@@ -178,12 +178,7 @@ void FrontEnd::detectNetworkBatch(
 
     env.log->trace("Reshape the network");
 
-    ie::ResponseDesc desc;
-    const auto status = network.reshape(inputShapes, &desc);
-
-    VPU_THROW_UNLESS(
-        status == ie::StatusCode::OK,
-        "Failed to reshape Network: %v", desc.msg);
+    network.reshape(inputShapes);
 
     //
     // Checks outputs that doesn't change their shape.
@@ -191,7 +186,7 @@ void FrontEnd::detectNetworkBatch(
 
     env.log->trace("Checks for unbatched outputs");
 
-    network.getOutputsInfo(outputsInfo);
+    outputsInfo = network.getOutputsInfo();
 
     for (const auto& p : outputsInfo) {
         VPU_LOGGER_SECTION(env.log);

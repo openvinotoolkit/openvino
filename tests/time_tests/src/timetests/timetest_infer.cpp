@@ -22,6 +22,7 @@ int runPipeline(const std::string &model, const std::string &device) {
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
+    size_t batchSize = 0;
 
     {
       SCOPED_TIMER(first_inference_latency);
@@ -39,6 +40,7 @@ int runPipeline(const std::string &model, const std::string &device) {
           {
             SCOPED_TIMER(read_network);
             cnnNetwork = ie.ReadNetwork(model);
+            batchSize = cnnNetwork.getBatchSize();
           }
 
           {
@@ -55,7 +57,6 @@ int runPipeline(const std::string &model, const std::string &device) {
 
       {
         SCOPED_TIMER(fill_inputs)
-        auto batchSize = cnnNetwork.getBatchSize();
         batchSize = batchSize != 0 ? batchSize : 1;
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
         fillBlobs(inferRequest, inputsInfo, batchSize);

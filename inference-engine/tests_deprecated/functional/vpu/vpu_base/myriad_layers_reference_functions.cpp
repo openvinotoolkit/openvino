@@ -1255,10 +1255,7 @@ namespace topk_impl {
     typedef std::function<bool(const Pair&, const Pair&)> CompareFunction;
 
     bool compareIndices(const Pair& a, const Pair& b) {
-        if (a.second < b.second) return true;
-        if (a.second > b.second) return false;
-
-        return true; // shouldn't occur since all indices are different
+        return (a.second < b.second); 
     }
 
     bool compareValuesMax(const Pair& a, const Pair& b) {

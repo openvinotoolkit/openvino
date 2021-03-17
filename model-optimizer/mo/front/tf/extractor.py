@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ def get_tf_edges(node: Node):
     edge_list = []
     for in_port, src_node_id in enumerate(node.pb.input):
         src_node, src_port = get_tf_node_port(src_node_id)
+        tensor_name = src_node + ":" + str(src_port)
         cf_flag = False
         if src_node[0] == '^':
             src_node = src_node[1:]
@@ -41,7 +42,8 @@ def get_tf_edges(node: Node):
         edge = (src_node, node.id, {
             'in': in_port,
             'out': src_port,
-            'fw_tensor_debug_info': [(src_node_id, src_port)],  # debug anchor for a framework tensor name and port
+            # debug anchor for a framework name, out port and tensor name
+            'fw_tensor_debug_info': [(src_node_id, src_port, tensor_name)],
             'in_attrs': ['in', 'control_flow_edge', 'permutation'],
             'out_attrs': ['out', 'permutation'],
             'data_attrs': ['fw_tensor_debug_info'],

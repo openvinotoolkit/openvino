@@ -164,9 +164,11 @@ public:
      * @return CNNetwork containing Executable Graph Info
      */
     CNNNetwork GetExecGraphInfo() {
+        IE_SUPPRESS_DEPRECATED_START
         ICNNNetwork::Ptr ptr = nullptr;
         CALL_STATUS_FNC(GetExecGraphInfo, ptr);
         return CNNNetwork(ptr);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
@@ -177,14 +179,15 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<VariableState> QueryState() {
-        IE_SUPPRESS_DEPRECATED_START
         if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
         IVariableState::Ptr pState = nullptr;
         auto res = OK;
         std::vector<VariableState> controller;
         for (size_t idx = 0; res == OK; ++idx) {
             ResponseDesc resp;
+            IE_SUPPRESS_DEPRECATED_START
             res = actual->QueryState(pState, idx, &resp);
+            IE_SUPPRESS_DEPRECATED_END
             if (res != OK && res != OUT_OF_BOUNDS) {
                 THROW_IE_EXCEPTION << resp.msg;
             }
@@ -193,7 +196,6 @@ public:
             }
         }
 
-        IE_SUPPRESS_DEPRECATED_END
         return controller;
     }
 

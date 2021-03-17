@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
-from tests import xfail_issue_40957
 
 
 def binary_op(op_str, a, b):
@@ -481,7 +480,6 @@ def test_broadcast():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_40957
 def test_constant():
     element_type = Type.f32
     parameter_list = []

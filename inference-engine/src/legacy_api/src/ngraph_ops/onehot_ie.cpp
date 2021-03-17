@@ -19,10 +19,10 @@ op::OneHotIE::OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, f
 void op::OneHotIE::validate_and_infer_types() {
     const PartialShape& arg_shape = get_input_partial_shape(0);
 
-    if (arg_shape.is_dynamic()) {
+    if (arg_shape.rank().is_dynamic()) {
         set_output_type(0, m_type, PartialShape::dynamic());
     } else {
-        Shape output_shape = arg_shape.to_shape();
+        vector<Dimension> output_shape{arg_shape};
         int normalized_axis = m_axis;
         if (m_axis < 0)
             normalized_axis = m_axis + static_cast<int>(arg_shape.to_shape().size());
@@ -34,4 +34,12 @@ void op::OneHotIE::validate_and_infer_types() {
 shared_ptr<Node> op::OneHotIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::OneHotIE>(new_args.at(0), m_axis, m_depth, m_on_value, m_off_value, m_type);
+}
+
+bool op::OneHotIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("axis", m_axis);
+    visitor.on_attribute("depth", m_depth);
+    visitor.on_attribute("off_value", m_off_value);
+    visitor.on_attribute("on_value", m_on_value);
+    return true;
 }

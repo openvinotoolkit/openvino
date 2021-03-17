@@ -18,7 +18,6 @@
 #include "ie_common.h"
 #include "ie_preprocess.hpp"
 #include "ie_imemory_state.hpp"
-#include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
 
@@ -26,7 +25,7 @@ namespace InferenceEngine {
  * @brief This is an interface of asynchronous infer request
  *
  */
-class IInferRequest : public details::IRelease {
+class IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
      * @enum WaitMode
@@ -96,6 +95,12 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
     virtual StatusCode Infer(ResponseDesc* resp) noexcept = 0;
+    /**
+     * @brief Cancels current async inference request
+     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
+     * @return Status code of the operation: InferenceEngine::OK (0) for success
+     */
+    virtual StatusCode Cancel(ResponseDesc* resp) noexcept = 0;
 
     /**
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer
@@ -183,17 +188,22 @@ public:
         return NOT_IMPLEMENTED;
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
-    * @brief Gets state control interface for given infer request.
-    *
-    * State control essential for recurrent networks
-    *
-    * @param pState reference to a pointer that receives internal states
-    * @param idx requested index for receiving memory state
-    * @param resp Optional: pointer to an already allocated object to contain information in case of failure
-    * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
-    * given index
-    */
+     * @brief Gets state control interface for given infer request.
+     *
+     * State control essential for recurrent networks
+     *
+     * @param pState reference to a pointer that receives internal states
+     * @param idx requested index for receiving memory state
+     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
+     * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
+     * given index
+     */
     virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
+
+protected:
+    ~IInferRequest() = default;
 };
+
 }  // namespace InferenceEngine
