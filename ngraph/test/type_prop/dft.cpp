@@ -28,7 +28,8 @@ struct ConstantAxesAndNoSignalSizeTestParams
     std::vector<int64_t> axes;
 };
 
-struct ConstantAxesAndNoSignalSizeTest : ::testing::TestWithParam<ConstantAxesAndNoSignalSizeTestParams>
+struct ConstantAxesAndNoSignalSizeTest
+    : ::testing::TestWithParam<ConstantAxesAndNoSignalSizeTestParams>
 {
 };
 
@@ -51,35 +52,59 @@ INSTANTIATE_TEST_CASE_P(
         ConstantAxesAndNoSignalSizeTestParams{{2, 180, 180, 2}, {2}, {2, 180, 180, 2}, {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{2, 180, 180, 2}, {2}, {2, 180, 180, 2}, {2, 0}},
         ConstantAxesAndNoSignalSizeTestParams{
-            {16, 500, 180, 369, 2}, {3}, {16, 500, 180, 369, 2}, {0, 3, 1}}
+            {16, 500, 180, 369, 2}, {3}, {16, 500, 180, 369, 2}, {0, 3, 1}},
+                {{2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}, {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{
+            {2, 180, Dimension(7, 500), 2}, {2}, {2, 180, Dimension(7, 500), 2}, {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{2, 180, Dimension(7, 500), Dimension(1, 18)},
+         {2},
+         {2, 180, Dimension(7, 500), Dimension(1, 18)},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{
+            {2, Dimension(7, 500), 180, 2}, {2}, {2, Dimension(7, 500), 180, 2}, {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{2, Dimension(7, 500), 180, Dimension(1, 18)},
+         {2},
+         {2, Dimension(7, 500), 180, Dimension(1, 18)},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500), 2},
+         {2},
+         {2, Dimension(7, 500), Dimension(7, 500), 2},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+         {2},
+         {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), 180, 180, 2}, {2}, {Dimension(0, 2), 180, 180, 2}, {1, 2}},
+        {{Dimension(0, 2), 180, 180, Dimension(1, 18)},
+         {2},
+         {Dimension(0, 2), 180, 180, Dimension(1, 18)},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500), 2},
+         {2},
+         {Dimension(0, 2), 180, Dimension(7, 500), 2},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
+         {2},
+         {Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180, 2},
+         {2},
+         {Dimension(0, 2), Dimension(7, 500), 180, 2},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
+         {2},
+         {Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
+         {2},
+         {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
+         {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+         {2},
+         {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+         {1, 2}}
     ),
     PrintToDummyParamName());
-
-TEST(type_prop, dft_constant_axes_and_there_are_no_signal_size_static_shapes)
-{
-    struct ShapesAndValues
-    {
-        Shape input_shape;
-        Shape axes_shape;
-        Shape ref_output_shape;
-        std::vector<int64_t> axes;
-    };
-
-    std::vector<ShapesAndValues> shapes_and_values = {
-        {{2, 180, 180, 2}, {2}, {2, 180, 180, 2}, {1, 2}},
-        {{2, 180, 180, 2}, {2}, {2, 180, 180, 2}, {2, 0}},
-        {{16, 500, 180, 369, 2}, {3}, {16, 500, 180, 369, 2}, {0, 3, 1}}};
-
-    for (const auto& s : shapes_and_values)
-    {
-        auto data = std::make_shared<op::Parameter>(element::f32, s.input_shape);
-        auto axes_input = op::Constant::create<int64_t>(element::i64, s.axes_shape, s.axes);
-        auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-        EXPECT_EQ(dft->get_element_type(), element::f32);
-        EXPECT_EQ(dft->get_shape(), (s.ref_output_shape));
-    }
-}
 
 TEST(type_prop, dft_constant_axes_and_there_are_no_signal_size_dynamic_shapes)
 {
