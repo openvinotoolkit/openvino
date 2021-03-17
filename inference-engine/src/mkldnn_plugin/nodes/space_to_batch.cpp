@@ -29,6 +29,10 @@ public:
             if (spaceToBatchLayer->outData.size() != 1)
                 IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has incorrect number of output edges";
 
+            auto data = spaceToBatchLayer->insData[0].lock();
+            if (!data)
+                THROW_IE_EXCEPTION << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has nullable input data";
+
             inDims = spaceToBatchLayer->insData[0].lock()->getTensorDesc().getDims();
             if (inDims.size() < 4)
                 IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' doesn't support dimensions with rank less than 4";
