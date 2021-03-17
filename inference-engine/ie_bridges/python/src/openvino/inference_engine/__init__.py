@@ -19,20 +19,18 @@ import os
 import sys
 
 if sys.platform == "win32":
-    # Installer, yum, pip installs openvino dlls to the different directory
-    # and this path needs to be visible to the openvino modules
+    # Installer, yum, pip installs openvino dlls to the different directories
+    # and those paths need to be visible to the openvino modules
     #
     # If you're using a custom installation of openvino,
     # add the location of openvino dlls to your system PATH.
-    openvino_libs = [
-            '../../../../deployment_tools/inference_engine/bin/intel64/Release',
-            '../../../../deployment_tools/inference_engine/bin/intel64/Debug',
-            '../../../../deployment_tools/inference_engine/external/hddl/bin',
-            '../../../../deployment_tools/inference_engine/external/gna/lib',
-            '../../../../deployment_tools/inference_engine/external/tbb/bin',
-            '../../../../deployment_tools/ngraph/lib',
-            '../../openvino/libs',  # pip specific directory
-        ]
+    #
+    # looking for the libs in the pip installation path by default.
+    openvino_libs = [os.path.join(os.path.dirname(__file__), '..', '..', 'openvino', 'libs')]
+    # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
+    openvino_libs_installer = os.getenv('OPENVINO_LIB_PATHS')
+    if openvino_libs_installer:
+        openvino_libs.extend(openvino_libs_installer.split(';'))
     for lib in openvino_libs:
         lib_path = os.path.join(os.path.dirname(__file__), lib)
         if os.path.isdir(lib_path):
