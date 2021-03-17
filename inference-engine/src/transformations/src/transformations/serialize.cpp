@@ -125,40 +125,13 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         return join(adapter.get());
     }
 
-public:
-    XmlSerializer(pugi::xml_node& data,
-                  std::ostream& bin_data,
-                  std::string& node_type_name,
-                  const std::map<std::string, ngraph::OpSet>& custom_opsets)
-        : m_xml_node(data)
-        , m_bin_data(bin_data)
-        , m_node_type_name(node_type_name)
-        , m_custom_opsets(custom_opsets) {
-    }
-
-    std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
-        const std::string& map_type) {
-        std::vector<std::string> output;
-        for (pugi::xml_node node : xml_node.child("body").child("layers")) {
-            if (!map_type.compare(node.attribute("type").value())) {
-                output.push_back(node.attribute("id").value());
-            }
-        }
-
-        // ops for serialized body function are provided in reversed order
-        std::reverse(output.begin(), output.end());
-
-        return output;
-    }
-
     void input_descriptions_on_adapter(const std::vector<std::shared_ptr<
-                                        ngraph::op::util::SubGraphOp::InputDescription>>& input_descriptions) {
-        std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
-        std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
-
+                                        ngraph::op::util::SubGraphOp::InputDescription>>& input_descriptions,
+                                        std::vector<std::string> parameter_mapping,
+                                        std::vector<std::string> result_mapping,
+                                        pugi::xml_node& port_map) {
         NGRAPH_CHECK(!parameter_mapping.empty(), "No parameters found in body Function.");
 
-        pugi::xml_node port_map = m_xml_node.parent().child("port_map");
         if (!m_xml_node.parent().child("port_map")) {
             port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
         }
@@ -187,13 +160,12 @@ public:
     }
 
     void output_descriptions_on_adapter(const std::vector<std::shared_ptr<
-                                        ngraph::op::util::SubGraphOp::OutputDescription>>& output_descriptions) {
-        std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
-        std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
-
+                                        ngraph::op::util::SubGraphOp::OutputDescription>>& output_descriptions,
+                                        std::vector<std::string>& parameter_mapping,
+                                        std::vector<std::string>& result_mapping,
+                                        pugi::xml_node& port_map) {
         NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
 
-        pugi::xml_node port_map = m_xml_node.parent().child("port_map");
         if (!port_map) {
             port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
         }
@@ -213,11 +185,10 @@ public:
         }
     }
 
-    void special_body_ports_on_adapter(const ngraph::op::v5::Loop::SpecialBodyPorts& special_body_ports) {
-        std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
-        std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
-
-        pugi::xml_node port_map = m_xml_node.parent().child("port_map");
+    void special_body_ports_on_adapter(const ngraph::op::v5::Loop::SpecialBodyPorts& special_body_ports,
+                                    const std::vector<std::string>& parameter_mapping,
+                                    const std::vector<std::string>& result_mapping,
+                                    pugi::xml_node& port_map) {
         NGRAPH_CHECK(port_map, "port_map section not found, purpose attribute cannot be added.");
 
         if (special_body_ports.current_iteration_input_idx != -1) {
@@ -235,16 +206,45 @@ public:
         }
     }
 
+public:
+    XmlSerializer(pugi::xml_node& data,
+                  std::ostream& bin_data,
+                  std::string& node_type_name,
+                  const std::map<std::string, ngraph::OpSet>& custom_opsets)
+        : m_xml_node(data)
+        , m_bin_data(bin_data)
+        , m_node_type_name(node_type_name)
+        , m_custom_opsets(custom_opsets) {
+    }
+
+    std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
+        const std::string& map_type) {
+        std::vector<std::string> output;
+        for (pugi::xml_node node : xml_node.child("body").child("layers")) {
+            if (!map_type.compare(node.attribute("type").value())) {
+                output.push_back(node.attribute("id").value());            }
+        }
+
+        // ops for serialized body function are provided in reversed order
+        std::reverse(output.begin(), output.end());
+
+        return output;
+    }
+
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
         if (m_xml_node.parent().child("body")) {
+            std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
+            std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
+            pugi::xml_node port_map = m_xml_node.parent().child("port_map");
             if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                                <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter))
-                input_descriptions_on_adapter(a->get());
-            else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                                <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter))
-                output_descriptions_on_adapter(a->get());
-            else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter))
-                special_body_ports_on_adapter(a->get());
+                                <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+                input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
+            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                                <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+                output_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
+            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+                special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
+            }
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
                 m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
