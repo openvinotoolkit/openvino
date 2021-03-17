@@ -51,6 +51,5 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
             };
         } // namespace v7
-        using v7::Roll;
     } // namespace op
 } // namespace ngraph
