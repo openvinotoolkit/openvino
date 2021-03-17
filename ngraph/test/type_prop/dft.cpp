@@ -58,126 +58,56 @@ INSTANTIATE_TEST_CASE_P(
         ConstantAxesAndNoSignalSizeTestParams{
             {2, 180, Dimension(7, 500), 2}, {2}, {2, 180, Dimension(7, 500), 2}, {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{2, 180, Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {2, 180, Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}},
+                                              {2},
+                                              {2, 180, Dimension(7, 500), Dimension(1, 18)},
+                                              {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{
             {2, Dimension(7, 500), 180, 2}, {2}, {2, Dimension(7, 500), 180, 2}, {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{2, Dimension(7, 500), 180, Dimension(1, 18)},
-         {2},
-         {2, Dimension(7, 500), 180, Dimension(1, 18)},
-         {1, 2}},
+                                              {2},
+                                              {2, Dimension(7, 500), 180, Dimension(1, 18)},
+                                              {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500), 2},
-         {2},
-         {2, Dimension(7, 500), Dimension(7, 500), 2},
-         {1, 2}},
-        ConstantAxesAndNoSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}},
+                                              {2},
+                                              {2, Dimension(7, 500), Dimension(7, 500), 2},
+                                              {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{
+            {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+            {2},
+            {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+            {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{
             {Dimension(0, 2), 180, 180, 2}, {2}, {Dimension(0, 2), 180, 180, 2}, {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), 180, 180, Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), 180, 180, Dimension(1, 18)},
-         {1, 2}},
+                                              {2},
+                                              {Dimension(0, 2), 180, 180, Dimension(1, 18)},
+                                              {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500), 2},
-         {2},
-         {Dimension(0, 2), 180, Dimension(7, 500), 2},
-         {1, 2}},
+                                              {2},
+                                              {Dimension(0, 2), 180, Dimension(7, 500), 2},
+                                              {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}},
+                                              {2},
+                                              {Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
+                                              {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180, 2},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), 180, 2},
-         {1, 2}},
+                                              {2},
+                                              {Dimension(0, 2), Dimension(7, 500), 180, 2},
+                                              {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
-         {1, 2}},
+                                              {2},
+                                              {Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
+                                              {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
-         {1, 2}},
-        ConstantAxesAndNoSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}}
-    ),
+                                              {2},
+                                              {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
+                                              {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{
+            {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+            {2},
+            {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+            {1, 2}}),
     PrintToDummyParamName());
-
-TEST(type_prop, dft_constant_axes_and_there_are_no_signal_size_dynamic_shapes)
-{
-    struct ShapesAndValues
-    {
-        PartialShape input_shape;
-        Shape axes_shape;
-        PartialShape ref_output_shape;
-        std::vector<int64_t> axes;
-    };
-
-    std::vector<ShapesAndValues> shapes_and_values = {
-        {{2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}, {1, 2}},
-        {{2, 180, Dimension(7, 500), 2}, {2}, {2, 180, Dimension(7, 500), 2}, {1, 2}},
-        {{2, 180, Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {2, 180, Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}},
-        {{2, Dimension(7, 500), 180, 2}, {2}, {2, Dimension(7, 500), 180, 2}, {1, 2}},
-        {{2, Dimension(7, 500), 180, Dimension(1, 18)},
-         {2},
-         {2, Dimension(7, 500), 180, Dimension(1, 18)},
-         {1, 2}},
-        {{2, Dimension(7, 500), Dimension(7, 500), 2},
-         {2},
-         {2, Dimension(7, 500), Dimension(7, 500), 2},
-         {1, 2}},
-        {{2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}},
-        {{Dimension(0, 2), 180, 180, 2}, {2}, {Dimension(0, 2), 180, 180, 2}, {1, 2}},
-        {{Dimension(0, 2), 180, 180, Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), 180, 180, Dimension(1, 18)},
-         {1, 2}},
-        {{Dimension(0, 2), 180, Dimension(7, 500), 2},
-         {2},
-         {Dimension(0, 2), 180, Dimension(7, 500), 2},
-         {1, 2}},
-        {{Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}},
-        {{Dimension(0, 2), Dimension(7, 500), 180, 2},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), 180, 2},
-         {1, 2}},
-        {{Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
-         {1, 2}},
-        {{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
-         {1, 2}},
-        {{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {2},
-         {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-         {1, 2}}};
-
-    for (const auto& s : shapes_and_values)
-    {
-        auto data = std::make_shared<op::Parameter>(element::f32, s.input_shape);
-        auto axes_input = op::Constant::create<int64_t>(element::i64, s.axes_shape, s.axes);
-        auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-        EXPECT_EQ(dft->get_element_type(), element::f32);
-        ASSERT_TRUE(dft->get_output_partial_shape(0).same_scheme(s.ref_output_shape));
-    }
-}
 
 TEST(type_prop, dft_constant_axes_and_there_are_signal_size_static_shapes)
 {
