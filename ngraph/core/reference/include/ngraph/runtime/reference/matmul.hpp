@@ -25,8 +25,6 @@
 #include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/shape_util.hpp"
 
-using namespace std;
-
 namespace ngraph
 {
     namespace runtime
@@ -43,7 +41,7 @@ namespace ngraph
                          const Shape& arg1_shape,
                          const Shape& out_shape)
                 {
-                    std::fill(out, out + shape_size(out_shape), static_cast<T>(0));
+                    std::fill(out, out + shape_size(out_shape), T{0});
                     const size_t arg0_rank = arg0_shape.size();
                     const size_t arg1_rank = arg1_shape.size();
 
@@ -68,6 +66,16 @@ namespace ngraph
                             }
                         }
                     }
+                }
+
+                std::vector<size_t> get_transpose_order(const Shape& input_shape)
+                {
+                    size_t rank = input_shape.size();
+                    NGRAPH_CHECK(rank > 1, "Invalid input for transpose");
+                    std::vector<size_t> axes_order(rank);
+                    std::iota(axes_order.begin(), axes_order.end(), 0);
+                    std::swap(axes_order[rank - 1], axes_order[rank - 2]);
+                    return axes_order;
                 }
             }
             /// \brief Reference kernel for matmul computation.
@@ -108,10 +116,10 @@ namespace ngraph
 
                 // vector vars to hold pontential intermediate transpose,
                 // broadcast result
-                vector<T> arg0_transpose_vec;
-                vector<T> arg1_transpose_vec;
-                vector<T> arg0_broadcast_vec;
-                vector<T> arg1_broadcast_vec;
+                std::vector<T> arg0_transpose_vec;
+                std::vector<T> arg1_transpose_vec;
+                std::vector<T> arg0_broadcast_vec;
+                std::vector<T> arg1_broadcast_vec;
 
                 // pointers to updated inputs
                 const T* arg0_update = arg0;
@@ -121,20 +129,12 @@ namespace ngraph
                 Shape arg0_shape_tmp = arg0_shape;
                 Shape arg1_shape_tmp = arg1_shape;
 
-                auto get_transpose_order = [](const Shape& input_shape) {
-                    size_t rank = input_shape.size();
-                    NGRAPH_CHECK(rank > 1, "Invalid input for transpose");
-                    vector<size_t> axes_order(rank);
-                    iota(axes_order.begin(), axes_order.end(), 0);
-                    swap(axes_order[rank - 1], axes_order[rank - 2]);
-                    return axes_order;
-                };
                 // Perform transpose if requested
                 if (transpose_arg0 && arg0_rank > 1)
                 {
                     arg0_transpose_vec.reserve(shape_size(arg0_shape));
-                    auto axis_vector = get_transpose_order(arg0_shape);
-                    swap(arg0_shape_tmp[arg0_rank - 1], arg0_shape_tmp[arg0_rank - 2]);
+                    auto axis_vector = details::get_transpose_order(arg0_shape);
+                    std::swap(arg0_shape_tmp[arg0_rank - 1], arg0_shape_tmp[arg0_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg0),
                                         reinterpret_cast<char*>(arg0_transpose_vec.data()),
                                         arg0_shape,
@@ -148,8 +148,8 @@ namespace ngraph
                 if (transpose_arg1 && arg1_rank > 1)
                 {
                     arg1_transpose_vec.reserve(shape_size(arg1_shape));
-                    auto axis_vector = get_transpose_order(arg1_shape);
-                    swap(arg1_shape_tmp[arg1_rank - 1], arg1_shape_tmp[arg1_rank - 2]);
+                    auto axis_vector = details::get_transpose_order(arg1_shape);
+                    std::swap(arg1_shape_tmp[arg1_rank - 1], arg1_shape_tmp[arg1_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg1),
                                         reinterpret_cast<char*>(arg1_transpose_vec.data()),
                                         arg1_shape,
