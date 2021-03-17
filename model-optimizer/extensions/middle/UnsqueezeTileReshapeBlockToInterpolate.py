@@ -25,7 +25,6 @@ from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.shape import Shape
-from mo.ops.strided_slice import StridedSlice
 from mo.utils.shape import node_to_get_shape_value_of_indices
 
 
