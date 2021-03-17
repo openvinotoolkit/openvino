@@ -53,7 +53,8 @@ INSTANTIATE_TEST_CASE_P(
         ConstantAxesAndNoSignalSizeTestParams{{2, 180, 180, 2}, {2}, {2, 180, 180, 2}, {2, 0}},
         ConstantAxesAndNoSignalSizeTestParams{
             {16, 500, 180, 369, 2}, {3}, {16, 500, 180, 369, 2}, {0, 3, 1}},
-                {{2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}, {1, 2}},
+        ConstantAxesAndNoSignalSizeTestParams{
+            {2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}, {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{
             {2, 180, Dimension(7, 500), 2}, {2}, {2, 180, Dimension(7, 500), 2}, {1, 2}},
         ConstantAxesAndNoSignalSizeTestParams{{2, 180, Dimension(7, 500), Dimension(1, 18)},
