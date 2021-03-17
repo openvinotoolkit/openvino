@@ -58,7 +58,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*BF16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
-        R"(.*BinaryConvolutionLayerTest.*)"
+        R"(.*BinaryConvolutionLayerTest.*)",
+        // Incorrect conversion of min and max limits from double to integral
+        R"(.*ClampLayerTest.*netPrc=(I64|I32|U64).*)"
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
