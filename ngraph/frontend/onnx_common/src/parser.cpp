@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@
 #include <onnx/onnx_pb.h>
 
 #include "ngraph/except.hpp"
-#include "utils/parser.hpp"
+#include "onnx_common/parser.hpp"
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace onnx_common
     {
         ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path)
         {
@@ -73,5 +73,5 @@ namespace ngraph
 
             return model_proto;
         }
-    } // namespace onnx_import
+    } // namespace onnx_common
 } // namespace ngraph
