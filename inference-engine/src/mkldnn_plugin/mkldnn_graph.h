@@ -50,7 +50,7 @@ public:
     template<typename NET>
     void CreateGraph(const NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
-                     MKLDNNWeightsSharing::Ptr w_cache);
+                     MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
         return _meanImages.find(name) != _meanImages.end();
