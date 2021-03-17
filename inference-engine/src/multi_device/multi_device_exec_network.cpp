@@ -168,7 +168,7 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n.GetContext();
-        } catch (const NotImplemented& ex) {
+        } catch (const NotImplemented&) {
         }
     }
     THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "None of the devices in the MULTI has an associated remote context."
@@ -201,7 +201,7 @@ IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
                                                                              _needPerfCounters,
                                                                              std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
                                                                              _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase(asyncTreadSafeImpl), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(asyncTreadSafeImpl));
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     return asyncRequest;
 }

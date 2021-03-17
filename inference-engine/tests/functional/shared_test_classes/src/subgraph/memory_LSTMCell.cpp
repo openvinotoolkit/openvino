@@ -265,6 +265,7 @@ namespace SubgraphTestsDefinitions {
             }
         }
         IE_SUPPRESS_DEPRECATED_END
+        GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();
@@ -303,6 +304,7 @@ namespace SubgraphTestsDefinitions {
             }
         }
         IE_SUPPRESS_DEPRECATED_END
+        GenerateInputs();
         Infer();
 
         CreatePureTensorIteratorModel();

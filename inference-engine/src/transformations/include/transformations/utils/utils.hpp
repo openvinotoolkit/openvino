@@ -104,6 +104,18 @@ TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, con
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
                                                              const ngraph::Output<ngraph::Node>& apply_to);
 
+template <class T>
+Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
+    auto eltwise = std::make_shared<T>(input0, input1);
+    OutputVector output(eltwise->get_output_size());
+    if (!eltwise->constant_fold(output, {input0, input1})) {
+        throw ngraph_error("Can not constant fold eltwise node");
+    }
+    if (output.size() != 1) {
+        throw ngraph_error("Eltwise constant fold has unexpected number of outputs: " + std::to_string(output.size()));
+    }
+    return output[0];
+}
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

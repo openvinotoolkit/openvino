@@ -120,7 +120,6 @@ declared in `namespace opset6`.
 * [ReorgYolo](detection/ReorgYolo_1.md)
 * [Reshape](shape/Reshape_1.md)
 * [Result](infrastructure/Result_1.md)
-* [Reverse](movement/Reverse_1.md)
 * [ReverseSequence](movement/ReverseSequence_1.md)
 * [RNNCell](sequence/RNNCell_3.md)
 * [RNNSequence](sequence/RNNSequence_5.md)

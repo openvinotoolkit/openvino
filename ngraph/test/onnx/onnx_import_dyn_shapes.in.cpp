@@ -1337,3 +1337,40 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
     test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {5, 6, 7, 9, 10, 11, 13, 14, 15});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/depth_to_space.prototxt"));
+
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
+
+    std::vector<float> expected_output{
+        0.f, 8.f,  1.f, 9.f,  16.f, 24.f, 17.f, 25.f, 2.f, 10.f, 3.f, 11.f, 18.f, 26.f, 19.f, 27.f,
+        4.f, 12.f, 5.f, 13.f, 20.f, 28.f, 21.f, 29.f, 6.f, 14.f, 7.f, 15.f, 22.f, 30.f, 23.f, 31.f};
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    test_case.add_input(Shape{1, 8, 2, 2}, input);
+    test_case.add_expected_output(Shape{1, 2, 4, 4}, expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/space_to_depth.prototxt"));
+
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
+
+    std::vector<float> expected_output{
+        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
+        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
+    };
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    test_case.add_input(Shape{1, 2, 4, 4}, input);
+    test_case.add_expected_output(Shape{1, 8, 2, 2}, expected_output);
+    test_case.run();
+}

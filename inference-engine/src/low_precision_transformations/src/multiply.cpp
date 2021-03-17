@@ -70,9 +70,13 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
-            std::vector<ngraph::element::Type>{element::f32},
+            std::vector<ngraph::element::Type>{ multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(fold<opset1::Multiply>(multiplyParentConst, constParent), element::f32).get());
+            ngraph::op::TemporaryReplaceOutputType(
+                fold<opset1::Multiply>(
+                    fold<opset1::Convert>(multiplyParentConst, element::f32),
+                    fold<opset1::Convert>(constParent, element::f32)),
+                element::f32).get());
 
         NetworkHelper::copyInfo(multiplyParent, newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
@@ -123,7 +127,12 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                 dequantizationFullPath.subtract,
             newMultiplyValuesFullPath);
 
-        newMultiply = multiply->clone_with_new_inputs(inputs);
+        newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+                std::vector<element::Type>{element::f32, element::f32},
+                std::vector<element::Type>{ multiply->get_output_element_type(0) },
+                ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+        NetworkHelper::copyInfo(multiply, newMultiply);
     }
 
     replace_node(multiply, newMultiply);

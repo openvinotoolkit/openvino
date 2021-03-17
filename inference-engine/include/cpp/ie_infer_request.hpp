@@ -18,6 +18,7 @@
 #include "ie_iinfer_request.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 

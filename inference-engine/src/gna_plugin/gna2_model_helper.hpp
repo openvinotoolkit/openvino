@@ -27,6 +27,7 @@ constexpr uint32_t DelayParamIdx = 0;
 constexpr uint32_t PoolModeParamIdx = 2;
 constexpr uint32_t PoolWinParamIdx = 3;
 constexpr uint32_t PoolStrideParamIdx = 4;
+constexpr uint32_t ZeroPaddingParamIdx = 5;
 
 #define GNA_MAX_OP_PARAM 10
 typedef void (*GnaUserFree)(void*);
@@ -104,7 +105,8 @@ void HelperGna2OperationInitConvolution(
     Gna2Tensor * filters, Gna2Tensor * biases,
     Gna2Tensor * activation,
     Gna2Shape * convolutionStride,
-    enum Gna2BiasMode * biasMode);
+    enum Gna2BiasMode * biasMode,
+    Gna2Shape* zeroPadding);
 
 void HelperGna2OperationInitCopy(
     Gna2Operation * operation,

@@ -61,6 +61,10 @@ void FP::infer() {
                 ApplyConvolutional1DTransform(comp);
                 break;
             }
+            case kDnnConvolutional2dOp: {
+                ApplyConvolutional2DTransform(comp);
+                break;
+            }
             case kDnnPiecewiselinearOp: {
                 ApplyPiecewiseLinearTransform(comp, kDnnFloat, num_active_outputs);
                 break;

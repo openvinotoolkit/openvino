@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@ class MaxPool_extender(Extender):
 
 
 def common_pool_extender(op: Node):
+    for attr in ['strides', 'pads_begin', 'pads_end', 'kernel']:
+        Extender.attr_to_list(op, attr)
     op['stride'] = int64_array([1, 1] + op.strides)
     op['window'] = int64_array([1, 1] + op.kernel)
     op['kernel_spatial'] = op.kernel
@@ -50,7 +52,7 @@ def common_pool_extender(op: Node):
 
     dim = len(op.pads_begin)
 
-    assert dim in (2, 3), '{}D {} not supported!'.format(dim, op.op)
+    assert dim in (1, 2, 3), '{}D {} not supported! Node name: {}'.format(dim, op.soft_get('type'), op.soft_get('name', op.id))
 
     pad = [[0, 0], [0, 0]]
     pad.extend([[op.pads_begin[i], op.pads_end[i]] for i in range(dim)])

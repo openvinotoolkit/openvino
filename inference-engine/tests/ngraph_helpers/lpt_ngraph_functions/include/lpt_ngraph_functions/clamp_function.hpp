@@ -21,6 +21,10 @@ public:
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
+    static std::shared_ptr<ngraph::Function> getWithNonDequantizationMultiply(
+        const ngraph::Shape& inputShape,
+        const ngraph::element::Type precision);
+
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
         const ngraph::Shape& inputShape,

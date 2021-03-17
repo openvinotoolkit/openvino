@@ -58,6 +58,7 @@ enum class KernelType {
     ONE_HOT,
     GATHER,
     SCATTER_UPDATE,
+    SCATTER_ND_UPDATE,
     SCATTER_ELEMENTS_UPDATE,
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,

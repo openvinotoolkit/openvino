@@ -31,6 +31,8 @@ public:
                                  const ngraph::element::Type& outputType = ngraph::element::i64);
 
     void validate_and_infer_types() override;
+    void set_output_type(const ngraph::element::Type& output_type);
+    using Node::set_output_type;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 

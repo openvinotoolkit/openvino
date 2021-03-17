@@ -30,7 +30,7 @@ class ROIPoolingLayerTest : public testing::WithParamInterface<roiPoolingParamsT
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj);
-    void Infer() override;
+    void GenerateInputs() override;
 
 protected:
     void SetUp() override;

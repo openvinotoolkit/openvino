@@ -20,6 +20,7 @@ class GNAVariableState : public InferenceEngine::IVariableStateInternal {
     void SetState(InferenceEngine::Blob::Ptr newState) override;
     InferenceEngine::Blob::CPtr GetState() const override;
     std::string GetName() const override;
+    float GetScaleFactor() const;
 
 private:
     std::shared_ptr<GNAMemoryLayer> state;

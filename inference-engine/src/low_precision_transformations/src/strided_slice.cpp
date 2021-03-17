@@ -22,14 +22,19 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     //    return NetworkHelper::toScalar(constant);
     //}
 
-    if (strSlice->get_input_shape(0).size() != constant->get_shape().size()) {
-        const auto constantShape = constant->get_shape();
-        const auto stridedSliceShape = strSlice->get_input_shape(0);
-        ngraph::Shape newConstantShape(stridedSliceShape.size(), 1);
+    const auto stridedSliceShape = strSlice->get_input_shape(0);
+    const auto constantShape = constant->get_shape();
+    if (stridedSliceShape.size() != constantShape.size()) {
+        ngraph::Shape newConstantShape;
+        if (ngraph::shape_size(constantShape) == 1) {
+            newConstantShape = ngraph::Shape(stridedSliceShape.size(), 1);
+        } else {
+            newConstantShape = constantShape;
 
-        for (size_t i = 0; i < constantShape.size(); ++i) {
-            if (constantShape[i] != 1) {
-                newConstantShape[i] = constantShape[i];
+            // case when constShape without batch
+            if ((constantShape.size() > 1) &&
+                (constantShape.size() < stridedSliceShape.size())) {
+                newConstantShape.insert(newConstantShape.begin(), stridedSliceShape[0]);
             }
         }
 

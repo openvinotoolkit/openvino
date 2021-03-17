@@ -19,30 +19,32 @@ StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
                                            const Output<Node>& targetShape,
                                            const Output<Node>& axesMapping,
                                            const ngraph::op::BroadcastModeSpec& broadcastSpec)
-        : ::ngraph::op::v3::Broadcast{arg, targetShape, axesMapping, broadcastSpec} {
+        : ::ngraph::op::v3::Broadcast{arg, targetShape, axesMapping, broadcastSpec},
+          m_evaluatedOutputShape{PartialShape::dynamic()} {
     constructor_validate_and_infer_types();
 }
 
 StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
                                            const Output<Node>& targetShape,
                                            const ngraph::op::BroadcastModeSpec& broadcastSpec)
-        : ::ngraph::op::v3::Broadcast{arg, targetShape, broadcastSpec} {
+        : ::ngraph::op::v3::Broadcast{arg, targetShape, broadcastSpec},
+          m_evaluatedOutputShape{PartialShape::dynamic()} {
     constructor_validate_and_infer_types();
 }
 
 void StaticShapeBroadcast::validate_and_infer_types() {
-    if (get_output_partial_shape(0).is_static()) {
-        return;
+    auto& outputShape = m_evaluatedOutputShape;
+    if (outputShape.is_dynamic()) {
+        ::ngraph::op::v3::Broadcast::validate_and_infer_types();
+
+        outputShape = get_output_partial_shape(0);
+        NODE_VALIDATION_CHECK(this, outputShape.rank().is_static(), "StaticShapeBroadcast (", get_friendly_name(), ") ",
+                              "output is expected to be of static rank");
+        for (size_t i = 0; i < outputShape.rank().get_length(); i++) {
+            outputShape[i] = outputShape[i].get_max_length();
+        }
     }
 
-    ::ngraph::op::v3::Broadcast::validate_and_infer_types();
-
-    auto outputShape = get_output_partial_shape(0);
-    NODE_VALIDATION_CHECK(this, outputShape.rank().is_static(), "StaticShapeBroadcast (", get_friendly_name(), ") ",
-                          "output is expected to be of static rank");
-    for (size_t i = 0; i < outputShape.rank().get_length(); i++) {
-        outputShape[i] = outputShape[i].get_max_length();
-    }
     NODE_VALIDATION_CHECK(this, outputShape.is_static(),
                           "StaticShapeBroadcast (", get_friendly_name(), ") can't evaluate output shape");
 

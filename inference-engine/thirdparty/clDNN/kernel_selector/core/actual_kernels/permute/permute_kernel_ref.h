@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,39 +15,33 @@
 
 #pragma once
 
-#include "kernel_base_opencl.h"
-#include <vector>
+#include "permute_kernel_base.h"
 
 namespace kernel_selector {
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// permute_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct permute_params : public base_params {
-    permute_params() : base_params(KernelType::PERMUTE) {}
-
-    std::vector<uint16_t> order;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// permute_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct permute_optional_params : optional_params {
-    permute_optional_params() : optional_params(KernelType::PERMUTE) {}
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PermuteKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class PermuteKernelRef : public KernelBaseOpenCL {
+class PermuteKernelRef : public PermuteKernelBase {
 public:
-    PermuteKernelRef() : KernelBaseOpenCL("permute_ref") {}
+    using Parent = PermuteKernelBase;
+    using Parent::Parent;
+    PermuteKernelRef() : PermuteKernelBase("permute_ref") {}
     virtual ~PermuteKernelRef() {}
 
-    JitConstants GetJitConstants(const permute_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const;
     ParamsKey GetSupportedKey() const override;
+
+protected:
+    JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const override;
+    CommonDispatchData SetDefault(const permute_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::QUANTIZE,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE
+        };
+    }
 };
 }  // namespace kernel_selector

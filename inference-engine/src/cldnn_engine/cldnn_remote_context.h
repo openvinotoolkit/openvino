@@ -198,8 +198,6 @@ public:
     * @return false if handle cannot be released, otherwise - true.
     */
     bool free(void* handle) noexcept override { return true; }
-
-    void Release() noexcept override {}
 };
 
 class CLDNNExecutionContextImpl : public InferenceEngine::gpu::details::param_map_obj_getter {

@@ -31,14 +31,15 @@ public:
     std::string device;
     std::string model_name;
     std::string model;
+    std::string precision;
     std::string test_case_name;
 
-    TestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device, const std::string& _model, const std::string& _model_name) {
-        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, device = _device, model = _model, model_name = _model_name;
+    TestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device, const std::string& _model, const std::string& _model_name, const std::string& _precision) {
+        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, device = _device, model = _model, model_name = _model_name, precision = _precision;
         test_case_name =
                 "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
-                "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_Model_" + 
-                update_item_for_name(model_name);
+                "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_Precision_" +
+                update_item_for_name(precision) + "_Model_" + update_item_for_name(model_name);
     }
 
 private:

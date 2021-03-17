@@ -171,13 +171,17 @@ public:
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
                 bool supportAsymmetricQuantization = false,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
-                std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
+                std::vector<element::Type> precisionsOnWeights = { element::i8 },
+                element::Type deqPrecision = element::f32,
+                bool support3DTensorOnActivations = true) :
                 updatePrecisions(updatePrecisions),
                 quantizedTensorAlignmentOnActivations(quantizedTensorAlignmentOnActivations),
                 quantizedTensorAlignmentOnWeights(quantizedTensorAlignmentOnWeights),
                 supportAsymmetricQuantization(supportAsymmetricQuantization),
                 precisionsOnActivations(precisionsOnActivations),
-                precisionsOnWeights(precisionsOnWeights) {
+                precisionsOnWeights(precisionsOnWeights),
+                deqPrecision(deqPrecision),
+                support3DTensorOnActivations(support3DTensorOnActivations) {
             if (precisionsOnActivations.size() == 0ul) {
                 THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
             }
@@ -217,12 +221,19 @@ public:
             return *this;
         }
 
+        Params& setSupport3DTensorOnActivations(const bool support3DTensorOnActivations) {
+            this->support3DTensorOnActivations = support3DTensorOnActivations;
+            return *this;
+        }
+
         bool updatePrecisions;
         QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
         QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
         bool supportAsymmetricQuantization;
         std::vector<element::Type> precisionsOnActivations;
         std::vector<element::Type> precisionsOnWeights;
+        element::Type deqPrecision;
+        bool support3DTensorOnActivations;
     };
 
     class PrecisionDetails {
@@ -297,6 +308,8 @@ protected:
     bool supportAsymmetricQuantization;
     std::vector<element::Type> precisionsOnActivations;
     std::vector<element::Type> precisionsOnWeights;
+    element::Type deqPrecision;
+    bool support3DTensorOnActivations;
 
     // absolute value, used to determine quantization interval asymmetry
     float quantizationIntervalAsymmetryThreshold;

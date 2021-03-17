@@ -479,7 +479,7 @@ _check_distro_version()
             exit $EXIT_FAILURE
         fi
     elif [[ $DISTRO == redhat ]]; then
-        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.[0-9]{1,2}")
+        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.[0-9]")
         if [[ $? -ne 0 ]]; then
             echo "Warning: This runtime can be installed only on RHEL 8" >&2
             echo "Installation of Intel Compute Runtime interrupted"

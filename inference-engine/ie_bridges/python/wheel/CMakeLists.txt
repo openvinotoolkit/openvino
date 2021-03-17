@@ -6,18 +6,20 @@ set(WHEEL_LICENCE_TYPE "OSI Approved :: Apache Software License" CACHE STRING "L
 set(WHEEL_AUTHOR "Intel Corporation" CACHE STRING "Package author’s name")
 set(WHEEL_AUTHOR_EMAIL "openvino_pushbot@intel.com" CACHE STRING "Email address of the package author")
 set(WHEEL_DESC "Inference Engine Python* API" CACHE STRING "Short, summary description of the package")
+set(WHEEL_URL "https://docs.openvinotoolkit.org/latest/index.html" CACHE STRING "Home page url")
+set(WHEEL_DOWNLOAD_URL "https://github.com/openvinotoolkit/openvino/tags" CACHE STRING "Download page url")
 set(WHEEL_VERSION "0.0.0" CACHE STRING "Version of this release")
 set(WHEEL_BUILD "000" CACHE STRING "Build number of this release")
 set(WHEEL_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE" CACHE STRING "Wheel license file")
 set(WHEEL_REQUIREMENTS "${CMAKE_CURRENT_SOURCE_DIR}/meta/openvino.requirements.txt" CACHE STRING "Wheel requirements.txt file")
-set(WHEEL_OVERVIEW "${CMAKE_CURRENT_SOURCE_DIR}/meta/pypi_overview.md" CACHE STRING "WHEEL_AUTHOR detailed description")
+set(WHEEL_OVERVIEW "${CMAKE_CURRENT_SOURCE_DIR}/meta/pypi_overview.md" CACHE STRING "Detailed description")
 
 set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 set(SETUP_ENV   "${CMAKE_CURRENT_SOURCE_DIR}/.env.in")
 
 set(CORE_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
 set(PLUGINS_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
-set(NGRAPH_LIBS_DIR ${IE_CPACK_IE_DIR}/../ngraph/lib)
+set(NGRAPH_LIBS_DIR deployment_tools/ngraph/lib)
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR deployment_tools/inference_engine/external/tbb/lib)
 

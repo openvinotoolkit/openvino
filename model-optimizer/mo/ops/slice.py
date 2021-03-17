@@ -34,7 +34,7 @@ A number of transformations take place on the front phase to convert framework s
 class AttributedSlice(Op):
     """
     AttributedSlice is used in old versions of ONNX models (opset version < 10).
-    The operation is replaced with the OpenVINO Slice operation on the front phase.
+    Is replaced with internal Slice on the front phase.
     """
     op = 'AttributedSlice'
     enabled = False
@@ -53,7 +53,7 @@ class CaffeSlice(Op):
     """
     Slice in Caffe is equivalent to Split operation in OpenVINO.
     https://caffe.berkeleyvision.org/tutorial/layers/slice.html
-    The operation is replaced with the OpenVINO Split operation on the front phase.
+    Is replaced with Split from opset on the front phase.
     """
     op = 'CaffeSlice'
     enabled = False
@@ -71,11 +71,10 @@ class CaffeSlice(Op):
 
 class TFSlice(Op):
     """
-    Slice operation in Tensorflow is different from Slice in ONNX, Caffe and MXNet. It has begin and size inputs while
-    ONNX Slice and internal MO Slice has start, end, step and axis parameters specified as inputs.
+    TFSlice differs from Slice in ONNX, Caffe and MXNet.
+    TFSlice has 'begin' and 'size' inputs while Slice has 'start', 'end', 'step', and 'axis' inputs.
     https://www.tensorflow.org/api_docs/python/tf/slice
-    The operation is replaced with the internal Slice on the front phase.
-    If size[i] == -1 is replaced to int32_max value for the end.
+    Is replaced with internal Slice op on the front phase.
     """
     op = 'TFSlice'
     enabled = False
@@ -94,7 +93,7 @@ class MXSlice(Op):
     """
     Slice operation in MXNet is different from ONNX, Caffe, Tensorflow. It has begin, end & step attributes
     https://mxnet.apache.org/versions/1.6/api/python/docs/api/symbol/op/index.html#mxnet.symbol.op.slice
-    The operation is replaced with the OpenVINO StridedSlice operation on the front phase.
+    Is replaced with the StridedSlice from opset on the front phase.
     """
     op = 'MXSlice'
     enabled = False
@@ -112,9 +111,9 @@ class MXSlice(Op):
 
 class Slice(Op):
     """
-    Semantic of MO internal Slice operation is identical to Slice in ONNX opset >= 10.
-    It has starts, ends, steps and axes inputs.
-    The operation is internal (not present in the OpenVINO opset) and is replaced to StridedSlice.
+    Semantic of Slice is identical to Slice in ONNX opset >= 10.
+    It has 'starts', 'ends', 'steps', and 'axes' inputs.
+    SliceConverter replaces it with StridedSlice from opset.
     """
     op = 'Slice'
     enabled = False

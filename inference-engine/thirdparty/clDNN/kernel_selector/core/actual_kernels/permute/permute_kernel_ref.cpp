@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,9 +41,18 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     return k;
 }
 
-JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
+CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) const {
+    CommonDispatchData dispatchData;
+    const auto& in =  params.inputs[0];
 
+    dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+
+    return dispatchData;
+}
+
+JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
     std::vector<std::string> in_idx;
     std::vector<std::string> out_idx;
     switch (DataTensor::ChannelsCount(params.inputs[0].GetLayout())) {
@@ -69,11 +78,11 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params) con
     jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + output_order + ")"));
 
     if (!params.fused_ops.empty()) {
-        if (out_idx.size() == 4)
+        if (out_idx.size() == 4) {
             std::swap(out_idx[2], out_idx[3]);
-        else if (out_idx.size() == 5)
+        } else if (out_idx.size() == 5) {
             std::swap(out_idx[2], out_idx[4]);
-        else if (out_idx.size() == 6) {
+        } else if (out_idx.size() == 6) {
             std::swap(out_idx[2], out_idx[5]);
             std::swap(out_idx[3], out_idx[4]);
         }
@@ -81,29 +90,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params) con
         FusedOpsConfiguration conf = {"", out_idx, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
-
     return jit;
-}
-
-KernelsData PermuteKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    assert(params.GetType() == KernelType::PERMUTE);
-
-    KernelData kd = KernelData::Default<permute_params>(params);
-    permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
-
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-    auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
-    const auto& in = newParams.inputs[0];
-    auto& kernel = kd.kernels[0];
-
-    kernel.workGroups.global = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params));
-
-    return {kd};
 }
 
 KernelsPriority PermuteKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
