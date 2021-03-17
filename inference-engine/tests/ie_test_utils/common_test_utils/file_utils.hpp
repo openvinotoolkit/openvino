@@ -246,7 +246,7 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
             waitpid(lockerPid, &status, WNOHANG);
 #else
             DWORD winProcessId;
-            HANDLE winProcess = ::GetWindowThreadProcessId( hWnd, (DWORD*)&PID );
+            HANDLE winProcess = ::GetWindowThreadProcessId(hWnd, static_cast<DWORD*>(&winProcessId));
             winProcess = ::OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
                                        PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
                                        FALSE, winProcessId);
