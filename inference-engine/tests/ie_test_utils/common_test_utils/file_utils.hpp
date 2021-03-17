@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -21,8 +21,6 @@
 #include <windows.h>
 #include <stdio.h>
 #include <tchar.h>
-#include "InjCode.h"
-#include "resource.h"
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
@@ -110,6 +108,27 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
     }
 
     return ret;
+}
+
+// Lists all files with extension=ext from the given directory
+// Return value:
+// vector of strings representing file paths
+inline std::vector<std::string> listFilesWithExt(const std::string& path, const std::string& ext) {
+    struct dirent *ent;
+    DIR *dir = opendir(path.c_str());
+    std::vector<std::string> res;
+    if (dir != nullptr) {
+        while ((ent = readdir(dir)) != NULL) {
+            auto file = makePath(path, std::string(ent->d_name));
+            struct stat stat_path;
+            stat(file.c_str(), &stat_path);
+            if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext)) {
+                res.push_back(std::move(file));
+            }
+        }
+        closedir(dir);
+    }
+    return res;
 }
 
 inline int removeDir(const std::string &path) {
@@ -247,18 +266,17 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
 #ifndef _WIN32
             waitpid(lockerPid, &status, WNOHANG);
 #else
-            DWORD winProcessId;
-            HANDLE winProcess = ::GetWindowThreadProcessId(hWnd, static_cast<DWORD*>(&winProcessId));
-            winProcess = ::OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
-                                       PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
-                                       FALSE, winProcessId);
-            if (winProcess != NULL) {
-                LPDWORD winStatus;
-                ::WaitForSingleObject(winProcess, INFINITE);
-                ::GetExitCodeProcess(winProcess, winStatus);
-                ::CloseHandle(winProcess);
-                status = static_cast<int>(*winStatus);
-            }
+    DWORD winProcessId = static_cast<DWORD>(processId);
+    HANDLE winProcess = ::OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+                               PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+                               FALSE, winProcessId);
+    if (winProcess != NULL) {
+       LPDWORD winStatus;
+        ::WaitForSingleObject(winProcess, INFINITE);
+        ::GetExitCodeProcess(winProcess, winStatus);
+        ::CloseHandle(winProcess);
+        status = static_cast<int>(*winStatus);
+    }
 #endif
             if (status != 0 && currentTime >= exitTime) {
                 lockedFile.clear();

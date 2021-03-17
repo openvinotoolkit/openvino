@@ -20,6 +20,4 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::Sink, "Sink", 0);
 
-op::Sink::~Sink()
-{
-}
+op::Sink::~Sink() {}

@@ -180,10 +180,11 @@ public:
 
             const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
             float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
-            ASSERT_TRUE(max != 0 && (diff <= static_cast<float>(threshold)))
-                                        << "Relative comparison of values expected: " << ref << " and actual: " << res
-                                        << " at index " << i << " with threshold " << threshold
-                                        << " failed";
+            if (max == 0 || (diff > static_cast<float>(threshold))) {
+                THROW_IE_EXCEPTION << "Relative comparison of values expected: " << ref << " and actual: " << res
+                                   << " at index " << i << " with threshold " << threshold
+                                   << " failed";
+            }
         }
     }
 

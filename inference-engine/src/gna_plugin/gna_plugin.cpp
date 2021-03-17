@@ -129,7 +129,7 @@ void GNAPlugin::copyInputData(T *dst,
                 T *ptr_dst_vec = reinterpret_cast<T *>(dst) + i * num_vector_stride;
                 const U *ptr_src_vec = reinterpret_cast<const U *>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                for (int j=0; j < num_vector_elements; j++) {
+                for (uint32_t j=0; j < num_vector_elements; j++) {
                     ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                 }
             }
@@ -247,12 +247,22 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                     ptr_src_vec, num_active_elements * sizeof(int16_t));
             }
         } else if (num_bytes_per_element == 4) {  // should work for both int and float
-            for (uint32_t i = 0; i < num_frames; i++) {
-                void *ptr_dst_vec = reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(float);
-                const void *ptr_src_vec = reinterpret_cast<const uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(float);
-                memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
-                ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
-                    ptr_src_vec, num_active_elements * sizeof(float));
+            if (num_bytes_per_element_input == 2) {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
+                    auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
+                        ptr_dst_vec[j] = ptr_src_vec[j];
+                    }
+                }
+            } else {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
+                    const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
+                    memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
+                    ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
+                        ptr_src_vec, num_active_elements * sizeof(float));
+                }
             }
         } else {
             THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
@@ -1261,9 +1271,9 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+        if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CHW) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
         }
