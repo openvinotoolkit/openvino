@@ -148,23 +148,18 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
                                                              'ellipsis_mask': int64_array([0]),
                                                          })
         shape_node.out_port(0).connect(strided_slice_node.in_port(0))
-        cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
-        strided_slice_node.out_port(0).connect(cast_shape_to_float.in_port(0))
 
         second_input_of_tile = match['tile'].in_port(1).get_connection().get_source().node
-        scale = float32_array([second_input_of_tile.value[d_idx]])
+        scale = int64_array([second_input_of_tile.value[d_idx]])
+        float_scale = float32_array([second_input_of_tile.value[d_idx]])
         mul_node = create_op_with_const_inputs(graph, Mul, {1: scale}, {'name': unsqueeze_name + '/Mul'})
 
-        cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
-        floor_node = Floor(graph, {'name': unsqueeze_name + '/Floor'}).create_node()
-        cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
-        mul_node.out_port(0).connect(floor_node.in_port(0))
-        floor_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
+        strided_slice_node.out_port(0).connect(mul_node.in_port(0))
 
         interp_node = create_op_with_const_inputs(graph,
                                                   Interpolate,
                                                   {
-                                                      2: scale,
+                                                      2: float_scale,
                                                       3: int64_array([axis])},
                                                   {
                                                       'mode': 'nearest',
@@ -179,7 +174,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
                                                       'in_ports_count': 4,
                                                       'maybe_part_of_sequence': True
                                                   })
-        cast_mul_result_to_int.out_port(0).connect(interp_node.in_port(1))
+        mul_node.out_port(0).connect(interp_node.in_port(1))
 
         reshape_node = match['reshape']
         reshape_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
