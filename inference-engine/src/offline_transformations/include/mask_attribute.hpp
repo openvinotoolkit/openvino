@@ -17,7 +17,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations_visibility.hpp>
 
 namespace ngraph {
 
@@ -26,8 +25,8 @@ namespace ngraph {
  * @brief each element in vector represents dimension and each element
  * in set is an id of dimensions which contains zeros.
  */
-class TRANSFORMATIONS_API Mask : public std::vector<std::set<uint64_t>>,
-                                 public std::enable_shared_from_this<Mask> {
+class Mask : public std::vector<std::set<uint64_t>>,
+             public std::enable_shared_from_this<Mask> {
 public:
     using Ptr = std::shared_ptr<Mask>;
 
@@ -110,12 +109,12 @@ private:
     bool m_need_initialization{true};
 };
 
-TRANSFORMATIONS_API std::ostream & operator<< (std::ostream & out, const Mask & mask);
+std::ostream & operator<< (std::ostream & out, const Mask & mask);
 
-extern template class TRANSFORMATIONS_API VariantImpl<Mask::Ptr>;
+extern template class VariantImpl<Mask::Ptr>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<Mask::Ptr> : public VariantImpl<Mask::Ptr> {
+class VariantWrapper<Mask::Ptr> : public VariantImpl<Mask::Ptr> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::Mask", 0};
 
@@ -130,10 +129,10 @@ public:
     explicit VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 };
 
-TRANSFORMATIONS_API Mask::Ptr getMask(const Output<const Node> & output);
+Mask::Ptr getMask(const Output<const Node> & output);
 
-TRANSFORMATIONS_API Mask::Ptr getMask(const Output<Node> & output);
+Mask::Ptr getMask(const Output<Node> & output);
 
-TRANSFORMATIONS_API void setMask(Output<Node> output, const Mask::Ptr & mask);
+void setMask(Output<Node> output, const Mask::Ptr & mask);
 
 }  // namespace ngraph

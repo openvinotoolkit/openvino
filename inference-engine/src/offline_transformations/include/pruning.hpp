@@ -7,19 +7,17 @@
 #include <memory>
 #include <vector>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/manager.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API InitConstMask;
-class TRANSFORMATIONS_API PropagateMasks;
-class TRANSFORMATIONS_API ShrinkWeights;
+class InitConstMask;
+class PropagateMasks;
+class ShrinkWeights;
 
-class TRANSFORMATIONS_API Pruning;
+class Pruning;
 
 } // namespace pass
 } // namespace ngraph
