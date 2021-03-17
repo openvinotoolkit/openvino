@@ -13,17 +13,19 @@ python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
 """
 
 import sys
+import pytest
+import yaml
+
 from inspect import getsourcefile
 from pathlib import Path
 
-import pytest
-import yaml
-import json
+# add current dir to imports
+sys.path.insert(0, str((Path(getsourcefile(lambda: 0))).resolve(strict=True)))
+
+from config_reader import save_tests_structure, save_cc_json  # pylint: disable=import-error
 
 # add ../lib to imports
-sys.path.insert(
-    0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True))
-)
+sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
 
 from path_utils import expand_env_vars  # pylint: disable=import-error
 
@@ -79,7 +81,6 @@ def pytest_generate_tests(metafunc):
         test_id = model_path.replace('$', '').replace('{', '').replace('}', '')
         params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
         ids = ids + [test_id]
-
     metafunc.parametrize("test_id, model", params, ids=ids)
 
 
@@ -95,14 +96,13 @@ def test_info(request, pytestconfig):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def configure_test_info(pytestconfig):
+def configure_test_info(pytestconfig, artifacts):
     yield
     ids = [record["test_id"] for record in pytestconfig.session_info]
     json_context = []
     for _id in ids:
         json_context.append(dict([("test_id", _id)]))
-    with open(Path(__file__).parent / "cc_tests.json", "w") as file:
-        json.dump(json_context, file, ensure_ascii=False, indent=4)
+    save_tests_structure(json_context, Path(artifacts))
 
 
 @pytest.fixture(scope="session")
