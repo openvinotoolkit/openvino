@@ -137,72 +137,82 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int fp_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
 #endif
 
-    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16) sum = ACCUMULATOR_VAL_ZERO;
-    ACCUMULATOR_TYPE wsum = ACCUMULATOR_VAL_ZERO;
-
     ACCUMULATOR_TYPE wb = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wf = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wy = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wx = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE w  = ACCUMULATOR_VAL_ZERO;
 
-    unroll_for(int b = b_init; b < b_max; b++) {
-        wb = TRIANGLE_COEFF(ab, i_b - b);
+    unroll_for(int fp = 0; fp < fp_max; fp+=16) {
+        MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_BLOCK_SIZE) sum = ACCUMULATOR_VAL_ZERO;
+        ACCUMULATOR_TYPE wsum = ACCUMULATOR_VAL_ZERO;
 
-        unroll_for(int f = f_init; f < f_max; f++) {
-            wf = wb * TRIANGLE_COEFF(af, i_f - f);
+        unroll_for(int b = b_init; b < b_max; b++) {
+            wb = TRIANGLE_COEFF(ab, i_b - b);
 
-            if (wf != 0) {
-                unroll_for(int y = y_init; y < y_max; y++) {
-                    wy = wf * TRIANGLE_COEFF(ay, i_y - y);
+            unroll_for(int f = f_init; f < f_max; f++) {
+                wf = wb * TRIANGLE_COEFF(af, i_f - f);
 
-                    if (wy != 0) {
-                        unroll_for(int x = x_init; x < x_max; x++) {
-                            wx = TRIANGLE_COEFF(ax, i_x - x);
-                            w = wx * wy;
+                if (wf != 0) {
+                    unroll_for(int y = y_init; y < y_max; y++) {
+                        wy = wf * TRIANGLE_COEFF(ay, i_y - y);
 
-#if PADDING_USED == 1
-                            bool isOutOfBounds = b < 0 || f < 0 || y < 0 || x < 0 ||
-                                                b >= in_size[0] || f >= in_size[1] ||
-                                                y >= in_size[3] || x >= in_size[4];
-#endif
-                            if (w != 0) {
-                                wsum += w;
+                        if (wy != 0) {
+                            unroll_for(int x = x_init; x < x_max; x++) {
+                                wx = TRIANGLE_COEFF(ax, i_x - x);
+                                w = wx * wy;
 
 #if PADDING_USED == 1
-                                if (!isOutOfBounds)
+                                bool isOutOfBounds = b < 0 || f < 0 || y < 0 || x < 0 ||
+                                                    b >= in_size[0] || f >= in_size[1] ||
+                                                    y >= in_size[3] || x >= in_size[4];
 #endif
-                                {
-                                    MAKE_VECTOR_TYPE(INPUT0_TYPE, 16) input_vec = vload16(0, &input[FUNC_CALL(get_input_index)(b, f, y, x)]);
+                                if (w != 0) {
+                                    wsum += w;
 
-                                    sum = fma(convert_float16(input_vec), (float16)w, sum);
-                                }
-                            }  // w != 0;
-                        }  // unroll_for(int x = x_init; x < x_max; x++)
-                    }
-                }  // unroll_for(int y = y_init; y < y_max; y++)
-            }
-        }  // unroll_for(int f = f_init; f < f_max; f++)
-    }  // unroll_for(int b = b_init; b < b_max; b++)
-
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16) output_vec;
-    ACCUMULATOR_TYPE res;
-
-    if (wsum == 0) {
-        res = ACCUMULATOR_VAL_ZERO;
-    } else {
-        unroll_for (int f = 0; f < fp_max; f++) {
-            res = sum[f] / wsum;
-#if HAS_FUSED_OPS
-            FUSED_OPS;
-            output_vec[f] = FUSED_OPS_RESULT;
+#if PADDING_USED == 1
+                                    if (!isOutOfBounds)
+#endif
+                                    {
+#if FEATURE_BLOCK_SIZE == 8
+                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload8(0, &input[FUNC_CALL(get_input_index)(b, f+fp, y, x)]);
+                                        sum = fma(convert_float8(input_vec), (float8)w, sum);
 #else
-            output_vec[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload16(0, &input[FUNC_CALL(get_input_index)(b, f+fp, y, x)]);
+                                        sum = fma(convert_float16(input_vec), (float16)w, sum);
 #endif
-        }
-    }
+                                    }
+                                }  // w != 0;
+                            }  // unroll_for(int x = x_init; x < x_max; x++)
+                        }
+                    }  // unroll_for(int y = y_init; y < y_max; y++)
+                }
+            }  // unroll_for(int f = f_init; f < f_max; f++)
+        }  // unroll_for(int b = b_init; b < b_max; b++)
 
-    vstore16(output_vec, 0, &output[FUNC_CALL(get_output_index)(batch, feature, oy, ox)]);
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLOCK_SIZE) output_vec;
+        ACCUMULATOR_TYPE res;
+
+        if (wsum == 0) {
+            res = ACCUMULATOR_VAL_ZERO;
+        } else {
+            unroll_for (int f = 0; f < VEC_BLOCK_SIZE; f++) {
+                res = sum[f] / wsum;
+#if HAS_FUSED_OPS
+                FUSED_OPS;
+                output_vec[f] = FUSED_OPS_RESULT;
+#else
+                output_vec[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+#endif
+            }
+        }
+
+#if FEATURE_BLOCK_SIZE == 8
+        vstore8(output_vec, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+#else
+        vstore16(output_vec, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+#endif
+    } // fp
 
 #else  // SAMPLE_TYPE_CAFFE_INTERP
     const int xy = get_global_id(0);

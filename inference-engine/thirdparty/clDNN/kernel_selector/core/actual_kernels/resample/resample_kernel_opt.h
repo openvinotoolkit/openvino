@@ -30,6 +30,5 @@ protected:
     }
 private:
     size_t GetOptimalBlockSize(const resample_params& params) const;
-    size_t GetDataTypeSize(const resample_params& params) const;
 };
 }  // namespace kernel_selector

@@ -868,9 +868,8 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
     }
 
     void execute_compare(const caffe_resample_random_test_params& params, bool check_result) {
-        // auto cfg = get_engine_config(false, "/home/work/cl_dump/");
-        // auto eng = cldnn::engine(cfg););
-        auto eng = cldnn::engine();
+        auto cfg = get_engine_config(false, "/home/work/cl_dump/");
+        auto eng = cldnn::engine(cfg);
 
         auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
         auto in_mem = memory::allocate(eng, in_layout);
@@ -911,9 +910,8 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             }
         }
 
-        // Execut resample_opt
-        // auto eng_opt = cldnn::engine(cfg);
-        auto eng_opt = cldnn::engine();
+        // Execute resample_opt
+        auto eng_opt = cldnn::engine(cfg);
 
         cldnn::topology topo_opt;
         topo_opt.add(input_layout("in", in_layout));
@@ -955,7 +953,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
 
         if (enable_profiling) {
             std::cout << "ref: " << ref_exec_time << ", " << "opt: " << opt_exec_time
-                    << ", " << std::setprecision(3) << ref_exec_time/opt_exec_time << " %" << std::endl;
+                    << ", " << std::setprecision(3) << ref_exec_time/opt_exec_time << std::endl;
         }
 
         if (check_result == true) {
@@ -986,8 +984,8 @@ struct caffe_resample_random_test_param_generator : std::vector<caffe_resample_r
         push_back(caffe_resample_random_test_params{ type, {1, 512, 32, 32}, {1, 512, 16, 16}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 32, 32, 32}, {1, 32, 64, 64}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 32, 64, 64}, {1, 32, 32, 32}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
-        push_back(caffe_resample_random_test_params{ type, {1, 10, 32, 32}, {1, 10, 64, 64}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
-        push_back(caffe_resample_random_test_params{ type, {1, 10, 64, 64}, {1, 10, 32, 32}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
+        push_back(caffe_resample_random_test_params{ type, {1, 8, 32, 32}, {1, 8, 64, 64}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
+        push_back(caffe_resample_random_test_params{ type, {1, 8, 64, 64}, {1, 8, 32, 32}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 20, 20}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 10, 20, 20}, {1, 10, 10, 10}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 96, 128, 128}, {1, 96, 256, 256}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});

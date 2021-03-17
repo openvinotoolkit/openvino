@@ -18,15 +18,6 @@ size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) con
     return 1;
 }
 
-size_t ResampleKernelOpt::GetDataTypeSize(const resample_params& params) const {
-    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        return 32;
-    } else {
-        return 16;
-    }
-}
-
-
 ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -61,11 +52,11 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.gws[1] = CeilDiv(Align(out.Feature().v, GetFeatureBlockSize(arg)), GetFeatureBlockSize(arg));
         dispatchData.gws[2] = arg.output.Batch().v;
 
-        if ((out.Feature().v % GetDataTypeSize(arg)) == 0) {
+        if ((out.Feature().v % GetFeatureBlockSize(arg)) == 0) {
             dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
         } else {
             dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = sub_group_size;
+            dispatchData.lws[1] = 1;
             dispatchData.lws[2] = 1;
         }
    } else {
@@ -126,6 +117,15 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
         FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
         conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
+        if (GetFeatureBlockSize(params) == 8) {
+            jit.AddConstant(MakeJitConstant("VEC_BLOCK_SIZE", 8));
+        }
+        else {
+            jit.AddConstant(MakeJitConstant("VEC_BLOCK_SIZE", 16));
+        }
     }
 
     return jit;

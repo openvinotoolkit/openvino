@@ -35,7 +35,7 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
     const size_t max_size = 32;
     const size_t min_size = 4;
     size_t feature_block_size = 1;
-    std::vector<size_t> preferred_sizes = { 16, 8 };
+    std::vector<size_t> preferred_sizes = { 32, 16, 8 };
     for (auto& s : preferred_sizes)
         if (params.output.Feature().v % s == 0)
             return s;
