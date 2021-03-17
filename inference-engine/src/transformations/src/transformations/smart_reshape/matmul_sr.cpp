@@ -129,6 +129,10 @@ ngraph::pass::TransposeMatMul::TransposeMatMul() {
         }
 
         if (!fused_nodes.empty()) {
+            // Workaround
+            // TODO: Fix it in a good way
+            if (input_A->get_output_size() != 1 || input_B->get_output_size() != 1)
+                return false;
             auto updated_matmul = std::make_shared<opset4::MatMul>(input_A, input_B, transpose_A, transpose_B);
             fused_nodes.push_back(matmul);
             copy_runtime_info(fused_nodes, updated_matmul);
