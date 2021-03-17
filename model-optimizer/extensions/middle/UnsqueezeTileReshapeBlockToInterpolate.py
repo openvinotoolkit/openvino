@@ -54,6 +54,31 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
 
     Finally, because plugins support only Interpolate-4 with 4D or 5D tensor with interpolated data,
     we need to check that the input rank of 'Unsqueeze' is equal to 4 or 5.
+
+    Example.
+
+    Let data = np.arange(0, 1 * 2 * 3 * 4).reshape((1, 2, 3, 4)).astype(np.float32), that is
+        data = np.array([[[[ 0,  1,  2,  3],
+                           [ 4,  5,  6,  7],
+                           [ 8,  9, 10, 11]],
+                          [[12, 13, 14, 15],
+                           [16, 17, 18, 19],
+                           [20, 21, 22, 23]]]], dtype=np.float32)
+    After np.tile(np.expand_dims(data, 3), [1, 1, 1, 2, 1]).reshape((1, 2, 3 * 2, 4)) we get
+        array([[[[ 0,  1,  2,  3],
+                 [ 0,  1,  2,  3],
+                 [ 4,  5,  6,  7],
+                 [ 4,  5,  6,  7],
+                 [ 8,  9, 10, 11],
+                 [ 8,  9, 10, 11]],
+                [[12, 13, 14, 15],
+                 [12, 13, 14, 15],
+                 [16, 17, 18, 19],
+                 [16, 17, 18, 19],
+                 [20, 21, 22, 23],
+                 [20, 21, 22, 23]]]], dtype=np.float32)
+    This result is equal to nearest interpolation along with axis = 2 (the second argument of 'expand_dims')
+    and scale = 2 (the element from the second argument of 'tile' that is not equal to 1).
     """
     enabled = True
     force_shape_inference = True
