@@ -17,8 +17,6 @@
 
 #include "itt.hpp"
 #include "ngraph/builder/make_constant.hpp"
-#include "ngraph/op/maximum.hpp"
-#include "ngraph/op/minimum.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
 
