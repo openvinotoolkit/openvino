@@ -24,7 +24,7 @@ class TopKExtender(Extender):
 
     @staticmethod
     def extend(op: Node):
-        if op.graph.graph['cmd_params'].framework in ('tf', 'caffe'):
+        if op.graph.graph['cmd_params'].framework in ('tf', 'caffe', 'onnx'):
             op['remove_values_output'] = True
         if op.has_valid('index_element_type'):
             op['index_element_type'] = destination_type_to_np_data_type(op.index_element_type)
