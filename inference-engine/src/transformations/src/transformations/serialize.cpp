@@ -222,7 +222,8 @@ public:
         std::vector<std::string> output;
         for (pugi::xml_node node : xml_node.child("body").child("layers")) {
             if (!map_type.compare(node.attribute("type").value())) {
-                output.push_back(node.attribute("id").value());            }
+                output.push_back(node.attribute("id").value());
+            }
         }
 
         // ops for serialized body function are provided in reversed order
