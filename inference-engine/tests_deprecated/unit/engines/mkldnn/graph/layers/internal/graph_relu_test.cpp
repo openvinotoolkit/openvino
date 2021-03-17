@@ -195,7 +195,7 @@ protected:
             ref_relu(*srcPtr, dst_ref, p);
 
             compare(*output, dst_ref, 0.0005f);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

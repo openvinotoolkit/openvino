@@ -41,8 +41,7 @@ void ParsedConfigBase::update(
         const bool isDeprecatedOption = deprecatedOptions.count(entry.first) != 0;
 
         if (!isCompileOption && !isRunTimeOption) {
-            THROW_IE_EXCEPTION
-                    << NOT_FOUND_str << entry.first
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << entry.first
                     << " key is not supported for VPU";
         }
 

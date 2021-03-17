@@ -197,7 +197,7 @@ protected:
                     index2++; index++;
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -379,7 +379,7 @@ protected:
 
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkConcat, checkType);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkConcat, checkType);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -791,7 +791,7 @@ protected:
                     }
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -1021,7 +1021,7 @@ protected:
                     index2++; index++;
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
