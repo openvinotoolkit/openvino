@@ -44,15 +44,15 @@ namespace ngraph
                          const Shape& out_shape)
                 {
                     std::fill(out, out + shape_size(out_shape), static_cast<T>(0));
-                    size_t arg0_rank = arg0_shape.size();
-                    size_t arg1_rank = arg1_shape.size();
+                    const size_t arg0_rank = arg0_shape.size();
+                    const size_t arg1_rank = arg1_shape.size();
 
                     // 2D inputs shapes are interpreted as {I, K} x {K, J}
                     // If first input is 1D tensor of shape {K}, it is interpreted as {1, K}
                     // If second input is 1D tensor of shape {K}, it is interpreted as {K, 1}
-                    size_t I_dim = arg0_rank == 1 ? 1 : arg0_shape[arg0_rank - 2];
-                    size_t J_dim = arg1_rank == 1 ? 1 : arg1_shape[arg1_rank - 1];
-                    size_t K_dim =
+                    const size_t I_dim = arg0_rank == 1 ? 1 : arg0_shape[arg0_rank - 2];
+                    const size_t J_dim = arg1_rank == 1 ? 1 : arg1_shape[arg1_rank - 1];
+                    const size_t K_dim =
                         arg1_rank == 1 ? arg1_shape[arg1_rank - 1] : arg1_shape[arg1_rank - 2];
 
                     for (size_t i = 0; i < I_dim; ++i)
@@ -104,7 +104,7 @@ namespace ngraph
 
                 size_t arg0_rank = arg0_shape.size();
                 size_t arg1_rank = arg1_shape.size();
-                size_t out_rank = out_shape.size();
+                const size_t out_rank = out_shape.size();
 
                 // vector vars to hold pontential intermediate transpose,
                 // broadcast result
@@ -227,19 +227,19 @@ namespace ngraph
                 }
 
                 // Perform batched dot
-                size_t output_batch_size = 1;
-                Shape dot_arg0_shape = (arg0_rank > 2) ? Shape{arg0_shape_tmp[arg0_rank - 2],
-                                                               arg0_shape_tmp[arg0_rank - 1]}
-                                                       : arg0_shape_tmp;
-                Shape dot_arg1_shape = (arg1_rank > 2) ? Shape{arg1_shape_tmp[arg1_rank - 2],
-                                                               arg1_shape_tmp[arg1_rank - 1]}
-                                                       : arg1_shape_tmp;
-                Shape dot_output_shape =
+                const Shape dot_arg0_shape = (arg0_rank > 2) ? Shape{arg0_shape_tmp[arg0_rank - 2],
+                                                                     arg0_shape_tmp[arg0_rank - 1]}
+                                                             : arg0_shape_tmp;
+                const Shape dot_arg1_shape = (arg1_rank > 2) ? Shape{arg1_shape_tmp[arg1_rank - 2],
+                                                                     arg1_shape_tmp[arg1_rank - 1]}
+                                                             : arg1_shape_tmp;
+                const Shape dot_output_shape =
                     (out_rank > 2 && arg0_rank > 1 && arg1_rank > 1)
                         ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
                         : Shape{out_shape[out_rank - 1]};
 
                 // Calculate number of batches
+                size_t output_batch_size = 1;
                 if (out_rank <= 2)
                 {
                     // Output is {batch_size, dot_result}, i.e.,
