@@ -336,7 +336,7 @@ static void Transformation(CNNNetwork& clonedNetwork, bool useLPT) {
     TransformationToLegacy(clonedNetwork);
 }
 
-bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network) {
+float Engine::NetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network) {
     float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
     const auto nGraphFunc = network.getFunction();
     ngraph::NodeVector nodes;
@@ -361,7 +361,8 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
             // auto type0 = node->input_value(0).get_element_type(); //input
             auto type1 = node->input_value(1).get_element_type(); //weights
             const bool isINT8 = isLowPrecision(type1); // bf16 tbd
-            const int data_type_size = isINT8 ? 1 :4;
+            const bool isBF16 = isHalfPrecision(type1); // bf16 tbd
+            const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
 
             int dataSizeInput = 0, dataSizeOutput = 0;
             if (!std::strcmp("MatMul", node->get_type_info().name)) {
@@ -417,7 +418,7 @@ bool Engine::IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &net
     std::cout << "Total convs: " << total_convs<< ". Mem limited: " << mem_limited_convs << std::endl;
     std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
     std::cout << "WORST CASE: " << worst_case << std::endl;
-    return (total_convs || total_gemms) ? (mem_limited_gemms || mem_limited_convs) : true /*conservatively assume mem limited*/;
+    return (total_convs || total_gemms) ? worst_case : -1 /*conservatively assume mem limited*/;
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
@@ -455,11 +456,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool useLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES)
             || (conf.lpTransformsMode == Config::LPTransformsMode::On);
     bool is_transformed = false;
-    bool isNetworkMemLimited = true;
+    float isNetworkMemLimited = -1;
 
     if (clonedNetwork.getFunction()) {
         TransformationUpToLegacy(clonedNetwork, useLPT);
-        isNetworkMemLimited = IsNetworkMemBandwidthLimited(clonedNetwork);
+        isNetworkMemLimited = NetworkMemBandwidthLimited(clonedNetwork);
         TransformationToLegacy(clonedNetwork);
         is_transformed = true;
     }
@@ -491,9 +492,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     //      compute limited
     //      Hybrid specific
     //      etc
-    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited ? "YES" : "NO") << std::endl;
     config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(num_cores);
-    if (!isNetworkMemLimited) {
+    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited < 1 ? "YES" : "NO") << std::endl;
+    if (isNetworkMemLimited > 1.f) {
+        if (isNetworkMemLimited > 2)
+            config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(std::thread::hardware_concurrency());
         config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_cores);
     } else {
         config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams_default_not_ht);

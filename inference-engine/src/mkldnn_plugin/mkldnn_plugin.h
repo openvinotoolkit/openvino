@@ -42,7 +42,7 @@ private:
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
     bool streamsSet =  false;
 
-    bool static IsNetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network);
+    static float NetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network);
 };
 
 }  // namespace MKLDNNPlugin
