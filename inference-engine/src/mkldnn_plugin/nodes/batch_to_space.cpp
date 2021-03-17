@@ -33,7 +33,7 @@ public:
             if (!data)
                 THROW_IE_EXCEPTION << "BatchToSpace layer with name '" << batchToSpaceLayer->name << "' has nullable input data";
 
-            inDims = batchToSpaceLayer->insData[0].lock()->getTensorDesc().getDims();
+            inDims = data->getTensorDesc().getDims();
             if (inDims.size() < 4)
                 IE_THROW() << "BatchToSpace layer with name '" << batchToSpaceLayer->name << "' doesn't support dimensions with rank less than 4";
 
@@ -44,7 +44,7 @@ public:
             if (inDims.size() != outDims.size())
                 IE_THROW() << "BatchToSpace layer with name '" << batchToSpaceLayer->name << "' has incorrect number of input/output dimensions";
 
-            const auto precision = batchToSpaceLayer->insData[0].lock()->getTensorDesc().getPrecision();
+            const auto precision = data->getTensorDesc().getPrecision();
             const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
             if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
                 IE_THROW() << "BatchToSpace layer with name '" << batchToSpaceLayer->name << "' has unsupported precision: " << precision.name();
