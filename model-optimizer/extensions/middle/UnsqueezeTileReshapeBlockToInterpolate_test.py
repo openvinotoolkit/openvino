@@ -127,44 +127,39 @@ ref_graph_node_attrs_with_4_inputs_interpolate = {
         'shape': None,
         'value': None,
     },
-    'strided_slice': {
-        'type': 'StridedSlice',
+    'gather': {
+        'type': 'Gather',
         'kind': 'op',
-        'op': 'StridedSlice',
-        'begin_mask': int64_array([1]),
-        'end_mask': int64_array([1]),
-        'new_axis_mask': int64_array([0]),
-        'shrink_axis_mask': int64_array([0]),
-        'ellipsis_mask': int64_array([0]),
+        'op': 'Gather'
     },
-    'strided_slice_data': {
+    'gather_data': {
         'kind': 'data',
         'shape': None,
         'value': None,
     },
-    'begin': {
+    'indices': {
         'kind': 'op',
         'op': 'Const',
         'type': 'Const',
         'value': int64_array([1]),
         'shape': int64_array([1]),
     },
-    'begin_data': {
+    'indices_data': {
         'kind': 'data',
-        'value': int64_array([1]),
-        'shape': int64_array([1]),
+        'value': None,
+        'shape': None,
     },
-    'end': {
+    'gather_axis': {
         'kind': 'op',
         'op': 'Const',
         'type': 'Const',
-        'value': int64_array([2]),
-        'shape': int64_array([1]),
+        'value': np.array(0, dtype=np.int64),
+        'shape': np.array(0, dtype=np.int64).shape,
     },
-    'end_data': {
+    'gather_axis_data': {
         'kind': 'data',
-        'value': int64_array([2]),
-        'shape': int64_array([1]),
+        'value': None,
+        'shape': None,
     },
     'scales_m': {
         'kind': 'op',
@@ -228,14 +223,14 @@ ref_graph_edges_attrs_with_4_inputs_interpolate = [
     ('placeholder', 'placeholder_data'),
     ('placeholder_data', 'shapeof'),
     ('shapeof', 'shapeof_data'),
-    ('shapeof_data', 'strided_slice', {'in': 0}),
-    ('strided_slice', 'strided_slice_data'),
-    ('begin', 'begin_data'),
-    ('begin_data', 'strided_slice', {'in': 1}),
-    ('end', 'end_data'),
-    ('end_data', 'strided_slice', {'in': 2}),
+    ('shapeof_data', 'gather', {'in': 0}),
+    ('gather', 'gather_data'),
+    ('indices', 'indices_data'),
+    ('indices_data', 'gather', {'in': 1}),
+    ('gather_axis', 'gather_axis_data'),
+    ('gather_axis_data', 'gather', {'in': 2}),
     ('scales_m', 'scales_m_data'),
-    ('strided_slice_data', 'mul', {'in': 0}),
+    ('gather_data', 'mul', {'in': 0}),
     ('scales_m_data', 'mul', {'in': 1}),
     ('mul', 'mul_data'),
     ('scales', 'scales_data'),
