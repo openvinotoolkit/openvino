@@ -60,14 +60,14 @@ public:
     void set_shape_like(bool flag) { m_is_shape_like = flag; }
 
     void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
-        m_callbacks[mask] = receive_callback;
-        m_dependencies.push_back(mask);
+        m_callbacks[mask.get()] = receive_callback;
+        m_dependencies.push_back(mask.get());
     }
 
     bool apply_callback(Mask::Ptr mask) {
         // TODO: in case if callback returns false we need to propagate original value
         const auto & ref_state = Mask(*this);
-        if (!m_callbacks.at(mask)(shared_from_this())) {
+        if (!m_callbacks.at(mask.get())(shared_from_this())) {
             return false;
         }
 
@@ -103,9 +103,9 @@ private:
     bool m_is_shape_like{false};
 
     //TODO: use week_ptr to avoid cycle dependencies
-    std::map<Mask::Ptr, std::function<bool(Mask::Ptr)>> m_callbacks;
+    std::map<Mask *, std::function<bool(Mask::Ptr)>> m_callbacks;
 
-    std::vector<Mask::Ptr> m_dependencies;
+    std::vector<Mask *> m_dependencies;
 
     bool m_need_initialization{true};
 };
