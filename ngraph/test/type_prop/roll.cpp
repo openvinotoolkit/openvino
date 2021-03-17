@@ -14,7 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -60,8 +59,9 @@ TEST(type_prop, roll_invalid_axes_check)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), 
-        std::string("If shift is a 1D vector, axes must be a 1D tensor of the same size."));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("If shift is a 1D vector, axes must be a 1D tensor of the same size."));
     }
     catch (...)
     {

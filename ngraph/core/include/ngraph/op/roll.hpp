@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "ngraph/axis_vector.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
@@ -27,19 +26,21 @@ namespace ngraph
         namespace v7
         {
             /// \brief Tensor roll operation.
-            class NGRAPH_API Roll: public Op
+            class NGRAPH_API Roll : public Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 Roll() = default;
 
                 ///
                 /// \brief      Constructs a transpose operation.
                 ///
                 /// \param      data         Node producing the tensor to be shifted.
-                /// \param      shift        Node producing the 0D or 1D tensor which specifies the number of places by which the elements are shifted. 
-                /// \param      axes         Node producing the 0D or 1D tensor which specifies axes along which elements are shifted.
+                /// \param      shift        Node producing the 0D or 1D tensor which specifies the
+                /// number of places by which the elements are shifted. \param      axes Node
+                /// producing the 0D or 1D tensor which specifies axes along which elements are
+                /// shifted.
                 ///
                 Roll(const Output<Node>& data, const Output<Node>& shift, const Output<Node>& axes);
 
@@ -51,5 +52,5 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
             };
         } // namespace v7
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph
