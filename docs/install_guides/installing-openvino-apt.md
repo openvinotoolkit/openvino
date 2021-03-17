@@ -6,18 +6,6 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 
 > **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ APT distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime). 
 
-## Set up the Repository
-### Install the GPG key for the repository
-
-1. Download the public key from [https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021](https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021) and save it to a file. 
-2. Add this key to the system keyring:
-```sh
-sudo apt-key add <PATH_TO_DOWNLOADED_GPG_KEY>
-```
-3. Check the list of APT keys running the following command:
-```sh
-sudo apt-key list
-```
 ## Included with Runtime Package
 
 The following components are installed with the OpenVINO runtime package:
@@ -41,7 +29,20 @@ The following components are installed with the OpenVINO developer package:
 | [Demo Applications](@ref omz_demos_README) | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use cases. |
 | Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo).  |
-| Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
+| Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer\*, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
+
+## Set up the Repository
+### Install the GPG key for the repository
+
+1. Download the public key from [https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021](https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021) and save it to a file. 
+2. Add this key to the system keyring:
+```sh
+sudo apt-key add <PATH_TO_DOWNLOADED_GPG_KEY>
+```
+3. Check the list of APT keys running the following command:
+```sh
+sudo apt-key list
+```
 
 ### Add the APT Repository
 

@@ -6,7 +6,7 @@ This guide provides installation steps for the Intel® Distribution of OpenVINO�
 
 > **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ YUM distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime).
 
-> **NOTE**: Only the runtime package is available via the YUM repository.
+> **NOTE**: Only runtime packages are available via the YUM repository.
 
 ## Included with Runtime Package
 
