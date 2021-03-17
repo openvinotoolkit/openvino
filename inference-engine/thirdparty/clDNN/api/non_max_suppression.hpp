@@ -69,7 +69,20 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         , score_threshold(score_threshold)
         , soft_nms_sigma(soft_nms_sigma)
         , second_output(second_output)
-        , third_output(third_output) {}
+        , third_output(third_output) {
+            if (!num_select_per_class.empty()) {
+                this->input.push_back(num_select_per_class);
+            }
+            if (!iou_threshold.empty()) {
+                this->input.push_back(iou_threshold);
+            }
+            if (!score_threshold.empty()) {
+                this->input.push_back(score_threshold);
+            }
+            if (!soft_nms_sigma.empty()) {
+                this->input.push_back(soft_nms_sigma);
+            }
+        }
 
     int selected_indices_num;
     bool center_point_box;

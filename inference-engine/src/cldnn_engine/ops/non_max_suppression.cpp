@@ -105,24 +105,34 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
     }
 
     auto nonMaxSupressionLayerName = num_output > 1 ? layer_type_name_ID(op) + ".0" : layer_type_name_ID(op);
-    auto prim = cldnn::non_max_suppression(
-            nonMaxSupressionLayerName,
-            reorderedInputs[0],
-            reorderedInputs[1],
-            static_cast<int>(outputIndices),
-            op->m_center_point_box,
-            op->m_sort_result_descending);
 
-    prim.output_data_type = DataTypeFromPrecision(out_type);
+    std::vector<cldnn::primitive_id> input_ids(6, cldnn::primitive_id());
+
+    input_ids[0] = reorderedInputs[0];
+    input_ids[1] = reorderedInputs[1];
 
     switch (reorderedInputs.size()) {
-        case 6: prim.soft_nms_sigma = reorderedInputs[5];
-        case 5: prim.score_threshold = reorderedInputs[4];
-        case 4: prim.iou_threshold = reorderedInputs[3];
-        case 3: prim.num_select_per_class = reorderedInputs[2];
+        case 6: input_ids[5] = reorderedInputs[5]; // soft_nms_sigma
+        case 5: input_ids[4] = reorderedInputs[4]; // score_threshold
+        case 4: input_ids[3] = reorderedInputs[3]; // iou_threshold
+        case 3: input_ids[2] = reorderedInputs[2]; // num_select_per_class
         case 2: break;
         default: THROW_IE_EXCEPTION << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
     }
+
+    auto prim = cldnn::non_max_suppression(
+            nonMaxSupressionLayerName,
+            reorderedInputs[0], // boxes_positions
+            reorderedInputs[1], // boxes_score
+            static_cast<int>(outputIndices),
+            op->m_center_point_box,
+            op->m_sort_result_descending,
+            reorderedInputs[2],  // num_select_per_class
+            reorderedInputs[3],  // iou_threshold
+            reorderedInputs[4],  // score_threshold
+            reorderedInputs[5]); // soft_nms_sigma
+
+    prim.output_data_type = DataTypeFromPrecision(out_type);
 
     switch (num_output) {
         case 3: prim.third_output = inputPrimitives[inputPrimitives.size() - 2];
