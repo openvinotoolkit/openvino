@@ -27,6 +27,7 @@ struct jit_eximpat_params {
     int PL, PT; // determine padding
     int dtype_size; // byte size of the datatype
     int block_size; // num of dtype units in the supported vector instruction set
+    InferenceEngine::Precision precision;
 };
 
 struct jit_eximpat_args {
@@ -95,13 +96,10 @@ public:
 
         // for debug purposes
         //for(int64_t i=0; i < OW * OH * IC * KW * KH * OB ; i++)
-        //    dst_data[i] = -1;
-        //std::fill(dst_data, dst_data + OW * OH * IC * KW * KH * OB, -1);
-        //if (eximpat_kernel){
-        if (1){
-            //auto src_ptr = reinterpret_cast<const char *>(src_data);
-            //auto dst_ptr = reinterpret_cast<char *>(dst_data);
-
+        //    dst_data[i] = 1;
+        //std::fill(dst_data, dst_data + OW * OH * IC * KW * KH * OB, 1);
+        if (eximpat_kernel){
+        //if (0){
             auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
                 const int64_t ih_start = kh * RH - PT;
                 const int64_t iw_start = kw * RW - PL;
@@ -207,12 +205,14 @@ public:
          */
         // NB! works only for IC=1
         std::cout << "-------------------------\n";
-        for(int kh=0; kh < KH; kh++) {
-            for (int kw = 0; kw < KW; kw++) {
+        //for(int kh=0; kh < KH; kh++) {
+        for(int kh=0; kh < 1; kh++) {
+            //for (int kw = 0; kw < KW; kw++) {
+            for (int kw = 0; kw < 1; kw++) {
                 std::cout << "KH = " << kh << " KW = " << kw << "\n";
                 for (int i = 0; i < OH; i++) {
                     for (int j = 0; j < OW; j++) {
-                        std::cout << dst_data[kh * KW * OH * OW + kw * OH * OW + i * OW + j] << " ";
+                        std::cout << static_cast<int>(dst_data[kh * KW * OH * OW + kw * OH * OW + i * OW + j]) << " ";
                     }
                     std::cout << "\n";
                 }
