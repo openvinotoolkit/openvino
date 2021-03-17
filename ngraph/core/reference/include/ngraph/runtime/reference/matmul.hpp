@@ -55,16 +55,15 @@ namespace ngraph
                     size_t K_dim =
                         arg1_rank == 1 ? arg1_shape[arg1_rank - 1] : arg1_shape[arg1_rank - 2];
 
-                    size_t a_idx = 0, b_idx = 0, out_idx = 0;
                     for (size_t i = 0; i < I_dim; ++i)
                     {
                         for (size_t k = 0; k < K_dim; ++k)
                         {
-                            a_idx = i * K_dim + k;
+                            const size_t a_idx = i * K_dim + k;
                             for (size_t j = 0; j < J_dim; ++j)
                             {
-                                b_idx = k * J_dim + j;
-                                out_idx = i * J_dim + j;
+                                const size_t b_idx = k * J_dim + j;
+                                const size_t out_idx = i * J_dim + j;
                                 out[out_idx] += arg0[a_idx] * arg1[b_idx];
                             }
                         }
