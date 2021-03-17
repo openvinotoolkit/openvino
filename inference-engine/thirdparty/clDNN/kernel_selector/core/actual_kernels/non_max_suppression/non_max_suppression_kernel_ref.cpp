@@ -111,9 +111,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     printf("orgParams.inputs.size(): %lu\n", orgParams.inputs.size());
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
 
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1}); // boxes_scores
     if (orgParams.has_num_select_per_class)
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2}); // num_select_per_class
     if (orgParams.has_iou_threshold)
