@@ -6,12 +6,21 @@
 
 **Short description**: *ExperimentalDetectronROIFeatureExtractor* is the [ROIAlign](ROIAlign_3.md) operation applied over a feature pyramid.
 
-**Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels. For more details please see the math formulas below and the following sources:
+**Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels.
 
-* [Feature Pyramid Networks for Object Detection](https://arxiv.org/pdf/1612.03144.pdf)
-* [Facebook AI / detectron](https://ai.facebook.com/tools/detectron/)
-* [ONNX / ROI Align](https://github.com/onnx/onnx/blob/rel-1.5.0/docs/Operators.md#RoiAlign)
-* [NNEF / ROI Align](https://www.khronos.org/registry/NNEF/specs/1.0/nnef-1.0.2.html#roi-resize)
+Operation applies the *ROIAlign* algorithm to the pyramid layers:
+
+* output[i, :, :, :] = ROIAlign(inputPyramid[j], rois[i])
+* j = PyramidLevelMapper(rois[i])
+
+PyramidLevelMapper maps the ROI to the pyramid level using the following formula:
+
+* j = floor(2 + log<sub>2</sub>(sqrt(w * h) / 224)
+
+Here 224 is the "canonical" size, 2 is the pyramid starting level, and w, h are the ROI width and height.
+
+For more details please see the following source: [Feature Pyramid Networks for Object Detection](https://arxiv.org/pdf/1612.03144.pdf)
+
 
 **Attributes**:
 
@@ -64,20 +73,6 @@
 **Types**
 
 * *T*: any supported floating point type.
-
-
-**Mathematical Formulation**
-
-*ExperimentalDetectronROIFeatureExtractor* applies the *ROIAlign* algorithm to the pyramid layers:
-
-* output[i, :, :, :] = ROIAlign(inputPyramid[j], rois[i])
-* j = PyramidLevelMapper(rois[i])
-
-PyramidLevelMapper maps the ROI to the pyramid level using the following formula:
-
-* j = floor(2 + log<sub>2</sub>(sqrt(w * h) / 224)
-
-Here 224 is the "canonical" size, 2 is the pyramid starting level, and w, h are the ROI width and height.
 
 **Example**
 

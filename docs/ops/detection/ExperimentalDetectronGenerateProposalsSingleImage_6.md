@@ -52,7 +52,7 @@
 
 **Inputs**
 
-* **1**: A 1D tensor of type *T* with shape `[3]` with input data. **Required.**
+* **1**: A 1D tensor of type *T* with shape `[3]` with input image info. **Required.**
 
 * **2**: A 2D tensor of type *T* with input anchors. The second dimension of this input should be 4. **Required.**
 

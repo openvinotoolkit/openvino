@@ -54,7 +54,7 @@ declared in `namespace opset6`.
 * [ExperimentalDetectronGenerateProposalsSingleImage_6](detection/ExperimentalDetectronGenerateProposalsSingleImage_6.md)
 * [ExperimentalDetectronPriorGridGenerator_6](detection/ExperimentalDetectronPriorGridGenerator_6.md)
 * [ExperimentalDetectronROIFeatureExtractor_6](detection/ExperimentalDetectronROIFeatureExtractor_6.md)
-* [ExperimentalDetectronTopKROIs_6](detection/ExperimentalDetectronTopKROIs_6.md)
+* [ExperimentalDetectronTopKROIs_6](sort/ExperimentalDetectronTopKROIs_6.md)
 * [ExtractImagePatches](movement/ExtractImagePatches_3.md)
 * [FakeQuantize](quantization/FakeQuantize_1.md)
 * [Floor](arithmetic/Floor_1.md)

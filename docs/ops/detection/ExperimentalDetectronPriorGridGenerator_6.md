@@ -18,21 +18,37 @@
     * **Default value**: true
     * **Required**: *no*
 
-* *h* (*w*)
+* *h*
 
-    * **Description**: *h* (*w*) attribute specifies number of cells of the generated grid with respect to height (width).
+    * **Description**: *h* attribute specifies number of cells of the generated grid with respect to height.
+    * **Range of values**: non-negative integer number
+    * **Type**: int
+    * **Default value**: 0
+    * **Required**: *no*
+    
+* *w*
+
+    * **Description**: *w* attribute specifies number of cells of the generated grid with respect to width.
     * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: 0
     * **Required**: *no*
 
-* *stride_x* (*stride_y*)
+* *stride_x*
 
-    * **Description**: *stride_x* (*stride_y*) attribute specifies the step of generated grid with respect to x (y) coordinate.
+    * **Description**: *stride_x* attribute specifies the step of generated grid with respect to x coordinate.
     * **Range of values**: non-negative float number
     * **Type**: float
     * **Default value**: 0.0
-    * **Required**: *yes*
+    * **Required**: *no*
+    
+* *stride_y*
+
+    * **Description**: *stride_y* attribute specifies the step of generated grid with respect to y coordinate.
+    * **Range of values**: non-negative float number
+    * **Type**: float
+    * **Default value**: 0.0
+    * **Required**: *no*
 
 **Inputs**
 
@@ -40,11 +56,12 @@
 
 * **2**: A 4D tensor of type *T* with input feature map. **Required.**
 
-* **3**: A 4D tensor of type *T* with input data. The number of channels of both feature map and input data tensors must match. **Required.**
+* **3**: A 4D tensor of type *T* with input image. The number of channels of both feature map and input image tensors must match. **Required.**
 
 **Outputs**
 
 * **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise, where `featmap_height` and `featmap_width` are spatial dimensions values from second input.
+The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
 
 **Types**
 

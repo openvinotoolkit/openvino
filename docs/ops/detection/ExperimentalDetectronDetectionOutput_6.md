@@ -9,7 +9,7 @@
 **Detailed description**: Operation doing next steps:
 
 1.  Applies deltas to boxes sizes;
-2.  If *class_agnostic_box_regression* is `True` then operation removes predictions for background classes;
+2.  If *class_agnostic_box_regression* is `true` then operation removes predictions for background classes;
 3.  Clips boxes to image;
 4.  Applies *score_threshold* on detection scores;
 5.  Applies non-maximum suppression class-wise with *nms_threshold*;
@@ -91,7 +91,7 @@
 
 * **3**: A 2D tensor of type *T* with input scores. The last dimension of this input must be equal to the value of the attribute `num_classes`. **Required.**
 
-* **4**: A 2D tensor of type *T* with input data. **Required.**
+* **4**: A 2D tensor of type *T* with input image info. **Required.**
 
 **Outputs**
 

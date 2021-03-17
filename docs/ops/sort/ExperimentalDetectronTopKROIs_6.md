@@ -1,12 +1,13 @@
-## ExperimentalDetectronTopKROIs <a name="ExperimentalDetectronTopKROIs"></a> {#openvino_docs_ops_detection_ExperimentalDetectronTopKROIs_6}
+## ExperimentalDetectronTopKROIs <a name="ExperimentalDetectronTopKROIs"></a> {#openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6}
 
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
 
-**Category**: Object detection, Sort
+**Category**: Sort
 
 **Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to probabilities of input ROIs
 
-**Detailed description**: Operation performs probabilities sorting for input ROIs and returns *max_rois* number of ROIs.
+**Detailed description**: Operation performs probabilities descending sorting for input ROIs and returns *max_rois* 
+number of ROIs. Order of sorted ROIs with same probabilities is undefined. If number of ROIs is less than *max_rois* then operation
 
 **Attributes**:
 
