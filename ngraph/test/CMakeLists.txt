@@ -452,7 +452,7 @@ target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_importer)
+    target_link_libraries(unit-test PRIVATE onnx_importer onnx_editor)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)

@@ -48,5 +48,5 @@ namespace ngraph
         ComparisonResult compare_onnx_models(const std::string& model,
                                              const std::string& reference_model_path);
 
-    } // namespace onnx_import
+    } // namespace test
 } // namespace ngraph

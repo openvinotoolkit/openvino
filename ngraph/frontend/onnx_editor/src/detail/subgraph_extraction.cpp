@@ -19,9 +19,9 @@
 #include <stack>
 
 #include "ngraph/check.hpp"
-#include "onnx_import/editor/detail/subgraph_extraction.hpp"
+#include "onnx_editor/detail/subgraph_extraction.hpp"
 
-using namespace ngraph::onnx_import;
+using namespace ngraph::onnx_editor;
 
 namespace
 {

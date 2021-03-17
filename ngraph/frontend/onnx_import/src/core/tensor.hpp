@@ -23,6 +23,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_common/utils.hpp"
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
 
@@ -137,8 +138,8 @@ namespace ngraph
                             auto it = reinterpret_cast<const T*>(raw_data.data());
                             return std::vector<T>(
                                 it,
-                                it +
-                                    (raw_data.size() / common::get_onnx_data_size(onnx_data_type)));
+                                it + (raw_data.size() /
+                                      onnx_common::get_onnx_data_size(onnx_data_type)));
                         }
 
                         template <typename T>

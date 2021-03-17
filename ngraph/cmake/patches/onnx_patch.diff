@@ -1,0 +1,30 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5254f7ee..e7a0ce2b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -380,7 +380,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+   # So, create a object library
+   add_library(onnx OBJECT ${ONNX_SRCS})
+ else()
+-  add_library(onnx ${ONNX_SRCS})
++  # onnx target doesn't export symbols
++  add_library(onnx STATIC ${ONNX_SRCS})
+ endif()
+ 
+ target_include_directories(onnx PUBLIC
+diff --git a/onnx/onnx_pb.h b/onnx/onnx_pb.h
+index 7dc68dea..c932b806 100644
+--- a/onnx/onnx_pb.h
++++ b/onnx/onnx_pb.h
+@@ -40,9 +40,10 @@
+ //
+ // This solution is similar to
+ // https://github.com/pytorch/pytorch/blob/master/caffe2/core/common.h
+-#if defined(ONNX_BUILD_SHARED_LIBS) || defined(ONNX_BUILD_MAIN_LIB)
++#if defined(ONNX_BUILD_MAIN_LIB)
+ #define ONNX_API ONNX_EXPORT
+ #else
++// OV as user of ONNX imports symbols
+ #define ONNX_API ONNX_IMPORT
+ #endif
+ 

@@ -21,9 +21,9 @@
 #include "core/model.hpp"
 #include "core/transform.hpp"
 #include "ngraph/except.hpp"
+#include "onnx_common/parser.hpp"
 #include "onnx_import/onnx.hpp"
 #include "ops_bridge.hpp"
-#include "utils/parser.hpp"
 
 namespace ngraph
 {
@@ -60,7 +60,7 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            ONNX_NAMESPACE::ModelProto model_proto{parse_from_istream(stream)};
+            ONNX_NAMESPACE::ModelProto model_proto{onnx_common::parse_from_istream(stream)};
 
             return detail::import_onnx_model(model_proto, model_path);
         }
@@ -76,11 +76,6 @@ namespace ngraph
             };
 
             return import_onnx_model(model_stream, file_path);
-        }
-
-        std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
-        {
-            return detail::import_onnx_model(model_editor.model(), model_editor.model_path());
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

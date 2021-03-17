@@ -18,10 +18,11 @@
 #include <onnx/onnx_pb.h>
 #include <onnx/shape_inference/implementation.h>
 
+#include "detail/subgraph_extraction.hpp"
 #include "ngraph/log.hpp"
-#include "onnx_import/editor/editor.hpp"
-#include "utils/common.hpp"
-#include "utils/parser.hpp"
+#include "onnx_common/parser.hpp"
+#include "onnx_common/utils.hpp"
+#include "onnx_editor/editor.hpp"
 
 using namespace ngraph;
 
@@ -187,9 +188,8 @@ namespace
             initializer.add_dims(dim);
         }
 
-        const auto data_size_in_bytes =
-            shape_size(values->get_shape()) *
-            onnx_import::common::get_onnx_data_size(initializer.data_type());
+        const auto data_size_in_bytes = shape_size(values->get_shape()) *
+                                        onnx_common::get_onnx_data_size(initializer.data_type());
         initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
 
         // update input with type and shape of initializer
@@ -208,14 +208,14 @@ namespace
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
-struct onnx_import::ONNXModelEditor::Impl
+struct onnx_editor::ONNXModelEditor::Impl
 {
     ONNX_NAMESPACE::ModelProto m_model_proto;
 
     Impl() = delete;
 
     Impl(const std::string& model_path)
-        : m_model_proto{std::move(parse_from_file(model_path))}
+        : m_model_proto{std::move(onnx_common::parse_from_file(model_path))}
     {
     }
 
@@ -223,23 +223,23 @@ struct onnx_import::ONNXModelEditor::Impl
     void remove_shape_inference_info() { m_model_proto.mutable_graph()->clear_value_info(); }
 };
 
-onnx_import::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
     , m_model_path{model_path}
 {
 }
 
-ONNX_NAMESPACE::ModelProto& onnx_import::ONNXModelEditor::model() const
+ONNX_NAMESPACE::ModelProto& onnx_editor::ONNXModelEditor::model() const
 {
     return m_pimpl->m_model_proto;
 }
 
-const std::string& onnx_import::ONNXModelEditor::model_path() const
+const std::string& onnx_editor::ONNXModelEditor::model_path() const
 {
     return m_model_path;
 }
 
-void onnx_import::ONNXModelEditor::serialize(const std::string& out_file_path) const
+void onnx_editor::ONNXModelEditor::serialize(const std::string& out_file_path) const
 {
     std::ofstream out_file{out_file_path, std::ios::out | std::ios::binary};
 
@@ -258,7 +258,7 @@ void onnx_import::ONNXModelEditor::serialize(const std::string& out_file_path) c
     }
 }
 
-void onnx_import::ONNXModelEditor::set_input_types(
+void onnx_editor::ONNXModelEditor::set_input_types(
     const std::map<std::string, element::Type_t>& input_types)
 {
     auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
@@ -279,7 +279,7 @@ void onnx_import::ONNXModelEditor::set_input_types(
     }
 }
 
-void onnx_import::ONNXModelEditor::set_input_shapes(
+void onnx_editor::ONNXModelEditor::set_input_shapes(
     const std::map<std::string, ngraph::PartialShape>& input_shapes)
 {
     auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
@@ -299,7 +299,7 @@ void onnx_import::ONNXModelEditor::set_input_shapes(
     }
 }
 
-void onnx_import::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
+void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
                                                       const std::vector<OutputEdge>& outputs)
 {
     if (inputs.empty() && outputs.empty())
@@ -317,7 +317,7 @@ void onnx_import::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     m_pimpl->remove_shape_inference_info();
 }
 
-std::vector<std::string> onnx_import::ONNXModelEditor::model_inputs() const
+std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
 {
     const auto& graph = m_pimpl->m_model_proto.graph();
 
@@ -337,12 +337,12 @@ std::vector<std::string> onnx_import::ONNXModelEditor::model_inputs() const
     return inputs_and_initializers;
 }
 
-std::string onnx_import::ONNXModelEditor::model_string() const
+std::string onnx_editor::ONNXModelEditor::model_string() const
 {
     return m_pimpl->m_model_proto.SerializeAsString();
 }
 
-void onnx_import::ONNXModelEditor::set_input_values(
+void onnx_editor::ONNXModelEditor::set_input_values(
     const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values)
 {
     auto onnx_graph = m_pimpl->m_model_proto.mutable_graph();
