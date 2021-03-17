@@ -20,11 +20,6 @@ target_link_libraries(${TARGET_NAME} PUBLIC
         ieTestHelpers
         )
 
-if(UNIX)
-    find_package(Threads REQUIRED)
-    target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
-endif()
-
 target_link_libraries(${TARGET_NAME} PUBLIC gmock)
 
 target_include_directories(${TARGET_NAME} PUBLIC

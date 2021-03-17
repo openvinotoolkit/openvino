@@ -30,7 +30,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
 
     if (execNetwork->_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
-    graph = execNetwork->_graphs.begin()->get();
+    graph = &(execNetwork->GetGraph()._graph);
     for (const auto& it : _networkInputs) {
         MKLDNNInferRequest::GetBlob(it.first);
     }
@@ -182,8 +182,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
 void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     using namespace openvino::itt;
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, profilingTask);
-
-    graph = execNetwork->_graphs.local().get();
+    auto graphLock = execNetwork->GetGraph();
+    graph = &(graphLock._graph);
 
     ThrowIfCanceled();
 

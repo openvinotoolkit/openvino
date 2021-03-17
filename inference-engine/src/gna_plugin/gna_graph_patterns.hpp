@@ -230,6 +230,29 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
             }
             transpositionInfo.insert(std::end(transpositionInfo), std::begin(results), std::end(results));
         }
+
+        if (LayerInfo(layer).isCrop()) {
+            auto in_dims = layer->input()->getDims();
+            auto in_total_size = InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims));
+            auto crop_layer = LayerInfo(layer).as<const InferenceEngine::CropLayer*>();
+            IE_ASSERT(crop_layer != nullptr);
+            size_t crop_offset = 1;
+            size_t crop_out_size = 1;
+            bool first_cropped_dim = true;
+            for (int i = 0; i < crop_layer->axis.size(); ++i) {
+                if (crop_layer->offset[i] == 0 && crop_layer->dim[i] == in_dims[i]) continue;
+                crop_offset *= first_cropped_dim ? crop_layer->offset[i] : crop_layer->dim[i];
+                crop_out_size *= crop_layer->dim[i];
+                first_cropped_dim = false;
+            }
+            auto crop_rest_size = in_total_size - crop_offset - crop_out_size;
+            if (crop_offset > 0) {
+                transpositionInfo.insert(std::begin(transpositionInfo), {false, 1, crop_offset});
+            }
+            if (crop_rest_size > 0) {
+                transpositionInfo.push_back({false, 1, crop_rest_size});
+            }
+        }
         return transpositionInfo;
     };
 

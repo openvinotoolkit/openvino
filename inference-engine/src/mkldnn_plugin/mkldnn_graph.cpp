@@ -992,7 +992,7 @@ void MKLDNNGraph::setProperty(const std::map<std::string, std::string>& properti
     config.readProperties(properties);
 }
 
-Config MKLDNNGraph::getProperty() {
+Config MKLDNNGraph::getProperty() const {
     return config;
 }
 
