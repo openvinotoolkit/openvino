@@ -96,7 +96,7 @@ template void MKLDNNGraph::ApplyUnrollPasses(CNNNetwork&);
 
 template<typename NET>
 void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
-        MKLDNNWeightsSharing::Ptr w_cache) {
+        MKLDNNWeightsSharing::Ptr &w_cache) {
     OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "CreateGraph");
 
     if (IsReady())
@@ -110,9 +110,9 @@ void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr&
 }
 
 template void MKLDNNGraph::CreateGraph(const TensorIterator::Body&,
-        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr);
+        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
-        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr);
+        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 
 void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
     this->_name = "subgraph";
