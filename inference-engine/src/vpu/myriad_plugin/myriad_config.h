@@ -17,15 +17,6 @@ namespace vpu {
 namespace MyriadPlugin {
 
 // Must be synchronized with firmware side.
-VPU_DECLARE_ENUM(PowerConfig,
-    FULL         = 0,
-    INFER        = 1,
-    STAGE        = 2,
-    STAGE_SHAVES = 3,
-    STAGE_NCES   = 4,
-)
-
-// Must be synchronized with firmware side.
 VPU_DECLARE_ENUM(MovidiusDdrType,
     AUTO        = 0,
     MICRON_2GB  = 1,
@@ -46,10 +37,6 @@ public:
 
     bool asyncDma() const {
         return _enableAsyncDma;
-    }
-
-    PowerConfig powerConfig() const {
-        return _powerConfig;
     }
 
     ncDevicePlatform_t platform() const {
@@ -82,7 +69,6 @@ private:
     std::string _pluginLogFilePath;
     bool _forceReset = false;
     bool _enableAsyncDma = true;
-    PowerConfig _powerConfig = PowerConfig::FULL;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
     std::chrono::milliseconds _watchdogInterval = std::chrono::milliseconds(1000);
     std::chrono::seconds _deviceConnectTimeout = std::chrono::seconds(15);

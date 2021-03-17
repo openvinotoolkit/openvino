@@ -19,6 +19,9 @@
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
 
+#include <vpu/configuration/options/protocol.hpp>
+#include <vpu/configuration/options/power_config.hpp>
+
 #include "myriad_executor.h"
 #include "myriad_config.h"
 
@@ -86,7 +89,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     const ncDevicePlatform_t& configPlatform = config.platform();
     const ncDeviceProtocol_t& configProtocol = config.get<ProtocolOption>();
     const std::string& configDevName = config.deviceName();
-    PowerConfig powerConfig = config.powerConfig();
+    PowerConfig powerConfig = config.get<PowerConfigOption>();
     int enableAsyncDma = config.asyncDma();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
 

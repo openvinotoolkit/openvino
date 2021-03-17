@@ -11,6 +11,7 @@
 #include <vpu/configuration/options/log_level.hpp>
 #include <vpu/configuration/options/copy_optimization.hpp>
 #include <vpu/configuration/options/protocol.hpp>
+#include <vpu/configuration/options/power_config.hpp>
 
 namespace vpu {
 
@@ -166,6 +167,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<LogLevelOption>();
     configuration.registerOption<CopyOptimizationOption>();
     configuration.registerOption<ProtocolOption>();
+    configuration.registerOption<PowerConfigOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

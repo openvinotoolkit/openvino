@@ -34,7 +34,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_WATCHDOG,
         ie::MYRIAD_THROUGHPUT_STREAMS,
-        ie::MYRIAD_POWER_MANAGEMENT,
 
         ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
         ie::MYRIAD_DEVICE_CONNECT_TIMEOUT,
@@ -85,14 +84,6 @@ IE_SUPPRESS_DEPRECATED_END
         { CONFIG_VALUE(NO), std::chrono::milliseconds(0) }
     };
 
-    static const std::unordered_map<std::string, PowerConfig> powerConfigs = {
-        { ie::MYRIAD_POWER_FULL,         PowerConfig::FULL },
-        { ie::MYRIAD_POWER_INFER,        PowerConfig::INFER },
-        { ie::MYRIAD_POWER_STAGE,        PowerConfig::STAGE },
-        { ie::MYRIAD_POWER_STAGE_SHAVES, PowerConfig::STAGE_SHAVES },
-        { ie::MYRIAD_POWER_STAGE_NCES,   PowerConfig::STAGE_NCES },
-    };
-
     static const std::unordered_map<std::string, MovidiusDdrType> memoryTypes = {
         { ie::MYRIAD_DDR_AUTO,         MovidiusDdrType::AUTO },
         { ie::MYRIAD_DDR_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
@@ -108,7 +99,6 @@ IE_SUPPRESS_DEPRECATED_END
     setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
     setOption(_watchdogInterval, watchdogIntervals,     config, ie::MYRIAD_WATCHDOG);
     setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
-    setOption(_powerConfig,      powerConfigs,          config, ie::MYRIAD_POWER_MANAGEMENT);
     setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);
     setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
 

@@ -10,6 +10,7 @@
 #include <vpu/configuration/options/log_level.hpp>
 #include <vpu/configuration/options/copy_optimization.hpp>
 #include <vpu/configuration/options/protocol.hpp>
+#include <vpu/configuration/options/power_config.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -50,6 +51,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<LogLevelOption>();
     _configuration.registerOption<CopyOptimizationOption>();
     _configuration.registerOption<ProtocolOption>();
+    _configuration.registerOption<PowerConfigOption>();
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     _configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
