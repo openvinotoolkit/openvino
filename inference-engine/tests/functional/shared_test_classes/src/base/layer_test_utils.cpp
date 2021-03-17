@@ -3,6 +3,7 @@
 //
 #include <fstream>
 #include <signal.h>
+#include <unistd.h>
 
 #include <transformations/serialize.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -106,6 +107,27 @@ void TestEnvironment::saveReport() {
     if (isReported) {
         return;
     }
+    std::string lockedFilename = std::string(CommonTestUtils::REPORT_FILENAME) + ".lock";
+    pid_t processId = getpid();
+    if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
+        std::ifstream lockedFile;
+        lockedFile.open(lockedFilename);
+        std::string content;
+        lockedFile.read(&content[0], lockedFile.tellg());
+        if (std::stoi(content) == processId) {
+            return;
+        }
+        auto currentTime = std::chrono::system_clock::now();
+        auto exitTime = currentTime + std::chrono::minutes(1);
+        unsigned int timeout = 1e6 * 0.5;
+        while (CommonTestUtils::fileExists(lockedFilename.c_str()) || currentTime == exitTime) {
+            currentTime += std::chrono::microseconds(timeout);
+            usleep(timeout);
+        }
+    }
+    std::string content = std::to_string(processId);
+    CommonTestUtils::createFile(lockedFilename, content);
+
     std::vector<ngraph::OpSet> opsets;
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
@@ -209,6 +231,7 @@ void TestEnvironment::saveReport() {
     } else {
         isReported = true;
     }
+    CommonTestUtils::removeFile(lockedFilename);
 }
 
 void TestEnvironment::TearDown() {
