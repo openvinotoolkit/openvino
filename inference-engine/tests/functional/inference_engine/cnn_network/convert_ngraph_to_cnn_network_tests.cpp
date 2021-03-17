@@ -73,7 +73,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
-    } catch (InferenceEngine::details::InferenceEngineException &err) {
+    } catch (InferenceEngine::details::InferenceEngineException&) {
         FAIL();
     }
 }
