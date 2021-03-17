@@ -7,6 +7,8 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <thread>
+#include <chrono>
 #include <sys/stat.h>
 
 #include "test_constants.hpp"
@@ -16,10 +18,14 @@
 #ifdef _WIN32
 #include <direct.h>
 #include <process.h>
-#include <processthreadsapi.h>
+#include <windows.h>
+#include <stdio.h>
+#include <tchar.h>
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -233,14 +239,24 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
             unsigned int timeout = 1e6 * 0.5;
             while (CommonTestUtils::fileExists(lockedFilename.c_str()) || currentTime >= exitTime) {
                 currentTime += std::chrono::microseconds(timeout);
-                usleep(timeout);
+                std::this_thread::sleep_for(std::chrono::microseconds(timeout));
             }
-            int status;
+            int status = 0;
 #ifndef _WIN32
             waitpid(lockerPid, &status, WNOHANG);
 #else
-            auto handle = OpenProcess(0x00020000L, false, processId);
-            GetExitCodeProcess(handle, &status);
+            DWORD winProcessId;
+            HANDLE winProcess = ::GetWindowThreadProcessId( hWnd, (DWORD*)&PID );
+            winProcess = ::OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+                                       PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+                                       FALSE, winProcessId);
+            if (winProcess != NULL) {
+                LPDWORD winStatus;
+                ::WaitForSingleObject(winProcess, INFINITE);
+                ::GetExitCodeProcess(winProcess, winStatus);
+                ::CloseHandle(winProcess);
+                status = static_cast<int>(*winStatus);
+            }
 #endif
             if (status != 0 && currentTime >= exitTime) {
                 lockedFile.clear();
