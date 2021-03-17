@@ -32,22 +32,56 @@
 <table class="table table-hover" id="report">
     <thead>
     <tr>
-        <th scope="col">Operation</th>
+        <th style="background-color:#F4AE6F" scope="col">Operation</th>
         {% for d in devices -%}
-        <th>{{ d }}</th>
+        <th style="background-color:#F4AE6F">{{ d }}</th>
         {% endfor %}
     </tr>
     </thead>
+    <tbody>
+        <tr>
+        <th style="background-color:#C5B8B8" scope="row">Total: {{ordered_ops|length}}</th>
+        {% for d in devices -%}
+        <td style="background-color:#DED8D8" >{{results[d]|length}}</td>
+        {% endfor %}
+
+    </tr>
+        <tr>
+        <th style="background-color:#C5B8B8" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
+        {% for d in devices -%}
+        <td style="background-color:#DED8D8" >{{pass_rate_avg[d]}}</td>
+        {% endfor %}
+    </tr>
+        <tr>
+        <th style="background-color:#C5B8B8" scope="row">Passrate:</th>
+        {% for d in devices -%}
+        <td style="background-color:#DED8D8" >{{general_pass_rate[d]}}</td>
+        {% endfor %}
+    </tr>
+        <tr>
+        <th style="background-color:#C5B8B8" scope="row">Number of tests:</th>
+        {% for d in devices -%}
+        <td style="background-color:#DED8D8" >{{general_test_count[d]}}</td>
+        {% endfor %}
+    </tr>
+    </tbody>
     <tbody>
     {% for op in ordered_ops -%}
     <tr>
         <th scope="row">{{ op }}</th>
         {% for d in devices -%}
         {% if op in results[d] -%}
-        <td>
+        {% if op in verified_operations -%}
+            <td style="background-color:#FFFFFF">
             {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
-            <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }}</span>,c:{{ results[d][op].crashed }})
-        </td>
+               <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }}</span>,c:{{ results[d][op].crashed }})
+            </td>
+        {% else -%}
+            <td style="background-color:#E8FAC7">
+                {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
+                <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }}</span>,c:{{ results[d][op].crashed }})
+            </td><!---->
+            {% endif -%}
         {% else -%}
         <td class="table-warning">No tests</td>
         {% endif -%}
@@ -55,13 +89,7 @@
         {% endfor %}
     </tr>
     {% endfor -%}
-    <tr>
-        <th scope="row">Total: {{ordered_ops|length}}</th>
-        {% for d in devices -%}
-        <td>{{results[d]|length}}</td>
-        {% endfor %}
 
-    </tr>
     </tbody>
 </table>
 </body>
