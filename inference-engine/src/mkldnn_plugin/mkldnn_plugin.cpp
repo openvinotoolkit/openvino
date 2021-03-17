@@ -473,20 +473,30 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 //            if (mode_name == CONFIG_VALUE(LATENCY)) {
 //                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
 //            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-    const int num_phys_cores = getNumberOfCPUCores();
 //                const int num_logical_cores = std::thread::hardware_concurrency();
-    const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+    const int num_cores = getNumberOfCPUCores();
+    const auto num_streams_default_not_ht = num_cores / 2;
+//            [num_cores] () {
+//        if (0 == num_cores % 2)
+//            return num_cores/2;
+//        else if (0 == num_cores % 5)
+//            return std::max(5, num_cores / 5);
+//        else
+//            return 1;
+//    }();
+
+    // const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
     // this is first heuristic in series (carefully separating int8, bf16 and float32):
     //      memory bandwidth limited
     //      compute limited
     //      Hybrid specific
     //      etc
     std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited ? "YES" : "NO") << std::endl;
-    config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(num_phys_cores);
+    config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(num_cores);
     if (!isNetworkMemLimited) {
-        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_phys_cores);
+        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_cores);
     } else {
-        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(default_num_streams);
+        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams_default_not_ht);
     }
 //            }
 //        }
