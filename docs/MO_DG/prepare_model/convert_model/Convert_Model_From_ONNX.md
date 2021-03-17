@@ -71,7 +71,7 @@ The Model Optimizer process assumes you have an ONNX model that was directly dow
 To convert an ONNX\* model:
 
 1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` file:
+2. Use the `mo.py` script to simply convert a model with the path to the input model `.onnx` file:
 ```sh
 python3 mo.py --input_model <INPUT_MODEL>.onnx
 ```
