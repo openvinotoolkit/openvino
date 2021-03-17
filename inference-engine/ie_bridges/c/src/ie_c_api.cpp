@@ -524,7 +524,7 @@ IEStatusCode ie_core_get_available_devices(const ie_core_t *core, ie_available_d
         avai_devices->devices = dev_ptrs.release();
     } catch (const IE::details::InferenceEngineException& e) {
         return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return IEStatusCode::UNEXPECTED;
     } catch (...) {
         return IEStatusCode::UNEXPECTED;

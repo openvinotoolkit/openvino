@@ -99,7 +99,7 @@ InferenceEngine::StatusCode OpImplementation::init(InferenceEngine::LayerConfig 
                 config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32)  {
             THROW_IE_EXCEPTION << "Operation supports only FP32 precisions!";
         }
-    } catch (InferenceEngine::details::InferenceEngineException& ex) {
+    } catch (InferenceEngine::details::InferenceEngineException&) {
         if (resp) {
             strncpy(resp->msg, error.c_str(), sizeof(resp->msg) - 1);
             resp->msg[sizeof(resp->msg)-1] = 0;
