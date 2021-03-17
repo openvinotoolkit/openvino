@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvToBinaryConv, "ConvToBinaryConv", 0);
 
@@ -95,11 +96,12 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
             auto weights_reduced = std::make_shared<opset5::ReduceSum>(
                     op::Constant::create(element::f32, weights_constant->get_shape(), weights),
                     op::Constant::create(element::i64, Shape{axes.size()}, axes), false);
-            auto weights_reduced_reshaped = std::make_shared<opset5::Reshape>(weights_reduced,
+            std::shared_ptr<Node> weights_reduced_reshaped = std::make_shared<opset5::Reshape>(weights_reduced,
                                                                               op::Constant::create(element::i64,
                                                                                                    Shape{weights_reduced_shape.size()},
                                                                                                    weights_reduced_shape),
                                                                               false);
+            weights_reduced_reshaped = ngraph::get_constant_from_source(weights_reduced_reshaped);
             auto add = std::make_shared<opset5::Add>(new_conv, weights_reduced_reshaped);
             auto mul = std::make_shared<opset5::Multiply>(add, op::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});
