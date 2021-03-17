@@ -120,7 +120,7 @@ void TestEnvironment::saveReport() {
         auto currentTime = std::chrono::system_clock::now();
         auto exitTime = currentTime + std::chrono::minutes(1);
         unsigned int timeout = 1e6 * 0.5;
-        while (CommonTestUtils::fileExists(lockedFilename.c_str()) || currentTime == exitTime) {
+        while (CommonTestUtils::fileExists(lockedFilename.c_str()) || currentTime != exitTime) {
             currentTime += std::chrono::microseconds(timeout);
             usleep(timeout);
         }
