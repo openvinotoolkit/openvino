@@ -38,11 +38,15 @@ namespace ngraph
                         const auto output_shape =
                             node.get_attribute_value<std::vector<int64_t>>("shape", {});
 
+                        // Added in onnx reshape version 14
+                        const auto special_zero =
+                            !node.get_attribute_value<bool>("allowzero", false);
+
                         pattern = default_opset::Constant::create(
                             element::i64, Shape{output_shape.size()}, output_shape);
                     }
 
-                    return {std::make_shared<default_opset::Reshape>(data, pattern, true)};
+                    return {std::make_shared<default_opset::Reshape>(data, pattern, special_zero)};
                 }
 
             } // namespace set_1
