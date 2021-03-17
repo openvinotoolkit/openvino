@@ -150,7 +150,26 @@ INSTANTIATE_TEST_CASE_P(
         ConstantAxesAndConstantSignalSizeTestParams{
             {2, 180, 180, 2}, {2}, {2}, {87, 180, 390, 2}, {2, 0}, {390, 87}},
         ConstantAxesAndConstantSignalSizeTestParams{
-            {7, 50, 130, 400, 2}, {3}, {3}, {7, 40, 130, 600, 2}, {3, 0, 1}, {600, -1, 40}}),
+            {7, 50, 130, 400, 2}, {3}, {3}, {7, 40, 130, 600, 2}, {3, 0, 1}, {600, -1, 40}},
+        ConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(0, 200), 180, 2},
+                                                    {2},
+                                                    {2},
+                                                    {2, Dimension(0, 200), 77, 2},
+                                                    {1, 2},
+                                                    {-1, 77}},
+        ConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400), 2},
+                                                    {2},
+                                                    {2},
+                                                    {87, 180, 390, 2},
+                                                    {2, 0},
+                                                    {390, 87}},
+        ConstantAxesAndConstantSignalSizeTestParams{
+            {Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
+            {3},
+            {3},
+            {Dimension(8, 129), 40, 130, 600, 2},
+            {3, 0, 1},
+            {600, -1, 40}}),
     PrintToDummyParamName());
 
 TEST(type_prop, dft_constant_axes_and_there_are_signal_size_dynamic_shapes)
