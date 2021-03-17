@@ -108,6 +108,12 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
     {
         stringstream ss;
         ss << " or " << target_shape[i];
+        if (!(arg_shape[i - start_axis].is_dynamic() || target_shape[i].is_dynamic() ||
+              arg_shape[i - start_axis] == 1 || arg_shape[i - start_axis] == target_shape[i]))
+        {
+            std::cout << "error";
+            std::cout << std::endl;
+        }
         NODE_VALIDATION_CHECK(this,
                               arg_shape[i - start_axis].is_dynamic() ||
                                   target_shape[i].is_dynamic() || arg_shape[i - start_axis] == 1 ||
@@ -140,8 +146,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
     if (arg_shape.rank().get_length() == 0 && axes_mapping_val.size() > 0)
     {
         NODE_VALIDATION_CHECK(this,
-                              target_shape[axes_mapping_val[0]].is_dynamic() ||
-                                  target_shape[axes_mapping_val[0]] == 1,
+                              target_shape[axes_mapping_val[0]].compatible(1),
                               "Broadcast target[axes_mapping[0]]. Expected 1. Got ",
                               target_shape[axes_mapping_val[0]]);
     }
@@ -160,8 +165,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
         if (arg_shape.rank().get_length() > 0)
         {
             NODE_VALIDATION_CHECK(this,
-                                  target_shape[axes_mapping_val[i]].is_dynamic() ||
-                                      target_shape[axes_mapping_val[i]].same_scheme(arg_shape[i]),
+                                  target_shape[axes_mapping_val[i]].compatible(arg_shape[i]),
                                   "Broadcast target[axes_mapping[",
                                   i,
                                   "]]",
