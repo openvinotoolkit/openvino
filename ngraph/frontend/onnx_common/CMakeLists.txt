@@ -34,3 +34,5 @@ target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR} ${NGRAP
 if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)
 endif()
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
