@@ -37,7 +37,11 @@ endif()
 
 configure_file(${SETUP_ENV} "${CMAKE_CURRENT_SOURCE_DIR}/.env")
 
-add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api _pyngraph)
+add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api)
+
+if(TARGET _pyngraph)
+    add_dependencies(ie_wheel _pyngraph)
+endif()
 
 add_custom_command(TARGET ie_wheel
     POST_BUILD
