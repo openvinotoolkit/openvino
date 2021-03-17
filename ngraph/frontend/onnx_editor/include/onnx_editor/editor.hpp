@@ -23,8 +23,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/editor/detail/subgraph_extraction.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
+#include "onnx_editor/editor.hpp"
+#include "onnx_editor/editor_types.hpp"
 
 namespace ONNX_NAMESPACE
 {
@@ -35,15 +35,14 @@ namespace ONNX_NAMESPACE
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace onnx_editor
     {
         /// \brief A class representing a set of utilities allowing modification of an ONNX model
         ///
         /// \note This class can be used to modify an ONNX model before it gets translated to
         ///       an ngraph::Function by the import_onnx_model function. It lets you modify the
-        ///       model's input types and shapes, extract a subgraph and more. An instance of this
-        ///       class can be passed directly to the onnx_importer API.
-        class ONNX_IMPORTER_API ONNXModelEditor final
+        ///       model's input types and shapes, extract a subgraph and more.
+        class ONNXModelEditor final
         {
         public:
             ONNXModelEditor() = delete;
@@ -84,6 +83,7 @@ namespace ngraph
             /// \param outputs A collection of output edges which become new outputs of the graph
             void cut_graph_fragment(const std::vector<InputEdge>& inputs,
                                     const std::vector<OutputEdge>& outputs);
+
             /// \brief Modifies the in-memory representation of the model by setting custom input
             ///        values for inputs specified in the provided map.
             ///
@@ -128,5 +128,5 @@ namespace ngraph
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
         };
-    } // namespace onnx_import
+    } // namespace onnx_editor
 } // namespace ngraph
