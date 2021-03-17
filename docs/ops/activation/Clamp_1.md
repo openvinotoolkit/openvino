@@ -9,8 +9,8 @@
 **Detailed description**:
 
 *Clamp* performs clipping operation over the input tensor element-wise. Element values of the output are within the range `[min, max]`.
-* Input values that are smaller than *min* are replaced with *min* value. For example, *min* equal 10 means that any value in the input that is smaller than the bound, is replaced by 10.
-* Input values that are greater than *max* are replaced with the *max* value. For example, *max* equals 50 means that any value in the input that is greater than the bound, is replaced by 50.
+* Input values that are smaller than *min* are replaced with *min* value.
+* Input values that are greater than *max* are replaced with *max* value.
 * Input values within the range `[min, max]` remain unchanged.
 
 Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematical formula of *Clamp* is as follows:
@@ -31,7 +31,7 @@ clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
 * *max*
 
   * **Description**: *max* is the upper bound of values in the output.
-  * **Range of values**: arbitratry floating point number
+  * **Range of values**: arbitrary floating point number
   * **Type**: `float`
   * **Default value**: None
   * **Required**: *yes*
