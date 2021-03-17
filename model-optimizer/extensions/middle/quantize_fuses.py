@@ -31,6 +31,7 @@ class MarkNodesToFuseUpToFakeQuantize(MiddleReplacementPattern):
 
     """
     enabled = True
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_fusing]
 
     def run_after(self):
         return [DeleteControlFlowEdges]
@@ -83,6 +84,7 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
             replacer duplicates node to fuse (duplicate connections of inputs of node to fuse to duplicates of it)
     """
     enabled = True
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_fusing]
 
     def run_after(self):
         return [MarkNodesToFuseUpToFakeQuantize]
