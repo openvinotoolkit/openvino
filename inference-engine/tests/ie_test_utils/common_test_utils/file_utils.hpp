@@ -21,6 +21,8 @@
 #include <windows.h>
 #include <stdio.h>
 #include <tchar.h>
+#include "InjCode.h"
+#include "resource.h"
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
