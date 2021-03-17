@@ -109,7 +109,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
     runParallel([&] () {
         std::string fileName, deviceName;
-        std:tie(fileName, deviceName) = getPluginXml();
+        std::tie(fileName, deviceName) = getPluginXml();
         ie.RegisterPlugins(fileName);
         ie.GetVersions(deviceName);
         ASSERT_EQ(0, std::remove(fileName.c_str()));

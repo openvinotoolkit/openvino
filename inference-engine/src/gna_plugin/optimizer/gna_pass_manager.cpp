@@ -975,7 +975,7 @@ void FlattenTrivialConcatPass::run() {
 
         auto axis = concatLayer->_axis;
         bool skip_layer = false;
-        for (int i = 0; i < axis; i++) {
+        for (unsigned int i = 0; i < axis; i++) {
             if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
         }
         if (skip_layer) continue;

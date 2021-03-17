@@ -46,7 +46,7 @@ TEST_P(CancellationTests, canCancelAsyncRequest) {
     ASSERT_NO_THROW(req.Cancel());
     try {
         req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    } catch (const InferenceEngine::InferCancelled& ex) {
+    } catch (const InferenceEngine::InferCancelled&) {
         SUCCEED();
     }
 }
@@ -65,7 +65,7 @@ TEST_P(CancellationTests, canResetAfterCancelAsyncRequest) {
     ASSERT_NO_THROW(req.Cancel());
     try {
         req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    } catch (const InferenceEngine::InferCancelled& ex) {
+    } catch (const InferenceEngine::InferCancelled&) {
         SUCCEED();
     }
 
@@ -107,7 +107,7 @@ TEST_P(CancellationTests, canCancelInferRequest) {
     ASSERT_NO_THROW(req.Cancel());
     try {
         infer.get();
-    } catch (const InferenceEngine::InferCancelled& ex) {
+    } catch (const InferenceEngine::InferCancelled&) {
         SUCCEED();
     }
 }

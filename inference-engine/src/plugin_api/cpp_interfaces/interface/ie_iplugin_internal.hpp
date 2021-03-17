@@ -276,7 +276,7 @@ protected:
     INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
         try {                                                                                                       \
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {                                     \
+        } catch (const InferenceEngine::details::InferenceEngineException&) {                                       \
             throw;                                                                                                  \
         } catch (const std::exception& ex) {                                                                        \
             THROW_IE_EXCEPTION << ex.what();                                                                        \

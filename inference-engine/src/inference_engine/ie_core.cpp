@@ -93,7 +93,7 @@ template <typename F>
 void allowNotImplemented(F && f) {
     try {
         f();
-    } catch (const NotImplemented & ex) { }
+    } catch (const NotImplemented&) { }
 }
 
 }  // namespace
@@ -993,7 +993,7 @@ std::vector<std::string> Core::GetAvailableDevices() const {
         try {
             Parameter p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
-        } catch (details::InferenceEngineException& e) {
+        } catch (details::InferenceEngineException&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
             THROW_IE_EXCEPTION << "An exception is thrown while trying to create the " << deviceName

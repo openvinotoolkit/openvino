@@ -168,7 +168,7 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n.GetContext();
-        } catch (const NotImplemented& ex) {
+        } catch (const NotImplemented&) {
         }
     }
     THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "None of the devices in the MULTI has an associated remote context."

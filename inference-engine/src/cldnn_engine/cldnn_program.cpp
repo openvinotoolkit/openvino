@@ -215,7 +215,7 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
         CreateSingleLayerPrimitive(topology, op);
         CleanupBuild();
         DisableQueryMode();
-    } catch (std::exception& ex) {
+    } catch (std::exception&) {
         // Exception means that an operation or some of it's parameters are not supported
         CleanupBuild();
         return false;

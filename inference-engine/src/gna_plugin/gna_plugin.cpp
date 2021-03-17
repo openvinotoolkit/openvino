@@ -129,7 +129,7 @@ void GNAPlugin::copyInputData(T *dst,
                 T *ptr_dst_vec = reinterpret_cast<T *>(dst) + i * num_vector_stride;
                 const U *ptr_src_vec = reinterpret_cast<const U *>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                for (int j=0; j < num_vector_elements; j++) {
+                for (uint32_t j=0; j < num_vector_elements; j++) {
                     ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                 }
             }
@@ -1271,9 +1271,9 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+        if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CHW) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
         }
