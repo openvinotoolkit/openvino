@@ -684,10 +684,10 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         input_node.in_port(0).disconnect()
 
         # if mul and sub nodes were in the Loop node then add them to the main graph manually
-        if mul_value:
-            source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Mul, {1: mul_value}))
         if sub_value:
             source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Sub, {1: sub_value}))
+        if mul_value:
+            source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Mul, {1: mul_value}))
 
         print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
               ' applicable) are kept.')
