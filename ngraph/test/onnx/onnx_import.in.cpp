@@ -3262,19 +3262,77 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only)
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_import_only)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_nearest_infer)
 {
+    // clang-format off
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Scales attribute values {1.0, 1.0, 2.0, 3.0}
-
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_nearest.prototxt"));
+    // height_scale: 2.0
+    // width_scale: 3.0
+    // mode: nearest
+    const Shape input_shape          {1, 1, 2, 2};
     const Shape expected_output_shape{1, 1, 4, 6};
-    EXPECT_EQ(function->get_output_size(), 1);
-    EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 2);
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(input_shape,
+        {   1.f, 2.f,
+            3.f, 4.f    });
+    test_case.add_expected_output<float>(expected_output_shape,
+        {   1.f, 1.f, 1.f, 2.f, 2.f, 2.f,
+            1.f, 1.f, 1.f, 2.f, 2.f, 2.f,
+            3.f, 3.f, 3.f, 4.f, 4.f, 4.f,
+            3.f, 3.f, 3.f, 4.f, 4.f, 4.f    });
+    test_case.run();
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_bilinear_infer)
+{
+    // clang-format off
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_bilinear.prototxt"));
+    // height_scale: 2.0
+    // width_scale: 3.0
+    // mode: bilinear
+    const Shape input_shape          {1, 1, 2, 2};
+    const Shape expected_output_shape{1, 1, 4, 6};
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(input_shape,
+        {   1.f, 2.f,
+            3.f, 4.f    });
+    test_case.add_expected_output<float>(expected_output_shape,
+        {   1.f,  4.f/3,  5.f/3, 2.f, 2.f, 2.f,
+            2.f,  7.f/3,  8.f/3, 3.f, 3.f, 3.f,
+            3.f, 10.f/3, 11.f/3, 4.f, 4.f, 4.f,
+            3.f, 10.f/3, 11.f/3, 4.f, 4.f, 4.f  });
+    test_case.run();
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_dynamic)
+{
+    // clang-format off
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_dynamic.prototxt"));
+    // height_scale: 1.5
+    // width_scale: 2.5
+    // mode: nearest
+    //
+    //  X ───╤══> Reshape ──R──> Upsample ──> Y
+    //  S ───┘
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+
+    test_case.add_input<float>(Shape {4},                      // X
+        {   1.f, 2.f, 3.f, 4.f  });
+    test_case.add_input<int64_t>(Shape {4},    {1, 1, 2, 2});  // S
+    test_case.add_expected_output<float>(Shape {1, 1, 3, 5},   // Y
+        {   1.f, 1.f, 1.f, 2.f, 2.f,
+            1.f, 1.f, 1.f, 2.f, 2.f,
+            3.f, 3.f, 3.f, 4.f, 4.f    });
+    test_case.run();
+    // clang-format on
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_nearest_infer)
@@ -3311,20 +3369,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_linear_infer)
         expected_output_shape,
         {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_import_only)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Input const scales values {1.0, 1.0, 2.0, 3.0}
-    const Shape expected_output_shape{1, 1, 4, 6};
-    EXPECT_EQ(function->get_output_size(), 1);
-    EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 2);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_nearest_infer)
