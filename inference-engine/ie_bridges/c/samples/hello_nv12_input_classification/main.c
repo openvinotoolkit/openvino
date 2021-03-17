@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <c_api/ie_c_api.h>
@@ -115,13 +116,13 @@ size_t read_image_from_file(const char *img_path, unsigned char *img_data, size_
 }
 
 /**
-* @brief Get image width and height
+* @brief Check image has supported width and height
 * @param string image size in WIDTHxHEIGHT format
 * @param pointer to image width
 * @param pointer to image height
-* @return int status 0(success) or -1(fail)
+* @return bool status True(success) or False(fail)
 */
-int parse_image_size(const char *size_str, size_t *width, size_t *height) {
+bool is_supported_image_size(const char *size_str, size_t *width, size_t *height) {
     const char *_size = size_str;
     size_t _width = 0, _height = 0;
     while (_size && *_size != 'x' && *_size != '\0') {
@@ -149,10 +150,10 @@ int parse_image_size(const char *size_str, size_t *width, size_t *height) {
         if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
             *height = _height;
-            return 0;
+            return true;
         } else {
             printf("Unsupported image size, width and height must be even numbers \n");
-            return -1;
+            return false;
         }
     } else {
         goto err;
@@ -160,7 +161,7 @@ int parse_image_size(const char *size_str, size_t *width, size_t *height) {
 err:
     printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
             "actual: %s\n", size_str);
-    return -1;
+    return false;
 }
 
 int main(int argc, char **argv) {
@@ -171,7 +172,7 @@ int main(int argc, char **argv) {
     }
 
     size_t input_width = 0, input_height = 0, img_size = 0;
-    if (parse_image_size(argv[3], &input_width, &input_height) == -1)
+    if (!is_supported_image_size(argv[3], &input_width, &input_height))
         return EXIT_FAILURE;
 
     const char *input_model = argv[1];

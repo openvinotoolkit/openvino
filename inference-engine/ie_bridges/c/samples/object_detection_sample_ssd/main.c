@@ -329,6 +329,7 @@ int main(int argc, char **argv) {
     if (status != OK)
         goto err;
 
+    // ------------------------------ Get Available Devices ------------------------------------------------------
     ie_core_versions_t ver;
     printf("%sDevice info: \n", info);
     status = ie_core_get_versions(core, device_name, &ver);

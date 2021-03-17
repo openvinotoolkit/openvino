@@ -14,6 +14,7 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 |:---                              |:---
 | Validated Models                 | AlexNet (image classification network)
 | Model Format                     | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)
+| Validated images                 | Windows bitmaps - *.bmp
 | Supported devices                | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../../samples/hello_nv12_input_classification/README.md) |
 

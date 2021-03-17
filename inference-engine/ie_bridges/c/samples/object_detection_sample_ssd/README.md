@@ -22,6 +22,7 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 |:---                              |:---
 | Validated Models                 | Person detection SSD (object detection network)
 | Model Format                     | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)
+| Validated images                 | The sample uses OpenCV* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (.bmp, .png)
 | Supported devices                | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../../samples/object_detection_sample_ssd/README.md), [Python](../../../python/sample/object_detection_sample_ssd/README.md) |
 
@@ -61,7 +62,7 @@ Options:
       -l "<absolute_path>"  Required for CPU plugin custom layers. Absolute path to a shared library with the kernels implementations.
           Or
       -c "<absolute_path>"  Required for GPU, MYRIAD, HDDL custom kernels. Absolute path to the .xml file with the kernels descriptions.
-    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
+    -d "<device>"           Optional. Specify the target device to infer. Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
     -g                      Path to the configuration file. Default value: "config".
 ```
 

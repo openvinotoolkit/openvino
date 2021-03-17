@@ -16,9 +16,9 @@ static const char* model_message = "Required. Path to an .xml file with a traine
 static const char *image_message = "Required. Path to one or more .bmp images.";
 
 /// @brief message for assigning cnn calculation to device
-static const char *target_device_message = "Optional. Specify the target device to infer on (the list of available devices is shown below). " \
+static const char *target_device_message = "Optional. Specify the target device to infer. " \
 "Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. " \
-"Sample will look for a suitable plugin for device specified";
+"Sample will look for a suitable plugin for device specified.";
 
 /// @brief message for plugin custom kernels desc
 static const char *custom_plugin_config_message = "Required for GPU, MYRIAD, HDDL custom kernels. "\
