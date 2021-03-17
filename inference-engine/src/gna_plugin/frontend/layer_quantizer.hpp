@@ -523,7 +523,7 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                 outData->setPrecision(Desc::mandatory().getInputPrecision());
             }
         } else {
-                if (LayerInfo(*cnnLayer).isActivation() ||
+            if (LayerInfo(*cnnLayer).isActivation() ||
                     LayerInfo(*cnnLayer).isCopy() ||
                     LayerInfo(*cnnLayer).isNonFunctional() ||
                     LayerInfo(*cnnLayer).isPermute() ||
@@ -531,6 +531,13 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                 // precision of activation layers is always equal input precision
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());
+                }
+            }
+            // for pooling layer output precision is the same as input precision
+            if (LayerInfo(*cnnLayer).isMaxPooling()) {
+                const auto inputPrecision = cnnLayer->insData.front().lock()->getPrecision();
+                for (auto&& outData : cnnLayer->outData) {
+                    outData->setPrecision(inputPrecision);
                 }
             }
         }
