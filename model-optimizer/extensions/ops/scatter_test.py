@@ -70,7 +70,7 @@ class ScatterElementsInferTest(unittest.TestCase):
            [1, 1]]
          ],
          [
-             [[0, 1],
+             [[15, 14],
               [2, 3]],
              [[4, 5],
               [6, 7]],
@@ -79,7 +79,7 @@ class ScatterElementsInferTest(unittest.TestCase):
          ],
          -1,  # axis
          [
-             [[1, 0],
+             [[14, 15],
               [2, 3]],
              [[5, 5],
               [7, 6]],
