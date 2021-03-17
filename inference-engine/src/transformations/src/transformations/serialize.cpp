@@ -237,6 +237,11 @@ public:
             std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
             std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
             pugi::xml_node port_map = m_xml_node.parent().child("port_map");
+
+            NGRAPH_CHECK(!parameter_mapping.empty() || !result_mapping.empty(), "No parameters or results found in body Function.");
+            // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
+            // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (here "m_xml_node")
+            // with empty attributes is removed.
             if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                                 <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
                 input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
