@@ -15,10 +15,11 @@
 
 #ifdef _WIN32
 #include <direct.h>
+#include <process.h>
+#include <processthreadsapi.h>
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
-
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -216,5 +217,42 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
     }
     splitPath.push_back(paths);
     return splitPath;
+}
+
+inline void lockAndWaitFile(const std::string& lockedFilename) {
+    unsigned int processId = getpid();
+    if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
+        std::ifstream lockedFile;
+        lockedFile.open(lockedFilename);
+        std::string content;
+        lockedFile.read(&content[0], lockedFile.tellg());
+        unsigned int lockerPid = std::stoi(content);
+        if (lockerPid != processId) {
+            auto currentTime = std::chrono::system_clock::now();
+            auto exitTime = currentTime + std::chrono::minutes(1);
+            unsigned int timeout = 1e6 * 0.5;
+            while (CommonTestUtils::fileExists(lockedFilename.c_str()) || currentTime >= exitTime) {
+                currentTime += std::chrono::microseconds(timeout);
+                usleep(timeout);
+            }
+            int status;
+#ifndef _WIN32
+            waitpid(lockerPid, &status, WNOHANG);
+#else
+            auto handle = OpenProcess(0x00020000L, false, processId);
+            GetExitCodeProcess(handle, &status);
+#endif
+            if (status != 0 && currentTime >= exitTime) {
+                lockedFile.clear();
+                std::ofstream ostream(lockedFilename);
+                ostream << processId;
+                ostream.close();
+            }
+        }
+        lockedFile.close();
+    } else {
+        std::string content = std::to_string(processId);
+        CommonTestUtils::createFile(lockedFilename, content);
+    }
 }
 }  // namespace CommonTestUtils
