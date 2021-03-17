@@ -33,7 +33,7 @@ from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_
 from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.ReduceOps import ReduceMean
 from extensions.ops.activation_ops import Sigmoid
-from extensions.ops.elementwise import Mul
+from extensions.ops.elementwise import Mul, Sub
 from extensions.ops.gather import Gather
 from extensions.ops.parameter import Parameter
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
@@ -46,7 +46,8 @@ from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
-    mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input
+    mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input, \
+    create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
 from mo.ops.concat import Concat
@@ -59,7 +60,7 @@ from mo.ops.roipooling import ROIPooling
 from mo.ops.shape import Shape
 from mo.ops.softmax import Softmax
 from mo.utils.error import Error
-from mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info
+from mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info, sub_graph_between_nodes
 from mo.utils.pipeline_config import PipelineConfig
 
 missing_param_error = 'To convert the model specify path to the pipeline configuration file which was used to ' \
@@ -521,8 +522,7 @@ class ObjectDetectionAPITransformationsStart(FrontReplacementPattern):
     enabled = True
 
     def run_after(self):
-        return [CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize, KerasRNNOutputConcatenation,
-                KerasRNNInputSlicing]
+        return [CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
@@ -542,7 +542,8 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
         # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
         # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, StandaloneConstEraser, TFSliceToSliceReplacer]
+        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, StandaloneConstEraser, TFSliceToSliceReplacer,
+                KerasRNNOutputConcatenation, KerasRNNInputSlicing]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
@@ -651,10 +652,43 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
 
         assert len(end_nodes) >= 1
         assert end_nodes[0] in graph.nodes
+
+        sub_graph_node_ids = sub_graph_between_nodes(graph, start_nodes, end_nodes, include_control_flow=False)
+
+        mul_value = None
+        sub_value = None
+
+        # If the pre-processing block contains Loop operation and mean and scale value should be obtained from it then
+        # insert operations manually. If there is no Loop then the pre-processing nodes are in the main graph and they
+        # will be kept in the main graph
+        loop_nodes_ids = [node_id for node_id in sub_graph_node_ids if graph.node[node_id].get('op') == 'Loop']
+        if len(loop_nodes_ids):
+            assert len(loop_nodes_ids) == 1, 'There should be exactly one Loop node in the pre-processor block.'
+            loop_node = Node(graph, loop_nodes_ids[0])
+            body_graph = loop_node.body
+            for body_node in body_graph.get_op_nodes():
+                if body_node.id.endswith('map/while/Preprocessor/sub'):
+                    for port in (0, 1):
+                        if body_node.in_port(port).get_source().node.has_valid('value'):
+                            sub_value = body_node.in_port(port).get_source().node.value.copy()
+                elif body_node.id.endswith('map/while/Preprocessor/mul'):
+                    for port in (0, 1):
+                        if body_node.in_port(port).get_source().node.has_valid('value'):
+                            mul_value = body_node.in_port(port).get_source().node.value.copy()
+
         output_node = Node(graph, end_nodes[0])
 
-        output_node.out_port(0).get_connection().set_source(input_node.in_port(0).get_source())
+        source_port = input_node.in_port(0).get_source()
+        output_node.out_port(0).get_connection().set_source(source_port)
         input_node.in_port(0).disconnect()
+
+        # if mul and sub nodes were in the Loop node then add them to the main graph manually
+        if mul_value:
+            source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Mul, {1: mul_value}))
+        if sub_value:
+            sub = create_op_with_const_inputs(graph, Sub, {0: sub_value})
+            source_port.get_connection().set_source(sub.out_port(0))
+            source_port.connect(sub.in_port(1))
 
         print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
               ' applicable) are kept.')
