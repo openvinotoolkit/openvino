@@ -646,12 +646,13 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         start_nodes = replacement_descriptions['start_nodes']
         end_nodes = replacement_descriptions['end_nodes']
 
+        start_nodes = [node_id for node_id in start_nodes if node_id in graph.nodes]
+        end_nodes = [node_id for node_id in end_nodes if node_id in graph.nodes]
+
         assert len(start_nodes) >= 1
-        assert start_nodes[0] in graph.nodes
         input_node = Node(graph, start_nodes[0])
 
         assert len(end_nodes) >= 1
-        assert end_nodes[0] in graph.nodes
 
         sub_graph_node_ids = sub_graph_between_nodes(graph, start_nodes, end_nodes, include_control_flow=False)
 
@@ -686,9 +687,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         if mul_value:
             source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Mul, {1: mul_value}))
         if sub_value:
-            sub = create_op_with_const_inputs(graph, Sub, {0: sub_value})
-            source_port.get_connection().set_source(sub.out_port(0))
-            source_port.connect(sub.in_port(1))
+            source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Sub, {1: sub_value}))
 
         print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
               ' applicable) are kept.')
