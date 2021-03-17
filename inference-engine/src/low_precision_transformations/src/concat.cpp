@@ -312,9 +312,9 @@ void ConcatTransformation::addDequantizationLayers(
                                     convertNodes.push_back(dequantization.convert);
                                 }
 
-                                const ngraph::element::Type precision = deqPrecision; //dequantization.data.get_element_type();
-                                ngraph::Shape targetShape(dequantization.data.get_shape().size(), 1ul);
-                                targetShape[1] = dequantization.data.get_shape()[1];
+                                const ngraph::element::Type precision = deqPrecision;
+                                ngraph::Shape targetShape(layer->get_input_shape(i).size(), 1ul);
+                                targetShape[1] = layer->get_input_shape(i)[1];
 
                                 if (!allDequantizationShiftAreZero) {
                                     subtractNodes.push_back(dequantization.subtract == nullptr ?

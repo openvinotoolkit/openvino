@@ -202,6 +202,9 @@ endif()
 
 # General flags
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 include(compile_flags/sdl)
 include(compile_flags/os_flags)
 include(compile_flags/sanitizer)
@@ -225,6 +228,8 @@ endif()
 # macro to mark target as conditionally compiled
 
 function(ie_mark_target_as_cc TARGET_NAME)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::conditional_compilation)
+
     if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
         return()
     endif()

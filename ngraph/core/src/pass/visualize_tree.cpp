@@ -259,11 +259,13 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             m_ss << add_attributes(node);
             auto recv_node_name = "RECV_" + to_string(fake_node_ctr);
             auto send_node_name = "SEND_" + to_string(fake_node_ctr);
-            m_ss << "    " << recv_node_name << "[shape=\"box\" style=\"solid,filled\" "
-                                                "fillcolor=\"#ffcccc\" label=\"Receive["
+            m_ss << "    " << recv_node_name
+                 << "[shape=\"box\" style=\"solid,filled\" "
+                    "fillcolor=\"#ffcccc\" label=\"Receive["
                  << arg->get_name() << "]\"]\n";
-            m_ss << "    " << send_node_name << "[shape=\"box\" style=\"solid,filled\" "
-                                                "fillcolor=\"#ccffcc\" label=\"Send["
+            m_ss << "    " << send_node_name
+                 << "[shape=\"box\" style=\"solid,filled\" "
+                    "fillcolor=\"#ccffcc\" label=\"Send["
                  << node->get_name() << "]\"]\n";
             m_ss << "    " << arg->get_name() << " -> " << send_node_name
                  << label_edge(arg, node, arg_index, jump_distance) << "\n";
