@@ -271,7 +271,7 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
                                PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
                                FALSE, winProcessId);
     if (winProcess != NULL) {
-       LPDWORD winStatus;
+       LPDWORD winStatus = NULL;
         ::WaitForSingleObject(winProcess, INFINITE);
         ::GetExitCodeProcess(winProcess, winStatus);
         ::CloseHandle(winProcess);
