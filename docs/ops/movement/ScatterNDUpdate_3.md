@@ -4,11 +4,11 @@
 
 **Category**: Data movement operations
 
-**Short description**: Creates a copy of the first input tensor with updated elements specified with second and third input tensors. This is similar to [Reference](https://github.com/onnx/onnx/blob/master/docs/Operators.md#ScatterND)
+**Short description**: Creates a copy of the first input tensor with updated elements specified with second and third input tensors. 
 
 **Detailed description**: The operation produces a copy of `data` tensor and updates its value to values specified 
 by `updates` at specific index positions specified by `indices`. The output shape is the same as the shape of `data`. 
-`indices` tensor must not have duplicate entries. In case duplicate entries in `indices` the result is undefined.
+`indices` tensor must not have duplicate entries. In case of duplicate entries in `indices` the result is undefined.
 
 The last dimension of `indices` can be at most the rank of `data.shape`. 
 The last dimension of `indices` corresponds to indices into elements if `indices.shape[-1]` = `data.shape.rank` or slices 
@@ -56,9 +56,9 @@ output  = [[[5, 5, 5, 5], [6, 6, 6, 6], [7, 7, 7, 7], [8, 8, 8, 8]],
 
 **Types**
 
-* *T*: any supported type.
+* *T*: any numeric type.
 
-* *T_IND*: any supported integer types.
+* *T_IND*: `int32` or `int64`
 
 **Example**
 
