@@ -44,6 +44,20 @@ namespace clamp
         bool rc = true;
         switch (arg->get_element_type())
         {
+            TYPE_CASE(i8)
+            (arg,
+             out,
+             double_to_int<int8_t>(min, ceil_func),
+             double_to_int<int8_t>(max, floor_func),
+             count);
+            break;
+            TYPE_CASE(i16)
+            (arg,
+             out,
+             double_to_int<int16_t>(min, ceil_func),
+             double_to_int<int16_t>(max, floor_func),
+             count);
+            break;
             TYPE_CASE(i32)
             (arg,
              out,
@@ -56,6 +70,20 @@ namespace clamp
              out,
              double_to_int<int64_t>(min, ceil_func),
              double_to_int<int64_t>(max, floor_func),
+             count);
+            break;
+            TYPE_CASE(u8)
+            (arg,
+             out,
+             double_to_int<uint8_t>(min, ceil_func),
+             double_to_int<uint8_t>(max, floor_func),
+             count);
+            break;
+            TYPE_CASE(u16)
+            (arg,
+             out,
+             double_to_int<uint16_t>(min, ceil_func),
+             double_to_int<uint16_t>(max, floor_func),
              count);
             break;
             TYPE_CASE(u32)
@@ -73,6 +101,9 @@ namespace clamp
              count);
             break;
             TYPE_CASE(f16)(arg, out, static_cast<float16>(min), static_cast<float16>(max), count);
+            break;
+            TYPE_CASE(bf16)
+            (arg, out, static_cast<bfloat16>(min), static_cast<bfloat16>(max), count);
             break;
             TYPE_CASE(f32)(arg, out, static_cast<float>(min), static_cast<float>(max), count);
             break;
