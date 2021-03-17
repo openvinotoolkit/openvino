@@ -43,11 +43,11 @@ const std::vector<PadType> autoPads = {PadType::SAME_UPPER};
 
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        //InferenceEngine::Precision::I8,
-        //InferenceEngine::Precision::U8,
-        //InferenceEngine::Precision::I16,
+        //InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::I32,
-        //InferenceEngine::Precision::FP32
+        InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::I8,
+        InferenceEngine::Precision::U8
 };
 const auto extractImagePatchesParamsSet = ::testing::Combine(
         ::testing::ValuesIn(inDataShape),
