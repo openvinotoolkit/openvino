@@ -108,12 +108,6 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
     {
         stringstream ss;
         ss << " or " << target_shape[i];
-        if (!(arg_shape[i - start_axis].is_dynamic() || target_shape[i].is_dynamic() ||
-              arg_shape[i - start_axis] == 1 || arg_shape[i - start_axis] == target_shape[i]))
-        {
-            std::cout << "error";
-            std::cout << std::endl;
-        }
         NODE_VALIDATION_CHECK(this,
                               arg_shape[i - start_axis].is_dynamic() ||
                                   target_shape[i].is_dynamic() || arg_shape[i - start_axis] == 1 ||
