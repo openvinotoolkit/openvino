@@ -39,7 +39,6 @@ namespace ngraph
                 ///
                 /// \param data  Input data
                 /// \param axes Axes to perform IDFT
-                /// \param signal_size Signal sizes for 'axes'
                 IDFT(const Output<Node>& data, const Output<Node>& axes);
 
                 /// \brief Constructs a IDFT operation.
