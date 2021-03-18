@@ -21,5 +21,5 @@ TEST(GNAModelSerialTest, TestErrorOnTellg) {
     IstreamMock mock;
     EXPECT_CALL(mock, seekoff(_, _, _)).WillRepeatedly(Return(-1));
     std::istream is(&mock);
-    ASSERT_THROW(GNAModelSerial::ReadHeader(is), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(GNAModelSerial::ReadHeader(is), InferenceEngine::Exception);
 }
