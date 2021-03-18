@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,23 +68,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     .export_values();
 
     regclass_IECore(m);
-
-    // GeneralBlob
-    regclass_Blob(m);
-    // Specific type Blobs
-    regclass_TBlob<float>(m, "Float32");
-    regclass_TBlob<int8_t>(m, "Int8");
-    regclass_TBlob<uint8_t>(m, "Uint8");
-    regclass_TBlob<int16_t>(m, "Int16");
-    // regclass_TBlob<uint16_t>(m, "Uint16");
-    regclass_TBlob<int32_t>(m, "Int32");
-    // regclass_TBlob<uint32_t>(m, "Uint32");
-    regclass_TBlob<long>(m, "Int64");
-    // regclass_TBlob<unsigned long>(m, "UInt64");
-    // regclass_TBlob<long long>(m);
-    // regclass_TBlob<unsigned long long>(m);
-    // regclass_TBlob<double>(m);
-
     regclass_IENetwork(m);
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);
@@ -94,4 +77,20 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Data(m);
     regclass_InputInfo(m);
     regclass_InferQueue(m);
+
+    // Registering template of Blob
+    regclass_Blob(m);
+    // Registering specific types of Blobs
+    regclass_TBlob<float>(m, "Float32");
+    regclass_TBlob<double>(m, "Float64");
+
+    regclass_TBlob<int8_t>(m, "Int8");
+    regclass_TBlob<int16_t>(m, "Int16");
+    regclass_TBlob<int32_t>(m, "Int32");
+    regclass_TBlob<int64_t>(m, "Int64");
+
+    regclass_TBlob<uint8_t>(m, "Uint8");
+    regclass_TBlob<uint16_t>(m, "Uint16");
+    regclass_TBlob<uint32_t>(m, "Uint32");
+    regclass_TBlob<uint64_t>(m, "Uint64");
 }

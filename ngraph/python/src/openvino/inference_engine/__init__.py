@@ -28,6 +28,6 @@ from openvino.pyopenvino import StatusCode
 from openvino.pyopenvino import InferQueue
 from openvino.pyopenvino import Blob
 
-from openvino.inference_engine.ie_api import BlobPatch
+from openvino.inference_engine.ie_api import BlobWrapper
 # Patching for Blob class
-Blob = BlobPatch
+Blob = BlobWrapper
