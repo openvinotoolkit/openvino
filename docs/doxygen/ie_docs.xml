@@ -126,6 +126,7 @@ limitations under the License.
                 <tab type="user" title="DeformablePSROIPooling-1" url="@ref openvino_docs_ops_detection_DeformablePSROIPooling_1"/>
                 <tab type="user" title="DepthToSpace-1" url="@ref openvino_docs_ops_movement_DepthToSpace_1"/>
                 <tab type="user" title="DetectionOutput-1" url="@ref openvino_docs_ops_detection_DetectionOutput_1"/>
+                <tab type="user" title="DFT-7" url="@ref openvino_docs_ops_signals_DFT_7"/>
                 <tab type="user" title="Divide-1" url="@ref openvino_docs_ops_arithmetic_Divide_1"/>
                 <tab type="user" title="Elu-1" url="@ref openvino_docs_ops_activation_Elu_1"/>
                 <tab type="user" title="EmbeddingBagOffsetsSum-3" url="@ref openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3"/>
@@ -154,6 +155,7 @@ limitations under the License.
                 <tab type="user" title="HardSigmoid-1" url="@ref openvino_docs_ops_activation_HardSigmoid_1"/>
                 <tab type="user" title="HSigmoid-5" url="@ref openvino_docs_ops_activation_HSigmoid_5"/>
                 <tab type="user" title="HSwish-4" url="@ref openvino_docs_ops_activation_HSwish_4"/>
+                <tab type="user" title="IDFT-7" url="@ref openvino_docs_ops_signals_IDFT_7"/>
                 <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_1"/>
                 <tab type="user" title="Interpolate-4" url="@ref openvino_docs_ops_image_Interpolate_4"/>
                 <tab type="user" title="LRN-1" url="@ref openvino_docs_ops_normalization_LRN_1"/>
