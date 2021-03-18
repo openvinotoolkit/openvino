@@ -156,3 +156,47 @@ def test_resize_algorithm_work(device):
     res_2 = np.sort(request.get_blob('fc_out').buffer)
 
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
+def test_blob_setter(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net_1 = ie_core.load_network(network=net, device_name=device)
+
+    net.input_info['data'].layout = "NHWC"
+    exec_net_2 = ie_core.load_network(network=net, device_name=device)
+
+    img = read_image()
+
+    request1 = exec_net_1.create_infer_request()
+    tensor_desc = TensorDesc("FP32", [1, 3, img.shape[2], img.shape[3]], "NCHW")
+    img_blob1 = Blob(tensor_desc, img)
+    request1.set_input({'data': img_blob1})
+    request1.infer()
+    res_1 = np.sort(request1.get_blob('fc_out').buffer)
+
+    img = np.transpose(img, axes=(0, 2, 3, 1)).astype(np.float32)
+    tensor_desc = TensorDesc("FP32", [1, 3, 32, 32], "NHWC")
+    img_blob = Blob(tensor_desc, img)
+    request = exec_net_2.create_infer_request()
+    request.set_blob('data', img_blob)
+    request.infer()
+    res_2 = np.sort(request.get_blob('fc_out').buffer)
+    assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
+def test_blob_setter_with_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net = ie_core.load_network(network=net, device_name=device)
+
+    img = read_image()
+    tensor_desc = TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
+    img_blob = Blob(tensor_desc, img)
+    preprocess_info = PreProcessInfo()
+    preprocess_info.mean_variant = MeanVariant.MEAN_IMAGE
+
+    request = exec_net.create_infer_request()
+    request.set_blob('data', img_blob, preprocess_info)
+    pp = request.preprocess_info("data")
+    assert pp.mean_variant == MeanVariant.MEAN_IMAGE
