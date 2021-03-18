@@ -59,7 +59,6 @@ namespace ngraph
     /// \param     pads_end          Pads end.
     ///
     /// \return Partial shape of the output.
-    NGRAPH_API
     PartialShape
         validate_and_infer_convolution_forward_output_shape(const Node* node,
                                                             const PartialShape& data_batch_pshape,
