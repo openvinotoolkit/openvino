@@ -75,12 +75,12 @@ namespace ngraph_bridge {
     class TensorWrapper;
 
 // ABI-free wrapper for TF node
-class NodeWrapper
+class TFNodeDecoder
 {
 public:
 
     // a hack to minimize amount of code
-    NodeWrapper& attrs () const { return const_cast<NodeWrapper&>(*this); }
+    TFNodeDecoder& attrs () const { return const_cast<TFNodeDecoder&>(*this); }
     virtual void getAttrValue (const char* name, std::vector<int32_t>* x) = 0;
     virtual void getAttrValue (const char* name, std::vector<float>* x) = 0;
     virtual void getAttrValue (const char* name, int32_t* x) = 0;
@@ -99,7 +99,7 @@ public:
     virtual bool IsArg () const = 0;
     virtual std::string type_string () const = 0;
 
-    virtual Status input_node (size_t index, NodeWrapper**) const = 0;
+    virtual Status input_node (size_t index, TFNodeDecoder**) const = 0;
     virtual DataType input_type (size_t index) const = 0;
     virtual DataType output_type (size_t index) const = 0;
 
@@ -128,7 +128,7 @@ public:
 };
 
 template <typename T>
-Status GetNodeAttr (NodeWrapper& attrs, const char* attr_name, T* result)
+Status GetNodeAttr (TFNodeDecoder& attrs, const char* attr_name, T* result)
 {
     attrs.getAttrValue(attr_name, result);
     return Status::OK();
@@ -148,7 +148,7 @@ Status GetNodeAttr (NodeWrapper& attrs, const char* attr_name, T* result)
                                    std::vector<ngraph::Output<ngraph::Node>>>;
   using ConstMap = std::map<
       DataType,
-      std::pair<std::function<Status(const NodeWrapper*, ngraph::element::Type,
+      std::pair<std::function<Status(const TFNodeDecoder*, ngraph::element::Type,
                                      ngraph::Output<ngraph::Node>&)>,
                 const ngraph::element::Type>>;
   static const Builder::ConstMap& TF_NGRAPH_CONST_MAP();

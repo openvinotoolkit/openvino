@@ -46,7 +46,7 @@ static bool VecStrCmp(const std::vector<string>& a,
   return a == b;
 }
 
-static Status ValidateInputCount(const NodeWrapper* op, int32_t count) {
+static Status ValidateInputCount(const TFNodeDecoder* op, int32_t count) {
   if (op->num_inputs() != count) {
       std::ostringstream buf;
       buf << "\"" << op->name() << "\" requires " << count <<
@@ -57,7 +57,7 @@ static Status ValidateInputCount(const NodeWrapper* op, int32_t count) {
   return Status::OK();
 }
 
-static Status ValidateInputCountMin(const NodeWrapper* op, int32_t count) {
+static Status ValidateInputCountMin(const TFNodeDecoder* op, int32_t count) {
   if (op->num_inputs() < count) {
       std::ostringstream buf;
       buf << "\"" << op->name() << "\" requires at least " <<
@@ -131,7 +131,7 @@ ng::Output<ng::Node> ConstructNgNode(const std::string& op_name,
 //
 // Reduces some boilerplate code (incorrect from now) like this:
 //
-//      NodeWrapper* tf_input;
+//      TFNodeDecoder* tf_input;
 //      TF_RETURN_IF_ERROR(op->input_node(0, &tf_input));
 //
 //      ng::Output<ng::Node> ng_input;
@@ -151,7 +151,7 @@ ng::Output<ng::Node> ConstructNgNode(const std::string& op_name,
 //
 // Parameters:
 //    Builder::OpMap& ng_op_map     - The TF-to-nGraph op map.
-//    NodeWrapper* op                  - TF op being translated.
+//    TFNodeDecoder* op                  - TF op being translated.
 //    input_idx                     - index of input
 //
 //    ng::Output<ng::Node> *result  - ng::Node pointer where result
@@ -159,7 +159,7 @@ ng::Output<ng::Node> ConstructNgNode(const std::string& op_name,
 //
 //
 
-static Status GetInputNode(const Builder::OpMap& ng_op_map, const NodeWrapper* op,
+static Status GetInputNode(const Builder::OpMap& ng_op_map, const TFNodeDecoder* op,
                            size_t input_idx, ng::Output<ng::Node>& result) {
     // Stub
     #if 0
@@ -174,7 +174,7 @@ static Status GetInputNode(const Builder::OpMap& ng_op_map, const NodeWrapper* o
     return Status(error::NOT_FOUND, "Edge not found");
   }
 
-  NodeWrapper* tf_input;
+  TFNodeDecoder* tf_input;
   TF_RETURN_IF_ERROR(op->input_node(input_idx, &tf_input));
   std::vector<ng::Output<ng::Node>> ng_op;
   try {
@@ -197,12 +197,12 @@ static Status GetInputNode(const Builder::OpMap& ng_op_map, const NodeWrapper* o
 }
 
 namespace detail {
-static Status GetInputNodes(const Builder::OpMap&, const NodeWrapper*, size_t) {
+static Status GetInputNodes(const Builder::OpMap&, const TFNodeDecoder*, size_t) {
   return Status::OK();
 }
 
 template <typename... Arguments>
-static Status GetInputNodes(const Builder::OpMap& ng_op_map, const NodeWrapper* op,
+static Status GetInputNodes(const Builder::OpMap& ng_op_map, const TFNodeDecoder* op,
                             size_t index, ng::Output<ng::Node>& result,
                             Arguments&... remaining) {
   TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, index, result));
@@ -211,7 +211,7 @@ static Status GetInputNodes(const Builder::OpMap& ng_op_map, const NodeWrapper* 
 }  // namespace detail
 
 template <typename... Arguments>
-static Status GetInputNodes(const Builder::OpMap& ng_op_map, const NodeWrapper* op,
+static Status GetInputNodes(const Builder::OpMap& ng_op_map, const TFNodeDecoder* op,
                             Arguments&... remaining) {
   constexpr size_t args_len = sizeof...(Arguments);
   TF_RETURN_IF_ERROR(ValidateInputCount(op, args_len));
@@ -219,7 +219,7 @@ static Status GetInputNodes(const Builder::OpMap& ng_op_map, const NodeWrapper* 
 }
 
 static Status GetStaticNodeTensor(
-    const NodeWrapper* node, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* node, const std::vector<const TensorWrapper*>& static_input_map,
     TensorWrapper* result) {
   if (node->IsArg()) {
     int arg_index;
@@ -316,10 +316,10 @@ static Status TensorDataToVector(const TensorWrapper& tensor, std::vector<T>* ve
 
 template <typename T>
 static Status GetStaticInputVector(
-    const NodeWrapper* op, int64_t input_index,
+    const TFNodeDecoder* op, int64_t input_index,
     const std::vector<const TensorWrapper*>& static_input_map,
     std::vector<T>* vector) {
-  NodeWrapper* input_node;
+  TFNodeDecoder* input_node;
   TF_RETURN_IF_ERROR(op->input_node(input_index, &input_node));
   TensorWrapper input_tensor;
   TF_RETURN_IF_ERROR(
@@ -329,7 +329,7 @@ static Status GetStaticInputVector(
 }
 
 static Status GetStaticInputNode(
-    const NodeWrapper* op, int64_t input_index,
+    const TFNodeDecoder* op, int64_t input_index,
     const std::vector<const TensorWrapper*>& static_input_map, DataType dt,
     ng::Output<ng::Node>& node_) {
   ng::element::Type type;
@@ -379,12 +379,12 @@ static Status GetStaticInputNode(
 // should be (e.g. when T is `bool`, we actually need a vector of `char` for
 // compatibility with nGraph).
 template <typename T, typename VecT = T>
-static Status ValuesFromConstNode(const NodeWrapper* node,
+static Status ValuesFromConstNode(const TFNodeDecoder* node,
                                   ngraph::Shape* const_tensor_shape,
                                   std::vector<VecT>* values) {
 #if 0
   if (node.op() != "Const") {
-    return errors::InvalidArgument("NodeWrapper not a Const");
+    return errors::InvalidArgument("TFNodeDecoder not a Const");
   }
 
   if (node.attr().at("dtype").type() != DataTypeToEnum<T>::value) {
@@ -494,7 +494,7 @@ static Status ValuesFromConstNode(const NodeWrapper* node,
 
 // Helper for Builder::TranslateGraph ("Const" op)
 template <typename T, typename VecT = T>
-static Status MakeConstOp(const NodeWrapper* op, ng::element::Type et,
+static Status MakeConstOp(const TFNodeDecoder* op, ng::element::Type et,
                           ng::Output<ng::Node>& ng_node) {
   vector<VecT> const_values;
   ngraph::Shape ng_shape;
@@ -531,7 +531,7 @@ const Builder::ConstMap& Builder::TF_NGRAPH_CONST_MAP() {
 //
 // Parameters:
 //
-//    NodeWrapper* op                   - TF op being translated. Must have one input.
+//    TFNodeDecoder* op                   - TF op being translated. Must have one input.
 //    const std::vector<const TensorWrapper*>& static_input_map
 //                               - the static input map
 //    Builder::OpMap& ng_op_map  - The TF-to-nGraph op map.
@@ -551,7 +551,7 @@ const Builder::ConstMap& Builder::TF_NGRAPH_CONST_MAP() {
 //                       });
 //  }
 static Status TranslateUnaryOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
     Builder::OpMap& ng_op_map,
     std::function<ng::Output<ng::Node>(ng::Output<ng::Node>)> create_unary_op) {
   ng::Output<ng::Node> ng_input;
@@ -576,7 +576,7 @@ static Status TranslateUnaryOp(
 //
 template <typename T>
 static Status TranslateUnaryOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return TranslateUnaryOp(op, static_input_map, ng_op_map,
                           [&op](ng::Output<ng::Node> n) {
@@ -587,7 +587,7 @@ static Status TranslateUnaryOp(
 // Helper function to translate a binary op
 // Parameters:
 //
-//    NodeWrapper* op               - TF op being translated. Must have only two
+//    TFNodeDecoder* op               - TF op being translated. Must have only two
 //    inputs.
 //    const std::vector<const TensorWrapper*>& static_input_map - the static input map
 //    Builder::OpMap& ng_op_map  - The TF-to-nGraph op map.
@@ -610,7 +610,7 @@ static Status TranslateUnaryOp(
 //
 
 static Status TranslateBinaryOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
     Builder::OpMap& ng_op_map,
     std::function<ng::Output<ng::Node>(ng::Output<ng::Node>&,
                                        ng::Output<ng::Node>&)>
@@ -638,7 +638,7 @@ static Status TranslateBinaryOp(
 //
 template <typename T>
 static Status TranslateBinaryOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return TranslateBinaryOp(
       op, static_input_map, ng_op_map,
@@ -647,7 +647,7 @@ static Status TranslateBinaryOp(
       });
 }
 
-static Status TranslateAddNOp(const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+static Status TranslateAddNOp(const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
                               Builder::OpMap& ng_op_map) {
   std::vector<ng::Output<ng::Node>> ng_arg_vec(op->num_inputs());
 
@@ -665,7 +665,7 @@ static Status TranslateAddNOp(const NodeWrapper* op, const std::vector<const Ten
   return Status::OK();
 }
 static Status TranslateArgMinMax(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map, std::string mode) {
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
@@ -714,18 +714,18 @@ static Status TranslateArgMinMax(
 }
 
 static Status TranslateArgMaxOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return (TranslateArgMinMax(op, static_input_map, ng_op_map, "max"));
 }
 
 static Status TranslateArgMinOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return (TranslateArgMinMax(op, static_input_map, ng_op_map, "min"));
 }
 
-static Status TranslateAvgPoolOp(const NodeWrapper* op,
+static Status TranslateAvgPoolOp(const TFNodeDecoder* op,
                                  const std::vector<const TensorWrapper*>&,
                                  Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -787,7 +787,7 @@ static Status TranslateAvgPoolOp(const NodeWrapper* op,
 }
 
 static Status TranslateBiasAddOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_bias;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_bias));
@@ -836,7 +836,7 @@ static Status TranslateBiasAddOp(
   return Status::OK();
 }
 
-static Status TranslateCastOp(const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+static Status TranslateCastOp(const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
                               Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
@@ -858,7 +858,7 @@ static Status TranslateCastOp(const NodeWrapper* op, const std::vector<const Ten
 }
 
 static Status TranslateConcatV2Op(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   TF_RETURN_IF_ERROR(ValidateInputCountMin(op, 2));
 
@@ -889,7 +889,7 @@ static Status TranslateConcatV2Op(
   return Status::OK();
 }
 
-static Status TranslateConstOp(const NodeWrapper* op,
+static Status TranslateConstOp(const TFNodeDecoder* op,
                                const std::vector<const TensorWrapper*>&,
                                Builder::OpMap& ng_op_map) {
   DataType dtype;
@@ -919,7 +919,7 @@ static Status TranslateConstOp(const NodeWrapper* op,
   return Status::OK();
 }
 
-static Status TranslateConv2DOp(const NodeWrapper* op,
+static Status TranslateConv2DOp(const TFNodeDecoder* op,
                                 const std::vector<const TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_filter;
@@ -992,7 +992,7 @@ static Status TranslateConv2DOp(const NodeWrapper* op,
 }
 
 static Status TranslateConv2DBackpropInputOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_filter, ng_out_backprop, ng_unused;
   TF_RETURN_IF_ERROR(
@@ -1085,7 +1085,7 @@ static Status TranslateConv2DBackpropInputOp(
 }
 
 // Translate Conv3D Op
-static Status TranslateConv3DOp(const NodeWrapper* op,
+static Status TranslateConv3DOp(const TFNodeDecoder* op,
                                 const std::vector<const TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_filter;
@@ -1159,7 +1159,7 @@ static Status TranslateConv3DOp(const NodeWrapper* op,
   return Status::OK();
 }
 
-static Status TranslateCumsumOp(const NodeWrapper* op,
+static Status TranslateCumsumOp(const TFNodeDecoder* op,
                                 const std::vector<const TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_x, ng_axis;
@@ -1175,7 +1175,7 @@ static Status TranslateCumsumOp(const NodeWrapper* op,
 }
 
 // Translate DepthToSpace op
-static Status TranslateDepthToSpaceOp(const NodeWrapper* op,
+static Status TranslateDepthToSpaceOp(const TFNodeDecoder* op,
                                       const std::vector<const TensorWrapper*>&,
                                       Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -1204,7 +1204,7 @@ static Status TranslateDepthToSpaceOp(const NodeWrapper* op,
 }
 
 static Status TranslateDepthwiseConv2dNativeOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_filter;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_filter));
@@ -1280,7 +1280,7 @@ static Status TranslateDepthwiseConv2dNativeOp(
 }
 
 static Status TranslateExpandDimsOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
@@ -1294,7 +1294,7 @@ static Status TranslateExpandDimsOp(
 }
 
 static Status TranslateFillOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_value, ng_dims;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_dims, ng_value));
@@ -1304,7 +1304,7 @@ static Status TranslateFillOp(
 }
 
 static Status TranslateFloorDivOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   auto floordiv_fn = [&op](ng::Output<ng::Node> x, ng::Output<ng::Node> y) {
     return ConstructNgNode<opset::Floor>(
@@ -1314,7 +1314,7 @@ static Status TranslateFloorDivOp(
 }
 
 static Status TranslateFusedBatchNormOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_scale, ng_offset, ng_mean, ng_variance;
   bool is_v3 = op->type_string() == "FusedBatchNormV3";
@@ -1361,7 +1361,7 @@ static Status TranslateFusedBatchNormOp(
   return Status::OK();
 }
 
-static Status TranslateFusedMatMulOp(const NodeWrapper* op,
+static Status TranslateFusedMatMulOp(const TFNodeDecoder* op,
                                      const std::vector<const TensorWrapper*>&,
                                      Builder::OpMap& ng_op_map) {
   int num_args;
@@ -1415,7 +1415,7 @@ static Status TranslateFusedMatMulOp(const NodeWrapper* op,
 // See .../tensorflow/include/tensorflow/cc/ops/array_ops.h
 // and .../openvino/ngraph/core/include/ngraph/op/gather.hpp
 static Status TranslateGatherOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_input_indices;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_input_indices));
@@ -1431,7 +1431,7 @@ static Status TranslateGatherOp(
 }
 
 static Status TranslateGatherV2Op(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_input_coords, ng_unused;
   TF_RETURN_IF_ERROR(
@@ -1475,7 +1475,7 @@ static Status TranslateGatherV2Op(
   return Status::OK();
 }
 
-static Status TranslateFusedConv2DOp(const NodeWrapper* op,
+static Status TranslateFusedConv2DOp(const TFNodeDecoder* op,
                                      const std::vector<const TensorWrapper*>&,
                                      Builder::OpMap& ng_op_map) {
   int num_args;
@@ -1640,7 +1640,7 @@ static Status TranslateFusedConv2DOp(const NodeWrapper* op,
   return Status::OK();
 }
 
-static Status TranslateIdentityOp(const NodeWrapper* op,
+static Status TranslateIdentityOp(const TFNodeDecoder* op,
                                   const std::vector<const TensorWrapper*>&,
                                   Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_arg;
@@ -1650,7 +1650,7 @@ static Status TranslateIdentityOp(const NodeWrapper* op,
 }
 
 static Status TranslateIsFiniteOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   // Implemented tf.is_finite by checking:
   // (in != inf) && (in != -inf) && (in == in)
@@ -1681,7 +1681,7 @@ static Status TranslateIsFiniteOp(
   return Status::OK();
 }
 
-static Status TranslateL2LossOp(const NodeWrapper* op,
+static Status TranslateL2LossOp(const TFNodeDecoder* op,
                                 const std::vector<const TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -1711,7 +1711,7 @@ static Status TranslateL2LossOp(const NodeWrapper* op,
 }
 
 static Status TranslateLog1pOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return TranslateUnaryOp(
       op, static_input_map, ng_op_map, [&op](ng::Output<ng::Node> n) {
@@ -1725,7 +1725,7 @@ static Status TranslateLog1pOp(
       });
 }
 
-static Status TranslateLRNOp(const NodeWrapper* op,
+static Status TranslateLRNOp(const TFNodeDecoder* op,
                              const std::vector<const TensorWrapper*>& static_input_map,
                              Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_inp;
@@ -1756,7 +1756,7 @@ static Status TranslateLRNOp(const NodeWrapper* op,
   return Status::OK();
 }
 
-static Status TranslateLogSoftmaxOp(const NodeWrapper* op,
+static Status TranslateLogSoftmaxOp(const TFNodeDecoder* op,
                                     const std::vector<const TensorWrapper*>&,
                                     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_inp;
@@ -1770,7 +1770,7 @@ static Status TranslateLogSoftmaxOp(const NodeWrapper* op,
   return Status::OK();
 }
 
-static Status TranslateMatMulOp(const NodeWrapper* op,
+static Status TranslateMatMulOp(const TFNodeDecoder* op,
                                 const std::vector<const TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_lhs, ng_rhs;
@@ -1790,7 +1790,7 @@ static Status TranslateMatMulOp(const NodeWrapper* op,
 }
 
 template <unsigned int N>
-static Status TranslateMaxPoolOp(const NodeWrapper* op,
+static Status TranslateMaxPoolOp(const TFNodeDecoder* op,
                                  const std::vector<const TensorWrapper*>&,
                                  Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -1849,7 +1849,7 @@ static Status TranslateMaxPoolOp(const NodeWrapper* op,
 }
 
 static Status TranslateNonMaxSuppressionV2Op(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_boxes, ng_scores, ng_unused, ng_iou_threshold;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_boxes, ng_scores,
@@ -1904,7 +1904,7 @@ static Status TranslateNonMaxSuppressionV2Op(
 }
 
 static Status TranslateReduceOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map,
     std::function<ng::Output<ng::Node>(ng::Output<ng::Node>,
                                        ng::Output<ng::Node>, const bool)>
@@ -1941,7 +1941,7 @@ static Status TranslateReduceOp(
 
 template <typename T>
 static Status TranslateDirectReduceOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   // ensure its either an arithmetic or a logical reduction
   if (!(std::is_base_of<ngraph::op::util::ArithmeticReduction, T>::value ||
@@ -1960,7 +1960,7 @@ static Status TranslateDirectReduceOp(
 }
 
 static Status TranslateOneHotOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_features, ng_unused, ng_on, ng_off, ng_depth;
   TF_RETURN_IF_ERROR(
@@ -1988,7 +1988,7 @@ static Status TranslateOneHotOp(
   return Status::OK();
 }
 
-static Status TranslatePackOp(const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+static Status TranslatePackOp(const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
                               Builder::OpMap& ng_op_map) {
   TF_RETURN_IF_ERROR(ValidateInputCountMin(op, 1));
 
@@ -2018,7 +2018,7 @@ static Status TranslatePackOp(const NodeWrapper* op, const std::vector<const Ten
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad-v2
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/mirror-pad
-static Status TranslatePadOp(const NodeWrapper* op,
+static Status TranslatePadOp(const TFNodeDecoder* op,
                              const std::vector<const TensorWrapper*>& static_input_map,
                              Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_paddings_op, pad_val_op, result_pad_op;
@@ -2082,7 +2082,7 @@ static Status TranslatePadOp(const NodeWrapper* op,
 }
 
 static Status TranslateRangeOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_start, ng_stop, ng_step;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_start, ng_stop, ng_step));
@@ -2107,7 +2107,7 @@ static Status TranslateRangeOp(
   return Status::OK();
 }
 
-static Status TranslateRankOp(const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+static Status TranslateRankOp(const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
                               Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
@@ -2124,7 +2124,7 @@ static Status TranslateRankOp(const NodeWrapper* op, const std::vector<const Ten
 }
 
 static Status TranslateReciprocalOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return TranslateUnaryOp(
       op, static_input_map, ng_op_map, [&op](ng::Output<ng::Node> n) {
@@ -2141,7 +2141,7 @@ static Status TranslateReciprocalOp(
       });
 }
 
-static Status TranslateRelu6Op(const NodeWrapper* op,
+static Status TranslateRelu6Op(const TFNodeDecoder* op,
                                const std::vector<const TensorWrapper*>&,
                                Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -2152,7 +2152,7 @@ static Status TranslateRelu6Op(const NodeWrapper* op,
 }
 
 static Status TranslateReshapeOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_shape_op;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_shape_op));
@@ -2172,7 +2172,7 @@ static Status TranslateReshapeOp(
 }
 
 static Status TranslateRsqrtOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return TranslateUnaryOp(
       op, static_input_map, ng_op_map, [&op](ng::Output<ng::Node> n) {
@@ -2189,7 +2189,7 @@ static Status TranslateRsqrtOp(
       });
 }
 
-static Status TranslateShapeOp(const NodeWrapper* op,
+static Status TranslateShapeOp(const TFNodeDecoder* op,
                                const std::vector<const TensorWrapper*>&,
                                Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -2207,7 +2207,7 @@ static Status TranslateShapeOp(const NodeWrapper* op,
   return Status::OK();
 }
 
-static Status TranslateSizeOp(const NodeWrapper* op, const std::vector<const TensorWrapper*>&,
+static Status TranslateSizeOp(const TFNodeDecoder* op, const std::vector<const TensorWrapper*>&,
                               Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
@@ -2234,7 +2234,7 @@ static Status TranslateSizeOp(const NodeWrapper* op, const std::vector<const Ten
 }
 
 static Status TranslateSliceOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_begin, ng_size;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_begin, ng_size));
@@ -2294,7 +2294,7 @@ static Status TranslateSliceOp(
   return Status::OK();
 }
 
-static Status TranslateSoftmaxOp(const NodeWrapper* op,
+static Status TranslateSoftmaxOp(const TFNodeDecoder* op,
                                  const std::vector<const TensorWrapper*>&,
                                  Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -2312,7 +2312,7 @@ static Status TranslateSoftmaxOp(const NodeWrapper* op,
 }
 
 // Translate SpaceToDepthOp
-static Status TranslateSpaceToDepthOp(const NodeWrapper* op,
+static Status TranslateSpaceToDepthOp(const TFNodeDecoder* op,
                                       const std::vector<const TensorWrapper*>&,
                                       Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -2341,7 +2341,7 @@ static Status TranslateSpaceToDepthOp(const NodeWrapper* op,
 }
 
 static Status TranslateSplitOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 1, ng_input));
@@ -2370,7 +2370,7 @@ static Status TranslateSplitOp(
 }
 
 static Status TranslateSplitVOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_split_length, ng_split_dim;
 
@@ -2449,7 +2449,7 @@ static Status TranslateSplitVOp(
 }
 
 static Status TranslateSquareOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   return TranslateUnaryOp(
       op, static_input_map, ng_op_map, [&op](ng::Output<ng::Node> n) {
@@ -2457,7 +2457,7 @@ static Status TranslateSquareOp(
       });
 }
 
-static Status TranslateSqueezeOp(const NodeWrapper* op,
+static Status TranslateSqueezeOp(const TFNodeDecoder* op,
                                  const std::vector<const TensorWrapper*>&,
                                  Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -2481,7 +2481,7 @@ static Status TranslateSqueezeOp(const NodeWrapper* op,
 }
 
 static Status TranslateStridedSliceOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
@@ -2539,7 +2539,7 @@ static Status TranslateStridedSliceOp(
 }
 
 static Status TranslateTileOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_multiples;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_multiples));
@@ -2556,7 +2556,7 @@ static Status TranslateTileOp(
 
 // Translate TopKV2 Op using ngraph core op TopK
 static Status TranslateTopKV2Op(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ngraph::Node> ng_input;
 
@@ -2597,7 +2597,7 @@ static Status TranslateTopKV2Op(
 }
 
 static Status TranslateTransposeOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input, ng_permutation;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_permutation));
@@ -2606,7 +2606,7 @@ static Status TranslateTransposeOp(
   return Status::OK();
 }
 
-static Status TranslateUnpackOp(const NodeWrapper* op,
+static Status TranslateUnpackOp(const TFNodeDecoder* op,
                                 const std::vector<const TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
   TF_RETURN_IF_ERROR(ValidateInputCount(op, 1));
@@ -2645,7 +2645,7 @@ static Status TranslateUnpackOp(const NodeWrapper* op,
 }
 
 static Status TranslateXdivyOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ngraph::Node> ng_x, ng_y;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_x, ng_y));
@@ -2659,7 +2659,7 @@ static Status TranslateXdivyOp(
   return Status::OK();
 }
 
-static Status TranslateSelectOp(const NodeWrapper* op,
+static Status TranslateSelectOp(const TFNodeDecoder* op,
                                 const std::vector<const TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input1, ng_input2, ng_input3;
@@ -2672,7 +2672,7 @@ static Status TranslateSelectOp(const NodeWrapper* op,
 }
 
 static Status TranslateWhereOp(
-    const NodeWrapper* op, const std::vector<const TensorWrapper*>& static_input_map,
+    const TFNodeDecoder* op, const std::vector<const TensorWrapper*>& static_input_map,
     Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_cond;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_cond));
@@ -2685,7 +2685,7 @@ static Status TranslateWhereOp(
   return Status::OK();
 }
 
-static Status TranslateZerosLikeOp(const NodeWrapper* op,
+static Status TranslateZerosLikeOp(const TFNodeDecoder* op,
                                    const std::vector<const TensorWrapper*>&,
                                    Builder::OpMap& ng_op_map) {
   ng::Output<ng::Node> ng_input;
@@ -2701,7 +2701,7 @@ static Status TranslateZerosLikeOp(const NodeWrapper* op,
 
 const static std::map<
     const string,
-    const function<Status(const NodeWrapper*, const std::vector<const TensorWrapper*>&,
+    const function<Status(const TFNodeDecoder*, const std::vector<const TensorWrapper*>&,
                           Builder::OpMap&)>>
     TRANSLATE_OP_MAP{
         {"Abs", TranslateUnaryOp<opset::Abs>},
@@ -2776,7 +2776,7 @@ const static std::map<
         {"NotEqual", TranslateBinaryOp<opset::NotEqual>},
         // Do nothing! NoOps sometimes get placed on nGraph for bureaucratic
         // reasons, but they have no data flow inputs or outputs.
-        {"NoOp", [](const NodeWrapper*, const std::vector<const TensorWrapper*>&,
+        {"NoOp", [](const TFNodeDecoder*, const std::vector<const TensorWrapper*>&,
                     Builder::OpMap&) { return Status::OK(); }},
         {"OneHot", TranslateOneHotOp},
         {"Pack", TranslatePackOp},
@@ -2826,7 +2826,7 @@ const static std::map<
         {"Xdivy", TranslateXdivyOp},
         {"ZerosLike", TranslateZerosLikeOp}};
 
-class NodeProtoWrapper : public NodeWrapper
+class NodeProtoWrapper : public TFNodeDecoder
 {
     const NodeDef* node_def;
 public:
@@ -2851,7 +2851,7 @@ public:
     virtual bool IsArg () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
     virtual std::string type_string () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
-    virtual Status input_node (size_t index, NodeWrapper**) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual Status input_node (size_t index, TFNodeDecoder**) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
     virtual DataType input_type (size_t index) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
     virtual DataType output_type (size_t index) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
@@ -2863,7 +2863,7 @@ public:
 
 };
 
-void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<NodeWrapper*>* result)
+void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<TFNodeDecoder*>* result)
 {
     // WARNING! We suppose that input_graph contains nodes in topologically sorted order
     // TODO: sort it if it is not the case
@@ -2882,18 +2882,18 @@ Status Builder::TranslateGraph(
   //
   // We will visit ops in topological order.
   //
-  // ought to be `const NodeWrapper*`, but GetReversePostOrder doesn't use `const`
+  // ought to be `const TFNodeDecoder*`, but GetReversePostOrder doesn't use `const`
 
-  std::vector<NodeWrapper*> ordered;
+  std::vector<TFNodeDecoder*> ordered;
   //GetReversePostOrder(*input_graph, &ordered, NodeComparatorName());
   PopulateNodesTopologicallySorted(input_graph, &ordered);
 
   //
   // Split ops into params, retvals, and all others.
   //
-  vector<const NodeWrapper*> tf_params;
-  vector<const NodeWrapper*> tf_ret_vals;
-  vector<const NodeWrapper*> tf_ops;
+  vector<const TFNodeDecoder*> tf_params;
+  vector<const TFNodeDecoder*> tf_ret_vals;
+  vector<const TFNodeDecoder*> tf_ops;
 
   for (const auto n : ordered) {
     if (n->IsSink() || n->IsSource()) {
@@ -2917,7 +2917,7 @@ Status Builder::TranslateGraph(
 
   //
   // The op map holds a mapping from TensorFlow op names (strings) to
-  // vector of generated nGraph Output<NodeWrapper>.
+  // vector of generated nGraph Output<TFNodeDecoder>.
   //
   Builder::OpMap ng_op_map;
 
@@ -2961,7 +2961,7 @@ Status Builder::TranslateGraph(
     NGRAPH_VLOG(2) << "Constructing op " << op->name() << " which is "
                    << op->type_string();
 
-    const function<Status(const NodeWrapper*, const std::vector<const TensorWrapper*>&,
+    const function<Status(const TFNodeDecoder*, const std::vector<const TensorWrapper*>&,
                           Builder::OpMap&)>* op_fun;
 
     try {
