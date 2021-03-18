@@ -26,6 +26,8 @@ MyriadMetrics::MyriadMetrics() {
         METRIC_KEY(OPTIMIZATION_CAPABILITIES),
         METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
         METRIC_KEY(DEVICE_THERMAL),
+        METRIC_KEY(DEVICE_ARCHITECTURE),
+        METRIC_KEY(IMPORT_EXPORT_SUPPORT),
     };
 
 IE_SUPPRESS_DEPRECATED_START
@@ -112,6 +114,12 @@ const std::unordered_set<std::string>& MyriadMetrics::SupportedConfigKeys() cons
 
 const std::unordered_set<std::string>& MyriadMetrics::OptimizationCapabilities() const {
     return _optimizationCapabilities;
+}
+
+std::string MyriadMetrics::DeviceArchitecture() const {
+    // TODO: Task 49309. Return same architecture for devices which can share same cache
+    // E.g. "ma2480-0" and "ma2480-1" shall return same string
+    return "MYRIAD";
 }
 
 RangeType MyriadMetrics::RangeForAsyncInferRequests(

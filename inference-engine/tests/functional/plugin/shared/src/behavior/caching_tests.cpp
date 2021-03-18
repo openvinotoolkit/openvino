@@ -154,6 +154,7 @@ void LoadNetworkCacheTestBase::TearDown() {
 }
 
 void LoadNetworkCacheTestBase::Run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto compareOutputs = [&](const std::vector<InferenceEngine::Blob::Ptr>& expected,
                               const std::vector<InferenceEngine::Blob::Ptr>& actual) {
         ASSERT_EQ(expected.size(), actual.size());
