@@ -68,7 +68,7 @@ inline void createFile(const std::string& filename, const std::string& content) 
 
 inline void removeFile(const std::string& path) {
     if (!path.empty()) {
-        remove(path.c_str());
+        std::remove(path.c_str());
     }
 }
 
@@ -246,6 +246,24 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
     return splitPath;
 }
 
+inline int checkProcessStatus(unsigned int pid) {
+    int status = 0;
+#ifndef _WIN32
+    waitpid(pid, &status, WNOHANG);
+#else
+    DWORD winProcessId = static_cast<DWORD>(processId);
+            HANDLE winProcess = ::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, winProcessId);
+            if (winProcess != NULL) {
+               LPDWORD winStatus = NULL;
+                ::WaitForSingleObject(winProcess, INFINITE);
+                ::GetExitCodeProcess(winProcess, winStatus);
+                ::CloseHandle(winProcess);
+                status = static_cast<int>(*winStatus);
+            }
+#endif
+    return status;
+}
+
 inline void lockAndWaitFile(const std::string& lockedFilename) {
     unsigned int processId = getpid();
     if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
@@ -272,27 +290,13 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
 
         if (lockerPid != processId) {
             auto currentTime = std::chrono::system_clock::now();
-            auto exitTime = currentTime + std::chrono::minutes(1);
+            auto exitTime = std::chrono::system_clock::now() + std::chrono::minutes(1);
             unsigned int timeout = 1e6 * 0.5;
-            while (CommonTestUtils::fileExists(lockedFilename.c_str()) || currentTime >= exitTime) {
-                currentTime += std::chrono::microseconds(timeout);
+            while (CommonTestUtils::fileExists(lockedFilename.c_str()) && currentTime <= exitTime && checkProcessStatus(lockerPid) > 0) {
                 std::this_thread::sleep_for(std::chrono::microseconds(timeout));
+                currentTime = std::chrono::system_clock::now();
             }
-            int status = 0;
-#ifndef _WIN32
-            waitpid(lockerPid, &status, WNOHANG);
-#else
-            DWORD winProcessId = static_cast<DWORD>(processId);
-            HANDLE winProcess = ::OpenProcess(ROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, winProcessId);
-            if (winProcess != NULL) {
-               LPDWORD winStatus = NULL;
-                ::WaitForSingleObject(winProcess, INFINITE);
-                ::GetExitCodeProcess(winProcess, winStatus);
-                ::CloseHandle(winProcess);
-                status = static_cast<int>(*winStatus);
-            }
-#endif
-            if (status != 0 && currentTime >= exitTime) {
+            if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
                 updateLockedFile();
             }
         }
