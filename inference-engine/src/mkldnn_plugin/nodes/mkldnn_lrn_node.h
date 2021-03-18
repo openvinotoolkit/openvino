@@ -18,21 +18,28 @@ public:
     ~MKLDNNLrnNode() override = default;
 
     void getSupportedDescriptors() override;
-    void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+        return static_cast<size_t>(getOriginalInputsNumber());
+    }
+    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     bool isAcrossMaps = false;
-    int size = 1;
+    size_t size = 1;
     int k = 1;
     float alpha = 1.0f;
     float beta = 1.0f;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
