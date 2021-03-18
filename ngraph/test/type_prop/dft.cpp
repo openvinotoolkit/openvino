@@ -212,6 +212,7 @@ TEST_P(NonConstantAxesTest, dft_non_constant_axes)
     EXPECT_EQ(dft->get_element_type(), element::f32);
     ASSERT_TRUE(dft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
 }
+
 INSTANTIATE_TEST_CASE_P(
     type_prop,
     NonConstantAxesTest,
@@ -258,6 +259,51 @@ INSTANTIATE_TEST_CASE_P(
             {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
             {2},
             {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)}}),
+    PrintToDummyParamName());
+
+struct NonConstantSignalSizeTestParams
+{
+    PartialShape input_shape;
+    Shape axes_shape;
+    Shape signal_size_shape;
+    PartialShape ref_output_shape;
+    std::vector<int64_t> axes;
+};
+
+struct NonConstantSignalSizeTest : ::testing::TestWithParam<NonConstantSignalSizeTestParams>
+{
+};
+
+TEST_P(NonConstantSignalSizeTest, dft_non_constant_signal_size)
+{
+    auto params = GetParam();
+
+    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
+    auto signal_size_input =
+        std::make_shared<op::Parameter>(element::i64, params.signal_size_shape);
+    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(dft->get_element_type(), element::f32);
+    ASSERT_TRUE(dft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+}
+
+INSTANTIATE_TEST_CASE_P(
+    type_prop,
+    NonConstantSignalSizeTest,
+    ::testing::Values(
+        NonConstantSignalSizeTestParams{
+            {2, Dimension(0, 200), 180, 2}, {2}, {2}, {2, Dimension(0, 200), 180, 2}, {1, 2}},
+        NonConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400), 2},
+                                        {2},
+                                        {2},
+                                        {Dimension(0, 18), 180, Dimension(0, 400), 2},
+                                        {2, 0}},
+        NonConstantSignalSizeTestParams{{Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
+                                        {3},
+                                        {3},
+                                        {Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
+                                        {3, 0, 1}}),
     PrintToDummyParamName());
 
 TEST(type_prop, dft_constant_axes_and_there_are_signal_size_dynamic_shapes2)
