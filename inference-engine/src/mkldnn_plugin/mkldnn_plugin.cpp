@@ -336,12 +336,12 @@ static void Transformation(CNNNetwork& clonedNetwork, bool useLPT) {
     TransformationToLegacy(clonedNetwork);
 }
 
-float Engine::NetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &network) {
+Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network) {
     float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
     const auto nGraphFunc = network.getFunction();
     ngraph::NodeVector nodes;
 
-    int total_convs = 0, mem_limited_convs = 0, total_gemms = 0, mem_limited_gemms = 0;
+    int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0;
     auto memLimitedFactor = [&] (int size_data_moved, int datatype_size = 4) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */
                                                                  / (size_data_moved * datatype_size));};
     auto isLowPrecision = [&] (ngraph::element::Type type) -> bool {
@@ -397,6 +397,7 @@ float Engine::NetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &netw
                 if (shape.size() == 4 /* conventional 2D conv */ && shape[2] > 3 && shape[3] > 3) {
                     std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name()
                     << "is "<< shape[2]<< "x" << shape[2] << ", considering flops/byte amortizing the mem"  << std::endl;
+                    compute_convs++;
                     continue;
                 }
 
@@ -410,7 +411,9 @@ float Engine::NetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &netw
                     auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                     mem_limited_convs += factor < 1;
                     worst_case = std::min(factor, worst_case);
-                    std::cout << "Type: " << node->get_type_info().name << (isINT8 ? " INT8," : " FP32,") << "  Name: " << node->get_friendly_name()
+                    std::cout << "Type: " << node->get_type_info().name <<
+                        ", kernel "<< shape[2]<< "x" << shape[2] <<
+                        (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32,") << "  Name: " << node->get_friendly_name()
                               << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
                 }
             }
@@ -418,7 +421,11 @@ float Engine::NetworkMemBandwidthLimited(const InferenceEngine::CNNNetwork &netw
     std::cout << "Total convs: " << total_convs<< ". Mem limited: " << mem_limited_convs << std::endl;
     std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
     std::cout << "WORST CASE: " << worst_case << std::endl;
-    return (total_convs || total_gemms) ? worst_case : -1 /*conservatively assume mem limited*/;
+
+    NetworkPerfStats res;
+    res.maxMemTolerance = (total_convs || total_gemms) ? worst_case : -1 /*conservatively assume mem limited*/;
+    res.all_convs_are_compute = total_convs && (total_convs == compute_convs);
+    return res;
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
@@ -456,11 +463,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool useLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES)
             || (conf.lpTransformsMode == Config::LPTransformsMode::On);
     bool is_transformed = false;
-    float isNetworkMemLimited = -1;
+    Engine::NetworkPerfStats NetworkToleranceForLowCache;
 
     if (clonedNetwork.getFunction()) {
         TransformationUpToLegacy(clonedNetwork, useLPT);
-        isNetworkMemLimited = NetworkMemBandwidthLimited(clonedNetwork);
+        NetworkToleranceForLowCache = NetworkMemBandwidthTolerance(clonedNetwork);
         TransformationToLegacy(clonedNetwork);
         is_transformed = true;
     }
@@ -475,8 +482,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 //                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
 //            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
 //                const int num_logical_cores = std::thread::hardware_concurrency();
-    const int num_cores = getNumberOfCPUCores();
+    const auto num_cores = getNumberOfCPUCores();
     const auto num_streams_default_not_ht = num_cores / 2;
+    const auto num_sockets = getAvailableNUMANodes().size();
 //            [num_cores] () {
 //        if (0 == num_cores % 2)
 //            return num_cores/2;
@@ -493,10 +501,15 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     //      Hybrid specific
     //      etc
     config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(num_cores);
-    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (isNetworkMemLimited < 1 ? "YES" : "NO") << std::endl;
-    if (isNetworkMemLimited > 1.f) {
-        if (isNetworkMemLimited > 2)
-            config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(std::thread::hardware_concurrency());
+    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (NetworkToleranceForLowCache.maxMemTolerance < 1 ? "YES" : "NO") << std::endl;
+    if (NetworkToleranceForLowCache.maxMemTolerance > 1.f) {
+        if ((NetworkToleranceForLowCache.maxMemTolerance > 2.f) /* we have enough cache to double threads via the Hyper-Threading */
+            && (NetworkToleranceForLowCache.all_convs_are_compute) /* let's be conservative */
+                && (1 == num_sockets)) { /* we know the HT is not good on the multi-socket machines */
+                    config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(
+                            std::thread::hardware_concurrency());
+                    std::cout << "ENABLING HT" << std::endl;
+                }
         config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_cores);
     } else {
         config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams_default_not_ht);
