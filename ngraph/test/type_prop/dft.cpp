@@ -190,6 +190,76 @@ INSTANTIATE_TEST_CASE_P(
             {600, -1, 40}}),
     PrintToDummyParamName());
 
+struct NonConstantAxesTestParams
+{
+    PartialShape input_shape;
+    Shape axes_shape;
+    PartialShape ref_output_shape;
+};
+
+struct NonConstantAxesTest : ::testing::TestWithParam<NonConstantAxesTestParams>
+{
+};
+
+TEST_P(NonConstantAxesTest, dft_non_constant_axes)
+{
+    auto params = GetParam();
+
+    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
+    auto axes_input = std::make_shared<op::Parameter>(element::i64, params.axes_shape);
+    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
+
+    EXPECT_EQ(dft->get_element_type(), element::f32);
+    ASSERT_TRUE(dft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+}
+INSTANTIATE_TEST_CASE_P(
+    type_prop,
+    NonConstantAxesTest,
+    ::testing::Values(
+        NonConstantAxesTestParams{
+            {2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {2, 180, Dimension(7, 500), 2}, {2}, {2, 180, Dimension(7, 500), 2}},
+        NonConstantAxesTestParams{{2, 180, Dimension(7, 500), Dimension(1, 18)},
+                                  {2},
+                                  {2, 180, Dimension(7, 500), Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {2, Dimension(7, 500), 180, 2}, {2}, {2, Dimension(7, 500), 180, 2}},
+        NonConstantAxesTestParams{{2, Dimension(7, 500), 180, Dimension(1, 18)},
+                                  {2},
+                                  {2, Dimension(7, 500), 180, Dimension(1, 18)}},
+        NonConstantAxesTestParams{{2, Dimension(7, 500), Dimension(7, 500), 2},
+                                  {2},
+                                  {2, Dimension(7, 500), Dimension(7, 500), 2}},
+        NonConstantAxesTestParams{{2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+                                  {2},
+                                  {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), 180, 180, 2}, {2}, {Dimension(0, 2), 180, 180, 2}},
+        NonConstantAxesTestParams{{Dimension(0, 2), 180, 180, Dimension(1, 18)},
+                                  {2},
+                                  {Dimension(0, 2), 180, 180, Dimension(1, 18)}},
+        NonConstantAxesTestParams{{Dimension(0, 2), 180, Dimension(7, 500), 2},
+                                  {2},
+                                  {Dimension(0, 2), 180, Dimension(7, 500), 2}},
+        NonConstantAxesTestParams{{Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
+                                  {2},
+                                  {Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)}},
+        NonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), 180, 2},
+                                  {2},
+                                  {Dimension(0, 2), Dimension(7, 500), 180, 2}},
+        NonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
+                                  {2},
+                                  {Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)}},
+        NonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
+                                  {2},
+                                  {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+            {2},
+            {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)}}),
+    PrintToDummyParamName());
+
 TEST(type_prop, dft_constant_axes_and_there_are_no_signal_size_dynamic_shapes2)
 {
     struct ShapesAndValues
