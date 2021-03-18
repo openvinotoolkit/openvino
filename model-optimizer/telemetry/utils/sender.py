@@ -34,15 +34,15 @@ class TelemetrySender:
             with self._lock:
                 self.queue_size -= 1
 
-        callback_needed = False
+        fut = None
         with self._lock:
             if self.queue_size < MAX_QUEUE_SIZE:
                 fut = self.executor.submit(backend.send, message)
-                callback_needed = True
                 self.queue_size += 1
             else:
                 pass  # dropping a message because the queue is full
-        if callback_needed:
+        # to avoid dead lock we should not add callback inside the "with self._lock" block
+        if fut is not None:
             fut.add_done_callback(_future_callback)
 
     def force_shutdown(self, timeout: float):
