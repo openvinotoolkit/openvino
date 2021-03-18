@@ -44,11 +44,6 @@ bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
 
 void ngraph::op::v0::PRelu::validate_and_infer_types()
 {
-    auto pshape = get_input_partial_shape(0);
-    NODE_VALIDATION_CHECK(this,
-                          PartialShape::broadcast_merge_into(
-                              pshape, get_input_partial_shape(1), AutoBroadcastType::NUMPY),
-                          "Argument shapes are inconsistent.");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
