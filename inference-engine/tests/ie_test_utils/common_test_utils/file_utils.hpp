@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -18,7 +18,6 @@
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
-
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -101,6 +100,27 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
     }
 
     return ret;
+}
+
+// Lists all files with extension=ext from the given directory
+// Return value:
+// vector of strings representing file paths
+inline std::vector<std::string> listFilesWithExt(const std::string& path, const std::string& ext) {
+    struct dirent *ent;
+    DIR *dir = opendir(path.c_str());
+    std::vector<std::string> res;
+    if (dir != nullptr) {
+        while ((ent = readdir(dir)) != NULL) {
+            auto file = makePath(path, std::string(ent->d_name));
+            struct stat stat_path;
+            stat(file.c_str(), &stat_path);
+            if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext)) {
+                res.push_back(std::move(file));
+            }
+        }
+        closedir(dir);
+    }
+    return res;
 }
 
 inline int removeDir(const std::string &path) {
