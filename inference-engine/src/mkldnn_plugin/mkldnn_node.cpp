@@ -17,7 +17,7 @@
 #include <nodes/mkldnn_conv_node.h>
 #include <nodes/mkldnn_deconv_node.h>
 #include <nodes/mkldnn_eltwise_node.h>
-#include <nodes/mkldnn_gemm_node.h>
+#include <nodes/mkldnn_matmul_node.h>
 #include <nodes/mkldnn_fullyconnected_node.h>
 #include <nodes/mkldnn_generic_node.h>
 #include <nodes/mkldnn_input_node.h>
@@ -65,7 +65,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Result", Output },
         { "Convolution", Convolution },
         { "GroupConvolution", Convolution },
-        { "MatMul", Gemm },
+        { "MatMul", MatMul },
+        { "FullyConnected", FullyConnected },
         { "MaxPool", Pooling },
         { "AvgPool", Pooling },
         { "Add", Eltwise },
@@ -149,9 +150,6 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "PReLU", Eltwise },
         { "LRN", Lrn },
 //        { "Pooling", Pooling },
-//        { "FullyConnected", FullyConnected },
-//        { "InnerProduct", FullyConnected },
-//        { "Gemm", Gemm },
 //        { "Softmax", SoftMax },
 //        { "SoftMax", SoftMax },
         { "Split", Split },

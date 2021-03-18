@@ -105,9 +105,8 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-    // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFullyConnectedAndSimpleOperation");
-    // FuseFullyConnectedAndSimpleOperation(graph);
-    // graph.RemoveDroppedNodes();
+    FuseFullyConnectedAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMVNAndSimpleOperation");
     FuseMVNAndSimpleOperation(graph);

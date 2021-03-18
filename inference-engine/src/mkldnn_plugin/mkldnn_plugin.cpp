@@ -76,6 +76,7 @@
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
+#include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 # ifdef _WIN32
@@ -335,6 +336,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     });
 
     postLPTPassManager.run_passes(nGraphFunc);
+
+    ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr

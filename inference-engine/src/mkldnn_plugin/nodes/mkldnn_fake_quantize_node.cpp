@@ -899,40 +899,44 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
         };
 
         axis = fq->get_input_shape(0).size() == 1 ? 0 : 1;
+        int axisSize = -1;
 
         auto inputLowAxis = initAxisIdx(1);
-        int axisSize = -1;
-        isInputLowBroadcasted = fq->get_input_shape(1)[inputLowAxis] == 1;
+        const auto ilShape = fq->get_input_shape(1);
+        isInputLowBroadcasted = (ngraph::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
         if (!isInputLowBroadcasted) {
             axis = inputLowAxis;
-            axisSize = fq->get_input_shape(1)[inputLowAxis];
+            axisSize = ilShape[inputLowAxis];
         }
 
         auto inputHighAxis = initAxisIdx(2);
-        isInputHighBroadcasted = fq->get_input_shape(2)[inputHighAxis] == 1;
+        const auto ihShape = fq->get_input_shape(2);
+        isInputHighBroadcasted = (ngraph::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
         if (!isInputHighBroadcasted) {
             axis = inputHighAxis;
-            axisSize = fq->get_input_shape(2)[inputHighAxis];
+            axisSize = ihShape[inputHighAxis];
         }
 
         auto outputLowAxis = initAxisIdx(3);
-        isOutputLowBroadcasted =fq->get_input_shape(3)[outputLowAxis] == 1;
+        const auto olShape = fq->get_input_shape(3);
+        isOutputLowBroadcasted = (ngraph::is_scalar(olShape) || olShape[outputLowAxis] == 1);
         if (!isOutputLowBroadcasted) {
             axis = outputLowAxis;
-            axisSize = fq->get_input_shape(3)[outputLowAxis];
+            axisSize = olShape[outputLowAxis];
         }
 
         auto outputHighAxis = initAxisIdx(4);
-        isOutputHighBroadcasted = fq->get_input_shape(4)[outputHighAxis] == 1;
+        const auto ohShape = fq->get_input_shape(4);
+        isOutputHighBroadcasted = (ngraph::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
         if (!isOutputHighBroadcasted) {
             axis = outputHighAxis;
-            axisSize = fq->get_input_shape(4)[outputHighAxis];
+            axisSize = ohShape[outputHighAxis];
         }
 
-        auto inputLowAxisSize = fq->get_input_shape(1)[inputLowAxis];
-        auto inputHighAxisSize = fq->get_input_shape(2)[inputHighAxis];
-        auto outputLowAxisSize = fq->get_input_shape(3)[outputLowAxis];
-        auto outputHighAxisSize = fq->get_input_shape(4)[outputHighAxis];
+        auto inputLowAxisSize = ngraph::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
+        auto inputHighAxisSize = ngraph::is_scalar(ihShape) ? 1 : ihShape[inputHighAxis];
+        auto outputLowAxisSize = ngraph::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
+        auto outputHighAxisSize = ngraph::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
         int axisRealSize = static_cast<int>(fq->get_input_shape(0)[axis]);
         size_t axisPaddedSize = static_cast<size_t>(rnd_up(fq->get_input_shape(0)[axis], 16));
