@@ -37,6 +37,18 @@ namespace ngraph
 {
     namespace onnx_editor
     {
+        class EdgeMapper
+        {
+        public:
+            EdgeMapper(const std::multimap<std::string, int>& node_name_to_index_map);
+
+            InputEdge to_input_edge(Node node, Input in) const;
+            OutputEdge to_output_edge(Node node, Output out) const;
+
+        private:
+            int find_index(std::vector<std::string> keys) const;
+            std::multimap<std::string, int> m_node_name_to_index;
+        };
         /// \brief A class representing a set of utilities allowing modification of an ONNX model
         ///
         /// \note This class can be used to modify an ONNX model before it gets translated to
@@ -122,8 +134,7 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
-            InputEdge to_input_edge(Node node, Input in);
-            OutputEdge to_output_edge(Node node, Output out);
+            EdgeMapper create_edge_mapper() const;
 
         private:
             const std::string m_model_path;

@@ -17,6 +17,7 @@
 #include <fstream>
 #include <onnx/onnx_pb.h>
 #include <onnx/shape_inference/implementation.h>
+#include <utility>
 
 #include "detail/subgraph_extraction.hpp"
 #include "ngraph/log.hpp"
@@ -371,12 +372,56 @@ void onnx_editor::ONNXModelEditor::set_input_values(
     }
 }
 
-InputEdge onnx_editor::ONNXModelEditor::to_input_edge(Node node, Input in)
+EdgeMapper onnx_editor::ONNXModelEditor::create_edge_mapper() const
 {
-    return InputEdge{-1, ""};
+    int topological_index = 0;
+    std::multimap<std::string, int> node_name_to_index_map;
+    for (const auto& node_proto : m_pimpl->m_model_proto.graph().node())
+    {
+        for (const auto& out_name : node_proto.output())
+        {
+            // node output name is unique
+            node_name_to_index_map.emplace(out_name, topological_index);
+            std::cout << "output: " << topological_index << ", " << out_name << "\n";
+        }
+        if (!node_proto.name().empty())
+        {
+            // node name can identify node, but it can be ambiguous
+            node_name_to_index_map.emplace(node_proto.name(), topological_index);
+            std::cout << "node_name: " << node_proto.name() << "\n";
+        }
+        ++topological_index;
+    }
+    return EdgeMapper{node_name_to_index_map};
 }
 
-OutputEdge onnx_editor::ONNXModelEditor::to_output_edge(Node node, Output out)
+onnx_editor::EdgeMapper::EdgeMapper(const std::multimap<std::string, int>& node_name_to_index_map)
+    : m_node_name_to_index{node_name_to_index_map}
+{
+}
+
+int onnx_editor::EdgeMapper::find_index(std::vector<std::string> keys) const
+{
+    for (const auto& key : keys)
+    {
+        const auto& index_iter = m_node_name_to_index.find(key);
+        if (index_iter != std::end(m_node_name_to_index))
+        {
+            return index_iter->second;
+        }
+    }
+    // TODO: throw exception
+    return -1;
+};
+
+InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
+{
+    // identification can be both based on node name and output name
+    const auto node_index = find_index({node.m_node_name, node.m_output_name});
+    return InputEdge{node_index, in.m_input_name};
+}
+
+OutputEdge onnx_editor::EdgeMapper::to_output_edge(Node node, Output out) const
 {
     return OutputEdge{-1, ""};
 }

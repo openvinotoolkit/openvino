@@ -33,8 +33,8 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
-using namespace ngraph::onnx_import;
-using namespace ngraph::onnx_editor;
+// TODO it should be removed
+using namespace onnx_editor;
 using namespace ngraph::test;
 
 static std::string s_manifest = "${MANIFEST}";
@@ -687,6 +687,86 @@ NGRAPH_TEST(onnx_editor, subgraph__inputs_getter)
 
     EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"conv1/7x7_s2_2:conv1/7x7_s2_1"}));
 }
+
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const InputEdge edge =
+        edge_mapper.to_input_edge(onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_2"}},
+                                  onnx_editor::Input{"conv1/7x7_s2_1"});
+    EXPECT_EQ(edge.m_node_idx, 1);
+    EXPECT_EQ(edge.m_tensor_name, "conv1/7x7_s2_1");
+
+    const InputEdge edge2 = edge_mapper.to_input_edge(
+        onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_1"}}, onnx_editor::Input{"data_0"});
+    EXPECT_EQ(edge2.m_node_idx, 0);
+    EXPECT_EQ(edge2.m_tensor_name, "data_0");
+}
+/*
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_index)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const InputEdge edge =
+edge_mapper.to_input_edge(onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_2"}},
+onnx_editor::Input{0}); EXPECT_EQ(edge.m_node_idx, 1); EXPECT_EQ(edge.m_tensor_name,
+"conv1/7x7_s2_1");
+
+    const InputEdge edge2 =
+edge_mapper.to_input_edge(onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_1"}},
+onnx_editor::Input{0}); EXPECT_EQ(edge2.m_node_idx, 0); EXPECT_EQ(edge2.m_tensor_name, "data_0");
+}
+*/
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const InputEdge edge =
+        edge_mapper.to_input_edge(onnx_editor::Node{"relu1"}, onnx_editor::Input{"conv1/7x7_s2_1"});
+    EXPECT_EQ(edge.m_node_idx, 1);
+    EXPECT_EQ(edge.m_tensor_name, "conv1/7x7_s2_1");
+
+    const InputEdge edge2 = edge_mapper.to_input_edge(
+        onnx_editor::Node{onnx_editor::Output{"conv1"}}, onnx_editor::Input{"data_0"});
+    EXPECT_EQ(edge2.m_node_idx, 0);
+    EXPECT_EQ(edge2.m_tensor_name, "data_0");
+}
+
+// High level API tests
+NGRAPH_TEST(onnx_editor, xxx_subgraph__linear_model_head_cut)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    // define node by output name
+    // const InputEdge edge =
+    // edge_mapper.to_input_edge(onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_2"}},
+    // onnx_editor::Input{"conv1/7x7_s2_1"});
+    /*editor.cut_graph_fragment({{edge}}, {});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;*/
+}
+
+// combinations to test:
+// - to input/output edge
+// - node by name/ by output name
+// - input/output by name/ by index
+// - 2 heads
+// - const network
+// - node names dublicates!
 
 using TestEngine = test::INTERPRETER_Engine;
 

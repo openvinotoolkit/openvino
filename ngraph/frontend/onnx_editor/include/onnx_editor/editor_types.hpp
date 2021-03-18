@@ -103,14 +103,15 @@ namespace ngraph
 
         struct Node
         {
-            Node(std::string output_name)
-                : m_output_name{std::move(output_name)}
+            Node(std::string node_name)
+                : m_node_name{std::move(node_name)}
             {
             }
             Node(Output output)
                 : m_output_name{output.m_output_name}
             {
             }
+            const std::string m_node_name = "";
             const std::string m_output_name = "";
         };
     }
