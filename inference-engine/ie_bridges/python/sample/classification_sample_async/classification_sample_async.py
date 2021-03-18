@@ -80,8 +80,8 @@ def main():
     exec_net = ie.load_network(network=net, device_name=args.device, num_requests=num_of_input)
 
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
-# To make a valid InferRequest instance, use load_network() method of the IECore class with specified number of
-# requests (1 by default) to get ExecutableNetwork instance which stores infer requests.
+# load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
+# instance which stores infer requests. So you already created Infer requests in the previous step.
 
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     input_data = []
