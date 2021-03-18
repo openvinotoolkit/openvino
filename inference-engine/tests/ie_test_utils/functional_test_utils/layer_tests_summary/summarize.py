@@ -150,6 +150,8 @@ for device in root.find("results"):
     for op in results[device.tag]:
         pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
         results[device.tag][op]["passrate"] = pass_rate
+        if op == "Constant-0" or op == "Result-0" or op == "Parameter-0":
+            continue
         pass_rate_avg[device.tag] += pass_rate
         general_test_count[device.tag] += (int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +
                                int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"]))
