@@ -67,6 +67,14 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
     }
 
+    bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
+    bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
+    if (isNetworkCompiled && isPrecisionSet) {
+        std::string err = std::string("Cannot set precision for a compiled network. ") +
+                          std::string("Please re-compile your network with required precision using compile_tool");
+
+        throw std::logic_error(err);
+    }
     return true;
 }
 
@@ -165,7 +173,7 @@ int main(int argc, char *argv[]) {
         Core ie;
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
-            const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
@@ -380,6 +388,10 @@ int main(int argc, char *argv[]) {
                     item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
+
+            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+
+            printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
             startTime = Time::now();
