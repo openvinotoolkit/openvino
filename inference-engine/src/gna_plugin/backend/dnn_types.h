@@ -257,7 +257,7 @@ static std::string OvGnaModeToString(OvGnaMode mode) {
 }
 #endif
 
-typedef struct {
+struct intel_dnn_component_t {
 #if GNA_LIB_VER == 2
     std::vector < OvGnaTensor > tensors;
 #endif
@@ -287,9 +287,9 @@ typedef struct {
     float output_scale_factor;
     float input_scale_factor;
     const char * original_layer_name = nullptr;
-} intel_dnn_component_t;
+};
 
-typedef struct {
+struct intel_score_error_t {
     uint32_t num_scores;
     uint32_t num_errors;
     float threshold;
@@ -301,4 +301,4 @@ typedef struct {
     float max_rel_error;
     float sum_rel_error;
     float sum_squared_rel_error;
-} intel_score_error_t;
+};

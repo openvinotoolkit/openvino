@@ -1380,7 +1380,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 64);
         } else {
             gnamem->readonly().push_initializer(ptr_weights, weightable._weights->byteSize(), [=](void* data, size_t size) {
-                for (int k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
+                for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
                     auto rowOffset = k * transposedRows * transposedCols * weightable.precision.size();
                     auto cbuffer = weightable._weights->cbuffer().as<const uint8_t*>() + rowOffset;
                     auto u8Data = reinterpret_cast<uint8_t*>(data) + rowOffset;
@@ -1409,7 +1409,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         auto paddedWeightsSize = paddedWeights * weightable.precision.size();
 
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
-            for (int i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
+            for (uint32_t i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
                 ie_memcpy(data, size,
                     weightable._weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * weightable.precision.size(),
                     num_rows_in * weightable.precision.size());
@@ -1663,7 +1663,7 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
 
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
             size_t offset = 0;
-            for (int i = 0; i < num_rows_out && size >= offset; i++) {
+            for (uint32_t i = 0; i < num_rows_out && size >= offset; i++) {
                 ie_memcpy(reinterpret_cast<uint8_t*>(data) + offset, size - offset,
                     filterLayer->_weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * filterLayer->precision.size(),
                     num_rows_in* filterLayer->precision.size());
