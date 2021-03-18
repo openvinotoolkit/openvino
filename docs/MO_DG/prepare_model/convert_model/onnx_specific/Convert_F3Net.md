@@ -10,8 +10,10 @@ convert the model to ONNX\* format. Create and run the script with the following
 directory of the model repository:
 ```python
 import torch
+
 from dataset import Config
 from net import F3Net
+
 cfg = Config(mode='test', snapshot=<path_to_checkpoint_dir>)
 net = F3Net(cfg)
 image = torch.zeros([1, 3, 352, 352])
