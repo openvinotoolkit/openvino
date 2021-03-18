@@ -26,14 +26,14 @@ def parse_args() -> argparse.Namespace:
                       'Absolute path to operation description file (.xml).')
     args.add_argument('-d', '--device', default='CPU', type=str,
                       help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
-                      'is acceptable. The sample will look for a suitable plugin for device specified. '
-                      'Default value is CPU.')
+                           'is acceptable. The sample will look for a suitable plugin for device specified. '
+                           'Default value is CPU.')
     args.add_argument('--labels', default=None, type=str, help='Optional. Path to a labels mapping file.')
 
     return parser.parse_args()
 
 
-def main():
+def main():  # noqa
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO)
     args = parse_args()
 
@@ -55,21 +55,27 @@ def main():
     net = ie.read_network(model=args.model)
 
     if len(net.input_info) != 1:
-        log.error('Sample supports only single input topologies')
-        return -1
-    if len(net.outputs) != 1:
-        log.error('Sample supports only single output topologies')
+        log.error('The sample supports only single input topologies')
+        return - 1
+
+    if len(net.outputs) != 1 and not ('boxes' in net.outputs or 'labels' in net.outputs):
+        log.error('The sample supports models with 1 output or with 2 with the names "boxes" and "labels"')
         return -1
 
 # ---------------------------Step 3. Configure input & output----------------------------------------------------------
     log.info('Configuring input and output blobs')
-    # Get names of input and output blobs
+    # Get name of input blob
     input_blob = next(iter(net.input_info))
-    out_blob = next(iter(net.outputs))
 
     # Set input and output precision manually
     net.input_info[input_blob].precision = 'U8'
-    net.outputs[out_blob].precision = 'FP32'
+
+    if len(net.outputs) == 1:
+        output_blob = next(iter(net.outputs))
+        net.outputs[output_blob].precision = 'FP32'
+    else:
+        net.outputs['boxes'].precision = 'FP32'
+        net.outputs['labels'].precision = 'U16'
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
@@ -82,11 +88,11 @@ def main():
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     original_image = cv2.imread(args.input)
     image = original_image.copy()
-    n, c, h, w = net.input_info[input_blob].input_data.shape
+    _, _, net_h, net_w = net.input_info[input_blob].input_data.shape
 
-    if image.shape[:-1] != (h, w):
-        log.warning(f'Image {args.input} is resized from {image.shape[:-1]} to {(h, w)}')
-        image = cv2.resize(image, (w, h))
+    if image.shape[:-1] != (net_h, net_w):
+        log.warning(f'Image {args.input} is resized from {image.shape[:-1]} to {(net_h, net_w)}')
+        image = cv2.resize(image, (net_w, net_h))
 
     # Change data layout from HWC to CHW
     image = image.transpose((2, 0, 1))
@@ -103,21 +109,32 @@ def main():
         with open(args.labels, 'r') as f:
             labels = [line.split(',')[0].strip() for line in f]
 
-    res = res[out_blob]
-
     output_image = original_image.copy()
     h, w, _ = output_image.shape
 
-    for detection in res.reshape(-1, 7):
-        confidence = detection[2]
-        if confidence > 0.5:
-            class_id = int(detection[1])
-            label = labels[class_id] if args.labels else class_id
+    if len(net.outputs) == 1:
+        res = res[output_blob]
+        detections = res.reshape(-1, 7)
+    else:
+        boxes = res['boxes']
+        labels = res['labels']
+        detections = boxes.reshape(-1, 5)
+        w, h = w / net_w, h / net_h
 
-            xmin = int(detection[3] * w)
-            ymin = int(detection[4] * h)
-            xmax = int(detection[5] * w)
-            ymax = int(detection[6] * h)
+    for i, detection in enumerate(detections):
+        if len(net.outputs) == 1:
+            _, class_id, confidence, xmin, ymin, xmax, ymax = detection
+        else:
+            class_id = labels[i]
+            xmin, ymin, xmax, ymax, confidence = detection
+
+        if confidence > 0.5:
+            label = int(labels[class_id]) if args.labels else int(class_id)
+
+            xmin = int(xmin * w)
+            ymin = int(ymin * h)
+            xmax = int(xmax * w)
+            ymax = int(ymax * h)
 
             log.info(f'Found: label = {label}, confidence = {confidence:.2f}, '
                      f'coords = ({xmin}, {ymin}), ({xmax}, {ymax})')
