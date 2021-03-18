@@ -29,6 +29,7 @@
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/space_to_batch_fusion.hpp"
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
@@ -99,6 +100,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
     common_fusions->add_matcher<ngraph::pass::ClampFusion>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();

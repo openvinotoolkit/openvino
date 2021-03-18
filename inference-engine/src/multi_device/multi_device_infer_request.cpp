@@ -60,4 +60,12 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
     }
 }
 
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+}
+
+void MultiDeviceInferRequest::InferImpl() {
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+}
+
 }  // namespace MultiDevicePlugin
