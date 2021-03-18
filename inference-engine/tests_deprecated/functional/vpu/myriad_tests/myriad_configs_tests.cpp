@@ -51,7 +51,7 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailabl
 
     InferenceEngine::InferRequest request;
     ASSERT_THROW(request = executable.CreateInferRequest(),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 //------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
     InferenceEngine::ExecutableNetwork executable;
     ASSERT_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config),
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 //------------------------------------------------------------------------------
