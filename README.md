@@ -13,6 +13,22 @@ It supports pre-trained models from the [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as Caffe\*, TensorFlow\*,
 MXNet\* and ONNX\*.
 
+## Installation
+
+OpenVINO is supported on Windows, Linux and macOS.
+
+### PIP
+
+For Python developers, the easiest way to install OpenVINO is using `pip`.
+
+```pip install openvino-dev```
+
+See the [PIP Installation Guide] for more information and system requirements.
+
+### Build from Source
+
+To build from source, follow the instructions in the [Wiki](https://github.com/openvinotoolkit/openvino/wiki).
+
 ## Repository components:
 * [Inference Engine]
 * [nGraph]
@@ -47,3 +63,4 @@ Please report questions, issues and suggestions using:
 [Model Optimizer]:https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer
 [tag on StackOverflow]:https://stackoverflow.com/search?q=%23openvino
 [nGraph]:https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_DevGuide.html
+[PIP Installation Guide]:https://github.com/openvinotoolkit/openvino/blob/master/docs/install_guides/pypi-openvino-dev.md
