@@ -21,8 +21,8 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_fullyconnected_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gemm_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_fullyconnected_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_matmul_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_generic_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_lrn_node.cpp
@@ -113,6 +113,8 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/emitters/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/op/*.cpp
         ${LAYERS}
         ${OS_SPECIFIC_SRC}
 )

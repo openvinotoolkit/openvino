@@ -65,6 +65,7 @@ protected:
                                               const std::shared_ptr<ngraph::Node> &lastNode) const override;
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const override;
+    void CheckFusingResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
 
 protected:
     std::shared_ptr<postOpMgr> postOpMgrPtr;
