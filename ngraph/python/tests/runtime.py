@@ -23,7 +23,13 @@ from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape, Type
 from ngraph.opset1.ops import result
-from ngraph.utils.types import NumericData, get_shape, get_dtype
+from ngraph.utils.types import (
+    NumericData,
+    get_shape,
+    get_dtype,
+    is_empty_array,
+    remove_empty_inputs,
+)
 
 import tests
 
@@ -139,10 +145,10 @@ class Computation(object):
             raise UserInputError(
                 "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values)
             )
-        # ignore not needed input values
-        input_values = input_values[:len(self.parameters)]
 
         input_values = [np.array(input_value) for input_value in input_values]
+        # remove empty arrays from the input_values (they are placeholders for optional inputs)
+        input_values = remove_empty_inputs(input_values, len(self.parameters))
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
         param_names = [param.friendly_name for param in self.parameters]

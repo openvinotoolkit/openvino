@@ -307,8 +307,6 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_momentum_cpu",
      "OnnxBackendNodeModelTest.test_nesterov_momentum_cpu",
      "OnnxBackendNodeModelTest.test_momentum_multiple_cpu"),
-    (xfail_issue_38714,
-     "OnnxBackendNodeModelTest.test_resize_downsample_sizes_nearest_tf_half_pixel_for_nn_cpu"),
     (xfail_issue_47337,
      "OnnxBackendNodeModelTest.test_onehot_without_axis_cpu",
      "OnnxBackendNodeModelTest.test_onehot_with_negative_axis_cpu",

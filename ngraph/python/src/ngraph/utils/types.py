@@ -133,6 +133,24 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
+def is_empty_array(obj) -> bool:
+    """Return true if a given object is an empty numpy array"""
+    return type(obj) == np.ndarray and obj.size == 0
+
+
+def remove_empty_inputs(inputs: List[NumericData], params_number: int) -> List[NumericData]:
+    """
+    Remove empty numpy arrays from the inputs list and
+    align the number of elements to the number of parameters of a function/model
+    """
+    inputs = list(filter(lambda i: not is_empty_array(i), inputs))
+
+    # ignore any remaining obsolete input values
+    inputs = inputs[:params_number]
+
+    return inputs
+
+
 def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
     """Return an ngraph Constant node with the specified value."""
     ndarray = get_ndarray(value)
