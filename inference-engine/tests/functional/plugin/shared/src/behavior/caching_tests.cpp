@@ -20,21 +20,29 @@ using namespace std::placeholders;
 
 namespace LayerTestsDefinitions {
 
-const std::vector<ngraph::element::Type> LoadNetworkCacheTestBase::precisions = {
-    ngraph::element::f32,
-    ngraph::element::f16,
-    ngraph::element::bf16,
-    ngraph::element::i32,
-    ngraph::element::i16,
-    ngraph::element::i8,
-    ngraph::element::u32,
-    ngraph::element::u16,
-    ngraph::element::u8,
-};
-
-static std::shared_ptr<ngraph::Function> create_simple_function(ngraph::element::Type type) {
+static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{1, 2});
+    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{batchSize, 2});
+    data->set_friendly_name("Parameter");
+
+    auto constant = ngraph::opset6::Constant::create(type, ngraph::Shape{1}, {2});
+    constant->set_friendly_name("constant");
+    auto mul = std::make_shared<ngraph::opset6::Multiply>(data, constant);
+    mul->set_friendly_name("mul");
+
+    // Create Result operation
+    auto res = std::make_shared<ngraph::opset6::Result>(mul);
+    res->set_friendly_name("res");
+
+    // Create nGraph function
+    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
+    func->set_friendly_name("function");
+    return func;
+}
+
+static std::shared_ptr<ngraph::Function> simple_function_relu(ngraph::element::Type type, size_t batchSize) {
+    // Create Parameter operation with static shape
+    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
 
     auto relu = std::make_shared<ngraph::opset6::Relu>(data);
@@ -52,15 +60,19 @@ static std::shared_ptr<ngraph::Function> create_simple_function(ngraph::element:
 
 std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctions() {
     // Wrapper of most part of available builder functions
-    using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape, ngraph::element::Type_t type)>;
+    using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape,
+                                                                             ngraph::element::Type_t type)>;
     auto inputShapeWrapper = [](ngraphFunctionIS fun, std::vector<size_t> inputShape) {
-        return [fun, inputShape](ngraph::element::Type type) {
-            return fun(inputShape, type);
+        return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+            auto shape = inputShape;
+            shape[0] = batchSize;
+            return fun(shape, type);
         };
     };
 
     std::vector<nGraphFunctionWithName> res;
-    res.push_back(nGraphFunctionWithName {create_simple_function, "SimpleFunction"});
+    res.push_back(nGraphFunctionWithName { simple_function_multiply, "SimpleFunctionMultiply"});
+    res.push_back(nGraphFunctionWithName { simple_function_relu, "SimpleFunctionRelu"});
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
         "ConvPoolRelu"});
@@ -70,9 +82,9 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
-    res.push_back(nGraphFunctionWithName {
-        ngraph::builder::subgraph::makeTIwithLSTMcell,
-        "TIwithLSTMcell"});
+    res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
+        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+    }, "TIwithLSTMcell1"});
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
@@ -114,17 +126,18 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
     auto param = obj.param;
     auto funcName = std::get<1>(std::get<0>(param));
     auto precision = std::get<1>(param);
-    auto deviceName = std::get<2>(param);
-    return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_" + deviceName;
+    auto batchSize = std::get<2>(param);
+    auto deviceName = std::get<3>(param);
+    return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
 void LoadNetworkCacheTestBase::SetUp() {
     nGraphFunctionWithName funcPair;
-    std::tie(funcPair, m_precision, targetDevice) = GetParam();
+    std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {
-        function = fGen(m_precision);
+        function = fGen(m_precision, m_batchSize);
     } catch (...) {
         SKIP();
     }
@@ -161,7 +174,6 @@ void LoadNetworkCacheTestBase::Run() {
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
     try {
-        core->SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         GenerateInputs();
         Infer();
@@ -174,18 +186,20 @@ void LoadNetworkCacheTestBase::Run() {
         SKIP(); // skip caching test if such network is not supported by device at all
     }
     auto originalOutputs = GetOutputs();
-    // cache is created
-    ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
-    executableNetwork = {}; // Destroy network object
-    {
-        core->SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
-        ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration));
-        GenerateInputs();
-        ASSERT_NO_THROW(Infer());
+
+    for (int i = 0; i < 2; i++) {
+        // Step 2: Load with cache. Export or import shall not throw
+        executableNetwork = {}; // Destroy network object
+        {
+            core->SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
+            ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration));
+            GenerateInputs();
+            ASSERT_NO_THROW(Infer());
+        }
+        // cache is created and reused
+        ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        compareOutputs(originalOutputs, GetOutputs());
     }
-    // no new cache is created
-    ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
-    compareOutputs(originalOutputs, GetOutputs());
 }
 
 TEST_P(LoadNetworkCacheTestBase, CompareWithRefImpl) {
