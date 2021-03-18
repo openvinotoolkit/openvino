@@ -662,7 +662,7 @@ cdef class InputInfoPtr:
         cdef CTensorDesc c_tensor_desc = deref(self._ptr).getTensorDesc()
         precision = c_tensor_desc.getPrecision().name().decode()
         layout = c_tensor_desc.getLayout()
-        dims = c_tensor_desc.getDims()
+        dims = c_tensor_desc.getDims() if c_tensor.isStatic() else []
         tensor_desc = TensorDesc(precision, dims, layout_int_to_str_map[layout])
         tensor_desc.impl = c_tensor_desc
         return tensor_desc
@@ -1246,6 +1246,9 @@ cdef class InferRequest:
         if size <= 0:
             raise ValueError(f"Batch size should be positive integer number but {size} specified")
         deref(self.impl).setBatch(size)
+
+    def set_shape(self, blob_name : str, dims : [list, tuple]):
+        deref(self.impl).setShape(blob_name, dims)
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():

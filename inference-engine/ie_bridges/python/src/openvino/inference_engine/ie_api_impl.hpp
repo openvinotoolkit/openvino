@@ -119,6 +119,7 @@ struct InferRequestWrap {
                  const InferenceEngine::PreProcessInfo& info);
 
     void setBatch(int size);
+    void setShape(const std::string &blob_name, const std::vector<size_t>& dims);
 
     void getPreProcess(const std::string& blob_name, const InferenceEngine::PreProcessInfo** info);
 

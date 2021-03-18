@@ -375,10 +375,14 @@ void InferenceEnginePython::InferRequestWrap::getBlobPtr(const std::string &blob
     IE_CHECK_CALL(request_ptr->GetBlob(blob_name.c_str(), blob_ptr, &response));
 }
 
-
 void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
     InferenceEngine::ResponseDesc response;
     IE_CHECK_CALL(request_ptr->SetBatch(size, &response));
+}
+
+void InferenceEnginePython::InferRequestWrap::setShape(const std::string &blob_name, const std::vector<size_t>& dims) {
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(request_ptr->SetShape(blob_name.c_str(), dims, &response));
 }
 
 void latency_callback(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {

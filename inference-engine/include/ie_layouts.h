@@ -215,6 +215,10 @@ public:
      */
     void reshape(const SizeVector& dims, const BlockingDesc& blockDesc);
 
+    bool isStatic() const {
+        return partialShape.is_static();
+    }
+
     // TODO: Create reshape with PartialShape and blockDesc?
 
     /**
