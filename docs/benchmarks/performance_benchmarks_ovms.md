@@ -292,7 +292,7 @@ Intel technologies’ features and benefits depend on system configuration and m
 </tr>
 <tr>
   <td><strong>Network Speed</strong></td>
-  <td colspan="2">40 Gb/s</td>
+  <td colspan="2" align="center">40 Gb/s</td>
 </tr>
 </table>
 
@@ -356,7 +356,7 @@ Intel technologies’ features and benefits depend on system configuration and m
 </tr>
 <tr>
   <td><strong>Network Speed</strong></td>
-  <td colspan="2">40 Gb/s</td>
+  <td colspan="2" align="center">40 Gb/s</td>
 </tr>
 </table>
 
