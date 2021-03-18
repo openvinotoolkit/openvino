@@ -68,7 +68,7 @@ public:
         struct LayerPortData {
             size_t portId;
             ngraph::element::Type_t precision;
-            SizeVector dims;
+            std::vector<ngraph::Dimension> dims;
             std::unordered_set<std::string> names;
         };
         size_t layerId;
