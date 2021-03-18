@@ -80,13 +80,28 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv,
                                                            const Output<ngraph::Node>& bias)
                     {
-                        const int64_t bias_axis = 1;
-                        const auto broadcast_bias = std::make_shared<default_opset::Broadcast>(
-                            bias,
-                            std::make_shared<default_opset::ShapeOf>(ng_conv),
-                            default_opset::Constant::create(element::i64, Shape{1}, {bias_axis}));
+                        const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
+                        const auto conv_rank = std::make_shared<default_opset::ShapeOf>(conv_shape);
 
-                        return {std::make_shared<default_opset::Add>(ng_conv, broadcast_bias)};
+                        // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
+                        const auto one_const =
+                            default_opset::Constant::create(element::i64, Shape{1}, {1});
+                        const auto two_const =
+                            default_opset::Constant::create(element::i64, Shape{1}, {2});
+                        const auto tail_shape_rank =
+                            std::make_shared<default_opset::Subtract>(conv_rank, two_const);
+                        const auto tail_shape =
+                            std::make_shared<default_opset::Broadcast>(one_const, tail_shape_rank);
+
+                        // Construct new bias shape: [1, C, 1, 1, ... ]
+                        const auto C_dim = std::make_shared<default_opset::ShapeOf>(bias);
+                        const auto bias_shape = std::make_shared<default_opset::Concat>(
+                            OutputVector{one_const, C_dim, tail_shape}, 0);
+
+                        const auto reshaped_bias =
+                            std::make_shared<default_opset::Reshape>(bias, bias_shape, false);
+
+                        return {std::make_shared<default_opset::Add>(ng_conv, reshaped_bias)};
                     }
                 } // namespace
 
