@@ -59,7 +59,7 @@
 //MKLDNN_EXTENSION_NODE(ExperimentalDetectronROIFeatureExtractorImpl, ExperimentalDetectronROIFeatureExtractor);
 //MKLDNN_EXTENSION_NODE(ONNXCustomProposalImpl, ExperimentalDetectronGenerateProposalsSingleImage);
 //MKLDNN_EXTENSION_NODE(NonMaxSuppressionImpl, NonMaxSuppression);
-//MKLDNN_EXTENSION_NODE(TopKImpl, TopK);
+MKLDNN_EXTENSION_NODE(TopKImpl, TopK);
 //MKLDNN_EXTENSION_NODE(ShuffleChannelsImpl, ShuffleChannels);
 //MKLDNN_EXTENSION_NODE(SpaceToDepthImpl, SpaceToDepth);
 //MKLDNN_EXTENSION_NODE(PowerFileImpl, PowerFile);

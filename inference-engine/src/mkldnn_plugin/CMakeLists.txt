@@ -100,7 +100,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topk.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topk.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/cum_sum.cpp
