@@ -18,8 +18,8 @@ protected:
 
                 if (gnaLibVer.rfind("2.1", 0) != 0) {
                     GTEST_SKIP() << "Disabled test due to GNA library version being < 2.1" << std::endl;
-                    skipTest = false;
                 }
+                skipTest = false;
             }
         }
     }
