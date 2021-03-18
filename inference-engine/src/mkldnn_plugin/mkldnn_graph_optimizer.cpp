@@ -61,6 +61,9 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseMultiplyAndAdd(graph);
     graph.RemoveDroppedNodes();
 
+    FuseDeconvolutionAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
     FuseBroadcastAndEltwise(graph);
     graph.RemoveDroppedNodes();
 
@@ -248,6 +251,43 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
         graph.DropNode(childNode);
 
         parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](MKLDNNNodePtr node) {
+        return node->getType() == Deconvolution && node->getChildEdges().size() == 1 && node->getFusedWith().empty();
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        // at this moment deconvolution supports only depthwise as post op
+        if (!childNode->canBePerformedAsScaleShift(parentNode.get())) {
+            parent++;
+            continue;
+        }
+
+        childNode->fuseInto(parentNode);
+
+        auto parentEdges = childNode->parentEdges;
+        for (auto &parentEdge : parentEdges) {
+            auto p_edge = parentEdge.lock();
+            if (p_edge->getParent()->getType() == Deconvolution)
+                continue;
+
+            removeEdge(graph, p_edge);
+        }
+
+        graph.DropNode(childNode);
     }
 }
 
