@@ -10,6 +10,7 @@
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace MKLDNNPlugin;
 
@@ -19,75 +20,129 @@ namespace Cpu {
 
 class PSROIPoolingImpl: public ExtLayerBase {
 public:
-    explicit PSROIPoolingImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            mode = layer->GetParamAsString("mode", "average");
-            if (mode != "bilinear_deformable")
-                if (layer->insData.size() !=  2 || layer->outData.size() != 1)
-                    IE_THROW() << "Incorrect number of input/output edges!";
-            // LayerSetUp
-            outputDim = static_cast<size_t>(layer->GetParamAsInt("output_dim"));
-            groupSize = static_cast<size_t>(layer->GetParamAsInt("group_size"));
-            spatialScale = layer->GetParamAsFloat("spatial_scale");
-            pooledHeight = static_cast<size_t>(layer->GetParamAsInt("pooled_height", static_cast<int>(groupSize)));
-            pooledWidth = static_cast<size_t>(layer->GetParamAsInt("pooled_width", static_cast<int>(groupSize)));
-            spatialBinsX = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_x", 1));
-            spatialBinsY = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_y", 1));
+            const auto psroi = std::dynamic_pointer_cast<const ngraph::opset1::PSROIPooling>(op);
+            const auto defPsroi = std::dynamic_pointer_cast<const ngraph::opset1::DeformablePSROIPooling>(op);
+            if (!psroi && !defPsroi) {
+                errorMessage = "Only opset1 PSROIPooling and DeformablePSROIPooling operations are supported";
+                return false;
+            }
 
-            SizeVector inDims = layer->insData[0].lock()->getTensorDesc().getDims();
+            std::string mode;
+            if (psroi) {
+                mode = psroi->get_mode();
+                if (mode != "average" && mode != "bilinear") {
+                    errorMessage = "Doesn't support mode: " + mode;
+                    return false;
+                }
+            } else if (defPsroi) {
+                mode = defPsroi->get_mode();
+                if (mode != "bilinear_deformable") {
+                    errorMessage = "Doesn't support mode: " + mode;
+                    return false;
+                }
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+
+    explicit PSROIPoolingImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
+
+            const auto psroi = std::dynamic_pointer_cast<const ngraph::opset1::PSROIPooling>(op);
+            const auto defPsroi = std::dynamic_pointer_cast<const ngraph::opset1::DeformablePSROIPooling>(op);
+
+            noTrans = op->get_input_size() == 2;
+            if (op->get_input_shape(0).size() != 4)
+                IE_THROW() << errorPrefix << " has first input with incorrect rank: " + op->get_input_shape(0).size();
+            if (op->get_input_shape(1).size() != 2)
+                IE_THROW() << errorPrefix << " has second input with incorrect rank: " + op->get_input_shape(1).size();
+            if (!noTrans && op->get_input_shape(2).size() != 4)
+                IE_THROW() << errorPrefix << " has third input with incorrect rank: " + op->get_input_shape(2).size();
+
+            if (psroi) {
+                if (psroi->get_input_size() != 2)
+                    IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+                mode = psroi->get_mode();
+                if (mode == "average") {
+                    algorithm = Algorithm::PSROIPoolingAverage;
+                } else if (mode == "bilinear") {
+                    algorithm = Algorithm::PSROIPoolingBilinear;
+                }
+
+                outputDim = static_cast<size_t>(psroi->get_output_dim());
+                spatialScale = psroi->get_spatial_scale();
+                groupSize = static_cast<size_t>(psroi->get_group_size());
+                mode = psroi->get_mode();
+                spatialBinsX = static_cast<size_t>(psroi->get_spatial_bins_x());
+                spatialBinsY = static_cast<size_t>(psroi->get_spatial_bins_y());
+                pooledHeight = groupSize;
+                pooledWidth = groupSize;
+
+            } else if (defPsroi) {
+                if (defPsroi->get_input_size() != 2 && defPsroi->get_input_size() != 3)
+                    IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+                algorithm = Algorithm::PSROIPoolingBilinearDeformable;
+
+                outputDim = static_cast<size_t>(defPsroi->get_output_dim());
+                spatialScale = defPsroi->get_spatial_scale();
+                groupSize = static_cast<size_t>(defPsroi->get_group_size());
+                mode = defPsroi->get_mode();
+                spatialBinsX = static_cast<size_t>(defPsroi->get_spatial_bins_x());
+                spatialBinsY = static_cast<size_t>(defPsroi->get_spatial_bins_y());
+                transStd = defPsroi->get_trans_std();
+                partSize = static_cast<size_t>(defPsroi->get_part_size());
+                // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
+                pooledHeight = groupSize;
+                pooledWidth = groupSize;
+            }
+
+            ngraph::Shape inDims = op->get_input_shape(0);
             channels = static_cast<int>(inDims[1]);
             height = static_cast<int>(inDims[2]);
             width = static_cast<int>(inDims[3]);
 
-            SizeVector outDims = layer->outData[0]->getTensorDesc().getDims();
+            ngraph::Shape outDims = op->get_shape();
             nn = static_cast<int>(outDims[0]);
             nc = static_cast<int>(outDims[1]);
             nh = static_cast<int>(outDims[2]);
             nw = static_cast<int>(outDims[3]);
 
-            //  for Deformable PSROIPolling
-            noTrans = layer->GetParamAsBool("no_trans", true);
-            partSize = layer->GetParamAsInt("part_size", 1);
-            transStd = layer->GetParamAsFloat("trans_std", 1);
+            auto supportedPrecision = (details::convertPrecision(op->get_input_element_type(0)) == Precision::BF16 ? Precision::BF16 : Precision::FP32);
 
-            auto supportedPrecision = (layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16 ? Precision::BF16 : Precision::FP32);
+            if (getAlgorithm() == Algorithm::PSROIPoolingAverage || getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
+                std::vector<std::pair<TensorDescCreatorTypes, TensorDescCreatorTypes>> dataFomats{
+                    {TensorDescCreatorTypes::ncsp, TensorDescCreatorTypes::ncsp},
+                    {TensorDescCreatorTypes::nspc, TensorDescCreatorTypes::nspc},
+                    {TensorDescCreatorTypes::nCsp16c, TensorDescCreatorTypes::nCsp16c},
+                    {TensorDescCreatorTypes::nCsp8c, TensorDescCreatorTypes::nCsp8c}
+                };
 
-            std::vector<std::pair<Layout, Layout> > plainConfs{
-                {NCHW, NCHW},
-                {NHWC, NHWC}
-            };
-
-            std::vector<std::pair<ConfLayout, ConfLayout> > blockConfs {
-                    {ConfLayout::BLK16, ConfLayout::BLK16},
-                    {ConfLayout::BLK8, ConfLayout::BLK8}
-            };
-
-            if (mode != "bilinear_deformable") {
-                for (auto conf : plainConfs) {
-                    LayerConfig config;
-                    DataConfig inConfig0, inConfig1, inConfig2;
-                    SizeVector propDims = layer->insData[1].lock()->getTensorDesc().getDims();
-                    inConfig0.desc = TensorDesc(supportedPrecision, inDims, conf.first);
-                    inConfig1.desc = TensorDesc(Precision::FP32, propDims, NC);
-                    config.inConfs.push_back(inConfig0);
-                    config.inConfs.push_back(inConfig1);
-                    DataConfig outConfig;
-                    outConfig.desc = TensorDesc(supportedPrecision, outDims, conf.second);
-                    config.outConfs.push_back(outConfig);
-                    confs.push_back(config);
+                for (const auto &df : dataFomats) {
+                    addConfig(op, {{df.first, supportedPrecision},
+                                   {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                                  {{df.second, supportedPrecision}});
                 }
-                for (auto conf : blockConfs) {
-                    addConfig(layer, {DataConfigurator(conf.first, supportedPrecision),
-                                      DataConfigurator(ConfLayout::PLN, Precision::FP32)},
-                              {DataConfigurator(conf.second, supportedPrecision)});
-                }
-            } else if (noTrans) {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
-                            {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
-            } else {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
-                                  DataConfigurator(ConfLayout::PLN, Precision::FP32),
-                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
+            } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable && noTrans) {
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, supportedPrecision},
+                               {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                              {{TensorDescCreatorTypes::ncsp, supportedPrecision}});
+            } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, supportedPrecision},
+                               {TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                              {{TensorDescCreatorTypes::ncsp, supportedPrecision}});
             }
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
@@ -110,7 +165,7 @@ public:
         }
     };
 
-    static void unpackParams(const TensorDesc& srcDesc, const TensorDesc& dstDesc,
+    void unpackParams(const TensorDesc& srcDesc, const TensorDesc& dstDesc,
                       int& hInputStride, int& wInputStride,
                       int& hOutputStride, int& wOutputStride,
                       Layout& inFmt, Layout& outFmt,
@@ -124,9 +179,11 @@ public:
         auto inBlkDims = srcDesc.getBlockingDesc().getBlockDims();
         auto outBlkDims = dstDesc.getBlockingDesc().getBlockDims();
         if (inBlkDims.size() != expectedInBlockDimsSize)
-            IE_THROW() << "Unexpected size of blocking dims in input (given " << inBlkDims.size() << ", expected " << expectedInBlockDimsSize << ")";
+            IE_THROW() << errorPrefix << " has unexpected size of blocking dims in input (given " << inBlkDims.size() << ", expected "
+                              << expectedInBlockDimsSize << ")";
         if (outBlkDims.size() != expectedOutBlockDimsSize)
-            IE_THROW() << "Unexpected size of blocking dims in output (given " << outBlkDims.size() << ", expected " << expectedOutBlockDimsSize << ")";
+            IE_THROW() << errorPrefix << " has unexpected size of blocking dims in output (given " << outBlkDims.size() << ", expected "
+                               << expectedOutBlockDimsSize << ")";
 
         inBlockSize = (inFmt == Layout::BLOCKED ? srcDesc.getBlockingDesc().getBlockDims()[4] : 1);
         outBlockSize = (outFmt == Layout::BLOCKED ? dstDesc.getBlockingDesc().getBlockDims()[4] : 1);
@@ -430,11 +487,11 @@ public:
         parallel_for(realRois, [&](int currentRoi) {
             const float *bottomRois = bottomRoisBeginning + currentRoi * 5;
             int roiBatchInd = static_cast<int>(bottomRois[0]);
-            if (mode == "average") {
+            if (getAlgorithm() == Algorithm::PSROIPoolingAverage) {
                 executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
-            } else if (mode == "bilinear") {
+            } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
                 executeBilinear(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
-            } else if (mode == "bilinear_deformable") {
+            } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
                 executeBilinearDeformable(srcData, dstData, bottomRois, bottomTrans,
                         numClasses, channelsEachClass, currentRoi, roiBatchInd);
             }
@@ -449,8 +506,13 @@ public:
             auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
 
             if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
-                  (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
-                return NOT_IMPLEMENTED;
+                  (inputPrec == Precision::FP32 && outputPrec == Precision::FP32))) {
+                if (resp) {
+                    std::string errorMsg = errorPrefix + " has different precisions on input: " + inputPrec.name() + " and output: " + outputPrec.name();
+                    errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                }
+                return PARAMETER_MISMATCH;
+            }
 
             PSROIPoolingContext ctx = {
                     *this,
@@ -510,13 +572,16 @@ private:
     int nh = 0;
     int nw = 0;
 
-    //  for Deformable PSROIPolling
+    // for Deformable PSROIPolling
     bool noTrans;
     int partSize;
     float transStd;
+
+    std::string errorPrefix;
 };
 
 REG_FACTORY_FOR(PSROIPoolingImpl, PSROIPooling);
+REG_FACTORY_FOR(PSROIPoolingImpl, DeformablePSROIPooling);
 
 }  // namespace Cpu
 }  // namespace Extensions

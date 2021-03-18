@@ -50,7 +50,8 @@
 //MKLDNN_EXTENSION_NODE(SqueezeImpl, Squeeze);
 //MKLDNN_EXTENSION_NODE(FillImpl, Fill);
 //MKLDNN_EXTENSION_NODE(UniqueImpl, Unique);
-//MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, PSROIPooling);
+MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, PSROIPooling);
+MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, DeformablePSROIPooling);
 //MKLDNN_EXTENSION_NODE(DepthToSpaceImpl, DepthToSpace);
 //MKLDNN_EXTENSION_NODE(OneHotImpl, OneHot);
 //MKLDNN_EXTENSION_NODE(BroadcastImpl, Broadcast);
