@@ -144,6 +144,31 @@ void op::v1::GroupConvolution::validate_and_infer_types()
                                   m_pads_end.size() == num_spatial_dims,
                               "Pads should be defined for all and only spatial features.");
 
+        if (data_batch_pshape.rank().is_static() && filters_pshape.rank().is_static())
+        {
+            auto data_in_channels_dim = data_batch_pshape[1];
+            if (data_in_channels_dim.is_static())
+            {
+                auto groups_dim = filters_pshape[0];
+                if (groups_dim.is_static() && filters_pshape[2].is_static())
+                {
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        data_in_channels_dim.get_length() / groups_dim.get_length() ==
+                            filters_pshape[2].get_length(),
+                        "Input channels dimension of data batch has incompatible value "
+                        "with filter shape.");
+                }
+                else if (groups_dim.is_static())
+                {
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        data_in_channels_dim.get_length() % groups_dim.get_length() == 0,
+                        "Input channels dimension of data batch not a multiple of group size.");
+                }
+            }
+        }
+
         result_shape = std::vector<Dimension>(output_ps_rank, Dimension::dynamic());
         if (data_batch_pshape.rank().is_static())
         {
@@ -164,7 +189,7 @@ void op::v1::GroupConvolution::validate_and_infer_types()
                 const PartialShape filter_spatial_shape = [filters_pshape]() {
                     vector<Dimension> filter_dims{filters_pshape};
                     filter_dims.erase(filter_dims.begin(),
-                                      filter_dims.begin() + 3); // Remove {G,O,I}
+                                      filter_dims.begin() + 3); // Remove {GROUP, C_OUT, C_IN}
                     return PartialShape{filter_dims};
                 }();
 

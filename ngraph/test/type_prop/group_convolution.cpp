@@ -292,6 +292,58 @@ TEST(type_prop, group_convolution_invalid_input_ranks)
     }
 }
 
+TEST(type_prop, group_convolution_invalid_input_channel_dims)
+{
+    try
+    {
+        const PartialShape data_batch_pshape{1, 6, 5, 5};
+        const PartialShape filters_pshape{2, 1, 2, 3, 3};
+        element::Type_t et = element::f32;
+
+        auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
+        auto filters = make_shared<op::Parameter>(et, filters_pshape);
+        auto groupConv = make_shared<op::v1::GroupConvolution>(
+            data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        // data batch shape does not have correct dimension C_IN * GROUPS
+        FAIL() << "Invalid input channels dimension of data batch not detected.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Input channels dimension of data batch has incompatible value "
+                             "with filter shape.");
+    }
+    catch (...)
+    {
+        FAIL() << "Input channels dimension of data batch validation check failed for unexpected "
+                  "reason.";
+    }
+
+    try
+    {
+        const PartialShape data_batch_pshape{1, 3, 5, 5};
+        const PartialShape filters_pshape{2, 1, Dimension::dynamic(), 3, 3};
+        element::Type_t et = element::f32;
+
+        auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
+        auto filters = make_shared<op::Parameter>(et, filters_pshape);
+        auto groupConv = make_shared<op::v1::GroupConvolution>(
+            data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        // data batch shape does not have correct dimension C_IN * GROUPS
+        FAIL() << "Invalid input channels dimension of data batch not detected.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Input channels dimension of data batch not a multiple of group size");
+    }
+    catch (...)
+    {
+        FAIL() << "Input channels dimension of data batch validation check failed for unexpected "
+                  "reason.";
+    }
+}
+
 TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims)
 {
     const PartialShape data_batch_pshape{1, 4, 5, 5};
