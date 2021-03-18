@@ -126,8 +126,8 @@ void regclass_InferQueue(py::module m)
         for (auto&& input : inputs)
         {
             auto name = input.first.cast<std::string>().c_str();
-            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob =
-                input.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+            const std::shared_ptr<InferenceEngine::Blob>& blob =
+                input.second.cast<const std::shared_ptr<InferenceEngine::Blob>&>();
             self._requests[id].SetBlob(name, blob);
         }
         // Start InferRequest in asynchronus mode
