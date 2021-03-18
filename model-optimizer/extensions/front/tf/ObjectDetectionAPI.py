@@ -15,6 +15,7 @@
 """
 
 import logging as log
+from collections import deque
 from math import sqrt
 
 import numpy as np
@@ -33,7 +34,7 @@ from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_
 from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.ReduceOps import ReduceMean
 from extensions.ops.activation_ops import Sigmoid
-from extensions.ops.elementwise import Mul, Sub
+from extensions.ops.elementwise import Mul, Sub, Add, Div
 from extensions.ops.gather import Gather
 from extensions.ops.parameter import Parameter
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
@@ -50,10 +51,11 @@ from mo.front.tf.graph_utils import add_activation_function_after_node, add_conv
     create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
+from mo.middle.passes.fusing.helpers import common_bfs
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
-from mo.ops.op import PermuteAttrs
+from mo.ops.op import PermuteAttrs, Op
 from mo.ops.reshape import Reshape
 from mo.ops.result import Result
 from mo.ops.roipooling import ROIPooling
@@ -549,6 +551,54 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         pass
 
 
+def get_eltwises_with_const(first_node: Node, allowed_ops: list, forward: bool = True):
+    """
+
+    :param first_node:
+    :param allowed_ops:
+    :param forward:
+    :return:
+    """
+    node = first_node.out_port(0).get_destination().node if forward else first_node.in_port(0).get_source().node
+    result = []  # (Node, port # with constant input, value)
+    while node.soft_get('op') in allowed_ops:
+        for port in (0, 1):
+            if node.in_port(port).get_source().node.has_valid('value'):  # this is a constant input to the node
+                result.append((node, port, node.in_port(port).get_source().node.value.copy()))
+                node = node.out_port(0).get_destination().node if forward else node.in_port(1 - port).get_source().node
+                break
+    return result
+
+
+def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_suffix: str):
+    """
+
+    :param graph:
+    :param start_node_id_suffix:
+    :param end_node_id_suffix:
+    :return:
+    """
+    start_node = None
+    end_node = None
+    for node in graph.get_op_nodes():
+        if node.id.endswith(start_node_id_suffix):
+            start_node = node
+        if node.id.endswith(end_node_id_suffix):
+            end_node = node
+
+    assert start_node is not None and end_node is not None, \
+        'Failed to find start/end nodes of the pre-processing block. The section of the transformation JSON ' \
+        'configuration file related to "ObjectDetectionAPIPreprocessor2Replacement" transformation should be updated ' \
+        'for this particular model.'
+    allowed_ops = ['Sub', 'Mul', 'Div', 'Add']
+    preprocessing_nodes = get_eltwises_with_const(start_node, allowed_ops, False)
+    trailing = False  # switch to apply newly created pre-processing nodes after/before start_node/end_node
+    if len(preprocessing_nodes) == 0:
+        preprocessing_nodes = get_eltwises_with_const(end_node, allowed_ops, True)
+        trailing = True
+    return preprocessing_nodes, trailing
+
+
 class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
     """
     The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
@@ -630,6 +680,24 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
     """
     The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
     to applying mean/scaling values are kept. The transformation is used for TensorFlow 2.X models.
+
+    There are 6 possible cases:
+    1. ... -> Scale -> Start -> Resize -> End -> ...
+    2. ... -> Start -> Resize -> End -> Scale -> ...
+    3. ... -> Start -> Resize -> End -> ...
+    4. ... -> Start -> While (... -> Scale  -> Resize -> ...) -> End -> ...
+    5. ... -> Start -> While (... -> Resize -> Scale -> ...) -> End -> ...
+    6. ... -> Start -> While (... -> Resize -> ...) -> End -> ...
+
+    Where:
+    - "Start" - is the node name specified in the transformation configuration file
+    - "End" - is the node name specified in the transformation configuration file
+    - "Scale" - a node or a sequence of element-wise nodes like Mul, Add, Sub or Div with Const input
+    - "While" (... nodes ... ) - a Loop operation with body nodes specified in parentheses
+    - "Resize" - the Resize sub-graph being removed
+
+    The transformation creates a new sub-graph of pre-processing nodes if in the original model it is inside the Loop,
+    or keeps the existing one if they are in the main graph originally.
     """
     replacement_id = 'ObjectDetectionAPIPreprocessor2Replacement'
     run_not_recursively = True
@@ -650,44 +718,62 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         end_nodes = [node_id for node_id in end_nodes if node_id in graph.nodes]
 
         assert len(start_nodes) >= 1
-        input_node = Node(graph, start_nodes[0])
+        start_node = Node(graph, start_nodes[0])
 
         assert len(end_nodes) >= 1
+        end_node = Node(graph, end_nodes[0])
 
-        sub_graph_node_ids = sub_graph_between_nodes(graph, start_nodes, end_nodes, include_control_flow=False)
+        # determine nodes between specified input and output nodes to check if there is a Loop op among them
+        sub_graph_node_ids = sub_graph_between_nodes(graph, start_nodes, end_nodes, include_control_flow=False,
+                                                     allow_non_reachable_end_nodes=True)
 
-        mul_value = None
-        sub_value = None
-
-        # If the pre-processing block contains Loop operation and mean and scale value should be obtained from it then
-        # insert operations manually. If there is no Loop then the pre-processing nodes are in the main graph and they
-        # will be kept in the main graph
+        pre_processing_in_loop = False
+        # If the pre-processing block contains Loop operation then mean and scale value should be obtained from it using
+        # some pre-defined marker nodes existing for all pre-processing blocks.
+        # If there is no Loop then pre-processing nodes are in the main graph and they should be obtained from it
         loop_nodes_ids = [node_id for node_id in sub_graph_node_ids if graph.node[node_id].get('op') == 'Loop']
         if len(loop_nodes_ids):
             assert len(loop_nodes_ids) == 1, 'There should be exactly one Loop node in the pre-processor block.'
+            pre_processing_in_loop = True
             loop_node = Node(graph, loop_nodes_ids[0])
             body_graph = loop_node.body
-            for body_node in body_graph.get_op_nodes():
-                if body_node.id.endswith('map/while/Preprocessor/sub'):
-                    for port in (0, 1):
-                        if body_node.in_port(port).get_source().node.has_valid('value'):
-                            sub_value = body_node.in_port(port).get_source().node.value.copy()
-                elif body_node.id.endswith('map/while/Preprocessor/mul'):
-                    for port in (0, 1):
-                        if body_node.in_port(port).get_source().node.has_valid('value'):
-                            mul_value = body_node.in_port(port).get_source().node.value.copy()
+            pre_processing_ops, trailing = get_preprocessing_ops(body_graph,
+                                                                 'map/while/Preprocessor/unstack',
+                                                                 'map/while/Preprocessor/stack')
+        else:
+            pre_processing_ops, trailing = get_preprocessing_ops(graph, start_node.id, end_node.id)
 
-        output_node = Node(graph, end_nodes[0])
+        if len(pre_processing_ops):
+            # if the pre-processing is applied before the resize then reverse them to be in the topological order
+            if not trailing:
+                pre_processing_ops = list(reversed(pre_processing_ops))
 
-        source_port = input_node.in_port(0).get_source()
-        output_node.out_port(0).get_connection().set_source(source_port)
-        input_node.in_port(0).disconnect()
+            if pre_processing_in_loop:  # case 4 and 5
+                # build a sub-graph containing a sequence of pre_processing_ops if they came from the Loop
+                new_preprocessing_ops = []
+                ops_mapping = {'Add': Add, 'Div': Div, 'Mul': Mul, 'Sub': Sub}
+                for idx in range(len(pre_processing_ops)):
+                    origin_node, const_port_ind, value = pre_processing_ops[idx]
+                    new_node = create_op_with_const_inputs(graph, ops_mapping[origin_node.op], {const_port_ind: value})
+                    if len(new_preprocessing_ops):
+                        new_node.in_port(1 - const_port_ind).connect(new_preprocessing_ops[-1].out_port(0))
+                    new_preprocessing_ops.append(new_node)
 
-        # if mul and sub nodes were in the Loop node then add them to the main graph manually
-        if sub_value:
-            source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Sub, {1: sub_value}))
-        if mul_value:
-            source_port.get_connection().insert_node(create_op_with_const_inputs(graph, Mul, {1: mul_value}))
+                # replace sub-graph between start and end nodes (including them) with new_preprocessing_ops nodes
+                end_node.out_port(0).get_connection().set_source(new_preprocessing_ops[-1].out_port(0))
+                start_node.in_port(0).get_connection().set_destination(
+                    new_preprocessing_ops[0].in_port(new_preprocessing_ops[0].is_in_port_connected(0)))
+            else:
+                if trailing:  # case 2
+                    # change output of the end_node to be produced with the start node producer
+                    source_port = start_node.in_port(0).get_source()
+                    source_port.disconnect()
+                    end_node.out_port(0).get_connection().set_source(source_port)
+                else:  # case 1
+                    # change output of the end_node to be produced with the last preprocessing op
+                    end_node.out_port(0).get_connection().set_source(pre_processing_ops[-1][0].out_port(0))
+        else:  # simply remove the nodes in between start_node and end_node (including them). Case 3 and 6
+            end_node.out_port(0).get_connection().set_source(start_node.in_port(0).get_source())
 
         print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
               ' applicable) are kept.')
