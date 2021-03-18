@@ -394,7 +394,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 auto shape = kernels.get_shape();
                 total_convs++;
 
-                if (shape.size() == 4 /* conventional 2D conv */ && shape[2] > 3 && shape[3] > 3) {
+                if (shape.size() == 4 /* conventional 2D conv */ && shape[2] >= 3 && shape[3] >= 3) {
                     std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name()
                     << "is "<< shape[2]<< "x" << shape[2] << ", considering flops/byte amortizing the mem"  << std::endl;
                     compute_convs++;
