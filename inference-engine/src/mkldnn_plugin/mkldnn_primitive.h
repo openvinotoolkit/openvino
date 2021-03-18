@@ -9,7 +9,6 @@
 #include <ie_common.h>
 #include <vector>
 #include <memory>
-#include <details/ie_exception.hpp>
 
 namespace MKLDNNPlugin {
 
