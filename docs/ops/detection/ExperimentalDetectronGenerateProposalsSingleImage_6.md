@@ -4,17 +4,20 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* computes ROIs and their scores based on input data.
+**Short description**: An operation *ExperimentalDetectronGenerateProposalsSingleImage* computes ROIs and their scores 
+based on input data.
 
 **Detailed description**: Operation doing next steps:
 
 1.  Transposes and reshape predicted bounding boxes deltas and scores to get them into the same order as the anchors;
 2.  Transforms anchors into proposals and clips proposals to image;
 3.  Removes predicted boxes with either height or width < *min_size*;
-4.  Sorts all `(proposal, score)` pairs by score from highest to lowest, order of equal elements is undefined;
-5.  Takes top *pre_nms_count* proposals, if ???;
+4.  Sorts all `(proposal, score)` pairs by score from highest to lowest, order of pairs with equal scores is undefined;
+5.  Takes top *pre_nms_count* proposals, if total number of proposals is less than *pre_nms_count* then operation takes 
+all proposals;
 6.  Applies non-maximum suppression with *nms_threshold*;
-7.  Takes top *post_nms_count* proposals and return these top proposals and their scores, if ???.
+7.  Takes top *post_nms_count* proposals and return these top proposals and their scores. If total number of proposals 
+is less than *post_nms_count* then operation returns output tensors filled by zeroes.
 
 **Attributes**:
 
@@ -50,15 +53,14 @@
     * **Default value**: None
     * **Required**: *yes*
 
-
-
 **Inputs**
 
 * **1**: A 1D tensor of type *T* with shape `[3]` with input image info. **Required.**
 
 * **2**: A 2D tensor of type *T* with input anchors. The second dimension of this input should be 4. **Required.**
 
-* **3**: A 3D tensor of type *T* with input deltas. Height and width for third and fourth inputs must be equal. **Required.**
+* **3**: A 3D tensor of type *T* with input deltas. Height and width for third and fourth inputs must be 
+equal. **Required.**
 
 * **4**: A 3D tensor of type *T* with input scores. **Required.**
 

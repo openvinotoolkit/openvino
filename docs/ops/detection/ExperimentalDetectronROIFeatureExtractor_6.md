@@ -2,11 +2,14 @@
 
 **Versioned name**: *ExperimentalDetectronROIFeatureExtractor-6*
 
-**Category**: Object detection, Pool
+**Category**: Object detection
 
-**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the [ROIAlign](ROIAlign_3.md) operation applied over a feature pyramid.
+**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the [ROIAlign](ROIAlign_3.md) operation applied 
+over a feature pyramid.
 
-**Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels.
+**Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid 
+depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from 
+corresponding pyramid levels.
 
 Operation applies the *ROIAlign* algorithm to the pyramid layers:
 
@@ -19,8 +22,8 @@ PyramidLevelMapper maps the ROI to the pyramid level using the following formula
 
 Here 224 is the "canonical" size, 2 is the pyramid starting level, and `w`, `h` are the ROI width and height.
 
-For more details please see the following source: [Feature Pyramid Networks for Object Detection](https://arxiv.org/pdf/1612.03144.pdf)
-
+For more details please see the following source: 
+[Feature Pyramid Networks for Object Detection](https://arxiv.org/pdf/1612.03144.pdf).
 
 **Attributes**:
 
@@ -34,7 +37,8 @@ For more details please see the following source: [Feature Pyramid Networks for 
 
 * *sampling_ratio*
 
-    * **Description**: *sampling_ratio* attribute specifies the number of sampling points per the output value. If 0, then use adaptive number computed as `ceil(roi_width / output_width)`, and likewise for height.
+    * **Description**: *sampling_ratio* attribute specifies the number of sampling points per the output value. If 0, 
+    then use adaptive number computed as `ceil(roi_width / output_width)`, and likewise for height.
     * **Range of values**: a non-negative integer number
     * **Type**: int
     * **Default value**: None
@@ -42,7 +46,9 @@ For more details please see the following source: [Feature Pyramid Networks for 
 
 * *pyramid_scales*
 
-    * **Description**: *pyramid_scales* enlists `image_size / layer_size[l]` ratios for pyramid layers `l=1,...,L`, where `L` is the number of pyramid layers, and `image_size` refers to network's input image. Note that pyramid's largest layer may have smaller size than input image, e.g. `image_size` is 640 in the XML example below.
+    * **Description**: *pyramid_scales* enlists `image_size / layer_size[l]` ratios for pyramid layers `l=1,...,L`, 
+    where `L` is the number of pyramid layers, and `image_size` refers to network's input image. Note that pyramid's 
+    largest layer may have smaller size than input image, e.g. `image_size` is 640 in the XML example below.
     * **Range of values**: a list of positive integer numbers
     * **Type**: int[]
     * **Default value**: None
@@ -60,15 +66,21 @@ For more details please see the following source: [Feature Pyramid Networks for 
 
 **Inputs**:
 
-*   **1**: 2D input tensor of type *T* describing the ROIs as 4-tuples: [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Batch size is the number of ROIs. Coordinates *x* and *y* are refer to the input *image_size*. **Required**.
+*   **1**: 2D input tensor of type *T* describing the ROIs as 4-tuples: 
+[x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Batch size is the number of ROIs. Coordinates *x* and *y* 
+are refer to the input *image_size*. **Required**.
 
-*   **2**, ..., **L**: Pyramid of 4D input tensors with feature maps. Batch size must be 1. The number of channels must be the same for all layers of the pyramid. The layer width and height must equal to the `layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
+*   **2**, ..., **L**: Pyramid of 4D input tensors with feature maps. Batch size must be 1. The number of channels must 
+be the same for all layers of the pyramid. The layer width and height must equal to the 
+`layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
 
 **Outputs**:
 
-*   **1**: 4D output tensor of type *T* with ROIs features. Batch size equals to number of ROIs. Channels number is the same as for all images in the input pyramid.
+*   **1**: 4D output tensor of type *T* with ROIs features. Batch size equals to number of ROIs. Channels number is the 
+same as for all images in the input pyramid.
 
-*   **2**: 2D output tensor of type *T* with reordered ROIs according to their mapping to the pyramid levels. Shape must be the same as for 1 input.
+*   **2**: 2D output tensor of type *T* with reordered ROIs according to their mapping to the pyramid levels. Shape 
+must be the same as for 1 input.
 
 **Types**
 

@@ -4,24 +4,29 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of specified sizes.
+**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of 
+specified sizes.
 
-**Detailed description**: Operation takes coordinates of centres of boxes and add strides to them to calculate coordinates of prior grids according to next algorithm:
+**Detailed description**: Operation takes coordinates of centres of boxes and add strides to them to calculate 
+coordinates of prior grids according to next algorithm:
     
-    for (int h = 0; h < layer_height; ++h)
-        for (int w = 0; w < layer_width; ++w)
+    for (int ih = 0; ih < layer_height; ++ih)
+        for (int iw = 0; iw < layer_width; ++iw)
             for (int s = 0; s < number_of_priors; ++s)
-                data[0] = priors[4 * s + 0] + step_w * (w + 0.5)
-                data[1] = priors[4 * s + 1] + step_h * (h + 0.5)
-                data[2] = priors[4 * s + 2] + step_w * (w + 0.5)
-                data[3] = priors[4 * s + 3] + step_h * (h + 0.5)
-                data += 4;
+                output_data[0] = priors[4 * s + 0] + step_w * (iw + 0.5)
+                output_data[1] = priors[4 * s + 1] + step_h * (ih + 0.5)
+                output_data[2] = priors[4 * s + 2] + step_w * (iw + 0.5)
+                output_data[3] = priors[4 * s + 3] + step_h * (ih + 0.5)
+                output_data += 4
 
-If *h* and *w* are zeroes, then `layer_height` = `featmap_height` and `layer_width` = `featmap_width`, otherwise *h* and *w* respectively.
+`featmap_height`, `featmap_width`, `image_height` and `image_width` are spatial dimensions values from second and third 
+inputs respectively. `priors` is a data from first input.
 
-If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_height` and `step_w` = `image_width` / `layer_width`, otherwise *stride_h* and *stride_w* respectively.
+If *h* and *w* are zeroes, then `layer_height` = `featmap_height` and `layer_width` = `featmap_width`, otherwise *h* 
+and *w* respectively.
 
-`featmap_height`, `featmap_width`, `image_height` and `image_width` are spatial dimensions values from second and third inputs respectively.
+If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_height` and 
+`step_w` = `image_width` / `layer_width`, otherwise *stride_h* and *stride_w* respectively.
 
 **Attributes**:
 
@@ -69,17 +74,21 @@ If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_
 
 **Inputs**
 
-* **1**: A tensor of type *T* with priors. Rank must be equal to 2 and The last dimension must be equal to 4: `[number_of_priors, 4]`. **Required.**
+* **1**: A tensor of type *T* with priors. Rank must be equal to 2 and The last dimension must be equal to 4: 
+`[number_of_priors, 4]`. **Required.**
 
 * **2**: A 4D tensor of type *T* with input feature map. **Required.**
 
-* **3**: A 4D tensor of type *T* with input image. The number of channels of both feature map and input image tensors must match. **Required.**
+* **3**: A 4D tensor of type *T* with input image. The number of channels of both feature map and input image tensors 
+must match. **Required.**
 
 **Outputs**
 
-* **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise.
-In case then 0 < *h* < `featmap_height` and/or 0 < *w* < `featmap_width` the output data size is less than `featmap_height` * `featmap_width` * `number_of_priors` * 4.
-The output tensor is filled with -1s ??? for output tensor elements if the output data size is less than the output tensor size.
+* **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` 
+if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise.
+In case then 0 < *h* < `featmap_height` and/or 0 < *w* < `featmap_width` the output data size is less than 
+`featmap_height` * `featmap_width` * `number_of_priors` * 4 and the output tensor is filled with undefined values for 
+rest output tensor elements.
 
 **Types**
 

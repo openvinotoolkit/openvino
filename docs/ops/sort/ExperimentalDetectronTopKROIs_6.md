@@ -4,11 +4,13 @@
 
 **Category**: Sort
 
-**Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to probabilities of input ROIs.
+**Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to probabilities of input 
+ROIs.
 
 **Detailed description**: Operation performs probabilities descending sorting for input ROIs and returns *max_rois* 
-number of ROIs. Order of sorted ROIs with equal probabilities is undefined. If number of ROIs is less than *max_rois* then 
-operation returns all ROIs descended sorted and the output tensor is filled with -1s ??? for rest output tensor elements.
+number of ROIs. Order of sorted ROIs with equal probabilities is undefined. If number of ROIs is less than *max_rois* 
+then operation returns all ROIs descended sorted and the output tensor is filled with undefined values for rest output 
+tensor elements.
 
 **Attributes**:
 
@@ -24,7 +26,8 @@ operation returns all ROIs descended sorted and the output tensor is filled with
 
 * **1**: A 2D tensor of type *T* with shape `[number_of_input_ROIs, 4]` contains input ROIs. **Required.**
 
-* **2**: A 1D tensor of type *T* with probabilities for input ROIs. Number of ROIs and number of probabilities should be equal. **Required.**
+* **2**: A 1D tensor of type *T* with probabilities for input ROIs. Number of ROIs and number of probabilities should 
+be equal. **Required.**
 
 **Outputs**
 

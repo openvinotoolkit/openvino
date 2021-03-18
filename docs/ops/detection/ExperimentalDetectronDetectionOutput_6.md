@@ -4,7 +4,8 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronDetectionOutput* performs non-maximum suppression to generate the detection output using information on location and score predictions.
+**Short description**: An operation *ExperimentalDetectronDetectionOutput* performs non-maximum suppression to generate 
+the detection output using information on location and score predictions.
 
 **Detailed description**: Operation doing next steps:
 
@@ -13,13 +14,15 @@
 3.  Clips boxes to image;
 4.  Applies *score_threshold* on detection scores;
 5.  Applies non-maximum suppression class-wise with *nms_threshold*;
-6.  Operation leaves only *max_detections_per_image* detections if total number of detections is more, otherwise ???.
+6.  Operation returns *max_detections_per_image* detections if total number of detections is more than it, otherwise 
+returns total number of detections.
 
 **Attributes**:
 
 * *score_threshold*
 
-    * **Description**: *score_threshold* attribute specifies threshold to consider only detections whose score are larger than a threshold.
+    * **Description**: *score_threshold* attribute specifies threshold to consider only detections whose score are 
+    larger than a threshold.
     * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: None
@@ -59,7 +62,8 @@
 
 * *class_agnostic_box_regression*
 
-    * **Description**: *class_agnostic_box_regression* attribute ia a flag specifies whether to delete background classes or not.
+    * **Description**: *class_agnostic_box_regression* attribute ia a flag specifies whether to delete background 
+    classes or not.
     * **Range of values**:
       * `true` means background classes should be deleted
       * `false` means background classes shouldn't be deleted
@@ -85,11 +89,14 @@
 
 **Inputs**
 
-* **1**: A 2D tensor of type *T* with input ROIs, rank must be equal to 2. The last dimension of this input must be equal to 4. The batch dimension of first, second and third inputs must be the same. **Required.**
+* **1**: A 2D tensor of type *T* with input ROIs, rank must be equal to 2. The last dimension of this input must be 
+equal to 4. The batch dimension of first, second and third inputs must be the same. **Required.**
 
-* **2**: A 2D tensor of type *T* with input deltas. The last dimension of this input must be equal to the value of the attribute `num_classes` * 4. **Required.**
+* **2**: A 2D tensor of type *T* with input deltas. The last dimension of this input must be equal to the value of the 
+attribute `num_classes` * 4. **Required.**
 
-* **3**: A 2D tensor of type *T* with input scores. The last dimension of this input must be equal to the value of the attribute `num_classes`. **Required.**
+* **3**: A 2D tensor of type *T* with input scores. The last dimension of this input must be equal to the value of the 
+attribute `num_classes`. **Required.**
 
 * **4**: A 2D tensor of type *T* with input image info. **Required.**
 
