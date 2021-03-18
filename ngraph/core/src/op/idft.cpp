@@ -70,6 +70,12 @@ std::shared_ptr<Node> op::v7::IDFT::clone_with_new_inputs(const OutputVector& ne
 void op::v7::IDFT::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v7_IDFT_validate_and_infer_types);
+
+    size_t num_of_inputs = get_input_size();
+
+    NODE_VALIDATION_CHECK(
+        this, num_of_inputs == 2 || num_of_inputs == 3, "IDFT must have 2 or 3 inputs.");
+
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 ||
