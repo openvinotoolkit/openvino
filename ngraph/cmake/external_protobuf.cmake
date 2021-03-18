@@ -75,91 +75,60 @@ endif()
 if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 else()
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        include(ExternalProject)
-        set(Protobuf_INSTALL_PREFIX ${EXTERNAL_PROJECTS_ROOT}/protobuf)
-        set(Protobuf_PROTOC_EXECUTABLE ${Protobuf_INSTALL_PREFIX}/bin/protoc)
-        set(Protobuf_INCLUDE_DIRS ${Protobuf_INSTALL_PREFIX}/include)
-        set(Protobuf_LIBRARY ${Protobuf_INSTALL_PREFIX}/lib/libprotobuf.a)
-        # Don't manually set compiler on macos since it causes compile error on macos >= 10.14
-        ExternalProject_Add(
+    if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
+        FetchContent_Declare(
             ext_protobuf
-            PREFIX protobuf
             GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
             GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
-            UPDATE_COMMAND ""
-            PATCH_COMMAND ""
-            CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf --disable-shared
-            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${CMAKE_CXX_STANDARD} -fPIC"
-            TMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/tmp"
-            STAMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/stamp"
-            DOWNLOAD_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/download"
-            SOURCE_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/src"
-            BINARY_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/src"
-            INSTALL_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf"
-            EXCLUDE_FROM_ALL TRUE
-            BUILD_BYPRODUCTS ${Protobuf_PROTOC_EXECUTABLE} ${Protobuf_LIBRARY}
         )
 
-        # -----------------------------------------------------------------------------
-        # Use the interface of FindProtobuf.cmake
-        # -----------------------------------------------------------------------------
-        if (NOT TARGET protobuf::libprotobuf)
-            add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
-            set_target_properties(protobuf::libprotobuf PROPERTIES
-                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
-                IMPORTED_LOCATION "${Protobuf_LIBRARY}")
-            add_dependencies(protobuf::libprotobuf ext_protobuf)
+        FetchContent_GetProperties(ext_protobuf)
+        if(NOT ext_protobuf_POPULATED)
+            FetchContent_Populate(ext_protobuf)
+            set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+            set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+            add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
         endif()
-        set(Protobuf_LIBRARIES protobuf::libprotobuf)
-
-        if (NOT TARGET protobuf::protoc)
-            add_executable(protobuf::protoc IMPORTED)
-            set_target_properties(protobuf::protoc PROPERTIES
-                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_PROTOC_EXECUTABLE}"
-                IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}")
-            add_dependencies(protobuf::protoc ext_protobuf)
-        endif()
-
-        set(Protobuf_FOUND TRUE)
-        set(PROTOBUF_FOUND TRUE)
-        #add_dependencies(onnx ext_protobuf)
     else()
-        if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
-            FetchContent_Declare(
-                ext_protobuf
-                GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
-                GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
-            )
+        message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
+    endif()
 
-            FetchContent_GetProperties(ext_protobuf)
-            if(NOT ext_protobuf_POPULATED)
-                FetchContent_Populate(ext_protobuf)
-                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
-                add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
-            endif()
-        else()
-            message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
-        endif()
+    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
+    if(NGRAPH_USE_PROTOBUF_LITE)
+        set(Protobuf_LIBRARIES libprotobuf-lite)
+    else()
+        set(Protobuf_LIBRARIES libprotobuf)
+    endif()
 
-        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
-        if(NGRAPH_USE_PROTOBUF_LITE)
-            set(Protobuf_LIBRARIES libprotobuf-lite)
-        else()
-            set(Protobuf_LIBRARIES libprotobuf)
+    if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        set(_proto_libs ${Protobuf_LIBRARIES})
+        if(TARGET libprotoc)
+            list(APPEND _proto_libs libprotoc)
         endif()
-
-        if(CMAKE_COMPILER_IS_GNUCXX)
-            set(_proto_libs ${Protobuf_LIBRARIES})
-            if(TARGET libprotoc)
-                list(APPEND _proto_libs libprotoc)
-            endif()
-            set_target_properties(${_proto_libs} PROPERTIES
-                                   COMPILE_FLAGS "-Wno-unused-variable")
-        endif()
+        set_target_properties(${_proto_libs} PROPERTIES
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
+        set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
+            COMPILE_FLAGS "-Wno-unused-variable -Wno-inconsistent-missing-override")
+    endif()
+    if(NGRAPH_USE_PROTOBUF_LITE)
+        # if only libprotobuf-lite is used, both libprotobuf and libprotobuf-lite are built
+        # libprotoc target needs symbols from libprotobuf, even in libprotobuf-lite configuration
+        set_target_properties(libprotobuf PROPERTIES
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
     endif()
 endif()
 
 # Now make sure we restore the original flags
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
+
+install(TARGETS ${Protobuf_LIBRARIES}
+    RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+    ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+    LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+if (NGRAPH_EXPORT_TARGETS_ENABLE)
+    export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+endif()
