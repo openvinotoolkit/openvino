@@ -54,7 +54,7 @@ void op::v7::Roll::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
 
     if (!(shift_pshape.is_static() &&
-          (is_scalar(shift_pshape.to_shape()) || shift_rank == 1 && shift_pshape[0] == 1)))
+          (is_scalar(shift_pshape.to_shape()) || (shift_rank == 1 && shift_pshape[0] == 1))))
     {
         NODE_VALIDATION_CHECK(
             this,
