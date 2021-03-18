@@ -133,6 +133,14 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             op_inputs.push_back(tensor_map.at(tensor));
         }
 
+        TemporaryOverrideOutputs overrider(op, op_inputs);
+        OutputVector outputs;
+        for (size_t i = 0; i < op->inputs().size(); ++i)
+        {
+            outputs.push_back(op->get_input_source_output(i));
+        }
+        auto cloned_node = op->clone_with_new_inputs(outputs);
+
         // get op outputs from map or create
         vector<shared_ptr<HostTensor>> op_outputs;
         for (size_t i = 0; i < op->get_output_size(); ++i)
@@ -142,7 +150,8 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             auto it = tensor_map.find(tensor);
             if (it == tensor_map.end())
             {
-                host_tensor = make_shared<HostTensor>(op->output(i));
+                // Use cloned_node to create HostTensor with static dimensions
+                host_tensor = make_shared<HostTensor>(cloned_node->output(i));
                 tensor_map.insert({tensor, host_tensor});
             }
             else
@@ -176,9 +185,11 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         {
             m_timer_map[op].start();
         }
-        if (!op->evaluate(op_outputs, op_inputs))
+
+        // Call evaluate for cloned_node with static shapes
+        if (!cloned_node->evaluate(op_outputs, op_inputs))
         {
-            evaluate_node(op, op_outputs, op_inputs);
+            evaluate_node(cloned_node, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled)
         {
