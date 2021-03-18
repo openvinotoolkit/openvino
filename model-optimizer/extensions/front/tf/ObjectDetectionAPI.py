@@ -57,7 +57,7 @@ from mo.ops.roipooling import ROIPooling
 from mo.ops.shape import Shape
 from mo.ops.softmax import Softmax
 from mo.utils.error import Error
-from mo.utils.graph import backward_bfs_for_operation, bfs_search
+from mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info
 from mo.utils.pipeline_config import PipelineConfig
 
 missing_param_error = 'To convert the model specify path to the pipeline configuration file which was used to ' \
@@ -1155,6 +1155,13 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         # for last convolutions that operate the locations need to swap the X and Y for output feature weights & biases
         conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'])
         swap_weights_xy(graph, conv_nodes)
+
+        # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer
+        # correspond to original tensors and should be removed from output->Result edges
+        out_nodes = []
+        for out in range(match.outputs_count()):
+            out_nodes.append(match.output_node(out)[0])
+        clear_tensor_names_info(out_nodes)
 
         return {'detection_output_node': detection_output_node}
 

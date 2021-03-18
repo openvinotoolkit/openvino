@@ -47,6 +47,8 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
+add_clang_format_target(onnx_importer_clang FOR_TARGETS onnx_importer)
+
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME onnx_importer
                            FILEDESCRIPTION "nGraph ONNX importer library")
@@ -59,16 +61,15 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder
+target_link_libraries(onnx_importer PRIVATE onnx_common ngraph::builder onnx onnx_proto ${Protobuf_LIBRARIES}
                                     PUBLIC ngraph)
 
 set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
-target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH}
-        ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
 
-target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src 
+                                                 ${NGRAPH_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
@@ -94,7 +95,6 @@ install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
         PATTERN "*.hpp"
         PATTERN "*.h"
 )
-
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
