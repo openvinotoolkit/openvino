@@ -13,6 +13,16 @@ It supports pre-trained models from the [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as Caffe\*, TensorFlow\*,
 MXNet\* and ONNX\*.
 
+## HEADS UP: OneTBB transition is on the way
+Currently, the default threading model of the OpenVINO is Intel® Threading Building Blocks (Intel® TBB).
+Recently the TBB was revamped into the "oneTBB" (https://github.com/oneapi-src/oneTBB/)
+While OpenVINO is still compiled with the pre-oneTBB versions (also moved to the https://github.com/oneapi-src/oneTBB/releases),
+a transition to the oneTBB is imminent and we are just waiting for a critical mass of our customers to become ready for that.
+
+So, if your private or third-party components are using the TBB directly, it is strongly advised to test them for compatibility with the oneTBB in advance.
+As discussed in the official oneTBB migration guide, this may include code changes, performance implications and so on: 
+https://software.intel.com/content/www/us/en/develop/documentation/onetbb-documentation/top/onetbb-developer-guide/migrating-from-threading-building-blocks-tbb.html
+
 ## Repository components:
 * [Inference Engine]
 * [nGraph]
