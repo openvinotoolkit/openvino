@@ -34,7 +34,7 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
     void generate() override {
         this->preamble();
 
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_src_oh, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
@@ -51,18 +51,19 @@ private:
     using reg8_t = const Xbyak::Reg8;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
-    reg64_t reg_src = r8;
+    reg64_t reg_src_oh = r8;
     reg64_t reg_dst = r9;
 
-    reg64_t reg_i = r10;
-    reg64_t reg_j = r11;
-    reg64_t reg_num = r12; // reserved. used to specify padding
-    reg64_t reg_aux64 = r13;
-    reg32_t reg_aux32 = r13d;
-    reg16_t reg_aux16 = r13w;
-    reg8_t reg_aux8 = r13b;
+    reg64_t reg_oh_count = r10;
+    reg64_t reg_ow_count = r11;
+    reg64_t reg_num_pads = r12; // reserved. used to specify padding
+    reg64_t reg_src_ow = r13;
+    reg64_t reg_aux64 = rax;
+//    reg32_t reg_aux32 = r13d;
+//    reg16_t reg_aux16 = r13w;
+//    reg8_t reg_aux8 = r13b;
     //reg64_t reg_aux64_2 = r14;
-    reg32_t reg_aux32_2 = r14d;
+    //reg32_t reg_aux32_2 = r14d;
 
     reg64_t reg_params = abi_param1;
 
@@ -71,28 +72,6 @@ private:
     Vmm vmm_zero = Vmm(1); // reserved for pad
     Xbyak::Xmm xmm_aux = Xbyak::Xmm(2);
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision prec) {
-        switch (prec) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(vmm_src, op);
-                break;
-            case Precision::U16:
-                uni_vpmovzxwd(vmm_src, op);
-                break;
-            case Precision::I16:
-                uni_vpmovsxwd(vmm_src, op);
-                break;
-            case Precision::I8:
-                uni_vpmovsxbd(vmm_src, op); // Why not  uni_vmovdqu(vmm_src, op) ?
-                break;
-            case Precision::U8:
-                uni_vpmovzxbd(vmm_src, op);
-                break;
-            default:
-                assert(!"unknown precision");
-        }
-    }
 
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision prec) {
         uni_vmovups(op, vmm_dst);
@@ -189,9 +168,11 @@ private:
     void loop() {
         //for (int64_t i = 0; i < ih_lpad * OW; i++)
         //    dst_data[dst_idx++] = T(0);
-        mov(reg_num, ptr[reg_params + GET_OFF(h_lo_pad)]);
-        mul_by_const(reg_num, reg_aux64, jpp.OW);
-        pad_with_zeros(reg_num, reg_dst);
+        mov(reg_oh_count, ptr[reg_params + GET_OFF(h_hi_pad)]);
+        mov(reg_num_pads, ptr[reg_params + GET_OFF(h_lo_pad)]);
+        sub(reg_oh_count, reg_num_pads);
+        mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
+        pad_with_zeros(reg_num_pads, reg_dst);
         /*
         // The whole loop:
         for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {
@@ -206,47 +187,44 @@ private:
          */
         Xbyak::Label ih_loop, ih_tail, ih_exit;
         Xbyak::Label iw_loop, iw_tail, iw_exit;
-        mov(reg_i, ptr[reg_params + GET_OFF(h_hi_pad)]);
-        sub(reg_i, ptr[reg_params + GET_OFF(h_lo_pad)]);
         //for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {...}
         L(ih_loop);
         {
-            cmp(reg_i, 0);
+            cmp(reg_oh_count, 0);
             jle(ih_exit, T_NEAR);
             /*
             for (int64_t iw = 0; iw < iw_lpad; iw++)
                 dst_data[dst_idx++] = 0;
             */
-            mov(reg_num, ptr[reg_params + GET_OFF(w_lo_pad)]);
-            pad_with_zeros(reg_num, reg_dst);
+            mov(reg_ow_count, ptr[reg_params + GET_OFF(w_hi_pad)]);
+            mov(reg_num_pads, ptr[reg_params + GET_OFF(w_lo_pad)]);
+            mov(reg_src_ow, reg_num_pads);
+            pad_with_zeros(reg_num_pads, reg_dst);
             /*
             for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
                 dst_data[dst_idx++] = src_data[src_idx];
             */
-
-            mov(reg_j, ptr[reg_params + GET_OFF(w_hi_pad)]);
-            mov(reg_num, ptr[reg_params + GET_OFF(w_lo_pad)]);
-            sub(reg_j, reg_num);
-            mul_by_const(reg_num, reg_aux64, jpp.SW * jpp.dtype_size);
-            add(reg_num, reg_src);
+            sub(reg_ow_count, reg_src_ow);
+            mul_by_const(reg_src_ow, reg_aux64, jpp.SW * jpp.dtype_size);
+            add(reg_src_ow, reg_src_oh);
             L(iw_loop);
             {
-                cmp(reg_j, jpp.block_size);
+                cmp(reg_ow_count, jpp.block_size);
                 jle(iw_tail, T_NEAR);
-                read_src2vmm(vmm, reg_num);
+                read_src2vmm(vmm, reg_src_ow);
                 store_vector(ptr[reg_dst], vmm, jpp.precision);
                 add(reg_dst, jpp.dtype_size * jpp.block_size);
-                sub(reg_j, jpp.block_size);
+                sub(reg_ow_count, jpp.block_size);
                 jmp(iw_loop);
             }
             L(iw_tail);
             {
-                cmp(reg_j, 0);
+                cmp(reg_ow_count, 0);
                 jle(iw_exit, T_NEAR);
-                load_scalar(vmm, ptr[reg_num]);
+                load_scalar(vmm, ptr[reg_src_ow]);
                 store_scalar(ptr[reg_dst], vmm);
-                sub(reg_j, 1);
-                add(reg_num, jpp.SW * jpp.dtype_size);
+                dec(reg_ow_count);
+                add(reg_src_ow, jpp.SW * jpp.dtype_size);
                 add(reg_dst, jpp.dtype_size);
                 jmp(iw_tail);
             }
@@ -255,20 +233,20 @@ private:
             for (int64_t i = 0; i < (OW - iw_hpad); i++)
                 dst_data[dst_idx++] = 0;
             */
-            mov(reg_num, jpp.OW);
-            sub(reg_num, ptr[reg_params + GET_OFF(w_hi_pad)]);
-            pad_with_zeros(reg_num, reg_dst);
-            sub(reg_i, 1);
-            add(reg_src, jpp.SH * jpp.IW * jpp.dtype_size);
+            mov(reg_num_pads, jpp.OW);
+            sub(reg_num_pads, ptr[reg_params + GET_OFF(w_hi_pad)]);
+            pad_with_zeros(reg_num_pads, reg_dst);
+            dec(reg_oh_count);
+            add(reg_src_oh, jpp.SH * jpp.IW * jpp.dtype_size);
             jmp(ih_loop, T_NEAR);
         }
         L(ih_exit);
         //for (int64_t i = 0; i < (OH - ih_hpad) * OW; i++)
         //    dst_data[dst_idx++] = T(0);
-        mov(reg_num, jpp.OH);
-        sub(reg_num, ptr[reg_params + GET_OFF(h_hi_pad)]);
-        mul_by_const(reg_num, reg_aux64, jpp.OW);
-        pad_with_zeros(reg_num, reg_dst);
+        mov(reg_num_pads, jpp.OH);
+        sub(reg_num_pads, ptr[reg_params + GET_OFF(h_hi_pad)]);
+        mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
+        pad_with_zeros(reg_num_pads, reg_dst);
     }
 };
 
