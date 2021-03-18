@@ -416,7 +416,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
             input_precision != InferenceEngine::Precision::I32 &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
                 << "Input image format " << input_precision << " is not supported yet...";
         }
     }

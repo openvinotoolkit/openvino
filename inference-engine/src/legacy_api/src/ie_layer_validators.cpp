@@ -36,7 +36,7 @@ void CNNLayer::parseParams() {
     try {
         LayerValidator::Ptr validator = LayerValidators::getInstance()->getValidator(type);
         validator->parseParams(this);
-    } catch (const InferenceEngineException& ie_e) {
+    } catch (const Exception& ie_e) {
         THROW_IE_EXCEPTION << "Error of validate layer: " << this->name << " with type: " << this->type << ". "
                            << ie_e.what();
     }

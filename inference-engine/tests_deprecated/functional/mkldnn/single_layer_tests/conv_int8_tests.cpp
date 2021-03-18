@@ -219,7 +219,7 @@ protected:
 
             calculateRef(weights, p, src, dst_ref);
             compare(*dst, *dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

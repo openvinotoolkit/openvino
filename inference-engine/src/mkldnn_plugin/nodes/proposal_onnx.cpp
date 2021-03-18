@@ -299,7 +299,7 @@ public:
                       {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
                        DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
                       {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -408,7 +408,7 @@ public:
             }
 
             return OK;
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
+        } catch (const std::exception& e) {
             if (resp) {
                 std::string errorMsg = e.what();
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);

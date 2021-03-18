@@ -39,6 +39,7 @@
 #include <layers/gna_fake_quantize_layer.hpp>
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
+#include <debug.h>
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -1108,7 +1109,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             Wait(0);
             freeNnet = nnets.begin();
         } else {
-            THROW_IE_EXCEPTION << as_status << REQUEST_BUSY
+            THROW_IE_EXCEPTION_WITH_STATUS(RequestBusy)
                                << "GNA executable network has max of "
                                << static_cast<uint32_t >(gnaFlags->gna_lib_async_threads_num)
                                << " parallel infer requests, please sync one of already running";
@@ -1589,7 +1590,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     InferenceEngine::QueryNetworkResult res;
 
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented) << " ngraph::Function is not supported natively";
     }
 
     std::unordered_set<CNNLayer *> allLayers;

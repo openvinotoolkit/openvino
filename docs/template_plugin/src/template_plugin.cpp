@@ -215,7 +215,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 // ! [plugin:add_extension]
 void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
     // TODO: add extensions if plugin supports extensions
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
 }
 // ! [plugin:add_extension]
 

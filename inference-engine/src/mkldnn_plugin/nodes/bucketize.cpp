@@ -73,7 +73,7 @@ public:
             { DataConfigurator(ConfLayout::PLN, input_precision), DataConfigurator(ConfLayout::PLN, boundaries_precision) },
             { DataConfigurator(ConfLayout::PLN, output_precision) });
         }
-        catch (InferenceEngine::details::InferenceEngineException &ex) {
+        catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

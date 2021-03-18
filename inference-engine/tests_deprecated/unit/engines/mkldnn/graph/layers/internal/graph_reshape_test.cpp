@@ -162,7 +162,7 @@ protected:
             ref_reshape(*srcPtr, dst_ref);
 
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

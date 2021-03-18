@@ -80,7 +80,7 @@ public:
     }
 
     CNNNetwork GetExecGraphInfo() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
     }
 
     /**
@@ -93,7 +93,7 @@ public:
     }
 
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
     }
 
     void SetConfig(const std::map<std::string, Parameter>& config) override {
@@ -111,11 +111,11 @@ public:
 
     Parameter GetMetric(const std::string& name) const override {
         (void)name;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
     }
 
     RemoteContext::Ptr GetContext() const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
     }
 
 protected:
@@ -127,7 +127,7 @@ protected:
      */
     virtual void ExportImpl(std::ostream& networkModel) {
         (void)networkModel;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
     }
 
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds infromation about network inputs info

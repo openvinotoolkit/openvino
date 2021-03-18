@@ -252,7 +252,7 @@ protected:
             ref_depthwise(*srcPtr, weights->readOnly().as<const float*>(), weights->size() / sizeof(float), dst_ref, p);
 
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -417,7 +417,7 @@ protected:
 
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkDepthwise);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkDepthwise);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

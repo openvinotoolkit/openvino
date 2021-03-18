@@ -87,7 +87,7 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect Math layer type!";
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN, false, 0, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, false, 0, Precision::FP32)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

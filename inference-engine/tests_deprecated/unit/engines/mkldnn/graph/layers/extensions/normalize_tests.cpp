@@ -283,7 +283,7 @@ protected:
             ref_normalize(*srcPtr, dst_ref, p, weights->readOnly().as<const float*>());
             compare(*output, dst_ref);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -338,7 +338,7 @@ public:
         try {
             is_blocked = layer->GetParamAsBool("is_blocked");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -571,7 +571,7 @@ protected:
             ref_normalize(*srcPtr, dst_ref, p, weights->readOnly().as<const float*>());
             compare(*output, dst_ref);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

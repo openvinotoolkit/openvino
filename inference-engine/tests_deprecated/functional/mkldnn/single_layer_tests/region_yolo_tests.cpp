@@ -216,7 +216,7 @@ protected:
 
             compare(*outputBlobs.begin()->second, dst_ref);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

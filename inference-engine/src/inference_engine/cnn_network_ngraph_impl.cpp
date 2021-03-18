@@ -427,7 +427,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
             custom_opsets);
         manager.run_passes(_ngraph_function);
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();

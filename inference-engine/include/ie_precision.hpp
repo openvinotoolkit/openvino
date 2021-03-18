@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "details/ie_exception.hpp"
+#include "ie_common.h"
+
 
 namespace InferenceEngine {
 

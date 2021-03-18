@@ -169,7 +169,7 @@ protected:
             setValuesInBlob(req.GetBlob("in2"), 1.0f);
             req.Infer();
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -321,7 +321,7 @@ protected:
             setValuesInBlob(req.GetBlob("in1"), 1.0f);
             req.Infer();
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

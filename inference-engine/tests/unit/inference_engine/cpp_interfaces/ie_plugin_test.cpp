@@ -70,67 +70,72 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
     Blob::Ptr inBlob = make_shared_blob<float>({ Precision::FP32, {1, 1, 1, 1}, NCHW });
     inBlob->allocate();
     string inputName = "not_input";
-    std::string refError = NOT_FOUND_str + "Failed to find input or output with name: \'" + inputName + "\'";
+    std::string refError = "[ NOT_FOUND ] Failed to find input or output with name: \'" + inputName + "\'";
     IInferRequest::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
 
     ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), inBlob, &dsc));
-    ASSERT_EQ(StatusCode::GENERAL_ERROR, sts);
-    dsc.msg[refError.length()] = '\0';
-    ASSERT_EQ(refError, dsc.msg);
+    ASSERT_EQ(StatusCode::NOT_FOUND, sts);
+    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
+        << "\tExpected: " << refError
+        << "\n\tActual: " << dsc.msg;
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithEmptyName) {
     Blob::Ptr inBlob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
     inBlob->allocate();
     string inputName = "not_input";
-    std::string refError = NOT_FOUND_str + "Failed to set blob with empty name";
+    std::string refError = "[ NOT_FOUND ] Failed to set blob with empty name";
     IInferRequest::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
 
     ASSERT_NO_THROW(sts = inferRequest->SetBlob("", inBlob, &dsc));
-    ASSERT_EQ(StatusCode::GENERAL_ERROR, sts);
-    dsc.msg[refError.length()] = '\0';
-    ASSERT_EQ(refError, dsc.msg);
+    ASSERT_EQ(StatusCode::NOT_FOUND, sts);
+    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
+        << "\tExpected: " << refError
+        << "\n\tActual: " << dsc.msg;
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetNullPtr) {
     string inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
-    std::string refError = NOT_ALLOCATED_str + "Failed to set empty blob with name: \'" + inputName + "\'";
+    std::string refError = "[ NOT_ALLOCATED ] Failed to set empty blob with name: \'" + inputName + "\'";
     IInferRequest::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
     Blob::Ptr inBlob = nullptr;
 
     ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), inBlob, &dsc));
-    ASSERT_EQ(StatusCode::GENERAL_ERROR, sts);
-    dsc.msg[refError.length()] = '\0';
-    ASSERT_EQ(refError, dsc.msg);
+    ASSERT_EQ(StatusCode::NOT_ALLOCATED, sts);
+    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
+        << "\tExpected: " << refError
+        << "\n\tActual: " << dsc.msg;
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetEmptyBlob) {
     Blob::Ptr inBlob;
     string inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
-    std::string refError = NOT_ALLOCATED_str + "Failed to set empty blob with name: \'" + inputName + "\'";
+    std::string refError = "[ NOT_ALLOCATED ] Failed to set empty blob with name: \'" + inputName + "\'";
     IInferRequest::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
 
     ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), inBlob, &dsc));
-    ASSERT_EQ(StatusCode::GENERAL_ERROR, sts);
-    dsc.msg[refError.length()] = '\0';
-    ASSERT_EQ(refError, dsc.msg);
+    ASSERT_EQ(StatusCode::NOT_ALLOCATED, sts);
+    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
+        << "\tExpected: " << refError
+        << "\n\tActual: " << dsc.msg;
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
     string inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
-    std::string refError = "Input data was not allocated. Input name: \'" + inputName + "\'";
+    std::string refError = "[ NOT_ALLOCATED ] Input data was not allocated. Input name: \'" + inputName + "\'";
     IInferRequest::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
     Blob::Ptr blob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
 
     ASSERT_NO_THROW(sts = inferRequest->SetBlob(inputName.c_str(), blob, &dsc));
-    ASSERT_EQ(StatusCode::GENERAL_ERROR, sts);
-    dsc.msg[refError.length()] = '\0';
-    ASSERT_EQ(refError, dsc.msg);
+    ASSERT_EQ(StatusCode::NOT_ALLOCATED, sts);
+    ASSERT_TRUE(std::string{dsc.msg}.find(refError) != std::string::npos)
+        << "\tExpected: " << refError
+        << "\n\tActual: " << dsc.msg;
 }
 
 TEST_F(InferenceEnginePluginInternalTest, executableNetworkInternalExportsMagicAndName) {
@@ -159,32 +164,32 @@ TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImp
 TEST(InferencePluginTests, throwsOnNullptrCreation) {
     InferenceEnginePluginPtr nulptr;
     InferencePlugin plugin;
-    ASSERT_THROW(plugin = InferencePlugin(nulptr), details::InferenceEngineException);
+    ASSERT_THROW(plugin = InferencePlugin(nulptr), Exception);
 }
 
 TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
     InferencePlugin plg;
-    ASSERT_THROW(plg.GetVersion(), details::InferenceEngineException);
+    ASSERT_THROW(plg.GetVersion(), Exception);
 }
 
 TEST(InferencePluginTests, throwsOnUninitializedLoadNetwork) {
     InferencePlugin plg;
-    ASSERT_THROW(plg.LoadNetwork(CNNNetwork(), {}), details::InferenceEngineException);
+    ASSERT_THROW(plg.LoadNetwork(CNNNetwork(), {}), Exception);
 }
 
 TEST(InferencePluginTests, throwsOnUninitializedImportNetwork) {
     InferencePlugin plg;
-    ASSERT_THROW(plg.ImportNetwork({}, {}), details::InferenceEngineException);
+    ASSERT_THROW(plg.ImportNetwork({}, {}), Exception);
 }
 
 TEST(InferencePluginTests, throwsOnUninitializedAddExtension) {
     InferencePlugin plg;
-    ASSERT_THROW(plg.AddExtension(IExtensionPtr()), details::InferenceEngineException);
+    ASSERT_THROW(plg.AddExtension(IExtensionPtr()), Exception);
 }
 
 TEST(InferencePluginTests, throwsOnUninitializedSetConfig) {
     InferencePlugin plg;
-    ASSERT_THROW(plg.SetConfig({{}}), details::InferenceEngineException);
+    ASSERT_THROW(plg.SetConfig({{}}), Exception);
 }
 
 TEST(InferencePluginTests, nothrowsUninitializedCast) {

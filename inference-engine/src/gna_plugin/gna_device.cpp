@@ -24,7 +24,6 @@
 #include "gna-api.h"
 #endif
 
-#include "details/ie_exception.hpp"
 #include "gna_plugin_log.hpp"
 
 //#define MODEL_DUMP

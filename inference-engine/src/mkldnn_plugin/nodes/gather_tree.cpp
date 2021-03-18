@@ -51,7 +51,7 @@ public:
             addConfig(layer, { DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision),
                                DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision) },
                              { DataConfigurator(ConfLayout::PLN, precision) });
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

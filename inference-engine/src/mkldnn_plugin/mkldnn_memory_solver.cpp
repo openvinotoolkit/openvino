@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ie_common.h>
+
 #include "mkldnn_memory_solver.hpp"
 
-#include <details/ie_exception.hpp>
 
 #include <algorithm>
 #include <vector>

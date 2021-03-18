@@ -205,7 +205,7 @@ public:
      *
      * @param str input string with float value
      * @return float value if parsing was successful
-     * @throws InferenceEngineException in case of parsing error
+     * @throws Exception in case of parsing error
      */
     static float ie_parse_float(const std::string& str);
 

@@ -142,7 +142,7 @@ protected:
             inferRequest.SetBlob(outInfo.begin()->first, dst);
             inferRequest.Infer();
 
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

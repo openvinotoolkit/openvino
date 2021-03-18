@@ -5,7 +5,6 @@
 #include <cmath>
 
 #include <debug.h>  // to allow putting vector into exception string stream
-#include <details/ie_exception.hpp>
 
 #include <ie_blob.h>
 #include <blob_factory.hpp>

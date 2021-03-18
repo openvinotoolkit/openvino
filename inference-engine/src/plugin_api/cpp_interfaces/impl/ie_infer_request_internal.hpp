@@ -67,7 +67,7 @@ public:
      * @brief Default common implementation for all plugins
      */
     void Cancel() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
     }
 
     /**
@@ -79,13 +79,13 @@ public:
     void SetBlob(const std::string& name, const Blob::Ptr& userBlob) override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
         if (name.empty()) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to set blob with empty name";
         }
-        if (!userBlob) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+        if (!userBlob) THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
         const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
         const bool remoteBlobPassed   = userBlob->is<RemoteBlob>();
         if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
-            THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
         if (userBlob->size() == 0) {
             THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
         }
@@ -95,14 +95,14 @@ public:
         size_t dataSize = userBlob->size();
         if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
             if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
                                    << "Failed to set Blob with precision not corresponding to user input precision";
             }
 
             auto& devBlob = _deviceInputs[name];
             const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
             if (compoundBlobPassed && !preProcRequired) {
-                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
                                    << "cannot set compound blob: supported only for input pre-processing";
             }
 
@@ -121,7 +121,7 @@ public:
             }
         } else {
             if (compoundBlobPassed) {
-                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
                                    << "cannot set compound blob: supported only for input pre-processing";
             }
             size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
@@ -132,7 +132,7 @@ public:
                                    << "!=" << outputSize << ").";
             }
             if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
                                    << "Failed to set Blob with precision not corresponding to user output precision";
             }
             _outputs[name] = userBlob;
@@ -300,7 +300,7 @@ protected:
                                                 return pair.first == name;
                                             });
         if (foundOutputPair == std::end(_networkOutputs) && (foundInputPair == std::end(_networkInputs))) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find input or output with name: \'" << name << "\'";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
         }
         if (foundInputPair != std::end(_networkInputs)) {
             foundInput = foundInputPair->second;
@@ -337,7 +337,7 @@ protected:
                                                        return pair.first == name;
                                                    });
                 if (foundInputPair == std::end(_networkInputs)) {
-                    THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find input with name: \'" << name << "\'";
+                    THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to find input with name: \'" << name << "\'";
                 }
                 dims = foundInputPair->second->getTensorDesc().getDims();
                 refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR
@@ -349,7 +349,7 @@ protected:
                                                         return pair.first == name;
                                                     });
                 if (foundOutputPair == std::end(_networkOutputs)) {
-                    THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find output with name: \'" << name << "\'";
+                    THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to find output with name: \'" << name << "\'";
                 }
                 dims = foundOutputPair->second->getTensorDesc().getDims();
                 refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR

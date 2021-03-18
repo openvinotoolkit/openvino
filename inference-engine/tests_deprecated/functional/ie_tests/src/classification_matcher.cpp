@@ -274,7 +274,7 @@ void ClassificationMatcher::match_n(size_t top, int index) {
 
             saveResults(topClassesIndexes, probabilities, top);
         }
-    } catch (InferenceEngine::details::InferenceEngineException &e) {
+    } catch (InferenceEngine::Exception &e) {
         FAIL() << e.what();
     } catch (std::exception &e) {
         FAIL() << e.what();

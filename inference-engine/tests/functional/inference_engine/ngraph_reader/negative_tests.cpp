@@ -75,5 +75,5 @@ TEST_F(NGraphReaderTests, DISABLED_ReadIncorrectNetwork) {
 
     Blob::CPtr blob;
     Core reader;
-    ASSERT_THROW(reader.ReadNetwork(model, blob), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(reader.ReadNetwork(model, blob), InferenceEngine::Exception);
 }

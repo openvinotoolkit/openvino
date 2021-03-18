@@ -27,7 +27,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     try {
         CompileNetwork(function);
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::details::InferenceEngineException&) {
+    } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
         THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
@@ -74,7 +74,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     try {
         CompileNetwork(cnnnetwork.getFunction());
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::details::InferenceEngineException&) {
+    } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
         THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();

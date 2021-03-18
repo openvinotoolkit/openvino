@@ -33,7 +33,7 @@ public:
             offset_ = layer->GetParamAsFloat("offset");
 
             addConfig(layer, {{ConfLayout::PLN, true}, {ConfLayout::PLN, true}}, {{ConfLayout::PLN, true, -1, Precision::FP32}});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

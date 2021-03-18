@@ -6,7 +6,6 @@
 
 #include <vpu/utils/numeric.hpp>
 
-#include <details/ie_exception.hpp>
 
 #include <memory>
 #include <cstdint>

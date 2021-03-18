@@ -16,25 +16,39 @@
 #include "file_utils.h"
 #include "cpp/ie_executable_network.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "details/ie_exception_conversion.hpp"
 #include "ie_plugin_ptr.hpp"
+#include "cpp_interfaces/exception2status.hpp"
 
 #if defined __GNUC__
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Wreturn-type"
 #endif
 
+#define CATCH_IE_EXCEPTION(ExceptionType) catch (const InferenceEngine::ExceptionType& e) {throw e;}
+
+#define CATCH_IE_EXCEPTIONS                     \
+        CATCH_IE_EXCEPTION(GeneralError)        \
+        CATCH_IE_EXCEPTION(NotImplemented)      \
+        CATCH_IE_EXCEPTION(NetworkNotLoaded)    \
+        CATCH_IE_EXCEPTION(ParameterMismatch)   \
+        CATCH_IE_EXCEPTION(NotFound)            \
+        CATCH_IE_EXCEPTION(OutOfBounds)         \
+        CATCH_IE_EXCEPTION(Unexpected)          \
+        CATCH_IE_EXCEPTION(RequestBusy)         \
+        CATCH_IE_EXCEPTION(ResultNotReady)      \
+        CATCH_IE_EXCEPTION(NotAllocated)        \
+        CATCH_IE_EXCEPTION(InferNotStarted)     \
+        CATCH_IE_EXCEPTION(NetworkNotRead)      \
+        CATCH_IE_EXCEPTION(InferCancelled)
+
 #define CALL_STATEMENT(...)                                                                        \
     if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATEMENT was not initialized.";  \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
-    } catch (const InferenceEngine::details::InferenceEngineException& iex) {                      \
-        InferenceEngine::details::extract_exception(iex.hasStatus() ?                              \
-            iex.getStatus() : GENERAL_ERROR, iex.what());                                          \
-    } catch (const std::exception& ex) {                                                           \
-        InferenceEngine::details::extract_exception(GENERAL_ERROR, ex.what());                     \
+    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
+        THROW_IE_EXCEPTION << ex.what();                                                           \
     } catch (...) {                                                                                \
-        InferenceEngine::details::extract_exception(UNEXPECTED, "");                               \
+        THROW_IE_EXCEPTION_WITH_STATUS(Unexpected);                                                \
     }
 
 namespace InferenceEngine {

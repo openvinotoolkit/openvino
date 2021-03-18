@@ -100,5 +100,5 @@ void ProposalBehTest::Run() {
 }
 
 TEST_P(ProposalBehTest, CompareWithRefs) {
-    ASSERT_THROW(Run(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(Run(), InferenceEngine::Exception);
 }

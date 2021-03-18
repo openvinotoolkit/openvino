@@ -5,7 +5,6 @@
 //! [fft_kernel:implementation]
 #include "fft_kernel.hpp"
 #include "fft_op.hpp"
-#include <details/ie_exception.hpp>
 #include <ie_layouts.h>
 
 #include <opencv2/opencv.hpp>
@@ -65,7 +64,7 @@ InferenceEngine::StatusCode FFTImpl::init(InferenceEngine::LayerConfig &config, 
             config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32)  {
             THROW_IE_EXCEPTION << "Operation supports only FP32 precisions!";
         }
-    } catch (InferenceEngine::details::InferenceEngineException&) {
+    } catch (InferenceEngine::Exception& ex) {
         if (resp) {
             strncpy(resp->msg, error.c_str(), sizeof(resp->msg) - 1);
             resp->msg[sizeof(resp->msg)-1] = 0;

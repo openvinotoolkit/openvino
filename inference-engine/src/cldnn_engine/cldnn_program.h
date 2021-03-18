@@ -12,7 +12,6 @@
 #include <mutex>
 
 #include <cpp/ie_cnn_network.h>
-#include "details/ie_exception.hpp"
 
 #include "cldnn_config.h"
 

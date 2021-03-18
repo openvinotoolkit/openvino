@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <array>
-#include <details/ie_exception.hpp>
 #include <ios>
 #include <iomanip>
 #include <map>

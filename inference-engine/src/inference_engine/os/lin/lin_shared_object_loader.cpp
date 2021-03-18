@@ -4,7 +4,6 @@
 
 #include <dlfcn.h>
 
-#include "details/ie_exception.hpp"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 
@@ -38,14 +37,14 @@ public:
      * @brief Searches for a function symbol in the loaded module
      * @param symbolName Name of the function to find
      * @return A pointer to the function if found
-     * @throws InferenceEngineException if the function is not found
+     * @throws Exception if the function is not found
      */
     void* get_symbol(const char* symbolName) const {
         void* procAddr = nullptr;
 
         procAddr = dlsym(shared_object, symbolName);
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION << details::as_status << NOT_FOUND
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound)
                 << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
         return procAddr;
     }

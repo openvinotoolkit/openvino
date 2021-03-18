@@ -90,7 +90,7 @@ void HeteroSyntheticTest::SetUp() {
         bool registred = true;
         try {
             PluginCache::get().ie()->RegisterPlugin(pluginParameter._location, pluginParameter._name);
-        } catch (InferenceEngine::details::InferenceEngineException& ex) {
+        } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
                                              + "\"  is already registered in the InferenceEngine")
                 == std::string::npos) {

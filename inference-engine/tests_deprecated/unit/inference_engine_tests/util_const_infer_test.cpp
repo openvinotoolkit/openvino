@@ -636,7 +636,7 @@ TEST_F(RemoveLayerTests, throwErrorOnFoldWithUnknownImplForNotShapeDefiningLayer
     }
 
     IE::ConstTransformer transformator(net.get());
-    ASSERT_THROW(transformator.foldConstSubgraphs(), IE::details::InferenceEngineException);
+    ASSERT_THROW(transformator.foldConstSubgraphs(), IE::Exception);
 }
 
 TEST_F(RemoveLayerTests, canFullTrim) {

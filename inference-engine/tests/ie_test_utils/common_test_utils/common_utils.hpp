@@ -57,10 +57,7 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNet
             return layer;
         ++i;
     }
-
-    std::stringstream stream;
-    stream << "Layer " << layerName << " not found in network";
-    throw InferenceEngine::NotFound(stream.str());
+    THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Layer " << layerName << " not found in network";
 }
 
 template <typename master, typename slave>

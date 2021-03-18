@@ -620,7 +620,7 @@ public:
                 }
 
                 plugins[deviceName] = plugin;
-            } catch (const details::InferenceEngineException& ex) {
+            } catch (const Exception& ex) {
                 THROW_IE_EXCEPTION << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation) << " for device " << deviceName
                                    << "\n"
                                    << "Please, check your environment\n"
@@ -993,7 +993,7 @@ std::vector<std::string> Core::GetAvailableDevices() const {
         try {
             Parameter p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
-        } catch (details::InferenceEngineException&) {
+        } catch (Exception&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
             THROW_IE_EXCEPTION << "An exception is thrown while trying to create the " << deviceName

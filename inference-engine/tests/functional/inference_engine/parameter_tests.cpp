@@ -263,10 +263,10 @@ TEST_F(ParameterTests, CompareParametersWithoutEqualOperator) {
     Parameter parB = b;
     Parameter parC = c;
 
-    ASSERT_THROW((void)(parA == parB), details::InferenceEngineException);
-    ASSERT_THROW((void)(parA != parB), details::InferenceEngineException);
-    ASSERT_THROW((void)(parA == parC), details::InferenceEngineException);
-    ASSERT_THROW((void)(parA != parC), details::InferenceEngineException);
+    ASSERT_THROW((void)(parA == parB), Exception);
+    ASSERT_THROW((void)(parA != parB), Exception);
+    ASSERT_THROW((void)(parA == parC), Exception);
+    ASSERT_THROW((void)(parA != parC), Exception);
 }
 
 TEST_F(ParameterTests, ParameterRemovedRealObject) {

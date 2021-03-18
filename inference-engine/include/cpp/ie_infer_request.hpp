@@ -16,7 +16,6 @@
 #include "cpp/ie_memory_state.hpp"
 #include "ie_remote_context.hpp"
 #include "ie_iinfer_request.hpp"
-#include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_blob.h"
 
@@ -245,7 +244,9 @@ public:
         auto res = actual->Wait(millis_timeout, &resp);
         if (res != OK && res != RESULT_NOT_READY &&
             res != INFER_NOT_STARTED && res != INFER_CANCELLED) {
-            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << res << resp.msg;
+            IE_EXCEPTION_SWITCH(res, ExceptionType,
+                InferenceEngine::details::ThrowNow<ExceptionType>{}
+                    <<= std::stringstream{} << IE_LOCATION << resp.msg)
         }
         return res;
     }

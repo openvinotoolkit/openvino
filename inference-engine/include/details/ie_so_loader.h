@@ -52,7 +52,7 @@ public:
      * @brief Searches for a function symbol in the loaded module
      * @param symbolName Name of function to find
      * @return A pointer to the function if found
-     * @throws InferenceEngineException if the function is not found
+     * @throws Exception if the function is not found
      */
     void* get_symbol(const char* symbolName) const;
 };

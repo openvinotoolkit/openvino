@@ -431,7 +431,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Error reading HETERO plugin xml header";
+        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotRead) << "Error reading HETERO plugin xml header";
     }
 
     using namespace XMLParseUtils;
@@ -480,7 +480,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         bool loaded = false;
         try {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch (const InferenceEngine::NotImplemented &) {
+        } catch (const InferenceEngine::NotImplemented& ex) {
             // read XML content
             std::string xmlString;
             std::uint64_t dataSize = 0;
@@ -608,7 +608,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     for (auto&& subnetwork : networks) {
         try {
             subnetwork._network.Export(heteroModel);
-        } catch (const InferenceEngine::NotImplemented &) {
+        } catch (const InferenceEngine::NotImplemented& ex) {
             auto subnet = subnetwork._clonedNetwork;
             if (!subnet.getFunction()) {
                 THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";

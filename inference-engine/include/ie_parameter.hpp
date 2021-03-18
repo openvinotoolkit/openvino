@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <details/ie_exception.hpp>
 #include <iterator>
 #include <map>
 #include <memory>

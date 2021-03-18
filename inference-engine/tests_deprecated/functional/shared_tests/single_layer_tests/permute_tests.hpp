@@ -142,7 +142,7 @@ protected:
             ref_permute(*srcPtr, dst_ref, p.base);
 
             compare(*output, dst_ref);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

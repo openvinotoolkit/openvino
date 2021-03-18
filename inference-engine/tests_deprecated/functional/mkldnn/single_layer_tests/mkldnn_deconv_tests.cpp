@@ -189,7 +189,7 @@ protected:
             ref_deconv<float>(src, weights, bias, dst_ref, p);
 
             compare(*dst.get(), *dst_ref.get());
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

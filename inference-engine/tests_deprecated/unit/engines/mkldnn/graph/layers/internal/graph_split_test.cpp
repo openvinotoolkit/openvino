@@ -216,7 +216,7 @@ protected:
             for (auto& output : outputBlobs) {
                 compare(*output.second, dst_refs[ref_idx++], 0.0005f);
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -360,7 +360,7 @@ protected:
 
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkSplit);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkSplit);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

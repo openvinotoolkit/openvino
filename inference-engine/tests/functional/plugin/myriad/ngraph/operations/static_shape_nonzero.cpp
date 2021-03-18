@@ -9,7 +9,6 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
 
-#include <details/ie_exception.hpp>
 
 #include <gtest/gtest.h>
 

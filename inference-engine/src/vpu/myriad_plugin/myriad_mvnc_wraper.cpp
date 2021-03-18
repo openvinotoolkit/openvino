@@ -3,7 +3,8 @@
 //
 
 #include "myriad_mvnc_wraper.h"
-#include "details/ie_exception.hpp"
+
+#include <ie_common.h>
 
 using namespace vpu::MyriadPlugin;
 

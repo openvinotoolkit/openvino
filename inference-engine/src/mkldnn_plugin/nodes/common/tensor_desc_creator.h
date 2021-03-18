@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ie_layouts.h>
+#include <functional>
 
 namespace MKLDNNPlugin {
 

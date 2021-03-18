@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <details/ie_exception.hpp>
+#include <ie_common.h>
+
 #include "mkldnn_descriptor.h"
 
 mkldnn::primitive_desc_iterator MKLDNNDescriptor::createPrimitiveDescriptorIterator(const mkldnn::engine &engine,

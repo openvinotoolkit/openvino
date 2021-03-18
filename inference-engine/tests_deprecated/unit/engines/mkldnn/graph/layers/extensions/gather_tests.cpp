@@ -280,7 +280,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -449,7 +449,7 @@ protected:
             //  Check results
             if (memcmp((*output).data(), &p.ref[0], output->byteSize()) != 0)
                 FAIL() << "Wrong result with compare TF reference!";
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -668,7 +668,7 @@ protected:
             if (memcmp(&((float*)(*output).data())[12], &p.ref[8], 8 * sizeof(float)) != 0)
                 FAIL() << "Wrong result with compare TF reference!";
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
