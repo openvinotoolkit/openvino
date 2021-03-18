@@ -283,7 +283,7 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
             waitpid(lockerPid, &status, WNOHANG);
 #else
             DWORD winProcessId = static_cast<DWORD>(processId);
-            HANDLE winProcess = ::OpenProcess(ROCESS_QUERY_INFORMATION | PROCESS_VM_READ, /**/FALSE, winProcessId);
+            HANDLE winProcess = ::OpenProcess(ROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, winProcessId);
             if (winProcess != NULL) {
                LPDWORD winStatus = NULL;
                 ::WaitForSingleObject(winProcess, INFINITE);
