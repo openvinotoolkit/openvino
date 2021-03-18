@@ -47,6 +47,8 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
+add_clang_format_target(onnx_importer_clang FOR_TARGETS onnx_importer)
+
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME onnx_importer
                            FILEDESCRIPTION "nGraph ONNX importer library")

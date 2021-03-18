@@ -55,6 +55,8 @@ target_link_libraries(ngraph PRIVATE openvino::itt ngraph::builder ngraph::refer
 
 ie_mark_target_as_cc(ngraph)
 
+add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
+
 if(NGRAPH_ADDRESS_SANITIZER)
     message(STATUS "Enable Address Sanitizer")
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
