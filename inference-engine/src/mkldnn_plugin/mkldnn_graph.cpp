@@ -215,8 +215,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 //  // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
 //    std::unordered_map<ngraph::Node, MKLDNNNodePtr> op2node;
     std::map<std::shared_ptr<ngraph::Node>, MKLDNNNodePtr> op2node;
-    std::unordered_set<DataPtr> unused_data;  // nodes which has no consumers (output or just unused)
-//
+    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
+
     auto getParentPort = [](const std::shared_ptr<ngraph::Node> op, const std::shared_ptr<ngraph::Node> parentOp) -> int {
         // TODO [NM]: do we have a better way how to determine parent port?
         for (size_t port = 0; port < parentOp->get_output_size(); port++) {
@@ -279,28 +279,26 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             graphEdges.push_back(edge);
         }
 
-//        for (auto &out_data : layer->outData) {
-//            if (getInputTo(out_data).empty()) {
-//                unused_data.insert(out_data);
-//            }
-//        }
+        if (op->get_type_info() != ngraph::op::v0::Result::type_info) {
+            for (int oi = 0; oi < op->get_output_size(); oi++) {
+                if (op->get_output_target_inputs(oi).empty()) {
+                    unusedOutputs.push_back(op->output(oi));
+                }
+            }
+        }
     }
-//
-//    // Add stub output node for unused data
-//    for (auto to_stub_data : unused_data) {
-//        auto parent_layer = getCreatorLayer(to_stub_data).lock();
-//        auto parent_node = layer2node[parent_layer];
-//
-//        CNNLayerPtr layer(new CNNLayer({"stub_" + parent_layer->name, "Output", to_stub_data->getTensorDesc().getPrecision()}));
-//        layer->insData.push_back(to_stub_data);
-//
-//        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
-//
-//        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(to_stub_data), 0));
-//        node->addEdge(edge);
-//        graphEdges.push_back(edge);
-//        graphNodes.push_back(node);
-//    }
+
+    // Add stub output node for unused outputs
+    for (auto unusedOutput : unusedOutputs) {
+        auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
+        auto newResult = std::make_shared<ngraph::op::v0::Result>(unusedOutput);
+        newResult->set_friendly_name(std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName());
+        const MKLDNNNodePtr outNode(MKLDNNNode::factory().create(newResult, getEngine(), extMgr, weightsCache));
+        MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, outNode, unusedOutput.get_index(), 0));
+        outNode->addEdge(edge);
+        graphEdges.push_back(edge);
+        graphNodes.push_back(outNode);
+    }
 //
 //    // Replicate input nodes
 //    for (const auto& input : inputs) {
