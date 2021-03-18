@@ -155,7 +155,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "Gemm", Gemm },
 //        { "Softmax", SoftMax },
 //        { "SoftMax", SoftMax },
-//        { "Split", Split },
+        { "Split", Split },
 //        { "Slice", Split },
         { "Concat", Concatenation },
         { "ConvolutionBackpropData", Deconvolution },
