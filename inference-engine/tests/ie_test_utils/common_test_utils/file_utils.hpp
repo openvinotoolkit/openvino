@@ -251,7 +251,7 @@ inline int checkProcessStatus(unsigned int pid) {
 #ifndef _WIN32
     waitpid(pid, &status, WNOHANG);
 #else
-    DWORD winProcessId = static_cast<DWORD>(processId);
+    DWORD winProcessId = static_cast<DWORD>(pid);
             HANDLE winProcess = ::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, winProcessId);
             if (winProcess != NULL) {
                LPDWORD winStatus = NULL;
@@ -271,12 +271,13 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
         lockedFile.open(lockedFilename);
         std::string content;
         lockedFile >> content;
+        lockedFile.close();
 
-        auto updateLockedFile = [&lockedFile, &lockedFilename, &processId]() {
-            lockedFile.clear();
-            std::ofstream ostream(lockedFilename);
-            ostream << processId;
-            ostream.close();
+        auto updateLockedFile = [&lockedFilename, &processId]() {
+            std::ofstream lockedFile;
+            lockedFile.open(lockedFilename);
+            lockedFile << processId;
+            lockedFile.close();
         };
 
         unsigned int lockerPid;
@@ -284,26 +285,25 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
             lockerPid = std::stoi(content);
         } catch (...) {
             updateLockedFile();
-            lockedFile.close();
             return;
         }
 
-        if (lockerPid != processId) {
-            auto currentTime = std::chrono::system_clock::now();
-            auto exitTime = std::chrono::system_clock::now() + std::chrono::minutes(1);
-            unsigned int timeout = 1e6 * 0.5;
-            while (CommonTestUtils::fileExists(lockedFilename.c_str()) && currentTime <= exitTime && checkProcessStatus(lockerPid) > 0) {
-                std::this_thread::sleep_for(std::chrono::microseconds(timeout));
-                currentTime = std::chrono::system_clock::now();
-            }
-            if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
-                updateLockedFile();
-            }
+        if (lockerPid == processId) {
+            return;
         }
-        lockedFile.close();
-    } else {
-        std::string content = std::to_string(processId);
-        CommonTestUtils::createFile(lockedFilename, content);
+        auto currentTime = std::chrono::system_clock::now();
+        auto exitTime = std::chrono::system_clock::now() + std::chrono::minutes(1);
+        while (CommonTestUtils::fileExists(lockedFilename.c_str()) && currentTime <= exitTime &&
+                (checkProcessStatus(lockerPid) != 0 && checkProcessStatus(lockerPid) != -1)) {
+            std::this_thread::sleep_for(std::chrono::microseconds(std::chrono::seconds(1)));
+            currentTime = std::chrono::system_clock::now();
+        }
+        if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
+            updateLockedFile();
+            return;
+        }
     }
+    std::string content = std::to_string(processId);
+    CommonTestUtils::createFile(lockedFilename, content);
 }
 }  // namespace CommonTestUtils
