@@ -108,6 +108,8 @@ public:
                 const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
                 const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
+                //std::cout << ih_lpad << " : " << ih_hpad << " || " << iw_lpad << " : " << iw_hpad << "\n";
+
                 int64_t dst_offset = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
                 int64_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
                 //const int64_t ioffset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start;
@@ -194,10 +196,14 @@ public:
              */
             parallel_for4d(OB, KH, KW, IC, thread_body);
         }
-        /*
+
+
         std::cout << "\n======================\n\n";
-        for(int i=0; i < IH; i++){
-            for(int j=0; j < IW; j++) {
+        /*
+        //for(int i=0; i < IH; i++){
+        for(int i=0; i < 10; i++){
+            //for(int j=0; j < IW; j++) {
+            for(int j=0; j < 10; j++) {
                 std::cout << src_data[ i * IW + j ] << " ";
             }
             std::cout << "\n";
@@ -213,6 +219,7 @@ public:
                 for (int i = 0; i < OH; i++) {
                     for (int j = 0; j < OW; j++) {
                         std::cout << static_cast<int>(dst_data[kh * KW * OH * OW + kw * OH * OW + i * OW + j]) << " ";
+                        //std::cout << dst_data[kh * KW * OH * OW + kw * OH * OW + i * OW + j] << " ";
                     }
                     std::cout << "\n";
                 }
