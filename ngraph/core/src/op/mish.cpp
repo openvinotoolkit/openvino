@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
@@ -63,9 +64,10 @@ namespace mish
         return true;
     }
 
-    bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
         bool rc = true;
+        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
@@ -81,5 +83,7 @@ namespace mish
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_Mish_evaluate);
-    return mish::evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_CHECK(this,
+                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return mish::evaluate_mish(inputs[0], outputs[0]);
 }

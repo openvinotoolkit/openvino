@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/softplus.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -61,10 +62,11 @@ namespace softplus
         return true;
     }
 
-    bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count)
+    bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out)
     {
         bool rc = true;
         out->set_unary(arg);
+        size_t count = shape_size(arg->get_shape());
 
         switch (arg->get_element_type())
         {
@@ -81,5 +83,7 @@ bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_SoftPlus_evaluate);
-    return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_CHECK(this,
+                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return softplus::evaluate_softplus(inputs[0], outputs[0]);
 }

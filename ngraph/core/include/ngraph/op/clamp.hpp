@@ -18,9 +18,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -33,7 +30,7 @@ namespace ngraph
             /// All input values that are outside of the <min;max> range are set to 'min' or 'max'
             /// depending on which side of the <min;max> range they are. The values that fall into
             /// this range remain unchanged.
-            class NGRAPH_API Clamp : public ngraph::op::util::FusedOp
+            class NGRAPH_API Clamp : public ngraph::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -46,9 +43,7 @@ namespace ngraph
                 /// \param max - the upper bound of the <min;max> range
                 Clamp(const Output<Node>& data, const double min, const double max);
 
-                void pre_validate_and_infer_types() override;
-
-                virtual OutputVector decompose_op() const override;
+                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -68,5 +63,3 @@ namespace ngraph
         using v0::Clamp;
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

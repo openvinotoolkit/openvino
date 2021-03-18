@@ -17,8 +17,8 @@
 #include "itt.hpp"
 
 #include "ngraph/op/exp.hpp"
-#include "ngraph/op/multiply.hpp"
 
+#include <ngraph/validation_util.hpp>
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
 
@@ -56,9 +56,10 @@ namespace expop
         return true;
     }
 
-    bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
         bool rc = true;
+        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
@@ -79,5 +80,7 @@ namespace expop
 bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Exp_evaluate);
-    return expop::evaluate_exp(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_CHECK(this,
+                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return expop::evaluate_exp(inputs[0], outputs[0]);
 }
