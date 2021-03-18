@@ -9,7 +9,9 @@
 Sample usage:
 python3 -m pytest --test_conf=<path to test config> \
     --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py \
-    --benchmark_app=./bin/benchmark_app --artifacts ./compiled test_collect.py
+    --infer_tool=./tests/conditional_compilation/tools/infer_tool.py  --artifacts ./compiled test_collect.py \
+    --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
+    --install_dir=<path to full openvino installation dir> --install_cc_dir=<path to final openvino installation dir>
 """
 
 import sys
@@ -56,7 +58,7 @@ def pytest_addoption(parser):
         "--artifacts",
         required=False,
         type=Path,
-        help="Artifacts is na directory where tests write output",
+        help="Artifacts directory where tests write output or read input",
     )
     parser.addoption(
         "--install_dir",
@@ -96,34 +98,34 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope="session")
 def sea_runtool(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("--sea_runtool")
+    return request.config.getoption("sea_runtool")
 
 
 @pytest.fixture(scope="session")
 def infer_tool(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("--infer_tool")
+    return request.config.getoption("infer_tool")
 
 
 @pytest.fixture(scope="session")
 def collector_dir(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("--collector_dir")
+    return request.config.getoption("collector_dir")
 
 
 @pytest.fixture(scope="session")
 def artifacts(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("--artifacts")
+    return request.config.getoption("artifacts")
 
 
 @pytest.fixture(scope="session")
 def install_dir(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("--install_dir")
+    return request.config.getoption("install_dir")
 
 
 @pytest.fixture(scope="session")
 def install_cc_dir(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("--install_cc_dir")
+    return request.config.getoption("install_cc_dir")
