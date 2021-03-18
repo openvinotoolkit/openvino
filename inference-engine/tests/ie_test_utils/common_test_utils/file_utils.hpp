@@ -252,8 +252,24 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
         std::ifstream lockedFile;
         lockedFile.open(lockedFilename);
         std::string content;
-        lockedFile.read(&content[0], lockedFile.tellg());
-        unsigned int lockerPid = std::stoi(content);
+        lockedFile >> content;
+
+        auto updateLockedFile = [&lockedFile, &lockedFilename, &processId]() {
+            lockedFile.clear();
+            std::ofstream ostream(lockedFilename);
+            ostream << processId;
+            ostream.close();
+        };
+
+        unsigned int lockerPid;
+        try {
+            lockerPid = std::stoi(content);
+        } catch (...) {
+            updateLockedFile();
+            lockedFile.close();
+            return;
+        }
+
         if (lockerPid != processId) {
             auto currentTime = std::chrono::system_clock::now();
             auto exitTime = currentTime + std::chrono::minutes(1);
@@ -266,23 +282,20 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
 #ifndef _WIN32
             waitpid(lockerPid, &status, WNOHANG);
 #else
-    DWORD winProcessId = static_cast<DWORD>(processId);
-    HANDLE winProcess = ::OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
-                               PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
-                               FALSE, winProcessId);
-    if (winProcess != NULL) {
-       LPDWORD winStatus = NULL;
-        ::WaitForSingleObject(winProcess, INFINITE);
-        ::GetExitCodeProcess(winProcess, winStatus);
-        ::CloseHandle(winProcess);
-        status = static_cast<int>(*winStatus);
-    }
+            DWORD winProcessId = static_cast<DWORD>(processId);
+            HANDLE winProcess = ::OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+                                       PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+                                       FALSE, winProcessId);
+            if (winProcess != NULL) {
+               LPDWORD winStatus = NULL;
+                ::WaitForSingleObject(winProcess, INFINITE);
+                ::GetExitCodeProcess(winProcess, winStatus);
+                ::CloseHandle(winProcess);
+                status = static_cast<int>(*winStatus);
+            }
 #endif
             if (status != 0 && currentTime >= exitTime) {
-                lockedFile.clear();
-                std::ofstream ostream(lockedFilename);
-                ostream << processId;
-                ostream.close();
+                updateLockedFile();
             }
         }
         lockedFile.close();
