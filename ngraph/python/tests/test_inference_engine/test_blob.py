@@ -151,8 +151,8 @@ def test_write_numpy_scalar_int64():
     scalar = np.array(0, dtype=np.int64)
     blob = Blob(tensor_desc, scalar)
     scalar_to_write = np.array(1, dtype=np.int64)
-    blob.buffer[:] = scalar_to_write
-    assert np.array_equal(blob.buffer, np.atleast_1d(scalar_to_write))
+    blob.buffer[()] = scalar_to_write
+    assert np.array_equal(blob.buffer, scalar_to_write)
 
 
 def test_incompatible_array_and_td():
@@ -178,4 +178,4 @@ def test_incompatible_input_precision():
     with pytest.raises(ValueError) as e:
         Blob(tensor_desc, image)
     assert "Data type float64 of provided numpy array " \
-           "doesn't match to TensorDesc precision FP32" in str(e.value)
+           "does not match TensorDesc precision FP32" in str(e.value)
