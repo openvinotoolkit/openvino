@@ -39,7 +39,7 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
             // TODO: think about it
             auto res = const_node->get_shape_val();
             if (res.size() != mask->size()) {
-                throw ngraph_error("Ooops...");
+                throw ngraph_error("Mask size (" + std::to_string(mask->size()) + ") is not equal to (" + std::to_string(res.size()) + ")");
             }
             for (size_t dim = 0; dim < mask->size(); ++dim) {
                 res[dim] -= mask->at(dim).size();

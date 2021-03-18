@@ -40,7 +40,7 @@ public:
             : std::vector<value_type>(size) {
     }
 
-    Mask(std::initializer_list<std::initializer_list<uint64_t>> list) noexcept
+    Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
             : std::vector<value_type>() {
         for (const auto & dim_values : list) {
             push_back(dim_values);
@@ -101,7 +101,6 @@ public:
 private:
     bool m_is_shape_like{false};
 
-    //TODO: use week_ptr to avoid cycle dependencies
     std::map<Mask *, std::function<bool(Mask::Ptr)>> m_callbacks;
 
     std::vector<Mask *> m_dependencies;
