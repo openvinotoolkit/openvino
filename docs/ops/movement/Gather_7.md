@@ -5,8 +5,8 @@
 **Category**: Data movement operations
 
 **Short description**: *Gather* operation takes slices of data of the first input tensor according to the indices
- specified with the second input tensor and axis from the third input. Semantic of this operation is identical to 
-Tensorflow* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) operation.
+ specified with the second input tensor and axis from the third input. Semantics of this operation is identical to 
+Tensorflow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) operation.
 
 **Detailed description**
 
@@ -126,8 +126,8 @@ Allowed values are from `[-len(data.shape), len(indices.shape) - 1]` and `axis >
 
 **Outputs**
 
-* **1**: The resulting tensor of type *T* that consists of elements from `data` tensor gathered by `indices`. Shape of 
-the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]`
+* **1**: The resulting tensor of type *T* that consists of elements from `data` tensor gathered by `indices`. The shape 
+of the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]`
 
 **Types**
 
