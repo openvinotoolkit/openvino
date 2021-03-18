@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "conv_integer.hpp"
+#include "op/conv_integer.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset0.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/convpool.hpp"
+#include "utils/convpool.hpp"
 
 using namespace ngraph::builder;
 

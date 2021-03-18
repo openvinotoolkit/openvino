@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ TEST(INTERPRETER, nan_check_input)
     Shape shape{4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
     shared_ptr<runtime::Backend> backend = runtime::Backend::create("INTERPRETER");
 
@@ -59,7 +59,7 @@ TEST(INTERPRETER, nan_check_output)
     Shape shape{4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
     shared_ptr<runtime::Backend> backend = runtime::Backend::create("INTERPRETER");
 

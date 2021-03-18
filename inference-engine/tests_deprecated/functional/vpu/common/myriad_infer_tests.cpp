@@ -48,8 +48,6 @@ TEST_F(myriadInferTests_nightly, NCHW_Input) {
         </net>
     )V0G0N";
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model));
 
     const auto& network = _cnnNetwork;
@@ -60,12 +58,8 @@ TEST_F(myriadInferTests_nightly, NCHW_Input) {
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["power"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network));
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
 
     auto dims = _inputsInfo["data"]->getTensorDesc().getDims();
 
@@ -89,23 +83,12 @@ TEST_F(myriadInferTests_nightly, NCHW_Input) {
         inputNCHW->buffer().as<ie_fp16*>()[tensorDescNCHW.offset(i)] = inputNHWC->cbuffer().as<const ie_fp16*>()[tensorDescNHWC.offset(i)];
     }
 
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("data", inputNHWC, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("power", outputNHWC, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("data", inputNCHW, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("power", outputNCHW, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest.SetBlob("data", inputNHWC));
+    ASSERT_NO_THROW(_inferRequest.SetBlob("power", outputNHWC));
+    ASSERT_NO_THROW(_inferRequest.Infer());
+    ASSERT_NO_THROW(_inferRequest.SetBlob("data", inputNCHW));
+    ASSERT_NO_THROW(_inferRequest.SetBlob("power", outputNCHW));
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     CompareCommonAbsolute(outputNHWC, outputNCHW, 0.0);
 }
@@ -222,8 +205,6 @@ TEST_F(myriadInferTests_nightly, AddOutputToConvWithReLU) {
         </Net>
     )V0G0N";
 
-    StatusCode st;
-
     TBlob<uint8_t>::Ptr weights(GenWeights(8320 / sizeof(ie_fp16)));
 
     InferenceEngine::Core ie;
@@ -241,23 +222,14 @@ TEST_F(myriadInferTests_nightly, AddOutputToConvWithReLU) {
 
     Blob::Ptr conv_output;
     {
-        IExecutableNetwork::Ptr conv_exe;
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(conv_exe, conv_network, {}, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(conv_exe, nullptr) << _resp.msg;
+        ExecutableNetwork conv_exe;
+        ASSERT_NO_THROW(conv_exe = _vpuPluginPtr->LoadNetwork(conv_network));
 
-        IInferRequest::Ptr conv_req;
-        ASSERT_NO_THROW(st = conv_exe->CreateInferRequest(conv_req, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = conv_req->SetBlob("input", input, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = conv_req->GetBlob("conv", conv_output, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = conv_req->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        InferRequest conv_req;
+        ASSERT_NO_THROW(conv_req = conv_exe.CreateInferRequest());
+        ASSERT_NO_THROW(conv_req.SetBlob("input", input));
+        ASSERT_NO_THROW(conv_output = conv_req.GetBlob("conv"));
+        ASSERT_NO_THROW(conv_req.Infer());
     }
     
     auto full_network = ie.ReadNetwork(full_model, weights);
@@ -273,23 +245,14 @@ TEST_F(myriadInferTests_nightly, AddOutputToConvWithReLU) {
 
     Blob::Ptr full_output;
     {
-        IExecutableNetwork::Ptr full_exe;
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(full_exe, full_network, {}, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(full_exe, nullptr) << _resp.msg;
+        ExecutableNetwork full_exe;
+        ASSERT_NO_THROW(full_exe = _vpuPluginPtr->LoadNetwork(full_network));
 
-        IInferRequest::Ptr full_req;
-        ASSERT_NO_THROW(st = full_exe->CreateInferRequest(full_req, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = full_req->SetBlob("input", input, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = full_req->GetBlob("conv", full_output, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = full_req->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        InferRequest full_req;
+        ASSERT_NO_THROW(full_req = full_exe.CreateInferRequest());
+        ASSERT_NO_THROW(full_req.SetBlob("input", input));
+        ASSERT_NO_THROW(full_output = full_req.GetBlob("conv"));
+        ASSERT_NO_THROW(full_req.Infer());
     }
 
     CompareCommonAbsolute(full_output, conv_output, 0.0f);

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -132,9 +132,18 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
             interp_val = INPUT0_VAL_ZERO;
 #endif
     #if HAS_FUSED_OPS
+        #define batch (out_coords[0])
         #define OF_ID (out_coords[1] + pi)
+        #define oz (out_coords[2])
+        #define oy (out_coords[3])
+        #define ox (out_coords[4])
         FUSED_OPS;
         res[pi] = FUSED_OPS_RESULT;
+        #undef batch
+        #undef OF_ID
+        #undef oz
+        #undef oy
+        #undef ox
     #else // HAS_FUSED_OPS
         res[pi] = ACTIVATION(interp_val, ACTIVATION_PARAMS);
     #endif // HAS_FUSED_OPS
@@ -170,11 +179,20 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         interp_val = INPUT0_VAL_ZERO;
 #endif
 #if HAS_FUSED_OPS
+    #define batch (out_coords[0])
     #define OF_ID (out_coords[1])
+    #define oz (out_coords[2])
+    #define oy (out_coords[3])
+    #define ox (out_coords[4])
     FUSED_OPS;
     OUTPUT_TYPE res = FUSED_OPS_RESULT;
+    #undef batch
+    #undef OF_ID
+    #undef oz
+    #undef oy
+    #undef ox
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
@@ -227,9 +245,18 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     }
 
 #if HAS_FUSED_OPS
+    #define batch (out_coords[0])
     #define OF_ID (out_coords[1])
+    #define oz (out_coords[2])
+    #define oy (out_coords[3])
+    #define ox (out_coords[4])
     FUSED_OPS;
     OUTPUT_TYPE res = FUSED_OPS_RESULT;
+    #undef batch
+    #undef OF_ID
+    #undef oz
+    #undef oy
+    #undef ox
 #else // HAS_FUSED_OPS
     OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif // HAS_FUSED_OPS
@@ -296,6 +323,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #define OF_ID (in_f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        #undef OF_ID
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
@@ -337,6 +365,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #define OF_ID (in_f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        #undef OF_ID
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
@@ -465,6 +494,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #define OF_ID (feature + f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        #undef OF_ID
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif

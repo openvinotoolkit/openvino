@@ -103,7 +103,8 @@ class LayerInfo {
              "neglog",
              "neghalflog",
              "softsign",
-             "power"};
+             "power",
+             "fakequantize"};
 
         if (isPower()) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
@@ -157,7 +158,10 @@ class LayerInfo {
         IS_VALID();
         return nullptr != as<const InferenceEngine::ScaleShiftLayer*>();
     }
-
+    bool isSyntheticScaleShift() const noexcept {
+        IS_VALID();
+        return layer->name.find("SyntheticScaleShift") != std::string::npos;
+    }
     bool isEltwise() const noexcept {
         IS_VALID();
         return nullptr != as<const InferenceEngine::EltwiseLayer*>();
@@ -193,6 +197,18 @@ class LayerInfo {
     bool isIdentity() const noexcept {
         return isOfType("identity");
     }
+    bool isTanh() const noexcept {
+        return isOfType("tanh");
+    }
+    bool isSigmoid() const noexcept {
+        return isOfType("sigmoid");
+    }
+    bool isSoftSign() const noexcept {
+        return isOfType("softsign");
+    }
+    bool isClamp() const noexcept {
+        return isOfType("clamp");
+    }
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
     }
@@ -205,8 +221,8 @@ class LayerInfo {
     bool isConcat() const noexcept {
         return isOfType("concat");
     }
-    bool isFakeQnatize() const noexcept {
-        return isOfType("FakeQnatize");
+    bool isFakeQuantize() const noexcept {
+        return isOfType("FakeQuantize");
     }
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
@@ -282,6 +298,9 @@ class LayerInfo {
 
     bool isCopyDelayed() const noexcept {
         return isOfType(DelayedCopyLayerName);
+    }
+    bool isWeightableIdentity() const noexcept {
+        return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
     }
 
     size_t paddingSize() const {

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,8 +32,7 @@ bool pattern::op::Skip::match_value(Matcher* matcher,
                                     const Output<Node>& graph_value)
 {
     matcher->add_node(graph_value);
-    return m_predicate(graph_value)
-               ? matcher->match_arguments(pattern_value.get_node(),
-                                          graph_value.get_node_shared_ptr())
-               : matcher->match_value(input_value(0), graph_value);
+    return m_predicate(graph_value) ? matcher->match_arguments(pattern_value.get_node(),
+                                                               graph_value.get_node_shared_ptr())
+                                    : matcher->match_value(input_value(0), graph_value);
 }

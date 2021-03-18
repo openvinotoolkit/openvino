@@ -46,8 +46,7 @@ GemmKernelBase::DispatchData GemmKernelBase::SetDefault(const gemm_params& param
 }
 
 KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
-                                                 const optional_params& options,
-                                                 float estimated_time) const {
+                                                 const optional_params& options) const {
     if (!Validate(params, options)) {
         return KernelsData();
     }
@@ -73,8 +72,6 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params));
-
-    k_data.estimatedTime = estimated_time;
 
     return {k_data};
 }

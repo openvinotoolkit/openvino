@@ -43,13 +43,13 @@ Options:
   -nt NUMBER_TOP, --number_top NUMBER_TOP
                         Optional. Number of top results
   --mean_val_r MEAN_VAL_R, -mean_val_r MEAN_VAL_R
-                        Optional. Mean value of red chanel for mean value subtraction in
+                        Optional. Mean value of red channel for mean value subtraction in
                         postprocessing
   --mean_val_g MEAN_VAL_G, -mean_val_g MEAN_VAL_G
-                        Optional. Mean value of green chanel for mean value subtraction
+                        Optional. Mean value of green channel for mean value subtraction
                         in postprocessing
   --mean_val_b MEAN_VAL_B, -mean_val_b MEAN_VAL_B
-                        Optional. Mean value of blue chanel for mean value subtraction
+                        Optional. Mean value of blue channel for mean value subtraction
                         in postprocessing
 ```
 

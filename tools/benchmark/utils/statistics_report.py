@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ class StatisticsReport:
             return
 
         if not perf_counts:
-            logger.info('Peformance counters are empty. No reports are dumped.')
+            logger.info('Performance counters are empty. No reports are dumped.')
             return
 
         filename = os.path.join(self.config.report_folder, 'benchmark_{}_report.csv'.format(self.config.report_type))
@@ -116,4 +116,4 @@ class StatisticsReport:
             else:
                 raise Exception('PM data can only be collected for average or detailed report types')
 
-            logger.info('Pefromance counters report is stored to {}'.format(filename))
+            logger.info('Performance counters report is stored to {}'.format(filename))

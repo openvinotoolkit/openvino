@@ -32,8 +32,8 @@ public:
             step_w_ = layer->GetParamAsFloat("step_w", 0);
             offset_ = layer->GetParamAsFloat("offset");
 
-            addConfig(layer, {{ConfLayout::PLN, true}, {ConfLayout::PLN, true}}, {{ConfLayout::PLN, true}});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            addConfig(layer, {{ConfLayout::PLN, true}, {ConfLayout::PLN, true}}, {{ConfLayout::PLN, true, -1, Precision::FP32}});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

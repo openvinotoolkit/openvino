@@ -24,6 +24,7 @@ public:
     virtual ~SoftmaxKernel_bf() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const override;
 };

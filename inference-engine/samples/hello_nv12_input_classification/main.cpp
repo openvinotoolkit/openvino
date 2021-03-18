@@ -134,21 +134,6 @@ std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& fil
     return result;
 }
 
-/**
- * \brief Sets batch size of the network to the specified value
- */
-void setBatchSize(CNNNetwork& network, size_t batch) {
-    ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
-    for (auto& shape : inputShapes) {
-        auto& dims = shape.second;
-        if (dims.empty()) {
-            throw std::runtime_error("Network's input shapes have empty dimensions");
-        }
-        dims[0] = batch;
-    }
-    network.reshape(inputShapes);
-}
-
 std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, size_t height) {
     // read image with size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
 
@@ -227,10 +212,19 @@ int main(int argc, char *argv[]) {
         CNNNetwork network = ie.ReadNetwork(input_model);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Set model batch size -------------------------------------------------
-        size_t batch_size = isBatchedBlobSupported(ie, device_name) ? image_names.size() : 1;
-        std::cout << "Setting network batch size to " << batch_size << std::endl;
-        setBatchSize(network, batch_size);
+        // --------------------------- 2. Reshape model -------------------------------------------------
+        size_t netInputSize = isBatchedBlobSupported(ie, device_name) ? image_names.size() : 1;
+        ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
+        for (auto& shape : inputShapes) {
+            auto& dims = shape.second;
+            if (dims.empty()) {
+                throw std::runtime_error("Network's input shapes have empty dimensions");
+            }
+            dims[0] = netInputSize;
+        }
+        network.reshape(inputShapes);
+        size_t batchSize = network.getBatchSize();
+        std::cout << "Batch size is " << batchSize << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input and output -------------------------------------------
@@ -275,8 +269,8 @@ int main(int argc, char *argv[]) {
         auto inputs = readInputBlobs(image_bufs, input_width, input_height);
 
         // If batch_size > 1 => batched blob supported => replace all inputs by a BatchedBlob
-        if (batch_size > 1) {
-            assert(batch_size == inputs.size());
+        if (netInputSize > 1) {
+            assert(netInputSize == inputs.size());
             std::cout << "Infer using BatchedBlob of NV12 images." << std::endl;
             Blob::Ptr batched_input = make_shared_blob<BatchedBlob>(inputs);
             inputs = {batched_input};
@@ -311,10 +305,10 @@ int main(int argc, char *argv[]) {
             Blob::Ptr output = infer_request.GetBlob(output_name);
 
             // Print classification results
-            const auto names_offset = image_names.begin() + batch_size * i;
-            std::vector<std::string> names(names_offset, names_offset + batch_size);
+            const auto names_offset = image_names.begin() + netInputSize * i;
+            std::vector<std::string> names(names_offset, names_offset + netInputSize);
 
-            ClassificationResult classificationResult(output, names, batch_size, 10, labels);
+            ClassificationResult classificationResult(output, names, netInputSize, 10, labels);
             classificationResult.print();
             // -------------------------------------------------------------------------------------------------
         }

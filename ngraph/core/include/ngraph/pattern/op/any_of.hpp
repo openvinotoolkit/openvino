@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,12 +55,13 @@ namespace ngraph
                       const PartialShape& s,
                       NodePredicate pred,
                       const NodeVector& wrapped_values)
-                    : AnyOf(type,
-                            s,
-                            [pred](const Output<Node>& value) {
-                                return pred(value.get_node_shared_ptr());
-                            },
-                            as_output_vector(wrapped_values))
+                    : AnyOf(
+                          type,
+                          s,
+                          [pred](const Output<Node>& value) {
+                              return pred(value.get_node_shared_ptr());
+                          },
+                          as_output_vector(wrapped_values))
                 {
                 }
 

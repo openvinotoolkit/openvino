@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,15 +40,18 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
 
     variant_wrapper.def(py::init<const VT&>());
 
-    variant_wrapper.def("__eq__",
-                        [](const ngraph::VariantWrapper<VT>& a,
-                           const ngraph::VariantWrapper<VT>& b) { return a.get() == b.get(); },
-                        py::is_operator());
-    variant_wrapper.def("__eq__",
-                        [](const ngraph::VariantWrapper<std::string>& a, const std::string& b) {
-                            return a.get() == b;
-                        },
-                        py::is_operator());
+    variant_wrapper.def(
+        "__eq__",
+        [](const ngraph::VariantWrapper<VT>& a, const ngraph::VariantWrapper<VT>& b) {
+            return a.get() == b.get();
+        },
+        py::is_operator());
+    variant_wrapper.def(
+        "__eq__",
+        [](const ngraph::VariantWrapper<std::string>& a, const std::string& b) {
+            return a.get() == b;
+        },
+        py::is_operator());
     variant_wrapper.def(
         "__eq__",
         [](const ngraph::VariantWrapper<int64_t>& a, const int64_t& b) { return a.get() == b; },

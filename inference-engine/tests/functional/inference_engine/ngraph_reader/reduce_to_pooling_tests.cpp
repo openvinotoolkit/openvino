@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="2" size="16"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>2</dim>
@@ -129,7 +129,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolKeepDimsFalse) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="1" size="16"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -268,7 +268,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatial) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -444,7 +444,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatialHard) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="2" size="16"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>2</dim>
@@ -588,7 +588,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPool) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="2" size="16"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>2</dim>
@@ -698,7 +698,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolKeepDimsFalse) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="1" size="16"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -837,7 +837,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolNonSpatial) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -1013,7 +1013,7 @@ TEST_F(NGraphReaderTests, ReduceSumToAvgPool) {
             </output>
         </layer>
         <layer id="1" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="2" size="16"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>2</dim>

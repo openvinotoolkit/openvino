@@ -334,15 +334,15 @@ inline void check_exception_massage(const cldnn::engine& engine, cldnn::topology
 // Default values:
 // relative_error_threshold = 1e-3
 // absolute_error_threshold = 1e-6
-// absoulte_error_limit = 1e-4
+// absolute_error_limit = 1e-4
 inline bool are_equal(
     const float ref_item,
     const float item,
     const float relative_error_threshold = 1e-3,
     const float absolute_error_threshold = 1e-6,
-    const float absoulte_error_limit     = 1e-4) {
+    const float absolute_error_limit     = 1e-4) {
 
-        if( fabs(item) < absoulte_error_limit) {
+        if( fabs(item) < absolute_error_limit) {
             if(fabs( item - ref_item ) > absolute_error_threshold) {
                 std::cout << "Ref val: " << ref_item << "\tSecond val: " << item << std::endl;
                 return false;

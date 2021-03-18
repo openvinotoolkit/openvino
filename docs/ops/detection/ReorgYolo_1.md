@@ -26,7 +26,7 @@
 
 **Outputs**:
 
-*   **1**: 4D output tensor of the same type as input tensor and shape `[N, C*stride*stride, H/stride, W/stride]`. Required.
+*   **1**: 4D output tensor of the same type as input tensor and shape `[N, C*stride*stride, H/stride, W/stride]`.
 
 **Example**
 

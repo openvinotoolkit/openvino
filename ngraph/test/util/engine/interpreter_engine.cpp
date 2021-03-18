@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "interpreter_engine.hpp"
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+
+#include "interpreter_engine.hpp"
+#include "shared_utils.hpp"
 
 using namespace ngraph;
 
@@ -45,32 +47,7 @@ namespace
         const auto expected = expected_results->get_vector<float>();
         const auto result = read_vector<float>(results);
 
-        Shape out_shape = expected_results->get_shape();
-
-        size_t num_of_elems = shape_size(out_shape);
-        std::stringstream msg;
-
-        msg << std::setprecision(std::numeric_limits<long double>::digits10 + 1);
-
-        bool rc = true;
-
-        for (std::size_t j = 0; j < num_of_elems; ++j)
-        {
-            float diff = std::abs(result[j] - expected[j]);
-            if (diff > tolerance)
-            {
-                msg << expected[j] << " is not close to " << result[j] << " at index " << j << "\n";
-                rc = false;
-            }
-        }
-
-        if (!rc)
-        {
-            comparison_result = testing::AssertionFailure();
-        }
-
-        comparison_result << msg.str();
-        return comparison_result;
+        return ngraph::test::compare_with_tolerance(expected, result, tolerance);
     }
 
     template <typename T>
@@ -98,7 +75,10 @@ namespace
         // TODO: add testing infrastructure for float16 and bfloat16 to avoid cast to double
         std::vector<double> expected_double(expected.size());
         std::vector<double> result_double(result.size());
-        assert(expected.size() == result.size() && "expected and result size must match");
+
+        NGRAPH_CHECK(expected.size() == result.size(),
+                     "Number of expected and computed results don't match");
+
         for (int i = 0; i < expected.size(); ++i)
         {
             expected_double[i] = static_cast<double>(expected[i]);
@@ -107,7 +87,7 @@ namespace
 
         return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
     }
-};
+}; // namespace
 
 test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> function)
     : m_function{function}

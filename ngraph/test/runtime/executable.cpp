@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,13 +24,9 @@
 using namespace std;
 using namespace ngraph;
 
-runtime::Executable::Executable()
-{
-}
+runtime::Executable::Executable() {}
 
-runtime::Executable::~Executable()
-{
-}
+runtime::Executable::~Executable() {}
 
 bool runtime::Executable::call_with_validate(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                              const vector<shared_ptr<runtime::Tensor>>& inputs)

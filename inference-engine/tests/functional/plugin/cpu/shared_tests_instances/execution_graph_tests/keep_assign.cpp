@@ -5,7 +5,7 @@
 #include "execution_graph_tests/keep_assing.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ExecutionGraphTests;
 
 namespace {
 

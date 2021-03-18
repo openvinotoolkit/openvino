@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,9 +50,10 @@ void regclass_pyngraph_Type(py::module m)
         return "<Type: 'u" + self.c_type_string() + bitwidth + "'>";
     });
 
-    type.def("__eq__",
-             [](const ngraph::element::Type& a, const ngraph::element::Type& b) { return a == b; },
-             py::is_operator());
+    type.def(
+        "__eq__",
+        [](const ngraph::element::Type& a, const ngraph::element::Type& b) { return a == b; },
+        py::is_operator());
 
     type.def_property_readonly("bitwidth", &ngraph::element::Type::bitwidth);
     type.def_property_readonly("is_real", &ngraph::element::Type::is_real);

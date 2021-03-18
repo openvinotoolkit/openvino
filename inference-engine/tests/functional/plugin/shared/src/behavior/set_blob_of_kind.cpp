@@ -4,8 +4,7 @@
 
 #include "behavior/set_blob_of_kind.hpp"
 
-#include <single_layer_tests/cum_sum.hpp>
-#include <functional_test_utils/plugin_config.hpp>
+#include <shared_test_classes/single_layer/cum_sum.hpp>
 
 #include <ie_compound_blob.h>
 
@@ -67,6 +66,7 @@ void SetBlobOfKindTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     LoadNetwork();
+    GenerateInputs();
 
     if (isBlobKindSupported(core, targetDevice, blobKind)) {
         Infer();
@@ -82,7 +82,7 @@ void SetBlobOfKindTest::ExpectSetBlobThrow() {
         const auto &info = input.second;
         auto blob = GenerateInput(*info);
         EXPECT_THROW(inferRequest.SetBlob(info->name(), blob),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }
 

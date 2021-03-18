@@ -26,6 +26,7 @@ public:
 
     JitConstants GetJitConstants(const arg_max_min_params& params) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 private:
     bool Validate(const Params&, const optional_params&) const override;

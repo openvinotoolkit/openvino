@@ -5,7 +5,7 @@
 #include "myriad_layers_CTCDecoder_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-	accuracy, myriadCTCDecoderLayerTests_smoke,
+	DISABLED_accuracy, myriadCTCDecoderLayerTests_smoke,
 	::testing::Combine(
 		::testing::Values<Dims>({{1, 88, 1, 71}}),
 		::testing::Values<HwOptimization>(true, false),

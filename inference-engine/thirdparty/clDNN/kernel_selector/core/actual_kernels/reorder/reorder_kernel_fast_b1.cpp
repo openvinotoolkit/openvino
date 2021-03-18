@@ -114,14 +114,14 @@ KernelsData ReorderKernelFastBatch1::GetKernelsData(const Params& params, const 
 
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
 
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderKernelFastBatch1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const reorder_params& orgParams = static_cast<const reorder_params&>(params);
     const auto& input = orgParams.inputs[0];
     const auto& output = orgParams.output;
 
-    auto estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
-    if (input.Batch().v == 1 && output.Batch().v == 1)
-        estimatedTime = FORCE_PRIORITY_6;
-
-    return GetCommonKernelsData(orgParams, options, estimatedTime);
+    return input.Batch().v == 1 && output.Batch().v == 1 ? FORCE_PRIORITY_6 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

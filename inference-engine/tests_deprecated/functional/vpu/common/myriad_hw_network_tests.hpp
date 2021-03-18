@@ -78,23 +78,15 @@ public:
                 { InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE }
             };
 
-            StatusCode st;
-
-            ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, config, &_resp));
-            ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-            IInferRequest::Ptr inferRequests[NUM_REQUESTS];
+            ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork, config));
+            
+            InferRequest inferRequests[NUM_REQUESTS];
             Blob::Ptr outputs[NUM_REQUESTS];
 
             for (int i = 0; i < NUM_REQUESTS; ++i) {
-                ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(inferRequests[i], &_resp));
-                ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-                ASSERT_NO_THROW(st = inferRequests[i]->SetBlob(_cnnNetwork.getInputsInfo().begin()->first.c_str(), _input, &_resp));
-                ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-                ASSERT_NO_THROW(st = inferRequests[i]->GetBlob(_cnnNetwork.getOutputsInfo().begin()->first.c_str(), outputs[i], &_resp));
-                ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+                ASSERT_NO_THROW(inferRequests[i] = _exeNetwork.CreateInferRequest());
+                ASSERT_NO_THROW(inferRequests[i].SetBlob(_cnnNetwork.getInputsInfo().begin()->first.c_str(), _input));
+                ASSERT_NO_THROW(outputs[i] = inferRequests[i].GetBlob(_cnnNetwork.getOutputsInfo().begin()->first.c_str()));
             }
 
             std::vector<Blob::Ptr> allOutputs[NUM_REQUESTS];
@@ -104,13 +96,11 @@ public:
 
             for (int iterInd = 0; iterInd < numIters; ++iterInd) {
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {
-                    ASSERT_NO_THROW(st = inferRequests[inferInd]->StartAsync(&_resp));
-                    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+                    ASSERT_NO_THROW(inferRequests[inferInd].StartAsync());
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {
-                    ASSERT_NO_THROW(st = inferRequests[inferInd]->Wait(IInferRequest::RESULT_READY, &_resp));
-                    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+                    ASSERT_EQ(StatusCode::OK, inferRequests[inferInd].Wait(IInferRequest::RESULT_READY));
                 }
 
                 for (int inferInd = 0; inferInd < NUM_REQUESTS; ++inferInd) {

@@ -25,14 +25,6 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(axis != std::numeric_limits<int64_t>::max() && axis >= 0,
             "dynamicToStaticShapeGather: Unsupported Gather axis {} for node {}", axis, gather);
 
-    auto shapeToConstant = [&gather](const ngraph::Output<ngraph::Node>& output,
-                                     const ngraph::element::Type& elemType) -> std::shared_ptr<ngraph::opset3::Constant> {
-        VPU_THROW_UNLESS(output.get_partial_shape().is_static(),
-                         "DynamicToStaticShape transformation for {} of type {} expects static shape on inputs without DSR",
-                         gather->get_friendly_name(), gather->get_type_info());
-        return ngraph::opset3::Constant::create(elemType, {output.get_shape().size()}, output.get_shape());
-    };
-
     const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gather->input_value(0).get_node_shared_ptr());
     const auto idxDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gather->input_value(1).get_node_shared_ptr());
 
@@ -46,8 +38,8 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     }
     const auto shapeElementType = idxDSR ? idxDSR->get_input_element_type(1) : dataDSR->get_input_element_type(1);
 
-    const auto data_shape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(gather->input_value(0), shapeElementType);
-    const auto indices_shape = idxDSR ? idxDSR->input_value(1) : shapeToConstant(gather->input_value(1), shapeElementType);
+    const auto data_shape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(shapeElementType, gather->get_input_shape(0));
+    const auto indices_shape = idxDSR ? idxDSR->input_value(1) : shapeToConstant(shapeElementType, gather->get_input_shape(1));
 
     const auto copied = target->clone_with_new_inputs(target->input_values());
 
@@ -60,24 +52,12 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     const auto indices_rank_value = indices_rank[0].get_length();
     ngraph::OutputVector output_dims;
     if (axis) {
-        std::vector<int64_t> first_data_shape_part_indices(axis);
-        std::iota(first_data_shape_part_indices.begin(), first_data_shape_part_indices.end(), 0);
-        const auto first_data_shape_part = std::make_shared<ngraph::opset3::Gather>(
-                data_shape,
-                ngraph::opset3::Constant::create(shapeElementType, {first_data_shape_part_indices.size()}, first_data_shape_part_indices),
-                ngraph::opset3::Constant::create(shapeElementType, {1}, {0}));
-        output_dims.push_back(first_data_shape_part);
+        output_dims.push_back(gatherShapeElements(data_shape, 0, axis));
     }
     if (indices_rank_value)
         output_dims.push_back(indices_shape);
     if (axis + 1 < data_rank_value) {
-        std::vector<int64_t> second_data_shape_part_indices(data_rank_value - axis - 1);
-        std::iota(second_data_shape_part_indices.begin(), second_data_shape_part_indices.end(), axis + 1);
-        const auto second_data_shape_part = std::make_shared<ngraph::opset3::Gather>(
-                data_shape,
-                ngraph::opset3::Constant::create(shapeElementType, {second_data_shape_part_indices.size()}, second_data_shape_part_indices),
-                ngraph::opset3::Constant::create(shapeElementType, {1}, {0}));
-        output_dims.push_back(second_data_shape_part);
+        output_dims.push_back(gatherShapeElements(data_shape, axis + 1, data_rank_value - axis - 1));
     }
 
     const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);

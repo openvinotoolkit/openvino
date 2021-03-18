@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,14 @@ namespace opset1_downgrade
         {
             const auto const_filled_with_ones = make_shared<op::v1::Broadcast>(
                 op::Constant::create(data->get_element_type(), {}, {1}), target_shape);
-            replacement_node = make_shared<op::v1::Multiply>(data, const_filled_with_ones);
+            if (const_filled_with_ones->get_element_type() == element::boolean)
+            {
+                replacement_node = make_shared<op::v1::LogicalOr>(data, const_filled_with_ones);
+            }
+            else
+            {
+                replacement_node = make_shared<op::v1::Multiply>(data, const_filled_with_ones);
+            }
             break;
         }
         case op::BroadcastType::EXPLICIT:

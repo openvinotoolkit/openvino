@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,6 +58,7 @@ namespace ngraph
                 }
                 bool is_cacheable() const { return m_cacheable; }
                 void set_cacheable(bool val) { m_cacheable = val; }
+
             private:
                 // map of output-input pairs for which in-place computation is valid
                 std::vector<struct oi_pair> m_in_place_oi_pairs;

@@ -49,8 +49,7 @@ public:
 
         IE_ASSERT(generateNetAndInfer(NetworkInitParams().useHWOpt(CheckMyriadX()).runRefGraph(false)));
 
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        _inferRequest->GetPerformanceCounts(perfMap, nullptr);
+        auto perfMap = _inferRequest.GetPerformanceCounts();
 
         executionMicroseconds = 0;
         for (const auto& perfPair : perfMap) {

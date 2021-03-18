@@ -91,7 +91,6 @@ ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const 
 
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -106,11 +105,9 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
 
     uint32_t lastOffset = 0;
     const auto concatChannelIndex = GetConcatChannelIndex(orgParams);
-    float efficiency = FORCE_PRIORITY_1;
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
         const auto& input = orgParams.inputs[i];
-
         auto newParams = orgParams;
         newParams.inputs.resize(1);
         newParams.inputs[0] = input;
@@ -138,10 +135,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
-        efficiency = std::max(efficiency, dispatchData.efficiency);
     }
-
-    kd.estimatedTime = efficiency;
 
     return {kd};
 }

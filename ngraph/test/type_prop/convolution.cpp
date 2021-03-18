@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -2638,10 +2638,9 @@ TEST(type_prop, conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
     auto conv = make_shared<op::v1::Convolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
-        {1, 1, Dimension::dynamic(), Dimension::dynamic()}));
-    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{}));
-    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({1, 1, Dimension::dynamic(), 5}));
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 1}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 1}));
 }
 
 TEST(type_prop, conv_v1_partial_data_shape_dynamic)
@@ -2663,6 +2662,56 @@ TEST(type_prop, conv_v1_partial_data_shape_dynamic)
     ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({PartialShape::dynamic()}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
+}
+
+TEST(type_prop, conv_bprop_v1_partial_auto_padding_upper)
+{
+    const Shape shape1{1, 512, 1, 37};
+    const Shape shape2{512, 256, 1, 1};
+    const Shape shape3{2};
+    Strides strides{1, 2};
+    CoordinateDiff pads_begin{0, 0};
+    CoordinateDiff pads_end{0, 0};
+    Strides dilations{1, 1};
+    const auto auto_pad = op::PadType::SAME_UPPER;
+
+    auto in1 = make_shared<op::Parameter>(element::f32, shape1);
+    auto in2 = make_shared<op::Parameter>(element::f32, shape2);
+    std::vector<int64_t> data = {1, 74};
+    element::Type type = element::i64;
+    auto in3 = make_shared<op::Constant>(type, shape3, data);
+
+    auto conv = make_shared<op::v1::ConvolutionBackpropData>(
+        in1, in2, in3, strides, pads_begin, pads_end, dilations, auto_pad);
+    conv->validate_and_infer_types();
+
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 0}));
+}
+
+TEST(type_prop, conv_bprop_v1_partial_auto_padding_lower)
+{
+    const Shape shape1{1, 512, 1, 37};
+    const Shape shape2{512, 256, 1, 1};
+    const Shape shape3{2};
+    Strides strides{1, 2};
+    CoordinateDiff pads_begin{0, 0};
+    CoordinateDiff pads_end{0, 0};
+    Strides dilations{1, 1};
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto in1 = make_shared<op::Parameter>(element::f32, shape1);
+    auto in2 = make_shared<op::Parameter>(element::f32, shape2);
+    std::vector<int64_t> data = {1, 74};
+    element::Type type = element::i64;
+    auto in3 = make_shared<op::Constant>(type, shape3, data);
+
+    auto conv = make_shared<op::v1::ConvolutionBackpropData>(
+        in1, in2, in3, strides, pads_begin, pads_end, dilations, auto_pad);
+    conv->validate_and_infer_types();
+
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 0}));
 }
 
 TEST(type_prop, deformable_conv_incorrect_group)

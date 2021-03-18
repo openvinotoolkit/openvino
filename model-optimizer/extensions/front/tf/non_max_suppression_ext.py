@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,13 +21,24 @@ from extensions.ops.non_max_suppression import NonMaxSuppression
 from mo.front.extractor import FrontExtractorOp
 
 
+class NonMaxSuppressionV2Extractor(FrontExtractorOp):
+    op = 'NonMaxSuppressionV2'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
+        NonMaxSuppression.update_node_stat(node, attrs)
+        return cls.enabled
+
+
 class NonMaxSuppressionV3Extractor(FrontExtractorOp):
     op = 'NonMaxSuppressionV3'
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        attrs = {'sort_result_descending': 1, 'center_point_box': 0, 'output_type': np.int32}
+        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)
         return cls.enabled
 

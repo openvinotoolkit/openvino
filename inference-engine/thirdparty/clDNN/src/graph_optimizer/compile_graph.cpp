@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,10 +22,12 @@
 #include "mutable_data_inst.h"
 #include "program_node.h"
 #include "engine_impl.h"
+#include "cldnn_itt.h"
 
 using namespace cldnn;
 
 void compile_graph::run(program_impl& p) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::CompileGraph");
     for (auto& node : p.get_processing_order()) {
         if (!node->is_type<internal_primitive>() && !node->is_type<data>()) {
             node->get_output_layout();

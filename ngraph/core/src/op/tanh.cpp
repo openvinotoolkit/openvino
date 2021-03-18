@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,11 +36,13 @@ op::Tanh::Tanh(const Output<Node>& arg)
 
 bool ngraph::op::v0::Tanh::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Tanh_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Tanh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Tanh>(new_args.at(0));
 }
@@ -62,18 +64,12 @@ namespace tanhop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_tanh, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tanh, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tanh, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tanh, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tanh, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tanh, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -82,6 +78,6 @@ namespace tanhop
 
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tanh::evaluate");
+    NGRAPH_OP_SCOPE(v0_Tanh_evaluate);
     return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

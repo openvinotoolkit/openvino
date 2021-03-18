@@ -19,6 +19,7 @@
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -37,14 +38,19 @@ TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
         auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
             return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
-        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.set_callback(callback);
-        depth_to_space_transform.run_on_function(f);
+        ngraph::pass::Manager manager;
+
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -71,14 +77,19 @@ TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
         auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
             return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
-        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.set_callback(callback);
-        depth_to_space_transform.run_on_function(f);
+        ngraph::pass::Manager manager;
+
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -105,15 +116,19 @@ TEST(TransformationTests, DepthToSpaceFusionDynamicShape) {
         auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0, shape_reshape_before});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
             return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
-        // transformation won't be applied because of shape_reshape_before is dynamic, the graph will remain the same
-        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.set_callback(callback);
-        depth_to_space_transform.run_on_function(f);
+        ngraph::pass::Manager manager;
+
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -150,15 +165,19 @@ TEST(TransformationTests, DepthToSpaceFusionSeveralConsumers) {
         auto result = std::make_shared<ngraph::opset3::Result> (reshape_before);
         auto result_2 = std::make_shared<ngraph::opset3::Result> (permute);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
             return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
-        // transformation won't be applied because of reshape_before has several consumers, the graph will remain the same
-        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.set_callback(callback);
-        depth_to_space_transform.run_on_function(f);
+        ngraph::pass::Manager manager;
+
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 

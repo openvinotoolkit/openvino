@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,5 +28,27 @@ pass::param_callback pass::PassConfig::get_callback(const DiscreteTypeInfo& type
     else
     {
         return m_callback;
+    }
+}
+
+void pass::PassConfig::enable(const ngraph::DiscreteTypeInfo& type_info)
+{
+    m_disabled.erase(type_info);
+    m_enabled.insert(type_info);
+}
+
+void pass::PassConfig::disable(const ngraph::DiscreteTypeInfo& type_info)
+{
+    m_enabled.erase(type_info);
+    m_disabled.insert(type_info);
+}
+
+void pass::PassConfig::add_disabled_passes(const PassConfig& rhs)
+{
+    for (const auto& pass : rhs.m_disabled)
+    {
+        if (is_enabled(pass))
+            continue;
+        disable(pass);
     }
 }

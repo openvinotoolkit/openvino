@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ namespace ngraph
         const value_type& get() const { return m_value; }
         value_type& get() { return m_value; }
         void set(const value_type& value) { m_value = value; }
+
     protected:
         value_type m_value;
     };

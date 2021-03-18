@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -177,15 +177,15 @@ namespace ngraph
     bool Output<const Node>::operator>=(const Output& other) const { return !(*this < other); }
     std::ostream& operator<<(std::ostream& out, const Output<Node>& output)
     {
-        return output.get_node()->write_description(out, 0) << "[" << output.get_index()
-                                                            << "]:" << output.get_element_type()
-                                                            << output.get_partial_shape();
+        return output.get_node()->write_description(out, 0)
+               << "[" << output.get_index() << "]:" << output.get_element_type()
+               << output.get_partial_shape();
     }
 
     std::ostream& operator<<(std::ostream& out, const Output<const Node>& output)
     {
-        return output.get_node()->write_description(out, 0) << "[" << output.get_index()
-                                                            << "]:" << output.get_element_type()
-                                                            << output.get_partial_shape();
+        return output.get_node()->write_description(out, 0)
+               << "[" << output.get_index() << "]:" << output.get_element_type()
+               << output.get_partial_shape();
     }
 }

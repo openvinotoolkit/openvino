@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -107,8 +107,11 @@ namespace ngraph
                     step_y = step;
                 }
 
-                auto calculate_data = [&dst_data, &IWI, &IHI, &idx](
-                    float center_x, float center_y, float box_width, float box_height, bool clip) {
+                auto calculate_data = [&dst_data, &IWI, &IHI, &idx](float center_x,
+                                                                    float center_y,
+                                                                    float box_width,
+                                                                    float box_height,
+                                                                    bool clip) {
                     if (clip)
                     {
                         // order: xmin, ymin, xmax, ymax

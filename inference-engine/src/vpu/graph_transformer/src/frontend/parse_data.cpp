@@ -116,21 +116,6 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
             descriptor,
             ieBlobContent(ieBlob, descriptor.type()));
 
-        // User might ask to return the output from Const layer.
-        if (const auto vpuOutData = getVpuData(ieData)) {
-            env.log->trace("The constant %s is network output", vpuData);
-
-            IE_ASSERT(vpuOutData->usage() == DataUsage::Output);
-
-            _stageBuilder->addCopyStage(
-                model,
-                formatString("%s@return-const", vpuData->name()),
-                nullptr,
-                vpuData,
-                vpuOutData,
-                "parseInputAndOutputData::const");
-        }
-
         bindData(vpuData, ieData);
     }
 }

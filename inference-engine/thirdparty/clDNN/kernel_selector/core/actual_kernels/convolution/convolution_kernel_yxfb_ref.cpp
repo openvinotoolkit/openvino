@@ -44,4 +44,8 @@ ParamsKey ConvolutionKernel_yxfb_Ref::GetSupportedKey() const {
 KernelsData ConvolutionKernel_yxfb_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetTunedKernelsDataByIndex(params, options);
 }
+
+KernelsPriority ConvolutionKernel_yxfb_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

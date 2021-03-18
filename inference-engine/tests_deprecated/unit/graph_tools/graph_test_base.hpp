@@ -23,9 +23,7 @@ using namespace std;
  * Input layers are defined by absence of ins data.
  */
 class GraphTestsBase : public ::testing::Test {
-
- protected:
-
+protected:
     MOCK_METHOD2(visited, void(size_t, int));
     MOCK_METHOD2(visited2, void(size_t, int));
 
@@ -65,7 +63,8 @@ class GraphTestsBase : public ::testing::Test {
     }
 
     CNNLayerPtr layerByName(std::string name) {
-        auto sorted = InferenceEngine::details::CNNNetSortTopologically(*mockNet);
+        auto sorted = InferenceEngine::details::CNNNetSortTopologically(
+            InferenceEngine::CNNNetwork(mockNet));
 
         auto i = std::find_if(sorted.begin(), sorted.end(), [&](CNNLayerPtr l){
             return l->name == name;
@@ -180,7 +179,6 @@ class GraphTestsBase : public ::testing::Test {
 
         return newLayer;
     }
-
 
     void prepareSomeInputs(InputsDataMap &inputsMap, std::initializer_list<int> inputLayers, int batchSize = 1) {
         for (auto layer = lhsLayers.begin(); layer != lhsLayers.end(); layer++) {
@@ -320,4 +318,3 @@ class MockCopier {
 }
 
 MATCHER_P2(IsBetween, a, b, std::string(negation ? "isn't" : "is") + " between " + ::testing::PrintToString(a) + " and " + ::testing::PrintToString(b)) { return a <= arg && arg <= b; }
-

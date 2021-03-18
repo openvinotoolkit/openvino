@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,9 +26,8 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
         mandatory_props = dict(
             type=__class__.op,
             op=__class__.op,
-            version='experimental',
+            version='opset6',
             infer=__class__.infer,
-            in_ports_count=5,
             out_ports_count=2,
         )
 
@@ -36,13 +35,10 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
 
     def backend_attrs(self):
         return [
-            'distribute_rois_between_levels',
             ('pyramid_scales', lambda node: ','.join(map(str, node['pyramid_scales']))),
-            'image_id',
             'output_size',
             'sampling_ratio',
-            'preserve_rois_order',
-            'aligned']
+            ('aligned', lambda node: str(bool(node.soft_get('aligned', False))).lower())]
 
     @staticmethod
     def infer(node):

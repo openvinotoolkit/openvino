@@ -116,8 +116,8 @@ public:
                 THROW_IE_EXCEPTION << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
             }
 
-            addConfig(layer, {{ConfLayout::ANY, true}, {ConfLayout::ANY, true}}, {{ConfLayout::PLN, true}});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            addConfig(layer, {{ConfLayout::ANY, true}, {ConfLayout::ANY, true}}, {{ConfLayout::PLN, true, -1, Precision::FP32}});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

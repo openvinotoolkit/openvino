@@ -13,8 +13,10 @@ struct GNAFlags {
     bool compact_mode = false;
     bool exclusive_async_requests = false;
     bool uniformPwlDesign = false;
+    float pwlMaxErrorPercent = 1.0f;
     bool gna_openmp_multithreading = false;
     bool sw_fp32 = false;
+    bool fake_quantized = false;
     bool performance_counting = false;
 };
 }  // namespace GNAPluginNS

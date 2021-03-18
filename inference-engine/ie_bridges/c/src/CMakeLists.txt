@@ -24,15 +24,18 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+       APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
 
 # install
 
+ie_cpack_add_component(core_c DEPENDS core)
+
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core_c
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
         DESTINATION ${IE_CPACK_IE_DIR}/include/
-        COMPONENT core)
+        COMPONENT core_c)

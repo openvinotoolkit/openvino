@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -91,15 +91,16 @@ namespace ngraph
                 int64_t get_spatial_bins_y() const { return m_spatial_bins_y; }
                 float get_trans_std() const { return m_trans_std; }
                 int64_t get_part_size() const { return m_part_size; }
+
             private:
                 int64_t m_output_dim;
                 float m_spatial_scale;
-                int64_t m_group_size;
-                std::string m_mode;
-                int64_t m_spatial_bins_x;
-                int64_t m_spatial_bins_y;
-                float m_trans_std;
-                int64_t m_part_size;
+                int64_t m_group_size = 1;
+                std::string m_mode = "bilinear";
+                int64_t m_spatial_bins_x = 1;
+                int64_t m_spatial_bins_y = 1;
+                float m_trans_std = 1.f;
+                int64_t m_part_size = 1;
             };
         }
     }

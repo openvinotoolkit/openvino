@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@
 #include <string>
 
 #include "ngraph/function.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
+#include "utils/onnx_importer_visibility.hpp"
 
 /// \brief              Top level nGraph namespace.
 namespace ngraph
@@ -84,7 +84,6 @@ namespace ngraph
         /// \return    An nGraph function that represents a single output from the created graph.
         ONNX_IMPORTER_API
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path);
-
     } // namespace onnx_import
 
 } // namespace ngraph

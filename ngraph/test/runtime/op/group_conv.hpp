@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,6 +81,7 @@ namespace ngraph
                 virtual void post_validate_and_infer_types() override;
 
                 bool has_groups_in_filters() const { return m_groups_in_filters; }
+
             protected:
                 Strides m_window_movement_strides;
                 Strides m_window_dilation_strides;

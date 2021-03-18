@@ -37,6 +37,8 @@ struct jit_uni_permute_kernel {
 
     jit_permute_conf_t jpp;
 
+    virtual void create_ker() = 0;
+
     explicit jit_uni_permute_kernel(jit_permute_conf_t jpp) : ker_(nullptr), jpp(jpp) {}
     virtual ~jit_uni_permute_kernel() {}
 };
@@ -53,6 +55,10 @@ public:
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
+    }
+
+    const InferenceEngine::SizeVector& getOrder() const {
+        return order;
     }
 
 private:

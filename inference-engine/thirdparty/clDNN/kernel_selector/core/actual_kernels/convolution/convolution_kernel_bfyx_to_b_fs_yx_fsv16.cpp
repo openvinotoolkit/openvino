@@ -95,12 +95,13 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
     dispatchData.lws[1] = sub_group_size;
     dispatchData.lws[2] = 1;
 
-    if (b == 1)
-        dispatchData.efficiency = FORCE_PRIORITY_2;
-    else
-        dispatchData.efficiency = FORCE_PRIORITY_7;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.inputs[0].Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p, const optional_params& o) const {

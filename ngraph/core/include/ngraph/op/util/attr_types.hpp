@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,7 +66,9 @@ namespace ngraph
         ///              Floor(num_dims/2) at the beginning and
         ///              Ceil(num_dims/2) at the end
         /// VALID      - No padding
-        ///
+        /// AUTO       - Deprecated. User should not use it in the future
+        /// NOTSET     - Deprecated. User should not use it in the future
+
         enum class PadType
         {
             EXPLICIT = 0,
@@ -366,6 +368,7 @@ namespace ngraph
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastSpec>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         op::AutoBroadcastSpec& m_ref;
     };
@@ -417,6 +420,7 @@ namespace ngraph
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastModeSpec>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         op::BroadcastModeSpec& m_ref;
     };

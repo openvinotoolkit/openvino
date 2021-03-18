@@ -10,9 +10,9 @@
 
 If `index` mode is used, the second tensor should contain indices of axes that should be reversed. The length of the second tensor should be in a range from 0 to rank of the 1st input tensor.
 
-In case if `mask` mode is used, then the second input tensor length should be equal to the rank of the 1st input. And each value has boolean value `True` or `False`. `True` means the corresponding axes should be reverted, `False` means it should be untouched.
+In case if `mask` mode is used, then the second input tensor length should be equal to the rank of the 1st input. And each value has boolean value `true` or `false`. `true` means the corresponding axes should be reverted, `false` means it should be untouched.
 
-If no axis specified, that means either the second input is empty if `index` mode is used or second input has only `False` elements if `mask` mode is used, then *Reverse* just passes the source tensor through output not doing any data movements.
+If no axis specified, that means either the second input is empty if `index` mode is used or second input has only `false` elements if `mask` mode is used, then *Reverse* just passes the source tensor through output not doing any data movements.
 
 **Attributes**
 

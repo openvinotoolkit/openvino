@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 """
 import logging as log
 from collections import defaultdict
-from copy import copy
 
 import numpy as np
 
@@ -125,6 +124,11 @@ class RemoveConstToResult(BackReplacementPattern):
     """
     enabled = True
     force_clean_up = True
+    # TODO: remove this transformation once all plugins support constant value network.
+    # Do not run recursively since Const->Result sub-graph can be encountered in a body graph of Loop node
+    # and this sub-graph is needed to avoid dynamism created by Loop node
+    # in case using axis in output port map
+    run_not_recursively = True
 
     @staticmethod
     def pattern():

@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/init_node_info.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -25,8 +26,10 @@ std::shared_ptr<ngraph::Function> buildInputGraph(int64_t axis, int64_t group, c
 
     auto f = std::make_shared<::Function>(::NodeVector{shuffle_channels}, ::ParameterVector{input});
 
-    ::pass::InitNodeInfo().run_on_function(f);
-    ::pass::ConvertShuffleChannels3().run_on_function(f);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
+    manager.run_passes(f);
     f->validate_nodes_and_infer_types();
     return f;
 }

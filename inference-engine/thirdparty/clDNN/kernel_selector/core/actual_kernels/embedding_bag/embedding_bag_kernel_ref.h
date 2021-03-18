@@ -49,10 +49,11 @@ public:
 
 protected:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
     virtual JitConstants GetJitConstants(const embedding_bag_params& params) const;
     virtual CommonDispatchData SetDefault(const embedding_bag_params& params) const;
-    virtual bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&, const optional_params&) const override;
 };
 }  // namespace kernel_selector

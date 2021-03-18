@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@
 #include <memory>
 #include <unordered_map>
 
-#include "activation_functions.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/sigmoid.hpp"
 #include "ngraph/op/tanh.hpp"
+#include "ngraph/op/util/activation_functions.hpp"
 
 using namespace std;
 using namespace ngraph;

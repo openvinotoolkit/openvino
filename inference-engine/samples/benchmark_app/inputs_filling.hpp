@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,29 +9,10 @@
 
 #include <inference_engine.hpp>
 
+#include "utils.hpp"
 #include "infer_request_wrap.hpp"
-
-template<typename T>
-static bool isImage(const T &blob) {
-    auto descriptor = blob->getTensorDesc();
-    if (descriptor.getLayout() != InferenceEngine::NCHW) {
-        return false;
-    }
-    auto channels = descriptor.getDims()[1];
-    return channels == 3;
-}
-
-template<typename T>
-static bool isImageInfo(const T &blob) {
-    auto descriptor = blob->getTensorDesc();
-    if (descriptor.getLayout() != InferenceEngine::NC) {
-        return false;
-    }
-    auto channels = descriptor.getDims()[1];
-    return (channels >= 2);
-}
 
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
-               const InferenceEngine::ConstInputsDataMap& info,
+               benchmark_app::InputsInfo& app_inputs_info,
                std::vector<InferReqWrap::Ptr> requests);

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
@@ -35,17 +36,20 @@ op::v4::Mish::Mish(const Output<Node>& arg)
 
 bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_Mish_visit_attributes);
     return true;
 }
 
 void op::v4::Mish::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_Mish_validate_and_infer_types);
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_Mish_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Mish>(new_args.at(0));
 }
@@ -60,17 +64,16 @@ namespace mish
         return true;
     }
 
-    bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
         bool rc = true;
+        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_mish, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_mish, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -79,6 +82,8 @@ namespace mish
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::Mish::evaluate");
-    return mish::evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(v4_Mish_evaluate);
+    NGRAPH_CHECK(this,
+                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return mish::evaluate_mish(inputs[0], outputs[0]);
 }

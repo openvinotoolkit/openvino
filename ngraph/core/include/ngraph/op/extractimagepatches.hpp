@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ namespace ngraph
                 void set_rates(const Shape& rates) { m_patch_selection_rates = rates; }
                 const PadType& get_auto_pad() const { return m_padding; }
                 void set_auto_pad(PadType& padding) { m_padding = padding; }
+
             private:
                 Shape m_patch_sizes;
                 Strides m_patch_movement_strides;

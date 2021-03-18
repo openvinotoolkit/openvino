@@ -104,8 +104,7 @@ protected:
     virtual JitConstants GetJitConstants(const lstm_dynamic_timeloop_params& params) const;
     static DispatchData SetDefault(const lstm_dynamic_timeloop_params& params);
     KernelsData GetCommonKernelsData(const Params& params,
-                                     const optional_params& optParams,
-                                     float estimated_time) const;
+                                     const optional_params& optParams) const;
     void SetKernelArguments(const lstm_dynamic_timeloop_params& params, clKernelData& k_data) const;
     bool Validate(const Params& p, const optional_params&) const override {
         if (p.GetType() != KernelType::LSTM_DYNAMIC_TIMELOOP) {

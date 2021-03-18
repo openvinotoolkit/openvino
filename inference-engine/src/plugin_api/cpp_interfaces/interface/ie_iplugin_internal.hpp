@@ -54,7 +54,7 @@ static void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
  * @param      _networkInputs   The network inputs to copy to
  * @param      _networkOutputs  The network outputs to copy to
  */
-static void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
+inline void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
                                 InputsDataMap & _networkInputs, OutputsDataMap & _networkOutputs) {
     _networkInputs.clear();
     _networkOutputs.clear();
@@ -83,8 +83,7 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePlugin : public details::IRelease,
-                         public std::enable_shared_from_this<IInferencePlugin> {
+class IInferencePlugin : public std::enable_shared_from_this<IInferencePlugin> {
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -112,12 +111,6 @@ class IInferencePlugin : public details::IRelease,
         }
     } _version;
 
-protected:
-    /**
-     * @brief      Destroys the object.
-     */
-    ~IInferencePlugin() override = default;
-
 public:
     /**
      * @brief A shared pointer to IInferencePlugin interface
@@ -140,10 +133,6 @@ public:
         return _version;
     }
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     /**
      * @brief      Provides a name of a plugin
      * @return     The name.
@@ -163,18 +152,18 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                           const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from network object, on specified remote context
-     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
+     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                           const std::map<std::string, std::string>& config,
                                           RemoteContext::Ptr context) = 0;
     /**
@@ -214,9 +203,10 @@ public:
 
     /**
      * @brief      Provides a default remote context instance if supported by a plugin
+     * @param[in]  params  The map of parameters
      * @return     The default context.
      */
-    virtual RemoteContext::Ptr GetDefaultContext() = 0;
+    virtual RemoteContext::Ptr GetDefaultContext(const ParamMap& params) = 0;
 
     /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
@@ -269,7 +259,10 @@ public:
      * @param[in]  config   The map of configuration parameters
      * @return     The result of query operator containing supported layers map
      */
-    virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
+
+protected:
+    ~IInferencePlugin() = default;
 };
 
 }  // namespace InferenceEngine
@@ -279,16 +272,16 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                       \
-    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                \
-            InferenceEngine::IInferencePlugin *&plugin,                                  \
-            InferenceEngine::ResponseDesc *resp) noexcept {                              \
-        try {                                                                            \
-            plugin = new PluginType(__VA_ARGS__);                                        \
-            plugin->SetVersion(version);                                                 \
-            return OK;                                                                   \
-        }                                                                                \
-        catch (std::exception &ex) {                                                     \
-            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
-        }                                                                                \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                  \
+    INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
+        try {                                                                                                       \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
+        } catch (const InferenceEngine::Exception&) {                                                               \
+            throw;                                                                                                  \
+        } catch (const std::exception& ex) {                                                                        \
+            THROW_IE_EXCEPTION << ex.what();                                                                        \
+        } catch (...) {                                                                                             \
+            THROW_IE_EXCEPTION_WITH_STATUS(Unexpected);                                                             \
+        }                                                                                                           \
+        plugin->SetVersion(version);                                                                                \
     }

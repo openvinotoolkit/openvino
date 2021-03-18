@@ -35,3 +35,7 @@ shared_ptr<Node> op::HardSigmoid_IE::clone_with_new_inputs(const OutputVector& n
     check_new_args_count(this, new_args);
     return make_shared<op::HardSigmoid_IE>(new_args.at(0), m_alpha, m_beta);
 }
+
+bool op::HardSigmoid_IE::visit_attributes(AttributeVisitor& visitor) {
+    return true;
+}

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/swish_fusion.hpp"
 
 #include <memory>
@@ -32,6 +33,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusion, "SwishFusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithSigmoid, "SwishFusionWithSigmoid", 0);
 
 ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
+    MATCHER_SCOPE(SwishFusionWithSigmoid);
     // replaces a sub-graphs x * Sigmoid(x) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(input);
@@ -51,13 +53,14 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithSigmoidWithBeta, "SwishFusionWithSigmoidWithBeta", 0);
 
 ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
+    MATCHER_SCOPE(SwishFusionWithSigmoidWithBeta);
     // replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto beta = ngraph::pattern::any_input();
@@ -96,13 +99,14 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidWithBetaFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithBeta, "SwishFusionWithBeta", 0);
 
 ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
+    MATCHER_SCOPE(SwishFusionWithBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto beta = ngraph::pattern::any_input();
@@ -137,13 +141,14 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithBetaFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithoutBeta, "SwishFusionWithoutBeta", 0);
 
 ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
+    MATCHER_SCOPE(SwishFusionWithoutBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto neg = std::make_shared<ngraph::opset4::Negative>(input);
@@ -174,6 +179,6 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithoutBetaFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }

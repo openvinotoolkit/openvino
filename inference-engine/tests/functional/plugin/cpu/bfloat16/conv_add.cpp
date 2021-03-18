@@ -111,35 +111,13 @@ protected:
         // STAGE3:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Convolution_0"] = "BF16";
-        expectedPrecisions["Convolution_1"] = "BF16";
-        expectedPrecisions["Elt_sum"] = "FP32";
+        expectedPrecisions["Elt_sum"] = "BF16";
     }
 };
 
 TEST_P(ConvAdd, CompareWithRefImpl) {
     test();
 };
-
-//    CPU plug-in failure in that case
-
-//INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvAdd,
-//                        ::testing::Combine(
-//                                ::testing::Values(Precision::FP32),
-//                                ::testing::Values(Precision::FP32),
-//                                ::testing::Values(SizeVector({1, 256, 38, 38})),
-//                                ::testing::Values(SizeVector()),
-//                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                        ConvAdd::getTestCaseName);
-//
-//INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ConvAdd,
-//                        ::testing::Combine(
-//                                ::testing::Values(Precision::FP32),
-//                                ::testing::Values(Precision::BF16),
-//                                ::testing::Values(SizeVector({1, 256, 38, 38})),
-//                                ::testing::Values(SizeVector()),
-//                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                        ConvAdd::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvAdd,
                         ::testing::Combine(

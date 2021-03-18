@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ TEST(op, is_parameter)
 {
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
-    auto t0 = make_shared<op::Add>(arg0, arg0);
+    auto t0 = make_shared<op::v1::Add>(arg0, arg0);
     ASSERT_NE(nullptr, t0);
     EXPECT_FALSE(op::is_parameter(t0));
 }

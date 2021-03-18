@@ -31,6 +31,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertRNNSequenceMatcher);
 
 class ngraph::pass::ConvertLSTMSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertLSTMSequenceMatcher();
 };
 
@@ -43,6 +44,7 @@ public:
 
 class ngraph::pass::ConvertGRUSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertGRUSequenceMatcher();
 };
 
@@ -55,5 +57,6 @@ public:
 
 class ngraph::pass::ConvertRNNSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertRNNSequenceMatcher();
 };

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::StridedSlice::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -108,6 +108,7 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
 
 bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_StridedSlice_visit_attributes);
     visitor.on_attribute("begin_mask", m_begin_mask);
     visitor.on_attribute("end_mask", m_end_mask);
     visitor.on_attribute("new_axis_mask", m_new_axis_mask);
@@ -118,6 +119,7 @@ bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::StridedSlice::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
     const auto& begin_mask_et = get_input_element_type(1);
     const auto& end_mask_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
@@ -172,13 +174,21 @@ void op::v1::StridedSlice::validate_and_infer_types()
                               ").");
     }
 
+    // Fill up strides input with default strides if not set by this point.
+    if (get_input_size() < 4)
+    {
+        set_argument(3,
+                     calculate_default_strides(get_input_node_ptr(1)->output(0),
+                                               get_input_node_ptr(2)->output(0)));
+    }
+
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    auto begin_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
-    auto end_const = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
-    auto strides = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr());
+    auto begin_const = get_constant_from_source(input_value(1));
+    auto end_const = get_constant_from_source(input_value(2));
+    auto strides = get_constant_from_source(input_value(3));
 
     if (begin_const && end_const && strides)
     {
@@ -216,6 +226,7 @@ AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t
 
 shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::StridedSlice>(new_args.at(0),
                                          new_args.at(1),
@@ -254,9 +265,9 @@ namespace strided_slice
                                 const AxisSet& ellipsis_mask,
                                 const HostTensorPtr& out)
     {
-        std::vector<int64_t> begin_const = read_vector<int64_t>(begin);
-        std::vector<int64_t> end_const = read_vector<int64_t>(end);
-        std::vector<int64_t> stride_const = read_vector<int64_t>(stride);
+        std::vector<int64_t> begin_const = host_tensor_2_vector<int64_t>(begin);
+        std::vector<int64_t> end_const = host_tensor_2_vector<int64_t>(end);
+        std::vector<int64_t> stride_const = host_tensor_2_vector<int64_t>(stride);
         SlicePlan slice_plan = make_slice_plan(in->get_shape(),
                                                begin_const,
                                                end_const,
@@ -273,7 +284,10 @@ namespace strided_slice
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::StridedSlice::evaluate");
+    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
+    // FIXME: 4th input is optional, but it is required by the following code
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 4));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     return strided_slice::evaluate_strided_slice(input_values[0],
                                                  input_values[1],
                                                  input_values[2],
@@ -284,4 +298,22 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                                  convert_mask_to_axis_set(get_shrink_axis_mask()),
                                                  convert_mask_to_axis_set(get_ellipsis_mask()),
                                                  output_values[0]);
+}
+
+bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound() ||
+        !input_value(3).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound() ||
+        !input_value(3).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }

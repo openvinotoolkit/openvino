@@ -34,18 +34,6 @@
 #define DNN_RAND_INT32_AMPLITUDE 1048576.0f
 #define DNN_RAND_FLOAT32_AMPLITUDE 8.0f
 
-/**
- * whether to dump weights and biases
- */
-#define DUMP_WB
-/**
- * in light mode only layer names are dumped
- * @param filename
- * @param number_type
- * @return
- */
-#define LIGHT_DUMP
-
 namespace GNAPluginNS {
 namespace backend {
 
@@ -65,6 +53,13 @@ template <class T>
 void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& component, int i, T*& operation) {
     if (i == component.size() - 1 || ((component[i + 1].operation != kDnnMaxPoolOp)
                                       && (component[i + 1].operation != kDnnPiecewiselinearOp))) {
+        operation++;
+    }
+}
+
+template <class T>
+void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& component, int i, T*& operation) {
+    if (i == component.size() - 1 || (component[i + 1].operation != kDnnMaxPoolOp)) {
         operation++;
     }
 }

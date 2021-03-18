@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,6 +79,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 virtual bool visit_attributes(AttributeVisitor& visitor) override { return true; }
+
             private:
                 static constexpr int EMB_TABLE = 0;
                 static constexpr int INDICES = 1;

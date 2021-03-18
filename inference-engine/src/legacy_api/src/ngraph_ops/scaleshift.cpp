@@ -57,3 +57,7 @@ void op::ScaleShiftIE::validate_and_infer_types() {
 
     set_output_type(0, data_et, get_input_partial_shape(0));
 }
+
+bool ngraph::op::ScaleShiftIE::visit_attributes(AttributeVisitor& visitor) {
+    return true;
+}

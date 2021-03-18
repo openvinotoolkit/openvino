@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,12 +61,14 @@ void regclass_pyngraph_PartialShape(py::module m)
     shape.def("get_shape", &ngraph::PartialShape::get_shape);
     shape.def("to_shape", &ngraph::PartialShape::to_shape);
 
-    shape.def("__eq__",
-              [](const ngraph::PartialShape& a, const ngraph::PartialShape& b) { return a == b; },
-              py::is_operator());
-    shape.def("__eq__",
-              [](const ngraph::PartialShape& a, const ngraph::Shape& b) { return a == b; },
-              py::is_operator());
+    shape.def(
+        "__eq__",
+        [](const ngraph::PartialShape& a, const ngraph::PartialShape& b) { return a == b; },
+        py::is_operator());
+    shape.def(
+        "__eq__",
+        [](const ngraph::PartialShape& a, const ngraph::Shape& b) { return a == b; },
+        py::is_operator());
 
     shape.def("__str__", [](const ngraph::PartialShape& self) -> std::string {
         std::stringstream ss;

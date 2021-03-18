@@ -213,11 +213,15 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
 Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) const {
     const auto& reduce_mode = params.reduceMode;
 
-    if (reduce_mode == ReduceMode::MEAN || reduce_mode  == ReduceMode::LOG_SUM_EXP ||
-        reduce_mode == ReduceMode::LOG_SUM || reduce_mode == ReduceMode::L2 || reduce_mode == ReduceMode::L1) {
-            return Datatype::F32;
-    } else
+    if (reduce_mode == ReduceMode::MEAN ||
+        reduce_mode == ReduceMode::LOG_SUM_EXP ||
+        reduce_mode == ReduceMode::LOG_SUM ||
+        reduce_mode == ReduceMode::L2 ||
+        reduce_mode == ReduceMode::L1) {
+        return Datatype::F32;
+    } else {
         return GetAccumulatorType(params);
+    }
 }
 
 Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const {
@@ -228,8 +232,7 @@ Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const 
 }
 
 KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
-                                                   const optional_params& options,
-                                                   float estimatedTime) const {
+                                                   const optional_params& options) const {
     if (!Validate(p, options)) {
         return {};
     }
@@ -255,7 +258,6 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

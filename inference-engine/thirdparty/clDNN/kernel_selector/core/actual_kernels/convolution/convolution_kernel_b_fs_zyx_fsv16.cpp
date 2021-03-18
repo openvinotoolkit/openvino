@@ -190,12 +190,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
     }
-    if (b == 1)
-        dispatchData.efficiency = FORCE_PRIORITY_2;
-    else
-        dispatchData.efficiency = FORCE_PRIORITY_7;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.output.Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_params& o) const {

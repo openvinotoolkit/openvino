@@ -126,6 +126,8 @@ private:
 
     DataMap<allocator::MemChunk*> _memChunksPerData;
 
+    std::map<std::pair<DimVector, DimValues>, int> _staticShapeOffsets;
+
     int _blobMemOffset = 0;
     int _inputMemOffset = 0;
     int _outputMemOffset = 0;

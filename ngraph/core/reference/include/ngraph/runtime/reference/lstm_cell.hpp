@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -139,8 +139,9 @@ namespace ngraph
                                  4,
                                  pointers.data());
 
-                auto clip_activation = [&clip](
-                    std::vector<T>& gate, const std::string& activation, bool enable_clip = true) {
+                auto clip_activation = [&clip](std::vector<T>& gate,
+                                               const std::string& activation,
+                                               bool enable_clip = true) {
                     if (clip > 0.f && enable_clip)
                     {
                         reference::clamp(gate.data(),

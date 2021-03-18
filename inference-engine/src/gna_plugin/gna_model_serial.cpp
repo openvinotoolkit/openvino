@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <array>
-#include <details/ie_exception.hpp>
 #include <ios>
 #include <iomanip>
 #include <map>
@@ -16,6 +15,9 @@
 #include <malloc.h>
 #else
 #include <mm_malloc.h>
+#include <serial/headers/2dot2/gna_model_header.hpp>
+#include <serial/headers/2dot5/gna_model_header.hpp>
+
 #endif
 
 #include "gna_plugin.hpp"
@@ -74,12 +76,17 @@ const int gna_header_magic = is_little_endian() ?  0x4d414e47 : 0x474e414d;
 
 GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
     is.exceptions(std::istream::failbit);
+    auto startPos = is.tellg();
+    if (startPos == -1) {
+        THROW_GNA_EXCEPTION << "Can't open stream to import";
+    }
     is.seekg(0, is.end);
     auto stream_len = is.tellg();
     if (stream_len == -1) {
         THROW_GNA_EXCEPTION << "Can't open file to import";
     }
-    is.seekg(0, is.beg);
+    stream_len -= startPos;
+    is.seekg(startPos, is.beg);
 
     HeaderLatest::ModelHeader header;
     header.version.major = 0u;
@@ -100,21 +107,36 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                            std::hex << std::setw(2) << static_cast<short>(header.gnam[3]);
     }
 
-    is.seekg(0, is.beg);
+    is.seekg(startPos, is.beg);
     Header2dot1::ModelHeader tempHeader2dot1;
     switch (header.version.major) {
         case 2:
             switch (header.version.minor) {
                 case 1:
                     readBits(tempHeader2dot1, is);
-                    header = Header2dot3::ModelHeader(tempHeader2dot1);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot1);
                     break;
                 case 2:
                 case 3:
-                    readBits(header, is);
+                {
+                    Header2dot3::ModelHeader tempHeader2dot3;
+                    readBits(tempHeader2dot3, is);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot3);
+                    break;
+                }
+                case 4:
+                {
+                    Header2dot4::ModelHeader tempHeader2dot4;
+                    readBits(tempHeader2dot4, is);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot4);
+                    break;
+                }
+                case 5:
+                case 6:
+                    readNBytes(&header, sizeof(HeaderLatest::ModelHeader), is);
                     break;
                 default:
-                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should be equal to 1 or 2 and is: " << header.version.minor;
+                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 4 and is: " << header.version.minor;
             }
             break;
         default:
@@ -164,7 +186,9 @@ void GNAModelSerial::Import(void *basePointer,
         std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
         std::vector<GNAPluginNS::OutputDesc> &desc,
         InferenceEngine::InputsDataMap& inputsDataMap,
-        InferenceEngine::OutputsDataMap& outputsDataMap) {
+        InferenceEngine::OutputsDataMap& outputsDataMap,
+        TranspositionInfoMap& inputsTranspositionInfo,
+        TranspositionInfoMap& outputsTranspositionInfo) {
     is.exceptions(std::istream::failbit);
 
     if (modelHeader.version.major == 2) {
@@ -172,9 +196,23 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 inputNames.push_back(inName.substr(0, nameSize - 1));
+            }
+        }
+        if (modelHeader.version.minor >= 5) {
+            for (int inputIx = 0; inputIx < modelHeader.nTransposeInputs; ++inputIx) {
+                std::string inputName;
+                std::vector<TranspositionInfo> transpositionInfo;
+                ImportTranspositionInfo(is, inputName, transpositionInfo);
+                inputsTranspositionInfo[inputName] = transpositionInfo;
+            }
+            for (int outputIx = 0; outputIx < modelHeader.nTransposeOutputs; ++outputIx) {
+                std::string outputName;
+                std::vector<TranspositionInfo> transpositionInfo;
+                ImportTranspositionInfo(is, outputName, transpositionInfo);
+                outputsTranspositionInfo[outputName] = transpositionInfo;
             }
         }
     }
@@ -185,7 +223,7 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nOutputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string outName("", nameSize);
+                std::string outName(nameSize, '\0');
                 readNBytes(&outName[0], nameSize, is);
                 outputNames.push_back(outName.substr(0, nameSize - 1));
             }
@@ -256,11 +294,28 @@ void GNAModelSerial::Import(void *basePointer,
 
     for (int i = 0; i != nStates; i++) {
         void *pSegment;
-        readOffset(pSegment, basePointer, is);
-        uint32_t segmentSz;
-        readBits(segmentSz, is);
-        if (pstates) {
-            (*pstates)[i] = { pSegment, segmentSz };
+        if ( modelHeader.version.major == 2 ) {
+            if ( modelHeader.version.minor < 6 ) {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, "noname", 1.0f );
+                }
+            } else {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                uint32_t nameSize = 0;
+                readNBits<32>(nameSize, is);
+                std::string inName("", nameSize);
+                readNBytes(&inName[0], nameSize, is);
+                float scale_factor = 1.0f;
+                readBits(scale_factor, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor);
+                }
+            }
         }
     }
 
@@ -314,6 +369,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         out.orientation = ep.orientation;
         return out;
     };
+
     /**
      * writing header
      */
@@ -328,10 +384,8 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.nGroup = guessGrouping(*gna2Model);
     header.nInputs = inputs.size();
     header.nOutputs = outputs.size();
-    header.nRotateRows = nRotateRows;
-    header.nRotateColumns = nRotateColumns;
-    header.doRotateInput = doRotateInput;
-
+    header.nTransposeInputs = transposeInputsInfo.size();
+    header.nTransposeOutputs = transposeOutputsInfo.size();
 
     writeBits(header, os);
 
@@ -340,6 +394,8 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         writeBits(static_cast<uint32_t>(nameSize), os);
         writeNBytes(name.c_str(), nameSize , os);
     }
+    ExportTranspositionInfo(os, transposeInputsInfo);
+    ExportTranspositionInfo(os, transposeOutputsInfo);
     for (const auto &input : inputs) {
         writeBits(convert_to_serial(input), os);
     }
@@ -391,8 +447,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     // writing memory information
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
-        writeBits(offsetFromBase(state.first), os);
-        writeBits(state.second, os);
+        void* gna_ptr = nullptr;
+        uint32_t reserved_size = 0;
+        std::string name;
+        float scale_factor = 1.0f;
+        std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
+        writeBits(offsetFromBase(gna_ptr), os);
+        writeBits(reserved_size, os);
+        const auto nameSize = strlen(name.c_str()) + 1;
+        writeBits(static_cast<uint32_t>(nameSize), os);
+        writeNBytes(name.c_str(), nameSize, os);
+        writeBits(scale_factor, os);
     }
 
     // once structure has been written lets push gna graph
@@ -406,9 +471,27 @@ void GNAModelSerial::Import(void *basePointer,
         std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
         std::vector<GNAPluginNS::OutputDesc> &desc,
         InferenceEngine::InputsDataMap& inputsDataMap,
-        InferenceEngine::OutputsDataMap& outputsDataMap) {
+        InferenceEngine::OutputsDataMap& outputsDataMap,
+        TranspositionInfoMap& inputsTranspositionInfo,
+        TranspositionInfoMap& outputsTranspositionInfo) {
     is.exceptions(std::istream::failbit);
 
+    if (modelHeader.version.major == 2) {
+        if (modelHeader.version.minor >= 5) {
+            for (int inputIx = 0; inputIx < modelHeader.nTransposeInputs; ++inputIx) {
+                std::string inputName;
+                std::vector<TranspositionInfo> transpositionInfo;
+                ImportTranspositionInfo(is, inputName, transpositionInfo);
+                inputsTranspositionInfo[inputName] = transpositionInfo;
+            }
+            for (int outputIx = 0; outputIx < modelHeader.nTransposeOutputs; ++outputIx) {
+                std::string outputName;
+                std::vector<TranspositionInfo> transpositionInfo;
+                ImportTranspositionInfo(is, outputName, transpositionInfo);
+                outputsTranspositionInfo[outputName] = transpositionInfo;
+            }
+        }
+    }
     ImportInputs(is, basePointer, inputsDesc, inputsDataMap);
     ImportOutputs(is, basePointer, desc, outputsDataMap);
 
@@ -513,11 +596,28 @@ void GNAModelSerial::Import(void *basePointer,
 
     for (int i = 0; i != nStates; i++) {
         void *pSegment;
-        readOffset(pSegment, basePointer, is);
-        uint32_t segmentSz;
-        readBits(segmentSz, is);
-        if (pstates) {
-            (*pstates)[i] = { pSegment, segmentSz };
+        if ( modelHeader.version.major == 2 ) {
+            if ( modelHeader.version.minor < 6 ) {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, "noname", 1.0f);
+                }
+            } else {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz = 0;
+                readBits(segmentSz, is);
+                uint32_t nameSize = 0;
+                readNBits<32>(nameSize, is);
+                std::string inName("", nameSize);
+                readNBytes(&inName[0], nameSize, is);
+                float scale_factor = 1.0f;
+                readBits(scale_factor, is);
+                if (pstates) {
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor );
+                }
+            }
         }
     }
 
@@ -569,6 +669,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         out.orientation = ep.orientation;
         return out;
     };
+
     /**
      * writing header
      */
@@ -585,9 +686,11 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.nInputs = 1;
     header.nOutputs = 1;
     header.headerSize = sizeof(HeaderLatest::ModelHeader);
-    header.nRotateRows = nRotateRows;
-    header.nRotateColumns = nRotateColumns;
+    header.nTransposeInputs = transposeInputsInfo.size();
+    header.nTransposeOutputs = transposeOutputsInfo.size();
 
+    ExportTranspositionInfo(os, transposeInputsInfo);
+    ExportTranspositionInfo(os, transposeOutputsInfo);
 
     writeBits(header, os);
     writeBits(convert_to_serial(inputs[0]), os);
@@ -661,8 +764,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     // writing memory information
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
-        writeBits(offsetFromBase(state.first), os);
-        writeBits(state.second, os);
+        void* gna_ptr = nullptr;
+        uint32_t reserved_size = 0;
+        std::string name;
+        float scale_factor = 1.0f;
+        std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
+        writeBits(offsetFromBase(gna_ptr), os);
+        writeBits(reserved_size, os);
+        const auto nameSize = strlen(name.c_str()) + 1;
+        writeBits(static_cast<uint32_t>(nameSize), os);
+        writeNBytes(name.c_str(), nameSize, os);
+        writeBits(scale_factor, os);
     }
 
     // once structure has been written lets push gna graph
@@ -724,7 +836,7 @@ void GNAModelSerial::ImportInputs(std::istream &is,
         InferenceEngine::InputsDataMap& dataMap) {
     dataMap.clear();
 
-    for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
+    for (uint32_t inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                 ? inputNames.at(inputIndex) : std::string("input" + std::to_string(inputIndex));
         HeaderLatest::RuntimeEndPoint input;
@@ -753,9 +865,9 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     dataMap.clear();
     desc.resize(modelHeader.nOutputs);
 
-    for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
+    for (uint32_t outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
-                                  ? outputNames.at(outputIndex) : std::string("input" + std::to_string(outputIndex));
+                                  ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
         HeaderLatest::RuntimeEndPoint output;
         is.read(reinterpret_cast<char *>(&output), sizeof(output));
         OutputDesc description;
@@ -772,6 +884,36 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
                                                          outputDims,
                                                          InferenceEngine::Layout::NC));
         desc.at(outputIndex) = description;
+    }
+}
+
+void GNAModelSerial::ImportTranspositionInfo(std::istream &is,
+        std::string &name,
+        std::vector<TranspositionInfo> &transpositionInfo) {
+    uint32_t nameSize = 0;
+    readNBits<32>(nameSize, is);
+    name.resize(nameSize, '\0');
+    readNBytes(&name[0], nameSize, is);
+    uint32_t transposeFragmentsSize = 0;
+    readNBits<32>(transposeFragmentsSize, is);
+    for (int rotFragmIx = 0; rotFragmIx < transposeFragmentsSize; ++rotFragmIx) {
+        TranspositionInfo fragmentTranspositionInfo;
+        readNBytes(&fragmentTranspositionInfo, sizeof(TranspositionInfo), is);
+        transpositionInfo.push_back(fragmentTranspositionInfo);
+    }
+}
+
+void GNAModelSerial::ExportTranspositionInfo(std::ostream &os,
+        const TranspositionInfoMap &transpositionInfoMap) const {
+    for (const auto &transpositionInfo : transpositionInfoMap) {
+        auto nameSize = strlen(transpositionInfo.first.c_str()) + 1;
+        writeBits(static_cast<uint32_t>(nameSize), os);
+        writeNBytes(transpositionInfo.first.c_str(), nameSize, os);
+        auto fragmentsNum = transpositionInfo.second.size();
+        writeBits(static_cast<uint32_t>(fragmentsNum), os);
+        for (const auto &transposeFragmentInfo : transpositionInfo.second) {
+            writeNBytes(&transposeFragmentInfo, sizeof(TranspositionInfo), os);
+        }
     }
 }
 

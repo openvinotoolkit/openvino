@@ -12,6 +12,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
         DEPENDENCIES
             myriadPlugin
         LINK_LIBRARIES

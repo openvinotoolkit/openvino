@@ -47,7 +47,7 @@ std::string embedding_bag_inst::to_string(embedding_bag_node const& node) {
 
     json_composite embedding_bag_info;
     embedding_bag_info.add("input id", input.id());
-    switch(desc->type) {
+    switch (desc->type) {
     case embedding_bag::packed_sum:
         embedding_bag_info.add("embedding bag type", "PackedSum");
         break;

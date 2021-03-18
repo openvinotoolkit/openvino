@@ -29,7 +29,7 @@ public:
 
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
+    MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
 
     ~MKLDNNExecNetwork() override = default;
@@ -42,22 +42,36 @@ public:
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override;
 
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() override;
-
-    InferenceEngine::ThreadLocal<MKLDNNGraph::Ptr>  _graphs;
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
 protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> memoryStates;
-    InferenceEngine::details::CNNNetworkImplPtr _clonedNetwork;
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
+    InferenceEngine::CNNNetwork                 _clonedNetwork;
     std::mutex                                  _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
+    struct Graph : public MKLDNNGraph {
+        std::mutex  _mutex;
+        struct Lock : public std::unique_lock<std::mutex> {
+            explicit Lock(Graph& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            Graph&                          _graph;
+        };
+    };
+    // WARNING: Do not use _graphs directly.
+    std::deque<Graph>                           _graphs;
+    NumaNodesWeights&                           _numaNodesWeights;
 
+    /* WARNING: Use GetGraph() function to get access to graph in current stream.
+     * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
+     *       even from main thread
+     */
+    Graph::Lock GetGraph();
 
-    bool CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const;
+    bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };
 
 }  // namespace MKLDNNPlugin

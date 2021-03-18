@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <vector>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/split.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "split.hpp"
+#include "op/split.hpp"
 
 namespace ngraph
 {
@@ -49,7 +49,30 @@ namespace ngraph
 
             } // namespace set_1
 
-        } // namespace op
+            namespace set_13
+            {
+                OutputVector split(const Node& node)
+                {
+                    const auto inputs = node.get_ng_inputs();
+                    const auto axis = node.get_attribute_value<int64_t>("axis", 0);
+
+                    if (inputs.size() < 2)
+                    {
+                        const auto outputs_number = node.get_output_names().size();
+                        return ngraph::builder::opset1::split(inputs.at(0), outputs_number, axis);
+                    }
+                    else
+                    {
+                        const auto axis_node =
+                            default_opset::Constant::create(element::Type_t::i64, Shape{}, {axis});
+                        return {std::make_shared<default_opset::VariadicSplit>(
+                                    inputs.at(0), axis_node, inputs.at(1))
+                                    ->outputs()};
+                    }
+                }
+
+            } // namespace set_13
+        }     // namespace op
 
     } // namespace onnx_import
 

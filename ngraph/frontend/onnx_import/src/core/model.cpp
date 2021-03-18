@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "model.hpp"
+#include "core/model.hpp"
 #include "ngraph/log.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph
 {
@@ -108,6 +108,11 @@ namespace ngraph
                 }
                 m_opset.emplace(domain, opset);
             }
+        }
+
+        const OpsetImports& Model::get_opset_imports() const
+        {
+            return m_model_proto->opset_import();
         }
 
     } // namespace onnx_import

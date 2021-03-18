@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -83,7 +84,8 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
 
-void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
+ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
+    MATCHER_SCOPE(DepthToSpaceFusion);
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
@@ -92,7 +94,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
     auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, input2);
     auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, input3, false);
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
@@ -159,6 +161,6 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, "DepthToSpaceFusion");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, matcher_name);
+    register_matcher(m, callback);
 }

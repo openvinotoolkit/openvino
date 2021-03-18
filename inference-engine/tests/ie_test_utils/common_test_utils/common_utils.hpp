@@ -47,27 +47,17 @@ inline std::string set2str(const std::set<vecElementType> &set) {
     return std::string("()");
 }
 
-inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::ICNNNetwork * icnnnetwork,
+inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNetwork & network,
                                                    const std::string & layerName) {
     IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::details::CNNNetworkIterator i(icnnnetwork), end;
+    InferenceEngine::details::CNNNetworkIterator i(network), end;
     while (i != end) {
         auto layer = *i;
         if (layer->name == layerName)
             return layer;
         ++i;
     }
-
-    std::stringstream stream;
-    stream << "Layer " << layerName << " not found in network";
-    throw InferenceEngine::NotFound(stream.str());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNetwork & network,
-                                                   const std::string & layerName) {
-    const InferenceEngine::ICNNNetwork & icnnnetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
-    return getLayerByName(&icnnnetwork, layerName);
+    THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Layer " << layerName << " not found in network";
 }
 
 template <typename master, typename slave>
@@ -118,6 +108,11 @@ std::vector<typename std::tuple_element<0, typename std::decay<Tuple>::type>::ty
 template<class Tuple>
 inline auto tuple2Vector(Tuple&& tuple) -> decltype(tuple2Vector(std::declval<Tuple>(), makeIndices<Tuple>())) {
     return tuple2Vector(std::forward<Tuple>(tuple), makeIndices<Tuple>());
+}
+
+template<class T>
+inline T getTotal(const std::vector<T>& shape) {
+    return shape.empty() ? 0 : std::accumulate(shape.cbegin(), shape.cend(), static_cast<T>(1), std::multiplies<T>());
 }
 
 }  // namespace CommonTestUtils

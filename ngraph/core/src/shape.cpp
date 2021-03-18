@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,9 +53,7 @@ ngraph::Shape::Shape(size_t n, size_t initial_value)
 {
 }
 
-ngraph::Shape::~Shape()
-{
-}
+ngraph::Shape::~Shape() {}
 
 ngraph::Shape& ngraph::Shape::operator=(const Shape& v)
 {

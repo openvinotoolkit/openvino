@@ -286,7 +286,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     std::vector<CNNLayer::Ptr> inputLayers;
     int nodeCnt = 0;
     std::map<int, CNNLayer::Ptr> layerById;
-    for (auto node = allLayersNode.child("layer"); !node.empty(); node = node.next_sibling("layer")) {
+    FOREACH_CHILD(node, allLayersNode, "layer") {
         LayerParseParameters lprms;
         ParseGenericParams(node, lprms);
 
@@ -301,7 +301,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
             inputLayers.push_back(layer);
         }
 
-        for (int i = 0; i < lprms.outputPorts.size(); i++) {
+        for (size_t i = 0; i < lprms.outputPorts.size(); i++) {
             const auto& outPort = lprms.outputPorts[i];
             const auto outId = gen_id(lprms.layerId, outPort.portId);
             const std::string outName =
@@ -370,7 +370,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 
         if (layer->insData.empty()) layer->insData.resize(pars_info.inputPorts.size());
 
-        for (int i = 0; i < layer->insData.size(); i++) {
+        for (size_t i = 0; i < layer->insData.size(); i++) {
             if (!layer->insData[i].lock()) {
                 std::string data_name =
                     (layer->insData.size() == 1) ? layer->name : layer->name + "." + std::to_string(i);
@@ -578,7 +578,7 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
 }
 
 void FormatParser::ParseDims(SizeVector& dims, const pugi::xml_node& parentNode) const {
-    for (auto node = parentNode.child("dim"); !node.empty(); node = node.next_sibling("dim")) {
+    FOREACH_CHILD(node, parentNode, "dim") {
         unsigned int dim = 0;
         const pugi::char_t* dimVal = node.child_value();
         stringstream ss(dimVal);

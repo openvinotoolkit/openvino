@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,9 +28,7 @@ std::ostream& ngraph::operator<<(std::ostream& s, const Coordinate& coordinate)
     return s;
 }
 
-ngraph::Coordinate::Coordinate()
-{
-}
+ngraph::Coordinate::Coordinate() {}
 
 ngraph::Coordinate::Coordinate(const std::initializer_list<size_t>& axes)
     : std::vector<size_t>(axes)
@@ -57,9 +55,7 @@ ngraph::Coordinate::Coordinate(size_t n, size_t initial_value)
 {
 }
 
-ngraph::Coordinate::~Coordinate()
-{
-}
+ngraph::Coordinate::~Coordinate() {}
 
 ngraph::Coordinate& ngraph::Coordinate::operator=(const Coordinate& v)
 {

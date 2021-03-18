@@ -18,6 +18,7 @@
 #include "ocl_builder.h"
 #include "configuration.h"
 #include "include/to_string_utils.h"
+#include "api/device.hpp"
 #include <string>
 #include <vector>
 #include <list>
@@ -49,8 +50,7 @@ std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void*
 
     std::map<std::string, device_impl::ptr> ret;
     for (auto& dptr : dev_orig) {
-        auto flag = dptr->get_device().getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
-        if (flag != 0)
+        if (dptr->get_info().dev_type == cldnn::device_type::integrated_gpu)
             dev_sorted.insert(dev_sorted.begin(), dptr);
         else
             dev_sorted.push_back(dptr);
@@ -139,7 +139,7 @@ std::vector<device_impl::ptr>  ocl_builder::build_device_list_from_user_device(b
             continue;
 
         std::vector<cl::Device> devices;
-#ifdef WIN32
+#ifdef _WIN32
         platform.getDevices(CL_D3D11_DEVICE_KHR,
             user_device,
             CL_PREFERRED_DEVICES_FOR_D3D11_KHR,
@@ -153,11 +153,11 @@ std::vector<device_impl::ptr>  ocl_builder::build_device_list_from_user_device(b
         for (auto& device : devices) {
             if (!does_device_match_config(out_out_order, device)) continue;
             cl_context_properties props[] = {
-        #ifdef WIN32
+#ifdef _WIN32
                 CL_CONTEXT_D3D11_DEVICE_KHR,
-        #else
+#else
                 CL_CONTEXT_VA_API_DISPLAY_INTEL,
-        #endif
+#endif
                 (intptr_t)user_device,
                 CL_CONTEXT_INTEROP_USER_SYNC, CL_FALSE,
                 CL_CONTEXT_PLATFORM, (cl_context_properties)id,

@@ -45,9 +45,9 @@ public:
             stride_w_ = layer->GetParamAsFloat("stride_x", 0);
 
             addConfig(layer,
-                      {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::ANY), DataConfigurator(ConfLayout::ANY)},
-                      {DataConfigurator(ConfLayout::PLN)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::ANY), DataConfigurator(ConfLayout::ANY)},
+                      {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

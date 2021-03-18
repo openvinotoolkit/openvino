@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,5 +87,33 @@ TEST(file_util, path_join)
         string s2 = "test1/test2";
 
         EXPECT_STREQ("/test1/test2", file_util::path_join(s1, s2).c_str());
+    }
+}
+
+TEST(file_util, santize_path)
+{
+    {
+        string path = "../../tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "/../tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "..";
+        EXPECT_STREQ("", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "workspace/data/tensor.data";
+        EXPECT_STREQ("workspace/data/tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "..\\..\\tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "C:\\workspace\\tensor.data";
+        EXPECT_STREQ("workspace\\tensor.data", file_util::sanitize_path(path).c_str());
     }
 }

@@ -19,19 +19,19 @@ TEST_F(NGraphReaderTests, ReadOneHotFP32) {
             </output>
         </layer>
         <layer id="1" name="data1" precision="I64" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64"/>
             </output>
         </layer>
         <layer id="2" name="data2" precision="FP32" type="Const" version="opset1">
-            <data offset="8" size="4"/>
+            <data element_type="f32" offset="8" shape="" size="4"/>
             <output>
                 <port id="0" precision="FP32"/>
             </output>
         </layer>
         <layer id="3" name="data3" precision="FP32" type="Const" version="opset1">
-            <data offset="12" size="4"/>
+            <data element_type="f32" offset="12" shape="" size="4"/>
             <output>
                 <port id="0" precision="FP32"/>
             </output>
@@ -139,19 +139,19 @@ TEST_F(NGraphReaderTests, DISABLED_ReadOneHotINT16) {
             </output>
         </layer>
         <layer id="1" name="data1" precision="I64" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64"/>
             </output>
         </layer>
         <layer id="2" name="data2" precision="I16" type="Const" version="opset1">
-            <data offset="8" size="2"/>
+            <data element_type="i16" offset="8" shape="" size="2"/>
             <output>
                 <port id="0" precision="I16"/>
             </output>
         </layer>
         <layer id="3" name="data3" precision="I16" type="Const" version="opset1">
-            <data offset="10" size="2"/>
+            <data element_type="i16" offset="10" shape="" size="2"/>
             <output>
                 <port id="0" precision="I16"/>
             </output>

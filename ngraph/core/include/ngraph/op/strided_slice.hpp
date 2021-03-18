@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ namespace ngraph
             class NGRAPH_API StridedSlice : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"StridedSlice", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 StridedSlice() = default;
 
                 /// \brief Constructs a dynamic tensor strided slice operation.
@@ -105,6 +105,8 @@ namespace ngraph
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
             private:
                 AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;

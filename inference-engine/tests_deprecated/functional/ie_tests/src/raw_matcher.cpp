@@ -174,7 +174,6 @@ void RawMatcher::match() {
             for (auto &&item : out) {
                 Blob::Ptr output;
                 auto  outputName = item.first;
-                auto& outBlob    = item.second;
                 if (!inferRequest) {
                     output = allocateBlob(item.second->getTensorDesc());
                 } else {
@@ -210,7 +209,7 @@ void RawMatcher::match() {
                 *config.perfInfoPtr = inferRequest.GetPerformanceCounts();
             }
         }
-    } catch (details::InferenceEngineException &e) {
+    } catch (Exception &e) {
         FAIL() << e.what();
     }
     catch (std::exception &e) {

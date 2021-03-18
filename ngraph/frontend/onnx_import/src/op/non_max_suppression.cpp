@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "non_max_suppression.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "op/non_max_suppression.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -86,11 +86,10 @@ namespace ngraph
 
                     const auto box_encoding =
                         center_point_box == 0
-                            ? ngraph::op::v4::NonMaxSuppression::BoxEncodingType::CORNER
-                            : ngraph::op::v4::NonMaxSuppression::BoxEncodingType::CENTER;
+                            ? default_opset::NonMaxSuppression::BoxEncodingType::CORNER
+                            : default_opset::NonMaxSuppression::BoxEncodingType::CENTER;
 
-                    // Since NMS-5 currently does not work on CPU plugin v4 version have to be used.
-                    return {std::make_shared<ngraph::op::v4::NonMaxSuppression>(
+                    return {std::make_shared<default_opset::NonMaxSuppression>(
                         boxes,
                         scores,
                         max_output_boxes_per_class,

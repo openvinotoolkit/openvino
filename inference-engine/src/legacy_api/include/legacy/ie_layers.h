@@ -205,7 +205,7 @@ public:
      *
      * @param str input string with float value
      * @return float value if parsing was successful
-     * @throws InferenceEngineException in case of parsing error
+     * @throws Exception in case of parsing error
      */
     static float ie_parse_float(const std::string& str);
 
@@ -360,6 +360,15 @@ public:
      * @return A string value
      */
     std::string GetParamAsString(const char* param) const;
+
+    /**
+     * @brief Returns a string containing an integer if parameters value was
+     * "true" or "false"
+     *
+     * @param param Name of the layer parameter
+     * @return A string containing an integer or the parameter as string
+     */
+    std::string getBoolStrParamAsIntStr(const char *param) const;
 
     /**
      * @brief Gets the parameter as a std::vector<std::string>
@@ -2064,6 +2073,10 @@ public:
      * classes
      */
     bool sort_result_descending = true;
+    /**
+     * @brief Output type for first and third inputs
+     */
+    std::string output_type = "I64";
     /**
      * @brief Creates a new NonMaxSuppressionLayer instance.
      */

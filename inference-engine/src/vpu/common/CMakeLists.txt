@@ -16,7 +16,6 @@ function(add_common_target TARGET_NAME STATIC_IE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
-        target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-variable")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=strict-aliasing")
     endif()
@@ -26,6 +25,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
                 USE_STATIC_IE)
+        set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
@@ -48,7 +48,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-    ie_developer_export_targets(${TARGET_NAME})
+    openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations
                                          PRIVATE openvino::itt)

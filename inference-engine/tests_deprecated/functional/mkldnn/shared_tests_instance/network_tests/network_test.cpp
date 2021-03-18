@@ -23,7 +23,7 @@
 
 TEST_P(ModelTransformationsTest, LPT) {}
 
-static void checkLayerInputPrecision(const ICNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
+static void checkLayerInputPrecision(const CNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
     CNNLayerPtr layer = getLayer(network, layerName);
     if (layer == nullptr) {
         THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
@@ -95,9 +95,9 @@ std::map<std::string, ModelParams> modelParams = {
                         };
 
                         for (const std::pair<std::string, std::string> item : fakeQuantizeAndConcolutionItems) {
-                            TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, item.first, Precision::U8);
+                            TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, item.first, Precision::U8);
                             if (!item.second.empty()) {
-                                checkLayerInputPrecision(*usedNetwork, item.second, Precision::U8, 0);
+                                checkLayerInputPrecision(usedNetwork, item.second, Precision::U8, 0);
                             }
                         }
                     }
@@ -115,17 +115,17 @@ std::map<std::string, ModelParams> modelParams = {
                  { 217, 10.1224 },
                  { 152, 9.60148 }},
                 {},
-                [](const TransformationsParams& transformationsParam, CNNNetworkImplPtr usedNetwork) {
+                [](const TransformationsParams& transformationsParam, CNNNetwork usedNetwork) {
                     if (transformationsParam.transformationsInTestEnabled && transformationsParam.params.updatePrecisions) {
                         const Precision originalPrecision = Precision::FP32;
                         const Precision targetPrecision = Precision::U8;
 
                         //Eltwise CPU/GPU specific
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
 
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
                     }
                 })
         },

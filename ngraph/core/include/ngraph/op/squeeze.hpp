@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                Squeeze() = default;
+                Squeeze();
                 Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -44,6 +44,8 @@ namespace ngraph
                 virtual void pre_validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
 

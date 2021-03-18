@@ -37,7 +37,7 @@ const auto params2D = testing::Combine(
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes2D),
     testing::ValuesIn(axis2D),
-    testing::Values("TEMPLATE"),
+    testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
     testing::Values(std::map<std::string, std::string>())
 );
 
@@ -64,7 +64,7 @@ const auto params4D = testing::Combine(
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes4D),
     testing::ValuesIn(axis4D),
-    testing::Values("TEMPLATE"),
+    testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
     testing::Values(std::map<std::string, std::string>())
 );
 

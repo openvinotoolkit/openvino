@@ -11,6 +11,7 @@ namespace {
         switch (precision) {
         case InferenceEngine::Precision::FP16: return "f16";
         case InferenceEngine::Precision::FP32: return "f32";
+        case InferenceEngine::Precision::I64: return "i64";
         default:
             break;
         }
@@ -227,7 +228,9 @@ IRXmlNode IRDumperLayer::dump() const {
         if (!_weights.empty()) {
             IRXmlNode dataNode {"data", {
                     {"offset", std::to_string(_weights._dataOffset)},
-                    {"size", std::to_string(_weights.size())}}, {}, {}};
+                    {"size", std::to_string(_weights.size())},
+                    {"element_type", paramterPresitionToString(_weights._precision)},
+                    {"shape", InferenceEngine::details::joinVec(_outDesc[0])}}, {}, {}};
             layer.children.push_back(std::move(dataNode));
         }
         else if (_parameterPrecision != InferenceEngine::Precision::UNSPECIFIED) {

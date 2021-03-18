@@ -121,6 +121,7 @@ typedef enum {
     NC_RO_DEVICE_PROTOCOL = 2018,               // returns device protocol (USB, PCIe)
     NC_RW_DEVICE_POWER_CONFIG = 2100,           // writes config for the power manager to device
     NC_RW_DEVICE_POWER_CONFIG_RESET = 2101,     // resets power manager config on device
+    NC_RW_ENABLE_ASYNC_DMA = 2102               // enable/disable asynchronous DMA on device
 } ncDeviceOption_t;
 
 typedef enum {

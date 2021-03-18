@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,6 +58,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 bool get_linear_before_reset() const { return m_linear_before_reset; }
                 op::RecurrentSequenceDirection get_direction() const { return m_direction; }
+
             protected:
                 op::RecurrentSequenceDirection m_direction;
                 bool m_linear_before_reset;

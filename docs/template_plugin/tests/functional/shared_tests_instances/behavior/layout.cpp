@@ -29,7 +29,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, LayoutTest,
                         ::testing::Combine(
                                 ::testing::Values(InferenceEngine::Precision::FP32),
-                                ::testing::Values("TEMPLATE"),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs),
                                 ::testing::ValuesIn(Layout),
                                 ::testing::ValuesIn(inputShapes)),

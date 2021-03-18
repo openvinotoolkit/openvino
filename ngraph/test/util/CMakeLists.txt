@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,12 +22,16 @@ set (SRC
     all_close_f.cpp
     engine/ie_engines.cpp
     engine/interpreter_engine.cpp
+    engine/shared_utils.cpp
     float_util.cpp
     test_tools.cpp
     test_control.cpp
     visitor.hpp
     provenance_enabler.hpp
 )
+if (NGRAPH_ONNX_IMPORT_ENABLE)
+    list(APPEND SRC onnx_test_util.cpp)
+endif()
 
 add_library(ngraph_test_util STATIC ${SRC})
 
@@ -43,5 +47,6 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
 endif()
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest)
-
-install(TARGETS ngraph_test_util DESTINATION ${NGRAPH_INSTALL_LIB})
+if (NGRAPH_ONNX_IMPORT_ENABLE)
+    target_link_libraries(ngraph_test_util PRIVATE onnx_common onnx)
+endif()

@@ -45,11 +45,6 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
     const auto dataRank = firstDSRInputNode->get_output_partial_shape(0).rank().get_length();
     const auto axis = ngraph::as_type_ptr<ngraph::opset3::Concat>(target)->get_concatenation_axis();
 
-    const auto shapeToConstant = [&shapeDataType, &dataRank](const ngraph::Shape& shape) {
-        return ngraph::opset3::Constant::create(
-                shapeDataType, {static_cast<size_t>(dataRank)}, shape)->output(0);
-    };
-
     const auto getShapeFromDSR = [&target, &shapeDataType](const ngraph::Output<ngraph::Node>& dsrOutput) {
         const auto dsrNode = dsrOutput.get_node_shared_ptr();
         const auto dsrShapeInputValue = dsrNode->input_value(1);
@@ -68,12 +63,11 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
         return shapeAccumulatorOp->output(0);
     };
 
-    const auto divideDimsByNumOfInputsExceptAxis = [&target, &dataRank, &axis,
-                                                    &shapeDataType, &shapeToConstant](
+    const auto divideDimsByNumOfInputsExceptAxis = [&target, &dataRank, &axis, &shapeDataType](
             const ngraph::Output<ngraph::Node>& shape) {
         ngraph::Shape dividerValues(dataRank, target->get_input_size());
         dividerValues[axis] = 1;
-        const auto divider = shapeToConstant(dividerValues);
+        const auto divider = shapeToConstant(shapeDataType, dividerValues);
         const auto divide = std::make_shared<ngraph::opset3::Divide>(shape, divider);
         return divide->output(0);
     };
@@ -103,7 +97,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
     }
 
     if (!staticInputs.empty()) {
-        const auto accumulatedStaticShape = shapeToConstant(getAdditionalShapeFromStatic(staticInputs));
+        const auto accumulatedStaticShape = shapeToConstant(shapeDataType, getAdditionalShapeFromStatic(staticInputs));
         accumulatedShape = sumOfShapes(accumulatedShape, accumulatedStaticShape);
     }
 

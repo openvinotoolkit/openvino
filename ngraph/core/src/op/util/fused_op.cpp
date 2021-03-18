@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/fused_op.hpp"
+#include "itt.hpp"
 
 #include "ngraph/graph_util.hpp"
 
@@ -34,6 +35,7 @@ op::util::FusedOp::FusedOp(const OutputVector& args)
 
 void op::util::FusedOp::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_FusedOp_validate_and_infer_types);
     pre_validate_and_infer_types();
 
     if (!can_decompose_with_partial_shapes() && is_dynamic())
@@ -46,7 +48,6 @@ void op::util::FusedOp::validate_and_infer_types()
     for (auto& val : input_values())
         nodes.emplace_back(val.get_node_shared_ptr());
     auto subgraph = extract_subgraph(ngraph::as_node_vector(subgraph_outputs), nodes);
-    validate_nodes_and_infer_types(subgraph);
 
     size_t i = 0;
     for (const auto& output : subgraph_outputs)

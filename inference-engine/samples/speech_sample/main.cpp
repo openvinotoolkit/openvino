@@ -269,7 +269,7 @@ float StdDevRelError(score_error_t error) {
 }
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
 #include <intrin.h>
 #include <windows.h>
 #else
@@ -281,7 +281,7 @@ float StdDevRelError(score_error_t error) {
 inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
                          unsigned int *ecx, unsigned int *edx) {
     size_t level = *eax;
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     int regs[4] = {static_cast<int>(*eax), static_cast<int>(*ebx), static_cast<int>(*ecx), static_cast<int>(*edx)};
     __cpuid(regs, level);
     *eax = static_cast<uint32_t>(regs[0]);
@@ -432,7 +432,7 @@ std::vector<std::string> ParseBlobName(std::string str) {
         size_t pos_last = 0;
         size_t pos_next = 0;
         while ((pos_next = str.find(",", pos_last)) != std::string::npos) {
-            blobName.push_back(str.substr(pos_last, pos_next));
+            blobName.push_back(str.substr(pos_last, pos_next - pos_last));
             pos_last = pos_next + 1;
         }
         blobName.push_back(str.substr(pos_last));
@@ -517,6 +517,10 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     if (FLAGS_cw_l < 0) {
         throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
     }
 
     return true;
@@ -671,6 +675,7 @@ int main(int argc, char *argv[]) {
 
         gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] = std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Write model to file --------------------------------------------------
@@ -845,7 +850,7 @@ int main(int argc, char *argv[]) {
             ptrUtterances.resize(inputArkFiles.size());
 
             // initialize memory state before starting
-            for (auto &&state : executableNet.QueryState()) {
+            for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
                 state.Reset();
             }
 
@@ -857,7 +862,10 @@ int main(int argc, char *argv[]) {
 
                 uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
                         numBytesReferenceScoreThisUtterance(0);
-                const uint32_t numScoresPerFrame = ptrOutputBlob.size() / batchSize;
+                auto dims = outputs.empty() ? cOutputInfo.rbegin()->second->getDims() : cOutputInfo[outputs[next_output]]->getDims();
+                const auto numScoresPerFrame = std::accumulate(std::begin(dims), std::end(dims), size_t{1}, std::multiplies<size_t>());
+
+                slog::info << "Number scores per frame : " << numScoresPerFrame << slog::endl;
 
                 numFrameElementsInput.resize(numInputArkFiles);
                 for (size_t i = 0; i < inputArkFiles.size(); i++) {
@@ -979,7 +987,7 @@ int main(int argc, char *argv[]) {
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto moutputHolder = moutput->rmap();
                                     auto byteSize =
-                                            inferRequest.numFramesThisBatch * numScoresPerFrame * sizeof(float);
+                                            numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame,
                                                 moutputHolder.as<const void *>(),
                                                 byteSize);
@@ -1077,7 +1085,7 @@ int main(int argc, char *argv[]) {
                 totalTime += d.count();
 
                 // resetting state between utterances
-                for (auto &&state : executableNet.QueryState()) {
+                for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
                     state.Reset();
                 }
 

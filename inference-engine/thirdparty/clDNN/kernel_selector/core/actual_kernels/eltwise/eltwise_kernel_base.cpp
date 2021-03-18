@@ -247,7 +247,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
             case EltwiseMode::FLOOR_MOD:
-                op += "(" + input0_str + " - " + input0_str + " / " + input1_str + " * " + input1_str + ")";
+                op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
                 break;
             case EltwiseMode::ASSIGN:
                 op += input0_str;
@@ -443,9 +443,9 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     // it means that z coord is equal to 1, so z offset will be always equal to 0
                     jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
                 } else if (out_c == 6) {
-                    if (in_c < 5)
+                    if (in_c < 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
-                    else if (in_c == 5) {
+                    } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
@@ -611,8 +611,6 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     return {kd};
 }

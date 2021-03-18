@@ -28,5 +28,6 @@ class TRANSFORMATIONS_API FakeQuantizeReshapeFusion;
 
 class ngraph::pass::FakeQuantizeReshapeFusion : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     FakeQuantizeReshapeFusion();
 };

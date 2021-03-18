@@ -94,6 +94,11 @@ public:
     cl::Event get() override { return _last_ocl_event; }
     std::shared_ptr<gpu_toolkit> get_context() const { return _ctx; }
 
+    void reset() override {
+        ocl_base_event::reset();
+        _events.clear();
+    }
+
 private:
     void wait_impl() override;
     bool is_set_impl() override;

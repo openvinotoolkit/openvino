@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"Mod", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Mod() = default;
+                Mod();
                 /// \brief Constructs a Mod node.
                 ///
                 /// \param A - Dividend tensor
@@ -52,6 +52,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const AutoBroadcastSpec& get_auto_broadcast() const { return m_auto_broadcast; }
+
             private:
                 AutoBroadcastSpec m_auto_broadcast;
             };

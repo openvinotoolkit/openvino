@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,12 +41,14 @@ void regclass_pyngraph_Dimension(py::module m)
     dim.def_property_readonly("is_dynamic", &ngraph::Dimension::is_dynamic);
     dim.def_property_readonly("is_static", &ngraph::Dimension::is_static);
 
-    dim.def("__eq__",
-            [](const ngraph::Dimension& a, const ngraph::Dimension& b) { return a == b; },
-            py::is_operator());
-    dim.def("__eq__",
-            [](const ngraph::Dimension& a, const int64_t& b) { return a == b; },
-            py::is_operator());
+    dim.def(
+        "__eq__",
+        [](const ngraph::Dimension& a, const ngraph::Dimension& b) { return a == b; },
+        py::is_operator());
+    dim.def(
+        "__eq__",
+        [](const ngraph::Dimension& a, const int64_t& b) { return a == b; },
+        py::is_operator());
 
     dim.def("__len__", &ngraph::Dimension::get_length);
     dim.def("get_length", &ngraph::Dimension::get_length);

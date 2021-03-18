@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,9 +54,10 @@ namespace ngraph
                 size_t get_sequence_axis() const { return m_normalized_seq_axis; }
                 int64_t get_origin_sequence_axis() const { return m_seq_axis; }
                 void set_sequence_axis(int64_t sequence_axis) { m_seq_axis = sequence_axis; }
+
             private:
                 int64_t m_batch_axis;
-                int64_t m_seq_axis;
+                int64_t m_seq_axis = 1;
                 size_t m_normalized_batch_axis;
                 size_t m_normalized_seq_axis;
             };

@@ -28,9 +28,7 @@ TEST_F(myriadGetPerformanceTests_nightly, CorrectTimings) {
 
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
 
-    StatusCode st;
-
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork,
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork,
     {
         {
             CONFIG_KEY(PERF_COUNT),
@@ -40,23 +38,18 @@ TEST_F(myriadGetPerformanceTests_nightly, CorrectTimings) {
             CONFIG_KEY(LOG_LEVEL),
             CONFIG_VALUE(LOG_WARNING)
         }
-    }, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    }));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
 
     time_point start = Time::now();
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    time_point end = Time::now();
+    ASSERT_NO_THROW(_inferRequest.Infer());
+        time_point end = Time::now();
     double inferTime_mSec = (std::chrono::duration_cast<ms>(end - start)).count();
 
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    long long stagesTime_uSec = 0;
+    ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
+        long long stagesTime_uSec = 0;
     for (const auto &i : perfMap) {
         stagesTime_uSec += i.second.realTime_uSec;
     }

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "cpu_impl_helpers.hpp"
 
 #include <vector>
+#include <queue>
 #include <algorithm>
 #include <utility>
 #include <tuple>
@@ -37,53 +38,86 @@ struct result_indices {
     int box_index;
 };
 
+struct boxInfo {
+    float score;
+    int idx;
+    int suppress_begin_index;
+};
+
 std::vector<result_indices> run_nms(
     const vector2D<bounding_box>& boxes,
     const vector3D<float>& scores,
     int num_select_per_class,
     float score_threshold,
-    float iou_threshold
+    float iou_threshold,
+    float soft_nms_sigma,
+    bool sort_result_descending
 ) {
+    auto less = [](const boxInfo& l, const boxInfo& r) {
+        return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
+    };
+    float scale = 0.0f;
+    if (soft_nms_sigma > 0.0f) {
+        scale = -0.5f / soft_nms_sigma;
+    }
+    auto coeff = [&](float iou) {
+        const float weight = std::exp(scale * iou * iou);
+        return iou <= iou_threshold ? weight : 0.0f;
+    };
     std::vector<result_indices> result;
 
     for (size_t bi = 0; bi < boxes.size(); ++bi) {
         for (size_t ci = 0; ci < scores[bi].size(); ++ci) {
-            std::vector<std::pair<float, int>> score_box;
+            std::vector<result_indices> fb;
+
+            std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
             for (size_t bbi = 0; bbi < boxes[bi].size(); ++bbi) {
                 if (scores[bi][ci][bbi] > score_threshold)
-                    score_box.emplace_back(scores[bi][ci][bbi], static_cast<int>(bbi));
+                    sorted_boxes.emplace(boxInfo({scores[bi][ci][bbi], static_cast<int>(bbi), 0}));
             }
+            fb.reserve(sorted_boxes.size());
 
-            std::sort(score_box.begin(), score_box.end(), [](const std::pair<float, int>& a, const std::pair<float, int>& b) {return a.first > b.first; });
+            while (static_cast<int>(fb.size()) < num_select_per_class && !sorted_boxes.empty()) {
+                boxInfo currBox = sorted_boxes.top();
+                float origScore = currBox.score;
+                sorted_boxes.pop();
 
-            size_t selected_number = 0;
-            for (size_t i = 0; i < score_box.size(); ++i) {
-                bool keep = true;
-                auto box1_index = score_box[i].second;
-                auto& box1 = boxes[bi][box1_index];
-                for (size_t j = 0; j < selected_number; ++j) {
-                    auto box2_index = score_box[j].second;
-                    auto& box2 = boxes[bi][box2_index];
+                bool box_is_selected = true;
+                for (int idx = static_cast<int>(fb.size()) - 1; idx >= currBox.suppress_begin_index; idx--) {
+                    float iou_boxes = iou(boxes[bi][currBox.idx], boxes[bi][fb[idx].box_index]);
 
-                    if (iou(box1, box2) > iou_threshold) {
-                        keep = false;
+                    currBox.score *= coeff(iou_boxes);
+                    if (iou_boxes >= iou_threshold) {
+                        box_is_selected = false;
                         break;
                     }
-                }
-                if (keep) {
-                    score_box[selected_number] = score_box[i];
-                    selected_number += 1;
-                    result.push_back(result_indices{ score_box[i].first, static_cast<int>(bi), static_cast<int>(ci), score_box[i].second });
-
-                    if (num_select_per_class == static_cast<int>(selected_number))
+                    if (currBox.score <= score_threshold)
                         break;
                 }
+                currBox.suppress_begin_index = static_cast<int>(fb.size());
+                if (box_is_selected) {
+                    if (currBox.score == origScore) {
+                        fb.push_back(result_indices{ currBox.score, static_cast<int>(bi), static_cast<int>(ci), currBox.idx });
+                        continue;
+                    }
+                    if (currBox.score > score_threshold) {
+                        sorted_boxes.push(currBox);
+                    }
+                }
             }
+            std::move(fb.begin(), fb.end(), std::back_inserter(result));
         }
     }
 
-    std::sort(result.begin(), result.end(), [](const result_indices& a, const result_indices& b) {return a.score > b.score; });
-
+    if (sort_result_descending) {
+        std::sort(result.begin(), result.end(),
+                [](const result_indices& l, const result_indices& r) {
+                    return (l.score > r.score) ||
+                           (l.score == r.score && l.batch_index < r.batch_index) ||
+                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
+                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
+                });
+    }
     return result;
 }
 
@@ -111,10 +145,10 @@ vector2D<bounding_box> load_boxes_impl(memory_impl& mem, bool center_point) {
                     bounding_box::center_point_construct_tag());
             } else {
                 result[bi].emplace_back(
-                    static_cast<float>(ptr[offset + 0]),
                     static_cast<float>(ptr[offset + 1]),
-                    static_cast<float>(ptr[offset + 2]),
+                    static_cast<float>(ptr[offset + 0]),
                     static_cast<float>(ptr[offset + 3]),
+                    static_cast<float>(ptr[offset + 2]),
                     bounding_box::two_corners_construct_tag());
             }
         }
@@ -235,15 +269,88 @@ void store_result(memory_impl& mem, const std::vector<result_indices>& result) {
     }
 }
 
+void store_first_output(memory_impl& mem, const std::vector<result_indices>& result) {
+    auto data_type = mem.get_layout().data_type;
+    switch (data_type) {
+    case cldnn::data_types::i32:
+        store_result_impl<data_type_to_type<data_types::i32>::type>(mem, result);
+        break;
+    case cldnn::data_types::i64:
+        store_result_impl<data_type_to_type<data_types::i32>::type>(mem, result);
+        break;
+    default:
+        throw std::runtime_error("Non max supression - unsupported output data type");
+    }
+}
+
+template <typename T>
+void store_second_output_impl(memory_impl& mem, const std::vector<result_indices>& result) {
+    mem_lock<T> lock(mem);
+    auto ptr = lock.data();
+
+    auto output_size = static_cast<size_t>(mem.get_layout().size.batch[0]);
+    auto results_size = result.size();
+
+    size_t si = 0;
+    for (; si < std::min(output_size, results_size); ++si) {
+        auto offset = si * 3;
+        ptr[offset + 0] = static_cast<T>(result[si].batch_index);
+        ptr[offset + 1] = static_cast<T>(result[si].class_index);
+        ptr[offset + 2] = static_cast<T>(result[si].score);
+    }
+    for (; si < output_size; ++si) {
+        auto offset = si * 3;
+        ptr[offset + 0] = static_cast<T>(-1);
+        ptr[offset + 1] = static_cast<T>(-1);
+        ptr[offset + 2] = static_cast<T>(-1);
+    }
+}
+
+void store_second_output(memory_impl& mem, const std::vector<result_indices>& result) {
+    auto data_type = mem.get_layout().data_type;
+    switch (data_type) {
+    case cldnn::data_types::f16:
+        store_second_output_impl<data_type_to_type<data_types::f16>::type>(mem, result);
+        break;
+    case cldnn::data_types::f32:
+        store_second_output_impl<data_type_to_type<data_types::f32>::type>(mem, result);
+        break;
+    default:
+        throw std::runtime_error("Non max supression - unsupported second output data type");
+    }
+}
+
+template <typename T>
+void store_third_output_impl(memory_impl& mem, const std::vector<result_indices>& result) {
+    mem_lock<T> lock(mem);
+    auto ptr = lock.data();
+    ptr[0] = static_cast<T>(result.size());
+}
+
+void store_third_output(memory_impl& mem, const std::vector<result_indices>& result) {
+    auto data_type = mem.get_layout().data_type;
+    switch (data_type) {
+    case cldnn::data_types::i32:
+        store_third_output_impl<data_type_to_type<data_types::i32>::type>(mem, result);
+        break;
+    case cldnn::data_types::i64:
+        store_third_output_impl<data_type_to_type<data_types::i32>::type>(mem, result);
+        break;
+    default:
+        throw std::runtime_error("Non max supression - unsupported third output data type");
+    }
+}
+
 void run(non_max_suppression_inst& instance) {
     auto prim = instance.node.get_primitive();
 
     auto boxes = load_boxes(instance.input_boxes_mem(), prim->center_point_box);
     auto scores = load_scores(instance.input_scores_mem());
 
-    int num_select_per_class = -1;
+    int num_select_per_class = 0;
     float iou_threshold = 1.f;
     float score_threshold = 0.f;
+    float soft_nms_sigma = 0.f;
 
     if (instance.has_num_select_per_class()) {
         num_select_per_class = load_scalar<int>(instance.num_select_per_class_mem());
@@ -257,7 +364,21 @@ void run(non_max_suppression_inst& instance) {
         score_threshold = load_scalar<float>(instance.score_threshold_mem());
     }
 
-    auto result = run_nms(boxes, scores, num_select_per_class, score_threshold, iou_threshold);
+    if (instance.has_soft_nms_sigma()) {
+        soft_nms_sigma = load_scalar<float>(instance.soft_nms_sigma_mem());
+    }
+
+    auto result = run_nms(boxes, scores, num_select_per_class, score_threshold, iou_threshold, soft_nms_sigma, prim->sort_result_descending);
+
+    if (instance.has_third_output()) {
+        store_third_output(instance.third_output_mem(), result);
+    }
+
+    if (instance.has_second_output()) {
+        store_second_output(instance.second_output_mem(), result);
+        store_first_output(instance.output_memory(), result);
+        return;
+    }
 
     store_result(instance.output_memory(), result);
 }

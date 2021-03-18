@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,7 +63,8 @@ namespace ngraph
 
                 explicit Label(const element::Type& type = element::dynamic,
                                const PartialShape& s = PartialShape::dynamic())
-                    : Label(type, s, [](const Output<Node>&) { return true; }, OutputVector())
+                    : Label(
+                          type, s, [](const Output<Node>&) { return true; }, OutputVector())
                 {
                 }
 
@@ -118,10 +119,11 @@ namespace ngraph
                 {
                 }
                 Label(const Output<Node>& value)
-                    : Label(value.get_element_type(),
-                            value.get_partial_shape(),
-                            [](const Output<Node>&) { return true; },
-                            OutputVector{})
+                    : Label(
+                          value.get_element_type(),
+                          value.get_partial_shape(),
+                          [](const Output<Node>&) { return true; },
+                          OutputVector{})
                 {
                 }
                 Label(const Output<Node>& node,

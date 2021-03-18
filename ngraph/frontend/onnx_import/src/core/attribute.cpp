@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "attribute.hpp"
-#include "graph.hpp"
-#include "model.hpp"
+#include "core/attribute.hpp"
+#include "core/graph.hpp"
+#include "core/model.hpp"
 
 namespace ngraph
 {
@@ -42,10 +42,10 @@ namespace ngraph
             ONNX_NAMESPACE::ModelProto model_proto;
             const auto& graph = m_attribute_proto->g();
             *(model_proto.mutable_graph()) = graph;
-            // We're creating here a model with unset `opset_import` field. This shouldn't
-            // be a problem, since we add ONNX opset as a default available opset. Moreover
-            // if we encounter a node absent in current available opsets we will try
-            // to add it's domain to available opsets.
+
+            // set opset version and domain from the parent graph
+            *model_proto.mutable_opset_import() = parent_graph.get_opset_imports();
+
             Model model{model_proto};
             return Subgraph{graph, model, parent_graph};
         }

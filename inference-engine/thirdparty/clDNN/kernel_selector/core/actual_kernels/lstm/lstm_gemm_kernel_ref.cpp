@@ -39,4 +39,8 @@ ParamsKey LSTMGemmKernelRef::GetSupportedKey() const {
 KernelsData LSTMGemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
+
+KernelsPriority LSTMGemmKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
+}
 }  // namespace kernel_selector

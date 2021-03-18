@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,6 +74,7 @@ namespace ngraph
                 }
                 bool get_ctc_merge_repeated() const { return ctc_merge_repeated_; }
                 bool get_unique() const { return unique_; }
+
             private:
                 bool preprocess_collapse_repeated_;
                 bool ctc_merge_repeated_;

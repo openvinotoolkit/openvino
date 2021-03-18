@@ -27,19 +27,19 @@
 * *align_corners*
 
   * **Description**: *align_corners* is a flag that specifies whether to align corners or not. 1 means the alignment is applied, 0 means the alignment isn't applied.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 * *antialias*
 
   * **Description**: *antialias* is a flag that specifies whether to perform anti-aliasing.
   * **Range of values**:
-    * False - do not perform anti-aliasing
-    * True - perform anti-aliasing
+    * false - do not perform anti-aliasing
+    * true - perform anti-aliasing
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *pads_begin*

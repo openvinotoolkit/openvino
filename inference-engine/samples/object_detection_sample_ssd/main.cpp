@@ -36,12 +36,14 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     slog::info << "Parsing input parameters" << slog::endl;
 
-    if (FLAGS_i.empty()) {
-        throw std::logic_error("Parameter -i is not set");
+    if (FLAGS_m.empty()) {
+        showUsage();
+        throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
-    if (FLAGS_m.empty()) {
-        throw std::logic_error("Parameter -m is not set");
+    if (FLAGS_i.empty()) {
+        showUsage();
+        throw std::logic_error("Input is required but not set. Please set -i option.");
     }
 
     return true;
@@ -85,7 +87,7 @@ int main(int argc, char *argv[]) {
 
         if (!FLAGS_l.empty()) {
             // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-            IExtensionPtr extension_ptr = make_so_pointer<IExtension>(FLAGS_l);
+            IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
             slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
         }

@@ -14,22 +14,11 @@ public:
     IECoreAdapter(
         std::shared_ptr<InferenceEngine::Core> ieCore, std::string deviceName);
 
-    // -----------------------------------------
-    // IInferencePlugin API (deprecated). Begin.
-    // - InferenceEngine::ICNNNetwork is replaced by InferenceEngine::CNNNetwork
-    // -----------------------------------------
+    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork & network,
+        const std::map<std::string, std::string>& config = {});
 
-    InferenceEngine::StatusCode LoadNetwork(
-        InferenceEngine::IExecutableNetwork::Ptr& ret, InferenceEngine::CNNNetwork network,
-        const std::map<std::string, std::string>& config, InferenceEngine::ResponseDesc* resp) noexcept;
-
-    InferenceEngine::StatusCode ImportNetwork(
-        InferenceEngine::IExecutableNetwork::Ptr& ret, const std::string& modelFileName,
-        const std::map<std::string, std::string>& config, InferenceEngine::ResponseDesc* resp) noexcept;
-
-    // -----------------------------------------
-    // IInferencePlugin API (deprecated). End.
-    // -----------------------------------------
+    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+        const std::map<std::string, std::string>& config = {});
 
     InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
         const std::map<std::string, std::string>& config = {});

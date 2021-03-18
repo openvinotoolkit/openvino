@@ -33,12 +33,6 @@ namespace PluginConfigInternalParams {
 DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 
 /**
- * @brief This key should be used to mark input executable subnetworks
- * @ingroup ie_dev_api_plugin_api
- */
-DECLARE_CONFIG_KEY(SUBNETWORK_WITH_NETWORK_INPUTS);
-
-/**
  * @brief Limit \#threads that are used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  */

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,7 +70,6 @@ namespace ngraph
                         size_t output_index,
                         T& prev,
                         std::vector<std::pair<size_t, T>>& tensor_vec) -> void {
-
                     tensor_vec[input_index].second = prev + tensor_vec[input_index].second;
                     out[tensor_vec[output_index].first] = tensor_vec[input_index].second;
 

@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadTopKNetwork) {
             </output>
         </layer>
         <layer id="4" name="1345813459_const" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64" />
             </output>
@@ -146,7 +146,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadTopKNetwork) {
             </output>
         </layer>
         <layer id="4" name="1345813459_const" type="Const" precision="I64">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="0">
                     <dim>1</dim>

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/sigmoid.hpp"
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/log.hpp"
@@ -30,6 +31,7 @@ constexpr NodeTypeInfo op::Sigmoid::type_info;
 
 shared_ptr<Node> op::Sigmoid::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Sigmoid_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sigmoid>(new_args.at(0));
 }
@@ -50,27 +52,21 @@ namespace sigmoid
         return true;
     }
 
-    bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
         bool rc = true;
+        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_sigmoid, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sigmoid, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sigmoid, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sigmoid, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sigmoid, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sigmoid, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sigmoid, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -79,6 +75,8 @@ namespace sigmoid
 
 bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sigmoid::evaluate");
-    return sigmoid::evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate);
+    NGRAPH_CHECK(this,
+                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return sigmoid::evaluate_sigmoid(inputs[0], outputs[0]);
 }

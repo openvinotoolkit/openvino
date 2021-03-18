@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ from tests.runtime import get_runtime
 
 
 def test_import_onnx_with_external_data():
-    model_path = os.path.join(os.path.dirname(__file__), "models/external_data.prototxt")
+    model_path = os.path.join(os.path.dirname(__file__), "models/external_data.onnx")
     ie = IECore()
     ie_network = ie.read_network(model=model_path)
 

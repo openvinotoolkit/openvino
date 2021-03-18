@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,13 +40,19 @@ void handle_reshape::run(program_impl& p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            auto input_lay = node.input().get_output_layout();
+            auto& input_node = node.input();
+            auto input_lay = input_node.get_output_layout();
             auto output_lay = node.get_output_layout();
 
             if (!node.is_in_place())
                 return;
 
-            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+            auto are_layouts_identical = program_helpers::are_layouts_identical(input_lay, output_lay);
+            if (are_layouts_identical.first) {
+                p.add_optimized_primitive_info(node.id());
+                p.extract_and_remove(node);
+            } else if (are_layouts_identical.second && input_node.is_type<data>()) {
+                input_node.set_output_layout(output_lay, false);
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
             }

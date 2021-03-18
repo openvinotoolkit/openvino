@@ -6,7 +6,7 @@
 #include "subgraph_tests/scaleshift.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 

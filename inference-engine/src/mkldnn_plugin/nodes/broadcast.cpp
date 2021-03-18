@@ -31,7 +31,7 @@ public:
 
             LayerConfig config;
             DataConfig dataConfig, shapeConfig;
-            Precision dataPrecision = layer->outData[0]->getTensorDesc().getPrecision();
+            Precision dataPrecision = layer->insData[BROADCAST_INPUT].lock()->getTensorDesc().getPrecision();
             const SizeVector& data_dims = layer->insData[BROADCAST_INPUT].lock()->getTensorDesc().getDims();
             dataConfig.desc = TensorDesc(dataPrecision, data_dims,
                                          layer->insData[BROADCAST_INPUT].lock()->getTensorDesc().getLayout());
@@ -46,7 +46,7 @@ public:
             config.outConfs.push_back(outConfig);
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

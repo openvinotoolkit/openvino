@@ -35,13 +35,15 @@ Inference Engine sample applications include the following:
    - [Object Detection for SSD C Sample](../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)
    - [Object Detection for SSD Python* Sample](../../inference-engine/ie_bridges/python/sample/object_detection_sample_ssd/README.md)
  
+> **NOTE**: All samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
+
 ## Media Files Available for Samples
 
 To run the sample applications, you can use images and videos from the media files collection available at https://github.com/intel-iot-devkit/sample-videos.
 
 ## Samples that Support Pre-Trained Models
 
-You can download the [pre-trained models](@ref omz_models_intel_index) using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 
 ## Build the Sample Applications
 
@@ -53,7 +55,7 @@ The officially supported Linux* build environment is the following:
 * GCC* 7.5.0 (for Ubuntu* 18.04) or GCC* 4.8.5 (for CentOS* 7.6)
 * CMake* version 3.10 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md).
+> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -124,6 +126,63 @@ Once the build is completed, you can find sample binaries in the following folde
 You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
 directory.
+
+### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
+
+The officially supported macOS* build environment is the following:
+
+* macOS* 10.15 64-bit
+* Clang* compiler from Xcode* 10.1 or higher
+* CMake* version 3.13 or higher
+
+> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+
+To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+```sh
+build_samples.sh
+```
+
+Once the build is completed, you can find sample binaries in the following folders:
+* C samples: `~/inference_engine_c_samples_build/intel64/Release`
+* C++ samples: `~/inference_engine_cpp_samples_build/intel64/Release`
+
+You can also build the sample applications manually:
+
+> **NOTE**: If you have installed the product as a root user, switch to root mode before you continue: `sudo -i`
+
+> **NOTE**: Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by
+```sh
+cd <INSTALL_DIR>/bin
+source setupvars.sh
+```
+
+1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
+```sh
+mkdir build
+```
+> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/inference_engine_samples_build/`
+
+2. Go to the created directory:
+```sh
+cd build
+```
+
+3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
+  - For release configuration:
+  ```sh
+  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/inference_engine/samples/cpp
+  ```
+  - For debug configuration:
+  ```sh
+  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/inference_engine/samples/cpp
+  ```
+4. Run `make` to build the samples:
+```sh
+make
+```
+
+For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 ## Get Ready for Running the Sample Applications
 

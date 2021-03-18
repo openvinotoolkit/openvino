@@ -4,7 +4,6 @@
 
 #include "embedding_bag_sum.hpp"
 #include "ie_parallel.hpp"
-#include "jit_generator.hpp"
 #include "list.hpp"
 
 #include <set>
@@ -90,7 +89,7 @@ MKLDNNEmbeddingBagSum::MKLDNNEmbeddingBagSum(
         for (size_t i = 1lu; i < inDataDims.size(); i++) {
             _embDepth *= inDataDims[i];
         }
-    } catch (InferenceEngine::details::InferenceEngineException &ex) {
+    } catch (InferenceEngine::Exception &ex) {
         errorMsg = ex.what();
     }
 }

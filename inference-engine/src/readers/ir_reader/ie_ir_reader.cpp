@@ -30,11 +30,10 @@ bool IRReader::supportModel(std::istream& model) const {
 }
 
 CNNNetwork IRReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
-    std::istringstream emptyStream;
-    return read(model, emptyStream, exts);
+    return read(model, nullptr, exts);
 }
 
-CNNNetwork IRReader::read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const {
+CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const {
     OV_ITT_SCOPED_TASK(itt::domains::V10Reader, "IRReader::read");
 
     pugi::xml_document xmlDoc;
@@ -49,12 +48,6 @@ CNNNetwork IRReader::read(std::istream& model, std::istream& weights, const std:
     return CNNNetwork(parser.parse(root, weights));
 }
 
-INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
-    try {
-        reader = new IRReader();
-        return OK;
-    }
-    catch (std::exception &) {
-        return GENERAL_ERROR;
-    }
+INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
+    reader = std::make_shared<IRReader>();
 }

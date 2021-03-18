@@ -4,6 +4,7 @@
 
 #include "pipelines.h"
 #include "../utils.h"
+#include "../ie_utils.h"
 
 #include <iostream>
 #include <string>
@@ -113,6 +114,12 @@ std::function<void()> infer_request_inference(const std::string &model, const st
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
         InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        fillBlobs(infer_request, inputsInfo, batchSize);
+
         infer_request.Infer();
         OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
@@ -120,10 +127,9 @@ std::function<void()> infer_request_inference(const std::string &model, const st
     };
 }
 
-std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& infer_request, InferenceEngine::CNNNetwork& cnnNetwork) {
+std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& infer_request, InferenceEngine::OutputsDataMap& output_info) {
     return [&] {
         infer_request.Infer();
-        OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
             Blob::Ptr outputBlob = infer_request.GetBlob(output.first);
     };

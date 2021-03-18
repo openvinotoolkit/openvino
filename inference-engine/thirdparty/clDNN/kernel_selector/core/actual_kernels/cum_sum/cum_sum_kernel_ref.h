@@ -26,5 +26,6 @@ public:
 protected:
     JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 };
 }  // namespace kernel_selector

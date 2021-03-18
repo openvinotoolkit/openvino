@@ -54,6 +54,10 @@ bool is_batch_after_spatial(const std::string order) {
 format::type get_preferred_format(const fully_connected_node& node) {
     auto input_layout = node.input().get_output_layout();
 
+    // for 3d output we have to chose bfyx format
+    if (node.get_primitive()->input_size == 3)
+        return format::bfyx;
+
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
          input_layout.format == format::bs_x_bsv16 ||
@@ -61,10 +65,13 @@ format::type get_preferred_format(const fully_connected_node& node) {
         return format::yxfb;
 
     bool no_spatial_padding = true;
-    for (auto pad : input_layout.data_padding.lower_size().spatial)
-        no_spatial_padding &= pad == 0;
-    for (auto pad : input_layout.data_padding.upper_size().spatial)
-        no_spatial_padding &= pad == 0;
+    // C++ 11 range loop shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
+    for (size_t i = 0; i < input_layout.data_padding.lower_size().spatial.size(); ++i) {
+        no_spatial_padding &= (input_layout.data_padding.lower_size().spatial[i] == 0);
+    }
+    for (size_t i = 0; i < input_layout.data_padding.upper_size().spatial.size(); ++i) {
+        no_spatial_padding &= (input_layout.data_padding.upper_size().spatial[i] == 0);
+    }
 
     if (input_layout.data_type == data_types::f32 &&
         input_layout.format == format::bfyx &&
@@ -107,6 +114,9 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     auto output_size = tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1);
+    if (desc->input_size == 3) {
+        output_size = tensor(input_layout.size.batch[0], input_layout.size.feature[0], 1, weights_layout.size.batch[0]);
+    }
     format output_format = get_preferred_format(node);
 
     return layout(output_type, output_format, output_size);

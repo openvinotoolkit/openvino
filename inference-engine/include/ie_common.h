@@ -16,7 +16,14 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <sstream>
+#include <stdexcept>
+#include <iterator>
 
+#include <ie_api.h>
+#ifndef NDEBUG
+#include <cassert>
+#endif
 namespace InferenceEngine {
 /**
  * @brief Represents tensor size.
@@ -83,6 +90,7 @@ enum Layout : uint8_t {
 
     // Single image layouts
     CHW = 128,  //!< A single image layout (e.g. for mean image)
+    HWC = 129,  //!< A single image layout (e.g. for mean image)
 
     // 2D
     HW = 192,  //!< HW 2D layout
@@ -91,6 +99,13 @@ enum Layout : uint8_t {
 
     BLOCKED = 200,  //!< A blocked layout
 };
+
+/**
+ * @brief Prints a string representation of InferenceEngine::Layout to a stream
+ * @param out An output stream to send to
+ * @param p A layout value to print to a stream
+ * @return A reference to the `out` stream
+ */
 inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
     switch (p) {
 #define PRINT_LAYOUT(name) \
@@ -106,6 +121,7 @@ inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
         PRINT_LAYOUT(OIHW);
         PRINT_LAYOUT(C);
         PRINT_LAYOUT(CHW);
+        PRINT_LAYOUT(HWC);
         PRINT_LAYOUT(HW);
         PRINT_LAYOUT(NC);
         PRINT_LAYOUT(CN);
@@ -131,6 +147,13 @@ enum ColorFormat : uint32_t {
     NV12,      ///< NV12 color format represented as compound Y+UV blob
     I420,      ///< I420 color format represented as compound Y+U+V blob
 };
+
+/**
+ * @brief Prints a string representation of InferenceEngine::ColorFormat to a stream
+ * @param out An output stream to send to
+ * @param fmt A color format value to print to a stream
+ * @return A reference to the `out` stream
+ */
 inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     switch (fmt) {
 #define PRINT_COLOR_FORMAT(name) \
@@ -221,7 +244,8 @@ enum StatusCode : int {
     RESULT_NOT_READY = -9,
     NOT_ALLOCATED = -10,
     INFER_NOT_STARTED = -11,
-    NETWORK_NOT_READ = -12
+    NETWORK_NOT_READ = -12,
+    INFER_CANCELLED = -13
 };
 
 /**
@@ -234,7 +258,6 @@ struct ResponseDesc {
      */
     char msg[4096] = {};
 };
-
 
 /**
  * @brief Response structure encapsulating information about supported layer
@@ -258,67 +281,211 @@ struct QueryNetworkResult {
     ResponseDesc resp;
 };
 
-/** @brief This class represents StatusCode::GENERIC_ERROR exception */
-class GeneralError : public std::logic_error {
-    using std::logic_error::logic_error;
+namespace details {
+struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception")
+INFERENCE_ENGINE_API_CLASS(InferenceEngineException) : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+    bool hasStatus() const {return true;}
+    StatusCode getStatus() const;
 };
+}  // namespace details
+
+/**
+ * @brief Base Inference Engine exception class
+ */
+IE_SUPPRESS_DEPRECATED_START
+struct INFERENCE_ENGINE_API_CLASS(Exception) : public details::InferenceEngineException {
+    using InferenceEngineException::InferenceEngineException;
+};
+IE_SUPPRESS_DEPRECATED_END
+
+/// @cond
+namespace details {
+    template<typename ExceptionType> struct ExceptionTraits;
+}
+
+#define INFERENCE_ENGINE_DECLARE_EXCEPTION(ExceptionType, statusCode)                           \
+struct INFERENCE_ENGINE_API_CLASS(ExceptionType) final : public InferenceEngine::Exception {    \
+    using Exception::Exception;                                                                 \
+};                                                                                              \
+namespace details {                                                                             \
+template<> struct ExceptionTraits<ExceptionType> {                                              \
+    static const char* string() {return "[ " #statusCode " ]";}                                 \
+};                                                                                              \
+}
+/// @endcond
+
+/** @brief This class represents StatusCode::GENERAL_ERROR exception */
+INFERENCE_ENGINE_DECLARE_EXCEPTION(GeneralError, GENERAL_ERROR)
 
 /** @brief This class represents StatusCode::NOT_IMPLEMENTED exception */
-class NotImplemented : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(NotImplemented, NOT_IMPLEMENTED)
 
 /** @brief This class represents StatusCode::NETWORK_NOT_LOADED exception */
-class NetworkNotLoaded : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(NetworkNotLoaded, NETWORK_NOT_LOADED)
 
 /** @brief This class represents StatusCode::PARAMETER_MISMATCH exception */
-class ParameterMismatch : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(ParameterMismatch, PARAMETER_MISMATCH)
 
 /** @brief This class represents StatusCode::NOT_FOUND exception */
-class NotFound : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(NotFound, NOT_FOUND)
 
 /** @brief This class represents StatusCode::OUT_OF_BOUNDS exception */
-class OutOfBounds : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(OutOfBounds, OUT_OF_BOUNDS)
 
 /** @brief This class represents StatusCode::UNEXPECTED exception */
-class Unexpected : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(Unexpected, UNEXPECTED)
 
 /** @brief This class represents StatusCode::REQUEST_BUSY exception */
-class RequestBusy : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(RequestBusy, REQUEST_BUSY)
 
 /** @brief This class represents StatusCode::RESULT_NOT_READY exception */
-class ResultNotReady : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(ResultNotReady, RESULT_NOT_READY)
 
 /** @brief This class represents StatusCode::NOT_ALLOCATED exception */
-class NotAllocated : public std::logic_error {
-    using std::logic_error::logic_error;
-};
+INFERENCE_ENGINE_DECLARE_EXCEPTION(NotAllocated, NOT_ALLOCATED)
 
 /** @brief This class represents StatusCode::INFER_NOT_STARTED exception */
-class InferNotStarted : public std::logic_error {
-    using std::logic_error::logic_error;
-};
-}  // namespace InferenceEngine
+INFERENCE_ENGINE_DECLARE_EXCEPTION(InferNotStarted, INFER_NOT_STARTED)
 
 /** @brief This class represents StatusCode::NETWORK_NOT_READ exception */
-class NetworkNotRead : public std::logic_error {
-    using std::logic_error::logic_error;
+INFERENCE_ENGINE_DECLARE_EXCEPTION(NetworkNotRead, NETWORK_NOT_READ)
+
+/** @brief This class represents StatusCode::INFER_CANCELLED exception */
+INFERENCE_ENGINE_DECLARE_EXCEPTION(InferCancelled, INFER_CANCELLED)
+
+/**
+ * @private
+ */
+#undef INFERENCE_ENGINE_DECLARE_EXCEPTION
+
+namespace details {
+/**
+ * @brief Tag struct used to throw exception
+ */
+template<typename ExceptionType>
+struct ThrowNow final {
+    [[noreturn]] void operator<<=(const std::ostream& ostream) {
+        std::ostringstream stream;
+        stream << ostream.rdbuf();
+        throw ExceptionType{stream.str()};
+    }
 };
 
+/// @cond
+#ifndef NDEBUG
+#define IE_LOCATION '\n' << __FILE__  << ':' << __LINE__<< ' '
+#else
+#define IE_LOCATION ""
+#endif  // NDEBUG
+/// @endcond
+
+/**
+ * @def IE_THROW
+ * @brief A macro used to throw specefied exception with a description
+ */
+#define IE_THROW(ExceptionType)     \
+    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<= std::stringstream{} << IE_LOCATION
+
+/**
+ * @def THROW_IE_EXCEPTION
+ * @brief A macro used to throw general exception with a description
+ */
+#define THROW_IE_EXCEPTION IE_THROW(GeneralError)
+
+/**
+ * @def THROW_IE_EXCEPTION_WITH_STATUS
+ * @brief A macro used to throw general exception with a description and status
+ */
+#define THROW_IE_EXCEPTION_WITH_STATUS(ExceptionType)                              \
+    IE_THROW(ExceptionType) << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() << ' '
+
+/**
+ * @def IE_ASSERT
+ * @brief Uses assert() function if NDEBUG is not defined, InferenceEngine exception otherwise
+ */
+#ifdef NDEBUG
+#define IE_ASSERT(EXPRESSION)                                               \
+    if (!(EXPRESSION))                                                      \
+    IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION  // NOLINT
+#else
+/**
+ * @private
+ */
+struct NullStream {
+    template <typename T>
+    NullStream& operator<<(const T&) noexcept {return *this;}
+};
+
+#define IE_ASSERT(EXPRESSION) \
+    assert((EXPRESSION));     \
+    InferenceEngine::details::NullStream()
+#endif  // NDEBUG
+
+/// @cond
+#define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...)                         \
+    case InferenceEngine::STATUS_CODE : {                                                       \
+        using InferenceEngine::EXCEPTION_TYPE; using TYPE_ALIAS = EXCEPTION_TYPE;  __VA_ARGS__; \
+    } break;
+/// @endcond
+
+/**
+ * @def IE_EXCEPTION_SWITCH
+ * @brief Generate Switch statement over error codes adn maps them to coresponding exceptions type
+ */
+#define IE_EXCEPTION_SWITCH(STATUS, TYPE_ALIAS, ...)                                            \
+    switch (STATUS) {                                                                           \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, GENERAL_ERROR      , GeneralError      , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_IMPLEMENTED    , NotImplemented    , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NETWORK_NOT_LOADED , NetworkNotLoaded  , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, PARAMETER_MISMATCH , ParameterMismatch , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_FOUND          , NotFound          , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, OUT_OF_BOUNDS      , OutOfBounds       , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, UNEXPECTED         , Unexpected        , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, REQUEST_BUSY       , RequestBusy       , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, RESULT_NOT_READY   , ResultNotReady    , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_ALLOCATED      , NotAllocated      , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, INFER_NOT_STARTED  , InferNotStarted   , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NETWORK_NOT_READ   , NetworkNotRead    , __VA_ARGS__)     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, INFER_CANCELLED    , InferCancelled    , __VA_ARGS__)     \
+        default: IE_ASSERT(!"Unreachable");                                                     \
+    }
+
+/**
+ * @private
+ */
+#define CALL_STATUS_FNC(function, ...)                                                          \
+    if (!actual) THROW_IE_EXCEPTION << "Wrapper used was not initialized.";                     \
+    ResponseDesc resp;                                                                          \
+    auto res = actual->function(__VA_ARGS__, &resp);                                            \
+    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                      \
+            InferenceEngine::details::ThrowNow<ExceptionType>{}                                 \
+                <<= std::stringstream{} << IE_LOCATION << resp.msg)
+
+/**
+ * @private
+ */
+#define CALL_STATUS_FNC_NO_ARGS(function)                                                                   \
+    if (!actual)  THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized."; \
+    ResponseDesc resp;                                                                                      \
+    auto res = actual->function(&resp);                                                                     \
+    if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                                  \
+            InferenceEngine::details::ThrowNow<ExceptionType>{}                                             \
+                <<= std::stringstream{} << IE_LOCATION)
+
+/**
+ * @private
+ */
+#define CALL_FNC_NO_ARGS(function)         \
+    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_FNC_NO_ARGS was not initialized."; \
+    ResponseDesc resp;                     \
+    auto result = actual->function(&resp); \
+    if (resp.msg[0] != '\0') {             \
+         THROW_IE_EXCEPTION << resp.msg    \
+    }                                      \
+    return result;
+}  // namespace details
+}  // namespace InferenceEngine
 #if defined(_WIN32)
 #define __PRETTY_FUNCTION__ __FUNCSIG__
 #else

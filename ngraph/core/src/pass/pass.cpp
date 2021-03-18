@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,10 +79,6 @@ void pass::PassBase::set_callback(const param_callback& callback)
 
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
 
-pass::FunctionPass::~FunctionPass()
-{
-}
+pass::FunctionPass::~FunctionPass() {}
 
-pass::NodePass::~NodePass()
-{
-}
+pass::NodePass::~NodePass() {}

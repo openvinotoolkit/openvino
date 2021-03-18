@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 
 #include <memory>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LogSoftmaxDecomposition, "LogSoftmaxDecomposition", 0);
 
 ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
+    MATCHER_SCOPE(LogSoftmaxDecomposition);
     // Decomposes LogSoftmax(x, axis) op into sub-graph x - log(reduce_sum(exp(x), axis))
     auto log_softmax = ngraph::pattern::wrap_type<opset5::LogSoftmax>();
 
@@ -20,7 +22,7 @@ ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto log_softmax_node = std::dynamic_pointer_cast<ngraph::opset5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
 
-        if (m_transformation_callback(log_softmax_node)) {
+        if (log_softmax_node == nullptr || transformation_callback(log_softmax_node)) {
             return false;
         }
 
@@ -39,6 +41,6 @@ ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(log_softmax, "LogSoftmaxDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(log_softmax, matcher_name);
     register_matcher(m, callback);
 }

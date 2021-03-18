@@ -3,6 +3,7 @@
 //
 
 #include "tests_pipelines.h"
+#include "../common/ie_utils.h"
 
 #include <string>
 
@@ -56,6 +57,12 @@ void test_load_unload_plugin_full_pipeline(const std::string &model, const std::
     reshapeCNNNetwork();
     ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
     InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+    fillBlobs(infer_request, inputsInfo, batchSize);
+
     infer_request.Infer();
     OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
     for (auto &output : output_info)
@@ -82,6 +89,12 @@ void test_read_network_full_pipeline(const std::string &model, const std::string
     reshapeCNNNetwork();
     ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
     InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+    fillBlobs(infer_request, inputsInfo, batchSize);
+
     infer_request.Infer();
     OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
     for (auto &output : output_info)
@@ -109,6 +122,12 @@ void test_set_input_params_full_pipeline(const std::string &model, const std::st
     reshapeCNNNetwork();
     ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
     InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+    fillBlobs(infer_request, inputsInfo, batchSize);
+
     infer_request.Infer();
     OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
     for (auto &output : output_info)
@@ -151,6 +170,12 @@ void test_cnnnetwork_reshape_batch_x2_full_pipeline(const std::string &model, co
     }
     ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
     InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+    fillBlobs(infer_request, inputsInfo, batchSize);
+
     infer_request.Infer();
     OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
     for (auto &output : output_info)
@@ -178,6 +203,12 @@ void test_create_exenetwork_full_pipeline(const std::string &model, const std::s
         exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
     }
     InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+    fillBlobs(infer_request, inputsInfo, batchSize);
+
     infer_request.Infer();
     OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
     for (auto &output : output_info)
@@ -199,11 +230,16 @@ void test_create_infer_request_full_pipeline(const std::string &model, const std
     reshapeCNNNetwork();
     ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
     InferRequest infer_request;
+
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
     for (int i = 0; i < n; i++) {
         if (i == n / 2) {
             log_info("Half of the test have already passed");
         }
         infer_request = exeNetwork.CreateInferRequest();
+        fillBlobs(infer_request, inputsInfo, batchSize);
     }
     infer_request.Infer();
     OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
@@ -226,6 +262,12 @@ void test_infer_request_inference_full_pipeline(const std::string &model, const 
     reshapeCNNNetwork();
     ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
     InferRequest infer_request = exeNetwork.CreateInferRequest();
+
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+    fillBlobs(infer_request, inputsInfo, batchSize);
+
     for (int i = 0; i < n; i++) {
         if (i == n / 2) {
             log_info("Half of the test have already passed");

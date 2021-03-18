@@ -20,7 +20,7 @@
 namespace FormatReader {
 /**
  * \class OCVMAT
- * \brief OpenCV Wraper
+ * \brief OpenCV Wrapper
  */
 class OCVReader : public Reader {
 private:
@@ -44,10 +44,6 @@ public:
     */
     size_t size() const override {
         return _size;
-    }
-
-    void Release() noexcept override {
-        delete this;
     }
 
     std::shared_ptr<unsigned char> getData(size_t width, size_t height) override;

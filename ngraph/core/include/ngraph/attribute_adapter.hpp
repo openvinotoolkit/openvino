@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,6 +84,7 @@ namespace ngraph
         }
         const AT& get() override { return m_ref; }
         void set(const AT& value) override { m_ref = value; }
+
     protected:
         AT& m_ref;
     };
@@ -94,6 +95,7 @@ namespace ngraph
     public:
         IndirectScalarValueAccessor(AT& ref)
             : m_ref(ref)
+            , m_buffer()
         {
         }
 
@@ -157,6 +159,7 @@ namespace ngraph
         }
 
         operator AT&() { return m_ref; }
+
     protected:
         AT& m_ref;
         VAT m_buffer;
@@ -184,6 +187,7 @@ namespace ngraph
         const std::string& get() override { return as_string(m_ref); }
         void set(const std::string& value) override { m_ref = as_enum<AT>(value); }
         operator AT&() { return m_ref; }
+
     protected:
         AT& m_ref;
     };

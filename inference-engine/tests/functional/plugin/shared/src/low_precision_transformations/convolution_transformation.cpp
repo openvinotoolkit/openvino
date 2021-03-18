@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,10 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_and_convolution_function.hpp"
+#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -29,8 +29,8 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
-        param.fakeQuantizeOnData <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+        param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights;
     return result.str();
 }
@@ -44,17 +44,25 @@ void ConvolutionTransformation::SetUp() {
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::getOriginal(
+    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
         // TODO: pass from test parameters
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 
-    validateNGraph();
+    validate();
 }
 
-void ConvolutionTransformation::validateNGraph() {
+void ConvolutionTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<4>(GetParam());
+    const auto actualType = getRuntimePrecision(params.layerName);
+    EXPECT_EQ(actualType, params.expectedKernelType);
+}
+
+void ConvolutionTransformation::validate() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     std::string targetDevice;
@@ -62,15 +70,20 @@ void ConvolutionTransformation::validateNGraph() {
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    auto transformed = transformNGraph(params);
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
     EXPECT_EQ(1ul, transformed->get_output_size());
-    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
 
-    std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
+    const auto output = transformed->get_output_op(0);
+    const auto parent = output->get_input_node_shared_ptr(0);
     ASSERT_FALSE(parent == nullptr);
-    const std::string typeName = parent->get_type_name();
 
-    if (param.fakeQuantizeOnData.empty() || param.fakeQuantizeOnWeights.empty()) {
+    const std::string typeName = parent->get_type_name();
+    const auto isQuantizationSupported = [](const ngraph::builder::subgraph::FakeQuantizeOnData& fq) {
+        return (fq.quantizationLevel == 255) || (fq.quantizationLevel == 256);
+    };
+
+    if (param.fakeQuantizeOnData.empty() || (!isQuantizationSupported(param.fakeQuantizeOnData)) ||
+        param.fakeQuantizeOnWeights.empty() || (!isQuantizationSupported(param.fakeQuantizeOnWeights))) {
         ASSERT_EQ("ConvolutionIE", typeName);
     } else {
         ASSERT_EQ("ScaleShiftIE", typeName);

@@ -30,7 +30,7 @@ utterance in the input ARK file is scanned for dynamic range.  The
 scale factor (floating point scalar multiplier) required to scale the
 maximum input value of the first utterance to 16384 (15 bits) is used
 for all subsequent inputs.  The neural network is quantized to
-accomodate the scaled input dynamic range.  In user-defined
+accommodate the scaled input dynamic range.  In user-defined
 quantization mode, the user may specify a scale factor via the `-sf`
 flag that will be used for static quantization.  In dynamic
 quantization mode, the scale factor for each input batch is computed
@@ -42,7 +42,7 @@ target weight resolution for all layers.  For example, when `-qb 8` is
 specified, the plugin will use 8-bit weights wherever possible in the
 network.  Note that it is not always possible to use 8-bit weights due
 to GNA hardware limitations.  For example, convolutional layers always
-use 16-bit weights (GNA harware verison 1 and 2).  This limitation
+use 16-bit weights (GNA hardware version 1 and 2).  This limitation
 will be removed in GNA hardware version 3 and higher.
 
 #### Execution Modes
@@ -109,6 +109,10 @@ Options:
                             If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.
     -cw_r "<integer>"       Optional. Number of frames for right context windows (default is 0). Works only with context window networks.
                             If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.
+    -oname "<outputs>"      Optional. Layer names for output blobs. The names are separated with ",". Allows to change the order of output layers for -o flag.
+                            Example: Output1:port,Output2:port.
+    -iname "<inputs>"       Optional. Layer names for input blobs. The names are separated with ",". Allows to change the order of input layers for -i flag. 
+                            Example: Input1,Input2
 
 ```
 
@@ -136,7 +140,7 @@ The following pre-trained models are available:
 * rm\_lstm4f
 * rm\_cnn4a\_smbr
 
-All of them can be downloaded from [https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
+All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
 
 
 ### Speech Inference

@@ -25,16 +25,19 @@ TemplateAsyncInferRequest::TemplateAsyncInferRequest(
     if (remoteDevice) {
         _pipeline = {
             {cpuTaskExecutor, [this] {
-                IE_PROFILING_AUTO_SCOPE(PreprocessingAndStartPipeline)
+                OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin,
+                                   "TemplateAsyncInferRequest::PreprocessingAndStartPipeline");
                 _inferRequest->inferPreprocess();
                 _inferRequest->startPipeline();
             }},
             {_waitExecutor, [this] {
-                IE_PROFILING_AUTO_SCOPE(WaitPipeline)
+                OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin,
+                                   "TemplateAsyncInferRequest::WaitPipeline");
                 _inferRequest->waitPipeline();
             }},
             {cpuTaskExecutor, [this] {
-                IE_PROFILING_AUTO_SCOPE(Postprocessing)
+                OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin,
+                                   "TemplateAsyncInferRequest::Postprocessing");
                 _inferRequest->inferPostprocess();
             }}
         };

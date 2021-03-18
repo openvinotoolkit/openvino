@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ namespace ngraph
 
                 int64_t get_axis() const { return m_axis; }
                 void set_axis(const int64_t axis) { m_axis = axis; }
+
             private:
                 int64_t m_axis = 1;
             };

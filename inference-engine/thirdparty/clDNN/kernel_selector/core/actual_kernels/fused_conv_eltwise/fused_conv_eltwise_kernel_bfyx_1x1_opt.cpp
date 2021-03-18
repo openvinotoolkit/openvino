@@ -136,8 +136,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_
 
     constexpr size_t sub_group_size = 8;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     auto block = get_out_block_size(arg);
 
     dispatchData.gws[0] = arg.output.X().v / block.out_width;
@@ -150,6 +148,10 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_
     dispatchData.lws[2] = 2 * sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused_conv_eltwise_params& params,
@@ -167,8 +169,6 @@ JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused
 KernelsData fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params,
                                                                    const optional_params& options) const {
     KernelsData kd = GetCommonKernelsData(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_1;
     return kd;
 }
 }  // namespace kernel_selector

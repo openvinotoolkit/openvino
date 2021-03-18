@@ -1,5 +1,5 @@
 """
- Copyright (C) 2017-2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -254,9 +254,7 @@ class TensorIterator(Op):
 
         back_edges_attrs = [
             ('from-layer', 'from_layer'),
-            ('from-port', 'from_port'),
             ('to-layer', 'to_layer'),
-            ('to-port', 'to_port'),
         ]
 
         new_attrs.update({

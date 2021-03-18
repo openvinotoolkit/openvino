@@ -89,13 +89,16 @@ namespace onnx {
 
     uint32_t decode_varint(std::istream& model) {
         std::vector<char> bytes;
-        bytes.reserve(4);
+        // max 4 bytes for a single value because this function returns a 32-bit long decoded varint
+        const size_t MAX_VARINT_BYTES = 4u;
+        // optimization to avoid allocations during push_back calls
+        bytes.reserve(MAX_VARINT_BYTES);
 
         char key_component = 0;
         model.get(key_component);
 
         // keep reading all bytes from the stream which have the MSB on
-        while (key_component & 0x80) {
+        while (key_component & 0x80 && bytes.size() < MAX_VARINT_BYTES) {
             // drop the most significant bit
             const char component = key_component & ~0x80;
             bytes.push_back(component);

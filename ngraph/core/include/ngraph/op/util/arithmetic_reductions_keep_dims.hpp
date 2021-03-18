@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ namespace ngraph
                 /// For each such axis, output dimension is equal to 1.
                 bool get_keep_dims() const { return m_keep_dims; }
                 void set_keep_dims(bool keep_dims) { m_keep_dims = keep_dims; }
+
             private:
                 bool m_keep_dims = false;
             };

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <ie_iinfer_request.hpp>
 #include <ie_parameter.hpp>
 #include <map>
@@ -79,7 +79,7 @@ public:
      * @brief Queries memory states.
      * @return Returns memory states
      */
-    virtual std::vector<IMemoryStateInternal::Ptr> QueryState() = 0;
+    virtual std::vector<IVariableStateInternal::Ptr> QueryState() = 0;
 
     /**
      * @brief Sets configuration for current executable network

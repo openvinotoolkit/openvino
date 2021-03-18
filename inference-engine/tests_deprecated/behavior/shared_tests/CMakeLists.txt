@@ -20,11 +20,6 @@ target_link_libraries(${TARGET_NAME} PUBLIC
         ieTestHelpers
         )
 
-if(UNIX)
-    find_package(Threads REQUIRED)
-    target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
-endif()
-
 target_link_libraries(${TARGET_NAME} PUBLIC gmock)
 
 target_include_directories(${TARGET_NAME} PUBLIC
@@ -33,4 +28,4 @@ target_include_directories(${TARGET_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests)
 
 # developer package
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS ${TARGET_NAME})

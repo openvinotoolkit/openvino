@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,9 +22,7 @@ using namespace ngraph;
 constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
 constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
 
-Variant::~Variant()
-{
-}
+Variant::~Variant() {}
 
 std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node)
 {

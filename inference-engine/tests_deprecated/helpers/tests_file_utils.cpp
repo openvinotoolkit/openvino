@@ -3,7 +3,6 @@
 //
 
 #include <tests_file_utils.hpp>
-#include "details/ie_exception.hpp"
 #include <fstream>
 #include <string>
 
@@ -16,7 +15,7 @@
 # include <mach/mach.h>
 #endif
 
-#if defined(WIN32) || defined(WIN64)
+#ifdef _WIN32
 // Copied from linux libc sys/stat.h:
 # define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 # define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)

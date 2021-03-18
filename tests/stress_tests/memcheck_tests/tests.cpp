@@ -4,6 +4,7 @@
 
 #include "tests_utils.h"
 #include "../common/tests_utils.h"
+#include "../common/ie_utils.h"
 #include "../common/managers/thread_manager.h"
 #include "tests_pipelines/tests_pipelines.h"
 
@@ -16,7 +17,7 @@ using namespace InferenceEngine;
 
 class MemCheckTestSuite : public ::testing::TestWithParam<TestCase> {
 public:
-    std::string test_name, model, model_name, device;
+    std::string test_name, model, model_name, device, precision;
     TestReferences test_refs;
 
     void SetUp() override {
@@ -28,6 +29,7 @@ public:
         model = test_params.model;
         model_name = test_params.model_name;
         device = test_params.device;
+        precision = test_params.precision;
 
         test_refs.collect_vm_values_for_test(test_name, test_params);
         EXPECT_GT(test_refs.references[VMSIZE], 0) << "Reference value of VmSize is less than 0. Value: "
@@ -44,6 +46,7 @@ public:
 // tests_pipelines/tests_pipelines.cpp
 TEST_P(MemCheckTestSuite, create_exenetwork) {
     log_info("Create ExecutableNetwork from network: \"" << model
+                                                         << "\" with precision: \"" << precision
                                                          << "\" for device: \"" << device << "\"");
     auto test_pipeline = [&]{
         MemCheckPipeline memCheckPipeline;
@@ -56,7 +59,7 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
         log_info("Memory consumption after LoadNetwork:");
         memCheckPipeline.record_measures(test_name);
 
-        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, device));
+        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
         return memCheckPipeline.measure();
     };
 
@@ -66,6 +69,7 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
 
 TEST_P(MemCheckTestSuite, infer_request_inference) {
     log_info("Inference of InferRequest from network: \"" << model
+                                                          << "\" with precision: \"" << precision
                                                           << "\" for device: \"" << device << "\"");
     auto test_pipeline = [&]{
         MemCheckPipeline memCheckPipeline;
@@ -75,6 +79,12 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
+
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        fillBlobs(inferRequest, inputsInfo, batchSize);
+
         inferRequest.Infer();
         OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
@@ -83,7 +93,7 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
         log_info("Memory consumption after Inference:");
         memCheckPipeline.record_measures(test_name);
 
-        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, device));
+        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
         return memCheckPipeline.measure();
     };
 

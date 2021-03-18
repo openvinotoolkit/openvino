@@ -19,13 +19,8 @@ class TRANSFORMATIONS_API ConvertBroadcast3;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertBroadcast3: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertBroadcast3: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertBroadcast3() : GraphRewrite() {
-        convert_broadcast3();
-    }
-
-private:
-    void convert_broadcast3();
+    ConvertBroadcast3();
 };

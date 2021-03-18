@@ -94,15 +94,6 @@ class GitWrapper:
         :return:                    Paginated list of Pull Requests in GitHub repo
         :rtype:                     github.PaginatedList.PaginatedList of github.PullRequest.PullRequest
         """
-        message = "git: {}".format(self.git)
-        message2 = "repository: {}".format(self.repository)
-        message3 = "project: {}".format(self.project)
-        message4 = "github_credentials: {}".format(self.github_credentials)
-        log.warning(message)
-        log.warning(message2)
-        log.warning(message3)
-        log.warning(message4)
-
         return self.git.get_organization(self.repository).get_repo(self.project).get_pulls()
 
 

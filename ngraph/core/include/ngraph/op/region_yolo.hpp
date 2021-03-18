@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,6 +69,7 @@ namespace ngraph
                 const std::vector<float>& get_anchors() const { return m_anchors; }
                 int get_axis() const { return m_axis; }
                 int get_end_axis() const { return m_end_axis; }
+
             private:
                 size_t m_num_coords;
                 size_t m_num_classes;

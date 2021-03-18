@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,8 +35,6 @@
 #include "util/ndarray.hpp"
 #include "util/random.hpp"
 #include "util/test_tools.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 using namespace std;
@@ -177,10 +175,10 @@ TEST(control_dependencies, replace_node)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto MUL_AB = A * B;
-    auto MUL_BA = B * A;
-    auto ADD = A + B;
-    auto SUM = MUL_AB + ADD;
+    auto MUL_AB = make_shared<op::v1::Multiply>(A, B);
+    auto MUL_BA = make_shared<op::v1::Multiply>(B, A);
+    auto ADD = make_shared<op::v1::Add>(A, B);
+    auto SUM = make_shared<op::v1::Add>(MUL_AB, ADD);
     ADD->add_control_dependency(MUL_AB);
     ASSERT_TRUE(1 == count_control_dependencies(ADD, MUL_AB));
     ASSERT_TRUE(0 == count_control_dependencies(ADD, MUL_BA));

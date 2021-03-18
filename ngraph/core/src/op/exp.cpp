@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 #include "itt.hpp"
 
 #include "ngraph/op/exp.hpp"
-#include "ngraph/op/multiply.hpp"
 
+#include <ngraph/validation_util.hpp>
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
 
@@ -35,11 +35,13 @@ op::Exp::Exp(const Output<Node>& arg)
 
 bool ngraph::op::v0::Exp::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Exp_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Exp::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Exp_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Exp>(new_args.at(0));
 }
@@ -54,27 +56,21 @@ namespace expop
         return true;
     }
 
-    bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
         bool rc = true;
+        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_exp, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -83,6 +79,8 @@ namespace expop
 
 bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Exp::evaluate");
-    return expop::evaluate_exp(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(v0_Exp_evaluate);
+    NGRAPH_CHECK(this,
+                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return expop::evaluate_exp(inputs[0], outputs[0]);
 }

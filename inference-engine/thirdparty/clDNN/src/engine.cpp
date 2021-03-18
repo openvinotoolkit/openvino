@@ -93,6 +93,7 @@ gpu_toolkit_config convert_configuration(const engine_configuration conf) {
     result.priority_mode = conf.priority_mode;
     result.throttle_mode = conf.throttle_mode;
     result.queues_num = conf.n_streams;
+    result.kernels_cache_path = conf.kernels_cache_path;
     result.tuning_cache_path = conf.tuning_cache_path;
     return result;
 }

@@ -33,8 +33,8 @@ public:
     bool get_across_spatial() const  { return m_across_spatial;}
 
     void validate_and_infer_types() override;
-
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor &visitor) override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
 
 protected:
     float m_eps;

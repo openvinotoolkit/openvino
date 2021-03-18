@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,6 +56,29 @@ public:
             if (cell_layout.size.spatial[1] > 1) {
                 lstm_elt_params.cell_direction = arg.direction();
             }
+        }
+
+        const auto& prim = arg.get_primitive();
+        if (!prim->activations.empty()) {
+            auto a_sz = prim->activations.size();
+            auto param_sz = prim->activation_params.size();
+            if (param_sz) {
+                CLDNN_ERROR_NOT_EQUAL(arg.id(),
+                                      "number of activations",
+                                      a_sz,
+                                      "number of activation parameters",
+                                      param_sz,
+                                      "activations/parameters num mismatch");
+            }
+            for (size_t i = 0; i < a_sz; i++) {
+                lstm_elt_params.activations.emplace_back(get_kernel_selector_activation_param(prim->activations[i]),
+                                                         param_sz ? prim->activation_params[i].a : 0.0f,
+                                                         param_sz ? prim->activation_params[i].b : 0.0f);
+            }
+        }
+
+        if (prim->clip > 0.0f) {
+            lstm_elt_params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -prim->clip, prim->clip);
         }
 
         lstm_elt_params.SetOffsetOrder(static_cast<int32_t>(arg.offset_order()));

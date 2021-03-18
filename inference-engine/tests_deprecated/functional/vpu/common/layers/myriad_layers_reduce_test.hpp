@@ -416,23 +416,16 @@ protected:
         _outputsInfo = network.getOutputsInfo();
         _outputsInfo["reduce"]->setPrecision(dataPrecision);
         _outputsInfo["reduce"]->setLayout(vpu::deviceLayout(TensorDesc::getLayoutByDims(outputDims), layoutPreference));
-        StatusCode st = OK;
 
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, _config));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr inputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("reduce_input", inputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(inputBlob = _inferRequest.GetBlob("reduce_input"));
+        
         Blob::Ptr outputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("reduce", outputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("reduce"));
+        
         Blob::Ptr refBlob = nullptr;
         float compareThreshold = 0.0f;
         if (dataPrecision == Precision::FP16) {
@@ -443,9 +436,8 @@ protected:
             auto generateData = opIt->second.generateData;
             generateData(inputBlob);
 
-            ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-            ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+            ASSERT_NO_THROW(_inferRequest.Infer());
+            
             refBlob = make_shared_blob<ie_fp16>(outputBlob->getTensorDesc());
             refBlob->allocate();
             ref_reduce(inputBlob, axesBlob, refBlob, keepDims, layoutPreference, reduceOp);
@@ -457,9 +449,8 @@ protected:
            auto generateData = opIt->second.generateData;
            generateData(inputBlob);
 
-           ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-           ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+           ASSERT_NO_THROW(_inferRequest.Infer());
+           
            refBlob = make_shared_blob<int32_t>(outputBlob->getTensorDesc());
            refBlob->allocate();
            ref_reduce(inputBlob, axesBlob, refBlob, keepDims, layoutPreference, reduceOp);
@@ -468,25 +459,11 @@ protected:
     }
 };
 
-class myriadTestsReduceAnd_smoke: public ReduceTest<REDUCE_AND>
-{
-};
-
-class myriadTestsReduceMin_smoke: public ReduceTest<REDUCE_MIN>
-{
-};
-
-class myriadTestsReduceMax_smoke: public ReduceTest<REDUCE_MAX>
-{
-};
-
-class myriadTestsReduceSum_smoke: public ReduceTest<REDUCE_SUM>
-{
-};
-
-class myriadTestsReduceMean_smoke: public ReduceTest<REDUCE_MEAN>
-{
-};
+using myriadTestsReduceAnd_smoke = ReduceTest<REDUCE_AND>;
+using myriadTestsReduceMin_smoke = ReduceTest<REDUCE_MIN>;
+using myriadTestsReduceMax_smoke = ReduceTest<REDUCE_MAX>;
+using myriadTestsReduceSum_smoke = ReduceTest<REDUCE_SUM>;
+using myriadTestsReduceMean_smoke = ReduceTest<REDUCE_MEAN>;
 
 // Tests are disabled due to hang: #-28315
 

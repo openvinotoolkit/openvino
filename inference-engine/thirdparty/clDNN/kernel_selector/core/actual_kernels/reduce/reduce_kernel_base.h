@@ -55,6 +55,6 @@ protected:
     Datatype GetAccumulatorType(const reduce_params& p) const;
     Datatype GetFinalAccumulatorType(const reduce_params& p) const;
     Datatype GetActivationType(const reduce_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

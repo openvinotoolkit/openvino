@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -63,13 +63,17 @@ class Elementwise(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'is_eltwise': True,
-            'stop_value_propagation': False
+            'stop_value_propagation': False,
+            'auto_broadcast': 'numpy'
         }, attrs)
 
     @staticmethod
     def type_infer(node):
         override_data_type_of_constant(node)
         node.out_port(0).set_data_type(node.in_port(0).get_data_type())
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class UnaryElementwise(Elementwise):
@@ -81,6 +85,9 @@ class UnaryElementwise(Elementwise):
     @staticmethod
     def type_infer(node):
         copy_type_infer(node)
+
+    def backend_attrs(self):
+        return []
 
 
 class Add(Elementwise):

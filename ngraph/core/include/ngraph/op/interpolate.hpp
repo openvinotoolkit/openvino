@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,6 +82,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
+
             private:
                 InterpolateAttrs m_attrs;
             };
@@ -144,10 +145,10 @@ namespace ngraph
                 {
                     // specifies type of interpolation
                     // one of `nearest`, `linear`, `linear_onnx`, `cubic` Required.
-                    InterpolateMode mode;
+                    InterpolateMode mode = InterpolateMode::nearest;
                     // specifies shape calculation mode
                     // one of `sizes`, `scales` Required
-                    ShapeCalcMode shape_calculation_mode;
+                    ShapeCalcMode shape_calculation_mode = ShapeCalcMode::sizes;
                     // specify the number of pixels to add to the beginning of the image being
                     // interpolated. This addition of pixels is done before interpolation
                     // calculation.
@@ -159,25 +160,20 @@ namespace ngraph
                     // specifies how to transform the coordinate in the resized tensor to the
                     // coordinate in the original tensor. one of `half_pixel`, `pytorch_half_pixel`,
                     // `asymmetric`, `tf_half_pixel_for_nn`, `align_corners`
-                    CoordinateTransformMode coordinate_transformation_mode;
+                    CoordinateTransformMode coordinate_transformation_mode =
+                        CoordinateTransformMode::half_pixel;
                     // specifies round mode when `mode == nearest` and is used only when `mode ==
                     // nearest`. one of `round_prefer_floor`, `round_prefer_ceil`, `floor`, `ceil`,
                     // `simple`
-                    NearestMode nearest_mode;
+                    NearestMode nearest_mode = NearestMode::round_prefer_floor;
                     // a flag that specifies whether to perform anti-aliasing. default is `false`
-                    bool antialias;
+                    bool antialias = false;
                     // specifies the parameter *a* for cubic interpolation (see, e.g.
                     // [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is
                     // used only when `mode == cubic`
-                    double cube_coeff;
+                    double cube_coeff = -0.75f;
 
-                    InterpolateAttrs()
-                        : coordinate_transformation_mode(CoordinateTransformMode::half_pixel)
-                        , nearest_mode(NearestMode::round_prefer_floor)
-                        , antialias(false)
-                        , cube_coeff(-0.75f)
-                    {
-                    }
+                    InterpolateAttrs() = default;
 
                     InterpolateAttrs(InterpolateMode mode,
                                      ShapeCalcMode shape_calculation_mode,
@@ -234,11 +230,14 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
+
             protected:
                 /// \return The interpolation axes.
                 std::vector<int64_t> get_axes() const;
 
             private:
+                bool evaluate_interpolate(const HostTensorVector& outputs,
+                                          const HostTensorVector& inputs) const;
                 InterpolateAttrs m_attrs;
 
                 /// \brief Corrects pads_begin and pads_end attributes.
@@ -285,8 +284,8 @@ namespace ngraph
             };
         } // namespace v4
         NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::InterpolateAttrs;
         using v0::Interpolate;
+        using v0::InterpolateAttrs;
         NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 

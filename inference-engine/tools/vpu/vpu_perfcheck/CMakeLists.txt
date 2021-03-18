@@ -17,8 +17,6 @@
 disable_deprecated_warnings()
 
 function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
-    find_package(Threads REQUIRED)
-
     file(GLOB SOURCES *.cpp)
 
     add_executable(${TARGET_NAME} ${SOURCES})
@@ -33,6 +31,7 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
     target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
             "${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include"
+            "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
             "${IE_MAIN_SOURCE_DIR}/samples/common/samples"
             "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader")
 
@@ -54,7 +53,9 @@ endfunction()
 if(ENABLE_MYRIAD)
     add_perfcheck_target(myriad_perfcheck myriadPlugin)
 
+    ie_cpack_add_component(myriad_tools DEPENDS myriad)
+
     install(TARGETS myriad_perfcheck
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-            COMPONENT myriad)
+            COMPONENT myriad_tools)
 endif()

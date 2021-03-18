@@ -1,7 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ngraph/ops.hpp>
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph
@@ -10,12 +11,12 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T, typename U>
-            void extractImagePatches(const op::ExtractImagePatches* extImgPatches,
-                                     const T* input,
-                                     T* out,
-                                     const Shape& inShape,
-                                     const Shape& outShape)
+            template <typename T>
+            void extract_image_patches(const std::shared_ptr<op::ExtractImagePatches> extImgPatches,
+                                       const T* input,
+                                       T* out,
+                                       const Shape& inShape,
+                                       const Shape& outShape)
             {
                 const size_t dimsSize = inShape.size();
                 const size_t BATCH = 0, CHANNEL = 1, HIGHT = 0, WIDTH = 1;
@@ -38,9 +39,6 @@ namespace ngraph
                 const int64_t OH = outShape[dimsSize - 2];
                 const int64_t OW = outShape[dimsSize - 1];
 
-                int64_t ihStart = 0;
-                int64_t iwStart = 0;
-
                 int64_t iwStep = KW + (RW - 1) * (KW - 1);
                 int64_t ihStep = KH + (RH - 1) * (KH - 1);
 
@@ -50,7 +48,6 @@ namespace ngraph
                 const int64_t IH_IW = IH * IW;
                 const int64_t IC_IH_IW = IC * IH_IW;
                 const int64_t IB_IC_IH_IW = IC_IH_IW * IB;
-                const int64_t KH_KW = KH * KW;
 
                 int64_t PL = 0, PT = 0;
 

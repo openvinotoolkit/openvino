@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<AxisSet>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
         operator AxisSet&() { return m_ref; }
+
     protected:
         AxisSet& m_ref;
         std::vector<int64_t> m_buffer;
