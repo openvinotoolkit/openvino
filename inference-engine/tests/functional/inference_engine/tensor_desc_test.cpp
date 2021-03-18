@@ -17,7 +17,7 @@ using namespace InferenceEngine;
 using TensorDescTests = ::testing::Test;
 
 TEST_F(TensorDescTests, CreateBlobWithIncorrectLayout) {
-    ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), details::InferenceEngineException);
+    ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), Exception);
 }
 
 TEST_F(TensorDescTests, CreateBlockedBlobNCHW) {
