@@ -12,10 +12,9 @@
 #endif
 
 #include <file_utils.h>
-#include <details/ie_exception.hpp>
 #include <stdlib.h>
 #include <sys/stat.h>
-
+#include "ie_common.h"
 #ifndef _WIN32
 # include <limits.h>
 # include <unistd.h>

@@ -28,14 +28,14 @@ protected:
 // Testing TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_size = 0)
 TEST_F(BlobTests, TBlobThrowsIfPtrForPreAllocatorIsNullPtr) {
     ASSERT_THROW(InferenceEngine::TBlob<float>({InferenceEngine::Precision::FP32, {1}, InferenceEngine::C}, nullptr),
-                 InferenceEngine::details::InferenceEngineException);
+                 InferenceEngine::Exception);
 }
 
 // Testing TBlob(const TensorDesc& tensorDesc, const std::std::shared_ptr<IAllocator>& alloc)
 TEST_F(BlobTests, TBlobThrowsIfAllocatorIsNullPtr) {
     ASSERT_THROW(InferenceEngine::TBlob<float>(
             {InferenceEngine::Precision::FP32, {1}, InferenceEngine::C}, std::shared_ptr<InferenceEngine::IAllocator>()),
-           InferenceEngine::details::InferenceEngineException);
+           InferenceEngine::Exception);
 }
 
 
@@ -271,7 +271,7 @@ TEST_F(BlobTests, canMakeSharedBlob) {
 
 TEST_F(BlobTests, cannotCreateBlobWithIncorrectPrecision) {
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP16, {1, 3, 227, 227}, InferenceEngine::Layout::NCHW);
-    ASSERT_THROW(InferenceEngine::make_shared_blob<float>(desc), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(InferenceEngine::make_shared_blob<float>(desc), InferenceEngine::Exception);
 }
 
 TEST_F(BlobTests, canUseBlobInMoveSemantics) {
@@ -396,7 +396,7 @@ TEST_F(BlobTests, makeRoiBlobWrongSize) {
 
     // try to create ROI blob with wrong size
     InferenceEngine::ROI roi = {0, 1, 1, 4, 4};  // cropped picture with: id = 0, (x,y) = (1,1), sizeX (W) = 4, sizeY (H) = 4
-    ASSERT_THROW(make_shared_blob(blob, roi), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(make_shared_blob(blob, roi), InferenceEngine::Exception);
 }
 
 TEST_F(BlobTests, readRoiBlob) {
