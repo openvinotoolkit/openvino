@@ -6,6 +6,23 @@
 
 **Short description**: An operation *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of specified sizes.
 
+**Detailed description**: Operation takes coordinates of centres of boxes and add strides to them to calculate coordinates of prior grids according to next algorithm:
+    
+    for (int h = 0; h < layer_height; ++h)
+        for (int w = 0; w < layer_width; ++w)
+            for (int s = 0; s < number_of_priors; ++s)
+                data[0] = priors[4 * s + 0] + step_w * (w + 0.5)
+                data[1] = priors[4 * s + 1] + step_h * (h + 0.5)
+                data[2] = priors[4 * s + 2] + step_w * (w + 0.5)
+                data[3] = priors[4 * s + 3] + step_h * (h + 0.5)
+                data += 4;
+
+If *h* and *w* are zeroes, then `layer_height` = `featmap_height` and `layer_width` = `featmap_width`, otherwise *h* and *w* respectively.
+
+If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_height` and `step_w` = `image_width` / `layer_width`, otherwise *stride_h* and *stride_w* respectively.
+
+`featmap_height`, `featmap_width`, `image_height` and `image_width` are spatial dimensions values from second and third inputs respectively.
+
 **Attributes**:
 
 * *flatten*
@@ -21,7 +38,7 @@
 * *h*
 
     * **Description**: *h* attribute specifies number of cells of the generated grid with respect to height.
-    * **Range of values**: non-negative integer number
+    * **Range of values**: non-negative integer number less than `featmap_height`
     * **Type**: int
     * **Default value**: 0
     * **Required**: *no*
@@ -29,7 +46,7 @@
 * *w*
 
     * **Description**: *w* attribute specifies number of cells of the generated grid with respect to width.
-    * **Range of values**: non-negative integer number
+    * **Range of values**: non-negative integer number less than `featmap_width`
     * **Type**: int
     * **Default value**: 0
     * **Required**: *no*
@@ -60,26 +77,13 @@
 
 **Outputs**
 
-* **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise, where `featmap_height` and `featmap_width` are spatial dimensions values from second input.
-The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
+* **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise.
+In case then 0 < *h* < `featmap_height` and/or 0 < *w* < `featmap_width` the output data size is less than `featmap_height` * `featmap_width` * `number_of_priors` * 4.
+The output tensor is filled with -1s ??? for output tensor elements if the output data size is less than the output tensor size.
 
 **Types**
 
 * *T*: any supported floating point type.
-
-**Detailed description**: 
-
-Operation computes prior grids by following:
-
-    for (int ih = 0; ih < featmap_height; ++ih)
-        for (int iw = 0; iw < featmap_width; ++iw)
-            for (int s = 0; s < number_of_priors; ++s)
-                data[0] = priors[4 * s + 0] + stride_x * (iw + 0.5)
-                data[1] = priors[4 * s + 1] + stride_y * (ih + 0.5)
-                data[2] = priors[4 * s + 2] + stride_x * (iw + 0.5)
-                data[3] = priors[4 * s + 3] + stride_y * (ih + 0.5)
-                data += 4
-
 
 **Example**
 

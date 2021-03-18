@@ -8,14 +8,14 @@
 
 **Detailed description**: Operation doing next steps:
 
-1.  Transposes and reshape predicted deltas and scores to get them into the same order as the anchors;
+1.  Transposes and reshape predicted bounding boxes deltas and scores to get them into the same order as the anchors;
 2.  Transforms anchors into proposals and clips proposals to image;
 3.  Removes predicted boxes with either height or width < *min_size*;
-4.  Sorts all `(proposal, score)` pairs by score from highest to lowest;
-5.  Takes top *pre_nms_count* proposals;
+4.  Sorts all `(proposal, score)` pairs by score from highest to lowest, order of equal elements is undefined;
+5.  Takes top *pre_nms_count* proposals, if ???;
 6.  Applies non-maximum suppression with *nms_threshold*;
-7.  Takes *post_nms_count* proposals and return these top proposals and their scores.
-       
+7.  Takes top *post_nms_count* proposals and return these top proposals and their scores, if ???.
+
 **Attributes**:
 
 * *min_size*
@@ -34,14 +34,6 @@
     * **Default value**: None
     * **Required**: *yes*
 
-* *post_nms_count*
-
-    * **Description**: *post_nms_count* attribute specifies number of top-n proposals after NMS.
-    * **Range of values**: non-negative integer number
-    * **Type**: int
-    * **Default value**: None
-    * **Required**: *yes*
-
 * *pre_nms_count*
 
     * **Description**: *pre_nms_count* attribute specifies number of top-n proposals before NMS.
@@ -49,6 +41,16 @@
     * **Type**: int
     * **Default value**: None
     * **Required**: *yes*
+
+* *post_nms_count*
+
+    * **Description**: *post_nms_count* attribute specifies number of top-n proposals after NMS.
+    * **Range of values**: non-negative integer number less or equal to *pre_nms_count*
+    * **Type**: int
+    * **Default value**: None
+    * **Required**: *yes*
+
+
 
 **Inputs**
 

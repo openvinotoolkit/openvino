@@ -17,7 +17,7 @@ PyramidLevelMapper maps the ROI to the pyramid level using the following formula
 
 * j = floor(2 + log<sub>2</sub>(sqrt(w * h) / 224)
 
-Here 224 is the "canonical" size, 2 is the pyramid starting level, and w, h are the ROI width and height.
+Here 224 is the "canonical" size, 2 is the pyramid starting level, and `w`, `h` are the ROI width and height.
 
 For more details please see the following source: [Feature Pyramid Networks for Object Detection](https://arxiv.org/pdf/1612.03144.pdf)
 

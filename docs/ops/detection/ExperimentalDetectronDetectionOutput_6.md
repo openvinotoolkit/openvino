@@ -13,7 +13,7 @@
 3.  Clips boxes to image;
 4.  Applies *score_threshold* on detection scores;
 5.  Applies non-maximum suppression class-wise with *nms_threshold*;
-6.  If total number of detections then operation leaves only *max_detections_per_image* detections.
+6.  Operation leaves only *max_detections_per_image* detections if total number of detections is more, otherwise ???.
 
 **Attributes**:
 
@@ -97,11 +97,11 @@
 
 * **1**: A 2D tensor of type *T* with shape `[max_detections_per_image, 4]` describing boxes indices.
 
-* **2**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` describing class indices.
+* **2**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` describing classes indices.
 
 * **3**: A 1D tensor of type *T* with shape `[max_detections_per_image]` describing scores indices.
 
-* **4**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` describing batch indices.
+* **4**: A 1D tensor of type *T_IND* with shape `[max_detections_per_image]` describing batches indices.
 
 **Types**
 

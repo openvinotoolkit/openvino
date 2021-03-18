@@ -4,10 +4,11 @@
 
 **Category**: Sort
 
-**Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to probabilities of input ROIs
+**Short description**: An operation *ExperimentalDetectronTopKROIs* is TopK operation applied to probabilities of input ROIs.
 
 **Detailed description**: Operation performs probabilities descending sorting for input ROIs and returns *max_rois* 
-number of ROIs. Order of sorted ROIs with same probabilities is undefined. If number of ROIs is less than *max_rois* then operation
+number of ROIs. Order of sorted ROIs with equal probabilities is undefined. If number of ROIs is less than *max_rois* then 
+operation returns all ROIs descended sorted and the output tensor is filled with -1s ??? for rest output tensor elements.
 
 **Attributes**:
 
