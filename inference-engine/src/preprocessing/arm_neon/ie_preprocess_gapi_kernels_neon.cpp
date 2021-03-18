@@ -495,10 +495,11 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     bool yRatioEq = inSz.height == outSz.height;
 
     if (!xRatioEq && !yRatioEq) {
+        GAPI_Assert(inSz.width >= half_nlanes);
+        GAPI_Assert(outSz.width >= half_nlanes);
+
         if (4 == lpi) {
             // vertical pass
-            GAPI_Assert(inSz.width >= half_nlanes);
-
             v_int16 b0 = vx_setall_s16(beta[0]);
             v_int16 b1 = vx_setall_s16(beta[1]);
             v_int16 b2 = vx_setall_s16(beta[2]);
@@ -515,7 +516,6 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             int w = 0;
             for (;;) {
                 for (; w <= inSz.width - half_nlanes; w += half_nlanes) {
-#if 1
                     v_int16 val0_0 = v_reinterpret_as_s16(vx_load_expand(&src0[0][w]));
                     v_int16 val0_1 = v_reinterpret_as_s16(vx_load_expand(&src0[1][w]));
                     v_int16 val0_2 = v_reinterpret_as_s16(vx_load_expand(&src0[2][w]));
@@ -547,49 +547,6 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 
                     vx_store(&tmp[4 * w + 0], q4);
                     vx_store(&tmp[4 * w + 2 * half_nlanes], q5);
-#else
-                    // let: t[i] = src0[i][w]*beta0[i] + src1[i][w]*beta1
-                    // here: beta0[i] = beta[i], beta1 = 1 - beta0[i]
-                    v_int16 t0, t1, t2, t3;
-                    {
-                        v_int16 s0, s1;
-
-                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[0][w]));
-                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[0][w]));
-                        t0 = v_mulhrs(s0 - s1, beta[0]) + s1;
-
-                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[1][w]));
-                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[1][w]));
-                        t1 = v_mulhrs(s0 - s1, beta[1]) + s1;
-
-                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[2][w]));
-                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[2][w]));
-                        t2 = v_mulhrs(s0 - s1, beta[2]) + s1;
-
-                        s0 = v_reinterpret_as_s16(vx_load_expand(&src0[3][w]));
-                        s1 = v_reinterpret_as_s16(vx_load_expand(&src1[3][w]));
-                        t3 = v_mulhrs(s0 - s1, beta[3]) + s1;
-                    }
-                    // store as groups of 4 pixels: each group to have a pixel per row
-                    {
-                        v_uint8 a0, a1, a2, a3;
-                        a0 = v_pack_u(t0, vx_setall_s16(0));
-                        a1 = v_pack_u(t1, vx_setall_s16(0));
-                        a2 = v_pack_u(t2, vx_setall_s16(0));
-                        a3 = v_pack_u(t3, vx_setall_s16(0));
-
-                        v_int16 b0, b1;
-                        b0 = v_reinterpret_as_s16(v_interleave_low(a0, a1));  // 0th, 1st
-                        b1 = v_reinterpret_as_s16(v_interleave_low(a2, a3));  // 2nd, 3rd
-
-                        v_uint8 d0, d1;
-                        d0 = v_reinterpret_as_u8(v_interleave_low(b0, b1));
-                        d1 = v_reinterpret_as_u8(v_interleave_high(b0, b1));
-
-                        vx_store(&tmp[4 * w + 0], d0);
-                        vx_store(&tmp[4 * w + 16], d1);
-                    }
-#endif
                 }
 
                 if (w < inSz.width) {
@@ -600,11 +557,9 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             }
 
             // horizontal pass
-            GAPI_Assert(outSz.width >= half_nlanes);
             int x = 0;
             for (;;) {
                 for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
-#if 1
                     v_int16 a10 = vx_load(&clone[4 * x]);
                     v_int16 a32 = vx_load(&clone[4 * (x + 2)]);
                     v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
@@ -648,52 +603,6 @@ void calcRowLinear_8UC1(uint8_t* dst[],
                     v_store_high(&dst[1][x], q4);
                     v_store_low(&dst[2][x],  q5);
                     v_store_high(&dst[3][x], q5);
-
-#else
-                    // let: t be 2 pairs of groups of 4 pixels (each group is for 4 dst rows)
-                    // each pair of gorups corresponds to pixels indexed as sx0 and sx1=sx0+1
-                    // so: low part of t0 is 2x4 pixels corresponding to sx0=mapsx[x+0], etc.
-                    v_uint8 t0, t1, t2, t3;
-                    {
-                        t0.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 0]])),
-                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
-                        t1.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 2]])),
-                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
-                        t2.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 4]])),
-                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
-                        t3.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 6]])),
-                            *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
-                    }
-
-                    // let: r0 be pixels for 0th row, etc
-                    v_uint8 r0, r1, r2, r3;
-                    v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
-
-                    // let: dl be resulting 8 pixels for l'th row
-                    //      dl = alpha0*s0l + alpha1*s1l
-                    // note that alpha0 + alpha1 = 1
-                    {
-                        v_int16 s0, s1, d, alpha0;
-
-                        alpha0 = vx_load(&alpha[x]);  // 8 coefficients
-
-                        v_deinterleave_expand(r0, s0, s1);
-                        d = v_mulhrs(s0 - s1, alpha0) + s1;
-                        v_pack_u_store(&dst[0][x], d);
-
-                        v_deinterleave_expand(r1, s0, s1);
-                        d = v_mulhrs(s0 - s1, alpha0) + s1;
-                        v_pack_u_store(&dst[1][x], d);
-
-                        v_deinterleave_expand(r2, s0, s1);
-                        d = v_mulhrs(s0 - s1, alpha0) + s1;
-                        v_pack_u_store(&dst[2][x], d);
-
-                        v_deinterleave_expand(r3, s0, s1);
-                        d = v_mulhrs(s0 - s1, alpha0) + s1;
-                        v_pack_u_store(&dst[3][x], d);
-                    }
-#endif
                 }
 
                 if (x < outSz.width) {
@@ -704,13 +613,14 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             }
 
         } else {  // if any lpi
+            GAPI_Assert((inSz.width >= half_nlanes) && (outSz.width >= half_nlanes));
+            v_int16 t0, t1;
             for (int l = 0; l < lpi; ++l) {
                 short beta0 = beta[l];
-                //  short beta1 = saturate_cast<short>(ONE - beta[l]);
 
-                    // vertical pass
-                GAPI_Assert(inSz.width >= half_nlanes);
-                for (int w = 0; w < inSz.width; ) {
+                // vertical pass
+                int w = 0;
+                for (;;) {
                     for (; w <= inSz.width - half_nlanes; w += half_nlanes) {
                         v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[l][w]));
                         v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[l][w]));
@@ -720,16 +630,16 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 
                     if (w < inSz.width) {
                         w = inSz.width - half_nlanes;
+                        continue;
                     }
+                    break;
                 }
 
                 // horizontal pass
-                GAPI_Assert(outSz.width >= half_nlanes);
-                v_int16 t0, t1;
-                for (int x = 0; x < outSz.width; ) {
+                int x = 0;
+                for (;;) {
                     for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
                         v_int16 a0 = vx_load(&alpha[x]);
-                        //v_int16 sx = vx_load(&mapsx[x]);
                         v_uint8 t = v_gather_pairs(tmp, &mapsx[x]);
 
                         v_deinterleave_expand(t, t0, t1);
@@ -739,55 +649,58 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 
                     if (x < outSz.width) {
                         x = outSz.width - half_nlanes;
+                        continue;
                     }
+                    break;
                 }
             }
         }  // if lpi == 4
 
     } else if (!xRatioEq) {
         GAPI_DbgAssert(yRatioEq);
+        GAPI_Assert(inSz.width >= nlanes);
+        GAPI_Assert(outSz.width >= half_nlanes);
 
         if (4 == lpi) {
             // vertical pass
-            GAPI_Assert(inSz.width >= nlanes);
-            v_uint8 s0, s1, s2, s3;
-            for (int w = 0; w < inSz.width; ) {
+            int w = 0;
+            for (;;) {
                 for (; w <= inSz.width - nlanes; w += nlanes) {
-                    s0 = vx_load(&src0[0][w]);
-                    s1 = vx_load(&src0[1][w]);
-                    s2 = vx_load(&src0[2][w]);
-                    s3 = vx_load(&src0[3][w]);
+                    v_uint8 s0 = vx_load(&src0[0][w]);
+                    v_uint8 s1 = vx_load(&src0[1][w]);
+                    v_uint8 s2 = vx_load(&src0[2][w]);
+                    v_uint8 s3 = vx_load(&src0[3][w]);
                     v_store_interleave(&tmp[4 * w], s0, s1, s2, s3);
                 }
 
                 if (w < inSz.width) {
                     w = inSz.width - nlanes;
+                    continue;
                 }
+                break;
             }
 
             // horizontal pass
-            GAPI_Assert(outSz.width >= half_nlanes);
-            v_uint8 t0, t1, t2, t3;
-            for (int x = 0; x < outSz.width; ) {
+            v_uint8 r0, r1, r2, r3;
+            v_int16 s0, s1;
+            int x = 0;
+            for (;;) {
                 for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
                     v_uint8 a1 = v_load_low(&tmp[4 * mapsx[x + 0]]);
                     v_uint8 a2 = v_load_low(&tmp[4 * mapsx[x + 2]]);
                     v_uint8 a3 = v_load_low(&tmp[4 * mapsx[x + 4]]);
                     v_uint8 a4 = v_load_low(&tmp[4 * mapsx[x + 6]]);
-                    t0 = v_insert<1>(a1, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]));
-                    t1 = v_insert<1>(a2, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]));
-                    t2 = v_insert<1>(a3, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]));
-                    t3 = v_insert<1>(a4, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]));
+                    v_uint8 t0 = v_insert<1>(a1, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]));
+                    v_uint8 t1 = v_insert<1>(a2, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]));
+                    v_uint8 t2 = v_insert<1>(a3, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]));
+                    v_uint8 t3 = v_insert<1>(a4, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]));
 
-                    v_uint8 r0, r1, r2, r3;
                     v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
 
-                    v_int16 s0, s1, d, alpha0;
-
-                    alpha0 = vx_load(&alpha[x]);  // 8 coefficients
+                    v_int16 alpha0 = vx_load(&alpha[x]);  // 8 coefficients
 
                     v_deinterleave_expand(r0, s0, s1);
-                    d = v_mulhrs(s0 - s1, alpha0) + s1;
+                    v_int16 d = v_mulhrs(s0 - s1, alpha0) + s1;
                     v_pack_u_store(&dst[0][x], d);
 
                     v_deinterleave_expand(r1, s0, s1);
@@ -805,20 +718,22 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 
                 if (x < outSz.width) {
                     x = outSz.width - half_nlanes;
+                    continue;
                 }
+                break;
             }
 
         } else {  // any LPI
+            GAPI_Assert(outSz.width >= half_nlanes);
             for (int l = 0; l < lpi; ++l) {
                 const uchar* src = src0[l];
 
                 // horizontal pass
-                GAPI_Assert(outSz.width >= half_nlanes);
                 v_int16 t0, t1;
-                for (int x = 0; x < outSz.width; ) {
+                int x = 0;
+                for (;;) {
                     for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
                         v_int16 a0 = vx_load(&alpha[x]);
-                        //v_int16 sx = vx_load(&mapsx[x]);
                         v_uint8 t = v_gather_pairs(src, &mapsx[x]);
 
                         v_deinterleave_expand(t, t0, t1);
@@ -828,7 +743,9 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 
                     if (x < outSz.width) {
                         x = outSz.width - half_nlanes;
+                        continue;
                     }
+                    break;
                 }
             }
         }
@@ -836,13 +753,14 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     } else if (!yRatioEq) {
         GAPI_DbgAssert(xRatioEq);
         int length = inSz.width;  // == outSz.width
+        GAPI_Assert(length >= half_nlanes);
 
         for (int l = 0; l < lpi; ++l) {
             short beta0 = beta[l];
 
             // vertical pass
-            GAPI_Assert(length >= half_nlanes);
-            for (int w = 0; w < outSz.width; ) {
+            int w = 0;
+            for (;;) {
                 for (; w <= length - half_nlanes; w += half_nlanes) {
                     v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(src0[l] + w));
                     v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(src1[l] + w));
@@ -852,7 +770,9 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 
                 if (w < length) {
                     w = length - half_nlanes;
+                    continue;
                 }
+                break;
             }
         }
 

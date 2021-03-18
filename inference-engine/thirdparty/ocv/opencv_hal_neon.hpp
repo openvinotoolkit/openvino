@@ -2511,7 +2511,8 @@ CV_ALWAYS_INLINE void v_deinterleave(const v_uint8x16& i0, const v_uint8x16& i1,
     res3.val = p8.val[1];
 }
 
-CV_ALWAYS_INLINE void v_deinterleave_expand(const v_uint8x16& src, v_int16x8& even, v_int16x8& odd)
+CV_ALWAYS_INLINE void v_deinterleave_expand(const v_uint8x16& src,
+                                            v_int16x8& even, v_int16x8& odd)
 {
     constexpr int nlanes = static_cast<int>(v_uint8x16::nlanes);
     uchar mask_e[nlanes] = { 0, -1, 2, -1, 4, -1, 6, -1,
@@ -2527,6 +2528,34 @@ CV_ALWAYS_INLINE void v_deinterleave_expand(const v_uint8x16& src, v_int16x8& ev
     v_uint8x16 res2 = v_shuffle(src, v_uint8x16(mask_odd));
     even.val = vreinterpretq_s16_u8(res1.val);
     odd.val = vreinterpretq_s16_u8(res2.val);
+}
+
+CV_ALWAYS_INLINE v_int16x8 v_interleave_low(const v_int16x8& a, const v_int16x8& b)
+{
+    int16x8x2_t p = vzipq_s16(a.val, b.val);
+    int16x8_t v = p.val[0];
+    return v_int16x8(v);
+}
+
+CV_ALWAYS_INLINE v_int16x8 v_interleave_high(const v_int16x8& a, const v_int16x8& b)
+{
+    int16x8x2_t p = vzipq_s16(a.val, b.val);
+    int16x8_t v = p.val[1];
+    return v_int16x8(v);
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_interleave_low(const v_uint8x16& a, const v_uint8x16& b)
+{
+    uint8x16x2_t p = vzipq_u8(a.val, b.val);
+    uint8x16_t v = p.val[0];
+    return v_uint8x16(v);
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_interleave_high(const v_uint8x16& a, const v_uint8x16& b)
+{
+    uint8x16x2_t p = vzipq_u8(a.val, b.val);
+    uint8x16_t v = p.val[1];
+    return v_uint8x16(v);
 }
 
 template<int shift>
