@@ -9,6 +9,7 @@
 #include "common/tensor_desc_creator.h"
 #include "ngraph/descriptor/tensor.hpp"
 #include <ie_ngraph_utils.hpp>
+#include "cpu_types.h"
 
 #include <string>
 #include <vector>
@@ -56,6 +57,11 @@ public:
     }
 
 protected:
+    MKLDNNPlugin::Algorithm getAlgorithm() const {
+        return algorithm;
+    }
+    MKLDNNPlugin::Algorithm algorithm;
+
     class DataConfigurator {
     public:
         DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, Precision prc = Precision::UNSPECIFIED, bool constant = false, int inplace = -1) :
