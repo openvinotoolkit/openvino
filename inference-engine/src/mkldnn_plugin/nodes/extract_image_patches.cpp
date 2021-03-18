@@ -84,7 +84,7 @@ private:
                 uni_vpmovsxwd(vmm_src, op);
                 break;
             case Precision::I8:
-                uni_vpmovsxbd(vmm_src, op);
+                uni_vpmovsxbd(vmm_src, op); // Why not  uni_vmovdqu(vmm_src, op) ?
                 break;
             case Precision::U8:
                 uni_vpmovzxbd(vmm_src, op);
@@ -93,167 +93,38 @@ private:
                 assert(!"unknown precision");
         }
     }
-    inline void load_scalar_size(Xmm xmm_src, const Xbyak::Address &op, Precision prec) {
+
+    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision prec) {
+        uni_vmovups(op, vmm_dst);
+    }
+
+    inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
+        Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
             case 4: movss(xmm_src, op); break;
-            case 2: pinsrw(xmm_src, op, 0); break;
-            case 1: pinsrb(xmm_src, op, 0); break;
-            default:
-                assert(!"unknown precision");
-        }
-    }
-    inline void load_scalar_sign(Xmm xmm_src, const Xbyak::Address &op, Precision prec) {
-        switch (prec) {
-            case Precision::FP32:
-            case Precision::I32:
-                movss(xmm_src, op);
-                break;
-            case Precision::I16:
-                uni_vpmovsxwd(xmm_src, op); // NB! Why do we need to care about sign-extension manually& Isn't copy is just enough?
-                break;
-            case Precision::U16:
-                uni_vpmovzxwd(xmm_src, op);
-                break;
-            case Precision::I8:
-                movsx(reg_aux32, op);
-                movq(xmm_src, reg_aux64); //NB! Why not movd or uni_vpinsrb
-                break;
-            case Precision::U8:
-                movzx(reg_aux32, op);
-                movq(xmm_src, reg_aux64);
-                break;
-            default:
-                assert(!"unknown precision");
-        }
-    }
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision prec) {
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-        switch (prec) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(op, vmm_dst);
-                break;
-            case Precision::I16:
-                if (isa == x64::avx512_common) {
-                    vpmovsdw(op, vmm_dst);
-                } else {
-                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse41) {
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                        uni_vmovdqu(op, xmm_dst);
-                    } else {
-                        movq(op, xmm_dst);
-                    }
-                }
-                break;
-            case Precision::U16:
-                if (isa == x64::avx512_common) {
-                    vmaxsd(vmm_dst, vmm_zero, vmm_dst);
-                    vpmovusdw(op, vmm_dst);
-                } else {
-                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse41) {
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                        uni_vmovdqu(op, xmm_dst);
-                    } else {
-                        movq(op, xmm_dst);
-                    }
-                }
-                break;
-            case Precision::I8:
-                if (isa == x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
-                    vpmovsdb(op, vmm_dst);
-                } else {
-                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse41)
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                    uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse41)
-                        vmovq(op, xmm_dst);
-                    else
-                        movd(op, xmm_dst);
-                }
-                break;
-            case Precision::U8:
-                if (isa == x64::avx512_common) {
-                    vpmovusdb(op, vmm_dst);
-                } else {
-                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse41)
-                        vpermq(ymm_dst, ymm_dst, 0x08);
-                    uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != x64::sse41)
-                        vmovq(op, xmm_dst);
-                    else
-                        movd(op, xmm_dst);
-                }
-                break;
-            default:
-                assert(!"unknown precision");
-        }
-    }
-
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision prec) {
-        //store_scalar_size(op, xmm_dst, prec);
-        store_scalar_sign(op, xmm_dst, prec);
-    }
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision prec) {
-        //load_scalar_size(xmm_src, op, prec);
-        load_scalar_sign(xmm_src, op, prec);
-    }
-
-    inline void store_scalar_size(const Xbyak::Address &op, Xmm xmm_dst, Precision prec) {
-        switch (jpp.dtype_size) {
-            case 4: movss(op, xmm_dst); break;
-            case 2: pextrw(op, xmm_dst, 0); break;
-            case 1: pextrb(op, xmm_dst, 0); break;
+            case 2: pinsrw(xmm_src, op, 0x0); break;
+            case 1: pinsrb(xmm_src, op, 0x0); break;
             default:
                 assert(!"unknown dtype size");
         }
     }
-    inline void store_scalar_sign(const Xbyak::Address &op, Xmm xmm_dst, Precision prec) {
-        switch (prec) {
-            case Precision::FP32:
-            case Precision::I32:
-                movss(op, xmm_dst);
-                break;
-            case Precision::I16:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_aux64, xmm_dst); // NB! Why copy the whole quadroword, but not just single word?
-                mov(op, reg_aux8);
-                break;
-            case Precision::U16:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_aux64, xmm_dst);
-                mov(op, reg_aux8);
-                break;
-            case Precision::I8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_aux64, xmm_dst);
-                mov(op, reg_aux8);
-                break;
-            case Precision::U8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_aux64, xmm_dst);
-                mov(op, reg_aux8);
-                break;
+    inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
+        Xbyak::Xmm xmm_dst = Xmm(vmm_arg.getIdx());
+        switch (jpp.dtype_size) {
+            case 4: movss(op, xmm_dst); break;
+            case 2: pextrw(op, xmm_dst, 0x0); break;
+            case 1: vpextrb(op, xmm_dst, 0x0); break;
             default:
-                assert(!"unknown precision");
+                assert(!"unknown dtype size");
         }
     }
-    // uses reg_num_pads as an argument
-    // advances reg_dst
+
     void pad_with_zeros(reg64_t &reg_num_pads, reg64_t &reg_dst_arg) {
         Xbyak::Label main, tail, exit;
         L(main);
         {
             cmp(reg_num_pads, jpp.block_size);
             jl(tail);
-            //uni_vmovups(ptr[reg_dst_arg], vmm_zero);
             store_vector(ptr[reg_dst_arg], vmm_zero, jpp.precision);
             add(reg_dst_arg, jpp.dtype_size * jpp.block_size);
             sub(reg_num_pads, jpp.block_size);
@@ -263,8 +134,7 @@ private:
         {
             cmp(reg_num_pads, 0);
             jle(exit);
-            //uni_vmovss(ptr[reg_dst_arg], vmm_zero);
-            store_scalar(ptr[reg_dst_arg], vmm_zero, jpp.precision);
+            store_scalar(ptr[reg_dst_arg], vmm_zero);
             add(reg_dst_arg, jpp.dtype_size);
             sub(reg_num_pads, 1);
             jmp(tail);
@@ -286,7 +156,22 @@ private:
         }
         add(reg_src_arg, jpp.SW * jpp.dtype_size * xmm_block_size);
     }
-    void read_src2vmm(Vmm vmm_arg, const Xbyak::Reg64 &reg_src_arg) {
+    void read_src2ymm(const Xbyak::Ymm &ymm_arg, reg64_t &reg_src_arg) {
+        const int ymm_size = 32; // bytes
+        const int ymm_block_size = ymm_size / jpp.dtype_size;
+        for (int i = 0; i < ymm_block_size; i++) {
+            Xbyak::Address addr = ptr[reg_src_arg + i * jpp.SW * jpp.dtype_size];
+            switch (jpp.dtype_size) {
+                case 8: uni_vpinsrq(ymm_arg, ymm_arg, addr, i); break;
+                case 4: uni_vpinsrd(ymm_arg, ymm_arg, addr, i); break;
+                case 2: uni_vpinsrw(ymm_arg, ymm_arg, addr, i); break;
+                case 1: uni_vpinsrb(ymm_arg, ymm_arg, addr, i); break;
+            }
+        }
+        add(reg_src_arg, jpp.SW * jpp.dtype_size * ymm_block_size);
+    }
+
+    void read_src2vmm(Vmm &vmm_arg, const Xbyak::Reg64 &reg_src_arg) {
         // isa == x64::sse41 || isa == x64::avx2 || isa == x64::avx512_common
         Xbyak::Xmm low_xmm = Xmm(vmm_arg.getIdx());
         read_src2xmm(low_xmm, reg_src_arg);
@@ -326,7 +211,6 @@ private:
         //for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {...}
         L(ih_loop);
         {
-            //cmp(reg_i, jpp.block_size);
             cmp(reg_i, 0);
             jle(ih_exit, T_NEAR);
             /*
@@ -350,7 +234,6 @@ private:
                 cmp(reg_j, jpp.block_size);
                 jle(iw_tail, T_NEAR);
                 read_src2vmm(vmm, reg_num);
-                //uni_vmovups(ptr[reg_dst], vmm);
                 store_vector(ptr[reg_dst], vmm, jpp.precision);
                 add(reg_dst, jpp.dtype_size * jpp.block_size);
                 sub(reg_j, jpp.block_size);
@@ -360,12 +243,8 @@ private:
             {
                 cmp(reg_j, 0);
                 jle(iw_exit, T_NEAR);
-                //movss(xmm, ptr[reg_num]);
-                load_scalar(xmm_aux, ptr[reg_num], jpp.precision);
-                //movss(ptr[reg_dst], xmm);
-                store_scalar(ptr[reg_dst], xmm_aux, jpp.precision);
-                //mov(reg_aux32, ptr[reg_num]);
-                //mov(ptr[reg_dst], reg_aux32);
+                load_scalar(vmm, ptr[reg_num]);
+                store_scalar(ptr[reg_dst], vmm);
                 sub(reg_j, 1);
                 add(reg_num, jpp.SW * jpp.dtype_size);
                 add(reg_dst, jpp.dtype_size);
@@ -463,6 +342,7 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         jcp.PL = _pads[0];
         jcp.PT = _pads[1];
         jcp.block_size = 1;
+
         if (mayiuse(x64::avx512_common)) {
             jcp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jcp.dtype_size;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx512_common>(jcp));
@@ -473,6 +353,12 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             jcp.block_size = cpu_isa_traits<x64::sse41>::vlen / jcp.dtype_size;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jcp));
         }
+        /*
+        if (mayiuse(x64::sse41)) {
+            jcp.block_size = cpu_isa_traits<x64::sse41>::vlen / jcp.dtype_size;
+            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jcp));
+        }
+         */
 
         if (eximpat_kernel)
             eximpat_kernel->create_ker();
@@ -498,23 +384,14 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
 }
 
 StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept {
-    switch (inputs[0]->getTensorDesc().getPrecision().size()) {
-        case 1: {
-            process_data<PrecisionTrait<Precision::I8>::value_type>(inputs, outputs);
-            break;
-        }
-        case 2: {
-            process_data<PrecisionTrait<Precision::I16>::value_type>(inputs, outputs);
-            break;
-        }
-        case 4: {
-            process_data<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs);
-            break;
-        }
-        case 8: {
-            process_data<PrecisionTrait<Precision::U64>::value_type>(inputs, outputs);
-            break;
-        }
+    switch (inputs[0]->getTensorDesc().getPrecision()) {
+        case Precision::I8: process_data<PrecisionTrait<Precision::I8>::value_type>(inputs, outputs); break;
+        case Precision::I16: process_data<PrecisionTrait<Precision::I16>::value_type>(inputs, outputs); break;
+        case Precision::I32: process_data<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs); break;
+        case Precision::U8: process_data<PrecisionTrait<Precision::U8>::value_type>(inputs, outputs); break;
+        case Precision::U16: process_data<PrecisionTrait<Precision::U16>::value_type>(inputs, outputs); break;
+        case Precision::U32: process_data<PrecisionTrait<Precision::U32>::value_type>(inputs, outputs); break;
+        case Precision::FP32: process_data<PrecisionTrait<Precision::FP32>::value_type>(inputs, outputs); break;
         default: {
             if (resp) {
                 std::string errorMsg = "ExtractImagePatches layer does not support precision '"
