@@ -5,8 +5,8 @@ DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
 DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
 BACKEND_CONFIGURATIONS = [
-    [ protobuf_lite : "ON" ],
-    [ protobuf_lite : "OFF" ]
+    [ protobuf_lite : "ON", onnxruntime: "ON" ],
+    [ protobuf_lite : "OFF", onnxruntime: "OFF" ]
 ]
 
 // workaround for aborting previous builds on PR update
@@ -97,20 +97,17 @@ def updateModels() {
 
 def buildDockerImage(String protobuf_lite="OFF") {
     updateModels()
-    sh """
-        docker build --tag=${DOCKER_IMAGE_TAG} --build-arg PROTOBUF_LITE=${protobuf_lite} \
-        --file=.ci/openvino-onnx/Dockerfile \
-        --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
-        --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
-    """
+    def testImage = docker.build("--tag=${DOCKER_IMAGE_TAG}",
+                                 "--build-arg PROTOBUF_LITE=${protobuf_lite}",
+                                 "--file=.ci/openvino-onnx/Dockerfile",
+                                 "--build-arg http_proxy=http://proxy-chain.intel.com:911/",
+                                 "--build-arg https_proxy=http://proxy-chain.intel.com:912/")
 }
 
 def runTests() {
-    sh """
-        docker run --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-        ${DOCKER_IMAGE_TAG}
-    """
+    testImage.inside('--volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo') {
+        sh 'tox'
+    }
 }
 
 def getConfigurationsMap() {
@@ -142,11 +139,12 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 }
             }
             stage("Prepare Docker environment") {
-              dir("${WORKDIR}") {
+                dir("${WORKDIR}") {
                     buildDockerImage(configuration.protobuf_lite)
                 }
+
             }
-            stage("Run tests") {
+            stage("Run OpenVINO ONNX tests") {
                 timeout(time: 20, unit: 'MINUTES') {
                     runTests()
                 }

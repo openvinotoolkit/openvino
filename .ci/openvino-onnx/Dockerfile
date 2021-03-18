@@ -78,4 +78,3 @@ WORKDIR /openvino/ngraph/python
 ENV NGRAPH_CPP_BUILD_PATH=/openvino/dist/deployment_tools/ngraph
 ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
 ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
-CMD tox
