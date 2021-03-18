@@ -149,7 +149,6 @@ for device in root.find("results"):
     general_test_count[device.tag] = 0
     general_passed_tests[device.tag] = 0
     for op in results[device.tag]:
-        print(op)
         pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
         results[device.tag][op]["passrate"] = pass_rate
         pass_rate_avg[device.tag] += pass_rate
