@@ -20,6 +20,7 @@ void regclass_PreProcessInfo(py::module m) {
 
     py::class_<InferenceEngine::PreProcessInfo> cls(m, "PreProcessInfo");
 
+    cls.def(py::init());
     cls.def("__getitem__", [](InferenceEngine::PreProcessInfo& self, size_t& index) {
         return self[index];
     });

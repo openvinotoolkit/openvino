@@ -39,6 +39,20 @@ void regclass_InferRequest(py::module m)
             self.SetBlob(name, blob);
         }
     });
+
+    cls.def("set_blob", [](InferenceEngine::InferRequest& self,
+                           const std::string& name,
+                           const InferenceEngine::TBlob<float>::Ptr& blob) {
+        self.SetBlob(name, blob);
+    });
+
+    cls.def("set_blob", [](InferenceEngine::InferRequest& self,
+                           const std::string& name,
+                           const InferenceEngine::TBlob<float>::Ptr& blob,
+                           const InferenceEngine::PreProcessInfo& info) {
+        self.SetBlob(name, blob);
+    });
+
     cls.def("set_batch", &InferenceEngine::InferRequest::SetBatch, py::arg("size"));
 
     cls.def("get_perf_counts", [](InferenceEngine::InferRequest& self) {
@@ -88,7 +102,6 @@ void regclass_InferRequest(py::module m)
 //    cls.def("async_infer",);
 //    latency
 
-//   set_blob
 
     //&InferenceEngine::InferRequest::SetOutput);
 }
