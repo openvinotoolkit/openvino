@@ -107,7 +107,7 @@ enum Algorithm {
     ConvolutionCommon,
     ConvolutionGrouped,
 
-    // Convolution algorithms
+    // Deconvolution algorithms
     DeconvolutionCommon,
     DeconvolutionGrouped,
 

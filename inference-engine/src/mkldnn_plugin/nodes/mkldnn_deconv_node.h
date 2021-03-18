@@ -37,23 +37,27 @@ public:
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     bool withGroups = false;
     bool isDW = false;
     size_t groupNum = 1;
+    size_t outDepth;
+    size_t IC;
+    size_t OC;
     std::vector<ptrdiff_t> stride;
-    std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> dilation;
+    std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
-    MKLDNNDims weightsDims;
+    InferenceEngine::SizeVector weightDims;
     std::vector<std::shared_ptr<mkldnn::convolution_forward::desc>> descs_fwd;
     std::vector<std::shared_ptr<mkldnn::convolution_backward_data::desc>> descs_bwd;
 
     mkldnn::primitive_attr attr;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    void setBiasAsPostOp(const InferenceEngine::Blob::Ptr& biases);
+    void setPostOps(mkldnn::primitive_attr &attr);
 
-    const mkldnn::memory& getWeights() const;
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin
