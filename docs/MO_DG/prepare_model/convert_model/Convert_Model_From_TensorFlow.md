@@ -37,7 +37,7 @@ Detailed information on how to convert models from the <a href="https://github.c
 
 **Supported Frozen Topologies from TensorFlow Object Detection Models Zoo**
 
-Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md">Object Detection Models Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">Object Detection Models Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
 
 | Model Name| TensorFlow Object Detection API Models (Frozen)|
 | :------------- | -----:|
