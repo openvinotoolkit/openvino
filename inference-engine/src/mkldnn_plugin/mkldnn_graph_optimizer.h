@@ -20,6 +20,7 @@ public:
 
 private:
     void FuseConvolutionAndBias(MKLDNNGraph &graph);
+    void FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseMultiplyAndAdd(MKLDNNGraph &graph);
     void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
