@@ -101,7 +101,8 @@ general_pass_rate = dict()
 general_test_count = dict()
 general_passed_tests = dict()
 
-def merge_xmls(xmls):
+
+def merge_xmls(xmls: list):
     if len(xmls) == 1:
         return xmls[0]
     summary = ET.Element("report")
@@ -148,16 +149,28 @@ for device in root.find("results"):
     general_test_count[device.tag] = 0
     general_passed_tests[device.tag] = 0
     for op in results[device.tag]:
+        print(op)
         pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
         results[device.tag][op]["passrate"] = pass_rate
-        if op == "Constant-0" or op == "Result-0" or op == "Parameter-0":
-            continue
         pass_rate_avg[device.tag] += pass_rate
         general_test_count[device.tag] += (int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +
                                int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"]))
         general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
     pass_rate_avg[device.tag] /= len(results[device.tag])
     general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
+
+    if "Constant-0" in root.find("results"):
+        general_test_count[device.tag] -=  (
+            int(results[device.tag]["Constant-0"]["passed"]) + int(results[device.tag]["Constant-0"]["failed"]) +
+            int(results[device.tag]["Constant-0"]["crashed"]) + int(results[device.tag]["Constant-0"]["skipped"]))
+    if "Parameter-0" in root.find("results"):
+        general_test_count[device.tag] -= (
+                int(results[device.tag]["Parameter-0"]["passed"]) + int(results[device.tag]["Parameter-0"]["failed"]) +
+                int(results[device.tag]["Parameter-0"]["crashed"]) + int(results[device.tag]["Parameter-0"]["skipped"]))
+    if "Result-0" in root.find("results"):
+        general_test_count[device.tag] -= (
+                int(results[device.tag]["Result-0"]["passed"]) + int(results[device.tag]["Result-0"]["failed"]) +
+                int(results[device.tag]["Result-0"]["crashed"]) + int(results[device.tag]["Result-0"]["skipped"]))
 
 
 devices = results.keys()
