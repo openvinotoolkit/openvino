@@ -206,7 +206,7 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
 
     tensor_names.propagate_op_name_to_tensor(graph)
 
-    bin_file = os.path.join(output_dir, '{}.bin'.format(output_model_name))
+    bin_file = os.path.join(output_dir, '{}_tmp.bin'.format(output_model_name))
     serialize_constants(graph, bin_file)
 
     mean_offset = None
@@ -215,12 +215,12 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
         mean_offset, mean_size = serialize_mean_image(bin_file, mean_data=mean_data)
 
     generate_ie_ir(graph=graph,
-                   file_name=os.path.join(output_dir, '{}.xml'.format(output_model_name)),
+                   file_name=os.path.join(output_dir, '{}_tmp.xml'.format(output_model_name)),
                    input_names=input_names,
                    mean_offset=mean_offset,
                    mean_size=mean_size,
                    meta_info=meta_info)
-    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}.mapping'.format(output_model_name)))
+    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}_tmp.mapping'.format(output_model_name)))
 
 
 def get_ir_version(argv: argparse.Namespace):
