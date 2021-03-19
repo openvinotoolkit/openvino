@@ -27,6 +27,14 @@
 
 namespace py = pybind11;
 
+template <typename T>
+void _SetBlob(InferenceEngine::InferRequest& self,
+              const std::string& name,
+              const InferenceEngine::TBlob<typename T>::Ptr& blob)
+{
+    self.SetBlob(name, blob);
+}
+
 void regclass_InferRequest(py::module m)
 {
     py::class_<InferenceEngine::InferRequest, std::shared_ptr<InferenceEngine::InferRequest>> cls(
@@ -68,6 +76,8 @@ void regclass_InferRequest(py::module m)
                     py::gil_scoped_release release;
                 });
             });
+
+    cls.def("set_blob", _SetBlob<double>);
     //    cls.def_property_readonly("input_blobs", [](){
     //
     //    });

@@ -122,7 +122,7 @@ void regclass_InferQueue(py::module m)
         // getIdleRequestId function has an intention to block InferQueue (C++) until there is at least
         // one idle (free to use) InferRequest
         auto id = self.getIdleRequestId();
-        // Update inputs of given InferRequest
+        // Update inputs of picked InferRequest
         for (auto&& input : inputs)
         {
             auto name = input.first.cast<std::string>().c_str();
