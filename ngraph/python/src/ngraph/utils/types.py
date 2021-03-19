@@ -133,7 +133,7 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def is_empty_array(obj) -> bool:
+def is_empty_array(obj: NumericData) -> bool:
     """Return true if a given object is an empty numpy array."""
     return type(obj) == np.ndarray and obj.size == 0
 
