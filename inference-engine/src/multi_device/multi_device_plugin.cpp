@@ -190,7 +190,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
                                      IStreamsExecutor::ThreadBindingType::NONE});
     executor->runAndWait(loads);
     if (executableNetworkPerDevice.empty())
-        THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to load network to any device "
+        THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to load network to any device "
                                             <<  "that the MULTI device is initialized to work with";
 
     // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting

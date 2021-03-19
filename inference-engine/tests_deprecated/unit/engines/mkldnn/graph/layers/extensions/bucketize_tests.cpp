@@ -159,7 +159,7 @@ protected:
             auto iter = out.begin();
             compare_int(*output_blob_map[iter->first], *output_blob_ref, 0);
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

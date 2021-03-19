@@ -122,7 +122,7 @@ TEST_F(IncorrectIRTests, smoke_loadIRWithIncorrectInput) {
 
     InferenceEngine::Core ie;
     ASSERT_THROW(ie.ReadNetwork(model, InferenceEngine::Blob::CPtr()), 
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_P(IncorrectIRTests, loadIncorrectLayer) {
