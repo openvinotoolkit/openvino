@@ -7,19 +7,17 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 
 namespace BlobTestsDefinitions {
-
 std::string BlobTestBase::getTestCaseName(testing::TestParamInfo<BlobTestBaseParams> obj) {
     ngraph::element::Type precision;
     std::pair<nghraphSubgraphFuncType, std::vector<size_t>> fn_pair;
-    makeTestBlobFuncType makeBlobFn;
-    std::function<void()> teardownFn;
+    std::tuple<networkPreprocessFuncType, generateInputFuncType, generateReferenceFuncType, makeTestBlobFuncType, teardownFuncType> fnSet;
     size_t inferCount;
     size_t batchSize;
     bool asyncExec;
     std::string targetDevice;
     std::map<std::string, std::string> config;
 
-    std::tie(precision, fn_pair, makeBlobFn, teardownFn, inferCount, batchSize, asyncExec, targetDevice, config) = obj.param;
+    std::tie(precision, fn_pair, fnSet, inferCount, batchSize, asyncExec, targetDevice, config) = obj.param;
     auto function = fn_pair.first(fn_pair.second, precision);
     std::ostringstream result;
     result <<
@@ -38,8 +36,9 @@ void BlobTestBase::SetUp() {
     std::pair<nghraphSubgraphFuncType, std::vector<size_t>> fn_pair;
     size_t batchSize;
     std::map<std::string, std::string> config;
-
-    std::tie(precision, fn_pair, makeBlobFn, teardownFn, inferCount, batchSize, asyncExecution, targetDevice, config) = this->GetParam();
+    std::tuple<networkPreprocessFuncType, generateInputFuncType, generateReferenceFuncType, makeTestBlobFuncType, teardownFuncType> fnSet;
+    std::tie(precision, fn_pair, fnSet, inferCount, batchSize, asyncExecution, targetDevice, config) = this->GetParam();
+    std::tie(preprocessFn, generateInputFn, generateReferenceFn, makeBlobFn, teardownFn) = fnSet;
 
     configuration.insert(config.begin(), config.end());
 
@@ -49,30 +48,50 @@ void BlobTestBase::SetUp() {
     function = fn_pair.first(input_sizes, precision);
 }
 
+InferenceEngine::Blob::Ptr BlobTestBase::GenerateInput(const InferenceEngine::InputInfo& info) const {
+    if (generateInputFn) return generateInputFn(info);
+
+    static int seed = 0;
+    seed++;
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, -2, 100, seed);
+}
+
+std::vector<std::vector<uint8_t>> BlobTestBase::CalculateReference() {
+    if (generateReferenceFn) return generateReferenceFn(cnnNetwork, inputs);
+    else return CalculateRefs();
+}
+
+InferenceEngine::Blob::Ptr BlobTestBase::PrepareTestBlob(InferenceEngine::Blob::Ptr inputBlob) {
+    if (makeBlobFn) return makeBlobFn(inputBlob, executableNetwork);
+    else return inputBlob;
+}
+
 void BlobTestBase::Infer() {
     std::vector<InferenceEngine::InferRequest> inferRequests;
     for (int i = 0; i < inferCount; i++) {
+        // Clean after old inference and create a new one
+        inputs.clear();
         inferRequests.push_back(executableNetwork.CreateInferRequest());
         inferRequest = inferRequests.back();
-        inputs.clear();
-        auto inputsInfo = executableNetwork.GetInputsInfo();
-        for (auto& input : inputsInfo) {
-            const auto &info = input.second;
-            auto refInput = FuncTestUtils::createAndFillBlob(info->getTensorDesc(), 5, -2, 100, i); 
-            inputs.push_back(refInput);
-        }
-        refInputBlobs.push_back(inputs);
-        referenceOutputs.push_back(CalculateRefs());
 
+        // Generrate new set of inputs
+        GenerateInputs();
+        refInputBlobs.push_back(inputs);
+
+        // Calculate reference output for this inference
+        referenceOutputs.push_back(CalculateReference());
+
+        // Prepare new set of blobs based on original input blobs and set them for the inference
         inputs.clear();
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
-            auto testBlob =  makeBlobFn(refInputBlobs[i][inputs.size()], executableNetwork);
+            auto testBlob =  PrepareTestBlob(refInputBlobs[i][inputs.size()]);
             inferRequests.back().SetBlob(info->name(), testBlob);
             inputs.push_back(testBlob);
         }
     }
 
+    // execute inrefence
     for (auto& inferRequest : inferRequests) {
         if (asyncExecution) {
             inferRequest.StartAsync();
@@ -90,6 +109,7 @@ void BlobTestBase::Infer() {
         }
     }
 
+    // Get outputs out of inferences
     for (int i = 0; i < inferRequests.size(); i++) {
         auto outputs = std::vector<InferenceEngine::Blob::Ptr>{};
         for (const auto &output : executableNetwork.GetOutputsInfo()) {
@@ -109,11 +129,15 @@ void BlobTestBase::Validate() {
 
 void BlobTestBase::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    LoadNetwork();
+    cnnNetwork = InferenceEngine::CNNNetwork{function};
+    ConfigureNetwork();
+    if(preprocessFn) preprocessFn(cnnNetwork);
+    executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
     GenerateInputs();
     Infer();
     Validate();
-    teardownFn();
+
+    if(teardownFn) teardownFn();
 }
 
 TEST_P(BlobTestBase, CompareWithRefs) {
