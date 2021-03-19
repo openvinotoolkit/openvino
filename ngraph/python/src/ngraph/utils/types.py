@@ -135,7 +135,10 @@ def get_shape(data: NumericData) -> TensorShape:
 
 def is_empty_array(obj: NumericData) -> bool:
     """Return true if a given object is an empty numpy array."""
-    return type(obj) == np.ndarray and obj.size == 0
+    if type(obj) == np.ndarray:
+        return obj.size == 0
+    else:
+        return False
 
 
 def remove_empty_inputs(inputs: List[NumericData], params_number: int) -> List[NumericData]:
