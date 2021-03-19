@@ -37,7 +37,7 @@ The simplest way to infer the model and collect performance counters is [Benchma
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
-If you infer the model in OpenVINO™ CPU plugin and collect performance counters then all operations (except last not quantized SoftMax) are executed in INT8 precision.  
+If you infer the model in the OpenVINO™ CPU plugin and collect performance counters, all operations (except last not quantized SoftMax) are executed in INT8 precision.  
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
