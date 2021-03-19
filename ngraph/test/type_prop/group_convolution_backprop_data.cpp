@@ -54,14 +54,14 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
 
-    EXPECT_EQ(gcbd->get_element_type(), element::f32);
-    EXPECT_EQ(gcbd->get_output_shape(0), (Shape{1, 2, 3, 3}));
-    EXPECT_EQ(gcbd->get_strides(), (Strides{1, 1}));
-    EXPECT_EQ(gcbd->get_dilations(), (Strides{1, 1}));
-    EXPECT_EQ(gcbd->get_pads_begin(), (CoordinateDiff{2, 2}));
-    EXPECT_EQ(gcbd->get_pads_end(), (CoordinateDiff{2, 2}));
-    EXPECT_EQ(gcbd->get_output_padding(), (CoordinateDiff{0, 0}));
-    EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
+    ASSERT_EQ(gcbd->get_element_type(), element::f32);
+    ASSERT_EQ(gcbd->get_output_shape(0), (Shape{1, 2, 3, 3}));
+    ASSERT_EQ(gcbd->get_strides(), (Strides{1, 1}));
+    ASSERT_EQ(gcbd->get_dilations(), (Strides{1, 1}));
+    ASSERT_EQ(gcbd->get_pads_begin(), (CoordinateDiff{2, 2}));
+    ASSERT_EQ(gcbd->get_pads_end(), (CoordinateDiff{2, 2}));
+    ASSERT_EQ(gcbd->get_output_padding(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
 }
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as_param)
@@ -76,8 +76,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
 
-    EXPECT_EQ(gcbd->get_element_type(), element::f32);
-    EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
+    ASSERT_EQ(gcbd->get_element_type(), element::f32);
+    ASSERT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
@@ -359,8 +359,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_data_dyn)
 {
-    const PartialShape data_pshape{PartialShape::dynamic()}; // [N, C_IN * GROUPS, H, W]
-    const PartialShape filters_pshape{1, 16, 2, 3, 3};       // [GROUPS, C_IN, C_OUT, kH, kW]
+    const PartialShape data_pshape{PartialShape::dynamic()};
+    const PartialShape filters_pshape{1, 16, 2, 3, 3}; // [GROUPS, C_IN, C_OUT, kH, kW]
     const element::Type_t et = element::f32;
 
     auto data = make_shared<op::Parameter>(et, data_pshape);
@@ -378,8 +378,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_da
 
 TEST(type_prop, group_convolution_backprop_data_shape_infer_data_dyn)
 {
-    const PartialShape data_pshape{PartialShape::dynamic()}; // [N, C_IN * GROUPS, H, W]
-    const PartialShape filters_pshape{4, 5, 2, 3, 3};        // [GROUPS, C_IN, C_OUT, kH, kW]
+    const PartialShape data_pshape{PartialShape::dynamic()};
+    const PartialShape filters_pshape{4, 5, 2, 3, 3}; // [GROUPS, C_IN, C_OUT, kH, kW]
     const element::Type_t et = element::f32;
 
     auto data = make_shared<op::Parameter>(et, data_pshape);
@@ -646,9 +646,9 @@ TEST(type_prop, group_convolution_backprop_data_invalid_input_ranks)
 
 TEST(type_prop, group_convolution_backprop_data_invalid_input_channel_dims)
 {
-    Strides strides{1, 1};
-    Strides dilations{1, 1};
-    CoordinateDiff padding{2, 2};
+    const Strides strides{1, 1};
+    const Strides dilations{1, 1};
+    const CoordinateDiff padding{2, 2};
     const element::Type_t inputs_et = element::f32;
 
     try
@@ -735,10 +735,10 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     // invalid strides spatial dimensions
     try
     {
-        Strides strides{1, 1, 1};
-        Strides dilations{1, 1};
-        CoordinateDiff pads_begin{0, 0};
-        CoordinateDiff pads_end{0, 0};
+        const Strides strides{1, 1, 1};
+        const Strides dilations{1, 1};
+        const CoordinateDiff pads_begin{0, 0};
+        const CoordinateDiff pads_end{0, 0};
 
         auto data = make_shared<op::Parameter>(et, data_pshape);
         auto filters = make_shared<op::Parameter>(et, PartialShape::dynamic());
@@ -757,10 +757,10 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     }
     try
     {
-        Strides strides{1};
-        Strides dilations{1, 1};
-        CoordinateDiff pads_begin{0, 0};
-        CoordinateDiff pads_end{0, 0};
+        const Strides strides{1};
+        const Strides dilations{1, 1};
+        const CoordinateDiff pads_begin{0, 0};
+        const CoordinateDiff pads_end{0, 0};
 
         auto data = make_shared<op::Parameter>(et, PartialShape::dynamic());
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
@@ -781,10 +781,10 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     // invalid dilations spatial dimensions
     try
     {
-        Strides strides{1, 1};
-        Strides dilations{1};
-        CoordinateDiff pads_begin{0, 0};
-        CoordinateDiff pads_end{0, 0};
+        const Strides strides{1, 1};
+        const Strides dilations{1};
+        const CoordinateDiff pads_begin{0, 0};
+        const CoordinateDiff pads_end{0, 0};
 
         auto data = make_shared<op::Parameter>(et, data_pshape);
         auto filters = make_shared<op::Parameter>(et, PartialShape::dynamic());
@@ -803,10 +803,10 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     }
     try
     {
-        Strides strides{1, 1};
-        Strides dilations{1, 1, 1};
-        CoordinateDiff pads_begin{0, 0};
-        CoordinateDiff pads_end{0, 0};
+        const Strides strides{1, 1};
+        const Strides dilations{1, 1, 1};
+        const CoordinateDiff pads_begin{0, 0};
+        const CoordinateDiff pads_end{0, 0};
 
         auto data = make_shared<op::Parameter>(et, PartialShape::dynamic());
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
@@ -827,10 +827,10 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     // invalid padding spatial dimensions
     try
     {
-        Strides strides{1, 1};
-        Strides dilations{1, 1};
-        CoordinateDiff pads_begin{0, 0, 0};
-        CoordinateDiff pads_end{0, 0};
+        const Strides strides{1, 1};
+        const Strides dilations{1, 1};
+        const CoordinateDiff pads_begin{0, 0, 0};
+        const CoordinateDiff pads_end{0, 0};
 
         auto data = make_shared<op::Parameter>(et, data_pshape);
         auto filters = make_shared<op::Parameter>(et, PartialShape::dynamic());
@@ -849,10 +849,10 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     }
     try
     {
-        Strides strides{1, 1};
-        Strides dilations{1, 1};
-        CoordinateDiff pads_begin{0, 0};
-        CoordinateDiff pads_end{0};
+        const Strides strides{1, 1};
+        const Strides dilations{1, 1};
+        const CoordinateDiff pads_begin{0, 0};
+        const CoordinateDiff pads_end{0};
 
         auto data = make_shared<op::Parameter>(et, PartialShape::dynamic());
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
@@ -873,12 +873,12 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     // invalid output padding spatial dimensions
     try
     {
-        Strides strides{1, 1};
-        Strides dilations{1, 1};
-        CoordinateDiff pads_begin{0, 0};
-        CoordinateDiff pads_end{0, 0};
-        CoordinateDiff output_padding{0, 0, 0};
-        op::PadType auto_pad = op::PadType::EXPLICIT;
+        const Strides strides{1, 1};
+        const Strides dilations{1, 1};
+        const CoordinateDiff pads_begin{0, 0};
+        const CoordinateDiff pads_end{0, 0};
+        const CoordinateDiff output_padding{0, 0, 0};
+        const op::PadType auto_pad = op::PadType::EXPLICIT;
 
         auto data = make_shared<op::Parameter>(et, data_pshape);
         auto filters = make_shared<op::Parameter>(et, PartialShape::dynamic());
@@ -897,12 +897,12 @@ TEST(type_prop, group_convolution_backprop_data_invalid_conv_param_spatial_dims)
     }
     try
     {
-        Strides strides{1, 1};
-        Strides dilations{1, 1};
-        CoordinateDiff pads_begin{0, 0};
-        CoordinateDiff pads_end{0, 0};
-        CoordinateDiff output_padding{0};
-        op::PadType auto_pad = op::PadType::EXPLICIT;
+        const Strides strides{1, 1};
+        const Strides dilations{1, 1};
+        const CoordinateDiff pads_begin{0, 0};
+        const CoordinateDiff pads_end{0, 0};
+        const CoordinateDiff output_padding{0};
+        const op::PadType auto_pad = op::PadType::EXPLICIT;
 
         auto data = make_shared<op::Parameter>(et, PartialShape::dynamic());
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
