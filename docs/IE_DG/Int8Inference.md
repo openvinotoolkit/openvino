@@ -46,7 +46,7 @@ For 8-bit integer computations, a model must be quantized. Quantized models can 
 8-bit inference pipeline includes two stages (also refer to the figure below):
 1. *Offline stage*, or *model quantization*. During this stage, `FakeQuantize` layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). [FakeQuantize](https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/quantization/FakeQuantize_1.md) layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256.
 
-2. *Run-time stage*. This stage is an internal procedure of OpenVINO™ plugin. During this stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to updates each `FakeQuantize` layer on activations and weights to have `FakeQuantize` output tensor values in low precision range. 
+2. *Run-time stage*. This stage is an internal procedure of the OpenVINO™ plugin. During this stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to updates each `FakeQuantize` layer on activations and weights to have `FakeQuantize` output tensor values in low precision range. 
 ![int8_flow]
 
 ### Offline Stage: Model Quantization
