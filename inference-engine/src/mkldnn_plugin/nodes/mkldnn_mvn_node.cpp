@@ -572,7 +572,7 @@ private:
             case 0: return reg_src; break;
             case 1: return reg_post_src0; break;
             case 2: return reg_post_src1; break;
-            default: THROW_IE_EXCEPTION << "MVN layer have unsupported number of input";
+            default: IE_THROW() << "MVN layer have unsupported number of input";
         }
     }
 
@@ -581,13 +581,13 @@ private:
             case 0: return vmm_val; break;
             case 1: return Vmm(15); break;
             case 2: return Vmm(14); break;
-            default: THROW_IE_EXCEPTION << "MVN layer have unsupported number of input";
+            default: IE_THROW() << "MVN layer have unsupported number of input";
         }
     }
 
     Vmm get_aux_vmm(int idx) {
         if (idx + 8 >= 13)
-            THROW_IE_EXCEPTION << "MVN layer need unsupported number of aux vmm";
+            IE_THROW() << "MVN layer need unsupported number of aux vmm";
         return Vmm(idx + 8);
     }
 
@@ -743,7 +743,7 @@ private:
         OV_CASE(Prelu, jit_prelu_emitter));
 
         if (!ctx.emitter)
-            THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
+            IE_THROW() << "Unsupported operation type for Eltwise emitter";
 
         return ctx.emitter;
     }
@@ -807,7 +807,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
             if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
                 return Precision(Precision::I32);
             } else {
-                THROW_IE_EXCEPTION << "MVN node with name `" << getName() << "` doesn't support " << prc << " precision.";
+                IE_THROW() << "MVN node with name `" << getName() << "` doesn't support " << prc << " precision.";
             }
         } else {
             return prc;
@@ -854,11 +854,11 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     }
     int maxMVNAllInput = hasAxesInput ? MAX_MVN_INPUTS + 1 : MAX_MVN_INPUTS;
     if (getParentEdges().size() > maxMVNAllInput)
-        THROW_IE_EXCEPTION << "MVN node with name `" << getName() << "` doesn't support more than " << maxMVNAllInput
+        IE_THROW() << "MVN node with name `" << getName() << "` doesn't support more than " << maxMVNAllInput
                            << " inputs (actual = " << getParentEdges().size() << ")";
 
     if (expectedInputsNum != getParentEdges().size())
-        THROW_IE_EXCEPTION << "MVN node with name `" << getName() << "` has invalid input number of inputs: expected = " << expectedInputsNum
+        IE_THROW() << "MVN node with name `" << getName() << "` has invalid input number of inputs: expected = " << expectedInputsNum
                            << " (actual = " << getParentEdges().size() << ")";
 
     bool canBeInplace = (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
@@ -956,7 +956,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     if (mayiuse(cpu::x64::sse41)) {
         auto ndim = getParentEdgeAt(0)->getDims().ndims();
-        // nspc and blk
+        // nspc and cBlk
         if (ndim == 4 || ndim == 5) {
             supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
             supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
@@ -1011,7 +1011,7 @@ void MKLDNNMVNNode::selectOptimalPrimitiveDescriptor() {
     }
 
     if (getSupportedPrimitiveDescriptors().empty())
-        THROW_IE_EXCEPTION << "Supported primitive descriptors list is empty for node: " << getName();
+        IE_THROW() << "Supported primitive descriptors list is empty for node: " << getName();
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
 }
@@ -1019,7 +1019,7 @@ void MKLDNNMVNNode::selectOptimalPrimitiveDescriptor() {
 void MKLDNNMVNNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (!isInitConfig(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
@@ -1054,7 +1054,7 @@ void MKLDNNMVNNode::createPrimitive() {
     for (size_t i = 0; i < inputNum; ++i) {
         auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-            THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' didn't allocate input memory.";
+            IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' didn't allocate input memory.";
     }
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -1700,7 +1700,7 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     if (node->getType() == Quantize) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
         if (quantizeNode == nullptr)
-            THROW_IE_EXCEPTION << errPrefix << "cannot get quantize node to fuse with.";
+            IE_THROW() << errPrefix << "cannot get quantize node to fuse with.";
 
         return !quantizeNode->isBinarization();
     } else if (node->getType() == Eltwise) {
@@ -1709,7 +1709,7 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
         }
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
         if (eltwiseNode == nullptr)
-            THROW_IE_EXCEPTION << errPrefix << "cannot get eltwise node to fuse with.";
+            IE_THROW() << errPrefix << "cannot get eltwise node to fuse with.";
 
         for (int i = 1; i < eltwiseNode->getCnnLayer()->insData.size(); i++) {
             if (eltwiseNode->getCnnLayer()->insData[0].lock()->getPrecision() != eltwiseNode->getCnnLayer()->insData[i].lock()->getPrecision()) {

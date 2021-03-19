@@ -21,22 +21,13 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                PRelu(const AutoBroadcastSpec& auto_broadcast =
-                          AutoBroadcastSpec(AutoBroadcastType::NUMPY));
-
+                PRelu();
                 /// \brief Constructs a PRelu operation.
                 ///
                 /// \param data Input tensor
                 /// \param slope Multipliers for negative values
-                /// \param auto_broadcast Auto broadcast specification. Default is Numpy-style
-                ///                       implicit broadcasting.
-                PRelu(const Output<Node>& data,
-                      const Output<Node>& slope,
-                      const AutoBroadcastSpec& auto_broadcast =
-                          AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+                PRelu(const Output<Node>& data, const Output<Node>& slope);
 
-                const AutoBroadcastSpec& get_autob() const override { return m_autob; }
-                void set_autob(const AutoBroadcastSpec& autob) { m_autob = autob; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 virtual std::shared_ptr<Node>
@@ -46,9 +37,6 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-
-            private:
-                AutoBroadcastSpec m_autob;
             };
         }
         using v0::PRelu;

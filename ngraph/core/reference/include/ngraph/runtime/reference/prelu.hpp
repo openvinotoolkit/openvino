@@ -31,20 +31,6 @@ namespace ngraph
                         arg[i] < T(0) ? T(arg[i] * slope[cnt++ % shape_size(slope_shape)]) : arg[i];
                 }
             }
-
-            template <typename T>
-            void prelu(const T* arg,
-                       const T* slope,
-                       T* out,
-                       const Shape& arg_shape,
-                       const Shape& slope_shape,
-                       const op::AutoBroadcastSpec& broadcast_spec)
-            {
-                autobroadcast_binop(
-                    arg, slope, out, arg_shape, slope_shape, broadcast_spec, [](T x, T y) -> T {
-                        return x < T(0) ? T(x * y) : T(x);
-                    });
-            }
         }
     }
 }

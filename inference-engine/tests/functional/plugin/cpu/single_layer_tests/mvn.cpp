@@ -183,7 +183,7 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingSigmoid,
         fusingClamp,
         fusingSwish,
-        fusingPRelu,
+        // fusingPRelu,  // enable after prelu ref update
         /* Eltwise with additional input */
         fusingMultiply,
         fusingAdd,
