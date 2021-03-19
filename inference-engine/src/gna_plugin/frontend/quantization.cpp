@@ -4,7 +4,6 @@
 
 #include <cstring>
 #include <iostream>
-#include <details/ie_exception.hpp>
 #include <gna_plugin_log.hpp>
 #include <limits>
 #include "backend/gna_types.h"
