@@ -53,7 +53,7 @@ For 8-bit integer computations, a model must be quantized. Quantized models can 
 
 To infer a layer in low precision and get maximum performance, the input tensor for the layer has to be quantized and each value has to be in the target low precision range. For this purpose, `FakeQuantize` layer is used in the OpenVINO™ intermediate representation file (IR). To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
 
-When you pass the quantized IR to OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but support all operations from the model, then the model is inferred in precision that this plugin supports.
+When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
 
 ### Run-Time Stage: Quantization
 
