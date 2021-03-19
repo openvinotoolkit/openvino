@@ -64,7 +64,7 @@ This is the second stage of the 8-bit integer inference. After you load the quan
 ## Performance Counters
 
 Information about layer precision is stored in the performance counters that are
-available from the Inference Engine API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](supported_plugins/CPU.md) looks follows:
+available from the Inference Engine API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](supported_plugins/CPU.md) looks as follows:
 
 
 | layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
