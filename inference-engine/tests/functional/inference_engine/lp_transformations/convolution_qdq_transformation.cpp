@@ -445,7 +445,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {}
         }
     },
-    // incorrect zero point on weights [not transformed]
+    // incorrect zero point on weights [not transformed, weights folded]
     {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
@@ -474,12 +474,8 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
-            {
-                { ngraph::element::f32, false },
-                { {1000.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            {},
+            { std::vector<float>{ -29.94f }, ngraph::element::f32},
             {},
             ngraph::element::f32,
             {}
