@@ -274,6 +274,12 @@ Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name) {
         } else {
             data = _inputs[name];
             const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name] : foundInput->getTensorDesc().getDims();
+            if (data) {
+                if (data->getTensorDesc().getDims() != dims) {
+                    // TODO: implement something smart here instead of raw re-allocation
+                    data.reset();
+                }
+            }
             if (!data) {
                 auto&& parameters = _executableNetwork->_function->get_parameters();
                 AllocateImplSingle(_inputs, _deviceInputs, *_networkInputs.find(name), [&] (const std::string& blobName) {
@@ -296,6 +302,13 @@ Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name) {
         } else {
             THROW_IE_EXCEPTION << "Output blob dimensions are not all known for output name " <<
                 name << " with partial shape: " << foundOutput->getTensorDesc().getPartialShape();
+        }
+
+        if (data) {
+            if (data->getTensorDesc().getDims() != dims) {
+                // TODO: implement something smart here instead of raw re-allocation
+                data.reset();
+            }
         }
 
         if (!data) {

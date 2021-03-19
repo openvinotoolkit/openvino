@@ -108,6 +108,8 @@ def main():
     ngraph_function = create_ngraph_function(args)
     net = IENetwork(Function.to_capsule(ngraph_function))
 
+    net.reshapePartial({'Parameter_0': [-1, 2, [2, 5], (0, 28)]})
+
     for output in net.outputs:
         print(output, net.outputs[output])
 
@@ -124,12 +126,26 @@ def main():
 
     # Start sync inference
     log.info('Creating infer request and starting inference')
-    res = exec_net.infer(inputs={input_blob: np.ones(shape=[64, 2, 28, 28])})
+    res = exec_net.infer(inputs={input_blob: np.zeros(shape=[64, 2, 2, 28])})
 
     # Processing results
     log.info("Processing output blob")
     res = res[out_blob]
     log.info(f"Top {args.number_top} results: ")
+
+    print("res.shape = ", res.shape)
+
+    # Start sync inference
+    log.info('Creating infer request and starting inference')
+    res = exec_net.infer(inputs={input_blob: np.ones(shape=[1, 2, 2, 1])})
+
+    # Processing results
+    log.info("Processing output blob")
+    res = res[out_blob]
+    log.info(f"Top {args.number_top} results: ")
+
+    print("res.shape = ", res.shape)
+    print(res)
 
     # Read labels file if it is provided as argument
     labels_map = None

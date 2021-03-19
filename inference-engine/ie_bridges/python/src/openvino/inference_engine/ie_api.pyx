@@ -662,7 +662,7 @@ cdef class InputInfoPtr:
         cdef CTensorDesc c_tensor_desc = deref(self._ptr).getTensorDesc()
         precision = c_tensor_desc.getPrecision().name().decode()
         layout = c_tensor_desc.getLayout()
-        dims = c_tensor_desc.getDims() if c_tensor.isStatic() else []
+        dims = c_tensor_desc.getDims() if c_tensor_desc.isStatic() else []
         tensor_desc = TensorDesc(precision, dims, layout_int_to_str_map[layout])
         tensor_desc.impl = c_tensor_desc
         return tensor_desc
@@ -1248,10 +1248,11 @@ cdef class InferRequest:
         deref(self.impl).setBatch(size)
 
     def set_shape(self, blob_name : str, dims : [list, tuple]):
-        deref(self.impl).setShape(blob_name, dims)
+        deref(self.impl).setShape(blob_name.encode(), dims)
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
+            self.set_shape(k, v.shape)
             assert k in self._inputs_list, f"No input with name {k} found in network"
             if self.input_blobs[k].tensor_desc.precision == "FP16":
                 self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
@@ -1469,6 +1470,28 @@ cdef class IENetwork:
                 c_shape.push_back(v)
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
+
+    def reshapePartial(self, input_shapes: dict):
+        cdef map[string, vector[vector[int64_t]]] c_input_shapes;
+        cdef vector[vector[int64_t]] c_shape
+        cdef vector[int64_t] dim
+        net_inputs = self.input_info
+        for input, shape in input_shapes.items():
+            c_shape = []
+            if input not in net_inputs:
+                raise AttributeError(f"Specified '{input}' layer not in network inputs '{net_inputs}'! ")
+            for v in shape:
+                if isinstance(v, list) or isinstance(v, tuple):
+                    if len(v) < 1 or len(v) > 2:
+                        raise AttributeError(f"Incorrect PartialShape dimension definition '{v}' in shape '{shape}', expected one or two values for a dimension! ")
+                    for d in v:
+                        dim.push_back(d)
+                else:
+                    dim.push_back(v)
+                c_shape.push_back(dim)
+                dim.clear()
+            c_input_shapes[input.encode()] = c_shape
+        self.impl.reshapePartial(c_input_shapes)
 
     def _get_function_capsule(self):
         return self.impl.getFunction()
