@@ -134,15 +134,12 @@ def get_shape(data: NumericData) -> TensorShape:
 
 
 def is_empty_array(obj) -> bool:
-    """Return true if a given object is an empty numpy array"""
+    """Return true if a given object is an empty numpy array."""
     return type(obj) == np.ndarray and obj.size == 0
 
 
 def remove_empty_inputs(inputs: List[NumericData], params_number: int) -> List[NumericData]:
-    """
-    Remove empty numpy arrays from the inputs list and
-    align the number of elements to the number of parameters of a function/model
-    """
+    """Remove the empty inputs so that their number matches the parameters number."""
     inputs = list(filter(lambda i: not is_empty_array(i), inputs))
 
     # ignore any remaining obsolete input values
