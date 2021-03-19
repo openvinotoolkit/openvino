@@ -29,9 +29,10 @@ private:
     void stridedSliceV();
     void stridedSlice();
 
+    void addHiddenDims(const size_t nSrcDims);
     void orderParametersByLayouts();
-    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> dimsNormalization();
-    void dimsGluing(const size_t realNDims, const std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>& newDims);
+    void dimsNormalization(InferenceEngine::SizeVector& newSrcDims, InferenceEngine::SizeVector& newDstDims);
+    void dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims);
     void indicesCalculation();
 
     const size_t DATA_ID = 0;
@@ -49,6 +50,10 @@ private:
     std::vector<int> newAxisMask;
     std::vector<int> shrinkAxisMask;
 
+    InferenceEngine::SizeVector beginDims;
+    InferenceEngine::SizeVector endDims;
+    InferenceEngine::SizeVector strideDims;
+
     struct {
         InferenceEngine::SizeVector srcDims;
         InferenceEngine::SizeVector dstDims;
@@ -56,12 +61,15 @@ private:
         InferenceEngine::SizeVector dstStrides;
         InferenceEngine::SizeVector srcIndices;
         InferenceEngine::SizeVector dstIndices;
+        int ellipsisPos1 = -1;
+        int ellipsisPos2 = 0;
         size_t nThreads = 0;
         size_t nDimsForWork = 0;
         size_t workAmount = 0;
         size_t lastDstDim = 0;
         size_t dataSize = 0;
         bool equalDims = false;
+        bool parametersAreConstant = true;
     } params;
 };
 

@@ -51,30 +51,37 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     auto endData = stridedSliceLayer->insData[END_ID].lock();
     if (!inData || !beginData || !endData)
         THROW_ERROR << "has nullable input data";
+    if (!CaselessEq<std::string>()(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()->getCnnLayer()->type, "const"))
+        params.parametersAreConstant = false;
+    if (!CaselessEq<std::string>()(getParentEdgesAtPort(END_ID)[0]->getParent()->getCnnLayer()->type, "const"))
+        params.parametersAreConstant = false;
 
     const SizeVector srcDims = inData->getTensorDesc().getDims();
     const SizeVector dstDims = stridedSliceLayer->outData[0]->getTensorDesc().getDims();
+    const size_t nSrcDims = srcDims.size();
 
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
         THROW_ERROR << "has incorrect number of input edges";
     if (!getChildEdges().size())
         THROW_ERROR << "has incorrect number of output edges";
 
-    SizeVector beginDims = beginData->getTensorDesc().getDims();
+    beginDims = beginData->getTensorDesc().getDims();
     if (beginDims.size() != 1)
         THROW_ERROR << " should have begin vector with 1 dimension";
 
-    SizeVector endDims = endData->getTensorDesc().getDims();
+    endDims = endData->getTensorDesc().getDims();
     if (endDims.size() != 1)
         THROW_ERROR << "should have end vector with 1 dimension";
     if (beginDims[0] != endDims[0])
         THROW_ERROR << "should have begin vector with size equal to end vector size";
 
-    SizeVector strideDims;
+    strideDims;
     if (stridedSliceLayer->insData.size() > STRIDE_ID) {
         auto strideData = stridedSliceLayer->insData[STRIDE_ID].lock();
         if (!strideData)
             THROW_ERROR << "has nullable input data";
+        if (!CaselessEq<std::string>()(getParentEdgesAtPort(STRIDE_ID)[0]->getParent()->getCnnLayer()->type, "const"))
+            params.parametersAreConstant = false;
 
         strideDims = strideData->getTensorDesc().getDims();
         if (strideDims.size() > 1)
@@ -86,7 +93,7 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     auto createMask = [&](const char* maskName, std::vector<int>& mask, const int bit) {
       mask = stridedSliceLayer->GetParamAsInts(maskName);
         if (strcmp(maskName, "ellipsis_mask") != 0 || mask.size() == 0) {
-            for (size_t i = mask.size(); i < srcDims.size(); ++i) mask.push_back(bit);
+            for (size_t i = mask.size(); i < nSrcDims; ++i) mask.push_back(bit);
         }
     };
 
@@ -97,10 +104,10 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     createMask("ellipsis_mask", ellipsisMask, 0);
 
     int ellipsisMaskCounter = 0;
-    int ellipsisPos1 = -1;
+    params.ellipsisPos1 = -1;
     for (size_t i = 0; i < ellipsisMask.size(); i++) {
         ellipsisMaskCounter += ellipsisMask[i];
-        ellipsisPos1 = ellipsisMask[i] == 1 && ellipsisPos1 == -1 ? i : ellipsisPos1;
+        params.ellipsisPos1 = ellipsisMask[i] == 1 && params.ellipsisPos1 == -1 ? i : params.ellipsisPos1;
     }
     if (ellipsisMaskCounter > 1)
         THROW_ERROR << "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed";
@@ -108,58 +115,63 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     int newAxis = 0;
     for (auto na : newAxisMask)
         newAxis += na;
-    size_t maxDims = srcDims.size() + newAxis;
+    size_t maxDims = nSrcDims + newAxis;
 
     int shrinkAxis = 0;
     for (auto sa : shrinkAxisMask)
         shrinkAxis += sa;
-    params.equalDims = srcDims.size() == maxDims && shrinkAxis == 0;
+    params.equalDims = nSrcDims == maxDims && shrinkAxis == 0;
 
-    auto fillingInParameters = [&](std::vector<int>& parameter, const size_t type, const size_t size, const int bit) {
-        auto parentLayer = getParentEdgesAtPort(type)[0]->getParent()->getCnnLayer();
-        auto blob = parentLayer->blobs["custom"];
-        if (blob->getTensorDesc().getPrecision() != Precision::I32)
-            THROW_ERROR << "supports only parameters input with precision I32";
-        const int* ptr = blob->cbuffer().as<const int*>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        parameter.assign(ptr, ptr + size);
+    if (params.parametersAreConstant) {
+        auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
+            auto parentLayer = getParentEdgesAtPort(type)[0]->getParent()->getCnnLayer();
+            auto blob = parentLayer->blobs["custom"];
+            if (blob->getTensorDesc().getPrecision() != Precision::I32)
+                THROW_ERROR << "supports only parameters input with precision I32";
+            const int *ptr = blob->cbuffer().as<const int *>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            parameter.assign(ptr, ptr + size);
 
-        if (ellipsisMaskCounter == 0 && size < dstDims.size()) {
-            for (size_t i = size; i < dstDims.size(); i++)
-                parameter.push_back(bit);
-        }
-    };
-
-    if (beginDims.size())
-        fillingInParameters(begin, BEGIN_ID, beginDims[0], 0);
-    if (endDims.size())
-        fillingInParameters(end, END_ID, endDims[0], -1);
-    if (strideDims.size())
-        fillingInParameters(stride, STRIDE_ID, strideDims[0], 1);
-
-    if (srcDims.size() > 3 && params.equalDims && ellipsisMaskCounter == 1) {
-        size_t afterDims = ellipsisMask.size() - ellipsisPos1 - 1;
-        size_t ellipsisPos2 = srcDims.size() - afterDims - 1;
-
-        auto addHiddenDims = [&](std::vector<int>& data, const int bit) {
-            std::vector<int> temp;
-            for (size_t i = 0; i < ellipsisPos1; i++)
-                temp.push_back(data[i]);
-            for (size_t i = ellipsisPos1; i < ellipsisPos2 + 1; i++)
-                temp.push_back(bit);
-            for (size_t i = 1; i < srcDims.size() - ellipsisPos2; i++)
-                temp.push_back(data[i + ellipsisPos1]);
-            data = temp;
+            if (ellipsisMaskCounter == 0 && size < dstDims.size()) {
+                for (size_t i = size; i < dstDims.size(); i++)
+                    parameter.push_back(value);
+            }
         };
 
-        addHiddenDims(begin, 0);
-        addHiddenDims(end, 0);
-        addHiddenDims(stride, 1);
-        addHiddenDims(beginMask, 1);
-        addHiddenDims(endMask, 1);
-        addHiddenDims(ellipsisMask, 0);
-        addHiddenDims(newAxisMask, 0);
-        addHiddenDims(shrinkAxisMask, 0);
+        if (beginDims.size())
+            fillingInParameters(begin, BEGIN_ID, beginDims[0], 0);
+        if (endDims.size())
+            fillingInParameters(end, END_ID, endDims[0], -1);
+        if (strideDims.size())
+            fillingInParameters(stride, STRIDE_ID, strideDims[0], 1);
+
+        if (nSrcDims > 3 && params.equalDims && ellipsisMaskCounter == 1)
+            addHiddenDims(nSrcDims);
     }
+}
+
+void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims) {
+    size_t afterDims = ellipsisMask.size() - params.ellipsisPos1 - 1;
+    size_t ellipsisPos2 = nSrcDims - afterDims - 1;
+
+    auto addHiddenDims = [&](std::vector<int>& data, const int bit) {
+        std::vector<int> temp;
+        for (size_t i = 0; i < params.ellipsisPos1; i++)
+            temp.push_back(data[i]);
+        for (size_t i = params.ellipsisPos1; i < ellipsisPos2 + 1; i++)
+            temp.push_back(bit);
+        for (size_t i = 1; i < nSrcDims - ellipsisPos2; i++)
+            temp.push_back(data[i + params.ellipsisPos1]);
+        data = temp;
+    };
+
+    addHiddenDims(begin, 0);
+    addHiddenDims(end, 0);
+    addHiddenDims(stride, 1);
+    addHiddenDims(beginMask, 1);
+    addHiddenDims(endMask, 1);
+    addHiddenDims(ellipsisMask, 0);
+    addHiddenDims(newAxisMask, 0);
+    addHiddenDims(shrinkAxisMask, 0);
 }
 
 void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
@@ -245,8 +257,9 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isPlainFormat())
         orderParametersByLayouts();
 
-    auto newDims = dimsNormalization();
-    dimsGluing(realNDims, newDims);
+    SizeVector newSrcDims, newDstDims;
+    dimsNormalization(newSrcDims, newDstDims);
+    dimsGluing(realNDims, newSrcDims, newDstDims);
 
     if (params.dstDims.size() == 1 || params.nDimsForWork != 1)
         indicesCalculation();
@@ -286,20 +299,20 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts() {
     }
 }
 
-std::pair<SizeVector, SizeVector> MKLDNNStridedSliceNode::dimsNormalization() {
-    // creating new src and dst dimensions, parameters of the same size using masks
+void MKLDNNStridedSliceNode::dimsNormalization(InferenceEngine::SizeVector& newSrcDims, InferenceEngine::SizeVector& newDstDims) {
+    // creating new src and dst dimensions and parameters of the same size using masks
     //
-    // example 1: before srcDims = [5, 6, 8, 3, 2], begin = [1, 0], end = [4, 0], stride = [1, 1], dstDims = [4, 6, 8, 3, 2]
+    // example 1: before srcDims = [5, 6, 8, 3, 2], begin = [1, 0], end = [4, 0], stride = [1, 1]
     //            beginMask = [0, 1], endMask = [0, 1], ellipsisMask = [1, 0], newAxisMas = [0, 0], shrinkAxisMask = [0, 0]
     //            after srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], end = [4, 5, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [4, 6, 8, 3, 2]
     //
-    // example 2: before srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [0, 3, 0, 0, 0], stride = [1, 1, 1, 1, 1], dstDims = [5, 8, 3, 2]
+    // example 2: before srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [0, 3, 0, 0, 0], stride = [1, 1, 1, 1, 1]
     //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask = [0, 0, 0, 0, 0],
     //            shrinkAxisMask = [0, 1, 0, 0, 0]
     //            after srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [4, 3, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
     //
-    // example 3: before srcDims = [5, 8, 3, 2], begin = [0, 0, 0, 0], end = [0, 0, 0, 0], stride = [1, 1, 1, 1], dstDims = [4, 8, 3, 2]
-    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMasK = [0, 1, 0, 0, 0],
+    // example 3: before srcDims = [5, 8, 3, 2], begin = [0, 0, 0, 0], end = [0, 0, 0, 0], stride = [1, 1, 1, 1]
+    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask = [0, 1, 0, 0, 0],
     //            shrinkAxisMask = [0, 0, 0, 0, 0]
     //            after srcDims = [5, 1, 8, 3, 2], begin = [0, 0, 0, 0, 0], end = [4, 0, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
 
@@ -315,7 +328,6 @@ std::pair<SizeVector, SizeVector> MKLDNNStridedSliceNode::dimsNormalization() {
     std::vector<int> beginTemp;
     std::vector<int> endTemp;
     std::vector<int> strideTemp;
-    SizeVector newDstDims, newSrcDims;
     size_t srcIdx = 0;
     for (size_t axis = 0; axis < begin.size(); ++axis) {
         if (ellipsisMask[axis] == 1) {
@@ -397,13 +409,11 @@ std::pair<SizeVector, SizeVector> MKLDNNStridedSliceNode::dimsNormalization() {
     return std::pair<SizeVector, SizeVector>(newSrcDims, newDstDims);
 }
 
-void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>& newDims) {
+void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims) {
     // gluing of dimensions if there aren't begin, end and stride != 1 on this axis
     // example: before gluing srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], stride = [1, 1, 2, 1, 1], dstDims = [4, 6, 4, 3, 2]
     //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims = [24, 4, 6]
 
-    const SizeVector newSrcDims = newDims.first;
-    const SizeVector newDstDims = newDims.second;
     std::pair<size_t, size_t> secondDim = { 0, begin.size() };
     SizeVector indexes(1, 0);
     for (int idx = 0; idx < begin.size(); idx++) {
@@ -521,6 +531,43 @@ void MKLDNNStridedSliceNode::indicesCalculation() {
 }
 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
+    if (!params.parametersAreConstant) {
+        auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
+        auto dstDims = getChildEdgeAt(0)->getDims();
+        const size_t nSrcDims = srcDims.size();
+        const size_t ellipsisMaskCounter = std::accumulate(ellipsisMask.begin(), ellipsisMask.end(), 0);
+
+        auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
+            const int *ptr = reinterpret_cast<const int*>(this->getParentEdgeAt(type)->getMemoryPtr()->GetPtr());
+            parameter.assign(ptr, ptr + size);
+
+            if (ellipsisMaskCounter == 0 && size < dstDims.size()) {
+                for (size_t i = size; i < dstDims.size(); i++)
+                    parameter.push_back(value);
+            }
+        };
+
+        if (beginDims.size())
+            fillingInParameters(begin, BEGIN_ID, beginDims[0], 0);
+        if (endDims.size())
+            fillingInParameters(end, END_ID, endDims[0], -1);
+        if (strideDims.size())
+            fillingInParameters(stride, STRIDE_ID, strideDims[0], 1);
+
+        if (nSrcDims > 3 && params.equalDims && ellipsisMaskCounter != 0)
+            addHiddenDims(nSrcDims);
+
+        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isPlainFormat())
+            orderParametersByLayouts();
+
+        SizeVector newSrcDims, newDstDims;
+        dimsNormalization(newSrcDims, newDstDims);
+        dimsGluing(dstDims.size(), newSrcDims, newDstDims);
+
+        if (params.dstDims.size() == 1 || params.nDimsForWork != 1)
+            indicesCalculation();
+    }
+
     if (params.dstDims.size() > 1 && params.nDimsForWork == 1)
         stridedSliceV();
     else
