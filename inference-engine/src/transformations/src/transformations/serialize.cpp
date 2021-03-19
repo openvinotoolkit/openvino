@@ -125,10 +125,25 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         return join(adapter.get());
     }
 
+    std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
+        const std::string& map_type) {
+        std::vector<std::string> output;
+        for (pugi::xml_node node : xml_node.child("body").child("layers")) {
+            if (!map_type.compare(node.attribute("type").value())) {
+                output.push_back(node.attribute("id").value());
+            }
+        }
+
+        // ops for serialized body function are provided in reversed order
+        std::reverse(output.begin(), output.end());
+
+        return output;
+    }
+
     void input_descriptions_on_adapter(const std::vector<std::shared_ptr<
                                         ngraph::op::util::SubGraphOp::InputDescription>>& input_descriptions,
-                                        std::vector<std::string> parameter_mapping,
-                                        std::vector<std::string> result_mapping,
+                                        const std::vector<std::string>& parameter_mapping,
+                                        const std::vector<std::string>& result_mapping,
                                         pugi::xml_node& port_map) {
         NGRAPH_CHECK(!parameter_mapping.empty(), "No parameters found in body Function.");
 
@@ -161,8 +176,8 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
     void output_descriptions_on_adapter(const std::vector<std::shared_ptr<
                                         ngraph::op::util::SubGraphOp::OutputDescription>>& output_descriptions,
-                                        std::vector<std::string>& parameter_mapping,
-                                        std::vector<std::string>& result_mapping,
+                                        const std::vector<std::string>& parameter_mapping,
+                                        const std::vector<std::string>& result_mapping,
                                         pugi::xml_node& port_map) {
         NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
 
@@ -215,21 +230,6 @@ public:
         , m_bin_data(bin_data)
         , m_node_type_name(node_type_name)
         , m_custom_opsets(custom_opsets) {
-    }
-
-    std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
-        const std::string& map_type) {
-        std::vector<std::string> output;
-        for (pugi::xml_node node : xml_node.child("body").child("layers")) {
-            if (!map_type.compare(node.attribute("type").value())) {
-                output.push_back(node.attribute("id").value());
-            }
-        }
-
-        // ops for serialized body function are provided in reversed order
-        std::reverse(output.begin(), output.end());
-
-        return output;
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
