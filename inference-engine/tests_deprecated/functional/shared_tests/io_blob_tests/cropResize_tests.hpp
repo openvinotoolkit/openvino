@@ -26,7 +26,6 @@
 #include <functional_test_utils/blob_utils.hpp>
 
 #include "ie_parallel.hpp"
-#include "details/ie_exception.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;

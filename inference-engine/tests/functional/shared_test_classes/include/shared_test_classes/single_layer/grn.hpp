@@ -16,7 +16,6 @@
 
 #include "ie_core.hpp"
 #include "ie_precision.hpp"
-#include "details/ie_exception.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
 

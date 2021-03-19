@@ -3,7 +3,6 @@
 //
 #include "cpu_kernel.hpp"
 #include "op.hpp"
-#include <details/ie_exception.hpp>
 #include <ie_layouts.h>
 
 using namespace TemplateExtension;
@@ -25,7 +24,7 @@ OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node> &node) {
         add = castedNode->getAddAttr();
         inShape = castedNode->get_input_shape(0);
         outShape = castedNode->get_output_shape(0);
-    } catch (InferenceEngine::details::InferenceEngineException& ex) {
+    } catch (InferenceEngine::Exception& ex) {
         error = ex.what();
     }
 }
@@ -92,14 +91,15 @@ InferenceEngine::StatusCode OpImplementation::init(InferenceEngine::LayerConfig 
         }
 
         if (config.inConfs[0].desc.getDims().size() != 4 || config.outConfs[0].desc.getDims().size() != 4) {
-            THROW_IE_EXCEPTION << "Operation can be initialized only with 4d input/output tensors!";
+            THROW_IE_EXCEPTION
+             << "Operation can be initialized only with 4d input/output tensors!";
         }
 
         if (config.outConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32 ||
                 config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32)  {
             THROW_IE_EXCEPTION << "Operation supports only FP32 precisions!";
         }
-    } catch (InferenceEngine::details::InferenceEngineException&) {
+    } catch (InferenceEngine::Exception& ex) {
         if (resp) {
             strncpy(resp->msg, error.c_str(), sizeof(resp->msg) - 1);
             resp->msg[sizeof(resp->msg)-1] = 0;
