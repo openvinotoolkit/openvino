@@ -28,8 +28,10 @@ class PadFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         mode = onnx_attr(node, 'mode', 's', default='constant', dst_type=lambda x: x.decode())
-        if get_onnx_opset_version(node) < 11:
-            pads = onnx_attr(node, 'pads', 'ints', dst_type=lambda x: np.array(x, dtype=np.int64))
+        # Pytorch 1.3 while converting to opset 11, creates Pad from older opset.
+        # To be able to convert such models we have to check if pads attribute exist
+        pads = onnx_attr(node, 'pads', 'ints', dst_type=lambda x: np.array(x, dtype=np.int64))
+        if get_onnx_opset_version(node) < 11 or pads is not None:
             value = onnx_attr(node, 'value', 'f', default=0.)
 
             assert pads is not None
