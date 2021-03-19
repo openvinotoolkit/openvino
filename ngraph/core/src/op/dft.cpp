@@ -86,7 +86,7 @@ void op::v7::DFT::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           axes_et == element::i64 || axes_et == element::i32 ||
                               axes_et == element::u32 || axes_et == element::u64,
-                          "Axes element type must be i32, i64, u32 or u64");
+                          "Axes element type of DFT must be i32, i64, u32 or u64");
 
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));
     PartialShape axes_shape = PartialShape(get_input_partial_shape(1));
@@ -103,13 +103,13 @@ void op::v7::DFT::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           axes_shape.rank().get_length() == 1,
-                          "Axes input must be 1D tensor. Got axes input rank: ",
+                          "Axes input of DFT must be 1D tensor. Got axes input rank: ",
                           axes_shape.rank().get_length());
 
     auto last_dim_with_two = input_shape[input_rank - 1] & Dimension(2);
     NODE_VALIDATION_CHECK(this,
                           !last_dim_with_two.get_interval().empty(),
-                          "The last dimension of input data must be 2. Got: ",
+                          "The last dimension of input data of DFT must be 2. Got: ",
                           input_shape[input_rank - 1]);
 
     const auto& const_axes = get_constant_from_source(input_value(1));
@@ -144,7 +144,7 @@ void op::v7::DFT::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
-                          "FFT axis cannot be the last axis. Got axes: ",
+                          "DFT axis cannot be the last axis. Got axes: ",
                           axes_vector);
 
     if (input_values().size() == 2)
@@ -157,7 +157,7 @@ void op::v7::DFT::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           signal_sizes_et == element::i64 || signal_sizes_et == element::i32 ||
                               signal_sizes_et == element::u32 || signal_sizes_et == element::u64,
-                          "Signal size element type must be i32, i64, u32 or u64");
+                          "DFT signal size element type must be i32, i64, u32 or u64");
 
     PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
     if (signal_size_shape.rank().is_dynamic() || !is_type<op::Constant>(input_value(2).get_node()))
@@ -168,7 +168,7 @@ void op::v7::DFT::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           signal_size_shape.rank().get_length() == 1,
-                          "Signal size input must be 1D tensor. Got signal size input rank: ",
+                          "DFT signal size input must be 1D tensor. Got signal size input rank: ",
                           signal_size_shape.rank().get_length());
 
     const auto& const_signal_size = get_constant_from_source(input_value(2));
