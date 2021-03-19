@@ -140,7 +140,7 @@ void op::v7::DFT::validate_and_infer_types()
     }
 
     NODE_VALIDATION_CHECK(
-        this, axes_vector.size() == axes.size(), "DFT axes must be unique. Got: ", axes_vector);
+        this, axes_set.size() == axes.size(), "DFT axes must be unique. Got: ", axes_vector);
 
     NODE_VALIDATION_CHECK(this,
                           std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
