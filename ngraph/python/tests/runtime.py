@@ -132,6 +132,22 @@ class Computation(object):
         out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
         return output_blobs[out_name].buffer
 
+    def _is_empty_array(self, obj: Any) -> bool:
+        """Return true if a given object is an empty numpy array."""
+        if type(obj) == np.ndarray:
+            return obj.size == 0
+        else:
+            return False
+
+    def _remove_empty_inputs(self, inputs: List[NumericData], params_number: int) -> List[NumericData]:
+        """Remove the empty inputs so that their number matches the parameters number."""
+        inputs = list(filter(lambda i: not self._is_empty_array(i), inputs))
+
+        # ignore any remaining obsolete input values
+        inputs = inputs[:params_number]
+
+        return inputs
+
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
         # Input validation
@@ -142,7 +158,7 @@ class Computation(object):
 
         input_values = [np.array(input_value) for input_value in input_values]
         # remove empty arrays from the input_values (they are placeholders for optional inputs)
-        input_values = _remove_empty_inputs(input_values, len(self.parameters))
+        input_values = self._remove_empty_inputs(input_values, len(self.parameters))
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
         param_names = [param.friendly_name for param in self.parameters]
@@ -187,19 +203,3 @@ class Computation(object):
         converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
                              zip(result_buffers, original_dtypes)]
         return converted_buffers
-
-    def _is_empty_array(obj: Any) -> bool:
-        """Return true if a given object is an empty numpy array."""
-        if type(obj) == np.ndarray:
-            return obj.size == 0
-        else:
-            return False
-
-    def _remove_empty_inputs(inputs: List[NumericData], params_number: int) -> List[NumericData]:
-        """Remove the empty inputs so that their number matches the parameters number."""
-        inputs = list(filter(lambda i: not _is_empty_array(i), inputs))
-
-        # ignore any remaining obsolete input values
-        inputs = inputs[:params_number]
-
-        return inputs
