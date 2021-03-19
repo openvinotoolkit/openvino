@@ -35,6 +35,7 @@ protected:
         ngraph::pass::low_precision::Subgraph& subgraph,
         std::function<void(
             std::shared_ptr<ngraph::Node> layer,
+            std::shared_ptr<ngraph::Node> child,
             const std::string originalLayerName,
             std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const;
 

@@ -88,8 +88,8 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
 }
 
 std::shared_ptr<opset1::Constant> NetworkHelper::foldDequantizationConstant(
-    const std::shared_ptr<opset1::Constant> foldingConstant,
-    const std::shared_ptr<Node> operation,
+    const std::shared_ptr<opset1::Constant>& foldingConstant,
+    const std::shared_ptr<Node>& operation,
     const size_t outIdx) {
     OutputVector inputs = operation->input_values();
     OutputVector outputs(operation->get_output_size());

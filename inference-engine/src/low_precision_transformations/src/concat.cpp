@@ -197,6 +197,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
     auto dequantizationValuesCallback = [&](
         std::shared_ptr<ngraph::Node> layer,
+        std::shared_ptr<ngraph::Node> child,
         const std::string originalLayerName,
         std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate) {
         dequantizationsToConcatenate.push_back(dequantization);
@@ -320,6 +321,7 @@ void ConcatTransformation::addDequantizationLayers(
     ngraph::pass::low_precision::Subgraph& subgraph,
     std::function<void(
         std::shared_ptr<ngraph::Node> layer,
+        std::shared_ptr<ngraph::Node> child,
         const std::string originalLayerName,
         std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const {
     std::unordered_map<std::string, ngraph::Node*> outputs;
@@ -346,12 +348,14 @@ void ConcatTransformation::addDequantizationLayers(
                 ngraph::Node& child = *childInput.get_node();
 
                 if (subgraph.layers.find(child.get_friendly_name()) == subgraph.layers.end()) {
+                    std::shared_ptr<ngraph::Node> source = layer;
+                    const std::shared_ptr<ngraph::Node> destination = child.shared_from_this();
+
                     if (layerDequantizations.size() == 0ul) {
                         // fill layerDequantizations collection
-                        getLayerDequantizationCallback(layer, layer->get_friendly_name(), layerDequantizations);
+                        getLayerDequantizationCallback(source, destination, source->get_friendly_name(), layerDequantizations);
                     }
 
-                    std::shared_ptr<ngraph::Node> source = layer->shared_from_this();
                     {
                         NodeVector convertNodes;
                         NodeVector subtractNodes;
@@ -361,8 +365,6 @@ void ConcatTransformation::addDequantizationLayers(
                         fillDequantizationNodes(layerDequantizations, layer, convertNodes, subtractNodes, multiplyNodes);
 
                         // TODO: the second place (first is FQ decomposition) where dequantization operations are inserted
-                        const std::shared_ptr<ngraph::Node> destination = child.shared_from_this();
-
                         if (!convertNodes.empty()) {
                             const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
                             std::shared_ptr<ngraph::Node> convert =

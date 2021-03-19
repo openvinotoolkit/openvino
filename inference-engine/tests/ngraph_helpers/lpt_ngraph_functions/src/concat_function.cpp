@@ -990,6 +990,13 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
+    replace_node(
+        fakeQuantize2->get_input_node_shared_ptr(3),
+        ngraph::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(3)));
+    replace_node(
+        fakeQuantize2->get_input_node_shared_ptr(4),
+        ngraph::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(4)));
+
     fakeQuantize2->set_friendly_name("fakeQuantize2");
     low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionAfterOperation);
     const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore1);
