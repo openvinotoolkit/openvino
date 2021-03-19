@@ -57,7 +57,8 @@ public:
         const Transpose& transpose,
         const Reshape& reshape2,
         const DequantizationOperations& dequantizationAfter,
-        const std::string operation = "Convolution");
+        const std::string operation = "Convolution",
+        bool multiplyAfter = false);
 };
 
 }  // namespace subgraph
