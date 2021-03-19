@@ -263,7 +263,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
         try:
-            if find_ie_version(silent=True):
+            if not argv.use_fallback and find_ie_version(silent=True):
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
                 status = subprocess.run([sys.executable, path_to_offline_transformations, "--path_to_model", orig_model_name], env=os.environ, timeout=10)
