@@ -29,7 +29,6 @@
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
-<<<<<<< 916f7f4b8f451d7df9757f85bb6bafc1d368fc4d
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
