@@ -16,7 +16,7 @@
 """Functions related to converting between Python and numpy types and ngraph types."""
 
 import logging
-from typing import List, Union
+from typing import Any, List, Union
 
 import numpy as np
 
@@ -133,7 +133,7 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def is_empty_array(obj: NumericData) -> bool:
+def is_empty_array(obj: Any) -> bool:
     """Return true if a given object is an empty numpy array."""
     if type(obj) == np.ndarray:
         return obj.size == 0
