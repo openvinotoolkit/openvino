@@ -39,6 +39,7 @@
 #include <layers/gna_fake_quantize_layer.hpp>
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
+#include <debug.h>
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -129,7 +130,7 @@ void GNAPlugin::copyInputData(T *dst,
                 T *ptr_dst_vec = reinterpret_cast<T *>(dst) + i * num_vector_stride;
                 const U *ptr_src_vec = reinterpret_cast<const U *>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                for (int j=0; j < num_vector_elements; j++) {
+                for (uint32_t j=0; j < num_vector_elements; j++) {
                     ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                 }
             }
@@ -1108,7 +1109,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             Wait(0);
             freeNnet = nnets.begin();
         } else {
-            THROW_IE_EXCEPTION << as_status << REQUEST_BUSY
+            THROW_IE_EXCEPTION_WITH_STATUS(RequestBusy)
                                << "GNA executable network has max of "
                                << static_cast<uint32_t >(gnaFlags->gna_lib_async_threads_num)
                                << " parallel infer requests, please sync one of already running";
@@ -1271,9 +1272,9 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+        if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CHW) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
         }
@@ -1589,7 +1590,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     InferenceEngine::QueryNetworkResult res;
 
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented) << " ngraph::Function is not supported natively";
     }
 
     std::unordered_set<CNNLayer *> allLayers;

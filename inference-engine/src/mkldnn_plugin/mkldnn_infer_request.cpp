@@ -296,14 +296,14 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "SetBlob");
     if (name.empty()) {
-        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to set blob with empty name";
     }
 
     if (!data)
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
     const bool compoundBlobPassed = data->is<InferenceEngine::CompoundBlob>();
     if (!compoundBlobPassed && data->buffer() == nullptr)
-        THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     if (data->size() == 0) {
         THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
     }
@@ -313,13 +313,13 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
     size_t dataSize = data->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob with precision: "
+            THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Failed to set input blob with precision: "
                                << data->getTensorDesc().getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
         }
 
         const bool preProcRequired = preProcessingRequired(foundInput, data);
         if (compoundBlobPassed && !preProcRequired) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
                                << "cannot set compound blob: supported only for input pre-processing";
         }
 
@@ -341,12 +341,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             }
 
             if (foundInput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob. Dimensions mismatch.";
+                THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Failed to set input blob. Dimensions mismatch.";
             }
 
             if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
                 foundInput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob. Blocking descriptor mismatch.";
+                THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
             if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
@@ -359,11 +359,11 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
         }
     } else {
         if (compoundBlobPassed) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
                                << "cannot set compound blob: supported only for input pre-processing";
         }
         if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set output blob with precision: "
+            THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Failed to set output blob with precision: "
                                << data->getTensorDesc().getPrecision() << ", if CNNNetwork output blob precision is: " << foundOutput->getPrecision();
         }
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
@@ -374,11 +374,11 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                                << dataSize << "!=" << outputSize << ").";
         }
         if (foundOutput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set output Blob. Dimensions mismatch.";
+            THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Failed to set output Blob. Dimensions mismatch.";
         }
         if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
             foundOutput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set output blob. Blocking descriptor mismatch.";
+                THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Failed to set output blob. Blocking descriptor mismatch.";
         }
         if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
                 !graph->getProperty().batchLimit) {

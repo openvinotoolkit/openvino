@@ -159,7 +159,7 @@ protected:
             ref_pool<float>(src, dst_ref, p);
             compare(*dst.get(), *dst_ref.get());
 
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
