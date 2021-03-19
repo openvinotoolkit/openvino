@@ -62,8 +62,6 @@ private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
-    using reg16_t = const Xbyak::Reg16;
-    using reg8_t = const Xbyak::Reg8;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     reg64_t reg_src = r8;
@@ -71,7 +69,7 @@ private:
 
     reg64_t reg_oh_count = r10;
     reg64_t reg_ow_count = r11;
-    reg64_t reg_num_pads = r12; // reserved. used to specify padding
+    reg64_t reg_num_pads = r12;
     reg64_t reg_src_h_incr = r13;
     reg64_t reg_aux64 = rax;
     reg64_t reg_w_hi_pad = r14;
@@ -79,11 +77,6 @@ private:
     reg64_t reg_h_hi_pad = rbp;
     reg64_t reg_src_w_incr = rbx;
     reg64_t reg_ow_work_amount = rcx;
-//    reg32_t reg_aux32 = r13d;
-//    reg16_t reg_aux16 = r13w;
-//    reg8_t reg_aux8 = r13b;
-    //reg64_t reg_aux64_2 = r14;
-    //reg32_t reg_aux32_2 = r14d;
 
     reg64_t reg_params = abi_param1;
 
@@ -101,9 +94,9 @@ private:
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 4: movss(xmm_src, op); break;
-            case 2: pinsrw(xmm_src, op, 0x0); break;
-            case 1: pinsrb(xmm_src, op, 0x0); break;
+            case 4: uni_vmovss(xmm_src, op); break;
+            case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
+            case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
             default:
                 assert(!"unknown dtype size");
         }
@@ -111,38 +104,38 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
         Xbyak::Xmm xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 4: movss(op, xmm_dst); break;
-            case 2: pextrw(op, xmm_dst, 0x0); break;
-            case 1: vpextrb(op, xmm_dst, 0x0); break;
+            case 4: uni_vmovss(op, xmm_dst); break;
+            case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
+            case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
             default:
                 assert(!"unknown dtype size");
         }
     }
 
-    void pad_with_zeros(reg64_t &reg_num_pads, reg64_t &reg_dst_arg) {
+    void pad_with_zeros(reg64_t &reg_num_pads_arg, reg64_t &reg_dst_arg) {
         Xbyak::Label main, tail, exit;
         L(main);
         {
-            cmp(reg_num_pads, jpp.block_size);
+            cmp(reg_num_pads_arg, jpp.block_size);
             jl(tail);
             store_vector(ptr[reg_dst_arg], vmm_zero, jpp.precision);
             add(reg_dst_arg, jpp.dtype_size * jpp.block_size);
-            sub(reg_num_pads, jpp.block_size);
+            sub(reg_num_pads_arg, jpp.block_size);
             jmp(main);
         }
         L(tail);
         {
-            cmp(reg_num_pads, 0);
+            cmp(reg_num_pads_arg, 0);
             jle(exit);
             store_scalar(ptr[reg_dst_arg], vmm_zero);
             add(reg_dst_arg, jpp.dtype_size);
-            dec(reg_num_pads);
+            dec(reg_num_pads_arg);
             jmp(tail);
         }
         L(exit);
     }
 
-    void read_src2xmm(const Xbyak::Xmm &xmm_arg, reg64_t &reg_src_arg) {
+    void read_src2vmm(const Xbyak::Xmm &xmm_arg, reg64_t &reg_src_arg) {
         const int xmm_size = 16; // bytes
         const int xmm_block_size = xmm_size / jpp.dtype_size;
         for (int i = 0; i < xmm_block_size; i++) {
@@ -152,41 +145,43 @@ private:
                 case 4: uni_vpinsrd(xmm_arg, xmm_arg, addr, i); break;
                 case 2: uni_vpinsrw(xmm_arg, xmm_arg, addr, i); break;
                 case 1: uni_vpinsrb(xmm_arg, xmm_arg, addr, i); break;
+                default:
+                    assert(!"unknown dtype size");
             }
         }
         add(reg_src_arg, jpp.SW * jpp.dtype_size * xmm_block_size);
     }
-    void read_src2ymm(const Xbyak::Ymm &ymm_arg, reg64_t &reg_src_arg) {
+    void read_src2vmm(const Xbyak::Ymm &ymm_arg, reg64_t &reg_src_arg) {
         Xbyak::Xmm low_xmm = Xmm(ymm_arg.getIdx());
-        read_src2xmm(low_xmm, reg_src_arg);
-        read_src2xmm(xmm_aux, reg_src_arg);
+        read_src2vmm(low_xmm, reg_src_arg);
+        read_src2vmm(xmm_aux, reg_src_arg);
         vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
     }
 
-    void read_src2zmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
+    void read_src2vmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
         Xbyak::Ymm low_ymm = Ymm(zmm_arg.getIdx());
-        read_src2ymm(low_ymm, reg_src_arg);
-        read_src2ymm(ymm_aux, reg_src_arg);
-        vinserti64x4(zmm_arg, zmm_arg, ymm_aux, 1);
+        read_src2vmm(low_ymm, reg_src_arg);
+        read_src2vmm(xmm_aux, reg_src_arg);
+        vinserti64x2(zmm_arg, zmm_arg, xmm_aux, 3);
+        read_src2vmm(xmm_aux, reg_src_arg);
+        vinserti64x2(zmm_arg, zmm_arg, xmm_aux, 2);
+        //read_src2vmm(ymm_aux, reg_src_arg);
+        //vinserti64x4(zmm_arg, zmm_arg, ymm_aux, 1);
     }
-
+/*
     void read_src2vmm(Vmm &vmm_arg, const Xbyak::Reg64 &reg_src_arg) {
         constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
         constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
         constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
         // isa == x64::sse41 || isa == x64::avx2 || isa == x64::avx512_common
-        if (is_xmm) {
-            Xbyak::Xmm low_xmm = Xmm(vmm_arg.getIdx());
-            read_src2xmm(low_xmm, reg_src_arg);
-        } else if (is_ymm) {
-            Xbyak::Ymm low_ymm = Xbyak::Ymm(vmm_arg.getIdx());
-            read_src2ymm(low_ymm, reg_src_arg);
-        } else if (is_zmm) {
-            Xbyak::Zmm low_zmm = Xbyak::Zmm(vmm_arg.getIdx());
-            read_src2zmm(low_zmm, reg_src_arg);
-        }
+        if (is_xmm)
+            read_src2xmm(vmm_arg, reg_src_arg);
+        else if (is_ymm)
+            read_src2ymm(vmm_arg, reg_src_arg);
+        else if (is_zmm)
+            read_src2zmm(vmm_arg, reg_src_arg);
     }
-
+*/
     // The main loop where all the work is done
     void loop() {
         //for (int64_t i = 0; i < ih_lpad * OW; i++)
