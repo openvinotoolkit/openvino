@@ -13,7 +13,7 @@ Low-precision 8-bit inference is optimized for:
   - Intel® Iris® Xe MAX Graphics
 - A model must be quantized. You can use quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](https://docs.openvinotoolkit.org/2021.3/omz_models_intel_index.html) or quantize a model yourself. For quantization you can use the:
   - [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
-  - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on github: https://github.com/openvinotoolkit/nncf
+  - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
 
 The 8-bit inference feature was validated on most well-known public topologies.
 
