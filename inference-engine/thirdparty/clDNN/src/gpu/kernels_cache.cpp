@@ -234,18 +234,21 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             key += " __ONE_TIME__";
         }
         auto& current_bucket = program_buckets[key];
-        if (current_bucket.empty()) {
+        if (current_bucket.empty()) { // new bucket
             const auto& bucket_id = program_buckets.size() - 1;
             current_bucket.push_back(batch_program());
             current_bucket.back().bucket_id = static_cast<int32_t>(bucket_id);
+            current_bucket.back().batch_id = 0;
+            current_bucket.back().options = options;
         }
 
-        // Create new kernels bucket when the limit is reached
-        if ((current_bucket.back().kernels_counter != 0) && ((current_bucket.back().kernels_counter % get_max_kernels_per_batch()) == 0)) {
+        // Create new kernels batch when the limit is reached
+        if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
             const auto& batch_id = current_bucket.size();
             current_bucket.push_back(batch_program());
             current_bucket.back().bucket_id = static_cast<int32_t>(program_buckets.size());
             current_bucket.back().batch_id = static_cast<int32_t>(batch_id);
+            current_bucket.back().options = options;
         }
 
         auto& current_batch = current_bucket.back();
