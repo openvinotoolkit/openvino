@@ -770,6 +770,9 @@ pad_negative_exterior_4d
 pad_2channel_2image_asym
 pad_symmetric
 
+
+IE_CPU/PadBackendTest.PadBackendTestForSpec
+
 # LRN operation should be converted to LRN_IE
 lrn_across_h
 lrn_across_nw
