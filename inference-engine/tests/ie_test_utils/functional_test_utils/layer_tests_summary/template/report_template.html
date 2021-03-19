@@ -61,17 +61,17 @@
         <tr>
         <th class="table-secondary" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
         {% for d in devices -%}
-        <td class="table-secondary" >{{pass_rate_avg[d]}}</td>
+        <td class="table-secondary" >{{pass_rate_avg[d]}}%</td>
         {% endfor %}
     </tr>
         <tr>
-        <th class="table-secondary" scope="row">Passrate:</th>
+        <th class="table-secondary" scope="row">General passrate (=passed_tests/all_tests):</th>
         {% for d in devices -%}
-        <td class="table-secondary" >{{general_pass_rate[d]}}</td>
+        <td class="table-secondary" >{{general_pass_rate[d]}}%</td>
         {% endfor %}
     </tr>
         <tr>
-        <th class="table-secondary" scope="row">Sum of tests (without Parameter-0, Constant-0 and Result-0 ops):</th>
+        <th class="table-secondary" scope="row">Operation test number (without Parameter-0, Constant-0 and Result-0 ops):</th>
         {% for d in devices -%}
         <td class="table-secondary" >{{general_test_count[d]}}</td>
         {% endfor %}

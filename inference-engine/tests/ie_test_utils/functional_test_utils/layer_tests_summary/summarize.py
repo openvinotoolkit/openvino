@@ -156,7 +156,9 @@ for device in root.find("results"):
                                int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"]))
         general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
     pass_rate_avg[device.tag] /= len(results[device.tag])
+    pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
     general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
+    general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
 
     if "Constant-0" in root.find("results"):
         general_test_count[device.tag] -=  (
