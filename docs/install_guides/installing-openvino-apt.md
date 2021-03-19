@@ -101,7 +101,7 @@ apt-cache search openvino
 ## Install the runtime or developer packages using the APT Package Manager
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
 
-A symlink will be created: `/opt/intel/openvino`
+A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
 ---
 ### To Install a specific version

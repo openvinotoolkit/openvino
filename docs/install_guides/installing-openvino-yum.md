@@ -85,7 +85,7 @@ yum list intel-openvino*
 
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
 <br>
-A symlink will be created: `/opt/intel/openvino`
+A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
 ---
 
