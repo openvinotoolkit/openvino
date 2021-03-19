@@ -9,7 +9,6 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/function.hpp>
 
-#include <details/ie_exception.hpp>
 
 #include <gtest/gtest.h>
 
