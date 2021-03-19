@@ -400,7 +400,7 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
             std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
         return OK;
 #endif
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
@@ -448,7 +448,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             }
         }
         return OK;
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
@@ -472,7 +472,7 @@ StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* respon
             }
         }
         return reshape(inputShapes, responseDesc);
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();

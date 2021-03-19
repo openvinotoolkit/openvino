@@ -293,7 +293,7 @@ protected:
                 if (p.reference_idx.data()[i] != (*output1).data()[i])
                     FAIL() << "The difference between res_idx[i] and reference_idx[i]";
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -484,7 +484,7 @@ protected:
                 }
             }
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
