@@ -110,61 +110,59 @@ namespace ngraph
                 //    and perform broadcast if applicable
                 // 4) Perform dot on the args or updated args and return result
 
-                size_t arg0_rank = arg0_shape.size();
-                size_t arg1_rank = arg1_shape.size();
-                const size_t out_rank = out_shape.size();
-
-                // vector vars to hold pontential intermediate transpose,
-                // broadcast result
-                std::vector<T> arg0_transpose_vec;
-                std::vector<T> arg1_transpose_vec;
-                std::vector<T> arg0_broadcast_vec;
-                std::vector<T> arg1_broadcast_vec;
-
                 // pointers to updated inputs
-                const T* arg0_update = arg0;
-                const T* arg1_update = arg1;
+                const T* arg0_data = arg0;
+                const T* arg1_data = arg1;
+
+                // vectors to hold pontential intermediate transpose,
+                // broadcast result
+                std::vector<T> arg0_new_data;
+                std::vector<T> arg1_new_data;
 
                 // vars for updated inputs shapes
                 Shape arg0_shape_tmp = arg0_shape;
                 Shape arg1_shape_tmp = arg1_shape;
 
+                size_t arg0_rank = arg0_shape.size();
+                size_t arg1_rank = arg1_shape.size();
+                const size_t out_rank = out_shape.size();
+
                 // Perform transpose if requested
                 if (transpose_arg0 && arg0_rank > 1)
                 {
-                    arg0_transpose_vec.reserve(shape_size(arg0_shape));
+                    std::vector<T> tmp(shape_size(arg0_shape));
                     auto axis_vector = details::get_transpose_order(arg0_shape);
                     std::swap(arg0_shape_tmp[arg0_rank - 1], arg0_shape_tmp[arg0_rank - 2]);
-                    opt_kernel::reshape(reinterpret_cast<const char*>(arg0),
-                                        reinterpret_cast<char*>(arg0_transpose_vec.data()),
+                    opt_kernel::reshape(reinterpret_cast<const char*>(arg0_data),
+                                        reinterpret_cast<char*>(tmp.data()),
                                         arg0_shape,
                                         axis_vector,
                                         arg0_shape_tmp,
                                         sizeof(T));
-
-                    arg0_update = arg0_transpose_vec.data();
+                    arg0_new_data.swap(tmp);
+                    arg0_data = arg0_new_data.data();
                 }
 
                 if (transpose_arg1 && arg1_rank > 1)
                 {
-                    arg1_transpose_vec.reserve(shape_size(arg1_shape));
+                    std::vector<T> tmp(shape_size(arg1_shape));
                     auto axis_vector = details::get_transpose_order(arg1_shape);
                     std::swap(arg1_shape_tmp[arg1_rank - 1], arg1_shape_tmp[arg1_rank - 2]);
-                    opt_kernel::reshape(reinterpret_cast<const char*>(arg1),
-                                        reinterpret_cast<char*>(arg1_transpose_vec.data()),
+                    opt_kernel::reshape(reinterpret_cast<const char*>(arg1_data),
+                                        reinterpret_cast<char*>(tmp.data()),
                                         arg1_shape,
                                         axis_vector,
                                         arg1_shape_tmp,
                                         sizeof(T));
-
-                    arg1_update = arg1_transpose_vec.data();
+                    arg1_new_data.swap(tmp);
+                    arg1_data = arg1_new_data.data();
                 }
 
                 // Inputs are 2D and below, perform dot directly
                 if (arg0_rank <= 2 && arg1_rank <= 2)
                 {
                     details::dot(
-                        arg0_update, arg1_update, out, arg0_shape_tmp, arg1_shape_tmp, out_shape);
+                        arg0_data, arg1_data, out, arg0_shape_tmp, arg1_shape_tmp, out_shape);
                     return;
                 }
 
@@ -196,32 +194,33 @@ namespace ngraph
                         // expand dim with value 1 to bigger dim if dimensions are not equal.
                         if (arg0_br_target_shape != arg0_shape_tmp)
                         {
-                            arg0_broadcast_vec.reserve(shape_size(arg0_br_target_shape));
-                            broadcast(reinterpret_cast<const char*>(arg0_update),
-                                      reinterpret_cast<char*>(arg0_broadcast_vec.data()),
+                            std::vector<T> tmp(shape_size(arg0_br_target_shape));
+                            broadcast(reinterpret_cast<const char*>(arg0_data),
+                                      reinterpret_cast<char*>(tmp.data()),
                                       arg0_shape_tmp,
                                       arg0_br_target_shape,
                                       broadcast_axes,
                                       sizeof(T));
 
-                            arg0_update = arg0_broadcast_vec.data();
                             arg0_shape_tmp = arg0_br_target_shape;
                             arg0_rank = arg0_shape_tmp.size();
+                            arg0_new_data.swap(tmp);
+                            arg0_data = arg0_new_data.data();
                         }
 
                         if (arg1_br_target_shape != arg1_shape_tmp)
                         {
-                            arg1_broadcast_vec.reserve(shape_size(arg1_br_target_shape));
-                            broadcast(reinterpret_cast<const char*>(arg1_update),
-                                      reinterpret_cast<char*>(arg1_broadcast_vec.data()),
+                            std::vector<T> tmp(shape_size(arg1_br_target_shape));
+                            broadcast(reinterpret_cast<const char*>(arg1_data),
+                                      reinterpret_cast<char*>(tmp.data()),
                                       arg1_shape_tmp,
                                       arg1_br_target_shape,
                                       broadcast_axes,
                                       sizeof(T));
-
-                            arg1_update = arg1_broadcast_vec.data();
                             arg1_shape_tmp = arg1_br_target_shape;
                             arg1_rank = arg1_shape_tmp.size();
+                            arg1_new_data.swap(tmp);
+                            arg1_data = arg1_new_data.data();
                         }
                     }
                 }
@@ -258,8 +257,8 @@ namespace ngraph
                 const size_t output_offset = shape_size(dot_output_shape);
                 for (size_t i = 0; i < output_batch_size; i++)
                 {
-                    details::dot(arg0_update + i * arg0_offset,
-                                 arg1_update + i * arg1_offset,
+                    details::dot(arg0_data + i * arg0_offset,
+                                 arg1_data + i * arg1_offset,
                                  out + i * output_offset,
                                  dot_arg0_shape,
                                  dot_arg1_shape,
