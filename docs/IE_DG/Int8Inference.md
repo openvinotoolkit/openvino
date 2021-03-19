@@ -8,7 +8,7 @@ Low-precision 8-bit inference is optimized for:
   - Intel® Advanced Vector Extensions 512 (Intel® AVX-512)
   - Intel® Advanced Vector Extensions 2.0 (Intel® AVX2)
   - Intel® Streaming SIMD Extensions 4.2 (Intel® SSE4.2)
-- Intel Processor Graphics:
+- Intel® processor graphics:
   - Intel® Iris® Xe Graphics
   - Intel® Iris® Xe MAX Graphics
 - A model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](https://docs.openvinotoolkit.org/2021.3/omz_models_intel_index.html) or quantize a model yourself. For quantization, you can use the:
