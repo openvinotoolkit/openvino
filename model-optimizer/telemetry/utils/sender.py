@@ -13,7 +13,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import threading
 from concurrent import futures
 from time import sleep
 
@@ -27,20 +26,17 @@ class TelemetrySender:
     def __init__(self, max_workers=None):
         self.executor = futures.ThreadPoolExecutor(max_workers=max_workers)
         self.queue_size = 0
-        self._lock = threading.Lock()
 
     def send(self, backend: TelemetryBackend, message: Message):
         def _future_callback(future):
-            with self._lock:
-                self.queue_size -= 1
+            self.queue_size -= 1
 
-        with self._lock:
-            if self.queue_size < MAX_QUEUE_SIZE:
-                fut = self.executor.submit(backend.send, message)
-                fut.add_done_callback(_future_callback)
-                self.queue_size += 1
-            else:
-                pass  # dropping a message because the queue is full
+        if self.queue_size < MAX_QUEUE_SIZE:
+            fut = self.executor.submit(backend.send, message)
+            fut.add_done_callback(_future_callback)
+            self.queue_size += 1
+        else:
+            pass  # dropping a message because the queue is full
 
     def force_shutdown(self, timeout: float):
         """
@@ -53,11 +49,10 @@ class TelemetrySender:
         :return: None
         """
         try:
-            with self._lock:
-                if self.queue_size > 0:
-                    sleep(timeout)
-                self.executor.shutdown(wait=False)
-                self.executor._threads.clear()
-                futures.thread._threads_queues.clear()
+            if self.queue_size > 0:
+                sleep(timeout)
+            self.executor.shutdown(wait=False)
+            self.executor._threads.clear()
+            futures.thread._threads_queues.clear()
         except Exception:
             pass
