@@ -131,7 +131,7 @@ ngraph::pass::MVNFusion::MVNFusion() {
                 return false;
             }
             auto axes_2_value = axes_2_node->cast_vector<int64_t>();
-            if (!(axes_1_value == axes_2_value)) {
+            if (axes_1_value != axes_2_value) {
                 return false;
             }
         }
@@ -158,6 +158,8 @@ ngraph::pass::MVNFusion::MVNFusion() {
             } else if (pattern_to_output.count(sqrt_is)) {
                 nodes_to_copy_info.push_back(pattern_to_output.at(sqrt_is).get_node_shared_ptr());
             }
+        } else {
+            return false;
         }
         auto mvn = std::make_shared<ngraph::opset6::MVN>(exp_input, axes_1_node, true, eps_value, mode);
 
@@ -172,7 +174,7 @@ ngraph::pass::MVNFusion::MVNFusion() {
 
         if (pattern_to_output.count(div_alt)) {
             nodes_to_copy_info.push_back(pattern_to_output.at(div_alt).get_node_shared_ptr());
-        } else if (pattern_to_output.count(power_div) != 0 && pattern_to_output.count(div) != 0) {
+        } else if (pattern_to_output.count(power_div) && pattern_to_output.count(div)) {
             nodes_to_copy_info.push_back(pattern_to_output.at(power_div).get_node_shared_ptr());
             nodes_to_copy_info.push_back(pattern_to_output.at(div).get_node_shared_ptr());
         }
