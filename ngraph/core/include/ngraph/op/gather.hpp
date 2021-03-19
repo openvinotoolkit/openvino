@@ -64,5 +64,47 @@ namespace ngraph
                                      const HostTensorVector& inputs) const;
             };
         } // namespace v1
+
+        namespace v7
+        {
+            /// \brief Gather slices from axis of params according to indices
+            class NGRAPH_API Gather : public Op
+            {
+            public:
+                NGRAPH_RTTI_DECLARATION;
+                static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
+                Gather() = default;
+
+                /// \param data The tensor from which slices are gathered
+                /// \param indices Tensor with indexes to gather
+                /// \param axis The tensor is a dimension index to gather data from
+                /// \param batch_dims The number of batch dimension in data and indices tensors
+                Gather(const Output<Node>& params,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis,
+                       const int64_t m_batch_dims);
+
+                /// \param data The tensor from which slices are gathered
+                /// \param indices Tensor with indexes to gather
+                /// \param axis The tensor is a dimension index to gather data from
+                Gather(const Output<Node>& params,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis);
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                int64_t get_axis() const;
+
+                void validate_and_infer_types() override;
+
+                std::shared_ptr<Node>
+                clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                int64_t get_batch_dims() const;
+
+
+            private:
+                int64_t m_batch_dims = 0;
+            };
+        } // namespace v1
     }     // namespace op
 } // namespace ngraph

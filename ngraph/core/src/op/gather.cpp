@@ -140,6 +140,156 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
 
+NGRAPH_RTTI_DEFINITION(op::v7::Gather, "Gather", 7);
+
+op::v7::Gather::Gather(const Output<Node>& params,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis,
+                       const int64_t batch_dims)
+        : Op({params, indices, axis}), m_batch_dims(batch_dims)
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v7::Gather::Gather(const Output<Node>& params,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis)
+        : Op({params, indices, axis}), m_batch_dims(0)
+{
+    constructor_validate_and_infer_types();
+}
+
+bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v7_Gather_visit_attributes);
+    visitor.on_attribute("batch_dims", m_batch_dims);
+    return true;
+}
+
+void op::v7::Gather::validate_and_infer_types()
+{
+    NGRAPH_OP_SCOPE(v7_Gather_validate_and_infer_types);
+    const auto& data_type = get_input_element_type(0);
+    const auto& indices_type = get_input_element_type(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          indices_type == element::Type_t::i32 ||
+                          indices_type == element::Type_t::i64,
+                          "indices must be of int32 or int64 type. But instead got: ",
+                          indices_type);
+
+    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& indices_pshape = get_input_partial_shape(1);
+    const auto& axis_pshape = get_input_partial_shape(2);
+    auto data_rank = data_pshape.rank();
+    auto indices_rank = indices_pshape.rank();
+    auto axis_rank = axis_pshape.rank();
+
+    if (axis_rank.is_static() && axis_pshape.is_static())
+    {
+        const auto axis_is_scalar = axis_rank.get_length() == 0;
+        const auto axis_has_one_elem =
+                axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
+        NODE_VALIDATION_CHECK(this,
+                              axis_is_scalar || axis_has_one_elem,
+                              "Axes input must be scalar or have 1 element (shape: ",
+                              axis_pshape,
+                              ").");
+    }
+
+    int64_t axis = get_axis();
+    int64_t batch_dims = get_batch_dims();
+    NODE_VALIDATION_CHECK(this,
+                          axis >= 0 && axis < data_rank.get_length(),
+                          "The axis must be => 0 and <= data_rank. But instead got axis = ",
+                          axis, " batch_dims = ", batch_dims);
+
+
+    if (data_rank.is_static() && axis != AXIS_NOT_SET_VALUE)
+    {
+        NODE_VALIDATION_CHECK(this,
+                              axis >= batch_dims,
+                              "The axis must be => 0 and <= data_rank. But instead got: axis = ",
+                              axis, ", data_rank = ", data_rank.get_length());
+    }
+
+    auto out_rank = data_pshape.rank().get_length() + indices_pshape.rank().get_length() - 1 - batch_dims;
+    std::vector<Dimension> result_dims(out_rank);
+    PartialShape output_pshape(result_dims);
+    if (data_pshape.rank().is_static() && indices_pshape.rank().is_static())
+    {
+        // data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]
+        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]
+        int i = 0;
+        for (; i < batch_dims; i++)
+        {
+            Dimension curr_dim = data_pshape[i] & indices_pshape[i];
+
+            NODE_VALIDATION_CHECK(this,
+                                  !curr_dim.get_interval().empty(),
+                                  "Shapes ",
+                                  data_pshape,
+                                  " and ",
+                                  indices_pshape,
+                                  " are not consistent. data and indices must have equal or "
+                                  "intersecting sizes until batch_dims");
+
+            output_pshape[i] = curr_dim;
+        }
+        for (; i < axis; i++)
+        {
+            output_pshape[i] = data_pshape[i];
+        }
+        for (; i < axis + indices_rank.get_length() - batch_dims; i++)
+        {
+            output_pshape[i] = indices_pshape[batch_dims - axis + i];
+        }
+        for (; i < out_rank; i++)
+        {
+            output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
+        }
+    }
+    else
+    {
+        output_pshape = PartialShape::dynamic();
+    }
+
+    set_output_type(0, data_type, output_pshape);
+}
+
+int64_t op::v7::Gather::get_axis() const
+{
+    int64_t axis = AXIS_NOT_SET_VALUE;
+    if (const auto& const_op = get_constant_from_source(input_value(2)))
+    {
+        axis = const_op->cast_vector<int64_t>()[0];
+    }
+    if (axis < 0)
+    {
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        if (data_rank.is_static())
+        {
+            axis += data_rank.get_length();
+        }
+    }
+    return axis;
+}
+
+int64_t op::v7::Gather::get_batch_dims() const {
+    if (m_batch_dims >= 0)
+        return m_batch_dims;
+    else
+        return get_axis() + m_batch_dims;
+}
+
+
+shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    NGRAPH_OP_SCOPE(v7_Gather_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v7::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
+}
+
 namespace gather
 {
     template <element::Type_t ET>
@@ -283,6 +433,7 @@ namespace gather
         return true;
     }
 } // namespace gather
+
 
 bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
