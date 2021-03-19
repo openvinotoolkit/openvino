@@ -211,9 +211,9 @@ public:
          */
         // NB! works only for IC=1
         std::cout << "-------------------------\n";
-        //for(int kh=0; kh < KH; kh++) {
+        //for(int kh= KH - 1; kh < KH; kh++) {
         for(int kh=0; kh < 1; kh++) {
-            //for (int kw = 0; kw < KW; kw++) {
+            //for (int kw = KW - 1; kw < KW; kw++) {
             for (int kw = 0; kw < 1; kw++) {
                 std::cout << "KH = " << kh << " KW = " << kw << "\n";
                 for (int i = 0; i < OH; i++) {
