@@ -212,6 +212,7 @@ void TestEnvironment::saveReport() {
     } else {
         isReported = true;
     }
+    file.close();
     CommonTestUtils::removeFile(lockedFilename);
 }
 
