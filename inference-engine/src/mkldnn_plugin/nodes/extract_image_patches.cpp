@@ -90,7 +90,8 @@ private:
     Vmm vmm = Vmm(0);
     Xmm xmm = Xmm(0);
     Vmm vmm_zero = Vmm(1); // reserved for pad
-    Xbyak::Xmm xmm_aux = Xbyak::Xmm(2);
+    Xbyak::Ymm ymm_aux = Xbyak::Ymm(2);
+    Xbyak::Xmm xmm_aux = Xbyak::Xmm(3);
 
 
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision prec) {
@@ -156,31 +157,33 @@ private:
         add(reg_src_arg, jpp.SW * jpp.dtype_size * xmm_block_size);
     }
     void read_src2ymm(const Xbyak::Ymm &ymm_arg, reg64_t &reg_src_arg) {
-        const int ymm_size = 32; // bytes
-        const int ymm_block_size = ymm_size / jpp.dtype_size;
-        for (int i = 0; i < ymm_block_size; i++) {
-            Xbyak::Address addr = ptr[reg_src_arg + i * jpp.SW * jpp.dtype_size];
-            switch (jpp.dtype_size) {
-                case 8: uni_vpinsrq(ymm_arg, ymm_arg, addr, i); break;
-                case 4: uni_vpinsrd(ymm_arg, ymm_arg, addr, i); break;
-                case 2: uni_vpinsrw(ymm_arg, ymm_arg, addr, i); break;
-                case 1: uni_vpinsrb(ymm_arg, ymm_arg, addr, i); break;
-            }
-        }
-        add(reg_src_arg, jpp.SW * jpp.dtype_size * ymm_block_size);
+        Xbyak::Xmm low_xmm = Xmm(ymm_arg.getIdx());
+        read_src2xmm(low_xmm, reg_src_arg);
+        read_src2xmm(xmm_aux, reg_src_arg);
+        vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
+    }
+
+    void read_src2zmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
+        Xbyak::Ymm low_ymm = Ymm(zmm_arg.getIdx());
+        read_src2ymm(low_ymm, reg_src_arg);
+        read_src2ymm(ymm_aux, reg_src_arg);
+        vinserti64x4(zmm_arg, zmm_arg, ymm_aux, 1);
     }
 
     void read_src2vmm(Vmm &vmm_arg, const Xbyak::Reg64 &reg_src_arg) {
+        constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+        constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
         // isa == x64::sse41 || isa == x64::avx2 || isa == x64::avx512_common
-        Xbyak::Xmm low_xmm = Xmm(vmm_arg.getIdx());
-        read_src2xmm(low_xmm, reg_src_arg);
-        if ((isa == x64::avx2) || (isa == x64::avx512_common)) {
+        if (is_xmm) {
+            Xbyak::Xmm low_xmm = Xmm(vmm_arg.getIdx());
+            read_src2xmm(low_xmm, reg_src_arg);
+        } else if (is_ymm) {
             Xbyak::Ymm low_ymm = Xbyak::Ymm(vmm_arg.getIdx());
-            read_src2xmm(xmm_aux, reg_src_arg);
-            vinserti128(low_ymm, low_ymm, xmm_aux, 1);
-            // NB! Need to implement further optimization for avx512?
-            //if (isa == x64::avx512_common) {
-            //}
+            read_src2ymm(low_ymm, reg_src_arg);
+        } else if (is_zmm) {
+            Xbyak::Zmm low_zmm = Xbyak::Zmm(vmm_arg.getIdx());
+            read_src2zmm(low_zmm, reg_src_arg);
         }
     }
 
