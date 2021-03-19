@@ -15,7 +15,7 @@ Low-precision 8-bit inference is optimized for:
   - [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
   - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on github: https://github.com/openvinotoolkit/nncf
 
-The 8-bit inference feature was validated on the most wellknown public topologies.
+The 8-bit inference feature was validated on most well-known public topologies.
 
 ## Introduction
 
