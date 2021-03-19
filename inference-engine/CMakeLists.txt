@@ -13,8 +13,6 @@ include(cmake/features.cmake)
 # resolving dependencies for the project
 include(cmake/dependencies.cmake)
 
-find_package(Threads REQUIRED)
-
 function(ie_developer_export_targets)
     openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${ARGN})
 endfunction()
@@ -72,7 +70,7 @@ add_subdirectory(ie_bridges/c)
 
 # install C++ samples
 
-ie_cpack_add_component(cpp_samples REQUIRED DEPENDS core)
+ie_cpack_add_component(cpp_samples DEPENDS core)
 
 if(UNIX)
     install(DIRECTORY samples/
@@ -92,7 +90,7 @@ endif()
 
 # install C samples
 
-ie_cpack_add_component(c_samples REQUIRED DEPENDS core)
+ie_cpack_add_component(c_samples DEPENDS core_c)
 
 if(UNIX)
     install(PROGRAMS samples/build_samples.sh
@@ -116,7 +114,7 @@ install(FILES samples/CMakeLists.txt
 # install Python samples
 
 if(ENABLE_PYTHON)
-    ie_cpack_add_component(python_samples REQUIRED DEPENDS core)
+    ie_cpack_add_component(python_samples DEPENDS core)
 
     install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
             DESTINATION ${IE_CPACK_IE_DIR}/samples/python
@@ -126,7 +124,7 @@ endif()
 # install speech demo files
 
 if(SPEECH_LIBS_AND_DEMOS)
-    ie_cpack_add_component(speech_demo_files REQUIRED)
+    ie_cpack_add_component(speech_demo_files)
 
     install(DIRECTORY ${TEMP}/deployment_tools
                       ${TEMP}/data_processing

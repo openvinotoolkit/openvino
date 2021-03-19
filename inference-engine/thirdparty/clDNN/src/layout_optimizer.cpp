@@ -395,19 +395,19 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     }
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case
     int32_t feature_block_size = 16;
-    int32_t correct_data_type = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
-    correct_data_type &= weights_layout.data_type == input_layout.data_type;
-    int32_t correct_batch = (input_layout.size.batch[0] == 1) || (input_layout.size.batch[0] > 1 && input_layout.data_type == data_types::f32);
-    int32_t correct_spatial_dims = input_layout.size.spatial[2] == 1 && input_layout.size.spatial[3] == 1;
+    bool correct_data_type = (input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32) &&
+                             (weights_layout.data_type == input_layout.data_type);
+    bool correct_batch = (input_layout.size.batch[0] == 1) || (input_layout.size.batch[0] > 1 && input_layout.data_type == data_types::f32);
+    bool correct_spatial_dims = input_layout.size.spatial[2] == 1 && input_layout.size.spatial[3] == 1;
     int32_t required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
-    int32_t correct_in_feature = (input_layout.size.feature[0] >= required_feature_num &&
+    bool correct_in_feature = (input_layout.size.feature[0] >= required_feature_num &&
                                   output_layout.size.feature[0] >= required_feature_num);
     int32_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
     int32_t out_features_per_group = output_layout.size.feature[0] / conv->groups;
     if (!correct_in_feature && input_layout.size.feature[0] <= 4 && out_features_per_group >= feature_block_size)
         correct_in_feature = true;
-    int32_t depthwise = conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]);  // depthwise conv
-    int32_t grouped = ((feature_block_size % out_features_per_group == 0) &&
+    bool depthwise = conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]);  // depthwise conv
+    bool grouped = ((feature_block_size % out_features_per_group == 0) &&
                        (feature_block_size % in_features_per_group == 0) &&
                        (feature_block_size / out_features_per_group > 1) &&
                        (feature_block_size / in_features_per_group > 1) &&

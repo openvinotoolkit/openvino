@@ -13,11 +13,11 @@ Deep Learning Inference Engine is a part of Intel&reg; Deep Learning Deployment 
 Below, there are the three main steps of the deployment process:
 
 1.	**Conversion**<br>
-	Trained models are converted from a specific framework (like Caffe\* or TensorFlow\*) to a framework-agnostic Intermediate Representation (IR) format.
+	Trained models are converted from a specific framework, like TensorFlow\*, or format, like ONNX\*, to the framework-agnostic Intermediate Representation (IR) format.
 
 	- *Performance flow*: This is an offline step where general topology-level optimizations happen automatically (see <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>).
 
-	- *Tools*: Intel DL Deployment Toolkit features the Model Optimizer that enables automatic and seamless transition from the training environment to the deployment environment.
+	- *Tools*: OpenVINO™ features the Model Optimizer that enables automatic and seamless transition from a training to deployment environment.
 
 2.	**Model Inference/Execution**<br>
 	After conversion, Inference Engine consumes the IR to perform inference. While Inference Engine API itself is target-agnostic, internally, it has a notion of plugins, which are device-specific libraries facilitating the hardware-assisted acceleration.
@@ -55,14 +55,16 @@ In contrast, for the latency-oriented tasks, the time to a single frame is more 
 
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
 
-> **NOTE**: Most samples also support batching (automatically packing multiple input images into a single request). However, high batch size results in a latency penalty. So for more real-time oriented usages, lower batch sizes (as low as a single input) are usually used. However, devices like CPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPU require a number of parallel requests instead of batching to leverage the performance.
+> **NOTE**: The [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample also supports batching, that is automatically packing multiple input images into a single request. However, high batch size results in a latency penalty. So for more real-time oriented usages, batch sizes that are as low as a single input are usually used. Still, devices like CPU, Intel®Movidius™ Myriad™ 2 VPU, Intel® Movidius™ Myriad™ X VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPU require a number of parallel requests instead of batching to leverage the performance. Running multiple requests should be coupled with a device configured to the corresponding number of streams. See <a href="#cpu-streams">details on CPU streams</a> for an example.
+
+[OpenVINO™ Deep Learning Workbench tool](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) provides throughput versus latency charts for different numbers of streams, requests, and batch sizes to find the performance sweet spot.
 
 ### Comparing Performance with Native/Framework Code <a name="comparing-performance-with-native-framework-code"></a>
 
 When comparing the Inference Engine performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
--	Wrap exactly the inference execution (refer to the [Inference Engine Samples](../IE_DG/Samples_Overview.md) for examples).
--	Do not include model loading time.
+-	Wrap exactly the inference execution (refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for an example).
+-	Track model loading time separately.
 -	Ensure the inputs are identical for the Inference Engine and the framework. For example, Caffe\* allows to auto-populate the input with random values. Notice that it might give different performance than on real images.
 -	Similarly, for correct performance comparison, make sure the access pattern, for example, input layouts, is optimal for Inference Engine (currently, it is NCHW).
 -	Any user-side pre-processing should be tracked separately.
@@ -77,7 +79,7 @@ You need to build your performance conclusions on reproducible data. Do the perf
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	 For time values that range too much, use geomean.
 
-Refer to the [Inference Engine Samples](../IE_DG/Samples_Overview.md) for code examples for the performance measurements. Almost every sample, except interactive demos, has a `-ni` option to specify the number of iterations.
+Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) for code examples of performance measurements. Almost every sample, except interactive demos, has the `-ni` option to specify the number of iterations.
 
 ## Model Optimizer Knobs Related to Performance <a name="mo-knobs-related-to-performance"></a>
 

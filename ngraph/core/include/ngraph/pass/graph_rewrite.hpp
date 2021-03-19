@@ -95,6 +95,7 @@ namespace ngraph
             }
             void clear_new_nodes() { m_new_nodes.clear(); }
             std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
+
         protected:
             void register_matcher(
                 const std::shared_ptr<pattern::Matcher>& m,

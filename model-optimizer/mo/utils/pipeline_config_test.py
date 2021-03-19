@@ -151,6 +151,7 @@ class TestingSimpleProtoParser(unittest.TestCase):
                            'use_matmul_crop_and_resize': False,
                            'add_background_class': True,
                            'share_box_across_classes': False,
+                           'pad_to_max_dimension': False,
                            }
         os.unlink(file_name)
         self.assertDictEqual(pipeline_config._model_params, expected_result)

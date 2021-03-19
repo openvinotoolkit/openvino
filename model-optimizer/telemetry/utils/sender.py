@@ -34,13 +34,18 @@ class TelemetrySender:
             with self._lock:
                 self.queue_size -= 1
 
+        free_space = False
         with self._lock:
             if self.queue_size < MAX_QUEUE_SIZE:
-                fut = self.executor.submit(backend.send, message)
-                fut.add_done_callback(_future_callback)
+                free_space = True
                 self.queue_size += 1
             else:
                 pass  # dropping a message because the queue is full
+        # to avoid dead lock we should not add callback inside the "with self._lock" block because it will be executed
+        # immediately if the fut is available
+        if free_space:
+            fut = self.executor.submit(backend.send, message)
+            fut.add_done_callback(_future_callback)
 
     def force_shutdown(self, timeout: float):
         """
@@ -53,11 +58,14 @@ class TelemetrySender:
         :return: None
         """
         try:
+            need_sleep = False
             with self._lock:
                 if self.queue_size > 0:
-                    sleep(timeout)
-                self.executor.shutdown(wait=False)
-                self.executor._threads.clear()
-                futures.thread._threads_queues.clear()
+                    need_sleep = True
+            if need_sleep:
+                sleep(timeout)
+            self.executor.shutdown(wait=False)
+            self.executor._threads.clear()
+            futures.thread._threads_queues.clear()
         except Exception:
             pass

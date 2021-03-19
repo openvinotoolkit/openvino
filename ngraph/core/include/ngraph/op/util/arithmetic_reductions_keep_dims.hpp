@@ -46,6 +46,7 @@ namespace ngraph
                 /// For each such axis, output dimension is equal to 1.
                 bool get_keep_dims() const { return m_keep_dims; }
                 void set_keep_dims(bool keep_dims) { m_keep_dims = keep_dims; }
+
             private:
                 bool m_keep_dims = false;
             };
