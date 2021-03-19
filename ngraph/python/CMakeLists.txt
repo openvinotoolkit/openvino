@@ -86,7 +86,9 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph)
-add_dependencies(_${PROJECT_NAME} ngraph::onnx_importer)
+if (TARGET ngraph::onnx_importer)
+    add_dependencies(_${PROJECT_NAME} ngraph::onnx_importer)
+endif()
 
 # perform copy
 if(OpenVINO_MAIN_SOURCE_DIR)
