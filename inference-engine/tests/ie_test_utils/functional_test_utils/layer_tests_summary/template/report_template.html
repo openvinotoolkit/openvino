@@ -80,22 +80,18 @@
     <tbody>
     {% for op in ordered_ops -%}
     <tr>
-        <th scope="row">{{ op }}</th>
+        {% if op in verified_operations -%}
+            <th scope="row">{{ op }}</th>
+        {% else -%}
+            <th  class="table-info" scope="row">{{ op }}</th>
+        {% endif -%}
         {% for d in devices -%}
         {% if op in results[d] -%}
-        {% if op in verified_operations -%}
             <td>
             {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
                <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }}</span>,
                <span style="color: red">c:{{ results[d][op].crashed }}</span>)
             </td>
-        {% else -%}
-            <td class="table-info">
-                {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
-                <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }}</span>,
-                <span style="color: red">c:{{ results[d][op].crashed }}</span>))
-            </td>
-            {% endif -%}
         {% else -%}
         <td class="table-warning">No tests</td>
         {% endif -%}
