@@ -293,8 +293,8 @@ inline void lockAndWaitFile(const std::string& lockedFilename) {
         }
         auto currentTime = std::chrono::system_clock::now();
         auto exitTime = std::chrono::system_clock::now() + std::chrono::minutes(1);
-        while (CommonTestUtils::fileExists(lockedFilename.c_str()) && currentTime <= exitTime &&
-                checkProcessStatus(lockerPid) != 0 && checkProcessStatus(lockerPid) != -1) {
+        while (CommonTestUtils::fileExists(lockedFilename.c_str()) && currentTime < exitTime &&
+               checkProcessStatus(lockerPid) != 0 && checkProcessStatus(lockerPid) != -1) {
             std::this_thread::sleep_for(std::chrono::microseconds(std::chrono::milliseconds(500)));
             currentTime = std::chrono::system_clock::now();
         }
