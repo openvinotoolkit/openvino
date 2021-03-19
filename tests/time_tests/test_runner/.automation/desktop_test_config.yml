@@ -474,3 +474,17 @@
     name: icnet-camvid-ava-sparse-60-0001
     precision: FP16-INT8
     framework: tf
+- device:
+    name: CPU
+  model:
+    path: ${MODELS_PATH}/ModelA/INT8/ModelA_INT8.xml
+    name: ModelA_INT8
+    precision: INT8
+    framework: tf
+- device:
+    name: CPU
+  model:
+    path: ${MODELS_PATH}/ModelE/INT8/ModelE_INT8.xml
+    name: ModelE_INT8
+    precision: INT8
+    framework: tf
