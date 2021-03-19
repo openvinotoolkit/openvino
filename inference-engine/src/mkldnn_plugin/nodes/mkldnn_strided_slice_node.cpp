@@ -75,7 +75,6 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     if (beginDims[0] != endDims[0])
         THROW_ERROR << "should have begin vector with size equal to end vector size";
 
-    strideDims;
     if (stridedSliceLayer->insData.size() > STRIDE_ID) {
         auto strideData = stridedSliceLayer->insData[STRIDE_ID].lock();
         if (!strideData)
@@ -405,8 +404,6 @@ void MKLDNNStridedSliceNode::dimsNormalization(InferenceEngine::SizeVector& newS
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
         params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
     }
-
-    return std::pair<SizeVector, SizeVector>(newSrcDims, newDstDims);
 }
 
 void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims) {
