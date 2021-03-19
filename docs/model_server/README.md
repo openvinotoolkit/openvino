@@ -24,9 +24,10 @@ A few key features:
 [GPU](../IE_DG/supported_plugins/CL_DNN), and [HDDL](../IE_DG/supported_plugins/HDDL). 
 - The server can be enabled both on [Bare Metal Hosts](https://github.com/openvinotoolkit/model_server/blob/main/docs/host.md) or in
 [Docker* containers](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md).
-- [Kubernetes deployments](https://github.com/openvinotoolkit/model_server/blob/main/deploy). The server can be deployed in a Kubernetes cluster allowing the inference service to scale horizontally and ensure high availability.  
 - [Model reshaping](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-reshaping). The server supports reshaping models in runtime. 
-- [Model ensemble](https://github.com/openvinotoolkit/model_server/blob/main/docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
+- [Directed Acyclic Graph scheduler](https://github.com/openvinotoolkit/model_server/blob/main/docs/dag_scheduler.md). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
+- [Support for stateful models](https://github.com/openvinotoolkit/model_server/blob/main/docs/stateful_models.md). 
+
 
 > **NOTE**: Publicly released [Docker images](https://hub.docker.com/r/openvino/model_server) are based on CentOS.
 
@@ -50,7 +51,7 @@ For more detailed guides on using the Model Server in various scenarios, visit t
 
 * [Stateful models](https://github.com/openvinotoolkit/model_server/blob/main/docs/stateful_models.md)
 
-* [Helm chart](https://github.com/openvinotoolkit/model_server/tree/main/deploy) or [k8s Operator](https://operatorhub.io/operator/ovms-operator)
+* [Helm chart](https://github.com/openvinotoolkit/model_server/tree/main/deploy) or [Kubernetes Operator](https://operatorhub.io/operator/ovms-operator)
 
 
 ## API Documentation
@@ -82,35 +83,22 @@ Using the gRPC interface is recommended for optimal performance due to its faste
 
 ### REST
 
-OpenVINO&trade; Model Server RESTful API follows the documentation from the [TensorFlow Serving REST API](https://www.tensorflow.org/tfx/serving/api_rest).
+OpenVINO&trade; Model Server RESTful API is compatible with [TensorFlow Serving REST API](https://www.tensorflow.org/tfx/serving/api_rest) for 
+functions `Predict`, `GetModelMetadata`, and `GetModelStatus`.
 
-Both row and column format of the requests are implemented.
+Only the numerical data types are supported both in row and column format.
 
-> **NOTE**: Just like with gRPC, only the implementations for `Predict`, `GetModelMetadata`, and `GetModelStatus` function calls are currently available. 
-
-Only the numerical data types are supported. 
-
-Review the exemplary clients below to find out more how to connect and run inference requests.
+The REST API is extended with `Config` function to update the configuration and query the list served models.
 
 REST API is recommended when the primary goal is in reducing the number of client side Python dependencies and simpler application code.
 
+[Learn more about using the REST API](https://github.com/openvinotoolkit/model_server/blob/develop/docs/model_server_rest_api.md)
 
 ## References
 
 * [Speed and Scale AI Inference Operations Across Multiple Architectures - webinar recording](https://techdecoded.intel.io/essentials/speed-and-scale-ai-inference-operations-across-multiple-architectures/)
 
 * [Whats New Openvino Model Server C++](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/whats-new-openvino-model-server.html)
-
-* [OpenVINO&trade;](https://software.intel.com/en-us/openvino-toolkit)
-
-* [TensorFlow Serving](https://github.com/tensorflow/serving)
-
-* [gRPC](https://grpc.io/)
-
-* [RESTful API](https://restfulapi.net/)
-
-* [Inference at Scale in Kubernetes](https://www.intel.ai/inference-at-scale-in-kubernetes)
-
 
 
 ---
