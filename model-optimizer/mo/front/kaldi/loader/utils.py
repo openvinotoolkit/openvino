@@ -65,6 +65,7 @@ supported_components = [
     'sumgroupcomponent',
     'tanhcomponent',
     'tdnncomponent',
+    'timeheightconvolutioncomponent',
 ]
 
 

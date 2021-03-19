@@ -850,6 +850,7 @@ mo/front/kaldi/extractors/softmax_ext.py
 mo/front/kaldi/extractors/specaugment_component_ext.py
 mo/front/kaldi/extractors/splice_component_ext.py
 mo/front/kaldi/extractors/tdnncomponent_ext.py
+mo/front/kaldi/extractors/timeheightconvolution_ext.py
 mo/front/kaldi/loader/__init__.py
 mo/front/kaldi/loader/loader.py
 mo/front/kaldi/loader/utils.py
@@ -961,6 +962,7 @@ mo/ops/space_to_batch.py
 mo/ops/squeeze.py
 mo/ops/strided_slice.py
 mo/ops/tdnncomponent.py
+mo/ops/timeheightconvolution.py
 mo/ops/tile.py
 mo/ops/unsqueeze.py
 mo/pipeline/__init__.py
