@@ -9,7 +9,6 @@
 #if GNA_LIB_VER == 2
 #include "gna2_model_debug_log.hpp"
 #include "gna2-model-api.h"
-#include <details/ie_exception.hpp>
 
 #include <cstdint>
 #include <fstream>

@@ -34,7 +34,7 @@ Configuration::Configuration(const ConfigMap& config, const Configuration & defa
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = (CONFIG_VALUE(YES) == value);
         } else if (throwOnUnsupported) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << ": " << key;
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << ": " << key;
         }
     }
 }
@@ -53,6 +53,6 @@ InferenceEngine::Parameter Configuration::Get(const std::string& name) const {
     } else if (name == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
         return {std::to_string(_streamsExecutorConfig._threadsPerStream)};
     } else {
-        THROW_IE_EXCEPTION << NOT_FOUND_str << ": " << name;
+        THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << ": " << name;
     }
 }
