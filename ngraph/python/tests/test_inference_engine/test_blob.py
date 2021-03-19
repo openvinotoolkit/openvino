@@ -7,12 +7,8 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob
+from ..conftest import image_path
 
-
-def image_path():
-    path_to_repo = os.environ["DATA_PATH"]
-    path_to_img = os.path.join(path_to_repo, 'validation_set', '224x224', 'dog.bmp')
-    return path_to_img
 
 path_to_image = image_path()
 
