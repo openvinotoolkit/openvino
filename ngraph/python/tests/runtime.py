@@ -15,7 +15,7 @@
 # ******************************************************************************
 """Provide a layer of abstraction for an OpenVINO runtime environment."""
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
@@ -23,7 +23,7 @@ from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape, Type
 from ngraph.opset1.ops import result
-from ngraph.utils.types import NumericData, get_shape, get_dtype, remove_empty_inputs
+from ngraph.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 
@@ -142,7 +142,7 @@ class Computation(object):
 
         input_values = [np.array(input_value) for input_value in input_values]
         # remove empty arrays from the input_values (they are placeholders for optional inputs)
-        input_values = remove_empty_inputs(input_values, len(self.parameters))
+        input_values = _remove_empty_inputs(input_values, len(self.parameters))
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
         param_names = [param.friendly_name for param in self.parameters]
@@ -187,3 +187,19 @@ class Computation(object):
         converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
                              zip(result_buffers, original_dtypes)]
         return converted_buffers
+
+    def _is_empty_array(obj: Any) -> bool:
+        """Return true if a given object is an empty numpy array."""
+        if type(obj) == np.ndarray:
+            return obj.size == 0
+        else:
+            return False
+
+    def _remove_empty_inputs(inputs: List[NumericData], params_number: int) -> List[NumericData]:
+        """Remove the empty inputs so that their number matches the parameters number."""
+        inputs = list(filter(lambda i: not _is_empty_array(i), inputs))
+
+        # ignore any remaining obsolete input values
+        inputs = inputs[:params_number]
+
+        return inputs

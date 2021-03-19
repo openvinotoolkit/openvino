@@ -16,7 +16,7 @@
 """Functions related to converting between Python and numpy types and ngraph types."""
 
 import logging
-from typing import Any, List, Union
+from typing import List, Union
 
 import numpy as np
 
@@ -131,24 +131,6 @@ def get_shape(data: NumericData) -> TensorShape:
     elif type(data) == list:
         return [len(data)]  # type: ignore
     return []
-
-
-def is_empty_array(obj: Any) -> bool:
-    """Return true if a given object is an empty numpy array."""
-    if type(obj) == np.ndarray:
-        return obj.size == 0
-    else:
-        return False
-
-
-def remove_empty_inputs(inputs: List[NumericData], params_number: int) -> List[NumericData]:
-    """Remove the empty inputs so that their number matches the parameters number."""
-    inputs = list(filter(lambda i: not is_empty_array(i), inputs))
-
-    # ignore any remaining obsolete input values
-    inputs = inputs[:params_number]
-
-    return inputs
 
 
 def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
