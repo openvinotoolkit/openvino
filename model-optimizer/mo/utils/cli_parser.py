@@ -325,6 +325,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--transformations_config',
                           help='Use the configuration file with transformations description.',
                           action=CanonicalizePathCheckExistenceAction)
+    common_group.add_argument('--use_fallback',
+                              help='Use old IR serialization engine',
+                              action='store_true', default=False)
     return parser
 
 
