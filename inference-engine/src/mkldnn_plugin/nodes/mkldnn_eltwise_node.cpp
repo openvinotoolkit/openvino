@@ -1087,8 +1087,6 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
             if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
                 return Precision(Precision::I32);
-            } else if (prc == Precision::FP64) {
-                return Precision(Precision::FP32);
             } else {
                 THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
             }
