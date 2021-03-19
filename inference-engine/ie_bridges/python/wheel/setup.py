@@ -150,9 +150,10 @@ class PrepareLibs(build_clib):
                             "--component", comp_data.get('name')])
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get('rpath'):
-                lib_pattern = "*.so" if sys.platform == "linux" else "*.dylib"
-                for path in Path(install_dir).glob(lib_pattern):
-                    set_rpath(comp_data['rpath'], path)
+                file_types = ["*.so"] if sys.platform == "linux" else ["*.dylib", "*.so"]
+                for file in file_types:
+                    for path in Path(install_dir).glob(file):
+                        set_rpath(comp_data['rpath'], path)
 
     def generate_package(self, src_dirs):
         """
