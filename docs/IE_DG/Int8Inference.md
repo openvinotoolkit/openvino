@@ -3,7 +3,7 @@
 ## Disclaimer
 
 Low-precision 8-bit inference is optimized for:
-- Intel Architecture Processors with the following instruction set architecture extensions:  
+- Intel® architecture processors with the following instruction set architecture extensions:  
   - Intel® Advanced Vector Extensions 512 Vector Neural Network Instructions (Intel® AVX-512 VNNI)
   - Intel® Advanced Vector Extensions 512 (Intel® AVX-512)
   - Intel® Advanced Vector Extensions 2.0 (Intel® AVX2)
