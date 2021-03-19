@@ -298,7 +298,7 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts() {
     }
 }
 
-void MKLDNNStridedSliceNode::dimsNormalization(InferenceEngine::SizeVector& newSrcDims, InferenceEngine::SizeVector& newDstDims) {
+void MKLDNNStridedSliceNode::dimsNormalization(SizeVector& newSrcDims, SizeVector& newDstDims) {
     // creating new src and dst dimensions and parameters of the same size using masks
     //
     // example 1: before srcDims = [5, 6, 8, 3, 2], begin = [1, 0], end = [4, 0], stride = [1, 1]
@@ -406,7 +406,7 @@ void MKLDNNStridedSliceNode::dimsNormalization(InferenceEngine::SizeVector& newS
     }
 }
 
-void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims) {
+void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const SizeVector& newSrcDims, const SizeVector& newDstDims) {
     // gluing of dimensions if there aren't begin, end and stride != 1 on this axis
     // example: before gluing srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], stride = [1, 1, 2, 1, 1], dstDims = [4, 6, 4, 3, 2]
     //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims = [24, 4, 6]
