@@ -29,6 +29,11 @@ private:
     void stridedSliceV();
     void stridedSlice();
 
+    void orderParametersByLayouts();
+    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> dimsNormalization();
+    void dimsGluing(const size_t realNDims, const std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>& newDims);
+    void indicesCalculation();
+
     const size_t DATA_ID = 0;
     const size_t BEGIN_ID = 1;
     const size_t END_ID = 2;
