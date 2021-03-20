@@ -143,6 +143,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             {ngraph::element::i16,     ngraph::element::i32},
             {ngraph::element::u16,     ngraph::element::i32},
             {ngraph::element::u32,     ngraph::element::i32},
+            {ngraph::element::f64,     ngraph::element::f32},
             {ngraph::element::f16,     ngraph::element::f32},
             {ngraph::element::boolean, ngraph::element::u8},
     };
@@ -381,6 +382,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::I64, Precision::I32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U64, Precision::I32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U32, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP64, Precision::FP32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP16, Precision::FP32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::BOOL, Precision::U8);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U16, Precision::I32);
