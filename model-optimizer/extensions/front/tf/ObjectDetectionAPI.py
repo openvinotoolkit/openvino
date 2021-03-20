@@ -551,13 +551,14 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         pass
 
 
-def get_eltwises_with_const(first_node: Node, allowed_ops: list, forward: bool = True):
+def get_specific_ops_with_const_inputs(first_node: Node, allowed_ops: list, forward: bool = True):
     """
+    Returns the list with information about consecutive nodes of operation from "allowed_ops".
 
-    :param first_node:
-    :param allowed_ops:
-    :param forward:
-    :return:
+    :param first_node: The first node (not included) to start looking for nodes from the "allowed_ops" list
+    :param allowed_ops: list of allowed operations
+    :param forward: flag specifying direction of search
+    :return: list of triplets (Node, const_port_index, const_value)
     """
     node = first_node.out_port(0).get_destination().node if forward else first_node.in_port(0).get_source().node
     result = []  # (Node, port # with constant input, value)
@@ -572,11 +573,13 @@ def get_eltwises_with_const(first_node: Node, allowed_ops: list, forward: bool =
 
 def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_suffix: str):
     """
+    Finds a sequence of pre-processing nodes (Sub, Mul, Div and Add) after the node with the id suffix
+    'end_node_id_suffix' or ending with the node with id suffix 'end_node_id_suffix'.
 
-    :param graph:
-    :param start_node_id_suffix:
-    :param end_node_id_suffix:
-    :return:
+    :param graph: graph to look for pre-processing ops
+    :param start_node_id_suffix: suffix of the start node name
+    :param end_node_id_suffix: suffix of the end node name
+    :return: the list with pre-processing nodes information and flag specifying nodes position
     """
     start_node = None
     end_node = None
@@ -591,10 +594,10 @@ def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_s
         'configuration file related to "ObjectDetectionAPIPreprocessor2Replacement" transformation should be updated ' \
         'for this particular model.'
     allowed_ops = ['Sub', 'Mul', 'Div', 'Add']
-    preprocessing_nodes = get_eltwises_with_const(start_node, allowed_ops, False)
+    preprocessing_nodes = get_specific_ops_with_const_inputs(start_node, allowed_ops, False)
     trailing = False  # switch to apply newly created pre-processing nodes after/before start_node/end_node
     if len(preprocessing_nodes) == 0:
-        preprocessing_nodes = get_eltwises_with_const(end_node, allowed_ops, True)
+        preprocessing_nodes = get_specific_ops_with_const_inputs(end_node, allowed_ops, True)
         trailing = True
     return preprocessing_nodes, trailing
 
