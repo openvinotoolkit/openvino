@@ -51,9 +51,10 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     auto endData = stridedSliceLayer->insData[END_ID].lock();
     if (!inData || !beginData || !endData)
         THROW_ERROR << "has nullable input data";
-    if (!CaselessEq<std::string>()(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()->getCnnLayer()->type, "const"))
-        params.parametersAreConstant = false;
-    if (!CaselessEq<std::string>()(getParentEdgesAtPort(END_ID)[0]->getParent()->getCnnLayer()->type, "const"))
+
+    params.parametersAreConstant = true;
+    if (!CaselessEq<std::string>()(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()->getCnnLayer()->type, "const") ||
+        !CaselessEq<std::string>()(getParentEdgesAtPort(END_ID)[0]->getParent()->getCnnLayer()->type, "const"))
         params.parametersAreConstant = false;
 
     const SizeVector srcDims = inData->getTensorDesc().getDims();
@@ -89,18 +90,18 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
             THROW_ERROR << "should have stride vector with size equal to begin vector size";
     }
 
-    auto createMask = [&](const char* maskName, std::vector<int>& mask, const int bit) {
+    auto createMask = [&](const char* maskName, std::vector<int>& mask) {
       mask = stridedSliceLayer->GetParamAsInts(maskName);
         if (strcmp(maskName, "ellipsis_mask") != 0 || mask.size() == 0) {
-            for (size_t i = mask.size(); i < nSrcDims; ++i) mask.push_back(bit);
+            for (size_t i = mask.size(); i < nSrcDims; ++i) mask.push_back(0);
         }
     };
 
-    createMask("begin_mask", beginMask, 1);
-    createMask("end_mask", endMask, 1);
-    createMask("new_axis_mask", newAxisMask, 0);
-    createMask("shrink_axis_mask", shrinkAxisMask, 0);
-    createMask("ellipsis_mask", ellipsisMask, 0);
+    createMask("begin_mask", beginMask);
+    createMask("end_mask", endMask);
+    createMask("new_axis_mask", newAxisMask);
+    createMask("shrink_axis_mask", shrinkAxisMask);
+    createMask("ellipsis_mask", ellipsisMask);
 
     int ellipsisMaskCounter = 0;
     params.ellipsisPos1 = -1;
@@ -111,14 +112,10 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     if (ellipsisMaskCounter > 1)
         THROW_ERROR << "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed";
 
-    int newAxis = 0;
-    for (auto na : newAxisMask)
-        newAxis += na;
+    int newAxis = std::accumulate(newAxisMask.begin(), newAxisMask.end(), 0);
     size_t maxDims = nSrcDims + newAxis;
 
-    int shrinkAxis = 0;
-    for (auto sa : shrinkAxisMask)
-        shrinkAxis += sa;
+    int shrinkAxis = std::accumulate(shrinkAxisMask.begin(), shrinkAxisMask.end(), 0);
     params.equalDims = nSrcDims == maxDims && shrinkAxis == 0;
 
     if (params.parametersAreConstant) {
@@ -131,8 +128,7 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
             parameter.assign(ptr, ptr + size);
 
             if (ellipsisMaskCounter == 0 && size < dstDims.size()) {
-                for (size_t i = size; i < dstDims.size(); i++)
-                    parameter.push_back(value);
+                for (size_t i = size; i < dstDims.size(); i++) parameter.push_back(value);
             }
         };
 
@@ -149,6 +145,8 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
 }
 
 void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims) {
+    // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
+    // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter values
     size_t afterDims = ellipsisMask.size() - params.ellipsisPos1 - 1;
     size_t ellipsisPos2 = nSrcDims - afterDims - 1;
 
@@ -207,16 +205,17 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
 
     auto canUseBlocked = [=](const size_t blockSize) {
-        return params.equalDims && srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
+        return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
     };
 
     std::vector<TensorDescCreatorTypes> supportedTypes;
-    if (params.equalDims)
+    if (params.equalDims) {
         supportedTypes.push_back(TensorDescCreatorTypes::nspc);
-    if (canUseBlocked(8lu))
-        supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
-    if (canUseBlocked(16lu))
-        supportedTypes.push_back(TensorDescCreatorTypes::nCsp16c);
+        if (canUseBlocked(8lu))
+            supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
+        if (canUseBlocked(16lu))
+            supportedTypes.push_back(TensorDescCreatorTypes::nCsp16c);
+    }
     supportedTypes.push_back(TensorDescCreatorTypes::ncsp);
     auto creators = TensorDescCreator::getCommonCreators();
     auto range = TensorDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
@@ -231,7 +230,7 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
                                                               mkldnn::memory::format_tag::x);
 
         config.outConfs[0].desc = itr->second->createDesc(dataPrecision, getChildEdgeAt(DATA_ID)->getDims().ToSizeVector());
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
     }
 }
 
@@ -539,8 +538,7 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
             parameter.assign(ptr, ptr + size);
 
             if (ellipsisMaskCounter == 0 && size < dstDims.size()) {
-                for (size_t i = size; i < dstDims.size(); i++)
-                    parameter.push_back(value);
+                for (size_t i = size; i < dstDims.size(); i++) parameter.push_back(value);
             }
         };
 

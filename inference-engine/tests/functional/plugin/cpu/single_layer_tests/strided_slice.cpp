@@ -65,7 +65,7 @@ protected:
         auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
                                                     ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
 
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = std::string("ref_") + inPrc.name();
 
         ss->get_rt_info() = getCPUInfo();
 
