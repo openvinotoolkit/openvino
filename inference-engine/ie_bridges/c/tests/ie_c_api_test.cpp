@@ -368,6 +368,48 @@ TEST(ie_core_load_network, loadNetworkNoConfig) {
     ie_core_free(&core);
 }
 
+TEST(ie_core_load_network_from_file, loadNetworkNoConfig) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_config_t config = {nullptr, nullptr, nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+
+    ie_exec_network_free(&exe_network);
+    ie_core_free(&core);
+}
+
+TEST(ie_core_load_network_from_file, loadNetwork_errorHandling) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_config_t config = {nullptr, nullptr, nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(nullptr, xml, "CPU", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, nullptr, "CPU", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, nullptr, &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "CPU", nullptr, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, nullptr));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "UnregisteredDevice", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    ie_core_free(&core);
+}
+
 TEST(ie_network_get_name, networkName) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));

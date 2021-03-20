@@ -366,6 +366,29 @@ IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, 
     return status;
 }
 
+IEStatusCode ie_core_load_network_from_file(ie_core_t *core, const char *xml, const char *device_name, \
+        const ie_config_t *config, ie_executable_network_t **exe_network) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || xml == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+
+    try {
+        std::map<std::string, std::string> conf_map;
+        conf_map = config2Map(config);
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+
+        exe_net->object = core->object.LoadNetwork(xml, device_name, conf_map);
+        *exe_network = exe_net.release();
+    } CATCH_IE_EXCEPTIONS catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return status;
+}
+
 IEStatusCode ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_config, const char *device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
