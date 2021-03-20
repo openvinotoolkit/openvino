@@ -405,6 +405,7 @@ extensions/front/tf/faster_rcnn_support_api_v1.14.json
 extensions/front/tf/faster_rcnn_support_api_v1.15.json
 extensions/front/tf/faster_rcnn_support_api_v1.7.json
 extensions/front/tf/faster_rcnn_support_api_v2.0.json
+extensions/front/tf/faster_rcnn_support_api_v2.4.json
 extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
@@ -431,6 +432,7 @@ extensions/front/tf/mask_rcnn_support_api_v1.14.json
 extensions/front/tf/mask_rcnn_support_api_v1.15.json
 extensions/front/tf/mask_rcnn_support_api_v1.7.json
 extensions/front/tf/mask_rcnn_support_api_v2.0.json
+extensions/front/tf/mask_rcnn_support_api_v2.4.json
 extensions/front/tf/matmul_ext.py
 extensions/front/tf/mvn.py
 extensions/front/tf/mvn_unrolled.py
