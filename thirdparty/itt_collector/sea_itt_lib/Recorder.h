@@ -33,6 +33,7 @@
 #include <string>
 
 #include "IttNotifyStdSrc.h"
+#include "TraceEventFormat.h"
 #include "ittnotify.h"
 
 inline size_t GetMemPageSize() {
