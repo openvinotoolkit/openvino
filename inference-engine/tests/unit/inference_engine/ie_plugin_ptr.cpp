@@ -45,7 +45,7 @@ TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
 }
 
 TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
-    EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), InferenceEngineException);
+    EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), Exception);
 }
 
 InferenceEnginePluginPtr PluginTest::getPtr() {

@@ -8,7 +8,6 @@
 #include <gtest/gtest.h>
 #include <common_test_utils/test_common.hpp>
 #include <common_test_utils/test_constants.hpp>
-#include <details/ie_exception.hpp>
 #include <ie_core.hpp>
 #include <ngraph/ops.hpp>
 
