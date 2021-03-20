@@ -27,13 +27,12 @@
 #ifdef _WIN32
     #include <direct.h>
     #include <io.h>
-#include <windows.h>
+    #include <windows.h>
 
     #define open  crossopen
     #define write _write
     #define close _close
-int crossopen(_In_z_ const char* _Filename, _In_ int _Openflag, int perm)
-{
+int crossopen(_In_z_ const char* _Filename, _In_ int _Openflag, int perm) {
     int fd = 0;
     _sopen_s(&fd, _Filename, _Openflag | _O_BINARY, _SH_DENYWR, perm);
     return fd;
@@ -65,7 +64,8 @@ size_t CRecorder::CheckCapacity(size_t size) {
 #ifdef IN_MEMORY_RING
     size_t nWroteBytes = (char*)m_pCurPos - (char*)m_pAlloc;
     if (nWroteBytes + size > m_nBufferSize) {
-        if (m_pBackBuffer) VirtualFree(m_pBackBuffer, 0, MEM_RELEASE);
+        if (m_pBackBuffer)
+            VirtualFree(m_pBackBuffer, 0, MEM_RELEASE);
         m_nBufferSize *= 2;        // We grow the buffer each time to accommodate needs
         m_pBackBuffer = m_pAlloc;  // back buffer will always be half of m_nBufferSize
         m_nBackSize = nWroteBytes;
@@ -90,8 +90,7 @@ size_t CRecorder::CheckCapacity(size_t size) {
     return (std::max<size_t>)(m_nWroteTotal, 1);
 }
 
-void* CRecorder::Allocate(size_t size)
-{
+void* CRecorder::Allocate(size_t size) {
     // must be called only from one thread
     void* pCurPos = m_pCurPos;
     m_nWroteTotal += size;
@@ -126,8 +125,7 @@ void CRecorder::Close(bool bSave) {
     m_pCurPos = nullptr;
 }
 
-CRecorder::~CRecorder()
-{
+CRecorder::~CRecorder() {
     Close(true);
 }
 
@@ -147,8 +145,7 @@ enum EFlags {
 
 #pragma pack(push, 1)
 // File tree is pid/domain/tid (pid is one per dll instance)
-struct STinyRecord
-{
+struct STinyRecord {
     uint64_t timestamp;
     ERecordType ert;
     uint8_t flags;  // EFlags
@@ -160,7 +157,9 @@ static_assert(sizeof(STinyRecord) == 10, "SRecord must fit in 10 bytes");
 template <class T>
 inline T* WriteToBuff(CRecorder& recorder, const T& value) {
     T* ptr = (T*)recorder.Allocate(sizeof(T));
-    if (ptr) *ptr = value; return ptr;
+    if (ptr)
+        *ptr = value;
+    return ptr;
 }
 
 namespace sea {
