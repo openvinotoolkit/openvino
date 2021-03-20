@@ -20,7 +20,7 @@ import numpy as np
 
 from extensions.middle.TensorIterator_utils import delete_selects_from
 from extensions.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from extensions.ops.identity import Identity
 
@@ -378,42 +378,46 @@ class SimpleConditionMatcher(MiddleReplacementPattern):
 
         match['loop_cond_data'].value = None
 
+        # compute destination (or consumer) ports for time node
+        identity_node_name = match['Identity_1'].soft_get('name', match['Identity_1'].id)
+        time_dsts = match['Identity_1'].out_port(0).get_destinations()
+
         # Create condition node and delete all useless nodes from condition pattern
         condition_attrs = dict(iter=dict(init=init_1, step=step_1),
                                name=match['loop_cond'].name + '/TensorIteratorCondition_')
         condition = TensorIteratorCondition(graph, attrs=condition_attrs)
-        condition_data_nodes = condition.create_node_with_data(inputs=[match['Strided_slice_data']],
-                                                         data_nodes=[match['loop_cond_data'], match['Identity_1_data']])
+        condition.create_node_with_data(inputs=[match['Strided_slice_data']],
+                                        data_nodes=[match['loop_cond_data'], match['Identity_1_data']])
 
-        # check if time_data (aka Identity_1_data) has other consumers unlike
-        other_time_consumers = False
-        time_data = match['Identity_1_data']
         safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Strided_slice', 'Strided_slice_data']
-        for node in time_data.out_nodes():
-            if node['kind'] == 'op' and node['op'] != 'TensorIteratorInput' and \
-                    node['op'] != 'TensorIteratorOutput' and node.id != match['add_1'].id:
+
+        # check if time node has other consumers  different from increment node,
+        # input slicing and output concatenation nodes
+        other_time_consumers = False
+        for time_consumer in time_dsts:
+            if time_consumer.node.soft_get('op') != 'TensorIteratorInput' and \
+                    time_consumer.node.soft_get('op') != 'TensorIteratorOutput' and \
+                    time_consumer.node.soft_get('id') != match['add_1'].id:
                 other_time_consumers = True
                 break
         if other_time_consumers:
+            # save time related nodes since they have other consumers different from
+            # input slicing and output concatenation nodes
             safe_nodes += ['init_1', 'init_1_data', 'Enter_1', 'Enter_1_data', 'Merge_1', 'Merge_1_data',
                            'Switch_1', 'Switch_1_data', 'add_1', 'add_1_y', 'add_1_y_data', 'add_1_data',
                            'NextIteration_1']
-            less_node = match['Less_1']
-            less_node.in_port(1).disconnect()
             switch_node = match['Switch_1']
-            new_identity_node = Identity(graph, {}).create_node()
+            new_identity_node = Identity(graph, dict(name=identity_node_name)).create_node()
             switch_node.out_port(1).connect(new_identity_node.in_port(0))
 
             # make the graph consistent to avoid multiple producers by the same input port
             graph.remove_nodes_from([match['Identity_1'].id])
+            rename_nodes([(new_identity_node, identity_node_name)])
 
-            condition_node = condition_data_nodes[1].in_node(0)
-            dsts = condition_node.out_port(1).get_destinations()
-
-            for dst in dsts:
-                if dst.node.soft_get('op') != 'TensorIteratorInput' and \
-                        dst.node.soft_get('op') != 'TensorIteratorOutput':
-                    dst.get_connection().set_source(new_identity_node.out_port(0))
+            for time_consumer in time_dsts:
+                if time_consumer.node.soft_get('op') != 'TensorIteratorInput' and \
+                        time_consumer.node.soft_get('op') != 'TensorIteratorOutput':
+                    time_consumer.get_connection().set_source(new_identity_node.out_port(0))
 
         # Delete useless nodes
         nodes_for_remove = []
