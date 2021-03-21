@@ -33,7 +33,7 @@ def create_const_with_batch_from_input(input_out_port: Port, second_dim, value=0
     shape_of_input = {}
     if not input_out_port.disconnected():
         for dest in input_out_port.get_destinations():
-            if dest.node.op == "ShapeOf":
+            if dest.node.soft_get('op') == "ShapeOf":
                 shape_of_input = dest.node
                 break
 
@@ -44,7 +44,7 @@ def create_const_with_batch_from_input(input_out_port: Port, second_dim, value=0
     get_batch = {}
     if not shape_of_input.out_port(0).disconnected():
         for dest in shape_of_input.out_port(0).get_destinations():
-            if dest.node.op == "Crop" and \
+            if dest.node.soft_get('op') == "Crop" and \
                     dest.node.in_port(1).get_source().node.soft_get('value', []) == int64_array([1]):
                 get_batch = dest.node
                 break
@@ -61,7 +61,7 @@ def create_const_with_batch_from_input(input_out_port: Port, second_dim, value=0
     mem_shape = {}
     if not get_batch.out_port(0).disconnected():
         for dest in get_batch.out_port(0).get_destinations():
-            if dest.node.op == "Concat" and \
+            if dest.node.soft_get('op') == "Concat" and \
                     dest.node.in_port(1).get_source().node.soft_get('value', []) == int64_array([second_dim]):
                 mem_shape = dest.node
                 break
@@ -78,7 +78,7 @@ def create_const_with_batch_from_input(input_out_port: Port, second_dim, value=0
     init_value_prev_lstm_output = {}
     if not mem_shape.out_port(0).disconnected():
         for dest in mem_shape.out_port(0).get_destinations():
-            if dest.node.op == "Broadcast" and \
+            if dest.node.soft_get('op') == "Broadcast" and \
                     dest.node.in_port(1).get_source().node.soft_get('value', []) == np.array([value], dtype=precision):
                 init_value_prev_lstm_output = dest.node
                 break
