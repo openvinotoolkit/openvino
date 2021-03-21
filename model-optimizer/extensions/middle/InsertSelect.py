@@ -24,7 +24,6 @@ from mo.middle.pattern_match import find_pattern_matches, inverse_dict
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.assign import Assign
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
@@ -126,19 +125,14 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             ones = Node(graph, inverse_dict(counter_match)['const_1'])
             input_port = Node(graph, inverse_dict(counter_match)['crop_out']).out_port(0)
         else:
-            init_value_mem_out = Const(graph, {'name': 'init_value_iteration_number',
-                                               'value': np.zeros(int64_array([in_node_shape[0], context_len]),
-                                                                 dtype=np.int32),
-                                               'shape': int64_array([in_node_shape[0], context_len])}).create_node()
+            init_value_mem_out = create_const_with_batch_from_input(in_node_port, context_len, precision=np.int32)
             mem_out = ReadValue(graph, {'name': 'iteration_number',
                                         'variable_id': 'iteration_'+node.name}).create_node()
             mem_out.in_port(0).connect(init_value_mem_out.out_port(0))
             cut_first = Crop(graph, {'name': 'cut_first', 'axis': int64_array([1]),
                                      'offset': int64_array([1]), 'dim': int64_array([context_len-1])}).create_node()
             cut_first.in_port(0).connect(mem_out.out_port(0))
-            ones = Const(graph, {'name': 'init_value_concat_ones',
-                                 'value': np.ones(int64_array([in_node_shape[0], 1]), dtype=np.int32),
-                                 'shape': int64_array([in_node_shape[0], 1])}).create_node()
+            ones = create_const_with_batch_from_input(in_node_port, 1, 1, np.int32)
             concat = Concat(graph, {'name': 'concat_ones', 'in_ports_count': 2, 'axis': 1}).create_node()
             concat.in_port(0).connect(cut_first.out_port(0))
             concat.in_port(1).connect(ones.out_port(0))

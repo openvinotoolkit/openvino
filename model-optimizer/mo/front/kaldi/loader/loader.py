@@ -205,7 +205,8 @@ def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
             o_n = Node(graph, o_n_name)
             if o_n['op'] == 'MemoryOffset':
                 # don't take batch from Parameter, it will be override
-                o_n['parameters']['element_size'] = int64_array([1, node['shape'][1]])
+                # take only second dimension because we have only 2 dimensions
+                o_n['parameters']['element_size'] = int64_array([1, node.shape[1]])
 
     load_components(file_descr, graph, component_layer_map)
 

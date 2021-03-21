@@ -18,6 +18,12 @@ from mo.graph.graph import Graph
 
 
 class MemoryOffsetBatchUpdate(FrontReplacementPattern):
+    """
+    Update batch for MemoryOffset nodes with set element_size.
+    element_size is set in loader according to shape saved in model (for example Parameter node have shape in attribute).
+    But batch can be changed on front stage if user set batch through command line. So, element_size should be updated
+    accordingly.
+    """
     enabled = True
     run_not_recursively = True
 

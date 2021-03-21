@@ -116,38 +116,22 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
 
         # check that all Parameters have the same batch
         for p in params:
-            assert(p.shape[0] == batch)
+            assert(p.shape[0] == batch,
+                   "Parameter {} have batch different from the {}".format(p.soft_get('name', p.id),
+                                                                          params[0].soft_get('name', params[0].id)))
 
         # make constants for initialization of ReadValue reshapable
         reads = graph.get_op_nodes(op='ReadValue')
         for read in reads:
-            if read.in_port(0).get_source().node.op == "Const":
+            if read.in_port(0).get_source().node.soft_get('op') == "Const":
                 const = read.in_port(0).get_source().node
-                if len(const.out_port(0).data.get_shape()) != 2 or const.out_port(0).data.get_shape()[0] != batch:
+                const_shape = const.out_port(0).data.get_shape()
+                # extra check to be sure that we don't break shapes compatibility in graph
+                # in Kaldi models we have only 2 dimensions
+                # and batch should be set the same as we will get from Parameter
+                if len(const_shape) != 2 or const_shape[0] != batch:
                     continue
                 new_const = create_const_with_batch_from_input(params[0].out_port(0),
-                                                               const.out_port(0).data.get_shape()[1],
+                                                               const_shape[1],
                                                                value=const.value[0], precision=const.data_type)
-                for dest in const.out_port(0).get_destinations():
-                    dest.get_connection().set_source(new_const.out_port(0))
-
-            # often we use ReadValue result to remove last with Crop and add first with Concat, new added values
-            # should have correct batch too
-            for dest in read.out_port(0).get_destinations():
-                if dest.node.op == 'Crop':
-                    for dest_crop in dest.node.out_port(0).get_destinations():
-                        if dest_crop.node.op == 'Concat':
-                            concat = dest_crop.node
-                            for inp in concat.in_ports():
-                                if not concat.in_port(inp).disconnected() and \
-                                        concat.in_port(inp).get_source().node.op == 'Const':
-                                    const = concat.in_port(inp).get_source().node
-                                    if len(const.out_port(0).data.get_shape()) != 2 or \
-                                            const.out_port(0).data.get_shape()[0] != batch:
-                                        continue
-                                    new_const = create_const_with_batch_from_input(params[0].out_port(0),
-                                                                                   const.out_port(0).data.get_shape()[1],
-                                                                                   value=const.value[0],
-                                                                                   precision=const.data_type)
-                                    for const_dest in const.out_port(0).get_destinations():
-                                        const_dest.get_connection().set_source(new_const.out_port(0))
+                const.out_port(0).get_connection().set_source(new_const.out_port(0))

@@ -38,7 +38,7 @@ class MemoryOffset(Op):
     @staticmethod
     def infer(node: Node):
         if node.has_valid('element_size'):
-            # element_size should be set by Kaldi loader or by MemoryOffsetAdjustment
+            # element_size should be set by Kaldi loader or MemoryOffsetAdjustment or SplitRecurrentMemoryOffset
             node.out_port(0).data.set_shape(node['element_size'])
         else:
             # for TDNN blocks
