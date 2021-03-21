@@ -17,6 +17,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_conv_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_convert_node.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_crop_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.cpp
@@ -50,7 +51,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/convert.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_loss.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/depth_to_space.cpp
@@ -67,7 +67,7 @@ set(LAYERS
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_nd.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/non_max_suppression.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/non_max_suppression.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/log_softmax.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/math.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/one_hot.cpp

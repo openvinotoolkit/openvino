@@ -37,9 +37,13 @@ public:
     std::shared_ptr<const InferenceEngine::TensorDesc> getInput() const { return input; }
     std::shared_ptr<const InferenceEngine::TensorDesc> getOutput() const { return output; }
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     std::shared_ptr<InferenceEngine::TensorDesc> input;
     std::shared_ptr<InferenceEngine::TensorDesc> output;
+
+    std::string errorPrefix;
 };
 }  // namespace MKLDNNPlugin
 
