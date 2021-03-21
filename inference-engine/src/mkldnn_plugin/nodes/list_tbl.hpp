@@ -59,7 +59,7 @@ MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, DeformablePSROIPooling);
 //MKLDNN_EXTENSION_NODE(SparseToDenseImpl, SparseToDense);
 //MKLDNN_EXTENSION_NODE(ExperimentalDetectronROIFeatureExtractorImpl, ExperimentalDetectronROIFeatureExtractor);
 //MKLDNN_EXTENSION_NODE(ONNXCustomProposalImpl, ExperimentalDetectronGenerateProposalsSingleImage);
-//MKLDNN_EXTENSION_NODE(NonMaxSuppressionImpl, NonMaxSuppression);
+MKLDNN_EXTENSION_NODE(NonMaxSuppressionImpl, NonMaxSuppressionIEInternal);
 MKLDNN_EXTENSION_NODE(TopKImpl, TopK);
 //MKLDNN_EXTENSION_NODE(ShuffleChannelsImpl, ShuffleChannels);
 //MKLDNN_EXTENSION_NODE(SpaceToDepthImpl, SpaceToDepth);

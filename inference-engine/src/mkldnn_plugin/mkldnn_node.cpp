@@ -183,7 +183,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "Loop", TensorIterator },
 //        { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
 //        { "Memory", MemoryOutput },  // for construction from layer ctor
-//        { "Convert", Convert },
+        { "Convert", Convert },
         { "MVN", MVN},
         { "NormalizeL2", NormalizeL2},
         { "ScatterUpdate", ScatterUpdate},
