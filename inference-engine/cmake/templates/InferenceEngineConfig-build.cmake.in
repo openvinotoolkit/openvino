@@ -1,5 +1,20 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+#
+#
+# FindIE
+# ------
+#
+# This will define the following variables:
+#
+#   InferenceEngine_FOUND        - True if the system has the Inference Engine library
+#   InferenceEngine_INCLUDE_DIRS - Inference Engine include directories
+#   InferenceEngine_LIBRARIES    - Inference Engine libraries
+#
+# and the following imported targets:
+#
+#   IE::inference_engine            - The Inference Engine library
+#   IE::inference_engine_c_api      - The Inference Engine C API library
 #
 
 if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
@@ -12,14 +27,11 @@ if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
     endif()
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/inference_engine_targets.cmake")
-    if(NOT MSVC)
-        set_target_properties(IE::inference_engine PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
-    endif()
 
     file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
     set (ie_options THREADING)
     load_cache("${cache_path}" READ_WITH_PREFIX "" ${ie_options})
-    message(STATUS "The following CMake options are exported from the Inference Engine build")
+    message(STATUS "The following CMake options are exported from the Inference Engine build tree")
     message("")
     foreach(option IN LISTS ie_options)
         message("    ${option}: ${${option}}")
@@ -42,4 +54,9 @@ else()
                          INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
         endif()
     endforeach()
+
+    if(NOT MSVC)
+        set_target_properties(${InferenceEngine_LIBRARIES} PROPERTIES
+            INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
+    endif()
 endif()

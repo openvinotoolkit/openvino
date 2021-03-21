@@ -57,5 +57,12 @@ void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& c
     }
 }
 
+template <class T>
+void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& component, int i, T*& operation) {
+    if (i == component.size() - 1 || (component[i + 1].operation != kDnnMaxPoolOp)) {
+        operation++;
+    }
+}
+
 }  // namespace backend
 }  // namespace GNAPluginNS

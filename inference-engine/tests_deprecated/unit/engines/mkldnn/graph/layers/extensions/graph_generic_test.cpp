@@ -565,7 +565,7 @@ TEST_F(MKLDNNGraphGenericTests, DontCreateGPUGenericPrimitive) {
     ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
     MKLDNNGraphTestClass graph;
-    ASSERT_THROW(graph.CreateGraph(network, extMgr), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(graph.CreateGraph(network, extMgr), InferenceEngine::Exception);
 }
 
 TEST_F(MKLDNNGraphGenericTests, ExecuteConstGenericPrimitive) {
