@@ -198,7 +198,7 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<InferenceEngine
 
     MKLDNNDims weightsDims = MKLDNNDims(weightDims);
     MKLDNNMemoryDesc wgh_candidate{weightsDims, in_candidate.getDataType(), memory::format_tag::any};
-    for (auto alg : {algorithm::convolution_winograd, algorithm::convolution_direct}) {
+    for (auto alg : {mkldnn::algorithm::convolution_winograd, mkldnn::algorithm::convolution_direct}) {
         auto convert = [] (const std::vector<ptrdiff_t>& orig_dims) {
             return memory::dims(orig_dims.begin(), orig_dims.end());
         };
