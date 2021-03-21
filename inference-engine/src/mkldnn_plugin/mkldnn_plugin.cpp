@@ -143,6 +143,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             {ngraph::element::i16,     ngraph::element::i32},
             {ngraph::element::u16,     ngraph::element::i32},
             {ngraph::element::u32,     ngraph::element::i32},
+            {ngraph::element::f64,     ngraph::element::f32},
             {ngraph::element::f16,     ngraph::element::f32},
             {ngraph::element::boolean, ngraph::element::u8},
     };
@@ -345,7 +346,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             input_precision != InferenceEngine::Precision::BOOL &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::U64) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
                                << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -381,6 +382,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::I64, Precision::I32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U64, Precision::I32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U32, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP64, Precision::FP32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP16, Precision::FP32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::BOOL, Precision::U8);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U16, Precision::I32);
@@ -513,7 +515,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 std::unique_ptr<MKLDNNNode> ptr;
                 try {
                     ptr.reset(MKLDNNNode::factory().create(*itLayer, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-                } catch (InferenceEngine::details::InferenceEngineException&) {
+                } catch (InferenceEngine::Exception&) {
                      return false;
                 }
                 return true;
@@ -569,7 +571,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 // if we can create and have not thrown exception, then layer is supported
                 std::unique_ptr <MKLDNNNode>(MKLDNNNode::factory().create(*i, eng, extensionManager, fake_w_cache));
                 res.supportedLayersMap.insert({ (*i)->name, GetName() });
-            } catch (InferenceEngine::details::InferenceEngineException&) {
+            } catch (InferenceEngine::Exception&) {
             }
             i++;
         }

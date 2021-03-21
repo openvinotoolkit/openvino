@@ -43,7 +43,7 @@ namespace ngraph
                 Selu(const Output<Node>& data,
                      const Output<Node>& alpha,
                      const Output<Node>& lambda);
-
+                virtual void pre_validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual OutputVector decompose_op() const override;
 
