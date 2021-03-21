@@ -50,6 +50,8 @@
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
+#include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -128,6 +130,10 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
     manager.register_pass<ngraph::pass::GRUCellDecomposition>();
     manager.register_pass<ngraph::pass::RNNCellDecomposition>();
+    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
             {ngraph::element::i64,     ngraph::element::i32},
