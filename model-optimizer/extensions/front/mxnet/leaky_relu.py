@@ -52,7 +52,7 @@ class LeakyReLUFrontExtractor(FrontExtractorOp):
             else:
                 LeakyReLU.update_node_stat(node, {'negative_slope': negative_slope})
         elif act_type == 'gelu':
-            GeLUOP.update_node_stat(node, {'approximation': 'erf'})
+            GeLUOP.update_node_stat(node, {'approximation_mode': 'erf'})
         else:
             raise Error(
                 "Operation '{}' not supported. Please register it as custom op. " +
