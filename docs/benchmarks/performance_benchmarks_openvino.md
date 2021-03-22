@@ -90,6 +90,14 @@ Measuring inference performance involves many variables and is extremely use-cas
 <script src="yolo-v3-tf-ov-2021-3-338-2.js" id="yolo-v3-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
+\htmlonly
+<script src="yolo-v4-tf-ov-2021-3-338-2.js" id="yolo-v4-tf-ov-2021-3-338-2"></script>
+\endhtmlonly
+
+\htmlonly
+<script src="unet-camvid-onnx-0001-ov-2021-3-338-2.js" id="unet-camvid-onnx-0001-ov-2021-3-338-2"></script>
+\endhtmlonly
+
 
 ## Platform Configurations
 
