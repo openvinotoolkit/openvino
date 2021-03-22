@@ -223,10 +223,8 @@ void op::v7::Gather::validate_and_infer_types()
         int i = 0;
         for (; i < batch_dims; i++)
         {
-            Dimension curr_dim = data_pshape[i] & indices_pshape[i];
-
             NODE_VALIDATION_CHECK(this,
-                                  !curr_dim.get_interval().empty(),
+                                  data_pshape[i].compatible(indices_pshape[i]),
                                   "Shapes ",
                                   data_pshape,
                                   " and ",
@@ -234,7 +232,7 @@ void op::v7::Gather::validate_and_infer_types()
                                   " are not consistent. data and indices must have equal or "
                                   "intersecting sizes until batch_dims");
 
-            output_pshape[i] = curr_dim;
+            output_pshape[i] = data_pshape[i] & indices_pshape[i];
         }
         for (; i < axis; i++)
         {

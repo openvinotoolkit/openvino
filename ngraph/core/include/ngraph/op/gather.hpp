@@ -72,7 +72,6 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
                 Gather() = default;
 
                 /// \param data The tensor from which slices are gathered
@@ -82,7 +81,7 @@ namespace ngraph
                 Gather(const Output<Node>& params,
                        const Output<Node>& indices,
                        const Output<Node>& axis,
-                       const int64_t m_batch_dims);
+                       const int64_t batch_dims);
 
                 /// \param data The tensor from which slices are gathered
                 /// \param indices Tensor with indexes to gather
@@ -103,8 +102,9 @@ namespace ngraph
 
 
             private:
+                static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
                 int64_t m_batch_dims = 0;
             };
-        } // namespace v1
-    }     // namespace op
+        } // namespace v7
+    } // namespace op
 } // namespace ngraph
