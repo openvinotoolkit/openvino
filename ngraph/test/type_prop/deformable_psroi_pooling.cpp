@@ -51,6 +51,27 @@ TEST(type_prop, deformable_psroi_pooling_output_shape_2)
     ASSERT_EQ(def_psroi_pool->get_output_shape(0), (Shape{300, 162, 7, 7}));
 }
 
+TEST(type_prop, deformable_psroi_pooling_dynamic_rois)
+{
+    const float spatial_scale = 0.0625;
+    const int64_t output_dim = 882;
+    const int64_t group_size = 3;
+    const int64_t part_size = 3;
+
+    const auto rois_dim = Dimension(100, 200);
+
+    auto input = make_shared<op::Parameter>(element::f32, PartialShape{1, 7938, 63, 38});
+    auto coords = make_shared<op::Parameter>(element::f32, PartialShape{rois_dim, 5});
+    auto offsets = make_shared<op::Parameter>(element::f32, PartialShape{rois_dim, 2, part_size, part_size});
+
+    auto def_psroi_pool = make_shared<op::v1::DeformablePSROIPooling>(
+        input, coords, offsets, output_dim, spatial_scale, group_size);
+
+    const PartialShape expected_output{rois_dim, output_dim, group_size, group_size};
+
+    ASSERT_EQ(def_psroi_pool->get_output_partial_shape(0), expected_output);
+}
+
 TEST(type_prop, deformable_psroi_pooling_invalid_input_rank)
 {
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
