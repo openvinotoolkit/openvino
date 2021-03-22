@@ -523,8 +523,6 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount) nthr = static_cast<int>(work_amount);
-    for_4d(0, 1, D0, D1, D2, D3, func);
-    /*
     if (nthr == 1) {
         for_4d(0, 1, D0, D1, D2, D3, func);
     } else {
@@ -535,7 +533,6 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
             },
             tbb::static_partitioner());
     }
-     */
 
 #elif IE_THREAD == IE_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();

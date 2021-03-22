@@ -19,12 +19,12 @@ namespace Extensions {
 namespace Cpu {
 
 struct jit_eximpat_params {
-    int OB, IC, IH, IW; // from input shape
+    int IW; // from input shape
+    int IH; // ???
     int OH, OW; //from out shape
     int KH, KW; // kernel sizes
-    int SH, SW; // strides
-    int RH, RW; // rates
-    int PL, PT; // determine padding
+    int SW; // strides
+    int SH; // ??
     int dtype_size; // byte size of the datatype
     int block_size; // num of dtype units in the supported vector instruction set
     InferenceEngine::Precision precision;
@@ -64,7 +64,7 @@ private:
     void execute_optimized(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&) noexcept;
 
 
-        std::vector<int64_t> _ksizes;
+    std::vector<int64_t> _ksizes;
     std::vector<int64_t> _strides;
     std::vector<int64_t> _rates;
     std::vector<int64_t> _pads;

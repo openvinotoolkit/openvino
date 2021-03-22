@@ -53,7 +53,7 @@ struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_ge
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        loop();  //loop over input and output to get the work done
+        loop();
 
         this->postamble();
     }
@@ -76,18 +76,17 @@ private:
     reg64_t reg_w_lo_pad = r15;
     reg64_t reg_h_hi_pad = rbp;
     reg64_t reg_src_w_incr = rbx;
-    reg64_t reg_ow_work_amount = rcx;
+    reg64_t reg_ow_work_amount = rsi;
 
     reg64_t reg_params = abi_param1;
 
     Vmm vmm = Vmm(0);
     Xmm xmm = Xmm(0);
     Vmm vmm_zero = Vmm(1); // reserved for pad
-    Xbyak::Ymm ymm_aux = Xbyak::Ymm(2);
     Xbyak::Xmm xmm_aux = Xbyak::Xmm(3);
 
 
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision prec) {
+    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst) {
         vmovups(op, vmm_dst);
     }
 
@@ -118,7 +117,7 @@ private:
         {
             cmp(reg_num_pads_arg, jpp.block_size);
             jl(tail);
-            store_vector(ptr[reg_dst_arg], vmm_zero, jpp.precision);
+            store_vector(ptr[reg_dst_arg], vmm_zero);
             add(reg_dst_arg, jpp.dtype_size * jpp.block_size);
             sub(reg_num_pads_arg, jpp.block_size);
             jmp(main);
@@ -159,29 +158,14 @@ private:
     }
 
     void read_src2vmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
-        Xbyak::Ymm low_ymm = Ymm(zmm_arg.getIdx());
-        read_src2vmm(low_ymm, reg_src_arg);
-        read_src2vmm(xmm_aux, reg_src_arg);
-        vinserti64x2(zmm_arg, zmm_arg, xmm_aux, 3);
-        read_src2vmm(xmm_aux, reg_src_arg);
-        vinserti64x2(zmm_arg, zmm_arg, xmm_aux, 2);
-        //read_src2vmm(ymm_aux, reg_src_arg);
-        //vinserti64x4(zmm_arg, zmm_arg, ymm_aux, 1);
+        Xbyak::Xmm low_xmm = Ymm(zmm_arg.getIdx());
+        read_src2vmm(low_xmm, reg_src_arg);
+        for (int i = 1; i < 4; i++) {
+            read_src2vmm(xmm_aux, reg_src_arg);
+            vinserti64x2(zmm_arg, zmm_arg, xmm_aux, i);
+        }
     }
-/*
-    void read_src2vmm(Vmm &vmm_arg, const Xbyak::Reg64 &reg_src_arg) {
-        constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-        constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-        // isa == x64::sse41 || isa == x64::avx2 || isa == x64::avx512_common
-        if (is_xmm)
-            read_src2xmm(vmm_arg, reg_src_arg);
-        else if (is_ymm)
-            read_src2ymm(vmm_arg, reg_src_arg);
-        else if (is_zmm)
-            read_src2zmm(vmm_arg, reg_src_arg);
-    }
-*/
+
     // The main loop where all the work is done
     void loop() {
         //for (int64_t i = 0; i < ih_lpad * OW; i++)
@@ -191,18 +175,6 @@ private:
         sub(reg_oh_count, reg_num_pads);
         mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
         pad_with_zeros(reg_num_pads, reg_dst);
-        /*
-        // The whole loop:
-        for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {
-            for (int64_t iw = 0; iw < iw_lpad; iw++)
-                dst_data[dst_idx++] = 0;
-            for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
-                dst_data[dst_idx++] = src_data[src_idx];
-
-            for (int64_t i = 0; i < (OW - iw_hpad); i++)
-                dst_data[dst_idx++] = 0;
-        }
-         */
         Xbyak::Label ih_loop, ih_tail, ih_exit;
         Xbyak::Label iw_loop, iw_tail, iw_exit;
         //for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {...}
@@ -227,7 +199,7 @@ private:
                 cmp(reg_ow_count, jpp.block_size);
                 jle(iw_tail, T_NEAR);
                 read_src2vmm(vmm, reg_src);
-                store_vector(ptr[reg_dst], vmm, jpp.precision);
+                store_vector(ptr[reg_dst], vmm);
                 add(reg_dst, jpp.dtype_size * jpp.block_size);
                 sub(reg_ow_count, jpp.block_size);
                 jmp(iw_loop);
@@ -312,50 +284,33 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             _strides.push_back((int64_t)strides[i]);
         for (size_t i = 0; i < rates.size(); i++)
             _rates.push_back((int64_t)rates[i]);
-
-        /*** JIT kernel configuration ***/
-        jit_eximpat_params jcp;
+        jit_eximpat_params jpp;
         SizeVector in_dims = inData->getTensorDesc().getDims();
-        jcp.OB = in_dims[0];
-        jcp.IC = in_dims[1];
-        jcp.IH = in_dims[2];
-        jcp.IW = in_dims[3];
+        jpp.IH = in_dims[2];
+        jpp.IW = in_dims[3];
         SizeVector out_dims = layer->outData[0]->getTensorDesc().getDims();
-        jcp.OH = out_dims[2];
-        jcp.OW = out_dims[3];
-        jcp.KH = _ksizes[0];
-        jcp.KW = _ksizes[1];
-        jcp.SH = _strides[0];
-        jcp.SW = _strides[1];
-        jcp.RH = _rates[0];
-        jcp.RW = _rates[1];
-        jcp.precision = layer->insData.front().lock()->getPrecision();
-        jcp.dtype_size = jcp.precision.size();
-        set_pads(_auto_pad, {jcp.IH, jcp.IW, jcp.KH, jcp.KW, jcp.SH, jcp.SW, jcp.RH, jcp.RW});
-        jcp.PL = _pads[0];
-        jcp.PT = _pads[1];
-        jcp.block_size = 1;
+        jpp.OH = out_dims[2];
+        jpp.OW = out_dims[3];
+        jpp.KH = _ksizes[0];
+        jpp.KW = _ksizes[1];
+        jpp.SH = _strides[0];
+        jpp.SW = _strides[1];
+        jpp.dtype_size = layer->insData.front().lock()->getPrecision().size();
+        jpp.block_size = 1;
 
         if (mayiuse(x64::avx512_common)) {
-            jcp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jcp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx512_common>(jcp));
+            jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jpp.dtype_size;
+            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx512_common>(jpp));
         } else if (mayiuse(x64::avx2)) {
-            jcp.block_size = cpu_isa_traits<x64::avx2>::vlen / jcp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx2>(jcp));
+            jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / jpp.dtype_size;
+            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx2>(jpp));
         } else if (mayiuse(x64::sse41)) {
-            jcp.block_size = cpu_isa_traits<x64::sse41>::vlen / jcp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jcp));
+            jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
+            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jpp));
         }
-        /*
-        if (mayiuse(x64::sse41)) {
-            jcp.block_size = cpu_isa_traits<x64::sse41>::vlen / jcp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jcp));
-        }
-         */
 
         if (eximpat_kernel)
             eximpat_kernel->create_ker();
-        /*** JIT kernel configuration finished ***/
 
         LayerConfig config;
 
@@ -414,27 +369,18 @@ void ExtractImagePatchesImpl::set_pads(const std::string & pad_str, const std::v
         int64_t PW = (std::ceil(1.f * IW/SW) - 1) * SW + iwStep - IW;
         int64_t PH = (std::ceil(1.f * IH/SH) - 1) * SH + ihStep - IH;
 
+        int64_t increment_sign = 0;
+        if (CaselessEq<std::string>()(pad_str, "same_lower")) {
+            increment_sign = 1;
+        } else if (CaselessEq<std::string>()(pad_str, "same_upper")) {
+            increment_sign = -1;
+        }
+
         if ((PW > 0) && (PW < iwStep)) {
-            if (PW % 2 == 1) {
-                if (CaselessEq<std::string>()(pad_str, "same_lower")) {
-                    PL = (PW + 1) / 2;
-                } else if (CaselessEq<std::string>()(pad_str, "same_upper")) {
-                    PL = (PW - 1) / 2;
-                }
-            } else {
-                PL = PW / 2;
-            }
+            PL = (PW + increment_sign * (PW % 2) ) / 2;
         }
         if ((PH > 0) && (PH < ihStep)) {
-            if (PH % 2 == 1) {
-                if (CaselessEq<std::string>()(pad_str, "same_lower")) {
-                    PT = (PH + 1) / 2;
-                } else if (CaselessEq<std::string>()(pad_str, "same_upper")) {
-                    PT = (PH - 1) / 2;
-                }
-            } else {
-                PT = PH / 2;
-            }
+            PT = (PH + increment_sign * (PH % 2) ) / 2;
         }
     }
     _pads.clear();
@@ -450,28 +396,21 @@ void ExtractImagePatchesImpl::execute_optimized(std::vector<Blob::Ptr>& inputs, 
     const int64_t dtype_size = inputs[0]->getTensorDesc().getPrecision().size();
 
     const auto& inDims = inputs[0]->getTensorDesc().getDims();
-    const size_t inDimsSize = inDims.size(); // Must always be 4 according to the specs.
-    const size_t BATCH = 0, CHANNEL = 1, HIGHT = 0, WIDTH = 1;
-    const int64_t IC = inDims[CHANNEL];
-    const int64_t IH = inDims[inDimsSize - 2];
-    const int64_t IW = inDims[inDimsSize - 1];
+    const int64_t IC = inDims[1];
+    const int64_t IH = inDims[2];
+    const int64_t IW = inDims[3];
 
     const auto& outDims = outputs[0]->getTensorDesc().getDims();
-    const size_t outDimsSize = outDims.size(); // Must always be 4 according to the specs.
+    const int64_t OB = outDims[0];
+    const int64_t OH = outDims[2];
+    const int64_t OW = outDims[3];
 
-    const int64_t OB = outDims[BATCH];
-    //const int64_t OC = outDims[CHANNEL]; // Must always be KH * KW * IC according to the specs.
-    const int64_t OH = outDims[outDimsSize - 2];
-    const int64_t OW = outDims[outDimsSize - 1];
+    const int64_t KH = _ksizes[0], KW = _ksizes[1];
+    const int64_t SH = _strides[0], SW = _strides[1];
+    const int64_t RH = _rates[0], RW = _rates[1];
+    set_pads(_auto_pad, {IH, IW, KH, KW, SH, SW, RH, RW});
+    const int64_t PL = _pads[0], PT = _pads[1];
 
-    const int64_t KH = _ksizes[HIGHT];
-    const int64_t KW = _ksizes[WIDTH];
-    const int64_t SH = _strides[HIGHT];
-    const int64_t SW = _strides[WIDTH];
-    const int64_t RH = _rates[HIGHT];
-    const int64_t RW = _rates[WIDTH];
-    const int64_t PL = _pads[HIGHT];
-    const int64_t PT = _pads[WIDTH];
     const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
     const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
 
@@ -480,7 +419,7 @@ void ExtractImagePatchesImpl::execute_optimized(std::vector<Blob::Ptr>& inputs, 
         const int64_t iw_start = kw * RW - PL;
         const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
         const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
-        const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
+        const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH - 1.f * ih_start) / SH);
         const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
         //std::cout << ih_lpad << " : " << ih_hpad << " || " << iw_lpad << " : " << iw_hpad << "\n";
@@ -509,30 +448,20 @@ void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, s
                   outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
     const auto& inDims = inputs[0]->getTensorDesc().getDims();
-    const size_t inDimsSize = inDims.size(); // Must always be 4 according to the specs.
-
-    const size_t BATCH = 0, CHANNEL = 1, HIGHT = 0, WIDTH = 1;
-
-    const int64_t IC = inDims[CHANNEL];
-    const int64_t IH = inDims[inDimsSize - 2];
-    const int64_t IW = inDims[inDimsSize - 1];
+    const int64_t IC = inDims[1];
+    const int64_t IH = inDims[2];
+    const int64_t IW = inDims[3];
 
     const auto& outDims = outputs[0]->getTensorDesc().getDims();
-    const size_t outDimsSize = outDims.size(); // Must always be 4 according to the specs.
+    const int64_t OB = outDims[0];
+    const int64_t OH = outDims[2];
+    const int64_t OW = outDims[3];
 
-    const int64_t OB = outDims[BATCH];
-    //const int64_t OC = outDims[CHANNEL]; // Must always be KH * KW * IC according to the specs.
-    const int64_t OH = outDims[outDimsSize - 2];
-    const int64_t OW = outDims[outDimsSize - 1];
-
-    const int64_t KH = _ksizes[HIGHT];
-    const int64_t KW = _ksizes[WIDTH];
-    const int64_t SH = _strides[HIGHT];
-    const int64_t SW = _strides[WIDTH];
-    const int64_t RH = _rates[HIGHT];
-    const int64_t RW = _rates[WIDTH];
-    const int64_t PL = _pads[HIGHT];
-    const int64_t PT = _pads[WIDTH];
+    const int64_t KH = _ksizes[0], KW = _ksizes[1];
+    const int64_t SH = _strides[0], SW = _strides[1];
+    const int64_t RH = _rates[0], RW = _rates[1];
+    set_pads(_auto_pad, {IH, IW, KH, KW, SH, SW, RH, RW});
+    const int64_t PL = _pads[0], PT = _pads[1];
     const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
     const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
 
@@ -546,8 +475,6 @@ void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, s
         //const int64_t iw_stop = iw_start + OW * SW;
         const int64_t ih_start = kh * RH - PT;
         //const int64_t ih_stop = ih_start + OH * SH;
-
-
         const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
         const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
 
@@ -555,13 +482,6 @@ void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, s
         const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
         int64_t dst_idx = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
-
-
-        /*
-        for (int64_t ih = 0; ih < ih_lpad; ih++)
-            for (int64_t iw = 0; iw < OW; iw++)
-                    dst_data[dst_idx++] = T(0);
-        */
 
         for (int64_t i = 0; i < ih_lpad * OW; i++)
             dst_data[dst_idx++] = T(0);
@@ -571,10 +491,7 @@ void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, s
         for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {
             for (int64_t iw = 0; iw < iw_lpad; iw++)
                 dst_data[dst_idx++] = T(0);
-            /*
-            for (int64_t iw = iw_lpad; iw < iw_hpad; iw++)
-                dst_data[dst_idx++] = src_data[ishift + iw * SW + ih * SH * IW];
-            */
+
             for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
                 dst_data[dst_idx++] = src_data[src_idx];
 
@@ -584,11 +501,6 @@ void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, s
 
         for (int64_t i = 0; i < (OH - ih_hpad) * OW; i++)
             dst_data[dst_idx++] = T(0);
-        /*
-        for (int64_t ih = ih_hpad; ih < OH; ih++)
-            for (int64_t iw = 0; iw < OW; iw++)
-                dst_data[dst_idx++] = T(0);
-        */
     };
     /*
     auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
@@ -610,7 +522,6 @@ void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, s
     };
      */
     parallel_for4d(OB, KH, KW, IC, thread_body);
-
 
 //    std::cout << "\n======================\n\n";
 //
