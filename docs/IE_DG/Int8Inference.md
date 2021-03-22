@@ -11,7 +11,7 @@ Low-precision 8-bit inference is optimized for:
 - Intel® processor graphics:
   - Intel® Iris® Xe Graphics
   - Intel® Iris® Xe MAX Graphics
-- A model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](https://docs.openvinotoolkit.org/2021.3/omz_models_intel_index.html) or quantize a model yourself. For quantization, you can use the:
+- A model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_intel_index) or quantize a model yourself. For quantization, you can use the:
   - [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
   - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
 
@@ -23,15 +23,15 @@ A lot of investigation was made in the field of deep learning with the idea of u
 8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is a reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
 
 
-Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-downloader-usage) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
+Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader_README) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
 ./downloader.py --name resnet-50-tf --precisions FP16-INT8
 ```
-After that you should quantize model by [Model Quantizer](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/downloader#model-quantizer-usage) tool.
+After that you should quantize model by [Model Quantizer](@ref omz_tools_downloader_README) tool.
 ```sh
 ./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
-The simplest way to infer the model and collect performance counters is [Benchmark C++ Tool](https://docs.openvinotoolkit.org/latest/openvino_inference_engine_samples_benchmark_app_README.html). 
+The simplest way to infer the model and collect performance counters is [Benchmark C++ Tool](@ref openvino_inference_engine_samples_benchmark_app_README). 
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
@@ -39,10 +39,10 @@ If you infer the model in the OpenVINO™ CPU plugin and collect performance cou
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
-For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](https://docs.openvinotoolkit.org/latest/omz_models_intel_index.html). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
+For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_intel_index). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
 8-bit inference pipeline includes two stages (also refer to the figure below):
-1. *Offline stage*, or *model quantization*. During this stage, [FakeQuantize](https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/quantization/FakeQuantize_1.md) layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
+1. *Offline stage*, or *model quantization*. During this stage, [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
 
    When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
 
@@ -78,6 +78,6 @@ available from the Inference Engine API. For example, the part of performance co
 > * Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
 > * Suffix `FP32` for layers computed in 32-bit precision 
 
-All Convolution layers are executed in int8 precision. Rest layers are fused into Convolutions using [post ops optimization technique](https://github.com/openvinotoolkit/openvino/blob/master/docs/IE_DG/supported_plugins/CPU.md#internal-cpu-plugin-optimizations).
+All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](supported_plugins/CPU.md).
 
 [int8_flow]: img/cpu_int8_flow.png
