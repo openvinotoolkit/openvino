@@ -93,6 +93,7 @@ namespace ngraph
 
                 void set_alpha(float alpha) { m_alpha = alpha; }
                 void set_beta(float beta) { m_beta = beta; }
+
             private:
                 /// \brief Activation function wrapper.
                 ActivationFunctionType m_function;
