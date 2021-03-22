@@ -19,8 +19,6 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -32,7 +30,7 @@ namespace ngraph
             /// All input values that are outside of the <min;max> range are set to 'min' or 'max'
             /// depending on which side of the <min;max> range they are. The values that fall into
             /// this range remain unchanged.
-            class NGRAPH_API Clamp : public Op
+            class NGRAPH_API Clamp : public ngraph::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -65,5 +63,3 @@ namespace ngraph
         using v0::Clamp;
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

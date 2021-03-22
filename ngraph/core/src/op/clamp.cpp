@@ -14,16 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 #include "ngraph/op/clamp.hpp"
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/builder/make_constant.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace clamp
 {
@@ -35,9 +33,9 @@ namespace clamp
         return true;
     }
 
-    bool evaluate_clamp(
-        const HostTensorPtr& arg, const HostTensorPtr& out, double min, double max, size_t count)
+    bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double min, double max)
     {
+        size_t count = shape_size(arg->get_shape());
         auto ceil_func = [](double x) { return ceil(x); };
         auto floor_func = [](double x) { return floor(x); };
 
@@ -116,8 +114,9 @@ namespace clamp
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Clamp_evaluate);
-    return clamp::evaluate_clamp(
-        inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
+    NGRAPH_CHECK(this,
+                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
 }
 
 NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
