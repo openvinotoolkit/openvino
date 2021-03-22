@@ -210,12 +210,13 @@ public:
                 dst_data[i] = sinhf(src_data[i]);
             });
             break;
-        case Math::SoftPlus:
+        case Math::SoftPlus: {
+            const float large_positive_value = logf(std::numeric_limits<float>::max());
             parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = logf(expf(src_data[i]) + 1);
+                dst_data[i] = src_data[i] < large_positive_value ? logf(expf(src_data[i]) + 1.f) : src_data[i];
             });
             break;
-        case Math::Softsign:
+        } case Math::Softsign:
             parallel_for(dataSize, [&](size_t i) {
                 float x = src_data[i];
                 dst_data[i] = x / (1.f + (std::abs)(x));

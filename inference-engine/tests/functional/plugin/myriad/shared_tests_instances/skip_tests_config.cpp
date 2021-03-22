@@ -37,5 +37,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
         // TODO: Issue 51472
         ".*CachingSupportCase.*_batch2_.*",
+        // Need to add safe SoftPlus support
+        R"(.*ActivationLayerTest.*SoftPlus.*)"
     };
 }

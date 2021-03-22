@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+1// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,5 +57,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LPT/StridedSliceTransformation).*)",
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
+
+            // Need to add safe SoftPlus support
+            R"(.*ActivationLayerTest.*SoftPlus.*)"
     };
 }
