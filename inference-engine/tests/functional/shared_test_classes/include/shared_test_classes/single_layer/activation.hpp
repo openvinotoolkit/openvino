@@ -110,4 +110,10 @@ private:
     std::vector<float> constantsValue;
 };
 
+class ActivationDynamicLayerTest : public ActivationLayerTest {
+public:
+    std::unordered_set<size_t> static_dims;
+    void Run() override;
+};
+
 }  // namespace LayerTestsDefinitions

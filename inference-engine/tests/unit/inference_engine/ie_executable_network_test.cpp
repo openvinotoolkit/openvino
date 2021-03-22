@@ -45,8 +45,9 @@ TEST(ExecutableNetworkConstructorTests, CanConstruct) {
 
 TEST(ExecutableNetworkDestructorTests, Destruct) {
     std::shared_ptr<MockIExecutableNetwork> mockIExeNet_p = std::make_shared<MockIExecutableNetwork>();
-    InferenceEngine::ExecutableNetwork exeNet{mockIExeNet_p};
-    exeNet.~ExecutableNetwork();
+    {
+        InferenceEngine::ExecutableNetwork exeNet{mockIExeNet_p};
+    }
     // Call of destructor should decrease counter of shared_ptr
     ASSERT_EQ(mockIExeNet_p.use_count(), 1);
 }
