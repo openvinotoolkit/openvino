@@ -6,9 +6,7 @@
 
 **Short description**: *Pad* operation extends an input tensor on edges. The amount and value of padded elements are defined by inputs and attributes.
 
-**Detailed Description**
-
-The attributes specify a number of elements to add along each axis and a rule by which new element values are generated: for example, whether they are filled with a given constant or generated based on the input tensor content.
+**Detailed Description**: The attributes specify a number of elements to add along each axis and a rule by which new element values are generated: for example, whether they are filled with a given constant or generated based on the input tensor content.
 
 The following examples illustrate how output tensor is generated for the *Pad* layer for a given input tensor:
 ```
@@ -70,25 +68,30 @@ OUTPUT =
     * `edge` - padded values are copied from the respective edge of the input `data` tensor.
     * `reflect` - padded values are a reflection of the input `data` tensor; values on the edges are not duplicated. `pads_begin[D]` and `pads_end[D]` must be not greater than `data.shape[D] – 1` for any valid `D`.
     * `symmetric` - padded values are symmetrically added from the input `data` tensor. This method is similar to the `reflect`, but values on edges are duplicated. Refer to the examples above for more details. `pads_begin[D]` and `pads_end[D]` must be not greater than `data.shape[D]` for any valid `D`.
-  * **Type**: string
+  * **Type**: `string`
   * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: `data` - input tensor to be padded. Required.
+* **1**: `data` tensor of arbitrary shape and type *T*. Required.
 
-* **2**: `pads_begin` - specifies the number of padding elements at the beginning of each axis. A list of non-negative integers. The length of the list must be equal to the number of dimensions in the input tensor. Required.
+* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the beginning of each axis. Required.
 
-* **3**: `pads_end` - specifies the number of padding elements at the beginning of each axis. A list of non-negative integers. The length of the list must be equal to the number of dimensions in the input tensor. Required.
+* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the ending of each axis. Required.
 
-* **4**: `pad_value` - scalar tensor of type matching type of elements in `data` tensor to be replicated in padded area. Used with the `pad_mode = "constant"` only. All new elements are populated with this value. Optional for `pad_mode = "constant"`. If input is not provided, 0 of appropriate type is used. Shouldn't be set for other `pad_mode` values.
+* **4**: `pad_value` scalar tensor of type *T*. Used with the `pad_mode = "constant"` only. All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other `pad_mode` values. Optional.
 
 
 **Outputs**
 
-* **1**: Output padded tensor with dimensions `pads_begin[D] + data.shape[D] + pads_end[D]` for each `D` from `0` to `len(data.shape) - 1`.
+* **1**: Output padded tensor of type *T* with dimensions `pads_begin[D] + data.shape[D] + pads_end[D]` for each `D` from `0` to `len(data.shape) - 1`.
 
+**Types**
+
+* *T*: any numeric type.
+
+* *T_INT*: any non-negative integer type.
 
 
 **Example**: constant mode
