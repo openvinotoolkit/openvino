@@ -117,6 +117,10 @@ namespace ngraph
     NGRAPH_API
     void default_logger_handler_func(const std::string& s);
 
+#ifndef PROJECT_ROOT_DIR
+#define PROJECT_ROOT_DIR ""
+#endif
+
 #define NGRAPH_ERR                                                                                 \
     ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                                           \
                       ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__),                          \
