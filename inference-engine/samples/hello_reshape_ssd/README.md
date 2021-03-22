@@ -7,7 +7,7 @@ networks like SSD-VGG. The sample shows how to use [Shape Inference feature](../
 
 ## Running
 
-To run the sample, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+To run the sample, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -26,5 +26,5 @@ rectangles to the standard output stream.
 
 ## See Also
 * [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

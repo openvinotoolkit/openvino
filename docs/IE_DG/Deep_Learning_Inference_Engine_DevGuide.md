@@ -36,7 +36,7 @@ This Guide provides overview of the Inference Engine describing the typical work
 inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
 > **NOTES:**
-> - Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
+> - Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
 > - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 
@@ -81,7 +81,7 @@ inference of a pre-trained and optimized deep learning model and a set of sample
     * [GNA](supported_plugins/GNA.md)
     * [MULTI](supported_plugins/MULTI.md)
 
-* [Pre-Trained Models](@ref omz_models_intel_index)
+* [Pre-Trained Models](@ref omz_models_group_intel)
 
 * [Known Issues](Known_Issues_Limitations.md)
 

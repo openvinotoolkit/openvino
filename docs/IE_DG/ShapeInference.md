@@ -100,7 +100,7 @@ Here is a code example:
 
 @snippet snippets/ShapeInference.cpp part0
 
-Shape Inference feature is used in [Smart classroom sample](@ref omz_demos_smart_classroom_demo_README).
+Shape Inference feature is used in [Smart Classroom Demo](@ref omz_demos_smart_classroom_demo_cpp).
 
 ## Extensibility
 
