@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,13 +18,15 @@
 #include "gna2-instrumentation-api.h"
 #include "gna2-memory-api.h"
 #include "gna2_model_export_helper.hpp"
+#include "gna2_model_debug_log.hpp"
 #else
 #include "gna-api-status.h"
 #include "gna-api.h"
 #endif
 
-#include "details/ie_exception.hpp"
 #include "gna_plugin_log.hpp"
+
+//#define MODEL_DUMP
 
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
@@ -131,6 +133,15 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     if (isUpTo20GnaHwDevice() && isGnaLibVersion2_1) {
         enforceLegacyCnns(gnaModel);
     }
+#if GNA_LIB_VER == 2 && defined MODEL_DUMP
+    std::string path =
+#ifdef _WIN32
+        ".\\";
+#else
+        "./";
+#endif
+    DumpGna2Model(gnaModel, path, false);
+#endif
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 
     checkGna2Status(status, gnaModel);
