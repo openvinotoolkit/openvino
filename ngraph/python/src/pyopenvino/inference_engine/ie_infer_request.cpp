@@ -21,18 +21,56 @@
 #include <string>
 #include <vector>
 
-// #include <cpp/ie_infer_request.hpp> // in "pyopenvino/inference_engine/ie_infer_request.hpp"
-
 #include "pyopenvino/inference_engine/ie_infer_request.hpp"
 
 namespace py = pybind11;
 
-template <class T>
-void _SetBlob(InferenceEngine::InferRequest& self,
-              const std::string& name,
-              T blob)
+const std::shared_ptr<InferenceEngine::Blob> _convertToBlob(py::handle blob)
 {
-    self.SetBlob(name, blob);
+    if (py::isinstance<InferenceEngine::TBlob<float>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<double>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<double>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<int8_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int8_t>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<int16_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int16_t>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<int32_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int32_t>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<int64_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int64_t>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<uint8_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint8_t>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<uint16_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint16_t>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<uint32_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint32_t>>&>();
+    }
+    else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob))
+    {
+        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint64_t>>&>();
+    }
+    else
+    {
+        // Throw error
+    }
 }
 
 void regclass_InferRequest(py::module m)
@@ -44,18 +82,16 @@ void regclass_InferRequest(py::module m)
     cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
         for (auto&& input : inputs)
         {
-            auto name = input.first.cast<std::string>().c_str();
-            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob =
-                input.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+            auto name = input.first.cast<std::string>();
+            auto blob = _convertToBlob(input.second);
             self.SetBlob(name, blob);
         }
     });
     cls.def("set_output", [](InferenceEngine::InferRequest& self, const py::dict& results) {
         for (auto&& result : results)
         {
-            auto name = result.first.cast<std::string>().c_str();
-            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob =
-                result.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+            auto name = result.first.cast<std::string>();
+            auto blob = _convertToBlob(result.second);
             self.SetBlob(name, blob);
         }
     });
@@ -76,8 +112,11 @@ void regclass_InferRequest(py::module m)
                     py::gil_scoped_release release;
                 });
             });
+    cls.def("set_blob",
+            [](InferenceEngine::InferRequest& self, const std::string& name, py::handle blob) {
+                self.SetBlob(name, _convertToBlob(blob));
+            });
 
-    cls.def("set_blob", _SetBlob<const InferenceEngine::TBlob<float>::Ptr&>);
     //    cls.def_property_readonly("input_blobs", [](){
     //
     //    });
