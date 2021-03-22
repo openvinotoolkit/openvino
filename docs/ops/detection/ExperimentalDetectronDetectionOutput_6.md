@@ -15,7 +15,8 @@ the detection output using information on location and score predictions.
 4.  Applies *score_threshold* on detection scores;
 5.  Applies non-maximum suppression class-wise with *nms_threshold*;
 6.  Operation returns *max_detections_per_image* detections if total number of detections is more than it, otherwise 
-returns total number of detections.
+returns total number of detections and the output tensor is filled with undefined values for rest output tensor 
+elements.
 
 **Attributes**:
 
@@ -89,16 +90,17 @@ returns total number of detections.
 
 **Inputs**
 
-* **1**: A 2D tensor of type *T* with input ROIs, rank must be equal to 2. The last dimension of this input must be 
-equal to 4. The batch dimension of first, second and third inputs must be the same. **Required.**
+* **1**: A 2D tensor of type *T* with input ROIs, with shape `[number_of_POIs, 4]` describing the ROIs as 4-tuples: 
+[x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. The batch dimension of first, second and third inputs 
+should be the same. **Required.**
 
-* **2**: A 2D tensor of type *T* with input deltas. The last dimension of this input must be equal to the value of the 
-attribute `num_classes` * 4. **Required.**
+* **2**: A 2D tensor of type *T* with shape `[number_of_POIs, num_classes * 4]` describing deltas for input boxes.
+ **Required.**
 
-* **3**: A 2D tensor of type *T* with input scores. The last dimension of this input must be equal to the value of the 
-attribute `num_classes`. **Required.**
+* **3**: A 2D tensor of type *T* with shape `[number_of_POIs, num_classes]` describing detections scores. **Required.**
 
-* **4**: A 2D tensor of type *T* with input image info. **Required.**
+* **4**: A 2D tensor of type *T* with shape `[1, 3]` contains 3 elements
+ `[image_height, image_width, scale_height_and_width]` describing input image size info. **Required.**
 
 **Outputs**
 

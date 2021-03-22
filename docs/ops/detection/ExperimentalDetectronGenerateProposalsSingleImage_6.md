@@ -10,7 +10,7 @@ based on input data.
 **Detailed description**: Operation doing next steps:
 
 1.  Transposes and reshape predicted bounding boxes deltas and scores to get them into the same order as the anchors;
-2.  Transforms anchors into proposals and clips proposals to image;
+2.  Transforms anchors into proposals using deltas and clips proposals to image;
 3.  Removes predicted boxes with either height or width < *min_size*;
 4.  Sorts all `(proposal, score)` pairs by score from highest to lowest, order of pairs with equal scores is undefined;
 5.  Takes top *pre_nms_count* proposals, if total number of proposals is less than *pre_nms_count* then operation takes 
@@ -23,7 +23,7 @@ is less than *post_nms_count* then operation returns output tensors filled by ze
 
 * *min_size*
 
-    * **Description**: *min_size* attribute specifies minimum box width & height.
+    * **Description**: *min_size* attribute specifies minimum box width and height.
     * **Range of values**: non-negative floating point number
     * **Type**: float
     * **Default value**: None
@@ -48,21 +48,23 @@ is less than *post_nms_count* then operation returns output tensors filled by ze
 * *post_nms_count*
 
     * **Description**: *post_nms_count* attribute specifies number of top-n proposals after NMS.
-    * **Range of values**: non-negative integer number less or equal to *pre_nms_count*
+    * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: None
     * **Required**: *yes*
 
 **Inputs**
 
-* **1**: A 1D tensor of type *T* with shape `[3]` with input image info. **Required.**
+* **1**: A 1D tensor of type *T* with 3 elements `[image_height, image_width, scale_height_and_width]` describing input 
+image size info. **Required.**
 
-* **2**: A 2D tensor of type *T* with input anchors. The second dimension of this input should be 4. **Required.**
+* **2**: A 2D tensor of type *T* with shape `[height * width * number_of_channels, 4]` describing anchors. **Required.**
 
-* **3**: A 3D tensor of type *T* with input deltas. Height and width for third and fourth inputs must be 
-equal. **Required.**
+* **3**: A 3D tensor of type *T* with shape `[number_of_channels * 4, height, width]` describing deltas for anchors. 
+Height and width for third and fourth inputs should be equal. **Required.**
 
-* **4**: A 3D tensor of type *T* with input scores. **Required.**
+* **4**: A 3D tensor of type *T* with shape `[number_of_channels, height, width]` describing proposals scores. 
+**Required.**
 
 **Outputs**
 

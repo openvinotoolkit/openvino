@@ -24,14 +24,14 @@ tensor elements.
 
 **Inputs**
 
-* **1**: A 2D tensor of type *T* with shape `[number_of_input_ROIs, 4]` contains input ROIs. **Required.**
+* **1**: A 2D tensor of type *T* with shape `[number_of_ROIs, 4]` describing the ROIs as 4-tuples: 
+[x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. **Required.**
 
-* **2**: A 1D tensor of type *T* with probabilities for input ROIs. Number of ROIs and number of probabilities should 
-be equal. **Required.**
+* **2**: A 1D tensor of type *T* with shape `[number_of_input_ROIs]` contains probabilities for input ROIs. **Required.**
 
 **Outputs**
 
-* **1**: A 2D tensor of type *T* with shape `[max_rois, 4]` describing *max_rois* ROIs with top probabilities.
+* **1**: A 2D tensor of type *T* with shape `[max_rois, 4]` describing *max_rois* ROIs with highest probabilities.
 
 **Types**
 

@@ -43,7 +43,7 @@ If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_
 * *h*
 
     * **Description**: *h* attribute specifies number of cells of the generated grid with respect to height.
-    * **Range of values**: non-negative integer number less than `featmap_height`
+    * **Range of values**: non-negative integer number less or equal than `featmap_height`
     * **Type**: int
     * **Default value**: 0
     * **Required**: *no*
@@ -51,7 +51,7 @@ If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_
 * *w*
 
     * **Description**: *w* attribute specifies number of cells of the generated grid with respect to width.
-    * **Range of values**: non-negative integer number less than `featmap_width`
+    * **Range of values**: non-negative integer number less or equal than `featmap_width`
     * **Type**: int
     * **Default value**: 0
     * **Required**: *no*
@@ -74,13 +74,14 @@ If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_
 
 **Inputs**
 
-* **1**: A tensor of type *T* with priors. Rank must be equal to 2 and The last dimension must be equal to 4: 
-`[number_of_priors, 4]`. **Required.**
+* **1**: A 2D tensor of type *T* with shape `[number_of_priors, 4]` contains priors. **Required.**
 
-* **2**: A 4D tensor of type *T* with input feature map. **Required.**
+* **2**: A 4D tensor of type *T* with input feature map `[1, number_of_channels, featmap_height, featmap_width]`. This 
+operation uses only sizes of this input tensor, not its data.**Required.**
 
-* **3**: A 4D tensor of type *T* with input image. The number of channels of both feature map and input image tensors 
-must match. **Required.**
+* **3**: A 4D tensor of type *T* with input image `[1, number_of_channels, image_height, image_width]`. The number of 
+channels of both feature map and input image tensors must match. This operation uses only sizes of this input tensor, 
+not its data. **Required.**
 
 **Outputs**
 

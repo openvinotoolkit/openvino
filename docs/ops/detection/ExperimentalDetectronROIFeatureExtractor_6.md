@@ -20,7 +20,7 @@ PyramidLevelMapper maps the ROI to the pyramid level using the following formula
 
 * j = floor(2 + log<sub>2</sub>(sqrt(w * h) / 224)
 
-Here 224 is the "canonical" size, 2 is the pyramid starting level, and `w`, `h` are the ROI width and height.
+Here 224 is the canonical ImageNet pre-training size, 2 is the pyramid starting level, and `w`, `h` are the ROI width and height.
 
 For more details please see the following source: 
 [Feature Pyramid Networks for Object Detection](https://arxiv.org/pdf/1612.03144.pdf).
@@ -48,7 +48,7 @@ For more details please see the following source:
 
     * **Description**: *pyramid_scales* enlists `image_size / layer_size[l]` ratios for pyramid layers `l=1,...,L`, 
     where `L` is the number of pyramid layers, and `image_size` refers to network's input image. Note that pyramid's 
-    largest layer may have smaller size than input image, e.g. `image_size` is 640 in the XML example below.
+    largest layer may have smaller size than input image, e.g. `image_size` is `800 x 1344` in the XML example below.
     * **Range of values**: a list of positive integer numbers
     * **Type**: int[]
     * **Default value**: None
@@ -66,21 +66,22 @@ For more details please see the following source:
 
 **Inputs**:
 
-*   **1**: 2D input tensor of type *T* describing the ROIs as 4-tuples: 
-[x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Batch size is the number of ROIs. Coordinates *x* and *y* 
-are refer to the input *image_size*. **Required**.
+*   **1**: 2D input tensor of type *T* with shape `[number_of_ROIs, 4]` describing the ROIs as 4-tuples: 
+[x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Coordinates *x* and *y* are refer to the network's input 
+*image_size*. **Required**.
 
-*   **2**, ..., **L**: Pyramid of 4D input tensors with feature maps. Batch size must be 1. The number of channels must 
-be the same for all layers of the pyramid. The layer width and height must equal to the 
-`layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
+*   **2**, ..., **L**: Pyramid of 4D input tensors with feature maps. Shape must be 
+`[1, number_of_channels, layer_size[l], layer_size[l]]`. The number of channels must be the same for all layers of the 
+pyramid. The layer width and height must equal to the `layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
 
 **Outputs**:
 
-*   **1**: 4D output tensor of type *T* with ROIs features. Batch size equals to number of ROIs. Channels number is the 
-same as for all images in the input pyramid.
+*   **1**: 4D output tensor of type *T* with ROIs features. Shape must be 
+`[number_of_ROIs, number_of_channels, output_size, output_size]`. Channels number is the same as for all images in the 
+input pyramid.
 
 *   **2**: 2D output tensor of type *T* with reordered ROIs according to their mapping to the pyramid levels. Shape 
-must be the same as for 1 input.
+must be the same as for 1 input: `[number_of_ROIs, 4]`.
 
 **Types**
 
