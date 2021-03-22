@@ -93,8 +93,8 @@ Options:
     -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
     -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
     -layout                   Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
-    -cache "<path>"           Optional. Enables caching of loaded models to specified directory.
-    -single_load              Optional. Calls LoadNetwork by name (without need of ReadNetwork).
+    -cache_dir "<path>"       Optional. Enables caching of loaded models to specified directory.
+    -load_from_file           Optional. Loads model from file directly without ReadNetwork.
                               All CNNNetwork options (like re-shape) will be ignored.
 
   CPU-specific performance options:

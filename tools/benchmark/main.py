@@ -96,7 +96,7 @@ def run(args):
         getver_start_time = datetime.utcnow();
         version = benchmark.get_version_info()
         duration_ms = "{:.2f}".format((datetime.utcnow() - getver_start_time).total_seconds() * 1000)
-        logger.info("Get Version took {} ms".format(duration_ms))
+        logger.info("Getting device versions took {} ms".format(duration_ms))
 
         logger.info(version)
 
@@ -201,7 +201,8 @@ def run(args):
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
 
-        if is_flag_set_in_command_line('load_from_file'):
+        topology_name = ""
+        if is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile'):
             next_step()
             print("Skipping the step for loading network from file")
             next_step()
@@ -213,7 +214,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.load_network_from_file(args.path_to_model)
+            exe_network = benchmark.load_network(args.path_to_model)
             duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
             logger.info("Load network took {} ms".format(duration_ms))
             if statistics:
@@ -230,6 +231,7 @@ def run(args):
 
             start_time = datetime.utcnow()
             ie_network = benchmark.read_network(args.path_to_model)
+            topology_name = ie_network.name
             duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
             logger.info("Read network took {} ms".format(duration_ms))
             if statistics:
@@ -331,7 +333,7 @@ def run(args):
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
                                       [
-                                          ('topology', ie_network.name),
+                                          ('topology', topology_name),
                                           ('target device', device_name),
                                           ('API', args.api_type),
                                           ('precision', "UNSPECIFIED"),
@@ -365,7 +367,8 @@ def run(args):
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
-                                        ('first inference time (ms)', duration_ms)
+                                        ('first inference time (ms)', duration_ms),
+                                        ('first inference time since startup (ms)', duration_since_startup_ms)
                                     ])
         fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
 

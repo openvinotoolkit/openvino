@@ -37,29 +37,6 @@ uint64_t getDurationInNanoseconds(uint32_t duration) {
     return duration * 1000000000LL;
 }
 
-static void showCacheSupportedDevices() {
-    InferenceEngine::Core ie;
-    std::vector<std::string> devices = ie.GetAvailableDevices();
-    std::stringstream out;
-
-    for (const auto& device : devices) {
-        std::vector<std::string> supportedMetricKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_METRICS));
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
-                            METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-        bool supported = (it != supportedMetricKeys.end()) &&
-                         ie.GetMetric(device, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-        if (supported) {
-            out << "  " << device;
-        }
-    }
-    auto outStr = out.str();
-    if (!outStr.empty()) {
-        std::cout << "Model caching is supported for devices:" << outStr << std::endl;
-    } else {
-        std::cout << "Model caching is not supported by any device in the system" << std::endl;
-    }
-}
-
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validating input arguments--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -67,7 +44,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     if (FLAGS_help || FLAGS_h) {
         showUsage();
         showAvailableDevices();
-        showCacheSupportedDevices();
         return false;
     }
 
@@ -186,7 +162,20 @@ int main(int argc, char *argv[]) {
         // ----------------- 2. Loading the Inference Engine -----------------------------------------------------------
         next_step();
 
+        auto double_to_string = [] (const double number) {
+            std::stringstream ss;
+            ss << std::fixed << std::setprecision(2) << number;
+            return ss.str();
+        };
+        auto get_total_ms_time = [] (Time::time_point& startTime) {
+            return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
+        };
+
+
+        auto runStartTime = Time::now();
         Core ie;
+        auto duration_ms = double_to_string(get_total_ms_time(runStartTime));
+        slog::info << "Init of Inference Engine took " << duration_ms << " ms" << slog::endl;
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
@@ -209,7 +198,10 @@ int main(int argc, char *argv[]) {
 
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
         slog::info << "Device info: " << slog::endl;
+        auto startTime = Time::now();
         std::cout << ie.GetVersions(device_name) << std::endl;
+        duration_ms = double_to_string(get_total_ms_time(startTime));
+        slog::info << "Getting device versions took " << duration_ms << " ms" << slog::endl;
 
         // ----------------- 3. Setting device configuration -----------------------------------------------------------
         next_step();
@@ -332,40 +324,32 @@ int main(int argc, char *argv[]) {
             ie.SetConfig(item.second, item.first);
         }
 
-        auto double_to_string = [] (const double number) {
-            std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << number;
-            return ss.str();
-        };
-        auto get_total_ms_time = [] (Time::time_point& startTime) {
-            return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-        };
-
         size_t batchSize = FLAGS_b;
         Precision precision = Precision::UNSPECIFIED;
         std::string topology_name = "";
         benchmark_app::InputsInfo app_inputs_info;
         std::string output_name;
 
-        if (!FLAGS_cache.empty()) {
-            ie.SetConfig({ {CONFIG_KEY(CACHE_DIR), FLAGS_cache} });
+        // Takes priority over config from file
+        if (!FLAGS_cache_dir.empty()) {
+            ie.SetConfig({ {CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir} });
         }
 
-        if (FLAGS_single_load) {
+        if (FLAGS_load_from_file) {
             next_step();
-            slog::info << "Skipping the step for loading network by name" << slog::endl;
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for loading network by name" << slog::endl;
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for loading network by name" << slog::endl;
-            auto startTime = Time::now();
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            startTime = Time::now();
             exeNetwork = ie.LoadNetwork(FLAGS_m, device_name);
-            auto duration_ms = double_to_string(get_total_ms_time(startTime));
-            slog::info << "Load network by name took " << duration_ms << " ms" << slog::endl;
+            duration_ms = double_to_string(get_total_ms_time(startTime));
+            slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                                  {"load network by name time (ms)", duration_ms}
+                                                  {"load network time (ms)", duration_ms}
                                           });
             if (batchSize == 0) {
                 batchSize = 1;
@@ -376,9 +360,9 @@ int main(int argc, char *argv[]) {
 
             slog::info << "Loading network files" << slog::endl;
 
-            auto startTime = Time::now();
+            startTime = Time::now();
             CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
-            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -404,7 +388,7 @@ int main(int argc, char *argv[]) {
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
-                auto duration_ms = double_to_string(get_total_ms_time(startTime));
+                duration_ms = double_to_string(get_total_ms_time(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -448,9 +432,9 @@ int main(int argc, char *argv[]) {
             slog::info << "Skipping the step for compiled network" << slog::endl;
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
-            auto startTime = Time::now();
+            startTime = Time::now();
             exeNetwork = ie.ImportNetwork(FLAGS_m, device_name, {});
-            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -587,16 +571,19 @@ int main(int argc, char *argv[]) {
             inferRequest->startAsync();
         }
         inferRequestsQueue.waitAll();
-        auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
+        duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
+        auto duration_since_start_ms = double_to_string(get_total_ms_time(runStartTime));
+        slog::info << "Total time for first inference since startup " << duration_since_start_ms << " ms" << slog::endl;
         if (statistics)
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                         {
-                                                {"first inference time (ms)", duration_ms}
+                                                {"first inference time (ms)", duration_ms},
+                                                {"first inference time since startup (ms)", duration_since_start_ms}
                                         });
         inferRequestsQueue.resetTimes();
 
-        auto startTime = Time::now();
+        startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
 
         /** Start inference & calculate performance **/

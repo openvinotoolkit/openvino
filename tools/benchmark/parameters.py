@@ -128,7 +128,7 @@ def parse_args():
     args.add_argument('-cdir', '--cache_dir', type=str, required=False, default='',
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
-                      help="Optional. Loads model from file directly without read_network. Good for testing caching performance")
+                      help="Optional. Loads model from file directly without read_network.")
     parsed_args = parser.parse_args()
 
     return parsed_args
