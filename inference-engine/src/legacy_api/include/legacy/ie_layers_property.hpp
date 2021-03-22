@@ -4,13 +4,14 @@
 
 /**
  * @brief a header file for describing property style structure used by CNNLayers
- * 
+ *
  * @file ie_layers_property.hpp
  */
 #pragma once
 
 #include <vector>
-#include <details/ie_exception.hpp>
+
+#include <ie_common.h>
 
 namespace InferenceEngine {
 
