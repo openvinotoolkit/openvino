@@ -16,7 +16,8 @@ Your installation is complete when these are all completed:
 
 2. Install the dependencies:
 
-   - [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/) with [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
+   - [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
+   - [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
    - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
    > **IMPORTANT**: As part of this installation, make sure you click the option to add the application to your `PATH` environment variable.
 
