@@ -8,7 +8,7 @@
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #if ANTIALIAS == 1
-    #define TRIANGLE_COEFF(a, x) ( a * ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(a * x)))
+    #define TRIANGLE_COEFF(a, x) ( (a) * ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC((a) * (x))))
 #else
     #define TRIANGLE_COEFF(a, x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
 #endif
@@ -60,7 +60,6 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 }
 
 #ifdef SAMPLE_TYPE_CAFFE_INTERP
-// __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                       __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
@@ -68,8 +67,8 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
 )
 {
-    const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
-    const int out_size[5] = { OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Z, OUTPUT_SIZE_Y, OUTPUT_SIZE_X };
+    const int in_size[4] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X };
+    const int out_size[4] = { OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X };
 
     const int ox = (int)get_global_id(0) % OUTPUT_SIZE_X;
     const int oy = (int)get_global_id(0) / OUTPUT_SIZE_X;
@@ -79,13 +78,13 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #if OUTPUT_DIMS <= 4
     const int batch = get_global_id(2);
 #else
-    const int batch = (int)get_global_id(2) % OUTPUT_BATCH_NUM;
+#error [clDNN resample_ref.cl]: Unsupported data dimension
 #endif
 
     ACCUMULATOR_TYPE i_b = AXES_USED[0] ? FUNC_CALL(get_original_coordinate)(batch, SCALES[0], out_size[0], PADDED_B) : batch;
     ACCUMULATOR_TYPE i_f = AXES_USED[1] ? FUNC_CALL(get_original_coordinate)(feature, SCALES[1], out_size[1], PADDED_F) : feature;
-    ACCUMULATOR_TYPE i_y = AXES_USED[3] ? FUNC_CALL(get_original_coordinate)(oy, SCALES[3], out_size[3], PADDED_Y) : oy;
-    ACCUMULATOR_TYPE i_x = AXES_USED[4] ? FUNC_CALL(get_original_coordinate)(ox, SCALES[4], out_size[4], PADDED_X) : ox;
+    ACCUMULATOR_TYPE i_y = AXES_USED[3] ? FUNC_CALL(get_original_coordinate)(oy, SCALES[3], out_size[2], PADDED_Y) : oy;
+    ACCUMULATOR_TYPE i_x = AXES_USED[4] ? FUNC_CALL(get_original_coordinate)(ox, SCALES[4], out_size[3], PADDED_X) : ox;
 
 #if PADDING_USED == 1
     i_b -= PADS_BEGIN[0];
@@ -131,11 +130,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     int const y_max = min(PADS_END[3] + INPUT0_SIZE_Y, iy_r + ry + 1);
     int const x_max = min(PADS_END[4] + INPUT0_SIZE_X, ix_r + rx + 1);
 
-#ifndef LEFTOVERS
     const int fp_max = FEATURE_BLOCK_SIZE;
-#else
-    const int fp_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
-#endif
 
     ACCUMULATOR_TYPE wb = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wf = ACCUMULATOR_VAL_ZERO;
@@ -165,7 +160,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                                 bool isOutOfBounds = b < 0 || f < 0 || y < 0 || x < 0 ||
                                                     b >= in_size[0] || f >= in_size[1] ||
-                                                    y >= in_size[3] || x >= in_size[4];
+                                                    y >= in_size[2] || x >= in_size[3];
 #endif
                                 if (w != 0) {
                                     wsum += w;
@@ -174,7 +169,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                                     if (!isOutOfBounds)
 #endif
                                     {
-#if FEATURE_BLOCK_SIZE == 8
+#if VEC_BLOCK_SIZE == 8
                                         MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload8(0, &input[FUNC_CALL(get_input_index)(b, f+fp, y, x)]);
                                         sum = fma(convert_float8(input_vec), (float8)w, sum);
 #else
@@ -195,6 +190,16 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 
         if (wsum == 0) {
             res = ACCUMULATOR_VAL_ZERO;
+            for  (int f = 0; f < VEC_BLOCK_SIZE; f++) {
+#if HAS_FUSED_OPS
+                #define OF_ID (feature+fp+f)
+                FUSED_OPS;
+                out[f] = FUSED_OPS_RESULT;
+                #undef OF_ID
+#else
+                out[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+#endif
+            }
         } else {
             for  (int f = 0; f < VEC_BLOCK_SIZE; f++) {
                 res = sum[f] / wsum;
@@ -209,7 +214,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
             }
         }
 
-#if FEATURE_BLOCK_SIZE == 8
+#if VEC_BLOCK_SIZE == 8
         vstore8(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
 #else
         vstore16(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
