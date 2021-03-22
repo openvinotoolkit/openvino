@@ -23,6 +23,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_editor/edge_mapper.hpp"
 #include "onnx_editor/editor.hpp"
 #include "onnx_editor/editor_types.hpp"
 
@@ -31,30 +32,12 @@ namespace ONNX_NAMESPACE
     // forward declaration to avoid the necessity of include paths setting in components
     // that don't directly depend on the ONNX library
     class ModelProto;
-    class GraphProto;
 } // namespace ONNX_NAMESPACE
 
 namespace ngraph
 {
     namespace onnx_editor
     {
-        class EdgeMapper
-        {
-        public:
-            EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto);
-
-            InputEdge to_input_edge(Node node, Input in) const;
-            OutputEdge to_output_edge(Node node, Output out) const;
-
-        private:
-            int find_node_index(const std::string& node_name, const std::string& output_name) const;
-            std::string get_node_input_name(int node_index, int input_index) const;
-            std::string get_node_output_name(int node_index, int output_index) const;
-
-            std::vector<std::vector<std::string>> m_node_inputs;
-            std::vector<std::vector<std::string>> m_node_outputs;
-            std::multimap<std::string, int> m_node_name_to_index;
-        };
         /// \brief A class representing a set of utilities allowing modification of an ONNX model
         ///
         /// \note This class can be used to modify an ONNX model before it gets translated to
