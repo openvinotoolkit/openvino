@@ -10,8 +10,8 @@ It demonstrates how to use the following Inference Engine API in applications:
 
 There is also an API introduced to crop a ROI object and set it as input without additional memory re-allocation.
 To properly demonstrate this API, it is required to run several networks in pipeline which is out of scope of this sample.
-Please refer to [Security Barrier Camera Demo](@ref omz_demos_security_barrier_camera_demo_README), or
-[Crossroad Camera Demo](@ref omz_demos_crossroad_camera_demo_README) with an example of using of new crop ROI API.
+Please refer to [Security Barrier Camera Demo](@ref omz_demos_security_barrier_camera_demo_cpp), or
+[Crossroad Camera Demo](@ref omz_demos_crossroad_camera_demo_cpp) with an example of using of new crop ROI API.
 
 Refer to [Integrate the Inference Engine New Request API with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) for details.
 
