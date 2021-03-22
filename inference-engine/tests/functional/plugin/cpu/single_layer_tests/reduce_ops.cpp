@@ -43,7 +43,7 @@ protected:
         std::vector<int> axes;
         CommonTestUtils::OpType opType;
         std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = basicParamsSet;
-
+        inPrc = outPrc = netPrecision;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
@@ -68,7 +68,7 @@ protected:
 
         const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
 
-        selectedType = getPrimitiveType() + "_" + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + (inPrc == Precision::BOOL ? "I8" : inPrc.name());
 
         reduce->get_rt_info() = getCPUInfo();
 
@@ -103,18 +103,8 @@ private:
 TEST_P(ReduceCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto ops = function->get_ordered_ops();
-    std::string name = (*(++ops.rbegin()))->get_type_name();
-
-    if ("ReduceLogicalAnd" == name) {
-        name = "ReduceAnd";
-    }
-    if ("ReduceLogicalOr" == name) {
-        name = "ReduceOr";
-    }
-
     Run();
-    CheckPluginRelatedResults(executableNetwork, name);
+    CheckPluginRelatedResults(executableNetwork, "Reduce");
 }
 namespace {
 std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};
@@ -186,9 +176,9 @@ const auto paramsOneAxis = ::testing::Combine(
             testing::ValuesIn(opTypes),
             testing::ValuesIn(keepDims),
             testing::ValuesIn(reductionTypes),
-            testing::Values(InferenceEngine::Precision::FP32),
             testing::ValuesIn(inpOutPrc),
-            testing::ValuesIn(inpOutPrc),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             testing::Values(InferenceEngine::Layout::ANY),
             testing::ValuesIn(inputShapes),
             testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -201,8 +191,8 @@ const auto paramsOneAxisLogical = testing::Combine(
             testing::ValuesIn(keepDims),
             testing::ValuesIn(reductionLogicalTypes),
             testing::Values(InferenceEngine::Precision::BOOL),
-            testing::ValuesIn(inpOutPrc),
-            testing::ValuesIn(inpOutPrc),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             testing::Values(InferenceEngine::Layout::ANY),
             testing::ValuesIn(inputShapes),
             testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -214,9 +204,9 @@ const auto params_MultiAxis = testing::Combine(
             testing::Values(opTypes[1]),
             testing::Values(false),
             testing::ValuesIn(reductionTypes),
-            testing::Values(InferenceEngine::Precision::FP32),
             testing::ValuesIn(inpOutPrc),
-            testing::ValuesIn(inpOutPrc),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             testing::Values(InferenceEngine::Layout::ANY),
             testing::Values(std::vector<size_t>{2, 9, 2, 9}),
             testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -228,9 +218,9 @@ const auto params_MultiAxis_4D = testing::Combine(
                 testing::Values(opTypes[1]),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes),
-                testing::Values(InferenceEngine::Precision::FP32),
                 testing::ValuesIn(inpOutPrc),
-                testing::ValuesIn(inpOutPrc),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t>{2, 19, 2, 9}),
                 testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -242,9 +232,9 @@ const auto params_MultiAxis_5D = testing::Combine(
                 testing::Values(opTypes[1]),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes),
-                testing::Values(InferenceEngine::Precision::FP32),
                 testing::ValuesIn(inpOutPrc),
-                testing::ValuesIn(inpOutPrc),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t>{2, 19, 7, 2, 9}),
                 testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -257,8 +247,8 @@ const auto params_MultiAxisLogical = testing::Combine(
             testing::Values(false),
             testing::ValuesIn(reductionLogicalTypes),
             testing::Values(InferenceEngine::Precision::BOOL),
-            testing::ValuesIn(inpOutPrc),
-            testing::ValuesIn(inpOutPrc),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             testing::Values(InferenceEngine::Layout::ANY),
             testing::Values(std::vector<size_t>{2, 9, 2, 9}),
             testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -271,8 +261,8 @@ const auto params_MultiAxisLogical4D = testing::Combine(
                 testing::Values(true),
                 testing::ValuesIn(reductionLogicalTypes),
                 testing::Values(InferenceEngine::Precision::BOOL),
-                testing::ValuesIn(inpOutPrc),
-                testing::ValuesIn(inpOutPrc),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t>{2, 19, 2, 9}),
                 testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -285,8 +275,8 @@ const auto params_MultiAxisLogical5D = testing::Combine(
                 testing::Values(true),
                 testing::ValuesIn(reductionLogicalTypes),
                 testing::Values(InferenceEngine::Precision::BOOL),
-                testing::ValuesIn(inpOutPrc),
-                testing::ValuesIn(inpOutPrc),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t>{2, 19, 7, 2, 9}),
                 testing::Values(CommonTestUtils::DEVICE_CPU)),
