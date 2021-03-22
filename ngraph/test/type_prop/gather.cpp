@@ -143,7 +143,6 @@ TEST(type_prop, gather_7_axis_1)
     ASSERT_EQ(G->get_axis(), 1);
 }
 
-
 TEST(type_prop, gather_7_negative_axis)
 {
     PartialShape data_shape{5, 6, 7};
@@ -267,8 +266,8 @@ TEST(type_prop, gather_7_axis_out_of_input_rank)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("The axis must be => 0 and <= data_rank. But instead got"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("The axis must be => 0 and <= data_rank. But instead got"));
     }
     catch (...)
     {
@@ -295,8 +294,9 @@ TEST(type_prop, gather_7_dynamic_batch_dims_inconsistent)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("data and indices must have equal or intersecting sizes until batch_dims"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("data and indices must have equal or intersecting sizes until batch_dims"));
     }
     catch (...)
     {

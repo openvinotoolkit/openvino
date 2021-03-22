@@ -96,15 +96,14 @@ namespace ngraph
                 void validate_and_infer_types() override;
 
                 std::shared_ptr<Node>
-                clone_with_new_inputs(const OutputVector& new_args) const override;
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 int64_t get_batch_dims() const;
-
 
             private:
                 static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
                 int64_t m_batch_dims = 0;
             };
         } // namespace v7
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph

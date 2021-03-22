@@ -146,7 +146,8 @@ op::v7::Gather::Gather(const Output<Node>& params,
                        const Output<Node>& indices,
                        const Output<Node>& axis,
                        const int64_t batch_dims)
-        : Op({params, indices, axis}), m_batch_dims(batch_dims)
+    : Op({params, indices, axis})
+    , m_batch_dims(batch_dims)
 {
     constructor_validate_and_infer_types();
 }
@@ -154,7 +155,8 @@ op::v7::Gather::Gather(const Output<Node>& params,
 op::v7::Gather::Gather(const Output<Node>& params,
                        const Output<Node>& indices,
                        const Output<Node>& axis)
-        : Op({params, indices, axis}), m_batch_dims(0)
+    : Op({params, indices, axis})
+    , m_batch_dims(0)
 {
     constructor_validate_and_infer_types();
 }
@@ -174,7 +176,7 @@ void op::v7::Gather::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           indices_type == element::Type_t::i32 ||
-                          indices_type == element::Type_t::i64,
+                              indices_type == element::Type_t::i64,
                           "indices must be of int32 or int64 type. But instead got: ",
                           indices_type);
 
@@ -189,7 +191,7 @@ void op::v7::Gather::validate_and_infer_types()
     {
         const auto axis_is_scalar = axis_rank.get_length() == 0;
         const auto axis_has_one_elem =
-                axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
+            axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
         NODE_VALIDATION_CHECK(this,
                               axis_is_scalar || axis_has_one_elem,
                               "Axes input must be scalar or have 1 element (shape: ",
@@ -202,24 +204,29 @@ void op::v7::Gather::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           axis >= 0 && axis < data_rank.get_length(),
                           "The axis must be => 0 and <= data_rank. But instead got axis = ",
-                          axis, " batch_dims = ", batch_dims);
-
+                          axis,
+                          " batch_dims = ",
+                          batch_dims);
 
     if (data_rank.is_static() && axis != AXIS_NOT_SET_VALUE)
     {
         NODE_VALIDATION_CHECK(this,
                               axis >= batch_dims,
                               "The axis must be => 0 and <= data_rank. But instead got: axis = ",
-                              axis, ", data_rank = ", data_rank.get_length());
+                              axis,
+                              ", data_rank = ",
+                              data_rank.get_length());
     }
 
-    auto out_rank = data_pshape.rank().get_length() + indices_pshape.rank().get_length() - 1 - batch_dims;
+    auto out_rank =
+        data_pshape.rank().get_length() + indices_pshape.rank().get_length() - 1 - batch_dims;
     std::vector<Dimension> result_dims(out_rank);
     PartialShape output_pshape(result_dims);
     if (data_pshape.rank().is_static() && indices_pshape.rank().is_static())
     {
         // data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]
-        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]
+        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
+        // data.shape[axis + 1:]
         int i = 0;
         for (; i < batch_dims; i++)
         {
@@ -273,13 +280,13 @@ int64_t op::v7::Gather::get_axis() const
     return axis;
 }
 
-int64_t op::v7::Gather::get_batch_dims() const {
+int64_t op::v7::Gather::get_batch_dims() const
+{
     if (m_batch_dims >= 0)
         return m_batch_dims;
     else
         return get_axis() + m_batch_dims;
 }
-
 
 shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_args) const
 {
@@ -431,7 +438,6 @@ namespace gather
         return true;
     }
 } // namespace gather
-
 
 bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
