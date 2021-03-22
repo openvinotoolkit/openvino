@@ -125,6 +125,10 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
+    args.add_argument('-cdir', '--cache_dir', type=str, required=False, default='',
+                      help="Optional. Enable model caching to specified directory")
+    args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
+                      help="Optional. Loads model from file directly without read_network. Good for testing caching performance")
     parsed_args = parser.parse_args()
 
     return parsed_args
