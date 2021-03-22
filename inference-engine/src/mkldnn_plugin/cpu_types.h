@@ -96,7 +96,32 @@ enum Algorithm {
     ReduceSum,
     ReduceLogSum,
     ReduceLogSumExp,
-    ReduceSumSquare
+    ReduceSumSquare,
+
+    // Math algorithms
+    MathAbs,
+    MathAcos,
+    MathAcosh,
+    MathAsin,
+    MathAsinh,
+    MathAtan,
+    MathAtanh,
+    MathCeiling,
+    MathCos,
+    MathCosh,
+    MathErf,
+    MathFloor,
+    MathHardSigmoid,
+    MathLog,
+    MathNegative,
+    MathReciprocal,
+    MathSelu,
+    MathSign,
+    MathSin,
+    MathSinh,
+    MathSoftPlus,
+    MathSoftsign,
+    MathTan
 };
 
 } // namespace MKLDNNPlugin
