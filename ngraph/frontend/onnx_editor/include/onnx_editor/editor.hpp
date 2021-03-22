@@ -47,10 +47,12 @@ namespace ngraph
             OutputEdge to_output_edge(Node node, Output out) const;
 
         private:
-            const ONNX_NAMESPACE::GraphProto* m_graph_proto;
-            int find_node_index(std::vector<std::string> keys) const;
-            std::string find_node_input_name(int node_index, int input_index) const;
-            std::string find_node_output_name(int node_index, int output_index) const;
+            int find_node_index(const std::string& node_name, const std::string& output_name) const;
+            std::string get_node_input_name(int node_index, int input_index) const;
+            std::string get_node_output_name(int node_index, int output_index) const;
+
+            std::vector<std::vector<std::string>> m_node_inputs;
+            std::vector<std::vector<std::string>> m_node_outputs;
             std::multimap<std::string, int> m_node_name_to_index;
         };
         /// \brief A class representing a set of utilities allowing modification of an ONNX model

@@ -379,16 +379,23 @@ EdgeMapper onnx_editor::ONNXModelEditor::create_edge_mapper() const
 }
 
 onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto)
-    : m_graph_proto{&graph_proto}
 {
     int topological_index = 0;
+    m_node_inputs.resize(graph_proto.node().size());
+    m_node_outputs.resize(graph_proto.node().size());
     for (const auto& node_proto : graph_proto.node())
     {
         for (const auto& out_name : node_proto.output())
         {
             // node output name is unique
             m_node_name_to_index.emplace(out_name, topological_index);
+            m_node_outputs[topological_index].push_back(out_name);
             std::cout << "output: " << topological_index << ", " << out_name << "\n";
+        }
+        for (const auto& in_name : node_proto.input())
+        {
+            std::cout << "in_name: " << topological_index << ", " << in_name << "\n";
+            m_node_inputs[topological_index].push_back(in_name);
         }
         if (!node_proto.name().empty())
         {
@@ -400,55 +407,68 @@ onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_prot
     }
 }
 
-int onnx_editor::EdgeMapper::find_node_index(std::vector<std::string> keys) const
+int onnx_editor::EdgeMapper::find_node_index(const std::string& node_name,
+                                             const std::string& output_name) const
 {
-    for (const auto& key : keys)
+    for (const auto& key : {node_name, output_name})
     {
-        std::cout << "key: " << key << "\n";
+        if (key.empty())
+        {
+            continue;
+        }
         const auto& index_iter = m_node_name_to_index.find(key);
         if (index_iter != std::end(m_node_name_to_index))
         {
             return index_iter->second;
         }
     }
-    throw ngraph_error("Node with given name was not found");
+    throw ngraph_error("Node with name: " + node_name + " and output_name: " + output_name +
+                       " was not found");
 };
 
-std::string onnx_editor::EdgeMapper::find_node_output_name(int node_index, int output_index) const
+std::string onnx_editor::EdgeMapper::get_node_output_name(int node_index, int output_index) const
 {
-    std::cout << "node_index: " << node_index << ", output_index: " << output_index << "\n";
-    if (m_graph_proto == nullptr)
+    if (node_index >= m_node_outputs.size())
     {
-        throw ngraph_error("Edge mapper should be used in ONNXEditor scope");
+        throw ngraph_error("Node with index: " + std::to_string(node_index) +
+                           "is out of scope outputs list");
     }
-    const auto& node = m_graph_proto->node(node_index);
-    const auto& output_name = node.output(output_index);
+    if (output_index >= m_node_outputs[node_index].size())
+    {
+        throw ngraph_error("Node with index: " + std::to_string(node_index) +
+                           " has not output with index: " + std::to_string(output_index));
+    }
+    const auto output_name = m_node_outputs[node_index][output_index];
     return output_name;
 }
 
-std::string onnx_editor::EdgeMapper::find_node_input_name(int node_index, int input_index) const
+std::string onnx_editor::EdgeMapper::get_node_input_name(int node_index, int input_index) const
 {
-    std::cout << "node_index: " << node_index << ", input_index: " << input_index << "\n";
-    if (m_graph_proto == nullptr)
+    if (node_index >= m_node_inputs.size())
     {
-        throw ngraph_error("Edge mapper should be used in ONNXEditor scope");
+        throw ngraph_error("Node with index: " + std::to_string(node_index) +
+                           "is out of scope inputs list");
     }
-    const auto& node = m_graph_proto->node(node_index);
-    const auto& input_name = node.input(input_index);
+    if (input_index >= m_node_inputs[node_index].size())
+    {
+        throw ngraph_error("Node with index: " + std::to_string(node_index) +
+                           " has not input with index: " + std::to_string(input_index));
+    }
+    const auto input_name = m_node_inputs[node_index][input_index];
     return input_name;
 }
 
 InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
 {
     // identification can be both based on node name and output name
-    const auto node_index = find_node_index({node.m_node_name, node.m_output_name});
+    const auto node_index = find_node_index(node.m_node_name, node.m_output_name);
     if (!in.m_input_name.empty())
     {
         return InputEdge{node_index, in.m_input_name};
     }
     else if (in.m_input_index != -1) // input index is set
     {
-        const auto& input_name = find_node_input_name(node_index, in.m_input_index);
+        const auto& input_name = get_node_input_name(node_index, in.m_input_index);
         return InputEdge{node_index, input_name};
     }
     else
@@ -460,14 +480,14 @@ InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
 OutputEdge onnx_editor::EdgeMapper::to_output_edge(Node node, Output out) const
 {
     // identification can be both based on node name and output name
-    const auto node_index = find_node_index({node.m_node_name, node.m_output_name});
+    const auto node_index = find_node_index(node.m_node_name, node.m_output_name);
     if (!out.m_output_name.empty())
     {
         return OutputEdge{node_index, out.m_output_name};
     }
     else if (out.m_output_index != -1) // output index is set
     {
-        const auto& output_name = find_node_output_name(node_index, out.m_output_index);
+        const auto& output_name = get_node_output_name(node_index, out.m_output_index);
         return OutputEdge{node_index, output_name};
     }
     else

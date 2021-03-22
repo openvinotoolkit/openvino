@@ -797,6 +797,11 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output
         onnx_editor::Node{onnx_editor::Output{"split1"}}, onnx_editor::Output{1});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_tensor_name, "split2");
+
+    const OutputEdge edge3 = edge_mapper.to_output_edge(
+        onnx_editor::Node{onnx_editor::Output{"split2"}}, onnx_editor::Output{0});
+    EXPECT_EQ(edge3.m_node_idx, 5);
+    EXPECT_EQ(edge3.m_tensor_name, "split1");
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_name)
@@ -833,6 +838,28 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_i
     EXPECT_EQ(edge2.m_tensor_name, "split2");
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_select_edge_const_network)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const InputEdge edge = edge_mapper.to_input_edge(
+        onnx_editor::Node{onnx_editor::Output{"relu4"}}, onnx_editor::Input{0});
+    EXPECT_EQ(edge.m_node_idx, 3);
+    EXPECT_EQ(edge.m_tensor_name, "in2");
+
+    const OutputEdge edge2 =
+        edge_mapper.to_output_edge(onnx_editor::Node{"relu4_name"}, onnx_editor::Output{0});
+    EXPECT_EQ(edge2.m_node_idx, 3);
+    EXPECT_EQ(edge2.m_tensor_name, "relu4");
+
+    const OutputEdge edge3 =
+        edge_mapper.to_output_edge(onnx_editor::Node{"add1_name"}, onnx_editor::Output{0});
+    EXPECT_EQ(edge3.m_node_idx, 4);
+    EXPECT_EQ(edge3.m_tensor_name, "add1");
+}
+
 NGRAPH_TEST(onnx_editor, xxx_subgraph__linear_model_head_cut)
 {
     ONNXModelEditor editor{file_util::path_join(
@@ -854,14 +881,12 @@ NGRAPH_TEST(onnx_editor, xxx_subgraph__linear_model_head_cut)
 }
 
 // combinations to test:
-// - to input/output edge
-// - node by name/ by output name
-// - input/output by name/ by index
-// - 2 heads
-// - const network
 // - node names dublicates!
 // edge mapper should share state ??
 // check mapper lifestyle
+// complete test with cutter
+// Node with given identifier was not found
+// input/output index exception
 
 using TestEngine = test::INTERPRETER_Engine;
 
