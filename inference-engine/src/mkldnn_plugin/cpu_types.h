@@ -82,7 +82,21 @@ enum Algorithm {
     // PSROIPooling algorithms
     PSROIPoolingAverage,
     PSROIPoolingBilinear,
-    PSROIPoolingBilinearDeformable
+    PSROIPoolingBilinearDeformable,
+
+    // Reduce algorithms
+    ReduceL1,
+    ReduceL2,
+    ReduceAnd,
+    ReduceOr,
+    ReduceMax,
+    ReduceMean,
+    ReduceMin,
+    ReduceProd,
+    ReduceSum,
+    ReduceLogSum,
+    ReduceLogSumExp,
+    ReduceSumSquare
 };
 
 } // namespace MKLDNNPlugin
