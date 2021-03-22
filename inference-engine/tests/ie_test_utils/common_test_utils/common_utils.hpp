@@ -57,7 +57,7 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNet
             return layer;
         ++i;
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Layer " << layerName << " not found in network";
+    IE_THROW(NotFound) << "Layer " << layerName << " not found in network";
 }
 
 template <typename master, typename slave>

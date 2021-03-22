@@ -17,32 +17,32 @@ public:
     explicit CTCGreedyDecoderSeqLenImpl(const CNNLayer* layer) : mergeRepeated_(true) {
         std::string errPrefix = "CTCGreedyDecoderSeqLen layer with name '" + layer->name + "' ";
         if (layer->insData.size() < 2 || layer->insData.size() > 3)
-            THROW_IE_EXCEPTION << errPrefix << "has invalid number of input edges: " << layer->insData.size();
+            IE_THROW() << errPrefix << "has invalid number of input edges: " << layer->insData.size();
         if (layer->outData.size() != 2)
-            THROW_IE_EXCEPTION << errPrefix << "has invalid number of outputs edges: " << layer->outData.size();
+            IE_THROW() << errPrefix << "has invalid number of outputs edges: " << layer->outData.size();
 
         auto inData = layer->insData[DATA_INDEX].lock();
         auto sequenceLenData = layer->insData[SEQUENCE_LENGTH_INDEX].lock();
         if (!inData || !sequenceLenData)
-            THROW_IE_EXCEPTION << errPrefix << "has nullable inputs.";
+            IE_THROW() << errPrefix << "has nullable inputs.";
         if (inData->getTensorDesc().getDims()[0] != sequenceLenData->getTensorDesc().getDims()[0])
-            THROW_IE_EXCEPTION << errPrefix << "has invalid input shapes.";
+            IE_THROW() << errPrefix << "has invalid input shapes.";
         if (inData->getTensorDesc().getPrecision() != Precision::FP32 &&
                 inData->getTensorDesc().getPrecision() != Precision::BF16)
-            THROW_IE_EXCEPTION << errPrefix << "has unsupported 'data' input precision: " << inData->getTensorDesc().getPrecision();
+            IE_THROW() << errPrefix << "has unsupported 'data' input precision: " << inData->getTensorDesc().getPrecision();
         if (sequenceLenData->getTensorDesc().getPrecision() != Precision::I32 &&
                 sequenceLenData->getTensorDesc().getPrecision() != Precision::I64)
-            THROW_IE_EXCEPTION << errPrefix << "has unsupported 'sequence_length' input precision: " << sequenceLenData->getTensorDesc().getPrecision();
+            IE_THROW() << errPrefix << "has unsupported 'sequence_length' input precision: " << sequenceLenData->getTensorDesc().getPrecision();
 
         std::vector<DataConfigurator> inputConfigs{{ConfLayout::PLN, Precision::FP32}, {ConfLayout::PLN, Precision::I32}};
 
         if (layer->insData.size() > BLANK_INDEX) {
             auto blankIndexData = layer->insData[BLANK_INDEX].lock();
             if (!blankIndexData)
-                THROW_IE_EXCEPTION << errPrefix << "has nullable inputs.";
+                IE_THROW() << errPrefix << "has nullable inputs.";
             if (blankIndexData->getTensorDesc().getPrecision() != Precision::I32 &&
                     blankIndexData->getTensorDesc().getPrecision() != Precision::I64)
-                THROW_IE_EXCEPTION << errPrefix << "has unsupported 'blank_index' input precision: " << blankIndexData->getTensorDesc().getPrecision();
+                IE_THROW() << errPrefix << "has unsupported 'blank_index' input precision: " << blankIndexData->getTensorDesc().getPrecision();
             inputConfigs.push_back({ConfLayout::PLN, Precision::I32});
         }
         std::vector<DataConfigurator> outputConfigs{{ConfLayout::PLN, Precision::I32}, {ConfLayout::PLN, Precision::I32}};
