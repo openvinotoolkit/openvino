@@ -14,7 +14,7 @@ The following components are installed with the OpenVINO runtime package:
 |-----------|------------|
 | [Inference Engine](../IE_DG/inference_engine_intro.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
 | [OpenCV*](https://docs.opencv.org/master/ | OpenCV* community version compiled for Intel® hardware. |
-| Deep Learning Stream (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
+| Deep Learning Streamer (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
 
 ## Included with Developer Package
 
