@@ -688,6 +688,8 @@ NGRAPH_TEST(onnx_editor, subgraph__inputs_getter)
     EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"conv1/7x7_s2_2:conv1/7x7_s2_1"}));
 }
 
+// HIGHT LEVEL API TESTS
+// INPUT EDGES TEST
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_name)
 {
     ONNXModelEditor editor{file_util::path_join(
@@ -705,23 +707,29 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_n
     EXPECT_EQ(edge2.m_node_idx, 0);
     EXPECT_EQ(edge2.m_tensor_name, "data_0");
 }
-/*
+
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_index)
 {
     ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
     const auto edge_mapper = editor.create_edge_mapper();
 
-    const InputEdge edge =
-edge_mapper.to_input_edge(onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_2"}},
-onnx_editor::Input{0}); EXPECT_EQ(edge.m_node_idx, 1); EXPECT_EQ(edge.m_tensor_name,
-"conv1/7x7_s2_1");
+    const InputEdge edge = edge_mapper.to_input_edge(
+        onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_2"}}, onnx_editor::Input{0});
+    EXPECT_EQ(edge.m_node_idx, 1);
+    EXPECT_EQ(edge.m_tensor_name, "conv1/7x7_s2_1");
 
-    const InputEdge edge2 =
-edge_mapper.to_input_edge(onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_1"}},
-onnx_editor::Input{0}); EXPECT_EQ(edge2.m_node_idx, 0); EXPECT_EQ(edge2.m_tensor_name, "data_0");
+    const InputEdge edge2 = edge_mapper.to_input_edge(
+        onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_1"}}, onnx_editor::Input{1});
+    EXPECT_EQ(edge2.m_node_idx, 0);
+    EXPECT_EQ(edge2.m_tensor_name, "conv1/7x7_s2_w_0");
+
+    const InputEdge edge3 = edge_mapper.to_input_edge(
+        onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_1"}}, onnx_editor::Input{2});
+    EXPECT_EQ(edge3.m_node_idx, 0);
+    EXPECT_EQ(edge3.m_tensor_name, "conv1/7x7_s2_b_0");
 }
-*/
+
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_name)
 {
     ONNXModelEditor editor{file_util::path_join(
@@ -733,13 +741,98 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_nam
     EXPECT_EQ(edge.m_node_idx, 1);
     EXPECT_EQ(edge.m_tensor_name, "conv1/7x7_s2_1");
 
-    const InputEdge edge2 = edge_mapper.to_input_edge(
-        onnx_editor::Node{onnx_editor::Output{"conv1"}}, onnx_editor::Input{"data_0"});
+    const InputEdge edge2 = edge_mapper.to_input_edge(onnx_editor::Node{"conv1"},
+                                                      onnx_editor::Input{"conv1/7x7_s2_w_0"});
     EXPECT_EQ(edge2.m_node_idx, 0);
-    EXPECT_EQ(edge2.m_tensor_name, "data_0");
+    EXPECT_EQ(edge2.m_tensor_name, "conv1/7x7_s2_w_0");
 }
 
-// High level API tests
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_index)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const InputEdge edge =
+        edge_mapper.to_input_edge(onnx_editor::Node{"relu1_name"}, onnx_editor::Input{0});
+    EXPECT_EQ(edge.m_node_idx, 0);
+    EXPECT_EQ(edge.m_tensor_name, "in1");
+
+    const InputEdge edge2 =
+        edge_mapper.to_input_edge(onnx_editor::Node{"split_name"}, onnx_editor::Input{0});
+    EXPECT_EQ(edge2.m_node_idx, 5);
+    EXPECT_EQ(edge2.m_tensor_name, "add2");
+}
+
+// OUTPUT EDGES TEST
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_input_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const OutputEdge edge = edge_mapper.to_output_edge(
+        onnx_editor::Node{onnx_editor::Output{"mul2"}}, onnx_editor::Output{"mul2"});
+    EXPECT_EQ(edge.m_node_idx, 4);
+    EXPECT_EQ(edge.m_tensor_name, "mul2");
+
+    const OutputEdge edge2 = edge_mapper.to_output_edge(
+        onnx_editor::Node{onnx_editor::Output{"split1"}}, onnx_editor::Output{"split2"});
+    EXPECT_EQ(edge2.m_node_idx, 5);
+    EXPECT_EQ(edge2.m_tensor_name, "split2");
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output_index)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const OutputEdge edge = edge_mapper.to_output_edge(
+        onnx_editor::Node{onnx_editor::Output{"add2"}}, onnx_editor::Output{0});
+    EXPECT_EQ(edge.m_node_idx, 3);
+    EXPECT_EQ(edge.m_tensor_name, "add2");
+
+    const OutputEdge edge2 = edge_mapper.to_output_edge(
+        onnx_editor::Node{onnx_editor::Output{"split1"}}, onnx_editor::Output{1});
+    EXPECT_EQ(edge2.m_node_idx, 5);
+    EXPECT_EQ(edge2.m_tensor_name, "split2");
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const OutputEdge edge =
+        edge_mapper.to_output_edge(onnx_editor::Node{"relu1_name"}, onnx_editor::Output{"relu1"});
+    EXPECT_EQ(edge.m_node_idx, 0);
+    EXPECT_EQ(edge.m_tensor_name, "relu1");
+
+    const OutputEdge edge2 =
+        edge_mapper.to_output_edge(onnx_editor::Node{"split_name"}, onnx_editor::Output{"split2"});
+    EXPECT_EQ(edge2.m_node_idx, 5);
+    EXPECT_EQ(edge2.m_tensor_name, "split2");
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_index)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const OutputEdge edge =
+        edge_mapper.to_output_edge(onnx_editor::Node{"relu1_name"}, onnx_editor::Output{0});
+    EXPECT_EQ(edge.m_node_idx, 0);
+    EXPECT_EQ(edge.m_tensor_name, "relu1");
+
+    const OutputEdge edge2 =
+        edge_mapper.to_output_edge(onnx_editor::Node{"split_name"}, onnx_editor::Output{1});
+    EXPECT_EQ(edge2.m_node_idx, 5);
+    EXPECT_EQ(edge2.m_tensor_name, "split2");
+}
+
 NGRAPH_TEST(onnx_editor, xxx_subgraph__linear_model_head_cut)
 {
     ONNXModelEditor editor{file_util::path_join(
@@ -767,6 +860,8 @@ NGRAPH_TEST(onnx_editor, xxx_subgraph__linear_model_head_cut)
 // - 2 heads
 // - const network
 // - node names dublicates!
+// edge mapper should share state ??
+// check mapper lifestyle
 
 using TestEngine = test::INTERPRETER_Engine;
 

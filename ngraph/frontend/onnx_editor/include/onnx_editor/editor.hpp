@@ -31,6 +31,7 @@ namespace ONNX_NAMESPACE
     // forward declaration to avoid the necessity of include paths setting in components
     // that don't directly depend on the ONNX library
     class ModelProto;
+    class GraphProto;
 } // namespace ONNX_NAMESPACE
 
 namespace ngraph
@@ -40,13 +41,16 @@ namespace ngraph
         class EdgeMapper
         {
         public:
-            EdgeMapper(const std::multimap<std::string, int>& node_name_to_index_map);
+            EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto);
 
             InputEdge to_input_edge(Node node, Input in) const;
             OutputEdge to_output_edge(Node node, Output out) const;
 
         private:
-            int find_index(std::vector<std::string> keys) const;
+            const ONNX_NAMESPACE::GraphProto* m_graph_proto;
+            int find_node_index(std::vector<std::string> keys) const;
+            std::string find_node_input_name(int node_index, int input_index) const;
+            std::string find_node_output_name(int node_index, int output_index) const;
             std::multimap<std::string, int> m_node_name_to_index;
         };
         /// \brief A class representing a set of utilities allowing modification of an ONNX model

@@ -5,6 +5,7 @@ graph {
     input: "in1"
     output: "relu1"
     op_type: "Relu"
+    name: "relu1_name"
   }
   node {
     input: "relu1"
@@ -40,6 +41,7 @@ graph {
       i: 1
       type: INT
     }
+    name: "split_name"
   }
   node {
     input: "relu1"

@@ -72,6 +72,7 @@ namespace ngraph
         ///            OutputEdge(5, "out1")
         ///            OutputEdge(5, "out2")
         using OutputEdge = Edge<EdgeType::OUTPUT>;
+        // TODO: REmove m_ prefix
         struct Input
         {
             Input() = delete;
