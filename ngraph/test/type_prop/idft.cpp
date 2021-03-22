@@ -218,47 +218,65 @@ INSTANTIATE_TEST_CASE_P(
     NonConstantAxesTest,
     ::testing::Values(
         NonConstantAxesTestParams{
-            {2, 180, 180, Dimension(1, 18)}, {2}, {2, 180, 180, Dimension(1, 18)}},
+            {2, 180, 180, Dimension(1, 18)},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
         NonConstantAxesTestParams{
-            {2, 180, Dimension(7, 500), 2}, {2}, {2, 180, Dimension(7, 500), 2}},
-        NonConstantAxesTestParams{{2, 180, Dimension(7, 500), Dimension(1, 18)},
-                                  {2},
-                                  {2, 180, Dimension(7, 500), Dimension(1, 18)}},
+            {2, 180, Dimension(7, 500), 2},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
         NonConstantAxesTestParams{
-            {2, Dimension(7, 500), 180, 2}, {2}, {2, Dimension(7, 500), 180, 2}},
-        NonConstantAxesTestParams{{2, Dimension(7, 500), 180, Dimension(1, 18)},
-                                  {2},
-                                  {2, Dimension(7, 500), 180, Dimension(1, 18)}},
-        NonConstantAxesTestParams{{2, Dimension(7, 500), Dimension(7, 500), 2},
-                                  {2},
-                                  {2, Dimension(7, 500), Dimension(7, 500), 2}},
-        NonConstantAxesTestParams{{2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
-                                  {2},
-                                  {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)}},
+            {2, 180, Dimension(7, 500), Dimension(1, 18)},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
         NonConstantAxesTestParams{
-            {Dimension(0, 2), 180, 180, 2}, {2}, {Dimension(0, 2), 180, 180, 2}},
-        NonConstantAxesTestParams{{Dimension(0, 2), 180, 180, Dimension(1, 18)},
-                                  {2},
-                                  {Dimension(0, 2), 180, 180, Dimension(1, 18)}},
-        NonConstantAxesTestParams{{Dimension(0, 2), 180, Dimension(7, 500), 2},
-                                  {2},
-                                  {Dimension(0, 2), 180, Dimension(7, 500), 2}},
-        NonConstantAxesTestParams{{Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
-                                  {2},
-                                  {Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)}},
-        NonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), 180, 2},
-                                  {2},
-                                  {Dimension(0, 2), Dimension(7, 500), 180, 2}},
-        NonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
-                                  {2},
-                                  {Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)}},
-        NonConstantAxesTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
-                                  {2},
-                                  {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2}},
+            {2, Dimension(7, 500), 180, 2},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        NonConstantAxesTestParams{
+            {2, Dimension(7, 500), 180, Dimension(1, 18)},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {2, Dimension(7, 500), Dimension(7, 500), 2},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        NonConstantAxesTestParams{
+            {2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), 180, 180, 2},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), 180, 180, Dimension(1, 18)},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), 180, Dimension(7, 500), 2},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), Dimension(7, 500), 180, 2},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
+        NonConstantAxesTestParams{
+            {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
+            {2},
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2}},
         NonConstantAxesTestParams{
             {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
             {2},
-            {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)}}),
+            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}}),
     PrintToDummyParamName());
 
 struct NonConstantSignalSizeTestParams
