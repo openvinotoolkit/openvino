@@ -125,7 +125,7 @@ const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
             {},
             ngraph::element::i8,
             {-126.f},
-            {{}, {}, {{ 0.1f }, ngraph::element::f32, { 1, 1, 1 }}},
+            {{}, {}, {{ 0.1f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
         },
     },
 };

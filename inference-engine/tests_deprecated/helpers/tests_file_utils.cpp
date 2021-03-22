@@ -3,7 +3,6 @@
 //
 
 #include <tests_file_utils.hpp>
-#include "details/ie_exception.hpp"
 #include <fstream>
 #include <string>
 

@@ -219,6 +219,7 @@ namespace ngraph
 
                 bool get_input_forget() const { return m_input_forget; }
                 LSTMWeightsFormat get_weights_format() const { return m_weights_format; }
+
             private:
                 ///
                 /// \brief      Creates the default bias input initialized with zeros.

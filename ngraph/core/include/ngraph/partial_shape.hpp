@@ -278,6 +278,7 @@ namespace ngraph
         ///        to one before the first element in the shape. Iteration
         ///        is done in reverse element order.
         const_reverse_iterator crend() const noexcept { return m_dimensions.crend(); }
+
     private:
         // Private constructor for PartialShape::dynamic().
         PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions);
@@ -370,6 +371,7 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialShape>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
         operator PartialShape&() { return m_ref; }
+
     protected:
         PartialShape& m_ref;
         std::vector<int64_t> m_buffer;

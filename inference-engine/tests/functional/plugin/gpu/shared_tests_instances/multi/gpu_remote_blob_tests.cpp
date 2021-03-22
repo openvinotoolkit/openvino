@@ -43,7 +43,7 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     ASSERT_NE((std::shared_ptr<InferenceEngine::IInferRequest>)req, nullptr);
     ASSERT_NO_THROW(req.SetBlob(first_input_name, rblob));
     ASSERT_NO_THROW(req.StartAsync());
-    ASSERT_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
 }
 
 const std::vector<DevicesNames> device_names_and_support_for_remote_blobs2 {

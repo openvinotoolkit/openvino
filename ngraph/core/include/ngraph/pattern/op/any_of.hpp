@@ -55,12 +55,13 @@ namespace ngraph
                       const PartialShape& s,
                       NodePredicate pred,
                       const NodeVector& wrapped_values)
-                    : AnyOf(type,
-                            s,
-                            [pred](const Output<Node>& value) {
-                                return pred(value.get_node_shared_ptr());
-                            },
-                            as_output_vector(wrapped_values))
+                    : AnyOf(
+                          type,
+                          s,
+                          [pred](const Output<Node>& value) {
+                              return pred(value.get_node_shared_ptr());
+                          },
+                          as_output_vector(wrapped_values))
                 {
                 }
 

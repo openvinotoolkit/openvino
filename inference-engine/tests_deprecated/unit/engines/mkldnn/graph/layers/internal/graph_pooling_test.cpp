@@ -347,7 +347,7 @@ protected:
             ref_pool(*srcPtr, dst_ref, p);
 
             compare(*output, dst_ref, 0.0001f);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -486,7 +486,7 @@ protected:
             };
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkPooling);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkPooling);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
