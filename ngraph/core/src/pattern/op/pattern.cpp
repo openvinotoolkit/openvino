@@ -102,7 +102,7 @@ namespace ngraph
             };
         }
 
-        std::function<bool(Output<Node>)> rank_equals(Dimension expected_rank)
+        std::function<bool(Output<Node>)> rank_equals(const Dimension& expected_rank)
         {
             return [=](Output<Node> output) -> bool {
                 return output.get_partial_shape().rank() == expected_rank;

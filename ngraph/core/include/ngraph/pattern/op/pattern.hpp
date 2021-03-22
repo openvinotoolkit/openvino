@@ -65,7 +65,7 @@ namespace ngraph
         std::function<bool(Output<Node>)> has_static_rank();
 
         NGRAPH_API
-        std::function<bool(Output<Node>)> rank_equals(Dimension expected_rank);
+        std::function<bool(Output<Node>)> rank_equals(const Dimension& expected_rank);
 
         NGRAPH_API
         std::function<bool(Output<Node>)> type_matches(const element::Type& type);
