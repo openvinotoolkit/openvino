@@ -1,3 +1,6 @@
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import os
 import pytest
@@ -211,25 +214,25 @@ def test_exec_graph(device):
     del exec_graph
     del ie_core
 
-#
-# @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD", reason="Device specific test. "
-#                                                                              "Only MYRIAD plugin implements network export")
-# def test_export_import():
-#     ie_core = IECore()
-#     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-#     exec_net = ie_core.load_network(net, "MYRIAD")
-#     exported_net_file = 'exported_model.bin'
-#     exec_net.export(exported_net_file)
-#     assert os.path.exists(exported_net_file)
-#     exec_net = ie_core.import_network(exported_net_file, "MYRIAD")
-#     os.remove(exported_net_file)
-#     img = read_image()
-#     res = exec_net.infer({'data': img})
-#     assert np.argmax(res['fc_out'][0]) == 3
-#     del exec_net
-#     del ie_core
-#
-#
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD", reason="Device specific test. "
+                                                                             "Only MYRIAD plugin implements network export")
+def test_export_import():
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, "MYRIAD")
+    exported_net_file = 'exported_model.bin'
+    exec_net.export(exported_net_file)
+    assert os.path.exists(exported_net_file)
+    exec_net = ie_core.import_network(exported_net_file, "MYRIAD")
+    os.remove(exported_net_file)
+    img = read_image()
+    res = exec_net.infer({'data': img})
+    assert np.argmax(res['fc_out'][0]) == 3
+    del exec_net
+    del ie_core
+
+
 # def test_multi_out_data(device):
 #     # Regression test CVS-23965
 #     # Check that CDataPtr for all output layers not copied  between outputs map items
@@ -246,18 +249,18 @@ def test_exec_graph(device):
 #     pass
 #
 #
-# def test_get_metric(device):
-#     ie_core = IECore()
-#     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-#     exec_net = ie_core.load_network(net, "CPU")
-#     network_name = exec_net.get_metric("NETWORK_NAME")
-#     assert network_name == "test_model"
-#
-#
-# @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
-# def test_get_config(device):
-#     ie_core = IECore()
-#     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-#     exec_net = ie_core.load_network(net, device)
-#     config = exec_net.get_config("PERF_COUNT")
-#     assert config == "NO"
+def test_get_metric(device):
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, "CPU")
+    network_name = exec_net.get_metric("NETWORK_NAME")
+    assert network_name == "test_model"
+
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+def test_get_config(device):
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, device)
+    config = exec_net.get_config("PERF_COUNT")
+    assert config == "NO"
