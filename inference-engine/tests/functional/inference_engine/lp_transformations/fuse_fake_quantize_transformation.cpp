@@ -75,9 +75,6 @@ public:
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
-        transformer.transform(actualFunction);
-
         transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
 
@@ -225,7 +222,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             {},
             element::u8,
             { {}, {}, {} },
-            element::u8,
+            element::f32,
             element::f32,
             { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
         }
@@ -254,25 +251,25 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // negative multiply
     {
-            Shape{1, 3, 16, 16},
-            LayerTransformation::createParamsU8I8(),
-            {
-                    element::f32,
-                    {},
-                    element::f32,
-                    { {}, { -128 }, { -0.01f } },
-                    element::f32,
-                    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-            },
-            {
-                    element::f32,
-                    {},
-                    element::f32,
-                    { {}, { -128 }, { -0.01f } },
-                    element::f32,
-                    element::f32,
-                    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-            }
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, { -128 }, { -0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { -383.f }, { -128.f }, { 2.55f }, { 0.f } }
+        }
     },
     // issue #40611 for FP32
     {
@@ -326,7 +323,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             element::f32,
             {},
             element::u8,
-            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            { {element::f32}, {}, { {0.01f, 0.f, 0.01f} } },
             element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         },
@@ -334,10 +331,10 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             element::f32,
             {},
             element::u8,
-            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            { {}, {}, {} },
             element::f32,
             element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+            { 256ul, {1, 3, 1, 1}, {0.f, 0, 0.f}, { 255.f, 2.55f, 255.f }, { 0.f, 0.f, 0.f }, { 2.55f, 0.f, 2.55f } }
         }
     },
 };
