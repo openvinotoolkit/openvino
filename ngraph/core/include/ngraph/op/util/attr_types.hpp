@@ -336,6 +336,8 @@ namespace ngraph
             {
                 return a.m_type == m_type && a.m_axis == m_axis;
             }
+
+            bool operator!=(const AutoBroadcastSpec& a) const { return !(*this == a); }
             static const AutoBroadcastSpec NUMPY;
             static const AutoBroadcastSpec NONE;
 

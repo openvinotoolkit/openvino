@@ -40,7 +40,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tile_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tile_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
@@ -50,7 +50,7 @@ set(LAYERS
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_loss.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/depth_to_space.cpp

@@ -21,9 +21,16 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
+    static const size_t TILE_INPUT = 0;
+    static const size_t TILE_REPEATS = 1;
+
     int axis = 0;
     int tiles = 0;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

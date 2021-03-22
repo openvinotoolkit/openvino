@@ -7,11 +7,15 @@
 #include "fc_bias_fusion.hpp"
 #include "reshape_fc_fusion.hpp"
 #include "reshape_fully_connected.hpp"
+#include "convert_broadcast_to_tiles.hpp"
+#include "convert_tile_to_seq_tiles.hpp"
 
 namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
+    manager.register_pass<ConvertBroadcastToTiles>();
+    manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<ConvertMatMulToGemm>();
     manager.register_pass<FullyConnectedBiasFusion>();
