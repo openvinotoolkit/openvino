@@ -31,7 +31,7 @@ After that you should quantize model by [Model Quantizer](@ref omz_tools_downloa
 ```sh
 ./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
-The simplest way to infer the model and collect performance counters is [Benchmark C++ Tool](@ref openvino_inference_engine_samples_benchmark_app_README). 
+The simplest way to infer the model and collect performance counters is [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
