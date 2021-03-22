@@ -2928,6 +2928,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_instance_normalization_dynamic)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_dynamic.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    std::vector<float> input_data{1.f, 2.f, 3.f};
+    test_case.add_input<float>(Shape{1, 3, 1, 1}, input_data);
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 1, 1}, {0.3341970741748809814, 0.3321160078048706055, 0.3407136797904968262});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like)
 {
     const auto function = onnx_import::import_onnx_model(
