@@ -38,9 +38,9 @@ TEST(type_prop, group_convolution_auto_padding_same_lower)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    EXPECT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 5, 5}));
-    EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 5, 5}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
 TEST(type_prop, group_convolution_auto_padding_same_upper)
@@ -60,9 +60,9 @@ TEST(type_prop, group_convolution_auto_padding_same_upper)
     auto conv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    EXPECT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 5, 5}));
-    EXPECT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    EXPECT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 5, 5}));
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
 TEST(type_prop, group_convolution_auto_padding_same_lower_spatial_dims_static)
@@ -78,10 +78,10 @@ TEST(type_prop, group_convolution_auto_padding_same_lower_spatial_dims_static)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, auto_pad);
 
-    EXPECT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
         {Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
-    EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
 TEST(type_prop, group_convolution_auto_padding_same_upper_spatial_dims_static)
@@ -97,10 +97,64 @@ TEST(type_prop, group_convolution_auto_padding_same_upper_spatial_dims_static)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, auto_pad);
 
-    const auto output_pshape = groupConv->get_output_partial_shape(0);
-    EXPECT_TRUE(output_pshape.same_scheme(PartialShape{1, Dimension::dynamic(), 5, 5}));
-    EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
+        PartialShape{1, Dimension::dynamic(), 5, 5}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
+}
+
+TEST(type_prop, group_convolution_static_ranks_filters_groups_dyn)
+{
+    const PartialShape data_batch_pshape{Dimension::dynamic(), 4, 5, 5};
+    const PartialShape filters_pshape{Dimension::dynamic(), 1, 2, 3, 3};
+    const element::Type_t et = element::f32;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
+    auto filters = make_shared<op::Parameter>(et, filters_pshape);
+    auto groupConv = make_shared<op::v1::GroupConvolution>(
+        data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, auto_pad);
+
+    ASSERT_TRUE(
+        groupConv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 2, 5, 5}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
+}
+
+TEST(type_prop, group_convolution_static_ranks_filters_groups_cout_dyn)
+{
+    const PartialShape data_batch_pshape{Dimension::dynamic(), 4, 5, 5};
+    const PartialShape filters_pshape{Dimension::dynamic(), Dimension::dynamic(), 2, 3, 3};
+    const element::Type_t et = element::f32;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
+    auto filters = make_shared<op::Parameter>(et, filters_pshape);
+    auto groupConv = make_shared<op::v1::GroupConvolution>(
+        data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, auto_pad);
+
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
+        {Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
+}
+
+TEST(type_prop, group_convolution_static_ranks_data_cin_filters_group_dyn)
+{
+    const PartialShape data_batch_pshape{Dimension::dynamic(), Dimension::dynamic(), 5, 5};
+    const PartialShape filters_pshape{Dimension::dynamic(), 1, 2, 3, 3};
+    const element::Type_t et = element::f32;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
+    auto filters = make_shared<op::Parameter>(et, filters_pshape);
+    auto groupConv = make_shared<op::v1::GroupConvolution>(
+        data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, auto_pad);
+
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
+        {Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
 TEST(type_prop, group_convolution_auto_padding_same_spatial_dims_dynamic)
@@ -115,10 +169,10 @@ TEST(type_prop, group_convolution_auto_padding_same_spatial_dims_dynamic)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, auto_pad);
 
-    EXPECT_TRUE(
+    ASSERT_TRUE(
         groupConv->get_output_partial_shape(0).same_scheme({1, 2, Dimension::dynamic(), 5}));
-    EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 1}));
-    EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 1}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 1}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 1}));
 }
 
 TEST(type_prop, group_convolution_data_batch_dynamic)
@@ -132,13 +186,12 @@ TEST(type_prop, group_convolution_data_batch_dynamic)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
 
-    EXPECT_EQ(groupConv->get_auto_pad(), op::PadType::EXPLICIT);
-    EXPECT_EQ(groupConv->get_strides(), (Strides{1, 1}));
-    EXPECT_EQ(groupConv->get_dilations(), (Strides{1, 1}));
-    EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
-    const auto output_pshape = groupConv->get_output_partial_shape(0);
-    EXPECT_TRUE(output_pshape.same_scheme(
+    ASSERT_EQ(groupConv->get_auto_pad(), op::PadType::EXPLICIT);
+    ASSERT_EQ(groupConv->get_strides(), (Strides{1, 1}));
+    ASSERT_EQ(groupConv->get_dilations(), (Strides{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
@@ -153,13 +206,12 @@ TEST(type_prop, group_convolution_filters_dynamic_auto_pad_explicit)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
 
-    EXPECT_EQ(groupConv->get_auto_pad(), op::PadType::EXPLICIT);
-    EXPECT_EQ(groupConv->get_strides(), (Strides{1, 1}));
-    EXPECT_EQ(groupConv->get_dilations(), (Strides{1, 1}));
-    EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
-    const auto output_pshape = groupConv->get_output_partial_shape(0);
-    ASSERT_TRUE(output_pshape.same_scheme(
+    ASSERT_EQ(groupConv->get_auto_pad(), op::PadType::EXPLICIT);
+    ASSERT_EQ(groupConv->get_strides(), (Strides{1, 1}));
+    ASSERT_EQ(groupConv->get_dilations(), (Strides{1, 1}));
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
         PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
@@ -175,12 +227,11 @@ TEST(type_prop, group_convolution_filters_dynamic_auto_pad_same)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, auto_pad);
 
-    EXPECT_EQ(groupConv->get_auto_pad(), op::PadType::SAME_LOWER);
+    ASSERT_EQ(groupConv->get_auto_pad(), op::PadType::SAME_LOWER);
     // pads should be as default since filters shape is dynamic
-    EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
-    const auto output_pshape = groupConv->get_output_partial_shape(0);
-    ASSERT_TRUE(output_pshape.same_scheme(
+    ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(
         PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
@@ -194,8 +245,7 @@ TEST(type_prop, group_convolution_data_batch_and_filters_dynamic)
     auto groupConv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
 
-    const auto output_pshape = groupConv->get_output_partial_shape(0);
-    ASSERT_TRUE(output_pshape.same_scheme(PartialShape::dynamic()));
+    ASSERT_TRUE(groupConv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, group_convolution_invalid_et_inputs)

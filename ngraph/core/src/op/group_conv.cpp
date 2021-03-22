@@ -70,6 +70,23 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
     return true;
 }
 
+static Dimension infer_group_from_input_shapes(const PartialShape& data_pshape,
+                                               const PartialShape& filters_pshape)
+{
+    Dimension group_dim = Dimension();
+    if (data_pshape.rank().is_static() && data_pshape[1].is_static() &&
+        filters_pshape.rank().is_static() && filters_pshape[2].is_static())
+    {
+        auto n_data_channels = data_pshape[1].get_length();
+        auto input_channels = filters_pshape[2].get_length();
+
+        NGRAPH_CHECK((n_data_channels % input_channels) == 0);
+        auto groups = n_data_channels / input_channels;
+        group_dim = Dimension(groups);
+    }
+    return group_dim;
+}
+
 void op::v1::GroupConvolution::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
@@ -215,10 +232,20 @@ void op::v1::GroupConvolution::validate_and_infer_types()
         PartialShape data_batch_ps = [&]() {
             auto shape = PartialShape{data_batch_pshape};
             auto groups = filters_pshape.rank().is_static() ? filters_pshape[0] : Dimension();
-            if (data_batch_pshape.rank().is_static() && data_batch_pshape.rank().get_length() > 2 &&
-                data_batch_pshape[1].is_static() && groups.is_static())
+            if (groups.is_dynamic())
             {
-                shape[1] = Dimension(data_batch_pshape[1].get_length() / groups.get_length());
+                groups = infer_group_from_input_shapes(data_batch_pshape, filters_pshape);
+            }
+            if (data_batch_pshape.rank().is_static() && data_batch_pshape.rank().get_length())
+            {
+                if (data_batch_pshape[1].is_static() && groups.is_static())
+                {
+                    shape[1] = Dimension(data_batch_pshape[1].get_length() / groups.get_length());
+                }
+                else
+                {
+                    shape[1] = Dimension();
+                }
             }
             return shape;
         }();
@@ -228,7 +255,12 @@ void op::v1::GroupConvolution::validate_and_infer_types()
             auto shape = PartialShape{filters_pshape};
             if (shape.rank().is_static() && shape.rank().get_length() > 2)
             {
-                shape[1] = shape[0] * shape[1];
+                auto groups = filters_pshape.rank().is_static() ? filters_pshape[0] : Dimension();
+                if (groups.is_dynamic())
+                {
+                    groups = infer_group_from_input_shapes(data_batch_pshape, filters_pshape);
+                }
+                shape[1] = groups * shape[1];
                 vector<Dimension> dim_vec{shape};
                 dim_vec.erase(dim_vec.begin());
                 shape = PartialShape{dim_vec};
@@ -362,8 +394,8 @@ bool op::v1::GroupConvolutionBackpropData::is_dynamic() const
     return is_dynamic;
 }
 
-static Dimension infer_group_from_input_shapes(const PartialShape& data_pshape,
-                                               const PartialShape& filters_pshape)
+static Dimension infer_backprop_group_from_input_shapes(const PartialShape& data_pshape,
+                                                        const PartialShape& filters_pshape)
 {
     Dimension group_dim = Dimension();
     if (data_pshape.rank().is_static() && data_pshape[1].is_static() &&
@@ -624,7 +656,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
                 auto group_dim = filters_pshape[0];
                 if (!group_dim.is_static())
                 {
-                    group_dim = infer_group_from_input_shapes(data_pshape, filters_pshape);
+                    group_dim = infer_backprop_group_from_input_shapes(data_pshape, filters_pshape);
                 }
                 n_out_channels = group_dim * filters_pshape[2];
             }
@@ -684,7 +716,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
                 auto group_dim = filters_pshape[0];
                 if (!group_dim.is_static())
                 {
-                    group_dim = infer_group_from_input_shapes(data_pshape, filters_pshape);
+                    group_dim = infer_backprop_group_from_input_shapes(data_pshape, filters_pshape);
                 }
                 n_out_channels = group_dim * filters_pshape[2];
             }
