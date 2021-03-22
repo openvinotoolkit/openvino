@@ -170,6 +170,20 @@ const auto fusingHSigmoid = fusingSpecificParams{std::make_shared<postNodesMgr>(
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::HSigmoid);
             }, "HSigmoid"}}), {"HSigmoid"}};
 
+const auto fusingReluAdd = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
+            }, "Relu"},
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                auto shape = inpNode->get_shape();
+                if (shape.size() == 1)
+                 THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                ngraph::Shape newShape(shape.size(), 1);
+                newShape[1] = shape[1];
+                auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+            }, "Add(PerChannel)"}}), {"Relu", "Add"}};
+
 const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);

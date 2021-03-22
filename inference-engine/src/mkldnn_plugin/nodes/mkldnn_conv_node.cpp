@@ -98,7 +98,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
     }
 }
 
-bool MKLDNNConvolutionNode::canBeExecutedInInt8() {
+bool MKLDNNConvolutionNode::canBeExecutedInInt8() const {
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     if (!inputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
@@ -139,8 +139,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
 
         if (fusedWith[i]->getAlgorithm() == EltwiseAdd) {
-            withSum = true;
-            expectedInputEdgesNum++;
+            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+            if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+                withSum = true;
+                expectedInputEdgesNum++;
+            }
         }
     }
 
@@ -151,7 +154,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
     eltwisePrecision = MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType);
     if (!fusedWith.empty()) {
-        outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalInputPrecisionAtPort(0));
+        outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
         eltwisePrecision = MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType);
     }
 
@@ -160,12 +163,15 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 && withSum) {
         for (int i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == EltwiseAdd) {
-                eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
-                if (MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType).size() != eltwisePrecision.size()) {
-                    eltwisePrecision = Precision::FP32;
-                    outputDataType = memory::data_type::f32;
+                auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+                if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+                    eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
+                    if (MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType).size() != eltwisePrecision.size()) {
+                        eltwisePrecision = Precision::FP32;
+                        outputDataType = memory::data_type::f32;
+                    }
+                    break;
                 }
-                break;
             }
         }
     }
@@ -233,16 +239,18 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         eltwisePrecision = Precision::FP32;
         for (int i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == EltwiseAdd) {
-                eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
-                // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
-                // output is required in FP32 but eltwise inplace tensor would be in BF16
-                // currently we forcedly change output to the BF16 that will add reoreder after the node
-                // Another situation can be when we mark output as FP32 and Eltwise asPrecison (which stand
-                // for input of inplace tensor precision) to FP32. This will add reorder for that in-place tensor
-                // bofore the fused convolution. This behaviour might be more correct regarding expected markup
-                // of the graph but performance of first and second approaches might be different. Need to verify
-                outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
-                eltwisePrecision = MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType);
+                auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+                if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+                    eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
+                    // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
+                    // output is required in FP32 but eltwise inplace tensor would be in BF16
+                    // currently we forcedly change output to the BF16 that will add reoreder after the node
+                    // Another situation can be when we mark output as FP32 and Eltwise asPrecison (which stand
+                    // for input of inplace tensor precision) to FP32. This will add reorder for that in-place tensor
+                    // bofore the fused convolution. This behaviour might be more correct regarding expected markup
+                    // of the graph but performance of first and second approaches might be different. Need to verify
+                    outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
+                }
             }
         }
         // correction for cases of FP32 input - we do not have FP32 convolution supported BF16 output
@@ -302,21 +310,19 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
+void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const {
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
         if (node->getType() == Split || node->getType() == Concatenation)
             continue;
 
-        if (node->getAlgorithm() == EltwiseAdd) {
-                ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
-            continue;
-        }
-
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+            if (eltwiseNode->isSpecialConvolutionAddFusing())
+                ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
+            else
+                eltwiseNode->appendPostOps(ops);
             continue;
         }
 
@@ -729,7 +735,7 @@ void MKLDNNConvolutionNode::filterSupportedDescriptors() {
     }
 }
 
-bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) {
+bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const {
     //  WA: In some cases, we can predict in advance the type of primitive that will be called in the future.
     //  In particular, isPossibleToSkipInitConfig() checks whether we can skip the creation of primitives with
     //  gemm implementation, which significantly increase the network load time.
