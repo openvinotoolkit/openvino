@@ -162,7 +162,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "Power", Eltwise },
 //        { "Crop", Crop },
 //        { "Reshape", Reshape },
-//        { "Tile", Tile },
+        { "Tile", Tile },
 //        { "SimplerNMS", SimplerNMS },
         { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
