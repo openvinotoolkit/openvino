@@ -2404,7 +2404,7 @@ CV_ALWAYS_INLINE void v_gather_channel(v_int16x8& vec, const uchar src[], const 
 CV_ALWAYS_INLINE v_uint8x16 v_gather_pairs(const uchar src[], const short* mapsx)
 {
     int16x8_t result = {};
-    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*mapsx]), result, 0);
+    result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 0)]), result, 0);
     result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 1)]), result, 1);
     result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 2)]), result, 2);
     result = vsetq_lane_s16(*reinterpret_cast<const ushort*>(&src[*(mapsx + 3)]), result, 3);

@@ -299,6 +299,8 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                                               const Size&    inSz,
                                               const Size&    outSz,
                                               const int      lpi) {
+    static_assert(v_uint8::nlanes == 16,
+                  "The wide of NEON vector is 128 bits, so one vector contains 16 uchars");
     constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
     constexpr int half_nlanes = nlanes / 2;
 
@@ -476,6 +478,72 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4>& dst,
                                      beta, tmp, inSz, outSz, lpi);
 }
 
+CV_ALWAYS_INLINE void horizontal_4LPI(uint8_t* dst[],
+                                      const uchar* tmp, const short mapsx[],
+                                      const short clone[], const int length) {
+    constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
+    const int half_nlanes = nlanes / 2;
+    GAPI_Assert(length >= half_nlanes);
+
+    uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
+                                      1, 5, 9, 13, 3, 7, 11, 15 };
+    v_uint8 hmask = vx_load(_mask_horizontal);
+    int x = 0;
+    for (;;) {
+        for (; x <= length - half_nlanes; x += half_nlanes) {
+            v_int16 a10 = vx_load(&clone[4 * x]);
+            v_int16 a32 = vx_load(&clone[4 * (x + 2)]);
+            v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
+            v_int16 a76 = vx_load(&clone[4 * (x + 6)]);
+
+            v_uint8 val_0 = v_gather_lines(tmp, &mapsx[x]);
+            v_uint8 val_1 = v_gather_lines(tmp, &mapsx[x + 2]);
+            v_uint8 val_2 = v_gather_lines(tmp, &mapsx[x + 4]);
+            v_uint8 val_3 = v_gather_lines(tmp, &mapsx[x + 6]);
+
+            v_int16 val0_0 = v_reinterpret_as_s16(v_expand_low(val_0));
+            v_int16 val0_1 = v_reinterpret_as_s16(v_expand_low(val_1));
+            v_int16 val0_2 = v_reinterpret_as_s16(v_expand_low(val_2));
+            v_int16 val0_3 = v_reinterpret_as_s16(v_expand_low(val_3));
+
+            v_int16 val1_0 = v_reinterpret_as_s16(v_expand_high(val_0));
+            v_int16 val1_1 = v_reinterpret_as_s16(v_expand_high(val_1));
+            v_int16 val1_2 = v_reinterpret_as_s16(v_expand_high(val_2));
+            v_int16 val1_3 = v_reinterpret_as_s16(v_expand_high(val_3));
+
+            v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), a10);
+            v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), a32);
+            v_int16 t2 = v_mulhrs(v_sub_wrap(val0_2, val1_2), a54);
+            v_int16 t3 = v_mulhrs(v_sub_wrap(val0_3, val1_3), a76);
+
+            v_int16 r0 = v_add_wrap(val1_0, t0);
+            v_int16 r1 = v_add_wrap(val1_1, t1);
+            v_int16 r2 = v_add_wrap(val1_2, t2);
+            v_int16 r3 = v_add_wrap(val1_3, t3);
+
+            v_uint8 q0 = v_pack_u(r0, r1);
+            v_uint8 q1 = v_pack_u(r2, r3);
+
+            v_uint8 q2 = v_shuffle(q0, hmask);
+            v_uint8 q3 = v_shuffle(q1, hmask);
+
+            v_uint8 q4 = v_blend<0xCC /*0b11001100*/>(q2, v_shift_left<4>(q3));
+            v_uint8 q5 = v_blend<0xCC /*0b11001100*/>(v_shift_right<4>(q2), q3);
+
+            v_store_low(&dst[0][x],  q4);
+            v_store_high(&dst[1][x], q4);
+            v_store_low(&dst[2][x],  q5);
+            v_store_high(&dst[3][x], q5);
+        }
+
+        if (x < length) {
+            x = length - half_nlanes;
+            continue;
+        }
+        break;
+    }
+}
+
 // 8UC1 Resize (bi-linear)
 void calcRowLinear_8UC1(uint8_t* dst[],
                         const uint8_t* src0[],
@@ -488,6 +556,9 @@ void calcRowLinear_8UC1(uint8_t* dst[],
                         const Size&    inSz,
                         const Size&    outSz,
                         const int      lpi) {
+    static_assert(v_uint8::nlanes == 16,
+                  "The wide of NEON vector is 128 bits, so one vector contains 16 uchars");
+
     constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
     constexpr int half_nlanes = nlanes / 2;
 
@@ -557,61 +628,7 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             }
 
             // horizontal pass
-            int x = 0;
-            for (;;) {
-                for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
-                    v_int16 a10 = vx_load(&clone[4 * x]);
-                    v_int16 a32 = vx_load(&clone[4 * (x + 2)]);
-                    v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
-                    v_int16 a76 = vx_load(&clone[4 * (x + 6)]);
-
-                    v_uint8 val_0 = v_gather_lines(tmp, &mapsx[x]);
-                    v_uint8 val_1 = v_gather_lines(tmp, &mapsx[x + 2]);
-                    v_uint8 val_2 = v_gather_lines(tmp, &mapsx[x + 4]);
-                    v_uint8 val_3 = v_gather_lines(tmp, &mapsx[x + 6]);
-
-                    v_int16 val0_0 = v_reinterpret_as_s16(v_expand_low(val_0));
-                    v_int16 val0_1 = v_reinterpret_as_s16(v_expand_low(val_1));
-                    v_int16 val0_2 = v_reinterpret_as_s16(v_expand_low(val_2));
-                    v_int16 val0_3 = v_reinterpret_as_s16(v_expand_low(val_3));
-
-                    v_int16 val1_0 = v_reinterpret_as_s16(v_expand_high(val_0));
-                    v_int16 val1_1 = v_reinterpret_as_s16(v_expand_high(val_1));
-                    v_int16 val1_2 = v_reinterpret_as_s16(v_expand_high(val_2));
-                    v_int16 val1_3 = v_reinterpret_as_s16(v_expand_high(val_3));
-
-                    v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), a10);
-                    v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), a32);
-                    v_int16 t2 = v_mulhrs(v_sub_wrap(val0_2, val1_2), a54);
-                    v_int16 t3 = v_mulhrs(v_sub_wrap(val0_3, val1_3), a76);
-
-                    v_int16 r0 = v_add_wrap(val1_0, t0);
-                    v_int16 r1 = v_add_wrap(val1_1, t1);
-                    v_int16 r2 = v_add_wrap(val1_2, t2);
-                    v_int16 r3 = v_add_wrap(val1_3, t3);
-
-                    v_uint8 q0 = v_pack_u(r0, r1);
-                    v_uint8 q1 = v_pack_u(r2, r3);
-
-                    v_uint8 q2 = v_shuffle(q0, hmask);
-                    v_uint8 q3 = v_shuffle(q1, hmask);
-
-                    v_uint8 q4 = v_blend<0xCC /*0b11001100*/>(q2, v_shift_left<4>(q3));
-                    v_uint8 q5 = v_blend<0xCC /*0b11001100*/>(v_shift_right<4>(q2), q3);
-
-                    v_store_low(&dst[0][x],  q4);
-                    v_store_high(&dst[1][x], q4);
-                    v_store_low(&dst[2][x],  q5);
-                    v_store_high(&dst[3][x], q5);
-                }
-
-                if (x < outSz.width) {
-                    x = outSz.width - half_nlanes;
-                    continue;
-                }
-                break;
-            }
-
+             horizontal_4LPI(dst, tmp, mapsx, clone, outSz.width);
         } else {  // if any lpi
             GAPI_Assert((inSz.width >= half_nlanes) && (outSz.width >= half_nlanes));
             v_int16 t0, t1;
@@ -659,7 +676,6 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     } else if (!xRatioEq) {
         GAPI_DbgAssert(yRatioEq);
         GAPI_Assert(inSz.width >= nlanes);
-        GAPI_Assert(outSz.width >= half_nlanes);
 
         if (4 == lpi) {
             // vertical pass
@@ -681,48 +697,7 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             }
 
             // horizontal pass
-            v_uint8 r0, r1, r2, r3;
-            v_int16 s0, s1;
-            int x = 0;
-            for (;;) {
-                for (; x <= outSz.width - half_nlanes; x += half_nlanes) {
-                    v_uint8 a1 = v_load_low(&tmp[4 * mapsx[x + 0]]);
-                    v_uint8 a2 = v_load_low(&tmp[4 * mapsx[x + 2]]);
-                    v_uint8 a3 = v_load_low(&tmp[4 * mapsx[x + 4]]);
-                    v_uint8 a4 = v_load_low(&tmp[4 * mapsx[x + 6]]);
-                    v_uint8 t0 = v_insert<1>(a1, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]));
-                    v_uint8 t1 = v_insert<1>(a2, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]));
-                    v_uint8 t2 = v_insert<1>(a3, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]));
-                    v_uint8 t3 = v_insert<1>(a4, *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]));
-
-                    v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
-
-                    v_int16 alpha0 = vx_load(&alpha[x]);  // 8 coefficients
-
-                    v_deinterleave_expand(r0, s0, s1);
-                    v_int16 d = v_mulhrs(s0 - s1, alpha0) + s1;
-                    v_pack_u_store(&dst[0][x], d);
-
-                    v_deinterleave_expand(r1, s0, s1);
-                    d = v_mulhrs(s0 - s1, alpha0) + s1;
-                    v_pack_u_store(&dst[1][x], d);
-
-                    v_deinterleave_expand(r2, s0, s1);
-                    d = v_mulhrs(s0 - s1, alpha0) + s1;
-                    v_pack_u_store(&dst[2][x], d);
-
-                    v_deinterleave_expand(r3, s0, s1);
-                    d = v_mulhrs(s0 - s1, alpha0) + s1;
-                    v_pack_u_store(&dst[3][x], d);
-                }
-
-                if (x < outSz.width) {
-                    x = outSz.width - half_nlanes;
-                    continue;
-                }
-                break;
-            }
-
+            horizontal_4LPI(dst, tmp, mapsx, clone, outSz.width);
         } else {  // any LPI
             GAPI_Assert(outSz.width >= half_nlanes);
             for (int l = 0; l < lpi; ++l) {
