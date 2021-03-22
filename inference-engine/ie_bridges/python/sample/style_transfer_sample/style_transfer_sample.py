@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-m', '--model', required=True, type=str,
                       help='Required. Path to an .xml or .onnx file with a trained model.')
-    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an image file.')
+    args.add_argument('-i', '--input', required=True, type=str, nargs='+', help='Required. Path to an image file.')
     args.add_argument('-l', '--extension', type=str, default=None,
                       help='Optional. Required by the CPU Plugin for executing the custom operation on a CPU. '
                       'Absolute path to a shared library with the kernels implementations.')
@@ -26,8 +26,8 @@ def parse_args() -> argparse.Namespace:
                       'Absolute path to operation description file (.xml).')
     args.add_argument('-d', '--device', default='CPU', type=str,
                       help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
-                      'is acceptable. The sample will look for a suitable plugin for device specified. '
-                      'Default value is CPU.')
+                           'is acceptable. The sample will look for a suitable plugin for device specified. '
+                           'Default value is CPU.')
     args.add_argument('--mean_val_r', default=0, type=float,
                       help='Optional. Mean value of red channel for mean value subtraction in postprocessing.')
     args.add_argument('--mean_val_g', default=0, type=float,
@@ -76,6 +76,9 @@ def main():
     net.input_info[input_blob].precision = 'U8'
     net.outputs[out_blob].precision = 'FP32'
 
+    # Set a batch size to a equal number of input images
+    net.batch_size = len(args.input)
+
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     exec_net = ie.load_network(network=net, device_name=args.device)
@@ -85,42 +88,49 @@ def main():
 # instance which stores infer requests. So you already created Infer requests in the previous step.
 
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
-    original_image = cv2.imread(args.input)
-    image = original_image.copy()
-    _, _, h, w = net.input_info[input_blob].input_data.shape
+    original_images = []
 
-    if image.shape[:-1] != (h, w):
-        log.warning(f'Image {args.input} is resized from {image.shape[:-1]} to {(h, w)}')
-        image = cv2.resize(image, (w, h))
+    n, c, h, w = net.input_info[input_blob].input_data.shape
+    input_data = np.ndarray(shape=(n, c, h, w))
 
-    # Change data layout from HWC to CHW
-    image = image.transpose((2, 0, 1))
-    # Add N dimension to transform to NCHW
-    image = np.expand_dims(image, axis=0)
+    for i in range(n):
+        image = cv2.imread(args.input[i])
+        original_images.append(image)
+
+        if image.shape[:-1] != (h, w):
+            log.warning(f'Image {args.input[i]} is resized from {image.shape[:-1]} to {(h, w)}')
+            image = cv2.resize(image, (w, h))
+
+        # Change data layout from HWC to CHW
+        image = image.transpose((2, 0, 1))
+
+        input_data[i] = image
 
 # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    res = exec_net.infer(inputs={input_blob: image})
+    res = exec_net.infer(inputs={input_blob: input_data})
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
     res = res[out_blob]
-    output_image = res[0]
-    # Change data layout from CHW to HWC
-    output_image = output_image.transpose((1, 2, 0))
-    # Convert BGR color order to RGB
-    output_image = cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB)
 
-    # Apply mean argument values
-    output_image = output_image[::] - (args.mean_val_r, args.mean_val_g, args.mean_val_b)
-    # Set pixel values bitween 0 and 255
-    output_image = np.clip(output_image, 0, 255)
+    for i in range(n):
+        output_image = res[i]
+        # Change data layout from CHW to HWC
+        output_image = output_image.transpose((1, 2, 0))
+        # Convert BGR color order to RGB
+        output_image = cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB)
 
-    # Resize a output image to original size
-    h, w, _ = original_image.shape
-    output_image = cv2.resize(output_image, (w, h))
+        # Apply mean argument values
+        output_image = output_image[::] - (args.mean_val_r, args.mean_val_g, args.mean_val_b)
+        # Set pixel values bitween 0 and 255
+        output_image = np.clip(output_image, 0, 255)
 
-    cv2.imwrite('out.bmp', output_image)
-    log.info('Image out.bmp created!')
+        # Resize a output image to original size
+        h, w, _ = original_images[i].shape
+        output_image = cv2.resize(output_image, (w, h))
+
+        cv2.imwrite(f'out_{i}.bmp', output_image)
+        log.info(f'Image out_{i}.bmp created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
