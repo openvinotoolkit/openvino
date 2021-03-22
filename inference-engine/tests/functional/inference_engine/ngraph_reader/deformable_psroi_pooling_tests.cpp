@@ -29,8 +29,8 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 				</port>
 			</output>
 		</layer>
-		<layer id="2" name="DeformablePSROIPooling" type="DeformablePSROIPooling" type="PSROIPooling" version="opset2">
-			<data group_size="6" mode="bilinear" no_trans="1" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
+		<layer id="2" name="DeformablePSROIPooling" type="DeformablePSROIPooling" version="opset2">
+			<data group_size="3" mode="bilinear_deformable" no_trans="1" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
 			<input>                
 				<port id="0">
 					<dim>1</dim>
@@ -47,8 +47,8 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 				<port id="2" precision="FP32">
 					<dim>100</dim>
 					<dim>360</dim>
-					<dim>6</dim>
-					<dim>6</dim>
+					<dim>3</dim>
+					<dim>3</dim>
 				</port>
 			</output>
 		</layer>
@@ -57,8 +57,8 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 				<port id="0">
 					<dim>100</dim>
 					<dim>360</dim>
-					<dim>6</dim>
-					<dim>6</dim>
+					<dim>3</dim>
+					<dim>3</dim>
 				</port>
 			</input>
 		</layer>
@@ -92,7 +92,7 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 			</output>
 		</layer>
 		<layer id="2" name="DeformablePSROIPooling" type="PSROIPooling" version="opset2">
-			<data group_size="6" mode="bilinear" no_trans="1" part_size="1" pooled_height="6" pooled_width="6" trans_std="1" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
+			<data group_size="3" mode="bilinear_deformable" no_trans="1" part_size="1" pooled_height="3" pooled_width="3" trans_std="1" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>
 			<input>                
 				<port id="0">
 					<dim>1</dim>
@@ -109,8 +109,8 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
 				<port id="2" precision="FP32">
 					<dim>100</dim>
 					<dim>360</dim>
-					<dim>6</dim>
-					<dim>6</dim>
+					<dim>3</dim>
+					<dim>3</dim>
 				</port>
 			</output>
 		</layer>
