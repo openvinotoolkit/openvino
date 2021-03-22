@@ -436,13 +436,14 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobFloat(const InferenceEngine::
     return blob;
 }
 
+template<typename T>
 inline InferenceEngine::Blob::Ptr createAndFillBlobWithFloatArray(const InferenceEngine::TensorDesc &td,
-                                                                  const float values[],
+                                                                  const T values[],
                                                                   const int size) {
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_float_array<X>(blob, values, size); break;
+#define CASE(X) case X: CommonTestUtils::fill_data_float_array<X, T>(blob, values, size); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)

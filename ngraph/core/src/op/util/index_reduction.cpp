@@ -23,9 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-op::util::IndexReduction::IndexReduction()
-{
-}
+op::util::IndexReduction::IndexReduction() {}
 
 op::util::IndexReduction::IndexReduction(const Output<Node>& arg,
                                          uint64_t axis,
