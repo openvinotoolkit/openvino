@@ -35,7 +35,7 @@ TEST(ExecutableNetworkConstructorTests, ThrowsIfConstructFromNullptr) {
     // TODO issue: 26390; ExecutableNetwork's constructor shouldn't be available
     EXPECT_NO_THROW(InferenceEngine::ExecutableNetwork exeNet{});
 
-    EXPECT_THROW(InferenceEngine::ExecutableNetwork exeNet{nullptr}, InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(InferenceEngine::ExecutableNetwork exeNet{nullptr}, InferenceEngine::Exception);
 }
 
 TEST(ExecutableNetworkConstructorTests, CanConstruct) {
@@ -45,8 +45,9 @@ TEST(ExecutableNetworkConstructorTests, CanConstruct) {
 
 TEST(ExecutableNetworkDestructorTests, Destruct) {
     std::shared_ptr<MockIExecutableNetwork> mockIExeNet_p = std::make_shared<MockIExecutableNetwork>();
-    InferenceEngine::ExecutableNetwork exeNet{mockIExeNet_p};
-    exeNet.~ExecutableNetwork();
+    {
+        InferenceEngine::ExecutableNetwork exeNet{mockIExeNet_p};
+    }
     // Call of destructor should decrease counter of shared_ptr
     ASSERT_EQ(mockIExeNet_p.use_count(), 1);
 }
@@ -75,7 +76,7 @@ TEST_F(ExecutableNetworkTests, GetOutputsInfoThrowsIfReturnErr) {
             .Times(1)
             .WillOnce(Return(InferenceEngine::GENERAL_ERROR));
 
-    ASSERT_THROW(exeNetwork->GetOutputsInfo(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->GetOutputsInfo(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, GetOutputsInfo) {
@@ -93,7 +94,7 @@ TEST_F(ExecutableNetworkTests, GetInputsInfoThrowsIfReturnErr) {
             .Times(1)
             .WillOnce(Return(InferenceEngine::GENERAL_ERROR));
 
-    ASSERT_THROW(exeNetwork->GetInputsInfo(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->GetInputsInfo(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, GetInputsInfo) {
@@ -109,7 +110,7 @@ TEST_F(ExecutableNetworkTests, GetInputsInfo) {
 
 TEST_F(ExecutableNetworkTests, resetThrowsIfResetToNullptr) {
     InferenceEngine::IExecutableNetwork::Ptr mockIExeNet_p_2{};
-    ASSERT_THROW(exeNetwork->reset(mockIExeNet_p_2), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->reset(mockIExeNet_p_2), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, reset) {
@@ -132,7 +133,7 @@ TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
             .Times(1)
             .WillOnce(Return(InferenceEngine::GENERAL_ERROR));
-    EXPECT_THROW(exeNetwork->QueryState(), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(exeNetwork->QueryState(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, QueryStateIfReturnOutOfBounds) {
@@ -181,13 +182,13 @@ TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequest) {
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfReturnNotOK) {
     EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _)).WillOnce(Return(InferenceEngine::GENERAL_ERROR));
-    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfSetRequestToNullptr) {
     EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _))
             .WillOnce(DoAll(SetArgReferee<0>(nullptr), Return(InferenceEngine::OK)));
-    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::Exception);
 }
 
 // CreateInferRequestPtr
@@ -201,13 +202,13 @@ TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequestPtr) {
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfReturnNotOK) {
     EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _)).WillOnce(Return(InferenceEngine::GENERAL_ERROR));
-    ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfSetRequestToNullptr) {
     EXPECT_CALL(*mockIExeNet_p.get(), CreateInferRequest(_, _))
             .WillOnce(DoAll(SetArgReferee<0>(nullptr), Return(InferenceEngine::OK)));
-    ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::Exception);
 }
 
 IE_SUPPRESS_DEPRECATED_START
