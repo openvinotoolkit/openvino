@@ -80,7 +80,8 @@ class ModelQuantizer {
         }
 
         bool isFakeQuantize = std::is_same<T, FakeQuantI8>() || std::is_same<T, FakeQuantI16>();
-        propagateScaleFactor(sortedNewNet, T::mandatory().getWeightsPrecision().size(), T::mandatory().getInputPrecision().size(), isFakeQuantize);
+        propagateScaleFactor(sortedNewNet, T::mandatory().getWeightsPrecision().size(), T::optional().getWeightsPrecision().size(),
+                             T::mandatory().getInputPrecision().size(), isFakeQuantize);
 
         // sorted order gives possibility for propagate quantisation along depended layers
         for (auto &&layer : sortedNewNet) {
@@ -91,8 +92,9 @@ class ModelQuantizer {
     }
 
  private :
-    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net, int weightsBytesSize, int inputsBytesSize, bool fakeQuantize) const {
-        ScaleFactorCalculator sf(net, weightsBytesSize, inputsBytesSize, fakeQuantize);
+    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net, int mandWeightsBytesSize,
+                              int optWeightsBytesSize, int inputsBytesSize, bool fakeQuantize) const {
+        ScaleFactorCalculator sf(net, mandWeightsBytesSize, optWeightsBytesSize, inputsBytesSize, fakeQuantize);
 
         while (!sf.allLayersProcessed()) {
             for (auto &&layer : sf.getStartLayers()) {

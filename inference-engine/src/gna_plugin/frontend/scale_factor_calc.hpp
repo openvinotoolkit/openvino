@@ -251,7 +251,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 #endif
         } else if (layer.isRelu()) {
             // if activation is one from relu family, we need to apply heuristic to avoid activation output overflow
-            auto limit = (inputsSize == 1 ? (std::numeric_limits<int8_t>::max() - 1) : (std::numeric_limits<int32_t>::max() - 1));
+            auto limit = (inputsSize == 1 ? std::numeric_limits<int8_t>::max() : std::numeric_limits<int32_t>::max()) - 1;
 
             if (static_cast<uint64_t>(result * quantizedParams->_src_quant.GetScale()) > limit) {
                     result *= 0.5;
@@ -548,10 +548,16 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                 }
             }
 
-            auto levels = fakeQuantize ? MAX_VAL_2B_FEAT : std::numeric_limits<int16_t>::max();
+            auto levels = 0;
             auto abs_val = std::max(std::abs(max_val), std::abs(min_val));
             auto scale_val = static_cast<float>(levels) / abs_val;
             //TODO: use FQ formula for scale factor calculation
+
+            if (fakeQuantize) {
+                levels = (inputsSize == 2) ? MAX_VAL_2B_FEAT : MAX_VAL_1B_FEAT;
+            } else {
+                levels = (inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max();
+            }
 
             if (std::isinf(scale_val) || fp32eq(abs_val, 0.0f)) {
                 quant->_dst_quant.SetScale(fakeQuantize ? levels : 1.0f);
@@ -1009,13 +1015,13 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
 template<>
 class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
  private:
-    std::vector<std::tuple<uint16_t const, float const, float const>> thresholds = {
+    std::vector<std::tuple<uint16_t const, float const, float const>> thresholds {
         // tuple values: scale factor threshold, scale factor reduction factor for I16 precision, for I8 precision
-        {30, 0.50, 0.50},     // entry check value
-        {100, 0.50, 0.50},    // if below this threshold, then use this factor
-        {150, 0.45, 0.45},
-        {200, 0.40, 0.40},
-        {200, 0.35, 0.35}     // max level -> if above, then use this factor
+        std::make_tuple(30, 0.50f, 0.50f),     // entry check value
+        std::make_tuple(100, 0.50f, 0.50f),    // if below this threshold, then use this factor
+        std::make_tuple(150, 0.45f, 0.45f),
+        std::make_tuple(200, 0.40f, 0.40f),
+        std::make_tuple(200, 0.35f, 0.35f)     // max level -> if above, then use this factor
     };
 
  public:
@@ -1171,10 +1177,6 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
 template<>
 class ScaleFactorPerLayer<InferenceEngine::ScaleShiftLayer*> : public ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
- public:
-    bool operator()(InferenceEngine::WeightableLayer *wl, int weightsSize, int inputsSize, ScaleFactorUpdateResult &result, const bool fakeQuantize) {
-        return ScaleFactorPerLayer<InferenceEngine::WeightableLayer*>::operator()(wl, 2, inputsSize, result, fakeQuantize);
-    }
 };
 
 template<>
@@ -1193,13 +1195,15 @@ class ScaleFactorCalculator {
     Cnt  net;
     mutable Cnt::const_iterator idx;
     mutable bool needRestart = false;
-    int weightsBytesSize;
+    int mandWeightsBytesSize;
+    int optWeightsBytesSize;
     bool isFakeQuantize;
     int inputsBytesSize;
 
  public:
-    ScaleFactorCalculator(Cnt &net, int weightsBytesSize, int inputsBytesSize, bool fakeQuantize)
-            : net(net), weightsBytesSize(weightsBytesSize), inputsBytesSize(inputsBytesSize), isFakeQuantize(fakeQuantize) {
+    ScaleFactorCalculator(Cnt &net, int mandWeightsBytesSize, int optWeightsBytesSize, int inputsBytesSize, bool fakeQuantize)
+            : net(net), mandWeightsBytesSize(mandWeightsBytesSize), optWeightsBytesSize(optWeightsBytesSize),
+              inputsBytesSize(inputsBytesSize), isFakeQuantize(fakeQuantize) {
         idx = std::begin(this->net);
     }
     bool needToRestart() const {
@@ -1215,6 +1219,12 @@ class ScaleFactorCalculator {
     bool operator()(T ptr) const {
         needRestart = false;
         frontend::ScaleFactorUpdateResult result;
+        auto weightsBytesSize = mandWeightsBytesSize;
+
+        if (LayerInfo(ptr).isConvolution() || LayerInfo(ptr).isScaleShift()) {
+            weightsBytesSize = optWeightsBytesSize;
+        }
+
         if (!frontend::ScaleFactorPerLayer<T>()(ptr, weightsBytesSize, inputsBytesSize, result, isFakeQuantize)) {
             return false;
         }
