@@ -1008,3 +1008,121 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_const)
     test_case.add_expected_output<float>(shape_out, expected_result);
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_param)
+{
+    Shape shape_a{2, 2, 1, 3};
+    Shape shape_b{3};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Parameter>(element::f32, shape_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_const)
+{
+    Shape shape_a{2, 2, 1, 3};
+    Shape shape_b{3};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Constant>(element::f32, shape_b, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_param)
+{
+    Shape shape_a{3};
+    Shape shape_b{2, 2, 3, 1};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Parameter>(element::f32, shape_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+    test_case.add_input<float>(inputs_b);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_const)
+{
+    Shape shape_a{3};
+    Shape shape_b{2, 2, 3, 1};
+    Shape shape_out{2, 2, 1};
+
+    bool transpose_a = false;
+    bool transpose_b = false;
+
+    std::vector<float> inputs_a(shape_size(shape_a));
+    std::iota(inputs_a.begin(), inputs_a.end(), 0);
+
+    std::vector<float> inputs_b(shape_size(shape_b));
+    std::iota(inputs_b.begin(), inputs_b.end(), 0);
+
+    std::vector<float> expected_result{5, 14, 23, 32};
+
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::Constant>(element::f32, shape_b, inputs_b);
+    auto matmul = make_shared<op::MatMul>(A, B, transpose_a, transpose_b);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(inputs_a);
+
+    test_case.add_expected_output<float>(shape_out, expected_result);
+    test_case.run();
+}

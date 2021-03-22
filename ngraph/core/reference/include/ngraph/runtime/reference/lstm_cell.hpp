@@ -178,9 +178,9 @@ namespace ngraph
                 // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
                 clip_activation(X_W_fico[3], activation_f);
 
-                vector<T> mul1(gate_shape_size);
-                vector<T> mul2(gate_shape_size);
-                vector<T> Ct(gate_shape_size);
+                std::vector<T> mul1(gate_shape_size);
+                std::vector<T> mul2(gate_shape_size);
+                std::vector<T> Ct(gate_shape_size);
                 // ft (.) Ct-1
                 reference::multiply(X_W_fico[0].data(),
                                     C,
