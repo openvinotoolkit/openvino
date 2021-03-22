@@ -60,7 +60,7 @@ int32_t ngraph::getenv_int(const char* env_var, int32_t default_value)
     else
     {
         NGRAPH_DEBUG << "Environment variable (" << env_var << ") empty or undefined, "
-                     << " defaulted to -1 here.";
+                     << " defaulted to " << default_value << " here.";
     }
     return env;
 }

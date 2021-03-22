@@ -13,6 +13,8 @@ void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
 
 void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network);
 
+void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
+
 void CheckAPI();
 
 };  // namespace InferenceEnginePython
