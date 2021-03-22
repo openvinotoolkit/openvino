@@ -23,6 +23,7 @@
 
 #include <blob_factory.hpp>
 #include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -73,9 +74,8 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseMulAddAndFakeQuantize(graph);
     graph.RemoveDroppedNodes();
 
-// TODO [NM]: transformation should be implemented w/o using of CNNLayer
-//    FuseConvolutionAndZeroPoints(graph);
-//    graph.RemoveDroppedNodes();
+    FuseConvolutionAndZeroPoints(graph);
+    graph.RemoveDroppedNodes();
 
 // TODO [NM]: While fusing simple operation into any node (except Eltwise) we need to check that other inputs are Constant nodes.
     FuseConvolutionAndSimpleOperation(graph);
@@ -158,17 +158,18 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
         if (biasNode->getChildEdges().size() != 1)
             return false;
 
-        auto convOutDims = parentNode->getChildEdgesAtPort(0)[0]->getDims();
-        auto biasDims = biasNode->getChildEdgesAtPort(0)[0]->getDims();
+        auto convOutDims = parentNode->getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
+        auto biasDims = getNormalizedDimsBySize(biasNode->getChildEdgesAtPort(0)[0]->getDims().ToSizeVector(),
+                                                convOutDims.size());
         // TODO [NM]: Legacy ConvBias fusion transformation supports both per-tensor (via explicit broadcasing) and per-channel cases.
         // Most of the real models contain per-channel bias, so we need to reavaluate the need to support per-tensor variant.
-        if (convOutDims.ndims() != biasDims.ndims() || biasDims.ndims() < 2)
+        if (convOutDims.size() != biasDims.size() || biasDims.size() < 2)
             return false;
 
         if (biasDims[0] != 1 || biasDims[1] != convOutDims[1])
             return false;
 
-        for (int i = 2; i < biasDims.ndims(); i++) {
+        for (int i = 2; i < biasDims.size(); i++) {
             if (biasDims[i] != 1)
                 return false;
         }
@@ -241,14 +242,13 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
                 graphEdges.push_back(newEdge);
                 parent->addEdge(newEdge);
 
-                auto newBiasDim = parent->outDims[inNum][1];
-                parent->outDims[inNum] = MKLDNNDims({newBiasDim});
+                parent->outDims[inNum] = MKLDNNDims({parentEltwise->outDims[0][1]});
                 parentEltwise->inDims.push_back(parent->outDims[0]);
             }
         }
 
         graph.DropNode(childNode);
-
+        parentNode->addOriginalLayer(childNode->getOriginalLayers());
         parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
     }
 }
@@ -397,234 +397,165 @@ void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
         parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(1));
         parentNode->setAlgorithm(EltwiseMulAdd);
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
-
         graph.DropNode(childNode);
     }
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
-//    auto& graphNodes = graph.GetNodes();
-//
-//    auto isSutableConvNode = [](MKLDNNNodePtr node) {
-//        if (node->getType() != Convolution)
-//            return false;
-//
-//        if (node->getParentEdges().size() < 2)
-//            return false;
-//
-//        auto* convLayer = dynamic_cast<ConvolutionLayer*>(node->getCnnLayer().get());
-//        if (convLayer == nullptr)
-//            IE_THROW() << "Cannot get convolution layer " << node->getName();
-//
-//        return true;
-//    };
-//
-//    auto initializeInputZeroPoints = [](MKLDNNNodePtr node, MKLDNNNodePtr parent0, MKLDNNNodePtr parent1) {
-//        auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
-//        if (convNode == nullptr)
-//            IE_THROW() << "Cannot get convolution node " << node->getName();
-//
-//        int IC = node->getParentEdgesAtPort(0)[0]->getDims()[1];
-//        int OC = node->getChildEdgesAtPort(0)[0]->getDims()[1];
-//
-//        if (parent0->getType() == Eltwise) {
-//            // The plug-in doesn't support FP32 convolution with input/weights zero points.
-//            // In case weights are in FP32 (or we have zero points on weights which are not supported by INT8 convolution) we cannot use
-//            // INT8 implementation so we have to disable input zero points fusing as well.
-//            auto weightsLayer = parent1->getCnnLayer();
-//            if (!weightsLayer || weightsLayer->type != "Const" || weightsLayer->outData[0]->getPrecision() != Precision::I8) {
-//                return false;
-//            }
-//
-//            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent0.get());
-//            if (eltwiseNode->getOpType() != Subtract)
-//                return false;
-//
-//            if (parent0->getParentEdges().size() != 2)
-//                return false;
-//
-//            if (parent0->getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->type == "Const") {
-//                auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
-//                if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::U8)
-//                    return false;
-//
-//                if (parent0->getParentEdgesAtPort(1)[0]->getDims().size() < 2) {
-//                    return false;
-//                }
-//
-//                if (parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != 1 &&
-//                    parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != IC)
-//                    return false;
-//
-//                auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
-//                if (arg1->getCnnLayer()->outData[0]->getPrecision() != Precision::U8)
-//                    return false;
-//
-//                auto zeroPointsBlob = dynamic_cast<TBlob<uint8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
-//                if (zeroPointsBlob == nullptr)
-//                    IE_THROW() << "Cannot cast to TBlob internal zero points blob";
-//
-//                auto zeroPointsData = zeroPointsBlob->buffer().as<uint8_t*>();
-//                if (zeroPointsData == nullptr)
-//                    IE_THROW() << "zeroPointsBlob has not allocated buffer";
-//
-//                for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[1]; j++) {
-//                    convNode->inputZeroPoints.push_back(zeroPointsData[j]);
-//                }
-//            } else {
-//                return false;
-//            }
-//        } else {
-//            return false;
-//        }
-//
-//        if (convNode->outputCompensation.empty()) {
-//            convNode->outputCompensation.resize(OC);
-//        }
-//
-//        return true;
-//    };
-//
-////    auto initializeWeightsZeroPoints = [](MKLDNNNodePtr node, MKLDNNNodePtr parent0) {
-////        auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
-////        if (convNode == nullptr)
-////            IE_THROW() << "Cannot get convolution node " << node->getName();
-////
-////        int OC = node->getChildEdgesAtPort(0)[0]->getDims()[1];
-////
-////        if (parent0->getType() == Eltwise) {
-////            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent0.get());
-////            if (eltwiseNode->getOpType() != Subtract)
-////                return false;
-////
-////            if (parent0->getParentEdges().size() != 2)
-////                return false;
-////
-////            if (parent0->getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->type == "Const") {
-////                auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
-////                if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::I8)
-////                    return false;
-////
-////                if (parent0->getParentEdgesAtPort(1)[0]->getDims()[0] != 1 &&
-////                    parent0->getParentEdgesAtPort(1)[0]->getDims()[0] != OC)
-////                    return false;
-////
-////                auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
-////                if (arg1->getCnnLayer()->outData[0]->getPrecision() != Precision::I8)
-////                    return false;
-////
-////                auto zeroPointsBlob = dynamic_cast<TBlob<int8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
-////                if (zeroPointsBlob == nullptr)
-////                    IE_THROW() << "Cannot cast to TBlob internal zero points blob";
-////
-////                auto zeroPointsData = zeroPointsBlob->buffer().as<int8_t*>();
-////                if (zeroPointsData == nullptr)
-////                    IE_THROW() << "zeroPointsBlob has not allocated buffer";
-////
-////                for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[0]; j++) {
-////                    convNode->weightsZeroPoints.push_back(static_cast<float>(zeroPointsData[j]));
-////                }
-////            } else {
-////                return false;
-////            }
-////        } else {
-////            return false;
-////        }
-////
-////        return true;
-////    };
-//
-//    auto initializeOutputCompensation = [](MKLDNNNodePtr node) {
-//        auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
-//        if (convNode == nullptr)
-//            IE_THROW() << "Cannot get convolution node " << node->getName();
-//
-//        auto * convLayer = dynamic_cast<ConvolutionLayer*>(convNode->getCnnLayer().get());
-//        if (convLayer == nullptr)
-//            IE_THROW() << "Cannot get eltwise layer " << node->getName();
-//
-//        for (int i = 0; i < convLayer->insData.size(); i++)
-//            if (convLayer->insData[i].lock() == nullptr)
-//                IE_THROW() << "Node '"<< node->getName() << "' has invalid input data with index " << i;
-//
-//        if (convNode->inputZeroPoints.empty())
-//            return;
-//
-//        auto weightsLayer = getCreatorLayer(convLayer->insData[1].lock()).lock();
-//        if (weightsLayer->type != "Const") {
-//            weightsLayer = getCreatorLayer(weightsLayer->insData[0].lock()).lock();
-//        }
-//
-//
-//        auto weightsBlob = dynamic_cast<TBlob<int8_t>*>(weightsLayer->blobs["custom"].get());
-//        if (weightsBlob == nullptr)
-//            IE_THROW() << "Cannot cast to TBlob internal weights blob";
-//
-//        auto weightsPtr = weightsBlob->buffer().as<int8_t*>();
-//        if (weightsPtr == nullptr)
-//            IE_THROW() << "weightsBlob has not allocated buffer";
-//
-//        ptrdiff_t G = convLayer->_group;
-//        ptrdiff_t OC = weightsLayer->outData[0]->getDims()[0] / G;
-//        ptrdiff_t IC = weightsLayer->outData[0]->getDims()[1];
-//        ptrdiff_t KD = weightsLayer->outData[0]->getDims().size() == 5 ? weightsLayer->outData[0]->getDims()[2] : 1;
-//        ptrdiff_t KH = weightsLayer->outData[0]->getDims()[weightsLayer->outData[0]->getDims().size() - 2];
-//        ptrdiff_t KW = weightsLayer->outData[0]->getDims()[weightsLayer->outData[0]->getDims().size() - 1];
-//
-//        for (size_t g = 0; g < G; g++) {
-//            for (size_t oc = 0; oc < OC; oc++) {
-//                int32_t a = 0;
-//                for (size_t ic = 0; ic < IC; ic++) {
-//                    for (size_t kd = 0; kd < KD; kd++) {
-//                        for (size_t kh = 0; kh < KH; kh++) {
-//                            for (size_t kw = 0; kw < KW; kw++) {
-//                                size_t widx = g * OC * IC * KD * KH * KW +
-//                                              oc * IC * KD * KH * KW +
-//                                              ic * KD * KH * KW +
-//                                              kd * KH * KW +
-//                                              kh * KW +
-//                                              kw;
-//
-//                                auto w = static_cast<int32_t>(weightsPtr[widx]);
-//
-//                                auto izp = !convNode->inputZeroPoints.empty() ? static_cast<int32_t>(convNode->inputZeroPoints[g * IC + ic]) : 0;
-//                                a += w * izp;
-//
-//                                auto wzp = !convNode->weightsZeroPoints.empty() ? static_cast<int32_t>(convNode->weightsZeroPoints[g * OC + oc]) : 0;
-//                                a -= wzp * izp;
-//                            }
-//                        }
-//                    }
-//                }
-//                convNode->outputCompensation[g * OC + oc] = -a;
-//            }
-//        }
-//    };
-//
-//    for (int i = 0; i < graphNodes.size(); i++) {
-//        auto conv = graphNodes[i];
-//        if (!isSutableConvNode(conv)) continue;
-//
-//        auto dataEltwise = conv->getParentEdgesAtPort(0)[0]->getParent();
-//        auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
-//        if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
-//            auto p_edge = dataEltwise->getParentEdgesAtPort(1)[0];
-//            removeEdge(graph, p_edge);
-//
-//            graph.DropNode(dataEltwise);
-//        }
-//
-//// [TODO] Weights zero point is not supported on oneDNN side for the moment
-////        auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
-////        if (initializeWeightsZeroPoints(conv, weightsEltwise)) {
-////            auto p_edge = weightsEltwise->getParentEdgesAtPort(1)[0];
-////            removeEdge(graph, p_edge);
-////
-////            graph.DropNode(weightsEltwise);
-////        }
-//
-//        initializeOutputCompensation(conv);
-//    }
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableConvNode = [](MKLDNNNodePtr node) {
+        return node->getType() == Convolution;
+    };
+
+    auto initializeInputZeroPoints = [](MKLDNNNodePtr node, MKLDNNNodePtr parent0, MKLDNNNodePtr parent1) {
+        auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
+        if (convNode == nullptr)
+            IE_THROW() << "Cannot get convolution node " << node->getName();
+
+        int IC = node->getParentEdgesAtPort(0)[0]->getDims()[1];
+        int OC = node->getChildEdgesAtPort(0)[0]->getDims()[1];
+
+        if (parent0->getType() == Eltwise) {
+            if (!parent0->getFusedWith().empty() || !parent1->getFusedWith().empty())
+                return false;
+
+            // The plug-in doesn't support FP32 convolution with input/weights zero points.
+            // In case weights are in FP32 (or we have zero points on weights which are not supported by INT8 convolution) we cannot use
+            // INT8 implementation so we have to disable input zero points fusing as well.
+            if (parent1->getType() != Input || !parent1->isConstant() || parent1->getOriginalOutputPrecisionAtPort(0) != Precision::I8) {
+                return false;
+            }
+
+            if (parent0->getAlgorithm() != Algorithm::EltwiseSubtract)
+                return false;
+
+            if (parent0->getParentEdges().size() != 2)
+                return false;
+
+            auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
+            if (arg0->getType() == Input && arg0->isConstant()) {
+                if (arg0->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+                    return false;
+
+                if (parent0->getParentEdgesAtPort(1)[0]->getDims().size() < 2) {
+                    return false;
+                }
+
+                auto zpDims = parent0->getParentEdgesAtPort(1)[0]->getDims();
+                if (zpDims[0] != 1 || zpDims[1] != IC)
+                    return false;
+
+                for (int i = 2; i < zpDims.ndims(); i++) {
+                    if (zpDims[i] != 1)
+                        return false;
+                }
+
+                auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
+                if (arg1->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+                    return false;
+
+                auto zeroPointsConstant = dynamic_cast<MKLDNNInputNode*>(arg0.get());
+                if (zeroPointsConstant == nullptr)
+                    IE_THROW() << "Cannot cast to Input node";
+
+                auto zeroPointsBlob = dynamic_cast<const TBlob<uint8_t>*>(zeroPointsConstant->getConstBlob().get());
+                if (zeroPointsBlob == nullptr)
+                    IE_THROW() << "Cannot cast to TBlob internal zero points blob";
+
+                auto zeroPointsData = zeroPointsBlob->cbuffer().as<uint8_t*>();
+                if (zeroPointsData == nullptr)
+                    IE_THROW() << "zeroPointsBlob has not allocated buffer";
+
+                for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[1]; j++) {
+                    convNode->inputZeroPoints.push_back(zeroPointsData[j]);
+                }
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        if (convNode->outputCompensation.empty()) {
+            convNode->outputCompensation.resize(OC);
+        }
+
+        return true;
+    };
+
+    auto initializeOutputCompensation = [](MKLDNNNodePtr node) {
+        auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
+        if (convNode == nullptr)
+            IE_THROW() << "Cannot get convolution node " << node->getName();
+
+        if (convNode->inputZeroPoints.empty())
+            return;
+
+        auto weightsConstant = dynamic_cast<MKLDNNInputNode*>(convNode->getParentEdgesAtPort(1)[0]->getParent().get());
+        if (!weightsConstant || !weightsConstant->isConstant())
+            return;
+
+        auto weightsBlob = dynamic_cast<const TBlob<int8_t>*>(weightsConstant->getConstBlob().get());
+        if (weightsBlob == nullptr)
+            IE_THROW() << "Cannot cast to TBlob internal weights blob";
+
+        auto weightsPtr = weightsBlob->cbuffer().as<int8_t*>();
+        if (weightsPtr == nullptr)
+            IE_THROW() << "weightsBlob has not allocated buffer";
+
+        ptrdiff_t G = convNode->getGroupNum();
+        ptrdiff_t OC = weightsConstant->outDims[0][0] / G;
+        ptrdiff_t IC = weightsConstant->outDims[0][1];
+        ptrdiff_t KD = weightsConstant->outDims[0].ndims() == 5 ? weightsConstant->outDims[0][2] : 1;
+        ptrdiff_t KH = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 2];
+        ptrdiff_t KW = weightsConstant->outDims[0][weightsConstant->outDims[0].ndims() - 1];
+
+        for (size_t g = 0; g < G; g++) {
+            for (size_t oc = 0; oc < OC; oc++) {
+                int32_t a = 0;
+                for (size_t ic = 0; ic < IC; ic++) {
+                    for (size_t kd = 0; kd < KD; kd++) {
+                        for (size_t kh = 0; kh < KH; kh++) {
+                            for (size_t kw = 0; kw < KW; kw++) {
+                                size_t widx = g * OC * IC * KD * KH * KW +
+                                              oc * IC * KD * KH * KW +
+                                              ic * KD * KH * KW +
+                                              kd * KH * KW +
+                                              kh * KW +
+                                              kw;
+
+                                auto w = static_cast<int32_t>(weightsPtr[widx]);
+
+                                auto izp = !convNode->inputZeroPoints.empty() ? static_cast<int32_t>(convNode->inputZeroPoints[g * IC + ic]) : 0;
+                                a += w * izp;
+
+                                auto wzp = !convNode->weightsZeroPoints.empty() ? static_cast<int32_t>(convNode->weightsZeroPoints[g * OC + oc]) : 0;
+                                a -= wzp * izp;
+                            }
+                        }
+                    }
+                }
+                convNode->outputCompensation[g * OC + oc] = -a;
+            }
+        }
+    };
+
+    for (int i = 0; i < graphNodes.size(); i++) {
+        auto conv = graphNodes[i];
+        if (!isSutableConvNode(conv)) continue;
+
+        auto dataEltwise = conv->getParentEdgesAtPort(0)[0]->getParent();
+        auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
+        if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
+            auto p_edge = dataEltwise->getParentEdgesAtPort(1)[0];
+            removeEdge(graph, p_edge);
+
+            graph.DropNode(dataEltwise);
+        }
+
+        initializeOutputCompensation(conv);
+    }
 }
 
 //  WA: We need it until LP transformations will not optimize this pattern inside

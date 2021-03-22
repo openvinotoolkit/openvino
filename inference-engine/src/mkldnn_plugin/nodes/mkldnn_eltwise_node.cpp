@@ -1099,7 +1099,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
         auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
-            if (lt == ChannelsFirst) {
+            if (lt == ChannelsFirst && edge->getDims().size() != 1) {
                 auto dims = edge->getDims().ToSizeVector();
                 auto ndims = dims.size();
                 std::vector<size_t> order(ndims);
@@ -1115,7 +1115,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 }
 
                 return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
-            } else if (lt == Blocked && edge->getDims()[1] != 1) {
+            } else if (lt == Blocked && edge->getDims().size() != 1 && edge->getDims()[1] != 1) {
                 size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
 
                 std::vector<size_t> blocks = edge->getDims().ToSizeVector();
@@ -1175,13 +1175,15 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     bool isChannelsFirstApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 2, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getParentEdgeAt(i)->getDims().ndims(), 1, 2, 4, 5);
-        isChannelsFirstApplicable = isChannelsFirstApplicable && getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+        isChannelsFirstApplicable = isChannelsFirstApplicable && implication(getParentEdgeAt(i)->getDims().ndims() != 1,
+                                                                             getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims());
     }
 
-    bool isBlockedApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 4, 5);
+    bool isBlockedApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isBlockedApplicable = isBlockedApplicable && one_of(getParentEdgeAt(i)->getDims().ndims(), 4, 5);
-        isBlockedApplicable = isBlockedApplicable && getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+        isBlockedApplicable = isBlockedApplicable && one_of(getParentEdgeAt(i)->getDims().ndims(), 1, 4, 5);
+        isBlockedApplicable = isBlockedApplicable && implication(getParentEdgeAt(i)->getDims().ndims() != 1,
+                                                                 getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims());
     }
 
     if (isChannelsFirstApplicable)
@@ -1765,9 +1767,9 @@ void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode) {
 
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
-    bool isSpecialConvolutionAddFusing = parentNode->getType() == Convolution && getAlgorithm() == EltwiseAdd &&
+    specialConvolutionAddFusing = parentNode->getType() == Convolution && getAlgorithm() == EltwiseAdd &&
             getParentEdgesAtPort(0)[0]->getDims().ToSizeVector() == getParentEdgesAtPort(1)[0]->getDims().ToSizeVector();
-    if (!isSpecialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
+    if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
         fillScalesAndShifts(parentNode.get());
     }
     MKLDNNNode::fuseInto(parentNode);
@@ -1851,7 +1853,7 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
 
     if (node->getType() == Eltwise) {
-        if (node->getFusingPort() != 0) {
+        if (node->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
             if (one_of(node->getAlgorithm(), EltwiseSubtract, EltwiseDivide, EltwiseFloorMod, EltwiseMod, EltwisePowerDynamic, EltwiseGreater,
                                              EltwiseGreaterEqual, EltwiseLess, EltwiseLessEqual)) {
