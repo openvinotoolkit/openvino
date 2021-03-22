@@ -11,10 +11,10 @@ This sample requires:
 
 * PC with GNU/Linux* or Microsoft Windows* (Apple macOS* is supported but was not tested)
 * OpenCV 4.2 or higher built with [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) (building with [Intel® TBB](https://www.threadingbuildingblocks.org/intel-tbb-tutorial)
-* The following pre-trained models from the [Open Model Zoo](@ref omz_models_intel_index):
-    * [face-detection-adas-0001](@ref omz_models_intel_face_detection_adas_0001_description_face_detection_adas_0001)
-    * [age-gender-recognition-retail-0013](@ref omz_models_intel_age_gender_recognition_retail_0013_description_age_gender_recognition_retail_0013)
-    * [emotions-recognition-retail-0003](@ref omz_models_intel_emotions_recognition_retail_0003_description_emotions_recognition_retail_0003)
+* The following pre-trained models from the [Open Model Zoo](@ref omz_models_group_intel):
+    * [face-detection-adas-0001](@ref omz_models_model_face_detection_adas_0001)
+    * [age-gender-recognition-retail-0013](@ref omz_models_model_age_gender_recognition_retail_0013)
+    * [emotions-recognition-retail-0003](@ref omz_models_model_emotions_recognition_retail_0003)
 
 To download the models from the Open Model Zoo, use the [Model Downloader](@ref omz_tools_downloader) tool.
 

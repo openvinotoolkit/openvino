@@ -167,7 +167,7 @@ If you want to use your model for inference, the model must be converted to the 
 
 * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader).
 
-   For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_intel_index)
+   For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_group_intel)
 
 * Convert the model using the Model Optimizer from a full installation of Intel® Distribution of OpenVINO™ toolkit on one of the supported platforms. Installation instructions are available:
 

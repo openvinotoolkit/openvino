@@ -21,7 +21,7 @@ Inference Engine sample applications include the following:
 - **Hello Query Device Sample** – Query of available Inference Engine devices and their metrics, configuration values.
    - [Hello Query Device C++ Sample](../../inference-engine/samples/hello_query_device/README.md)
    - [Hello Query Device Python* Sample](../../inference-engine/ie_bridges/python/sample/hello_query_device/README.md)
-- **[Hello Reshape SSD C++ Sample**](../../inference-engine/samples/hello_reshape_ssd/README.md)** – Inference of SSD networks resized by ShapeInfer API according to an input size.
+- **[Hello Reshape SSD C++ Sample](../../inference-engine/samples/hello_reshape_ssd/README.md)** – Inference of SSD networks resized by ShapeInfer API according to an input size.
 - **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs). 
    - [Image Classification C++ Sample Async](../../inference-engine/samples/classification_sample_async/README.md)
    - [Image Classification Python* Sample Async](../../inference-engine/ie_bridges/python/sample/classification_sample_async/README.md)
@@ -43,7 +43,7 @@ To run the sample applications, you can use images and videos from the media fil
 
 ## Samples that Support Pre-Trained Models
 
-To run the sample, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+To run the sample, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 ## Build the Sample Applications
 

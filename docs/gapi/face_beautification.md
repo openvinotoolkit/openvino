@@ -12,9 +12,9 @@ This sample requires:
 
 * PC with GNU/Linux* or Microsoft Windows* (Apple macOS* is supported but was not tested)
 * OpenCV 4.2 or higher built with [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) (building with [Intel® TBB](https://www.threadingbuildingblocks.org/intel-tbb-tutorial) is a plus)
-* The following pre-trained models from the [Open Model Zoo](@ref omz_models_intel_index)
-      * [face-detection-adas-0001](@ref omz_models_intel_face_detection_adas_0001_description_face_detection_adas_0001)
-      * [facial-landmarks-35-adas-0002](@ref omz_models_intel_facial_landmarks_35_adas_0002_description_facial_landmarks_35_adas_0002)
+* The following pre-trained models from the [Open Model Zoo](@ref omz_models_group_intel)
+      * [face-detection-adas-0001](@ref omz_models_model_face_detection_adas_0001)
+      * [facial-landmarks-35-adas-0002](@ref omz_models_model_facial_landmarks_35_adas_0002)
 
 To download the models from the Open Model Zoo, use the [Model Downloader](@ref omz_tools_downloader) tool.
 

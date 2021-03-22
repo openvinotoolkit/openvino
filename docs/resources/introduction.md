@@ -13,9 +13,9 @@
 
 ## Additional Tools
 
-- A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other
+- A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other
 
 ## Pre-Trained Models
 
-- [Intel's Pre-trained Models from Open Model Zoo](@ref omz_models_intel_index)
+- [Intel's Pre-trained Models from Open Model Zoo](@ref omz_models_group_intel)
 - [Public Pre-trained Models Available with OpenVINO™ from Open Model Zoo](@ref omz_models_public_index)

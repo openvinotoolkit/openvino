@@ -27,16 +27,17 @@ tool that converts a trained neural network from its source framework to an open
 
 If your neural network model contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process through use of  [Custom Layers](HOWTO/Custom_Layers_Guide.md).
 
-Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README) either against source topologies or against the output representation to evaluate the accuracy of inference. The Accuracy Checker is also part of the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), an integrated web-based performance analysis studio.
+Run the [Accuracy Checker utility](@ref omz_tools_accuracy_checker) either against source topologies or against the output representation to evaluate the accuracy of inference. The Accuracy Checker is also part of the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), an integrated web-based performance analysis studio.
 
 Useful documents for model optimization:
 * [Model Optimizer Developer Guide](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Intermediate Representation and Opsets](MO_DG/IR_and_opsets.md)
 * [Custom Layers Guide](HOWTO/Custom_Layers_Guide.md)
-* [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README)
+* [Accuracy Checker utility](@ref omz_tools_accuracy_checker)
 * [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction)
 * [Model Downloader](@ref omz_tools_downloader) utility
-* [Pretrained Models (Open Model Zoo)](@ref omz_models_public_index)
+* [Intel's Pretrained Models (Open Model Zoo)](@ref omz_models_group_intel)
+* [Public Pretrained Models (Open Model Zoo)](@ref omz_models_group_public)
 
 ### Running and Tuning Inference
 The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), which manages the loading and compiling of the optimized neural network model, runs inference operations on input data, and outputs the results. Inference Engine can execute synchronously or asynchronously, and its plugin architecture manages the appropriate compilations for execution on multiple Intel® devices, including both workhorse CPUs and specialized graphics and video processing platforms (see below, Packaging and Deployment).
@@ -87,10 +88,10 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components.
 - [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision.
 - Additional Tools - A set of tools to work with your models including [Benchmark App](../inference-engine/tools/benchmark_tool/README.md), [Cross Check Tool](../inference-engine/tools/cross_check_tool/README.md), [Compile tool](../inference-engine/tools/compile_tool/README.md).
-- [Open Model Zoo](@ref omz_models_intel_index)     
+- [Open Model Zoo](@ref omz_models_group_intel)     
     - [Demos](@ref omz_demos) - Console applications that provide robust application templates to help you implement specific deep learning scenarios.
-    - Additional Tools - A set of tools to work with your models including [Accuracy Checker Utility](@ref omz_tools_accuracy_checker_README) and [Model Downloader](@ref omz_tools_downloader).
-    - [Documentation for Pretrained Models](@ref omz_models_intel_index) - Documentation for pretrained models that are available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo).
+    - Additional Tools - A set of tools to work with your models including [Accuracy Checker Utility](@ref omz_tools_accuracy_checker) and [Model Downloader](@ref omz_tools_downloader).
+    - [Documentation for Pretrained Models](@ref omz_models_group_intel) - Documentation for pretrained models that are available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo).
 - Deep Learning Streamer (DL Streamer) – Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
     - [DL Streamer Samples](@ref gst_samples_README)
     - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)
