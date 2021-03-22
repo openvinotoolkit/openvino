@@ -60,7 +60,7 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 }
 
 #ifdef SAMPLE_TYPE_CAFFE_INTERP
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+// __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                       __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
