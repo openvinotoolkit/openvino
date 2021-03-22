@@ -15,7 +15,6 @@
 """
 
 import logging as log
-from collections import deque
 from math import sqrt
 
 import numpy as np
@@ -51,11 +50,10 @@ from mo.front.tf.graph_utils import add_activation_function_after_node, add_conv
     create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.fusing.helpers import common_bfs
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
-from mo.ops.op import PermuteAttrs, Op
+from mo.ops.op import PermuteAttrs
 from mo.ops.reshape import Reshape
 from mo.ops.result import Result
 from mo.ops.roipooling import ROIPooling
@@ -740,6 +738,9 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
             pre_processing_in_loop = True
             loop_node = Node(graph, loop_nodes_ids[0])
             body_graph = loop_node.body
+            # we stick to the nodes with ids 'map/while/Preprocessor/unstack' and 'map/while/Preprocessor/stack' as they
+            # "wrap" nodes performing image resize. The scale/mean values nodes are located strictly before or after
+            # them
             pre_processing_ops, trailing = get_preprocessing_ops(body_graph,
                                                                  'map/while/Preprocessor/unstack',
                                                                  'map/while/Preprocessor/stack')
