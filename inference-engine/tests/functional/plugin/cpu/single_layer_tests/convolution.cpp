@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,6 +108,8 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         fusingClamp,
         fusingPRelu,
         fusingSwish,
+        fusingHSwish,
+        fusingMish,
         // other patterns
         fusingReluScaleShift,
         fusingFakeQuantizePerTensorRelu,
