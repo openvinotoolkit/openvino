@@ -139,8 +139,12 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
+#if 0
+    /* disable, since there is no use case for it at the moment
+     * should be enabled after ngraph migration */
     DropConvertReorder(graph);
     graph.RemoveDroppedNodes();
+#endif
 
     MergePermuteAndReorder(graph);
     graph.RemoveDroppedNodes();
@@ -1770,6 +1774,11 @@ void MKLDNNGraphOptimizer::DropConvertReorder(MKLDNNGraph& graph) {
                         if (inTD.getPrecision() == rnOutput.getPrecision() &&
                             inTD.getLayout() == rnOutput.getLayout() &&
                             inTD.getDims() == rnOutput.getDims()) {
+                            /**
+                             * TODO: just drop extra nodes instead of moving edges
+                             * graph.DropNode(convert);
+                             * graph.DropNode(reorder);
+                             */
                             auto avterReorder = reorder->getChildEdgeAt(0)->getChild();
                             auto oldEdgeNum = reorder->getChildEdgeAt(0)->getOutputNum();
                             reorder->getChildEdgeAt(0)->drop();
