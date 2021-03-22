@@ -1,39 +1,38 @@
 # Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
 
-- [Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}](#model-optimizer-extensibility-openvino_docs_mo_dg_prepare_model_customize_model_optimizer_customize_model_optimizer)
-  - [Model Representation in Memory <a name="model-representation-in-memory"></a>](#model-representation-in-memory-)
-  - [Model Conversion Pipeline <a name="model-conversion-pipeline"></a>](#model-conversion-pipeline-)
-    - [Model Loading <a name="model-loading"></a>](#model-loading-)
-    - [Operations Attributes Extracting <a name="operations-attributes-extracting"></a>](#operations-attributes-extracting-)
-    - [Front Phase <a name="front-phase"></a>](#front-phase-)
-    - [Partial Inference <a name="partial-inference"></a>](#partial-inference-)
-    - [Middle Phase <a name="middle-phase"></a>](#middle-phase-)
-    - [NHWC to NCHW Layout Change <a name="layout-change"></a>](#nhwc-to-nchw-layout-change-)
-    - [Back Phase <a name="back-phase"></a>](#back-phase-)
-    - [Intermediate Representation Emitting <a name="ir-emitting"></a>](#intermediate-representation-emitting-)
-  - [Graph Traversal and Modification Using `Port`s and `Connection`s <a name="graph-ports-and-conneсtions"></a>](#graph-traversal-and-modification-using-ports-and-connections-)
-    - [Ports <a name="intro-ports"></a>](#ports-)
-    - [Connections <a name="intro-conneсtions"></a>](#connections-)
-  - [Model Optimizer Extensions <a name="extensions"></a>](#model-optimizer-extensions-)
-    - [Model Optimizer Operation <a name="extension-operation"></a>](#model-optimizer-operation-)
-    - [Operation Extractor <a name="extension-extractor"></a>](#operation-extractor-)
-    - [Graph Transformation Extensions <a name="graph-transformations"></a>](#graph-transformation-extensions-)
-      - [Front Phase Transformations <a name="front-phase-transformations"></a>](#front-phase-transformations-)
-        - [Pattern-Defined Front Phase Transformations <a name="pattern-defined-front-phase-transformations"></a>](#pattern-defined-front-phase-transformations-)
-        - [Specific Operation Front Phase Transformations <a name="specific-operation-front-phase-transformations"></a>](#specific-operation-front-phase-transformations-)
-        - [Generic Front Phase Transformations <a name="generic-front-phase-transformations"></a>](#generic-front-phase-transformations-)
-        - [Node Name Pattern Front Phase Transformations <a name="node-name-pattern-front-phase-transformations"></a>](#node-name-pattern-front-phase-transformations-)
-        - [Front Phase Transformations Using Start and End Points <a name="start-end-points-front-phase-transformations"></a>](#front-phase-transformations-using-start-and-end-points-)
-        - [Generic Front Phase Transformations Enabled with Transformations Configuration File<a name="generic-transformations-config-front-phase-transformations"></a>](#generic-front-phase-transformations-enabled-with-transformations-configuration-file)
-      - [Middle Phase Transformations <a name="middle-phase-transformations"></a>](#middle-phase-transformations-)
-        - [Pattern-Defined Middle Phase Transformations <a name="pattern-defined-middle-phase-transformations"></a>](#pattern-defined-middle-phase-transformations-)
-        - [Generic Middle Phase Transformations <a name="generic-middle-phase-transformations"></a>](#generic-middle-phase-transformations-)
-      - [Back Phase Transformations <a name="back-phase-transformations"></a>](#back-phase-transformations-)
-        - [Pattern-Defined Back Phase Transformations <a name="pattern-defined-back-phase-transformations"></a>](#pattern-defined-back-phase-transformations-)
-        - [Generic Back Phase Transformations <a name="generic-back-phase-transformations"></a>](#generic-back-phase-transformations-)
-  - [See Also](#see-also)
+- <a href="#model-representation-in-memory">Model Representation in Memory</a>
+- <a href="#model-conversion-pipeline">Model Conversion Pipeline</a>
+  - <a href="#model-loading">Model Loading</a>
+  - <a href="#operations-attributes-extracting">Operations Attributes Extracting</a>
+  - <a href="#front-phase">Front Phase</a>
+  - <a href="#partial-inference">Partial Inference</a>
+  - <a href="#middle-phase">Middle Phase</a>
+  - <a href="#layout-change">NHWC to NCHW Layout Change</a>
+  - <a href="#back-phase">Back Phase</a>
+  - <a href="#intermediate-representation-emitting">Intermediate Representation Emitting</a>
+- <a href="#graph-traversal-and-modification-using-ports-and-connections">Graph Traversal and Modification Using <code>Port</code>s and <code>Connection</code>s</a>
+  - <a href="#ports">Ports</a>
+  - <a href="#conneсtions">Connections</a>
+- <a href="#model-optimizer-extensions">Model Optimizer Extensions</a>
+  - <a href="#model-optimizer-operation">Model Optimizer Operation</a>
+  - <a href="#operation-extractor">Operation Extractor</a>
+  - <a href="#graph-transformation-extensions">Graph Transformation Extensions</a>
+    - <a href="#front-phase-transformations">Front Phase Transformations</a>
+      - <a href="#pattern-defined-front-phase-transformations">Pattern-Defined Front Phase Transformations</a>
+      - <a href="#specific-operation-front-phase-transformations">Specific Operation Front Phase Transformations</a>
+      - <a href="#generic-front-phase-transformations">Generic Front Phase Transformations</a>
+      - <a href="#node-name-pattern-front-phase-transformations">Node Name Pattern Front Phase Transformations</a>
+      - <a href="#front-phase-transformations-using-start-and-end-points">Front Phase Transformations Using Start and End Points</a>
+      - <a href="#generic-front-phase-transformations-enabled-with-transformations-configuration-file">Generic Front Phase Transformations Enabled with Transformations Configuration File</a>
+    - <a href="#middle-phase-transformations">Middle Phase Transformations</a>
+      - <a href="#pattern-defined-middle-phase-transformations">Pattern-Defined Middle Phase Transformations</a>
+      - <a href="#generic-middle-phase-transformations">Generic Middle Phase Transformations</a>
+    - <a href="#back-phase-transformations">Back Phase Transformations</a>
+      - <a href="#pattern-defined-back-phase-transformations">Pattern-Defined Back Phase Transformations</a>
+      - <a href="#generic-back-phase-transformations">Generic Back Phase Transformations</a>
+- <a href="#see-also">See Also</a>
 
-Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the
+<a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the
 optimized intermediate representation (IR) as described in the
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
 mechanism is a core part of the Model Optimizer. The Model Optimizer itself uses it under the hood, being a huge set of examples on how to add custom logic to support your model.
@@ -1290,7 +1289,7 @@ implemented using `mo.back.replacement.BackReplacementPattern` as a base class a
 
 Refer to the `extensions/back/GatherNormalizer.py` for the example of a such type of transformation.
 
-## See Also
+## See Also <a name="see-also"></a>
 * [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md)
 * [Converting a Model to Intermediate Representation (IR)](../convert_model/Converting_Model.md)
 * [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts)
