@@ -70,21 +70,17 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
-
-    bool isWithBroadcast();
-
     bool canFuse(const MKLDNNNodePtr& node) const override;
-
-    size_t getOpInputsNum() const;
-    mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
+    void appendPostOps(mkldnn::post_ops& ops) override;
+    void fuseInto(MKLDNNNodePtr& parentNode) override;
+    InferenceEngine::Precision getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
+    mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
 
-    void appendPostOps(mkldnn::post_ops& ops) override;
-
-    InferenceEngine::Precision getRuntimePrecision() const override;
-    void fuseInto(MKLDNNNodePtr& parentNode) override;
+    bool isWithBroadcast();
+    bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
 
 private:
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
@@ -95,6 +91,7 @@ private:
     int optimalTensorRank = 6;
     bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;
+    bool specialConvolutionAddFusing = false;
     size_t batchDimIdx = 0;
     size_t tensorRank = 0;
     size_t fullWorkAmount = 0;
@@ -114,6 +111,8 @@ private:
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
 
+    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
+
     inline void executeOptimized6D(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
     inline void executeOptimizedGeneric(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
     inline void executeReference(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
@@ -121,7 +120,7 @@ private:
     void offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims);
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
 
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
+    size_t getOpInputsNum() const;
 
     void fillScalesAndShifts(const MKLDNNNode *parentNode);
 };

@@ -52,6 +52,7 @@
 
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -1361,7 +1362,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (i == fusingPort)
                 continue;
-            if (!MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(dataShape, getParentEdgeAt(i)->getDims().ToSizeVector()))
+            if (!isPerTensorOrPerChannelBroadcastable(dataShape, getParentEdgeAt(i)->getDims().ToSizeVector()))
                 return false;
         }
         return true;

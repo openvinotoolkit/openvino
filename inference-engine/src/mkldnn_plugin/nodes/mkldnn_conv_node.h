@@ -27,24 +27,18 @@ public:
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
-    void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc);
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
-
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
-
+    InferenceEngine::Precision getRuntimePrecision() const override;
+    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
-    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-
-    bool canBeExecutedInInt8();
-
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    bool canBeExecutedInInt8() const;
+    size_t getGroupNum() const { return groupNum; }
 
     std::vector<uint8_t> inputZeroPoints;
     std::vector<float> weightsZeroPoints;
@@ -55,6 +49,9 @@ protected:
 
 private:
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const ;
+    void filterSupportedDescriptors();
+    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
 
     bool withBiases;
     bool withSum;
