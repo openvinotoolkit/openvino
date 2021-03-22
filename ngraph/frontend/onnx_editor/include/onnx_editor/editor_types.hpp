@@ -72,7 +72,7 @@ namespace ngraph
         ///            OutputEdge(5, "out1")
         ///            OutputEdge(5, "out2")
         using OutputEdge = Edge<EdgeType::OUTPUT>;
-        // TODO: REmove m_ prefix
+
         struct Input
         {
             Input() = delete;
@@ -87,6 +87,7 @@ namespace ngraph
             const std::string m_input_name = "";
             const int m_input_index = -1;
         };
+
         struct Output
         {
             Output() = delete;
@@ -115,5 +116,10 @@ namespace ngraph
             const std::string m_node_name = "";
             const std::string m_output_name = "";
         };
+
+        // Aliases to avoid name conflicts with classes from ngraph namespace
+        using EditorInput = Input;
+        using EditorOutput = Output;
+        using EditorNode = Node;
     }
 }
