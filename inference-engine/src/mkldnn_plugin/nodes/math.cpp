@@ -8,11 +8,17 @@
 #include <string>
 #include <vector>
 #include <cassert>
+
 #include "ie_parallel.hpp"
+#include "common/tensor_desc_creator.h"
+#include "utils/general_utils.h"
+#include <ngraph/ops.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
+
+using MKLDNNPlugin::TensorDescCreatorTypes;
 
 class MathImpl: public ExtLayerBase {
     static float error_function(float x) {
@@ -43,52 +49,53 @@ class MathImpl: public ExtLayerBase {
     }
 
 public:
-    explicit MathImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.empty() || layer->outData.empty())
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+            if (initializers.find(op->get_type_info()) == initializers.end()) {
+                errorMessage = "Unsupported Math layer type.";
+                return false;
+            }
 
-            if (layer->insData.size() != 1)
-                IE_THROW() << layer->name << " Incorrect number of input edges!";
+            if (MKLDNNPlugin::one_of(op->get_type_info(),
+                    ngraph::op::v0::HardSigmoid::type_info,
+                    ngraph::op::v0::Selu::type_info)) {
+                auto firstConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+                auto secondConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+                if (!firstConst || !secondConst) {
+                    errorMessage = "Constant expected as the second and third inputs.";
+                    return false;
+                }
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->insData[0].lock()->getTensorDesc().getDims() != layer->outData[0]->getTensorDesc().getDims())
-                IE_THROW() << layer->name << " Incorrect number of input/output dimensions!";
+    explicit MathImpl(const std::shared_ptr<ngraph::Node>& op) :
+            alpha(0.f), beta(0.f), gamma(0.f) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            alpha = layer->GetParamAsFloat("alpha", 0.0f);
-            beta = layer->GetParamAsFloat("beta", 0.0f);
-            gamma = layer->GetParamAsFloat("gamma", 0.0f);
+            initializers[op->get_type_info()](op, *this);
 
-            std::string math_func = layer->type;
-            if (math_func == "Erf") mathFunction = Math::Erf;
-            else if (math_func == "Abs") mathFunction = Math::Abs;
-            else if (math_func == "Acos") mathFunction = Math::Acos;
-            else if (math_func == "Acosh") mathFunction = Math::Acosh;
-            else if (math_func == "Asin") mathFunction = Math::Asin;
-            else if (math_func == "Asinh") mathFunction = Math::Asinh;
-            else if (math_func == "Atan") mathFunction = Math::Atan;
-            else if (math_func == "Atanh") mathFunction = Math::Atanh;
-            else if (math_func == "Ceil") mathFunction = Math::Ceil;
-            else if (math_func == "Ceiling") mathFunction = Math::Ceil;
-            else if (math_func == "Cos") mathFunction = Math::Cos;
-            else if (math_func == "Cosh") mathFunction = Math::Cosh;
-            else if (math_func == "Floor") mathFunction = Math::Floor;
-            else if (math_func == "HardSigmoid") mathFunction = Math::HardSigmoid;
-            else if (math_func == "Log") mathFunction = Math::Log;
-            else if (math_func == "Neg") mathFunction = Math::Neg;
-            else if (math_func == "Reciprocal") mathFunction = Math::Reciprocal;
-            else if (math_func == "Selu") mathFunction = Math::Selu;
-            else if (math_func == "Sign") mathFunction = Math::Sign;
-            else if (math_func == "Sin") mathFunction = Math::Sin;
-            else if (math_func == "Sinh") mathFunction = Math::Sinh;
-            else if (math_func == "SoftPlus") mathFunction = Math::SoftPlus;
-            else if (math_func == "Softsign") mathFunction = Math::Softsign;
-            else if (math_func == "Tan") mathFunction = Math::Tan;
-            else
-                IE_THROW() << layer->name << " Incorrect Math layer type!";
-
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN, false, 0, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, false, 0, Precision::FP32)});
+            if (MKLDNNPlugin::one_of(op->get_type_info(),
+                    ngraph::op::v0::HardSigmoid::type_info,
+                    ngraph::op::v0::Selu::type_info)) {
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::FP32},
+                               {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                              {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
+            } else {
+                addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                              {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
+            }
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
+            throw;
         }
     }
 
@@ -99,90 +106,90 @@ public:
         float* dst_data = outputs[0]->cbuffer().as<float *>() +
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        switch (mathFunction) {
-        case Math::Erf:
+        switch (getAlgorithm()) {
+        case MKLDNNPlugin::MathErf:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = error_function(src_data[i]);
             });
             break;
-        case Math::Abs:
+        case MKLDNNPlugin::MathAbs:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = (std::abs)(src_data[i]);
             });
             break;
-        case Math::Acos:
+        case MKLDNNPlugin::MathAcos:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = acosf(src_data[i]);
             });
             break;
-        case Math::Acosh:
+        case MKLDNNPlugin::MathAcosh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = acoshf(src_data[i]);
             });
             break;
-        case Math::Asin:
+        case MKLDNNPlugin::MathAsin:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = asinf(src_data[i]);
             });
             break;
-        case Math::Asinh:
+        case MKLDNNPlugin::MathAsinh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = asinhf(src_data[i]);
             });
             break;
-        case Math::Atan:
+        case MKLDNNPlugin::MathAtan:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = atanf(src_data[i]);
             });
             break;
-        case Math::Atanh:
+        case MKLDNNPlugin::MathAtanh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = atanhf(src_data[i]);
             });
             break;
-        case Math::Ceil:
+        case MKLDNNPlugin::MathCeiling:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = ceilf(src_data[i]);
             });
             break;
-        case Math::Cos:
+        case MKLDNNPlugin::MathCos:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = cosf(src_data[i]);
             });
             break;
-        case Math::Cosh:
+        case MKLDNNPlugin::MathCosh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = coshf(src_data[i]);
             });
             break;
-        case Math::Floor:
+        case MKLDNNPlugin::MathFloor:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = floorf(src_data[i]);
             });
             break;
-        case Math::HardSigmoid:
+        case MKLDNNPlugin::MathHardSigmoid:
             alpha = (alpha == 0.0f) ? 0.2f : alpha;
             beta = (beta == 0.0f) ? 0.5f : beta;
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = (std::max)(0.f, (std::min)(1.f, alpha * src_data[i] + beta));
             });
             break;
-        case Math::Log:
+        case MKLDNNPlugin::MathLog:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = logf(src_data[i]);
             });
             break;
-        case Math::Neg:
+        case MKLDNNPlugin::MathNegative:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = -src_data[i];
             });
             break;
-        case Math::Reciprocal:
+        case MKLDNNPlugin::MathReciprocal:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = 1.0f / src_data[i];
             });
             break;
-        case Math::Selu:
+        case MKLDNNPlugin::MathSelu:
             alpha = (alpha == 0.0f) ? 1.67326f : alpha;
             gamma = (gamma == 0.0f) ? 1.0507f : gamma;
             parallel_for(dataSize, [&](size_t i) {
@@ -190,7 +197,7 @@ public:
                 dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (exp(x) - 1.0f));
             });
             break;
-        case Math::Sign:
+        case MKLDNNPlugin::MathSign:
             parallel_for(dataSize, [&](size_t i) {
                 if (src_data[i] > 0.0f)
                     dst_data[i] = 1.0f;
@@ -200,28 +207,28 @@ public:
                     dst_data[i] = 0.0f;
             });
             break;
-        case Math::Sin:
+        case MKLDNNPlugin::MathSin:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = sinf(src_data[i]);
             });
             break;
-        case Math::Sinh:
+        case MKLDNNPlugin::MathSinh:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = sinhf(src_data[i]);
             });
             break;
-        case Math::SoftPlus:
+        case MKLDNNPlugin::MathSoftPlus:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = logf(expf(src_data[i]) + 1);
             });
             break;
-        case Math::Softsign:
+        case MKLDNNPlugin::MathSoftsign:
             parallel_for(dataSize, [&](size_t i) {
                 float x = src_data[i];
                 dst_data[i] = x / (1.f + (std::abs)(x));
             });
             break;
-        case Math::Tan:
+        case MKLDNNPlugin::MathTan:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = tanf(src_data[i]);
             });
@@ -237,36 +244,78 @@ public:
     }
 
 private:
-    enum class Math {
-        Abs,
-        Acos,
-        Acosh,
-        Asin,
-        Asinh,
-        Atan,
-        Atanh,
-        Ceil,
-        Cos,
-        Cosh,
-        Erf,
-        Floor,
-        HardSigmoid,
-        Log,
-        Neg,
-        Reciprocal,
-        Selu,
-        Sign,
-        Sin,
-        Sinh,
-        SoftPlus,
-        Softsign,
-        Tan
-    };
+    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MathImpl& node)>> initializers;
 
-    Math mathFunction = Math::Erf;
     float alpha = 0.0f;
     float beta = 0.0f;
     float gamma = 0.0f;
+};
+
+std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MathImpl& node)>> MathImpl::initializers = {
+    {ngraph::op::v0::Erf::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathErf;
+    }},
+    {ngraph::op::v0::Abs::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathAbs;
+    }},
+    {ngraph::op::v0::Acos::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathAcos;
+    }},
+    {ngraph::op::v3::Acosh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathAcosh;
+    }},
+    {ngraph::op::v0::Asin::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathAsin;
+    }},
+    {ngraph::op::v3::Asinh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathAsinh;
+    }},
+    {ngraph::op::v0::Atan::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathAtan;
+    }},
+    {ngraph::op::v0::Ceiling::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathCeiling;
+    }},
+    {ngraph::op::v0::Cos::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathCos;
+    }},
+    {ngraph::op::v0::Cosh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathCosh;
+    }},
+    {ngraph::op::v0::Floor::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathFloor;
+    }},
+    {ngraph::op::v0::HardSigmoid::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathHardSigmoid;
+        node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
+        node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
+    }},
+    {ngraph::op::v0::Log::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathLog;
+    }},
+    {ngraph::op::v0::Negative::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathNegative;
+    }},
+    {ngraph::op::v0::Selu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathSelu;
+        node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
+        node.gamma = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
+    }},
+    {ngraph::op::v0::Sign::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathSign;
+    }},
+    {ngraph::op::v0::Sin::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathSin;
+    }},
+    {ngraph::op::v0::Sinh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathSinh;
+    }},
+    {ngraph::op::v4::SoftPlus::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathSoftPlus;
+    }},
+    {ngraph::op::v0::Tan::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
+        node.algorithm = MKLDNNPlugin::MathTan;
+    }}
 };
 
 REG_FACTORY_FOR(MathImpl, Abs);
