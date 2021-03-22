@@ -11,7 +11,7 @@ Low-precision 8-bit inference is optimized for:
 - Intel® processor graphics:
   - Intel® Iris® Xe Graphics
   - Intel® Iris® Xe MAX Graphics
-- A model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_intel_index) or quantize a model yourself. For quantization, you can use the:
+- A model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel) or quantize a model yourself. For quantization, you can use the:
   - [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
   - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
 
@@ -39,7 +39,7 @@ If you infer the model in the OpenVINO™ CPU plugin and collect performance cou
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
-For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_intel_index). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
+For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
 8-bit inference pipeline includes two stages (also refer to the figure below):
 1. *Offline stage*, or *model quantization*. During this stage, [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
