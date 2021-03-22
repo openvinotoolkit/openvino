@@ -131,16 +131,17 @@ void op::v7::IDFT::validate()
     {
         const auto input_rank = input_shape.rank().get_length();
         NODE_VALIDATION_CHECK(this,
-                              input_rank >= axes.to_shape()[0] + 1,
+                              input_rank >= axes_shape.to_shape()[0] + 1,
                               "The input rank must be greater than number of IDFT axes. Got "
                               "input rank: ",
                               input_rank,
                               ", number of axes: ",
-                              axes.to_shape()[0]);
+                              axes_shape.to_shape()[0]);
     }
 
-    if (is_type<op::Constant>(input_value(1).get_node()))
+    if (input_shape.rank().is_static() && is_type<op::Constant>(input_value(1).get_node()))
     {
+        const auto input_rank = input_shape.rank().get_length();
         const auto& const_axes = get_constant_from_source(input_value(1));
         auto axes = const_axes->cast_vector<int64_t>();
 
@@ -166,9 +167,9 @@ void op::v7::IDFT::validate()
         NODE_VALIDATION_CHECK(this,
                               std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
                               "IDFT axes cannot contain the last axis. Got axes: ",
-                              axes_vector); 
+                              axes_vector);
     }
-    
+
     if (num_of_inputs == 3 && axes_shape.is_static() && get_input_partial_shape(2).is_static())
     {
         PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
@@ -186,8 +187,6 @@ void op::v7::IDFT::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v7_IDFT_validate_and_infer_types);
     validate();
-
-    size_t num_of_inputs = get_input_size();
 
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));
     PartialShape axes_shape = PartialShape(get_input_partial_shape(1));
