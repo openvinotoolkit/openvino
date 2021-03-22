@@ -2956,6 +2956,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_act_scale_eltwise,
 #define CASE_RESAMPLE_FP32_7 {1, 16, 4, 5, 4}, {1, 16, 2, 3, 2}, data_types::f32, format::bfzyx, resample_type::nearest, data_types::f32, format::bfzyx
 #define CASE_RESAMPLE_FP32_8 {1, 16, 4, 5, 4}, {1, 16, 2, 3, 2}, data_types::f32, format::bfzyx, resample_type::caffe_bilinear, data_types::f32, format::bfzyx
 #define CASE_RESAMPLE_FP32_9 {1, 16, 4, 5}, {1, 16, 7, 8}, data_types::f32, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_FP32_10 {1, 16, 4, 5}, {1, 16, 7, 8}, data_types::f32, format::b_fs_yx_fsv16, resample_type::caffe_bilinear, data_types::f32, format::bfyx
 
 #define CASE_RESAMPLE_FP16_1 {1, 15, 4, 5}, {1, 15, 2, 3}, data_types::f16, format::bfyx, resample_type::nearest, data_types::f16, format::bfyx
 #define CASE_RESAMPLE_FP16_2 {1, 15, 4, 5}, {1, 15, 2, 3}, data_types::f16, format::bfyx, resample_type::bilinear, data_types::f16, format::bfyx
@@ -2967,6 +2968,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_act_scale_eltwise,
 #define CASE_RESAMPLE_FP16_8 {1, 16, 4, 5, 4}, {1, 16, 2, 3, 2}, data_types::f16, format::bfzyx, resample_type::caffe_bilinear, data_types::f16, format::bfzyx
 #define CASE_RESAMPLE_FP16_9 {1, 16, 4, 5}, {1, 16, 7, 8}, data_types::f16, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f16, format::bfyx
 #define CASE_RESAMPLE_FP16_10 {2, 32, 4, 5}, {2, 32, 7, 8}, data_types::f16, format::fs_b_yx_fsv32, resample_type::bilinear, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP16_11 {1, 16, 4, 5}, {1, 16, 7, 8}, data_types::f16, format::b_fs_yx_fsv16, resample_type::caffe_bilinear, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP16_12 {2, 32, 4, 5}, {2, 32, 7, 8}, data_types::f16, format::fs_b_yx_fsv32, resample_type::caffe_bilinear, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP16_13 {1, 16, 4, 5}, {1, 16, 7, 8}, data_types::f16, format::b_fs_yx_fsv16, resample_type::caffe_bilinear, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP16_14 {1, 32, 4, 5}, {1, 32, 2, 3}, data_types::f16, format::fs_b_yx_fsv32, resample_type::caffe_bilinear, data_types::f16, format::bfyx
 
 #define CASE_RESAMPLE_I8_1 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
 #define CASE_RESAMPLE_I8_2 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
@@ -3006,6 +3011,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize,
                         resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 3 },
                         resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 3 },
                         resample_test_params{ CASE_RESAMPLE_FP32_9, 2, 3 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_10, 2, 3 },
 
                         // FQ can't be fused to FP16 primitive for now
                         // resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 3 },
@@ -3047,6 +3053,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_activation_eltwise,
                         resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 5 },
                         resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 5 },
                         resample_test_params{ CASE_RESAMPLE_FP32_9, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_10, 2, 5 },
 
                         resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 5 },
                         resample_test_params{ CASE_RESAMPLE_FP16_2, 2, 5 },
@@ -3058,6 +3065,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_activation_eltwise,
                         resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 5 },
                         resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 5 },
                         resample_test_params{ CASE_RESAMPLE_FP16_10, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_11, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_12, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_13, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_14, 2, 5 },
 
                         resample_test_params{ CASE_RESAMPLE_I8_1, 2, 5 },
                         resample_test_params{ CASE_RESAMPLE_I8_2, 2, 5 },
@@ -3106,6 +3117,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize_concat,
                         resample_test_params{ CASE_RESAMPLE_FP32_7, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_FP32_8, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_FP32_9, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_10, 3, 6 },
 
                         resample_test_params{ CASE_RESAMPLE_FP16_1, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_FP16_2, 3, 6 },
@@ -3117,6 +3129,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize_concat,
                         resample_test_params{ CASE_RESAMPLE_FP16_8, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_FP16_9, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_FP16_10, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_11, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_12, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_13, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_14, 3, 6 },
 
                         resample_test_params{ CASE_RESAMPLE_I8_3, 3, 6 },
                         resample_test_params{ CASE_RESAMPLE_I8_4, 3, 6 },

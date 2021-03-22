@@ -360,7 +360,6 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
-
 #elif defined(SAMPLE_TYPE_CAFFE_INTERP) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
     const int ox = (int)get_global_id(0) % OUTPUT_SIZE_X;
     const int oy = (int)get_global_id(0) / OUTPUT_SIZE_X;

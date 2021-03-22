@@ -52,13 +52,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.gws[1] = CeilDiv(Align(out.Feature().v, GetFeatureBlockSize(arg)), GetFeatureBlockSize(arg));
         dispatchData.gws[2] = arg.output.Batch().v;
 
-        if ((out.Feature().v % GetFeatureBlockSize(arg)) == 0) {
-            dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
-        } else {
-            dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = 1;
-            dispatchData.lws[2] = 1;
-        }
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
    } else {
         dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
         dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
@@ -113,17 +107,24 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = {"b", "feature_block", "y", "(x + out_x)"};
-        FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
-        conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        if (params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP) {
+            std::vector<std::string> idx_order = {"b", "feature_block", "y", "(x + out_x)"};
+            FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
+            conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        } else {
+            std::vector<std::string> idx_order;
+            idx_order = {"batch", "OF_ID", "oy", "ox"};
+
+            FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), 1};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
     }
 
     if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
         if (GetFeatureBlockSize(params) == 8) {
             jit.AddConstant(MakeJitConstant("VEC_BLOCK_SIZE", 8));
-        }
-        else {
+        } else {
             jit.AddConstant(MakeJitConstant("VEC_BLOCK_SIZE", 16));
         }
     }

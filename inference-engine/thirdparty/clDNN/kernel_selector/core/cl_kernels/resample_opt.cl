@@ -59,6 +59,7 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 #endif
 }
 
+#ifdef SAMPLE_TYPE_CAFFE_INTERP
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                       __global OUTPUT_TYPE* output
@@ -67,7 +68,6 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
 )
 {
-#ifdef SAMPLE_TYPE_CAFFE_INTERP
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
     const int out_size[5] = { OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Z, OUTPUT_SIZE_Y, OUTPUT_SIZE_X };
 
@@ -143,22 +143,22 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     ACCUMULATOR_TYPE wx = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE w  = ACCUMULATOR_VAL_ZERO;
 
-    unroll_for(int fp = 0; fp < fp_max; fp+=16) {
+    for (int fp = 0; fp < fp_max; fp+=VEC_BLOCK_SIZE) {
         MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_BLOCK_SIZE) sum = ACCUMULATOR_VAL_ZERO;
         ACCUMULATOR_TYPE wsum = ACCUMULATOR_VAL_ZERO;
 
-        unroll_for(int b = b_init; b < b_max; b++) {
+        for (int b = b_init; b < b_max; b++) {
             wb = TRIANGLE_COEFF(ab, i_b - b);
 
-            unroll_for(int f = f_init; f < f_max; f++) {
+            for (int f = f_init; f < f_max; f++) {
                 wf = wb * TRIANGLE_COEFF(af, i_f - f);
 
                 if (wf != 0) {
-                    unroll_for(int y = y_init; y < y_max; y++) {
+                    for (int y = y_init; y < y_max; y++) {
                         wy = wf * TRIANGLE_COEFF(ay, i_y - y);
 
                         if (wy != 0) {
-                            unroll_for(int x = x_init; x < x_max; x++) {
+                            for (int x = x_init; x < x_max; x++) {
                                 wx = TRIANGLE_COEFF(ax, i_x - x);
                                 w = wx * wy;
 
@@ -183,45 +183,55 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
                                     }
                                 }  // w != 0;
-                            }  // unroll_for(int x = x_init; x < x_max; x++)
+                            }  // for (int x = x_init; x < x_max; x++)
                         }
-                    }  // unroll_for(int y = y_init; y < y_max; y++)
+                    }  // for (int y = y_init; y < y_max; y++)
                 }
-            }  // unroll_for(int f = f_init; f < f_max; f++)
-        }  // unroll_for(int b = b_init; b < b_max; b++)
+            }  // for (int f = f_init; f < f_max; f++)
+        }  // for (int b = b_init; b < b_max; b++)
 
-        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLOCK_SIZE) output_vec;
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLOCK_SIZE) out;
         ACCUMULATOR_TYPE res;
 
         if (wsum == 0) {
             res = ACCUMULATOR_VAL_ZERO;
         } else {
-            unroll_for (int f = 0; f < VEC_BLOCK_SIZE; f++) {
+            for  (int f = 0; f < VEC_BLOCK_SIZE; f++) {
                 res = sum[f] / wsum;
 #if HAS_FUSED_OPS
+                #define OF_ID (feature+fp+f)
                 FUSED_OPS;
-                output_vec[f] = FUSED_OPS_RESULT;
+                out[f] = FUSED_OPS_RESULT;
+                #undef OF_ID
 #else
-                output_vec[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+                out[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
 #endif
             }
         }
 
 #if FEATURE_BLOCK_SIZE == 8
-        vstore8(output_vec, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+        vstore8(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
 #else
-        vstore16(output_vec, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+        vstore16(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
 #endif
     } // fp
+}
+#endif // SAMPLE_TYPE_CAFFE_INTERP
 
-#else  // SAMPLE_TYPE_CAFFE_INTERP
+#ifndef SAMPLE_TYPE_CAFFE_INTERP
+__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+KERNEL (resample_opt)(__global INPUT0_TYPE* input,
+                      __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+                      , FUSED_OPS_DECLS
+#endif
+)
+{
     const int xy = get_global_id(0);
     const int b = get_global_id(2);
     const int f_block = get_group_id(1);
-
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
-
     const int feature_num = f_block * FEATURE_SLICE_SIZE + get_sub_group_local_id();
     const uint feature_block = f_block * FEATURE_SLICE_SIZE;
 
@@ -257,7 +267,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         const acc_vec_t top    = TO_ACC_VEC_TYPE(top_left) + (TO_ACC_VEC_TYPE(top_right) - TO_ACC_VEC_TYPE(top_left)) * dx;
         const acc_vec_t bottom = TO_ACC_VEC_TYPE(bottom_left) + (TO_ACC_VEC_TYPE(bottom_right) - TO_ACC_VEC_TYPE(bottom_left)) * dx;
         acc_vec_t res = top + (bottom - top) * dy;
-#else  // defined(SAMPLE_TYPE_LINEAR_ONNX)
+#else // defined(SAMPLE_TYPE_LINEAR_ONNX)
         const int PADDED_Y = INPUT0_SIZE_Y + PADS_BEGIN[3] + PADS_END[3];
         const int PADDED_X = INPUT0_SIZE_X + PADS_BEGIN[4] + PADS_END[4];
 
@@ -284,7 +294,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         bool trOutOfBounds = in_y1 < 0 || in_y1 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
         bool blOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
         bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
-#endif  // PADDING_USED == 1
+#endif // PADDING_USED == 1
         const acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1)));
         const acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2)));
         const acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1)));
@@ -298,13 +308,12 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
             bottom_left = INPUT0_VAL_ZERO;
         if (brOutOfBounds)
             bottom_right = INPUT0_VAL_ZERO;
-#endif  // PADDING_USED == 1
+#endif // PADDING_USED == 1
         acc_vec_t res = TO_ACC_VEC_TYPE(dx2 * dy2 * top_left) +
                         TO_ACC_VEC_TYPE(dx1 * dy2 * top_right) +
                         TO_ACC_VEC_TYPE(dx2 * dy1 * bottom_left) +
                         TO_ACC_VEC_TYPE(dx1 * dy1 * bottom_right);
 #endif
-
 #if HAS_FUSED_OPS
         FUSED_OPS;
         OUT_VEC_TYPE out = FUSED_OPS_RESULT;
@@ -314,8 +323,8 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
     }
-#endif  // SAMPLE_TYPE_CAFFE_INTERP
 }
+#endif // SAMPLE_TYPE_CAFFE_INTERP
 
 #undef unroll_for
 #undef TRIANGLE_COEFF
