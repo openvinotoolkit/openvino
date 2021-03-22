@@ -162,6 +162,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                 InferenceEngine::as<InferenceEngine::MemoryBlob>(dst)->wmap().as<DstT*>());
 }
 
+#if 0
 static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
     switch (src->getTensorDesc().getPrecision()) {
         case Precision::U8 : {
@@ -193,6 +194,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
         }
     }
 }
+#endif
 
 // ! [infer_request:infer_preprocess]
 void TemplateInferRequest::inferPreprocess() {
@@ -252,9 +254,15 @@ void TemplateInferRequest::inferPostprocess() {
         auto networkOutputBlob = _networkOutputBlobs[networkOutput.first];
         // perform precision conversion of network output's precision and computational
         // graph output's precision are different
+        //if (outputBlob->getTensorDesc().getPrecision() != networkOutputBlob->getTensorDesc().getPrecision()) {
+        //    blobCopy(networkOutputBlob, outputBlob);
+        //}
+        // TODO: Copy to source blob only if necessary (like commented out statements above but also consider shapes)
         if (outputBlob->getTensorDesc().getPrecision() != networkOutputBlob->getTensorDesc().getPrecision()) {
-            blobCopy(networkOutputBlob, outputBlob);
+            THROW_IE_EXCEPTION << "Disabled any precision conversion for output blobs due to dynamic shape limited implementation";
         }
+        auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(networkOutput.first)];
+        tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(), tensor->get_size_in_bytes());
     }
     _durations[Postprocess] = Time::now() - start;
 }
