@@ -8,8 +8,7 @@
 
 Sample usage:
 python3 -m pytest --test_conf=<path to test config> \
-    --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py \
-    --infer_tool=./tests/conditional_compilation/tools/infer_tool.py  --artifacts ./compiled test_collect.py \
+    --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
     --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
     --install_dir=<path to full openvino installation dir> --install_cc_dir=<path to final openvino installation dir>
 """
@@ -42,11 +41,6 @@ def pytest_addoption(parser):
         "--sea_runtool",
         type=Path,
         help="Path to sea_runtool.py"
-    )
-    parser.addoption(
-        "--infer_tool",
-        type=Path,
-        help="Path to the infer tool",
     )
     parser.addoption(
         "--collector_dir",
@@ -99,12 +93,6 @@ def pytest_generate_tests(metafunc):
 def sea_runtool(request):
     """Fixture function for command-line option."""
     return request.config.getoption("sea_runtool")
-
-
-@pytest.fixture(scope="session")
-def infer_tool(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption("infer_tool")
 
 
 @pytest.fixture(scope="session")

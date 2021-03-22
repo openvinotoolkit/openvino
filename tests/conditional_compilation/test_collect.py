@@ -8,11 +8,13 @@
 import glob
 import os
 import sys
+from inspect import getsourcefile
+from pathlib import Path
 
 from proc_utils import cmd_exec  # pylint: disable=import-error
 
 
-def test_cc_collect(test_id, model, sea_runtool, infer_tool, collector_dir, artifacts):
+def test_cc_collect(test_id, model, sea_runtool, collector_dir, artifacts):
     """ Test conditional compilation statistics collection
     """
     out = artifacts / test_id
@@ -29,7 +31,7 @@ def test_cc_collect(test_id, model, sea_runtool, infer_tool, collector_dir, arti
             f"--bindir={collector_dir}",
             "!",
             sys.executable,
-            str(infer_tool),
+            str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve()),
             f"-m={model}",
             "-d=CPU",
             f"-r={out}",
