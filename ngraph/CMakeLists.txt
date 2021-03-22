@@ -254,13 +254,6 @@ if(NGRAPH_ADDRESS_SANITIZER_ENABLE OR NGRAPH_THREAD_SANITIZER_ENABLE OR NGRAPH_U
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -fno-omit-frame-pointer")
 endif()
 
-#-----------------------------------------------------------------------------------------------
-# enable or disable output from NGRAPH_DEBUG statements
-#-----------------------------------------------------------------------------------------------
-if(NGRAPH_DEBUG_ENABLE)
-    add_definitions(-DNGRAPH_DEBUG_ENABLE)
-endif()
-
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 #-----------------------------------------------------------------------------------------------
