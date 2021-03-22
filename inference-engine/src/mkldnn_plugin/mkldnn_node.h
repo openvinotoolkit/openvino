@@ -82,18 +82,7 @@ enum Type {
     ScatterElementsUpdate,
     ScatterNDUpdate,
     Interpolate,
-    ReduceAnd,
-    ReduceL1,
-    ReduceL2,
-    ReduceLogSum,
-    ReduceLogSumExp,
-    ReduceMax,
-    ReduceMean,
-    ReduceMin,
-    ReduceOr,
-    ReduceProd,
-    ReduceSum,
-    ReduceSumSquare,
+    Reduce,
     Reference,
     Roll
 };
@@ -188,6 +177,7 @@ static std::string NameFromType(Type type) {
             return "ScatterNDUpdate";
         case Interpolate:
             return "Interpolate";
+<<<<<<< HEAD
         case ReduceAnd:
             return "ReduceAnd";
         case ReduceL1:
@@ -214,6 +204,10 @@ static std::string NameFromType(Type type) {
             return "ReduceSumSquare";
         case Roll:
             return "Roll";
+=======
+        case Reduce:
+            return "Reduce";
+>>>>>>> [CPU] Reduce node migration on nGraph (#35)
         default:
             return "Unknown";
     }
