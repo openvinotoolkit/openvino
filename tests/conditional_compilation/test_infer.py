@@ -14,11 +14,11 @@ from install_pkg import get_openvino_environment  # pylint: disable=import-error
 
 
 def run_infer(artifacts, test_id, model, out):
-    # install_prefix = artifacts / test_id / "install_pkg"
+    install_prefix = artifacts / test_id / "install_pkg"
     returncode, output = cmd_exec(
         [sys.executable, str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve()),
          "-d=CPU", f"-m={model}", f"-r={out}"],
-        # env=get_openvino_environment(install_prefix),
+        env=get_openvino_environment(install_prefix),
     )
     return returncode, output
 
