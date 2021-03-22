@@ -422,7 +422,8 @@ int onnx_editor::EdgeMapper::find_node_index(const std::string& node_name,
             return index_iter->second;
         }
     }
-    throw ngraph_error("Node with name: " + node_name + " and output_name: " + output_name +
+    throw ngraph_error("Node with name: " + (node_name.empty() ? "not_given" : node_name) +
+                       " and output_name: " + (output_name.empty() ? "not_given" : output_name) +
                        " was not found");
 };
 

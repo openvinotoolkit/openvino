@@ -33,7 +33,6 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
-// TODO it should be removed
 using namespace onnx_editor;
 using namespace ngraph::test;
 
@@ -860,33 +859,94 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_const_network)
     EXPECT_EQ(edge3.m_tensor_name, "add1");
 }
 
-NGRAPH_TEST(onnx_editor, xxx_subgraph__linear_model_head_cut)
+NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling)
 {
     ONNXModelEditor editor{file_util::path_join(
-        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
     const auto edge_mapper = editor.create_edge_mapper();
 
-    // define node by output name
-    // const InputEdge edge =
-    // edge_mapper.to_input_edge(onnx_editor::Node{onnx_editor::Output{"conv1/7x7_s2_2"}},
-    // onnx_editor::Input{"conv1/7x7_s2_1"});
-    /*editor.cut_graph_fragment({{edge}}, {});
+    // node with given output name not found
+    try
+    {
+        const InputEdge edge = edge_mapper.to_input_edge(
+            onnx_editor::Node{onnx_editor::Output{"not_existed"}}, onnx_editor::Input{0});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find("Node with name: not_given and output_name: not_existed was not found") !=
+            std::string::npos);
+    }
 
-    const auto ref_model = file_util::path_join(
-        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");
+    // node with given name not found
+    try
+    {
+        const InputEdge edge =
+            edge_mapper.to_input_edge(onnx_editor::Node{"not_existed"}, onnx_editor::Input{0});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find("Node with name: not_existed and output_name: not_given was not found") !=
+            std::string::npos);
+    }
+
+    // input index out of scope
+    try
+    {
+        const InputEdge edge =
+            edge_mapper.to_input_edge(onnx_editor::Node{"relu4_name"}, onnx_editor::Input{1});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Node with index: 3 has not input with index: 1") !=
+                    std::string::npos);
+    }
+
+    // output index out of scope
+    try
+    {
+        const OutputEdge edge =
+            edge_mapper.to_output_edge(onnx_editor::Node{"relu4_name"}, onnx_editor::Output{1});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Node with index: 3 has not output with index: 1") !=
+                    std::string::npos);
+    }
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto mapper = editor.create_edge_mapper();
+
+    editor.cut_graph_fragment(
+        {/*{InputEdge{1, "in2"}*/ mapper.to_input_edge(
+             onnx_editor::Node(onnx_editor::Output("add1")), onnx_editor::Input(1)),
+         /*InputEdge{2, "in3"}*/ mapper.to_input_edge(
+             onnx_editor::Node(onnx_editor::Output("conv1")), onnx_editor::Input(0))},
+        {/*{OutputEdge{4, "mul2"}*/ mapper.to_output_edge(
+            onnx_editor::Node(onnx_editor::Output("mul2")), onnx_editor::Output(0))});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__existing_inputs_and_outputs_based_extraction.prototxt");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
-    EXPECT_TRUE(result.is_ok) << result.error_message;*/
+    EXPECT_TRUE(result.is_ok) << result.error_message;
 }
 
 // combinations to test:
 // - node names dublicates!
-// edge mapper should share state ??
-// check mapper lifestyle
-// complete test with cutter
-// Node with given identifier was not found
-// input/output index exception
+// mapper to separate file
 
 using TestEngine = test::INTERPRETER_Engine;
 
