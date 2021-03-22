@@ -157,7 +157,7 @@ protected:
             ref_innerproduct(*srcPtr, weights->readOnly().as<const float *>(), weights->size() / sizeof(float), dst_ref, p);
             compare(*dst, dst_ref, 0.9f);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

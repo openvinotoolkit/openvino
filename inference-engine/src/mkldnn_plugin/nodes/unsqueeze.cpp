@@ -32,7 +32,7 @@ public:
 
             // WA to enable the implementation only for equal input and output precisions
             confs[0].inConfs[0].desc.setPrecision(confs[0].outConfs[0].desc.getPrecision());
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
