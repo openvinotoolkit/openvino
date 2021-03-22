@@ -114,7 +114,8 @@ class Port:
                 self.node.in_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
             else:
                 data_node = self.node.out_node(self.idx, control_flow=self.control_flow)
-                assert data_node.value is None or np.array_equal(data_node.shape, int64_array(shape))
+                assert data_node.value is None or \
+                       np.array_equal(data_node.soft_get('force_shape', data_node.shape),  int64_array(shape))
                 self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
 
     def _get_value(self):
