@@ -29,7 +29,7 @@ from mo.utils.unittest.graph import result, regular_op_with_empty_data, \
 
 class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
 
-    def test_run(self):
+    def test_run_with_shape_subgraph_input(self):
         inp_shape = (1, 3, 1000, 1000)
         dst_type = np.float32
 
@@ -70,7 +70,41 @@ class TestMarkDataTypeInShapeOfSubgraphs(unittest.TestCase):
             *connect('cast_to_int', '1:interpolate'),
             *connect('interpolate', 'res'),
         ]
+        graph = build_graph(nodes, edges)
+        interp_node = Node(graph, 'interpolate')
+        interp_node.add_input_port(2)
 
+        MarkNodesWithShapeValues().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph(nodes_ref, edges)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'res', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_run_with_const_input(self):
+        inp_shape = (1, 3, 1000, 1000)
+        dst_type = np.float32
+
+        nodes = {
+            **shaped_const_with_data('input', int64_array(inp_shape)),
+            **regular_op('sizes_const',  {'op': 'Const'}),
+            **{'sizes_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.])}},
+             **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
+            **result('res'),
+        }
+
+        nodes_ref = {
+            **shaped_const_with_data('input', int64_array(inp_shape)),
+            **regular_op('sizes_const',  {'op': 'Const', 'returns_shape_value': True}),
+            **{'sizes_const_d': {'kind': 'data', 'value': float32_array([1., 1., 1., 100.])}},
+              **regular_op_with_empty_data('interpolate', {'type': 'Interpolate', 'shape_calculation_model': 'scales'}),
+            **result('res'),
+        }
+
+        edges = [
+            *connect('input', '0:interpolate'),
+            *connect('sizes_const', '1:interpolate'),
+            *connect('interpolate', 'res'),
+        ]
         graph = build_graph(nodes, edges)
         interp_node = Node(graph, 'interpolate')
         interp_node.add_input_port(2)

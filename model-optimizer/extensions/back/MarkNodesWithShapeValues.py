@@ -49,14 +49,20 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
     @staticmethod
     def get_operations_with_shape_inputs():
         return {
-            'Interpolate': [1, 2],
-            'Reshape': [1],
-            'Broadcast': [1],
-            'ConvBackPropData ': [2],
-            'BatchToSpace': [1],
-            'SpaceToBatch': [1],
-            'Tile': [1],
-            'TopK': [1],
+            'Interpolate': [1, 2],  # sizes, scales inputs
+            'Reshape': [1],  # shape
+            'Broadcast': [1],  # target_shape
+            'ConvBackPropData ': [2],  # output_shape
+            'GroupConvolutionBackpropData ': [2],  # output_shape
+            'BatchToSpace': [1, 2, 3],  # block_shape, crops_begin, crops_end
+            'SpaceToBatch': [1, 2, 3],  # block_shape, pads_begin, pads_end
+            'StridedSlice': [1, 2, 3],  # begin, end, strides
+            'VariadicSplit': [2],  # split_lengths
+            'Tile': [1],  # repeats input
+            'TopK': [1],  # K input
+            'Pad': [1, 2],  # pads_begin, pads_end
+            'Range': [0, 1, 2],  # start, stop, step inputs
+            'OneHot': [1],  # depth input
         }
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -79,4 +85,4 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
                     node.out_node(0)['correct_data_type'] = True
                 elif node.value.dtype in [np.float16, np.float64]:
                     log.debug('Const nodes {} with shape values have {} type'.format(node.soft_get('name', node.id),
-                                                                                       node.value.dtype))
+                                                                                     node.value.dtype))
