@@ -24,10 +24,10 @@ using namespace ngraph;
 TEST(type_prop, roll_output_shape_type_test)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 3, 4, 1, 5});
-    auto axes = make_shared<op::Parameter>(element::i64, Shape{2});
     auto shift = make_shared<op::Parameter>(element::i32, Shape{2});
+    auto axes = make_shared<op::Parameter>(element::i64, Shape{2});
 
-    auto r = make_shared<op::v7::Roll>(arg, axes, shift);
+    auto r = make_shared<op::v7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{3, 3, 4, 1, 5}));
@@ -36,10 +36,10 @@ TEST(type_prop, roll_output_shape_type_test)
 TEST(type_prop, roll_axis_scalar_test)
 {
     auto arg = make_shared<op::Parameter>(element::i32, Shape{3, 3, 4});
-    auto axes = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto shift = make_shared<op::Parameter>(element::i32, Shape{3});
+    auto shift = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto axes = make_shared<op::Parameter>(element::i32, Shape{3});
 
-    auto r = make_shared<op::v7::Roll>(arg, axes, shift);
+    auto r = make_shared<op::v7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::i32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{3, 3, 4}));
@@ -48,12 +48,12 @@ TEST(type_prop, roll_axis_scalar_test)
 TEST(type_prop, roll_invalid_axes_check)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 3, 4, 1, 5});
-    auto axes = make_shared<op::Parameter>(element::i32, Shape{3});
-    auto shift = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto shift = make_shared<op::Parameter>(element::i32, Shape{3});
+    auto axes = make_shared<op::Parameter>(element::i64, Shape{1});
 
     try
     {
-        auto r = make_shared<op::v7::Roll>(arg, axes, shift);
+        auto r = make_shared<op::v7::Roll>(arg, shift, axes);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid axes and shift.";
     }
@@ -73,10 +73,10 @@ TEST(type_prop, roll_dynamic_shape)
 {
     auto arg = make_shared<op::Parameter>(element::f32,
                                           PartialShape{Dimension::dynamic(), Dimension::dynamic()});
-    auto axes = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
-    auto shift = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto shift = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+    auto axes = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
 
-    auto r = make_shared<op::v7::Roll>(arg, axes, shift);
+    auto r = make_shared<op::v7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(2)));

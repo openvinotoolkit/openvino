@@ -44,8 +44,10 @@ void op::v7::Roll::validate_and_infer_types()
                           axes_et.is_dynamic() || axes_et.is_integral_number(),
                           "Axes must have an integral number element type.");
 
+    const auto& data_pshape = get_input_partial_shape(0);
     const auto& shift_pshape = get_input_partial_shape(1);
     const auto& axes_pshape = get_input_partial_shape(2);
+    const auto& data_rank = data_pshape.rank().get_length();
     const auto& shift_rank = shift_pshape.rank().get_length();
     const auto& axes_rank = axes_pshape.rank().get_length();
 
@@ -60,6 +62,31 @@ void op::v7::Roll::validate_and_infer_types()
             this,
             shift_pshape.compatible(axes_pshape),
             "If shift is a 1D vector, axes must be a 1D tensor of the same size.");
+    }
+
+    if (const auto& const_axes = get_constant_from_source(input_value(2)))
+    {
+        auto axes = const_axes->cast_vector<int64_t>();
+
+        for (int64_t& axis : axes)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  axis < data_rank,
+                                  "Axes must be less than data tensor rank. Got "
+                                  "data tensor rank: ",
+                                  data_rank,
+                                  ", axis: ",
+                                  axis);
+            if (axis < 0)
+            {
+                axis += data_rank;
+            }
+            NODE_VALIDATION_CHECK(this,
+                                  axis >= 0,
+                                  "Axes must be positive or equal to zero. Got "
+                                  "axis: ",
+                                  axis);
+        }
     }
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
