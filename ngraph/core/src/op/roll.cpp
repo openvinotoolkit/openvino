@@ -55,6 +55,8 @@ void op::v7::Roll::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
 
+    // If shift is a scalar, than axes can be arbitrary 1d tensor and we don't need
+    // to check shift shape consistency with axes, otherwise the check is needed.
     if (!(shift_pshape.is_static() && is_scalar(shift_pshape.to_shape())))
     {
         NODE_VALIDATION_CHECK(
