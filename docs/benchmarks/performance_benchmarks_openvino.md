@@ -29,65 +29,65 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 
 \htmlonly
-<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-1.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-1"></script>
+<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-2.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="deeplabv3-tf-ov-2021-3-338-1.js" id="deeplabv3-tf-ov-2021-3-338-1"></script>
+<script src="deeplabv3-tf-ov-2021-3-338-2.js" id="deeplabv3-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="densenet-121-tf-ov-2021-3-338-1.js" id="densenet-121-tf-ov-2021-3-338-1"></script>
+<script src="densenet-121-tf-ov-2021-3-338-2.js" id="densenet-121-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-1.js" id="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-1"></script>
+<script src="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-2.js" id="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="googlenet-v1-tf-ov-2021-3-338-1.js" id="googlenet-v1-tf-ov-2021-3-338-1"></script>
+<script src="googlenet-v1-tf-ov-2021-3-338-2.js" id="googlenet-v1-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="inception-v3-tf-ov-2021-3-338-1.js" id="inception-v3-tf-ov-2021-3-338-1"></script>
+<script src="inception-v3-tf-ov-2021-3-338-2.js" id="inception-v3-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-ssd-cf-ov-2021-3-338-1.js" id="mobilenet-ssd-cf-ov-2021-3-338-1"></script>
+<script src="mobilenet-ssd-cf-ov-2021-3-338-2.js" id="mobilenet-ssd-cf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-v1-1-0-224-tf-ov-2021-3-338-1.js" id="mobilenet-v1-1-0-224-tf-ov-2021-3-338-1"></script>
+<script src="mobilenet-v1-1-0-224-tf-ov-2021-3-338-2.js" id="mobilenet-v1-1-0-224-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-v2-pytorch-ov-2021-3-338-1.js" id="mobilenet-v2-pytorch-ov-2021-3-338-1"></script>
+<script src="mobilenet-v2-pytorch-ov-2021-3-338-2.js" id="mobilenet-v2-pytorch-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="resnet-18-pytorch-ov-2021-3-338-1.js" id="resnet-18-pytorch-ov-2021-3-338-1"></script>
+<script src="resnet-18-pytorch-ov-2021-3-338-2.js" id="resnet-18-pytorch-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="resnet-50-tf-ov-2021-3-338-1.js" id="resnet-50-tf-ov-2021-3-338-1"></script>
-\endhtmlonly
-
-
-\htmlonly
-<script src="se-resnext-50-cf-ov-2021-3-338-1.js" id="se-resnext-50-cf-ov-2021-3-338-1"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="squeezenet1-1-cf-ov-2021-3-338-1.js" id="squeezenet1-1-cf-ov-2021-3-338-1"></script>
+<script src="resnet-50-tf-ov-2021-3-338-2.js" id="resnet-50-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 
 \htmlonly
-<script src="ssd300-cf-ov-2021-3-338-1.js" id="ssd300-cf-ov-2021-3-338-1"></script>
+<script src="se-resnext-50-cf-ov-2021-3-338-2.js" id="se-resnext-50-cf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="yolo-v3-tf-ov-2021-3-338-1.js" id="yolo-v3-tf-ov-2021-3-338-1"></script>
+<script src="squeezenet1-1-cf-ov-2021-3-338-2.js" id="squeezenet1-1-cf-ov-2021-3-338-2"></script>
+\endhtmlonly
+
+
+\htmlonly
+<script src="ssd300-cf-ov-2021-3-338-2.js" id="ssd300-cf-ov-2021-3-338-2"></script>
+\endhtmlonly
+
+\htmlonly
+<script src="yolo-v3-tf-ov-2021-3-338-2.js" id="yolo-v3-tf-ov-2021-3-338-2"></script>
 \endhtmlonly
 
 
@@ -200,25 +200,25 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                             | Intel® Core™ i3-8100               | 
-| -------------------- | ----------------------------------    | ------------------------------------------------|----------------------------------- |
-| Motherboard          |                                       | Intel Corporation/<br>ElkhartLake LPDDR4x T3 CRB| GIGABYTE* Z390 UD                  |
-| CPU                  | Intel Atom® Processor E3940 @ 1.60GHz | Intel Atom® x6425RE Processor @ 1.90GHz         | Intel® Core™ i3-8100 CPU @ 3.60GHz |
-| Hyper Threading      | OFF                                   | OFF                                             | OFF                                |
-| Turbo Setting        | ON                                    | ON                                              | OFF                                |
-| Memory               | 1 x 8 GB DDR3 1600MHz                 | 2 x 4GB DDR4 3200 MHz                           | 4 x 8 GB DDR4 2400MHz              |
-| Operating System     | Ubuntu* 18.04 LTS                     | Ubuntu* 18.04 LTS                               | Ubuntu* 18.04 LTS                  |
-| Kernel Version       | 5.3.0-24-generic                      | 5.8.0-050800-generic                            | 5.3.0-24-generic                   |
-| BIOS Vendor          | American Megatrends Inc.*             | Intel Corporation                               | American Megatrends Inc.*          |
-| BIOS Version         | 5.12                                  | EHLSFWI1.R00.2463.A03.2011200425                | F8                                 |
-| BIOS Release         | September 6, 2017                     | November 20, 2020                               | May 24, 2019                       |
-| BIOS Settings        | Default settings                      | Default settings                                | Select optimized default settings, <br> set OS type to "other", <br>save & exit |
-| Batch size           | 1                                     | 1                                               | 1                                  |
-| Precision            | INT8                                  | INT8                                            | INT8                               |
-| Number of concurrent inference requests | 4                  | 4                                               | 4                                  |
-| Test Date            | March 15, 2021                        | March 15, 2021                                  | March 15, 2021                     |
-| Power dissipation, TDP in Watt | [9.5](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html)  | [12](https://mark.intel.com/content/www/us/en/secure/mark/products/207907/intel-atom-x6425e-processor-1-5m-cache-up-to-3-00-ghz.html#tab-blade-1-0-1) | [65](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html#tab-blade-1-0-1)|
-| CPU Price on September 29, 2020, USD<br>Prices may vary  | [34](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html) | TBA | [117](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html)       |
+|                      | Intel Atom® x5-E3940                  | Intel® Core™ i3-8100               | 
+| -------------------- | ----------------------------------    |----------------------------------- |
+| Motherboard          |                                       | GIGABYTE* Z390 UD                  |
+| CPU                  | Intel Atom® Processor E3940 @ 1.60GHz | Intel® Core™ i3-8100 CPU @ 3.60GHz |
+| Hyper Threading      | OFF                                   | OFF                                |
+| Turbo Setting        | ON                                    | OFF                                |
+| Memory               | 1 x 8 GB DDR3 1600MHz                 | 4 x 8 GB DDR4 2400MHz              |
+| Operating System     | Ubuntu* 18.04 LTS                     | Ubuntu* 18.04 LTS                  |
+| Kernel Version       | 5.3.0-24-generic                      | 5.3.0-24-generic                   |
+| BIOS Vendor          | American Megatrends Inc.*             | American Megatrends Inc.*          |
+| BIOS Version         | 5.12                                  | F8                                 |
+| BIOS Release         | September 6, 2017                     | May 24, 2019                       |
+| BIOS Settings        | Default settings                      | Select optimized default settings, <br> set OS type to "other", <br>save & exit |
+| Batch size           | 1                                     | 1                                  |
+| Precision            | INT8                                  | INT8                               |
+| Number of concurrent inference requests | 4                  | 4                                  |
+| Test Date            | March 15, 2021                        | March 15, 2021                     |
+| Power dissipation, TDP in Watt | [9.5](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html)  | [65](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html#tab-blade-1-0-1)|
+| CPU Price on September 29, 2020, USD<br>Prices may vary  | [34](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html) | [117](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html)       |
 
 
 
