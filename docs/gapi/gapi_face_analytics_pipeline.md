@@ -16,7 +16,7 @@ This sample requires:
     * [age-gender-recognition-retail-0013](@ref omz_models_intel_age_gender_recognition_retail_0013_description_age_gender_recognition_retail_0013)
     * [emotions-recognition-retail-0003](@ref omz_models_intel_emotions_recognition_retail_0003_description_emotions_recognition_retail_0003)
 
-To download the models from the Open Model Zoo, use the [Model Downloader](@ref omz_tools_downloader_README) tool.
+To download the models from the Open Model Zoo, use the [Model Downloader](@ref omz_tools_downloader) tool.
 
 ## Introduction: Why G-API
 Many computer vision algorithms run on a video stream rather than on individual images. Stream processing usually consists of multiple steps – like decode, preprocessing, detection, tracking, classification (on detected objects), and visualization – forming a *video processing pipeline*. Moreover, many these steps of such pipeline can run in parallel – modern platforms have different hardware blocks on the same chip like decoders and GPUs, and extra accelerators can be plugged in as extensions, like Intel® Movidius™ Neural Compute Stick for deep learning offload.
@@ -26,7 +26,7 @@ Given all this manifold of options and a variety in video analytics algorithms, 
 Starting with version 4.2, OpenCV offers a solution to this problem. OpenCV G-API now can manage Deep Learning inference (a cornerstone of any modern analytics pipeline) with a traditional Computer Vision as well as video capturing/decoding, all in a single pipeline. G-API takes care of pipelining itself – so if the algorithm or platform changes, the execution model adapts to it automatically.
 
 ## Pipeline Overview
-Our sample application is based on [Interactive Face Detection](omz_demos_interactive_face_detection_demo_README) demo from Open Model Zoo. A simplified pipeline consists of the following steps:
+Our sample application is based on [Interactive Face Detection](@ref omz_demos_interactive_face_detection_demo_cpp) demo from Open Model Zoo. A simplified pipeline consists of the following steps:
 
 1. Image acquisition and decode
 2. Detection with preprocessing

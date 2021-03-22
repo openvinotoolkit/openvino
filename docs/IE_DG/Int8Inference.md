@@ -23,11 +23,11 @@ A lot of investigation was made in the field of deep learning with the idea of u
 8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is a reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
 
 
-Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader_README) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
+Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
 ./downloader.py --name resnet-50-tf --precisions FP16-INT8
 ```
-After that you should quantize model by [Model Quantizer](@ref omz_tools_downloader_README) tool.
+After that you should quantize model by [Model Quantizer](@ref omz_tools_downloader) tool.
 ```sh
 ./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```

@@ -26,8 +26,8 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 | Intel® Media SDK                                                                                    | Offers access to hardware accelerated video codecs and frame processing                                                                                                                                                                                                                                       |
 | [OpenCV](https://docs.opencv.org/master/)                                                           | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                                                                       |
 | [Inference Engine Code Samples](../IE_DG/Samples_Overview.md)           | A set of simple console applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
-| [Demo Applications](@ref omz_demos_README)           | A set of simple console applications that provide robust application templates to help you implement specific deep learning scenarios. |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
+| [Demo Applications](@ref omz_demos)           | A set of simple console applications that provide robust application templates to help you implement specific deep learning scenarios. |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo).  |
 | Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
 
@@ -35,7 +35,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 
 [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
 configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)
 * [Intel® Open Model Zoo](@ref omz_models_intel_index)
 * [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Post-training Optimization Tool](@ref pot_README)

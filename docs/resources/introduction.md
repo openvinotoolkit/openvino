@@ -8,12 +8,12 @@
 
 ## Demos
 
-- [Demos](@ref omz_demos_README)
+- [Demos](@ref omz_demos)
 
 
 ## Additional Tools
 
-- A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other
+- A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other
 
 ## Pre-Trained Models
 

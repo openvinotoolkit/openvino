@@ -16,7 +16,7 @@ This sample requires:
       * [face-detection-adas-0001](@ref omz_models_intel_face_detection_adas_0001_description_face_detection_adas_0001)
       * [facial-landmarks-35-adas-0002](@ref omz_models_intel_facial_landmarks_35_adas_0002_description_facial_landmarks_35_adas_0002)
 
-To download the models from the Open Model Zoo, use the [Model Downloader](@ref omz_tools_downloader_README) tool.
+To download the models from the Open Model Zoo, use the [Model Downloader](@ref omz_tools_downloader) tool.
 
 ## Face Beautification Algorithm
 We will implement a simple face beautification algorithm using a combination of modern Deep Learning techniques and traditional Computer Vision. The general idea behind the algorithm is to make face skin smoother while preserving face features like eyes or a mouth contrast. The algorithm identifies parts of the face using a DNN inference, applies different filters to the parts found, and then combines it into the final result using basic image arithmetics:

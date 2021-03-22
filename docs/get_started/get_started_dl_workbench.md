@@ -9,7 +9,7 @@ In this guide, you will:
 
 [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a web-based graphical environment that enables you to easily use various sophisticated
 OpenVINO™ toolkit components:
-* [Model Downloader](@ref omz_tools_downloader_README) to download models from the [Intel® Open Model Zoo](@ref omz_models_intel_index) 
+* [Model Downloader](@ref omz_tools_downloader) to download models from the [Intel® Open Model Zoo](@ref omz_models_intel_index) 
 with pretrained models for a range of different tasks
 * [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to transform models into
 the Intermediate Representation (IR) format
