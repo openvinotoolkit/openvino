@@ -35,6 +35,8 @@ FetchContent_Declare(
     ext_onnx
     GIT_REPOSITORY ${ONNX_GIT_REPO_URL}
     GIT_TAG ${ONNX_GIT_BRANCH}
+    # apply patch to fix problems with symbols visibility for MSVC
+    PATCH_COMMAND git apply --verbose ${ONNX_PATCH_FILE}
 )
 
 macro(onnx_set_target_properties)
@@ -76,10 +78,6 @@ if(NOT ext_onnx_POPULATED)
     if(CMAKE_CROSSCOMPILING)
         set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
     endif()
-
-    # apply patch to fix problems with symbols visibility for MSVC
-    execute_process(COMMAND git apply --verbose ${ONNX_PATCH_FILE}
-      WORKING_DIRECTORY ${ext_onnx_SOURCE_DIR})
 
     add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
     onnx_set_target_properties()

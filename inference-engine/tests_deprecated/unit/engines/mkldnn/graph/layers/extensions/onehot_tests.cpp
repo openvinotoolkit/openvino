@@ -108,7 +108,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -148,7 +148,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -247,7 +247,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -292,7 +292,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -399,7 +399,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -444,7 +444,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -557,7 +557,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -604,7 +604,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -729,7 +729,7 @@ protected:
             InferenceEngine::CNNNetwork network;
             try {
                 network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-            } catch (InferenceEngine::details::InferenceEngineException &e) {
+            } catch (InferenceEngine::Exception &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
                 FAIL() << e.what();
@@ -777,7 +777,7 @@ protected:
             // Infer
             graph.Infer(srcs, outputBlobs);
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

@@ -7,7 +7,6 @@
 #include <ie_iextension.h>
 
 #include <cmath>
-#include <details/ie_exception.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -42,7 +41,7 @@ void details::validateLayer(const CNNLayer * layer) {
         InOutDims shapes;
         getInOutShapes(layer, shapes);
         validator->checkShapes(layer, shapes.inDims);
-    } catch (const InferenceEngineException& ie_e) {
+    } catch (const Exception& ie_e) {
         THROW_IE_EXCEPTION << "Error of validate layer: " << layer->name << " with type: " << layer->type << ". "
                            << ie_e.what();
     }
