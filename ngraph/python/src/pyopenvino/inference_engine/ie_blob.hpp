@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <vector>
 
@@ -37,7 +25,19 @@ void regclass_TBlob(py::module m, std::string typestring)
     auto pyclass_name = py::detail::c_str((std::string("TBlob") + typestring));
 
     py::class_<InferenceEngine::TBlob<T>, std::shared_ptr<InferenceEngine::TBlob<T>>> cls(
-        m, pyclass_name);
+            m, pyclass_name);
+
+    cls.def(py::init([](const InferenceEngine::TensorDesc& tensorDesc) {
+        return std::make_shared<InferenceEngine::TBlob<T>>(tensorDesc);
+    }));
+
+    cls.def(py::init([](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T> arr) {
+        auto size = arr.size(); // or copy from tensorDesc getDims product?
+        // py::print(arr.dtype()); // validate tensorDesc with this???
+        // assert arr.size() == TensorDesc.getDims().product? ???
+        T* ptr = const_cast<T*>(arr.data(0)); // Note: obligatory removal of const!
+        return std::make_shared<InferenceEngine::TBlob<T>>(tensorDesc, ptr, size);
+    }));
 
     cls.def(py::init(
         [](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T>& arr, size_t size = 0) {

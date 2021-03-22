@@ -6,8 +6,6 @@
 
 #include <pybind11/pybind11.h>
 
-#include <cpp/ie_infer_request.hpp>
-
 namespace py = pybind11;
 
-void regclass_InferRequest(py::module m);
+void regclass_PreProcessInfo(py::module m);

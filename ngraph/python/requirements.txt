@@ -1,3 +1,2 @@
 numpy==1.19.4
-ccompiler
 typing; python_version < '3.6'

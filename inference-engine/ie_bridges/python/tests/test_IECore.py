@@ -187,12 +187,6 @@ def test_read_network_as_path():
     assert isinstance(net, IENetwork)
 
 
-def test_get_config():
-    ie = IECore()
-    conf = ie.get_config("CPU", "CPU_BIND_THREAD")
-    print(conf)
-
-
 def test_read_network_from_onnx():
     ie = IECore()
     net = ie.read_network(model=test_net_onnx)
