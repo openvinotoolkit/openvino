@@ -105,7 +105,7 @@ TEST_P(LayoutTest, NetWithLayout) {
         ASSERT_EQ(inputBlob->getTensorDesc().getLayout(), layout);
     } else {
         ASSERT_THROW(cnnNet.getInputsInfo().begin()->second->setLayout(layout),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }
 }  // namespace BehaviorTestsDefinitions
