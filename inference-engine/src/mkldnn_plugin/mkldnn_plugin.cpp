@@ -68,6 +68,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -195,6 +196,42 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         }
         return false;
     };
+
+    // Sequences supported by the plugin shouldn't be converted to TensorIterator.
+    // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
+    // should always convert to TensorIterator.
+    // RNN/GRU/LSTM Sequences are supported with clip == 0, and with default activations.
+    auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
+        const auto& data = node->input(0);
+        const auto& data_pshape = data.get_partial_shape();
+        if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
+            return false;
+        auto max_seq_len = data.get_shape().at(1);
+        if (const auto &rnn_seq = std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
+            return rnn_seq->get_clip() == 0.0f &&
+                   !ngraph::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
+        } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
+                node)) {
+            return gru_seq->get_clip() == 0.0f &&
+                   gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
+        } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
+                node)) {
+            return lstm_seq->get_clip() == 0.0f &&
+                   lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
+                                                          max_seq_len);
+        }
+        return false;
+    };
+
+    pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator, ngraph::pass::ConvertGRUSequenceToTensorIterator,
+            ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+            [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                return isSequencePrimitiveSupported(node);
+            });
 
     pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
             ngraph::pass::LSTMCellDecomposition>(

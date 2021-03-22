@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,6 +103,9 @@ TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, con
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
                                                              const ngraph::Output<ngraph::Node>& apply_to);
+
+TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len);
+
 
 template <class T>
 Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
