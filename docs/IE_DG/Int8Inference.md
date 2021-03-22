@@ -15,8 +15,6 @@ Low-precision 8-bit inference is optimized for:
   - [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
   - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
 
-The 8-bit inference feature was validated on most well-known public topologies.
-
 ## Introduction
 
 A lot of investigation was made in the field of deep learning with the idea of using low precision computations during inference in order to boost deep learning pipelines and gather higher performance. For example, one of the popular approaches is to shrink the precision of activations and weights values from `fp32` precision to smaller ones, for example, to `fp11` or `int8`. For more information about this approach, refer to 
@@ -44,22 +42,15 @@ If you infer the model in the OpenVINO™ CPU plugin and collect performance cou
 For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](https://docs.openvinotoolkit.org/latest/omz_models_intel_index.html). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
 8-bit inference pipeline includes two stages (also refer to the figure below):
-1. *Offline stage*, or *model quantization*. During this stage, `FakeQuantize` layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). [FakeQuantize](https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/quantization/FakeQuantize_1.md) layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256.
+1. *Offline stage*, or *model quantization*. During this stage, [FakeQuantize](https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/quantization/FakeQuantize_1.md) layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
 
-2. *Run-time stage*. This stage is an internal procedure of the OpenVINO™ plugin. During this stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to updates each `FakeQuantize` layer on activations and weights to have `FakeQuantize` output tensor values in low precision range. 
+   When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
+
+2. *Run-time stage*. This stage is an internal procedure of the OpenVINO™ plugin. During this stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to update the model to infer it in low precision:
+   - Update `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
+   - Weights are quantized and stored in `Constant` layers. 
+
 ![int8_flow]
-
-### Offline Stage: Model Quantization
-
-To infer a layer in low precision and get maximum performance, the input tensor for the layer has to be quantized and each value has to be in the target low precision range. For this purpose, `FakeQuantize` layer is used in the OpenVINO™ intermediate representation file (IR). To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
-
-When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
-
-### Run-Time Stage: Quantization
-
-This is the second stage of the 8-bit integer inference. After you load the quantized model IR to a plugin, the pluing uses the `Low Precision Transformation` component to update the model to infer it in low precision:
-* Updates `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
-* Weights are quantized and stored in `Constant` layers.
 
 ## Performance Counters
 
