@@ -72,8 +72,8 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 
     const int ox = (int)get_global_id(0) % OUTPUT_SIZE_X;
     const int oy = (int)get_global_id(0) / OUTPUT_SIZE_X;
-    const int feature_block_nun = get_global_id(1);
-    const int feature = feature_block_nun * FEATURE_BLOCK_SIZE;
+    const int feature_block_num = get_global_id(1);
+    const int feature = feature_block_num * FEATURE_BLOCK_SIZE;
 
 #if OUTPUT_DIMS <= 4
     const int batch = get_global_id(2);
@@ -233,10 +233,10 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 )
 {
     const int xy = get_global_id(0);
-    const int b = get_global_id(2);
-    const int f_block = get_group_id(1);
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
+    const int f_block = get_group_id(1);
+    const int b = get_global_id(2);
     const int feature_num = f_block * FEATURE_SLICE_SIZE + get_sub_group_local_id();
     const uint feature_block = f_block * FEATURE_SLICE_SIZE;
 
@@ -329,7 +329,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
     }
 }
-#endif // SAMPLE_TYPE_CAFFE_INTERP
+#endif // !SAMPLE_TYPE_CAFFE_INTERP
 
 #undef unroll_for
 #undef TRIANGLE_COEFF
