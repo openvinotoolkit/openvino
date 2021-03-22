@@ -493,7 +493,7 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
     auto src_type = constant->get_element_type();
     const auto* src_data = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
 
-    // We supports conversion only if several elements can be represented in one instance of some C++ common data type without any exception,
+    // We support conversion only if several elements can be represented in one instance of some C++ common data type without any exception,
     // destination data type should be bigger than source and destination data type should be real
     if (!supported_integer_precisions.count(src_type) || (src_type.size() * 8) % src_type.bitwidth()  ||
         (to.size() * 8) % to.bitwidth() || to.is_real() || to.bitwidth() < src_type.bitwidth())
