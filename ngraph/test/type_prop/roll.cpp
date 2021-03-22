@@ -33,10 +33,66 @@ TEST(type_prop, roll_output_shape_type_test)
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{3, 3, 4, 1, 5}));
 }
 
+TEST(type_prop, roll_axis_const_test)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 3, 3});
+    auto shift = make_shared<op::Parameter>(element::i32, Shape{3});
+    auto axes = op::Constant::create(element::i64, Shape{3}, {0, 1, -1});
+
+    auto r = make_shared<op::v7::Roll>(arg, shift, axes);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{3, 3, 3}));
+}
+
+TEST(type_prop, roll_incorrect_axis_test)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 3});
+    auto shift = make_shared<op::Parameter>(element::i32, Shape{2});
+    auto axes = op::Constant::create(element::i64, Shape{2}, {0, 2});
+
+    try
+    {
+        auto r = make_shared<op::v7::Roll>(arg, shift, axes);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Unexpected pass with invalid axes and shift.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axes must be less than data tensor rank."));
+    }
+    catch (...)
+    {
+        FAIL() << "Check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, roll_incorrect_negative_axis_test)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 3});
+    auto shift = make_shared<op::Parameter>(element::i32, Shape{2});
+    auto axes = op::Constant::create(element::i64, Shape{2}, {0, -5});
+
+    try
+    {
+        auto r = make_shared<op::v7::Roll>(arg, shift, axes);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Unexpected pass with invalid axes and shift.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axes must be positive or equal to zero."));
+    }
+    catch (...)
+    {
+        FAIL() << "Check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, roll_axis_scalar_test)
 {
     auto arg = make_shared<op::Parameter>(element::i32, Shape{3, 3, 4});
-    auto shift = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto shift = op::Constant::create(element::i64, Shape{}, {5});
     auto axes = make_shared<op::Parameter>(element::i32, Shape{3});
 
     auto r = make_shared<op::v7::Roll>(arg, shift, axes);
