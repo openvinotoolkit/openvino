@@ -985,7 +985,7 @@ struct caffe_resample_random_test_param_generator : std::vector<caffe_resample_r
         push_back(caffe_resample_random_test_params{ type, {1, 8, 64, 64},  {1, 8, 32, 32},  1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 20, 10, 10}, {1, 20, 20, 20}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
         push_back(caffe_resample_random_test_params{ type, {1, 20, 20, 20}, {1, 20, 10, 10}, 1,   resample_type::caffe_bilinear, 1, input_format, output_format, {}, {}});
-        // // Padding applied
+        // Padding applied
         push_back(caffe_resample_random_test_params{ type, {1, 96, 16, 16}, {1, 96, 32, 32}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {0, 0, 1, 1}, {0, 0, 1, 1}});
         push_back(caffe_resample_random_test_params{ type, {1, 96, 32, 32}, {1, 96, 16, 16}, 1, resample_type::caffe_bilinear, 1, input_format, output_format, {0, 0, 1, 1}, {0, 0, 1, 1}});
         return *this;
