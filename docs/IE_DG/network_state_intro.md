@@ -219,7 +219,7 @@ LowLatency transformation changes the structure of the network containing [Tenso
 
 ![applying_low_latency_example](./img/applying_low_latency.png)
 
-Note: After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of ReadValue operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified by the user via [State API](#openvino-state-api).
+After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of ReadValue operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified by the user via [State API](#openvino-state-api).
 
 ### Steps to apply LowLatency transformation
 
