@@ -174,7 +174,7 @@ void op::v7::DFT::validate()
         {
             NODE_VALIDATION_CHECK(this,
                                   axes_shape.to_shape()[0] == signal_size_shape.to_shape()[0],
-                                  "Sizes of inputs 'axes' and 'sinal_size' must be equal. Got "
+                                  "Sizes of inputs 'axes' and 'signal_size' must be equal. Got "
                                   "size of 'axes': ",
                                   axes_shape.to_shape()[0],
                                   "size of 'signal_size': ",
