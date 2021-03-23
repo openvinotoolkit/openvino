@@ -82,7 +82,7 @@ public:
      */
     explicit SOPointer(T* pointedObj): _so_loader(), _pointedObj(pointedObj) {
         if (_pointedObj == nullptr) {
-            THROW_IE_EXCEPTION << "Cannot create SOPointer<T, Loader> from nullptr";
+            IE_THROW() << "Cannot create SOPointer<T, Loader> from nullptr";
         }
     }
 
@@ -193,9 +193,9 @@ protected:
                 reinterpret_cast<CreateF*>(create)(_pointedObj);
             }
         } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
-            THROW_IE_EXCEPTION << ex.what();
+            IE_THROW() << ex.what();
         } catch(...) {
-            THROW_IE_EXCEPTION_WITH_STATUS(Unexpected);
+            IE_THROW(Unexpected);
         }
     }
 
@@ -207,9 +207,9 @@ protected:
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(_so_loader->get_symbol(SOCreatorTrait<T>::name))(_pointedObj);
         } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
-            THROW_IE_EXCEPTION << ex.what();
+            IE_THROW() << ex.what();
         } catch(...) {
-            THROW_IE_EXCEPTION_WITH_STATUS(Unexpected);
+            IE_THROW(Unexpected);
         }
     }
     #undef CATCH_IE_EXCEPTION

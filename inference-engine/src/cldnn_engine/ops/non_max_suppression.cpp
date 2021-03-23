@@ -19,7 +19,7 @@ static bool GetCenterPointBox(ngraph::op::v5::NonMaxSuppression::BoxEncodingType
     switch (encoding) {
         case ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER: return true;
         case ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CORNER: return false;
-        default: THROW_IE_EXCEPTION << "NonMaxSuppression layer has unsupported box encoding";
+        default: IE_THROW() << "NonMaxSuppression layer has unsupported box encoding";
     }
     return false;
 }
@@ -101,7 +101,7 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
             inputPrimitives.push_back(non_max_supression_mutable_id_w_first);
         }
         case 1: break;
-        default: THROW_IE_EXCEPTION << "Incorrect number of output for layer: " << op->get_friendly_name();
+        default: IE_THROW() << "Incorrect number of output for layer: " << op->get_friendly_name();
     }
 
     auto nonMaxSupressionLayerName = num_output > 1 ? layer_type_name_ID(op) + ".0" : layer_type_name_ID(op);
@@ -121,7 +121,7 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
         case 4: prim.iou_threshold = reorderedInputs[3];
         case 3: prim.num_select_per_class = reorderedInputs[2];
         case 2: break;
-        default: THROW_IE_EXCEPTION << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
+        default: IE_THROW() << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
     }
 
     switch (num_output) {

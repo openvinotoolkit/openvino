@@ -52,7 +52,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     auto supported_keys = _metrics->SupportedConfigKeys();
     if (std::find(supported_keys.begin(),
         supported_keys.end(), name) == supported_keys.end()) {
-        THROW_IE_EXCEPTION << "Unsupported config key : " << name;
+        IE_THROW() << "Unsupported config key : " << name;
     }
 
     Parameter result;
@@ -159,7 +159,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     std::ifstream blobFile(modelFileName, std::ios::binary);
 
     if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotRead);
+        IE_THROW(NetworkNotRead);
     }
 
     return ImportNetwork(blobFile, config);
@@ -219,5 +219,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+    IE_THROW(NotImplemented);
 }

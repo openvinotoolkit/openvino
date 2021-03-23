@@ -28,7 +28,7 @@ public:
      */
     explicit VariableStateBase(std::shared_ptr<IVariableStateInternal> impl): impl(impl) {
         if (impl == nullptr) {
-            THROW_IE_EXCEPTION << "VariableStateBase implementation is not defined";
+            IE_THROW() << "VariableStateBase implementation is not defined";
         }
     }
 
