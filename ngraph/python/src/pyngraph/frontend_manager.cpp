@@ -41,7 +41,8 @@ void regclass_pyngraph_FrontEnd(py::module m)
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
     fem.def("loadFromFile", &ngraph::frontend::FrontEnd::loadFromFile);
-    fem.def("convert", &ngraph::frontend::FrontEnd::convert);
+    fem.def("convert", static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(ngraph::frontend::InputModel::Ptr)const>(&ngraph::frontend::FrontEnd::convert));
+    fem.def("convert", static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>)const>(&ngraph::frontend::FrontEnd::convert));
 }
 
 void regclass_pyngraph_Place(py::module m)
