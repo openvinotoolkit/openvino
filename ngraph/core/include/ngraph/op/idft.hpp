@@ -57,7 +57,7 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-            private:
+            protected:
                 void validate();
             };
         }

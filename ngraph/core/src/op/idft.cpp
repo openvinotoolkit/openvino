@@ -84,7 +84,7 @@ void op::v7::IDFT::validate()
                           axes_et == element::i64 || axes_et == element::i32,
                           "IDFT axes element type must be i32 or i64");
 
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+    const auto& input_shape = PartialShape(get_input_partial_shape(0));
     if (input_shape.rank().is_static())
     {
         const auto input_rank = input_shape.rank().get_length();
@@ -100,7 +100,7 @@ void op::v7::IDFT::validate()
                               input_shape[input_rank - 1]);
     }
 
-    PartialShape axes_shape = PartialShape(get_input_partial_shape(1));
+    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
     if (axes_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
@@ -127,6 +127,10 @@ void op::v7::IDFT::validate()
         const auto& const_axes = get_constant_from_source(input_value(1));
         auto axes = const_axes->cast_vector<int64_t>();
 
+        // IDFT operation supports for negative axes to transform. More precisely, according to
+        // the IDFT operation specification, axes should be integers from -(r - 1) to (r - 2)
+        // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis
+        //'r - 1 + a'. The reason is the following.
         for (int64_t& axis : axes)
         {
             if (axis < 0)
@@ -159,7 +163,7 @@ void op::v7::IDFT::validate()
                               signal_size_et == element::i64 || signal_size_et == element::i32,
                               "IDFT signal_size element type must be i32 or i64");
 
-        PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
+        const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
         if (signal_size_shape.rank().is_static())
         {
             NODE_VALIDATION_CHECK(this,
@@ -173,7 +177,7 @@ void op::v7::IDFT::validate()
         {
             NODE_VALIDATION_CHECK(this,
                                   axes_shape.to_shape()[0] == signal_size_shape.to_shape()[0],
-                                  "Sizes of inputs 'axes' and 'sinal_size' must be equal. Got "
+                                  "Sizes of inputs 'axes' and 'signal_size' must be equal. Got "
                                   "size of 'axes': ",
                                   axes_shape.to_shape()[0],
                                   "size of 'signal_size': ",
@@ -187,8 +191,8 @@ void op::v7::IDFT::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v7_IDFT_validate_and_infer_types);
     validate();
 
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-    PartialShape axes_shape = PartialShape(get_input_partial_shape(1));
+    const auto& input_shape = PartialShape(get_input_partial_shape(0));
+    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
     PartialShape output_shape = input_shape;
     if (input_shape.rank().is_dynamic() || axes_shape.rank().is_dynamic())
     {
@@ -214,7 +218,7 @@ void op::v7::IDFT::validate_and_infer_types()
         return;
     }
 
-    PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
+    const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
     if (signal_size_shape.rank().is_dynamic())
     {
         set_output_type(0, get_input_element_type(0), output_shape);
@@ -223,6 +227,10 @@ void op::v7::IDFT::validate_and_infer_types()
 
     const auto& const_axes = get_constant_from_source(input_value(1));
     auto axes = const_axes->cast_vector<int64_t>();
+    // IDFT operation supports for negative axes to transform. More precisely, according to
+    // the IDFT operation specification, axes should be integers from -(r - 1) to (r - 2)
+    // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis
+    //'r - 1 + a'. The reason is the following.
     for (int64_t& axis : axes)
     {
         if (axis < 0)
