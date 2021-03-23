@@ -25,11 +25,9 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr&
         : MKLDNNNode(layer, eng, cache), withBiases(false), withSum(false), withDWConv(false), isDW(false), isMerged(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
           groupNum(1lu), baseInputsNumber(1), eltwisePrecision(Precision::FP32) {
-    if (getCnnLayer()->type == "Convolution") {
-        baseInputsNumber = getCnnLayer().get()->insData.size();
-        if (baseInputsNumber < 2)
-            THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
-    }
+    baseInputsNumber = getCnnLayer().get()->insData.size();
+    if (baseInputsNumber < 2)
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
 }
 
 mkldnn::memory::data_type MKLDNNConvolutionNode::precisionToDataType(InferenceEngine::Precision prec) const {
@@ -804,13 +802,13 @@ MKLDNNMemoryDesc MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_ite
 const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
     if (baseInputsNumber > 1)
         return getParentEdgeAt(1)->getMemory().GetPrimitive();
-    THROW_IE_EXCEPTION << "Convolution layer " << getName() << " has no input weights";
+    IE_THROW() << "Convolution layer " << getName() << " has no input weights";
 }
 
 const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
     if (baseInputsNumber > 2)
         return getParentEdgeAt(2)->getMemory().GetPrimitive();
-    THROW_IE_EXCEPTION << "Convolution layer " << getName() << " has no input biases";
+    IE_THROW() << "Convolution layer " << getName() << " has no input biases";
 }
 
 InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
