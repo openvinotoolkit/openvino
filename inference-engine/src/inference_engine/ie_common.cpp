@@ -102,9 +102,9 @@ Parameter::~Parameter() {
     clear();
 }
 
-#if defined(__ANDROID__)
 Parameter::Any::~Any() {}
 
+#if defined(__ANDROID__)
 template struct Parameter::RealData<int>;
 template struct Parameter::RealData<bool>;
 template struct Parameter::RealData<float>;

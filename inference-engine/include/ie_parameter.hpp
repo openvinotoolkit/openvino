@@ -274,11 +274,7 @@ private:
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
     struct Any {
-#if defined(__ANDROID__)
         virtual ~Any();
-#else
-        virtual ~Any() = default;
-#endif  // __ANDROID__
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
