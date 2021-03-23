@@ -71,13 +71,9 @@ def run(args):
 
         # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
         next_step(step_id=2)
-        run_start_time = datetime.utcnow()
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type)
-
-        duration_ms = "{:.2f}".format((datetime.utcnow() - run_start_time).total_seconds() * 1000)
-        logger.info("Init of Inference Engine took {} ms".format(duration_ms))
 
         ## CPU (MKLDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
@@ -93,10 +89,7 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
-        getver_start_time = datetime.utcnow();
         version = benchmark.get_version_info()
-        duration_ms = "{:.2f}".format((datetime.utcnow() - getver_start_time).total_seconds() * 1000)
-        logger.info("Getting device versions took {} ms".format(duration_ms))
 
         logger.info(version)
 
@@ -321,14 +314,11 @@ def run(args):
         # ------------------------------------ 9. Creating infer requests and filling input blobs ----------------------
         next_step()
 
-        input_fill_start = datetime.utcnow()
         paths_to_input = list()
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
         set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
-        input_fill_duration_ms = "{:.2f}".format((datetime.utcnow() - input_fill_start).total_seconds() * 1000)
-        logger.info("Inputs filling took {} ms".format(input_fill_duration_ms))
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -362,13 +352,10 @@ def run(args):
 
         duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
         logger.info("First inference took {} ms".format(duration_ms))
-        duration_since_startup_ms = "{:.2f}".format((datetime.utcnow() - run_start_time).total_seconds() * 1000)
-        logger.info("Total time for first inference since startup {} ms".format(duration_since_startup_ms))
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
-                                        ('first inference time (ms)', duration_ms),
-                                        ('first inference time since startup (ms)', duration_since_startup_ms)
+                                        ('first inference time (ms)', duration_ms)
                                     ])
         fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
 
