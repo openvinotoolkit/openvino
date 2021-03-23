@@ -87,7 +87,7 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
     """Fixture function for getting the additional attributes of the current test."""
-    setattr(request.node._request, "test_info", {"test_id": {}, "out_csv": {}})
+    setattr(request.node._request, "test_info", {})
     if not hasattr(pytestconfig, "session_info"):
         setattr(pytestconfig, "session_info", [])
 
