@@ -12,59 +12,12 @@
 #include <cpp/ie_infer_request.hpp>
 #include <ie_common.h>
 
+#include "pyopenvino/inference_engine/common.hpp"
+#include "pyopenvino/inference_engine/ie_executable_network.hpp"
 #include "pyopenvino/inference_engine/ie_infer_request.hpp"
 #include "pyopenvino/inference_engine/ie_preprocess_info.hpp"
-#include "pyopenvino/inference_engine/ie_executable_network.hpp"
 
 namespace py = pybind11;
-
-const std::shared_ptr<InferenceEngine::Blob> _convertToBlob(py::handle blob)
-{
-    if (py::isinstance<InferenceEngine::TBlob<float>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<double>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<double>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<int8_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int8_t>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<int16_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int16_t>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<int32_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int32_t>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<int64_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int64_t>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<uint8_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint8_t>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<uint16_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint16_t>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<uint32_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint32_t>>&>();
-    }
-    else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob))
-    {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint64_t>>&>();
-    }
-    else
-    {
-        // Throw error
-    }
-}
 
 void regclass_InferRequest(py::module m)
 {
@@ -77,14 +30,14 @@ void regclass_InferRequest(py::module m)
 
     cls.def("set_blob",
             [](InferenceEngine::InferRequest& self, const std::string& name, py::handle blob) {
-                self.SetBlob(name, _convertToBlob(blob));
+                self.SetBlob(name, Common::convert_to_blob(blob));
             });
 
     cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
         for (auto&& input : inputs)
         {
             auto name = input.first.cast<std::string>();
-            auto blob = _convertToBlob(input.second);
+            auto blob = Common::convert_to_blob(input.second);
             self.SetBlob(name, blob);
         }
     });
@@ -93,7 +46,7 @@ void regclass_InferRequest(py::module m)
         for (auto&& result : results)
         {
             auto name = result.first.cast<std::string>();
-            auto blob = _convertToBlob(result.second);
+            auto blob = Common::convert_to_blob(result.second);
             self.SetBlob(name, blob);
         }
     });
@@ -123,20 +76,21 @@ void regclass_InferRequest(py::module m)
         perfMap = self.GetPerformanceCounts();
         py::dict perf_map;
 
-        for (auto it : perfMap) {
+        for (auto it : perfMap)
+        {
             py::dict profile_info;
-            switch (it.second.status) {
-                case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
-                    profile_info["status"] = "EXECUTED";
-                    break;
-                case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
-                    profile_info["status"] = "NOT_RUN";
-                    break;
-                case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
-                    profile_info["status"] = "OPTIMIZED_OUT";
-                    break;
-                default:
-                    profile_info["status"] = "UNKNOWN";
+            switch (it.second.status)
+            {
+            case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
+                profile_info["status"] = "EXECUTED";
+                break;
+            case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
+                profile_info["status"] = "NOT_RUN";
+                break;
+            case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
+                profile_info["status"] = "OPTIMIZED_OUT";
+                break;
+            default: profile_info["status"] = "UNKNOWN";
             }
             profile_info["exec_type"] = it.second.exec_type;
             profile_info["layer_type"] = it.second.layer_type;
@@ -150,15 +104,15 @@ void regclass_InferRequest(py::module m)
 
     cls.def("preprocess_info", &InferenceEngine::InferRequest::GetPreProcess, py::arg("name"));
 
-//    cls.def_property_readonly("preprocess_info", [](InferenceEngine::InferRequest& self) {
-//
-//    });
-//    cls.def_property_readonly("input_blobs", [](){
-//
-//    });
-//    cls.def_property_readonly("output_blobs", [](){
-//
-//    });
+    //    cls.def_property_readonly("preprocess_info", [](InferenceEngine::InferRequest& self) {
+    //
+    //    });
+    //    cls.def_property_readonly("input_blobs", [](){
+    //
+    //    });
+    //    cls.def_property_readonly("output_blobs", [](){
+    //
+    //    });
 
-//    latency
+    //    latency
 }

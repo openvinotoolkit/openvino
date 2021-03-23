@@ -28,6 +28,7 @@
 #include <ie_common.h>
 #include <ie_iinfer_request.hpp>
 
+#include "pyopenvino/inference_engine/common.hpp"
 #include "pyopenvino/inference_engine/ie_infer_queue.hpp"
 
 namespace py = pybind11;
@@ -126,8 +127,7 @@ void regclass_InferQueue(py::module m)
         for (auto&& input : inputs)
         {
             auto name = input.first.cast<std::string>().c_str();
-            const std::shared_ptr<InferenceEngine::Blob>& blob =
-                input.second.cast<const std::shared_ptr<InferenceEngine::Blob>&>();
+            auto blob = Common::convert_to_blob(input.second);
             self._requests[id].SetBlob(name, blob);
         }
         // Start InferRequest in asynchronus mode
