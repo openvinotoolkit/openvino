@@ -139,8 +139,12 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
+#if 0
+    /* disable, since there is no use case for it at the moment
+     * should be enabled after ngraph migration */
     DropConvertReorder(graph);
     graph.RemoveDroppedNodes();
+#endif
 
     MergePermuteAndReorder(graph);
     graph.RemoveDroppedNodes();
@@ -1087,6 +1091,11 @@ void MKLDNNGraphOptimizer::FusePoolingAndQuantize(MKLDNNGraph &graph) {
             if (poolingLayer == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get Pooling layer " << node->getName();
 
+            // Optimized FP32 Pooling doesn't support fusing with FQ
+            auto inputPrecision = poolingLayer->insData[0].lock()->getPrecision();
+            if (inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
+                return false;
+
             return node->getChildEdges().size() == 1 && poolingLayer->_type == PoolingLayer::AVG;
         } else {
             return false;
@@ -1765,6 +1774,11 @@ void MKLDNNGraphOptimizer::DropConvertReorder(MKLDNNGraph& graph) {
                         if (inTD.getPrecision() == rnOutput.getPrecision() &&
                             inTD.getLayout() == rnOutput.getLayout() &&
                             inTD.getDims() == rnOutput.getDims()) {
+                            /**
+                             * TODO: just drop extra nodes instead of moving edges
+                             * graph.DropNode(convert);
+                             * graph.DropNode(reorder);
+                             */
                             auto avterReorder = reorder->getChildEdgeAt(0)->getChild();
                             auto oldEdgeNum = reorder->getChildEdgeAt(0)->getOutputNum();
                             reorder->getChildEdgeAt(0)->drop();

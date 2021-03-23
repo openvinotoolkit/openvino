@@ -5,7 +5,6 @@
 #include "threading/ie_istreams_executor.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "details/ie_exception.hpp"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 #include "ie_parameter.hpp"

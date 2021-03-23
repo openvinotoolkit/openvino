@@ -95,7 +95,7 @@ TEST_P(InferRequestTests, failToSetNullptrForInput) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr inputBlob = nullptr;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetEmptyInputBlob) {
@@ -110,7 +110,7 @@ TEST_P(InferRequestTests, failToSetEmptyInputBlob) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr blob;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetEmptyOutputBlob) {
@@ -125,7 +125,7 @@ TEST_P(InferRequestTests, failToSetEmptyOutputBlob) {
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr blob;
     ASSERT_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetNotAllocatedInput) {
@@ -173,7 +173,7 @@ TEST_P(InferRequestTests, failToSetBlobWithIncorrectName) {
             FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     blob->allocate();
     ASSERT_THROW(req.SetBlob(incorrect_input_name, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetInputWithIncorrectSizes) {
@@ -191,7 +191,7 @@ TEST_P(InferRequestTests, failToSetInputWithIncorrectSizes) {
     blob->allocate();
     blob->getTensorDesc().getDims()[0]*=2;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, failToSetOutputWithIncorrectSizes) {
@@ -209,7 +209,7 @@ TEST_P(InferRequestTests, failToSetOutputWithIncorrectSizes) {
     blob->allocate();
     blob->getTensorDesc().getDims()[0]*=2;
     ASSERT_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canInferWithoutSetAndGetInOut) {
@@ -288,7 +288,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedInputBlobAfterSetBlob) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlob) {
@@ -306,7 +306,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlob) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlobForAsync) {
@@ -324,8 +324,8 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlobForAsync) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
-    ASSERT_THROW(req.StartAsync(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
+    ASSERT_THROW(req.StartAsync(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetAndSetBlob) {
@@ -344,7 +344,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetAndSetBlob) {
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterSetBlob) {
@@ -362,7 +362,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterSetBlob) {
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, secondCallGetOutputDoNotReAllocateData) {
@@ -441,7 +441,7 @@ TEST_P(InferRequestTests, FailedAsyncInferWithNegativeTimeForWait) {
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();
     req.StartAsync();
-    ASSERT_THROW(req.Wait(-2), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(req.Wait(-2), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canRun3SyncRequestsConsistentlyFromThreads) {
