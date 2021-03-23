@@ -51,7 +51,7 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 
 ![Security Add-on Diagram](ovsa_diagram.png)
 
-The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is exaplined in [this document](https://github.com/openvinotoolkit/security_addon/blob/release_2021_3/docs/fingerprint-changes.md)
+The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](https://github.com/openvinotoolkit/security_addon/blob/release_2021_3/docs/fingerprint-changes.md)
 
 ## About the Installation
 The Model Developer, Independent Software Vendor, and User each must prepare one physical hardware machine and one Kernel-based Virtual Machine (KVM). In addition, each person must prepare a Guest Virtual Machine (Guest VM) for each role that person plays. 
