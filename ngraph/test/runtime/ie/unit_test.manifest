@@ -1080,9 +1080,11 @@ gru_cell_hardsigmoid_activation_function
 #-------------------------------------------------------------------------------
 
 # Clamp op:
-# Output mismatch
+# Issue 51676: Output mismatch due to wrong conversion of bounds
 IE_CPU.clamp_integral
 IE_CPU.clamp_integral_negative
+# Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
+IE_CPU.clamp_int32
 # Precision mismatch
 IE_CPU.clamp_uint32
 IE_CPU.clamp_uint16
