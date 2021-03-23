@@ -60,6 +60,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <transformations/swap_input_matmul.hpp>
 
 uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -665,6 +666,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::SwapInputMatMul>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
