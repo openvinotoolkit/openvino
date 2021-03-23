@@ -17,6 +17,7 @@
 #include "mkldnn.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -260,13 +261,32 @@ private:
 
 class RegionYoloImpl: public ExtLayerBase {
 public:
-    explicit RegionYoloImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != 1 || layer->outData.empty())
-                IE_THROW() << "Incorrect number of input/output edges!";
+            const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
+            if (!regionYolo) {
+                errorMessage = "Only opset1 RegionYolo operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            input_prec = layer->insData.front().lock()->getPrecision();
-            output_prec = layer->outData.front()->getPrecision();
+    explicit RegionYoloImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+
+            errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
+            if (op->get_input_size() != 1 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            input_prec = details::convertPrecision(op->get_input_element_type(0));
+            output_prec = details::convertPrecision(op->get_output_element_type(0));
 
             if (input_prec != Precision::FP32 && input_prec != Precision::BF16) {
                 input_prec = Precision::FP32;
@@ -282,11 +302,12 @@ public:
                 }
             }
 
-            classes = layer->GetParamAsInt("classes");
-            coords = layer->GetParamAsInt("coords");
-            num = layer->GetParamAsInt("num");
-            do_softmax = layer->GetParamAsBool("do_softmax", true);
-            mask = layer->GetParamAsInts("mask", {});
+            const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
+            classes = regionYolo->get_num_classes();
+            coords = regionYolo->get_num_coords();
+            num = regionYolo->get_num_regions();
+            do_softmax = regionYolo->get_do_softmax();
+            mask = regionYolo->get_mask();
 
             jit_logistic_config_params jcp;
             jcp.src_dt = jcp.dst_dt = output_prec;
@@ -309,7 +330,8 @@ public:
             if (logistic_kernel)
                 logistic_kernel->create_ker();
 
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN, input_prec)}, {DataConfigurator(ConfLayout::PLN, output_prec)});
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, input_prec}},
+                          {{TensorDescCreatorTypes::ncsp, output_prec}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
@@ -378,8 +400,10 @@ private:
     int coords;
     int num;
     float do_softmax;
-    std::vector<int> mask;
+    std::vector<int64_t> mask;
     Precision input_prec, output_prec;
+
+    std::string errorPrefix;
 
     int block_size;
     std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel;
