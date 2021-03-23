@@ -119,7 +119,7 @@ namespace
         case InferenceEngine::Precision::BOOL:
             return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
             break;
-        default: THROW_IE_EXCEPTION << "Not implemented yet";
+        default: IE_THROW() << "Not implemented yet";
         }
     }
 }; // namespace
@@ -183,7 +183,7 @@ void test::IE_Engine::infer()
 {
     if (m_network_inputs.size() != m_allocated_inputs)
     {
-        THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size() << " inputs, but "
+        IE_THROW() << "The tested graph has " << m_network_inputs.size() << " inputs, but "
                            << m_allocated_inputs << " were passed.";
     }
     else
@@ -290,7 +290,7 @@ std::shared_ptr<Function>
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
-            THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
+            IE_THROW() << "Unsupported operator detected in the graph: "
                                << node->get_type_info().name;
         }
     }
