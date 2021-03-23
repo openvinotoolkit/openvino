@@ -81,11 +81,11 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
         using namespace InferenceEngine::GNAConfigParams;
         if (config.empty()) {
-            THROW_IE_EXCEPTION << "The list of configuration values is empty";
+            IE_THROW() << "The list of configuration values is empty";
         }
         for (auto&& item : config) {
             if (item.first != KEY_GNA_DEVICE_MODE) {
-                THROW_IE_EXCEPTION << "The following config value cannot be changed dynamically for ExecutableNetwork in the GNA plugin: "
+                IE_THROW() << "The following config value cannot be changed dynamically for ExecutableNetwork in the GNA plugin: "
                                    << item.first << ". Only " << KEY_GNA_DEVICE_MODE << " is supported.";
             }
         }
@@ -93,12 +93,12 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         InferenceEngine::Parameter old_mode_parameter = GetConfig(KEY_GNA_DEVICE_MODE);
         auto old_mode = old_mode_parameter.as<std::string>();
         if (old_mode == InferenceEngine::GNAConfigParams::GNA_SW_FP32) {
-            THROW_IE_EXCEPTION << "Dynamic switching from GNA_SW_FP32 mode is not supported for ExecutableNetwork.";
+            IE_THROW() << "Dynamic switching from GNA_SW_FP32 mode is not supported for ExecutableNetwork.";
         }
 
         auto new_mode = config.begin()->second.as<std::string>();
         if (new_mode == InferenceEngine::GNAConfigParams::GNA_SW_FP32) {
-            THROW_IE_EXCEPTION << "Dynamic switching to GNA_SW_FP32 mode is not supported for ExecutableNetwork.";
+            IE_THROW() << "Dynamic switching to GNA_SW_FP32 mode is not supported for ExecutableNetwork.";
         }
 
         std::map<std::string, std::string> configForPlugin;

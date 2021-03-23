@@ -12,7 +12,7 @@ IE_SUPPRESS_DEPRECATED_START
 
 VariableState::VariableState(IVariableState::Ptr pState, details::SharedObjectLoader::Ptr plg) : actual(pState), plugin(plg) {
     if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "VariableState wrapper was not initialized.";
+        IE_THROW() << "VariableState wrapper was not initialized.";
     }
 }
 

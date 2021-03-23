@@ -18,28 +18,28 @@ public:
         errorPrefix_ = std::string("Layer GatherElements with name '") + layer->name + "'";
 
         if (layer->insData.size() != 2 || layer->outData.size() != 1)
-            THROW_IE_EXCEPTION << errorPrefix_ << " has invalid number of input/output edges.";
+            IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
 
         auto inputData = layer->insData[dataIndex_].lock();
         auto indices = layer->insData[indicesIndex_].lock();
         if (!inputData || !indices)
-            THROW_IE_EXCEPTION << errorPrefix_ << " has nullable inputs.";
+            IE_THROW() << errorPrefix_ << " has nullable inputs.";
 
         const auto& dataDims = inputData->getTensorDesc().getDims();
         const auto& indicesDims = indices->getTensorDesc().getDims();
         if (dataDims.size() != indicesDims.size())
-            THROW_IE_EXCEPTION << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
+            IE_THROW() << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
 
         Precision dataPrecision = inputData->getTensorDesc().getPrecision();
         if (dataPrecision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
                 dataPrecision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
                 dataPrecision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
-            THROW_IE_EXCEPTION << errorPrefix_ << " has unsupported 'inputData' input precision: " << dataPrecision;
+            IE_THROW() << errorPrefix_ << " has unsupported 'inputData' input precision: " << dataPrecision;
         }
 
         Precision indicesPrecision = indices->getTensorDesc().getPrecision();
         if (indicesPrecision != Precision::I32) {
-            THROW_IE_EXCEPTION << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
+            IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
         }
 
         dataTypeSize_ = dataPrecision.size();
@@ -48,7 +48,7 @@ public:
         if (axis < 0)
             axis += dataDims.size();
         if (axis < 0 || axis >= static_cast<int>(dataDims.size()))
-            THROW_IE_EXCEPTION << errorPrefix_ << " has invalid axis attribute: " << axis;
+            IE_THROW() << errorPrefix_ << " has invalid axis attribute: " << axis;
         axis_ = axis;
 
         auto& outputData = layer->outData[0];

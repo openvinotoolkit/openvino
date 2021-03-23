@@ -41,7 +41,7 @@ public:
     }
 
     void GetUserData(void** data) override {
-        if (data == nullptr) THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated);
+        if (data == nullptr) IE_THROW(NotAllocated);
         *data = _userData;
     }
 

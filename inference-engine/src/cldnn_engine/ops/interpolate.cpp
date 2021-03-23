@@ -27,7 +27,7 @@ static cldnn::coordinate_transformation_mode GetCoordinateTransformationMode(ngr
         return cldnn::coordinate_transformation_mode::align_corners;
     }
 
-    THROW_IE_EXCEPTION << "Unknown coordinate transformation mode: " << static_cast<int>(mode);
+    IE_THROW() << "Unknown coordinate transformation mode: " << static_cast<int>(mode);
 }
 
 static cldnn::nearest_mode GetNearestMode(ngraph::op::v4::Interpolate::NearestMode mode) {
@@ -44,7 +44,7 @@ static cldnn::nearest_mode GetNearestMode(ngraph::op::v4::Interpolate::NearestMo
         return cldnn::nearest_mode::simple;
     }
 
-    THROW_IE_EXCEPTION << "Unknown nearest mode: " << static_cast<int>(mode);
+    IE_THROW() << "Unknown nearest mode: " << static_cast<int>(mode);
 }
 
 static cldnn::shape_calculation_mode GetShapeCalculationMode(ngraph::op::v4::Interpolate::ShapeCalcMode mode) {
@@ -52,7 +52,7 @@ static cldnn::shape_calculation_mode GetShapeCalculationMode(ngraph::op::v4::Int
     case ngraph::op::v4::Interpolate::ShapeCalcMode::sizes:  return cldnn::shape_calculation_mode::sizes;
     case ngraph::op::v4::Interpolate::ShapeCalcMode::scales: return cldnn::shape_calculation_mode::scales;
     }
-    THROW_IE_EXCEPTION << "Unknown shape calculation mode: " << static_cast<int>(mode);
+    IE_THROW() << "Unknown shape calculation mode: " << static_cast<int>(mode);
 }
 
 static cldnn::resample_type GetResampleType(ngraph::op::v4::Interpolate::InterpolateMode mode) {
@@ -62,14 +62,14 @@ static cldnn::resample_type GetResampleType(ngraph::op::v4::Interpolate::Interpo
     case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx: return cldnn::resample_type::linear_onnx;
     case ngraph::op::v4::Interpolate::InterpolateMode::cubic: return cldnn::resample_type::cubic;
     }
-    THROW_IE_EXCEPTION << "Unknown interpolation mode: " << static_cast<int>(mode);
+    IE_THROW() << "Unknown interpolation mode: " << static_cast<int>(mode);
 }
 
 static cldnn::resample::resample_axis GetInterpolationAxis(int32_t axis, uint32_t sz) {
     if (axis < 0)
         axis += sz;
     if (axis < 0 || axis >= sz)
-        THROW_IE_EXCEPTION << "Interpolate axis is not correspond to number of dimensions";
+        IE_THROW() << "Interpolate axis is not correspond to number of dimensions";
 
     // Difference in dimension ordering between IE and clDNN,
     // reverse spatial dimensions after batch and feature.
@@ -97,7 +97,7 @@ static cldnn::resample::resample_axis GetInterpolationAxis(int32_t axis, uint32_
         default:
             break;
     }
-    THROW_IE_EXCEPTION << "Unsupported Interpolate axis: " << axis;
+    IE_THROW() << "Unsupported Interpolate axis: " << axis;
 }
 
 void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
@@ -139,7 +139,7 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
 
     auto scales_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
     if (!scales_constant) {
-        THROW_IE_EXCEPTION << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
     std::vector<float> scales = scales_constant->cast_vector<float>();
 
@@ -147,7 +147,7 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
     if (op->get_input_size() == 4) {
         auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(AXES_INDEX));
         if (!axes_constant) {
-            THROW_IE_EXCEPTION << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         auto ie_axes = axes_constant->cast_vector<int32_t>();
         for (auto axis : ie_axes) {
@@ -160,7 +160,7 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
     }
 
     if (axes.size() != scales.size())
-        THROW_IE_EXCEPTION << op->get_friendly_name() << " Incorrect axes and scales should be the same size";
+        IE_THROW() << op->get_friendly_name() << " Incorrect axes and scales should be the same size";
 
     cldnn::resample::AxesAndScales axesAndScales;
     for (size_t i = 0; i < axes.size(); ++i) {
@@ -169,9 +169,9 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
 
     if (cldnnSampleType == cldnn::resample_type::linear_onnx) {
         if (inputRank != 2 && inputRank != 4)
-            THROW_IE_EXCEPTION << "mode 'linear_onnx' supports only 2D or 4D tensors";
+            IE_THROW() << "mode 'linear_onnx' supports only 2D or 4D tensors";
         if (axes.size() != 2 && inputRank != axes.size())
-            THROW_IE_EXCEPTION << "mode 'linear_onnx' supports only axes with size 2 or equal to input rank";
+            IE_THROW() << "mode 'linear_onnx' supports only axes with size 2 or equal to input rank";
         bool correctAxes =
             ((axes[0] == cldnn::resample::resample_axis::along_b) &&
              (axes[1] == cldnn::resample::resample_axis::along_f)) ||
@@ -184,7 +184,7 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
                           axes[3] == cldnn::resample::resample_axis::along_x;
         }
         if (!correctAxes)
-            THROW_IE_EXCEPTION <<
+            IE_THROW() <<
                 "mode 'linear_onnx' supports only case when axes = {2, 3} or "
                 "axes = {0, 1} or axes = {0, 1, 2, 3}";
     }

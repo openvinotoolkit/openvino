@@ -128,7 +128,7 @@ protected:
      */
     void checkWindow() {
         if (realObject->size() * realObject->element_size() < base::size() * base::element_size() + offset) {
-            THROW_IE_EXCEPTION << "cannot create proxy, offsetInBytes=" << offset
+            IE_THROW() << "cannot create proxy, offsetInBytes=" << offset
                                << ", sizeInBytes=" << base::size() * base::element_size()
                                << ", out of original object size=" << realObject->size() * realObject->element_size();
         }

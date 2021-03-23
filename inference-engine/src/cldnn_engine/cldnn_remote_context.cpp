@@ -62,7 +62,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(VA_PLANE),  params.plane }
         };
     default:
-        THROW_IE_EXCEPTION << "Unsupported shared object type " << m_mem_type;
+        IE_THROW() << "Unsupported shared object type " << m_mem_type;
     }
 }
 
@@ -110,7 +110,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_image(*eng, m_layout, m_mem)));
             break;
         default:
-            THROW_IE_EXCEPTION << unsupported_str << m_mem_type;
+            IE_THROW() << unsupported_str << m_mem_type;
         }
     }
 
@@ -240,7 +240,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
             m_va_display = _va_device = _ObjFromParamSimple<gpu_handle_param>(params, GPU_PARAM_KEY(VA_DEVICE));
             m_type = ContextType::DEV_SHARED;
         } else {
-            THROW_IE_EXCEPTION << "Invalid execution context type" << contextTypeStr;
+            IE_THROW() << "Invalid execution context type" << contextTypeStr;
         }
     }
 
@@ -283,7 +283,7 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
         ret[GPU_PARAM_KEY(VA_DEVICE)] = m_va_display;
         break;
     default:
-        THROW_IE_EXCEPTION << "Unsupported shared context type " << m_type;
+        IE_THROW() << "Unsupported shared context type " << m_type;
     }
 
     return ret;

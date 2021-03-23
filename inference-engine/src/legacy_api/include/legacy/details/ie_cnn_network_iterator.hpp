@@ -38,7 +38,7 @@ CNNNetworkIterator {
 
     void init(const ICNNNetwork* net) {
         network = net;
-        if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
+        if (network == nullptr) IE_THROW() << "ICNNNetwork object is nullptr";
 
         OutputsDataMap outputs;
         network->getOutputsInfo(outputs);
@@ -71,7 +71,7 @@ CNNNetworkIterator {
                 for (const auto & input : node->insData) {
                     auto locked_input = input.lock();
                     if (!locked_input) {
-                        THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+                        IE_THROW() << "insData for " << node->name << " is not valid.";
                     }
                     if (auto next_node = getCreatorLayer(locked_input).lock()) {
                         if (!visited.count(next_node.get())) {
@@ -188,7 +188,7 @@ public:
      */
     const CNNLayerPtr& operator*() const {
         if (nullptr == currentLayer) {
-            THROW_IE_EXCEPTION << "iterator out of bound";
+            IE_THROW() << "iterator out of bound";
         }
         return currentLayer;
     }
@@ -198,7 +198,7 @@ public:
      */
     CNNLayerPtr& operator*() {
         if (nullptr == currentLayer) {
-            THROW_IE_EXCEPTION << "iterator out of bound";
+            IE_THROW() << "iterator out of bound";
         }
         return currentLayer;
     }

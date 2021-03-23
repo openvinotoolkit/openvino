@@ -26,7 +26,7 @@ void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Batc
     for (size_t i = 1; i < 4; ++i) {
         auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(i));
         if (!inConst)
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
         int32_t default_size = i == 1 ? 1 : 0;

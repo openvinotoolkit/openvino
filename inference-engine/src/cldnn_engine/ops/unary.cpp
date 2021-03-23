@@ -81,7 +81,7 @@ void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRelu>& op)
     if (slope_node && ngraph::shape_size(slope_shape) == 1) {
         float slope;
         if (!ngraph::op::util::get_single_value(slope_node, slope))
-            THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
     } else if (out_shape.size() >= 2 && ngraph::shape_size(slope_shape) == out_shape[1]) {
         auto inputs = p.GetInputPrimitiveIDs(op);
@@ -155,14 +155,14 @@ void CreateHardSigmoidOp(Program& p, const std::shared_ptr<ngraph::op::v0::HardS
     auto alpha_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto beta_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     if (!alpha_node || !beta_node) {
-        THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
 
     if (ngraph::shape_size(alpha_node->get_output_shape(0)) == 1 &&
         ngraph::shape_size(beta_node->get_output_shape(0)) == 1)  {
         float alpha, beta;
         if (!ngraph::op::util::get_single_value(alpha_node, alpha) || !ngraph::op::util::get_single_value(beta_node, beta)) {
-            THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::hard_sigmoid, {alpha, beta});
     }
@@ -181,18 +181,18 @@ void CreateSeluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Selu>& op) {
     auto alpha_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto lambda_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     if (!alpha_node || !lambda_node) {
-        THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
 
     if (ngraph::shape_size(alpha_node->get_output_shape(0)) == 1 &&
         ngraph::shape_size(lambda_node->get_output_shape(0)) == 1)  {
         float alpha, lambda;
         if (!ngraph::op::util::get_single_value(alpha_node, alpha) || !ngraph::op::util::get_single_value(lambda_node, lambda)) {
-            THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::selu, {alpha, lambda});
     } else {
-        THROW_IE_EXCEPTION << "Unsupported shapes of parameter nodes in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported shapes of parameter nodes in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
 }
 
@@ -228,14 +228,14 @@ void CreateSwishOp(Program& p, const std::shared_ptr<ngraph::op::v4::Swish>& op)
             if (ngraph::shape_size(beta_node->get_output_shape(0)) == 1) {
                 float beta;
                 if (!ngraph::op::util::get_single_value(beta_node, beta)) {
-                    THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+                    IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
                 }
                 CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {beta});
             } else {
-                THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+                IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
             }
         } else {
-            THROW_IE_EXCEPTION << "Unsupported parameter type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
     } else {
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {1.0f});
@@ -267,7 +267,7 @@ void CreateRoundOp(Program& p, const std::shared_ptr<ngraph::op::v5::Round>& op)
     switch (op->get_mode()) {
         case ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN : func = cldnn::activation_func::round_half_to_even; break;
         case ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO : func = cldnn::activation_func::round_half_away_from_zero; break;
-        default: THROW_IE_EXCEPTION << "Unsupported round mode in " << op->get_friendly_name() << ": " << static_cast<int>(op->get_mode());
+        default: IE_THROW() << "Unsupported round mode in " << op->get_friendly_name() << ": " << static_cast<int>(op->get_mode());
     }
     CreateUnaryEltwiseOp(p, op, func, {});
 }

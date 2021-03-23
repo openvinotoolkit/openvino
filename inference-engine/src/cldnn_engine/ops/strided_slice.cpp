@@ -200,7 +200,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         std::vector<cldnn::tensor::value_type> offset_tensor{ 0, 0, 0, 0 };
         for (size_t i = 0; i < axes.size(); i++) {
             if (axes[i] < 0 || axes[i] > 3) {
-                THROW_IE_EXCEPTION << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
+                IE_THROW() << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
             }
             offset_tensor[axes[i]] = offset[i];
         }

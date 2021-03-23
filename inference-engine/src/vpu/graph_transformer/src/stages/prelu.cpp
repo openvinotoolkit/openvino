@@ -39,7 +39,7 @@ void FrontEnd::parsePReLU(const Model& model, const ie::CNNLayerPtr& layer, cons
 
     auto weightsIt = layer->blobs.find("weights");
     if (weightsIt == layer->blobs.end()) {
-        THROW_IE_EXCEPTION << "[VPU] PReLU doesn't have weights";
+        IE_THROW() << "[VPU] PReLU doesn't have weights";
     }
 
     auto weightsBlob = weightsIt->second;

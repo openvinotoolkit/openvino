@@ -40,15 +40,15 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
        inputDataType = outputDataType = memory::data_type::bf16;
 
     if (getParentEdges().empty() || getParentEdges().size() > 3)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     auto * deconvLayer = dynamic_cast<DeconvolutionLayer*>(getCnnLayer().get());
     if (deconvLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert deconvolution layer.";
+        IE_THROW() << "Cannot convert deconvolution layer.";
     if (getParentEdges().size() == 1 && deconvLayer->_weights == nullptr) {
-        THROW_IE_EXCEPTION << "Weights are empty for layer: " << deconvLayer->name
+        IE_THROW() << "Weights are empty for layer: " << deconvLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
                            << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
@@ -64,7 +64,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
         if (getParentEdges().size() == 3) {
             auto biasLayer = getParentEdgesAtPort(2)[0]->getParent()->getCnnLayer();
             if (biasLayer->type != "Const")
-                THROW_IE_EXCEPTION << "Deconvolution layer with name '" << getName() << "' doesn't support non-constant biases";
+                IE_THROW() << "Deconvolution layer with name '" << getName() << "' doesn't support non-constant biases";
             biases = biasLayer->blobs["custom"];
         } else {
             biases = deconvLayer->_biases;
@@ -163,7 +163,7 @@ void MKLDNNDeconvolutionNode::filterSupportedPrimitiveDescriptors() {
 void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
     if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
         if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1) {
-            THROW_IE_EXCEPTION << "Incorrect number of input or output memory formats for Deconvolution node";
+            IE_THROW() << "Incorrect number of input or output memory formats for Deconvolution node";
         }
         auto itd = descs.begin();
         while (itd != descs.end()) {

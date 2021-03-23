@@ -62,7 +62,7 @@ void DepthToSpaceTransformation::SetUp() {
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
 
     if (inputShape.size() != 4ul) {
-        THROW_IE_EXCEPTION << "not supported input shape size " << inputShape.size();
+        IE_THROW() << "not supported input shape size " << inputShape.size();
     }
 
     function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);

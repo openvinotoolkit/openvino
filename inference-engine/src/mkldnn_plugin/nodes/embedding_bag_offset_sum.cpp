@@ -18,15 +18,15 @@ public:
                 MKLDNNEmbeddingBagSum(layer, 3lu, 1lu, 4lu, 3lu) {
         auto indicesData = layer->insData[INDICES_IDX].lock();
         if (indicesData == nullptr)
-            THROW_IE_EXCEPTION << "'" << layer->name << "' layer has nullable indices data.";
+            IE_THROW() << "'" << layer->name << "' layer has nullable indices data.";
         if (indicesData->getTensorDesc().getDims().size() != 1)
-            THROW_IE_EXCEPTION << "'" << layer->name << "' layer has indices data with invalid shape.";
+            IE_THROW() << "'" << layer->name << "' layer has indices data with invalid shape.";
 
         auto offsetsData = layer->insData[OFFSETS_IDX].lock();
         if (offsetsData == nullptr)
-            THROW_IE_EXCEPTION << "'" << layer->name << "' layer has invalid offsets data.";
+            IE_THROW() << "'" << layer->name << "' layer has invalid offsets data.";
         if (offsetsData->getTensorDesc().getDims().size() != 1)
-            THROW_IE_EXCEPTION << "'" << layer->name << "' layer's offsets data has invalid shape.";
+            IE_THROW() << "'" << layer->name << "' layer's offsets data has invalid shape.";
 
         _indicesLen = indicesData->getTensorDesc().getDims()[0];
         _offsetsLen = offsetsData->getTensorDesc().getDims()[0];

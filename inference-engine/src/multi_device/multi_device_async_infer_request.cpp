@@ -48,7 +48,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend(),
                                [&name](const MultiDevicePlugin::DeviceInformation& d){ return d.deviceName == name; });
                        if (_multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend() == res) {
-                           THROW_IE_EXCEPTION << "None of the devices (for which current MULTI-device configuration was "
+                           IE_THROW() << "None of the devices (for which current MULTI-device configuration was "
                                                  "initialized) supports a remote blob created on the device named " << name;
 
                        } else {

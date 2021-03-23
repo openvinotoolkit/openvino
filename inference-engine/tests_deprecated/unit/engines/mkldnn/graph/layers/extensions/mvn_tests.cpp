@@ -403,7 +403,7 @@ public:
                     return 0;
                 return (a + b - 1) / b;
             };
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = 0;

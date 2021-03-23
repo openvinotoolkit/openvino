@@ -21,7 +21,7 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     if (it != CodeNameToType.end()) {
         return it->second;
     } else {
-        THROW_IE_EXCEPTION << "Unknown Prior-Box code type: " << str;
+        IE_THROW() << "Unknown Prior-Box code type: " << str;
     }
     return cldnn::prior_box_code_type::corner;
 }

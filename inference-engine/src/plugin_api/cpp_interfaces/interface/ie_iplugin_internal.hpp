@@ -279,9 +279,9 @@ protected:
         } catch (const InferenceEngine::Exception&) {                                                               \
             throw;                                                                                                  \
         } catch (const std::exception& ex) {                                                                        \
-            THROW_IE_EXCEPTION << ex.what();                                                                        \
+            IE_THROW() << ex.what();                                                                        \
         } catch (...) {                                                                                             \
-            THROW_IE_EXCEPTION_WITH_STATUS(Unexpected);                                                             \
+            IE_THROW(Unexpected);                                                             \
         }                                                                                                           \
         plugin->SetVersion(version);                                                                                \
     }

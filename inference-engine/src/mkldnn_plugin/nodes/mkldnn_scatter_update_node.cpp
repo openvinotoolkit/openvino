@@ -27,16 +27,16 @@ void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
         return;
 
     if ((getParentEdges().size() != 3) && (getParentEdges().size() != 4))
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' has incorrect number of input edges";
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' has incorrect number of output edges";
 
     if (getParentEdgeAt(DATA_ID)->getDims().ndims() < 1 ||
         getParentEdgeAt(INDICES_ID)->getDims().ndims() < 1 ||
         getParentEdgeAt(UPDATE_ID)->getDims().ndims() < 1) {
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' do not support scalar input";
     }
 
@@ -51,7 +51,7 @@ void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
         scatterUpdateMode = ScatterUpdateMode::ScatterNDUpdate;
         axisRelaxed = false;
     } else {
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' is not supported";
     }
 }
@@ -72,12 +72,12 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
 
     // common check
     if (srcRank != dstRank) {
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' should have same rank for input and outpt tensor";
     } else {
         for (size_t r = 0; r < srcRank; r++) {
             if (srcDataDim[r] != dstDataDim[r]) {
-                THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
                 << "' should have same shape for input and outpt tensor." << " The input shape is "
                 << srcDataDim[r] << ", while output shape is " << dstDataDim[r] << "for" << r << "th dimension";
             }
@@ -87,7 +87,7 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     switch (scatterUpdateMode) {
         case ScatterUpdateMode::ScatterUpdate: {
             if (updateRank != (srcRank + indicesRank - 1)) {
-                THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
                 << "' do not have matched tensor rank relationship for input, indices and update";
             }
             break;
@@ -95,7 +95,7 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         case ScatterUpdateMode::ScatterNDUpdate: {
             size_t k = indicesDim[indicesRank - 1];
             if (k > srcRank) {
-                THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
                 << "' do not have an correct indices' last dimension value, which should be smaller than or equal to input tensor rank";
             }
 
@@ -108,12 +108,12 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                 expectUpdateShape.push_back(srcDataDim[rd]);
             }
             if (expectUpdateShape.size() != updateRank) {
-                THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
                 << "' do not have matched tensor rank relationship for input, indices and update";
             }
             for (size_t ru = 0; ru < updateRank; ru++) {
                 if (updateDim[ru] != expectUpdateShape[ru]) {
-                    THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+                    IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
                     << "' do not have matched tensor shape relationship for input, indices and update";
                 }
             }
@@ -121,19 +121,19 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
             if (srcRank != indicesRank || srcRank != updateRank) {
-                THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
                 << "' do not have the same tensor rank for input, indices and update";
             }
             for (size_t ri = 0; ri < indicesRank; ri++) {
                 if (indicesDim[ri] != updateDim[ri]) {
-                    THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+                    IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
                     << "' do not have the same tensor shape for indices and update";
                 }
             }
             break;
         }
         default: {
-            THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+            IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
             << "' is not supported";
         }
     }
@@ -215,19 +215,19 @@ void MKLDNNScatterUpdateNode::createPrimitive() {
     auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' did not allocate destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' did not allocate input memory";
     if (!indicesMemPtr || !indicesMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' did not allocate indices memory";
     if (!updateMemPtr || !updateMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' did not allocate update memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
+        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
         << "' did not set preferable primitive descriptor";
 }
 
@@ -286,7 +286,7 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
         }
 
         if (axis >= static_cast<int>(srcRank) || axis < (static_cast<int>(srcRank) * - 1)) {
-            THROW_IE_EXCEPTION << errorPrefix
+            IE_THROW() << errorPrefix
             << " should have axis value in range [-r, r - 1], where r is the rank of input data";
         }
         axis = axis < 0 ? (axis + srcRank) : axis;
@@ -299,7 +299,7 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             for (int i = start; i < end; i++) {
                 int64_t idxValue =  getIndicesValue(indicesPtr, i);
                 if (idxValue >= static_cast<int64_t>(srcDimAxis) || idxValue < 0) {
-                    THROW_IE_EXCEPTION << errorPrefix
+                    IE_THROW() << errorPrefix
                     << " have indices value that points to non-existing output tensor element";
                 }
             }
@@ -321,11 +321,11 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
                 }
             }
             if (updateRank > expectUpdateShape.size())
-                THROW_IE_EXCEPTION << errorPrefix << " cannot update shape. New rank: "
+                IE_THROW() << errorPrefix << " cannot update shape. New rank: "
                     << updateRank << ", expected: " << expectUpdateShape.size();
             for (size_t ru = 0; ru < updateRank; ru++) {
                 if (updateDim[ru] != expectUpdateShape[ru]) {
-                    THROW_IE_EXCEPTION << errorPrefix
+                    IE_THROW() << errorPrefix
                     << " do not have matched tensor shape relationship for input, indices and update";
                 }
             }
@@ -357,7 +357,7 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             break;
         }
         default: {
-            THROW_IE_EXCEPTION << errorPrefix
+            IE_THROW() << errorPrefix
             << " is not supported";
         }
     }

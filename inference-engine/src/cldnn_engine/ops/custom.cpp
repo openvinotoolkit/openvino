@@ -43,7 +43,7 @@ public:
     CustomLayerAttributeVisitor() : m_values({}) { }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        THROW_IE_EXCEPTION << "Attribute " << name << " can't be processed\n";
+        IE_THROW() << "Attribute " << name << " can't be processed\n";
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
@@ -165,7 +165,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
             break;
         }
         default:
-            THROW_IE_EXCEPTION << "Invalid custom layer param type: " << param.type << " in operation: " << op->get_friendly_name();
+            IE_THROW() << "Invalid custom layer param type: " << param.type << " in operation: " << op->get_friendly_name();
         }
     }
     const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
@@ -194,7 +194,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
     // if input index is greater than -1, take dimension from input
     if (iidx >= 0) {
         if (iidx >= op->get_input_size())
-            THROW_IE_EXCEPTION << "Invalid input tensor for index: " << iidx;
+            IE_THROW() << "Invalid input tensor for index: " << iidx;
         auto inputDims = op->get_input_shape(iidx);
 
         xDim = inputDims[inputDims.size() - 1];

@@ -86,7 +86,7 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
         case Precision::FP32 : {
             blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
         } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported Input/Output Presision";
+        default: IE_THROW() << "Template Plugin: Unsupported Input/Output Presision";
         }
         blob->allocate();
         blobMap[blobData.first] = blob;
@@ -101,7 +101,7 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
                 networkBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, dims, layout});
             }
         } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported network Input/Output Presision";
+        default: IE_THROW() << "Template Plugin: Unsupported network Input/Output Presision";
         }
         if (blob != networkBlob) {
             networkBlob->allocate();
@@ -147,7 +147,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<std::uint8_t, float>(src, dst);
                 } break;
                 default : {
-                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                    IE_THROW() << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
@@ -159,13 +159,13 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
                     blobCopy<float, std::uint8_t>(src, dst);
                 } break;
                 default : {
-                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                    IE_THROW() << "Unsupported precision conversion from "
                         << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
                 }
             }
         } break;
         default : {
-            THROW_IE_EXCEPTION << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
+            IE_THROW() << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
         }
     }
 }

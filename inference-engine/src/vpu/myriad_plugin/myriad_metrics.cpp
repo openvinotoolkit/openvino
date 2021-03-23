@@ -136,7 +136,7 @@ RangeType MyriadMetrics::RangeForAsyncInferRequests(
             }
         }
         catch(...) {
-            THROW_IE_EXCEPTION << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
+            IE_THROW() << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
         }
     }
 

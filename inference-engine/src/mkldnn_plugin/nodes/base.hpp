@@ -77,10 +77,10 @@ protected:
         LayerConfig config;
 
         if (in_l.size() != layer->insData.size())
-            THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << layer->name << ". Expected " << layer->insData.size()
+            IE_THROW() << "Incorrect number of input edges for layer " << layer->name << ". Expected " << layer->insData.size()
                 << " but layout specification provided for " << in_l.size();
         if (out_l.size() != layer->outData.size())
-            THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << layer->name << ". Expected " << layer->outData.size()
+            IE_THROW() << "Incorrect number of output edges for layer " << layer->name << ". Expected " << layer->outData.size()
                 << " but layout specification provided for " << out_l.size();
 
         // Fill tensor parameters into config
@@ -90,7 +90,7 @@ protected:
                     return 0;
                 return (a + b - 1) / b;
             };
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = conf.inplace;
@@ -107,7 +107,7 @@ protected:
 
             if (conf.layout == ConfLayout::BLK8 || conf.layout == ConfLayout::BLK16) {
                 if (data_dims.size() < 4 || data_dims.size() > 5)
-                    THROW_IE_EXCEPTION << "Inapplicable blocking layout."
+                    IE_THROW() << "Inapplicable blocking layout."
                         << "Tensor should be 4D or 5D.";
 
                 int blk_size = conf.layout == ConfLayout::BLK8 ? 8 : 16;

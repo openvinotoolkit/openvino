@@ -21,7 +21,7 @@ std::ostream& operator<<(std::ostream & os, setType type) {
         os << "BOTH";
         break;
     default:
-        THROW_IE_EXCEPTION << "Not supported type for SetBlob";
+        IE_THROW() << "Not supported type for SetBlob";
     }
     return os;
 }
@@ -53,7 +53,7 @@ inline void fillBlob(Blob::Ptr &blob) {
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
-            THROW_IE_EXCEPTION << "Can't fill blob with precision: " << blob->getTensorDesc().getPrecision();
+            IE_THROW() << "Can't fill blob with precision: " << blob->getTensorDesc().getPrecision();
     }
 }
 

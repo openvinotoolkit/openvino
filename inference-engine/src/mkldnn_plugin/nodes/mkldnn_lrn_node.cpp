@@ -25,12 +25,12 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     auto * lrnLayer = dynamic_cast<NormLayer*>(getCnnLayer().get());
 
     if (lrnLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert lrn layer.";
+        IE_THROW() << "Cannot convert lrn layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     isAcrossMaps = lrnLayer->_isAcrossMaps;
     alpha = lrnLayer->_alpha;
@@ -66,7 +66,7 @@ bool MKLDNNLrnNode::created() const {
 void MKLDNNLrnNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
@@ -74,7 +74,7 @@ void MKLDNNLrnNode::initOptimalPrimitiveDescriptor() {
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (!isUninitTensorDesc(config.inConfs[0].desc) &&
                     !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
-        THROW_IE_EXCEPTION << "Layer " << getName() << " has incorrect selected config!";
+        IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
     if (!isUninitTensorDesc(config.inConfs[0].desc)) {
         config.outConfs[0].desc = config.inConfs[0].desc;

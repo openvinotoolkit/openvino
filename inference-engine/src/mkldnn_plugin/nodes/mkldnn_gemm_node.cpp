@@ -25,12 +25,12 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
     auto* gemmLayer = dynamic_cast<GemmLayer*>(getCnnLayer().get());
 
     if (gemmLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert gemm layer.";
+        IE_THROW() << "Cannot convert gemm layer.";
 
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     auto inDims0 = getParentEdgeAt(0)->getDims();
     auto inDims1 = getParentEdgeAt(1)->getDims();
@@ -43,13 +43,13 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
 
     if ((inDims0.ndims() < 2 || inDims0.ndims() > 4) ||
         (inDims1.ndims() < 2 || inDims1.ndims() > 4))
-        THROW_IE_EXCEPTION << "Unsupported input dims count for layer " << getName();
+        IE_THROW() << "Unsupported input dims count for layer " << getName();
 
     if (outDims.ndims() < 2 || outDims.ndims() > 4)
-        THROW_IE_EXCEPTION << "Unsupported output dims count for layer " << getName();
+        IE_THROW() << "Unsupported output dims count for layer " << getName();
 
     if (inDims0.ndims() != inDims1.ndims() || inDims0.ndims() != outDims.ndims())
-        THROW_IE_EXCEPTION << "Invalid dims count for layer " << getName();
+        IE_THROW() << "Invalid dims count for layer " << getName();
 
     int nDims = inDims0.ndims();
     xAxis = nDims - 1;
@@ -62,7 +62,7 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
     // The check inDims0[xAxis] != inDims1[yAxis] is correct due to layer semantic
     // coverity[copy_paste_error]
     if (inDims0[xAxis0] != inDims1[yAxis1] || inDims0[yAxis0] != outDims[yAxis] || inDims1[xAxis1] != outDims[xAxis])
-        THROW_IE_EXCEPTION << "Spatial input and output dimensions are incorrect for layer " << getName();
+        IE_THROW() << "Spatial input and output dimensions are incorrect for layer " << getName();
 
     isThreeInputs = getParentEdges().size() == 3;
 
@@ -70,13 +70,13 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
         auto inDims2 = getParentEdgeAt(2)->getDims();
 
         if (inDims2.ndims() < 2 || inDims2.ndims() > 4)
-            THROW_IE_EXCEPTION << "Unsupported output dims count for layer " << getName();
+            IE_THROW() << "Unsupported output dims count for layer " << getName();
 
         if (inDims2.ndims() != outDims.ndims())
-            THROW_IE_EXCEPTION << "Invalid dims count for layer " << getName();
+            IE_THROW() << "Invalid dims count for layer " << getName();
 
         if (inDims2[yAxis] != outDims[yAxis] || inDims2[xAxis] != outDims[xAxis])
-            THROW_IE_EXCEPTION << "Spatial input and output dimensions are incorrect for layer " << getName();
+            IE_THROW() << "Spatial input and output dimensions are incorrect for layer " << getName();
     }
 
     for (int dim_idx = nDims - 3; dim_idx >= 0; dim_idx--) {
@@ -84,7 +84,7 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
             auto inDims2 = getParentEdgeAt(2)->getDims();
 
             if (inDims2[dim_idx] != outDims[dim_idx] && inDims2[dim_idx] != 1)
-                THROW_IE_EXCEPTION << "Input batch dimensions are incorrect for layer " << getName();
+                IE_THROW() << "Input batch dimensions are incorrect for layer " << getName();
 
             int cOffset = 1;
             for (int i = dim_idx + 1; i < nDims; i++)
@@ -94,7 +94,7 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
 
         if ((inDims0[dim_idx] != outDims[dim_idx] && inDims0[dim_idx] != 1) ||
             (inDims1[dim_idx] != outDims[dim_idx] && inDims1[dim_idx] != 1)) {
-            THROW_IE_EXCEPTION << "Input batch dimensions are incorrect for layer " << getName();
+            IE_THROW() << "Input batch dimensions are incorrect for layer " << getName();
         }
 
         int aOffset = 1;
@@ -162,7 +162,7 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNGemmNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
@@ -180,16 +180,16 @@ void MKLDNNGemmNode::createPrimitive() {
     auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory isn't allocated.";
+        IE_THROW() << "Destination memory isn't allocated.";
     if (!src0MemPtr || !src0MemPtr->GetPrimitivePtr() || !src1MemPtr || !src1MemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory isn't allocated.";
+        IE_THROW() << "Input memory isn't allocated.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor isn't set.";
+        IE_THROW() << "Preferable primitive descriptor isn't set.";
 
     if (isThreeInputs) {
         auto& src2MemPtr = getParentEdgeAt(2)->getMemoryPtr();
         if (!src2MemPtr || !src2MemPtr->GetPrimitivePtr())
-            THROW_IE_EXCEPTION << "Input memory isn't allocated.";
+            IE_THROW() << "Input memory isn't allocated.";
     }
 }
 
@@ -306,7 +306,7 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
             process_data<uint8_t, int8_t>();
             break;
         default:
-            THROW_IE_EXCEPTION << "Gemm node: first input has unsupported precision";
+            IE_THROW() << "Gemm node: first input has unsupported precision";
     }
 }
 

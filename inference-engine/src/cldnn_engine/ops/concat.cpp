@@ -13,7 +13,7 @@ namespace CLDNNPlugin {
 
 static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size_t rank) {
     if (axis >= rank)
-        THROW_IE_EXCEPTION << "Concatenation axis exceeds number of dimensions";
+        IE_THROW() << "Concatenation axis exceeds number of dimensions";
 
     // Difference in dimension ordering between IE and clDNN,
     // reverse spatial dimensions after batch and feature.
@@ -32,7 +32,7 @@ static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size
         case 3: return cldnn::concatenation::concatenation_axis::along_y;
         case 4: return cldnn::concatenation::concatenation_axis::along_z;
         case 5: return cldnn::concatenation::concatenation_axis::along_w;
-        default: THROW_IE_EXCEPTION << "Unsupported concatenation axis: " << axis;
+        default: IE_THROW() << "Unsupported concatenation axis: " << axis;
     }
 
     return cldnn::concatenation::concatenation_axis::along_f;  // shouldn't get here

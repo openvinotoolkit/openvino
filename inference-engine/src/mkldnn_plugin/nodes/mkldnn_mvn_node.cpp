@@ -616,17 +616,17 @@ void MKLDNNMVNNode::getSupportedDescriptors() {
 
     auto cnnLayer = getCnnLayer();
     if (cnnLayer == nullptr)
-        THROW_IE_EXCEPTION << errPrefix << "does not have CNN layer.";
+        IE_THROW() << errPrefix << "does not have CNN layer.";
 
     if (getParentEdges().size() > 2)
-        THROW_IE_EXCEPTION << errPrefix << "has incorrect number of input edges.";
+        IE_THROW() << errPrefix << "has incorrect number of input edges.";
 
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errPrefix << "has incorrect number of output edges.";
+        IE_THROW() << errPrefix << "has incorrect number of output edges.";
 
     const auto& numOfDims = getParentEdgeAt(0)->getDims().ndims();
     if (numOfDims < 1 || numOfDims > 5)
-        THROW_IE_EXCEPTION << errPrefix << "doesn't support input with size of dimensions: " << numOfDims;
+        IE_THROW() << errPrefix << "doesn't support input with size of dimensions: " << numOfDims;
 
     across_channels = false;
     if (getParentEdges().size() == 1) {
@@ -759,7 +759,7 @@ std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(co
         case 3 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
         case 4 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
         case 5 : { shapes = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
-        default : { THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support planar layout with rank: " << dims.size(); }
+        default : { IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support planar layout with rank: " << dims.size(); }
     }
     return shapes;
 }
@@ -768,11 +768,11 @@ void MKLDNNMVNNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto jcp = jit_mvn_config_params();
@@ -840,7 +840,7 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
             eltwiseNode->appendPostOps(ops);
             continue;
         }
-        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
     attr.set_post_ops(ops);
 }
@@ -855,7 +855,7 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     auto dim = getParentEdgeAt(0)->getDesc().getDims();
     if (mayiuse(cpu::x64::sse41)) {
         if (!mvn_mean_kernel || (normalize_variance && !mvn_variance_kernel) || !mvn_kernel) {
-            THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't create kernel to execute on sse41 above platform.";
+            IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' doesn't create kernel to execute on sse41 above platform.";
         }
         Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
         if (layout == C || layout == NC || layout == CHW || layout == NCHW || layout == NCDHW) {

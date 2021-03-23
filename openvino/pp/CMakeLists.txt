@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(TARGET_NAME preprocessor)
+set(TARGET_NAME openvino_preprocessor)
 
 add_library(${TARGET_NAME} INTERFACE)
 

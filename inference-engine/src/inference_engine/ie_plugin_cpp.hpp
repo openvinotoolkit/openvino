@@ -42,13 +42,13 @@
         CATCH_IE_EXCEPTION(InferCancelled)
 
 #define CALL_STATEMENT(...)                                                                        \
-    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATEMENT was not initialized.";  \
+    if (!actual) IE_THROW() << "Wrapper used in the CALL_STATEMENT was not initialized.";  \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
     } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
-        THROW_IE_EXCEPTION << ex.what();                                                           \
+        IE_THROW() << ex.what();                                                           \
     } catch (...) {                                                                                \
-        THROW_IE_EXCEPTION_WITH_STATUS(Unexpected);                                                \
+        IE_THROW(Unexpected);                                                \
     }
 
 namespace InferenceEngine {
@@ -66,14 +66,14 @@ public:
 
     explicit InferencePlugin(const InferenceEnginePluginPtr& pointer): actual(pointer) {
         if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized.";
+            IE_THROW() << "InferencePlugin wrapper was not initialized.";
         }
     }
 
     explicit InferencePlugin(const FileUtils::FilePath & libraryLocation) :
         actual(libraryLocation) {
         if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized.";
+            IE_THROW() << "InferencePlugin wrapper was not initialized.";
         }
     }
 
@@ -109,7 +109,7 @@ public:
                                     const std::map<std::string, std::string>& config) const {
         QueryNetworkResult res;
         CALL_STATEMENT(res = actual->QueryNetwork(network, config));
-        if (res.rc != OK) THROW_IE_EXCEPTION << res.resp.msg;
+        if (res.rc != OK) IE_THROW() << res.resp.msg;
         return res;
     }
 

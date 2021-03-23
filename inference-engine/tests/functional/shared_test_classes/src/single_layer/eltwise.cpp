@@ -68,7 +68,7 @@ void EltwiseLayerTest::SetUp() {
         inputShape1 = inputShapes.front();
         inputShape2 = inputShapes.back();
     } else {
-        THROW_IE_EXCEPTION << "Incorrect number of input shapes";
+        IE_THROW() << "Incorrect number of input shapes";
     }
 
     configuration.insert(additional_config.begin(), additional_config.end());

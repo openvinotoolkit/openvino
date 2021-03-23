@@ -38,7 +38,7 @@ void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::
                   const emitter_context *emit_context) const {
     const auto* load_emitter_context = dynamic_cast<const MKLDNNPlugin::load_emitter_context*>(emit_context);
     if (load_emitter_context == nullptr) {
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " does not get load emmiter context.";
+        IE_THROW() << "Load emitter in " << name << " does not get load emmiter context.";
     }
 
     if (host_isa_ == cpu::x64::sse41) {
@@ -51,7 +51,7 @@ void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::
         emit_isa<cpu::x64::avx512_common>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, static_cast<int>(out_idxs[0]),
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
     } else {
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " is performed on unsupported isa(at least x64::sse41).";
+        IE_THROW() << "Load emitter in " << name << " is performed on unsupported isa(at least x64::sse41).";
     }
 }
 
@@ -60,10 +60,10 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, In
     const int out_vec_idx, InferenceEngine::Precision dst_prc, int load_num, bool is_fill, std::string fill_value) const {
     bool matched_prc = (dst_prc == src_prc) || (dst_prc == Precision::FP32) || (dst_prc == Precision::I32);
     if (!matched_prc) {
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " only support output precision of FP32 or I32 or the same precision as input.";
+        IE_THROW() << "Load emitter in " << name << " only support output precision of FP32 or I32 or the same precision as input.";
     }
     if (load_num > (get_vec_length() / dst_prc.size())) {
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " have unexpected number of elements to load.";
+        IE_THROW() << "Load emitter in " << name << " have unexpected number of elements to load.";
     }
 
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
@@ -94,7 +94,7 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, In
                 load_words_to_dword_extension<Vmm>(Vmm(out_vec_idx), reg_src, offset_byte, true, false, load_num * src_prc.size(), is_fill, fill_value);
                 break;
             default:
-                THROW_IE_EXCEPTION << "Load emitter in " << name << " has unsupported src precision to load.";
+                IE_THROW() << "Load emitter in " << name << " has unsupported src precision to load.";
         }
     }
 
@@ -140,12 +140,12 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
 
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
     if (load_size < 0 || load_size > 64)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load in load_byte.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load in load_byte.";
     // check if proper number bytes fit inside the Xmm/Ymm register
     if (is_ymm && load_size > 32)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load to ymm in load_byte.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load to ymm in load_byte.";
     if (is_xmm && load_size > 16)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load to xmm in load_byte.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load to xmm in load_byte.";
 
     auto xmm = Xbyak::Xmm(vmm.getIdx());
     auto ymm = Xbyak::Ymm(vmm.getIdx());
@@ -239,7 +239,7 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
                     break;
                 case 16: break;
                 default:
-                    THROW_IE_EXCEPTION << "Load emitter in " << name<< " has unexpected number of values to load in load_byte.";
+                    IE_THROW() << "Load emitter in " << name<< " has unexpected number of values to load in load_byte.";
             }
 
             if (has_xmm_block) {
@@ -295,11 +295,11 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
     // For Ymm register, load capacity is halved (32 * load_size <= 256)
     // For Xmm register, load capacity is halved further (32 * load_size <= 128)
     if (load_size < 0 || load_size > 16)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load in load_bytes_to_dword_extension.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load in load_bytes_to_dword_extension.";
     if (is_ymm && load_size > 8)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load to ymm in load_bytes_to_dword_extension.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load to ymm in load_bytes_to_dword_extension.";
     if (is_xmm && load_size > 4)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load to xmm in load_bytes_to_dword_extension.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load to xmm in load_bytes_to_dword_extension.";
 
     // For load_size == 4/8/16, do load/extension in one go
     if (load_size == 16) {
@@ -380,11 +380,11 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
     // For Ymm register, load capacity is halved (16/2(num) * 32 <= 128)
     // For Xmm register, load capacity is halved again (8/2(num) * 32 <= 128)
     if (load_size < 0 || load_size > 32)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load in load_words_to_dword_extension.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load in load_words_to_dword_extension.";
     if (is_ymm && load_size > 16)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load to ymm in load_words_to_dword_extension.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load to ymm in load_words_to_dword_extension.";
     if (is_xmm && load_size > 8)
-        THROW_IE_EXCEPTION << "Load emitter in " << name << " has unexpected number of values to load to xmm in load_words_to_dword_extension.";
+        IE_THROW() << "Load emitter in " << name << " has unexpected number of values to load to xmm in load_words_to_dword_extension.";
 
     auto xmm = Xbyak::Xmm(vmm.getIdx());
     auto ymm = Xbyak::Ymm(vmm.getIdx());
@@ -515,7 +515,7 @@ void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std:
                   const emitter_context *emit_context) const {
     const auto* store_emitter_context = dynamic_cast<const MKLDNNPlugin::store_emitter_context*>(emit_context);
     if (store_emitter_context == nullptr) {
-        THROW_IE_EXCEPTION << "Store emitter in " << name << " does not get store emmiter context.";
+        IE_THROW() << "Store emitter in " << name << " does not get store emmiter context.";
     }
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
@@ -527,7 +527,7 @@ void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std:
         emit_isa<cpu::x64::avx512_common>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
     } else {
-        THROW_IE_EXCEPTION << "Store emitter in " << name << " is performed on unsupported isa(at least x64::sse41).";
+        IE_THROW() << "Store emitter in " << name << " is performed on unsupported isa(at least x64::sse41).";
     }
 }
 
@@ -536,12 +536,12 @@ template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
         const Xbyak::Reg64 &reg_dst, int offset_byte, InferenceEngine::Precision dst_prc, int store_num) const {
         bool matched_prc = (src_prc == dst_prc) || (src_prc == Precision::FP32) || (src_prc == Precision::I32);
         if (!matched_prc) {
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " only support input precision of FP32 or I32 or the same precision as output.";
+            IE_THROW() << "Store emitter in " << name << " only support input precision of FP32 or I32 or the same precision as output.";
         }
         if ((src_prc == Precision::FP32) || (src_prc == Precision::I32)) {
             if ((isa == cpu::x64::sse41 && store_num > 4) || (isa == cpu::x64::avx2 && store_num > 8) ||
                 (isa == cpu::x64::avx512_common && store_num > 16) || store_num < 0) {
-                THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store.";
+                IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store.";
             }
         }
 
@@ -586,7 +586,7 @@ template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
                     store_dword_to_word_extension<Vmm>(Vmm(in_vec_idx), reg_dst, offset_byte, true, false, store_num);
                     break;
                 default:
-                    THROW_IE_EXCEPTION << "Store emitter in " << name << " has unsupported dst precision to store.";
+                    IE_THROW() << "Store emitter in " << name << " has unsupported dst precision to store.";
             }
         }
     }
@@ -618,11 +618,11 @@ template <typename Vmm>
 
         // Ensure data fits completely inside the Xmm/Ymm/Zmm register
         if (store_size < 0 || store_size > 64)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store in store_bytes.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store in store_bytes.";
         if (is_ymm && store_size > 32)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store to ymm in store_bytes.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to ymm in store_bytes.";
         if (is_xmm && store_size > 16)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_bytes.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_bytes.";
 
         auto xmm = Xbyak::Xmm(vmm.getIdx());
         auto ymm = Xbyak::Ymm(vmm.getIdx());
@@ -718,7 +718,7 @@ template <typename Vmm>
                         break;
                     case 16: break;
                     default:
-                        THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store in store_bytes.";
+                        IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store in store_bytes.";
                 }
             }
         }
@@ -743,11 +743,11 @@ template <typename Vmm>
         // At most 8 dwords can fit inside the Ymm register
         // At most 4 dwords can fit inside the Xmm register
         if (store_num < 0 || store_num > 16)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store in store_dword_to_byte_extension.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store in store_dword_to_byte_extension.";
         if (is_ymm && store_num > 8)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store to ymm in store_dword_to_byte_extension.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to ymm in store_dword_to_byte_extension.";
         if (is_xmm && store_num > 4)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_dword_to_byte_extension.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_dword_to_byte_extension.";
 
         auto ymm = Xbyak::Ymm(vmm.getIdx());
 
@@ -816,11 +816,11 @@ template <typename Vmm>
         // At most 4 dwords can fit inside the Xmm register
         // At most 8 dwords can fit inside the Ymm register
         if (store_num < 0 || store_num > 16)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store in store_dword_to_word_extension.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store in store_dword_to_word_extension.";
         if (is_ymm && store_num > 8)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store to ymm in store_dword_to_word_extension.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to ymm in store_dword_to_word_extension.";
         if (is_xmm && store_num > 4)
-            THROW_IE_EXCEPTION << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_dword_to_word_extension.";
+            IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_dword_to_word_extension.";
 
         auto ymm = Xbyak::Ymm(vmm.getIdx());
         auto zmm = Xbyak::Zmm(vmm.getIdx());

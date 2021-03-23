@@ -20,10 +20,10 @@ public:
     explicit UnsqueezeImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             if (layer->insData.size() != 1 && layer->insData.size() != 2)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+                IE_THROW() << layer->name << " Incorrect number of input edges!";
 
             if (layer->insData.size() == 1)
                 addConfig(layer, { { ConfLayout::PLN, false, 0 } }, { { ConfLayout::PLN, false, 0 } });

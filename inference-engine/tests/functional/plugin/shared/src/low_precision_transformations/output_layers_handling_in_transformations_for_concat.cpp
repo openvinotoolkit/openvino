@@ -39,7 +39,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
-        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+        IE_THROW() << "unexpected input name " << info.name();
     }
     const float k = (info.name() == "input1") ? 1.f : 2.f;
 

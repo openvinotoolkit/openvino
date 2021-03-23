@@ -85,7 +85,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     TBlob<uint8_t>::CPtr weightsPtr = ReadWeights(FLAGS_m);
 
     if (weightsPtr->byteSize() != 1724336)
-        THROW_IE_EXCEPTION << "Incorrect weights file";
+        IE_THROW() << "Incorrect weights file";
 
     // -------input------
     std::vector<ptrdiff_t> padBegin{ 0, 0 };

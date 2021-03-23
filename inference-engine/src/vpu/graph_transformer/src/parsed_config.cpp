@@ -225,7 +225,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
         (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {
-        THROW_IE_EXCEPTION << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
+        IE_THROW() << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
     }
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);

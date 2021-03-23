@@ -114,7 +114,7 @@ void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
         p.AddPrimitive(argmaxPrim);
         p.AddPrimitiveToProfiler(op);
     } else {
-        THROW_IE_EXCEPTION << op->get_friendly_name() << " Incorrect TopK outputs number";
+        IE_THROW() << op->get_friendly_name() << " Incorrect TopK outputs number";
     }
 }
 

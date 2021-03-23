@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 void Convolution_parseParams(InferenceEngine::CNNLayer* layer) {
     auto convLayer = dynamic_cast<InferenceEngine::ConvolutionLayer*>(layer);
     if (!convLayer) {
-        THROW_IE_EXCEPTION << "Layer is not instance of ConvolutionLayer class";
+        IE_THROW() << "Layer is not instance of ConvolutionLayer class";
     }
     convLayer->_out_depth = convLayer->GetParamAsUInt("output");
 
@@ -61,7 +61,7 @@ void Convolution_parseParams(InferenceEngine::CNNLayer* layer) {
         std::vector<unsigned int> strides = convLayer->GetParamAsUInts("strides", default_1);
         for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
-                THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << convLayer->name;
+                IE_THROW() << "Stride could not be 0.\nIn layer " << convLayer->name;
             }
             convLayer->_stride.insert(i - 1, strides[strides.size() - i]);
         }
@@ -96,7 +96,7 @@ void ref_conv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
                      const CommonTestUtils::conv_common_params& prm) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW &&
             srcs[0]->getTensorDesc().getLayout() != Layout::NCDHW)
-        THROW_IE_EXCEPTION << "Reference FP32 convolution supports NCHW and NCDHW layouts only";
+        IE_THROW() << "Reference FP32 convolution supports NCHW and NCDHW layouts only";
     size_t KW = prm.kernel[X_AXIS];
     size_t KH = prm.kernel[Y_AXIS];
     size_t KD = prm.kernel.size() > Z_AXIS ? prm.kernel[Z_AXIS] : 1lu;

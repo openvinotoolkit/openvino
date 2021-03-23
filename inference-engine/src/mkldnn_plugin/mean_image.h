@@ -26,11 +26,11 @@ public:
         IE_ASSERT(input != nullptr);
 
         if (inputDims.ndims() != 4) {
-            THROW_IE_EXCEPTION << "Expecting input as 4 dimension blob with format NxCxHxW.";
+            IE_THROW() << "Expecting input as 4 dimension blob with format NxCxHxW.";
         }
 
         if (layout != InferenceEngine::NCHW && layout != InferenceEngine::NHWC) {
-            THROW_IE_EXCEPTION << "Expecting input layout NCHW or NHWC.";
+            IE_THROW() << "Expecting input layout NCHW or NHWC.";
         }
 
         int MB = inputDims[0];

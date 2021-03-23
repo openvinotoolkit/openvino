@@ -306,7 +306,7 @@ private:
         template <class U>
         typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
         equal(const Any& left, const Any& rhs) const {
-            THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
+            IE_THROW() << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
@@ -322,13 +322,13 @@ private:
 
     template <typename T>
     static T& dyn_cast(Any* obj) {
-        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
+        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
         return dynamic_cast<RealData<T>&>(*obj).get();
     }
 
     template <typename T>
     static const T& dyn_cast(const Any* obj) {
-        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
+        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
         return dynamic_cast<const RealData<T>&>(*obj).get();
     }
 

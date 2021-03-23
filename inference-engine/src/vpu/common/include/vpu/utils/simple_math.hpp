@@ -89,7 +89,7 @@ public:
         if (isInt && other.isInt) {
             return IntOrFloat{value.i % other.value.i};
         }
-        THROW_IE_EXCEPTION << "Can't apply modulus operation to floating point value";
+        IE_THROW() << "Can't apply modulus operation to floating point value";
     }
 };
 

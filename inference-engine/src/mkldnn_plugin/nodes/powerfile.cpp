@@ -17,7 +17,7 @@ public:
     explicit PowerFileImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 1 || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             // TODO: load this from some file or as blob?
             shift_.push_back(1);
