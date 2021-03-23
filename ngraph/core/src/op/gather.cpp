@@ -226,7 +226,8 @@ void op::v7::Gather::validate_and_infer_types()
     if (data_pshape.rank().is_static() && indices_pshape.rank().is_static())
     {
         // implementation of out_shape formula
-        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]
+        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
+        // data.shape[axis + 1:]
         int i = 0;
         for (; i < batch_dims; i++)
         {
