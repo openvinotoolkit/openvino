@@ -103,7 +103,6 @@
         <model name="faster-rcnn-resnet101-coco-sparse-60-0001" precision="FP16-INT8" source="omz" />
         <model name="action-recognition-0001-encoder" precision="FP16-INT8" source="omz" />
         <model name="yolo-v2-ava-sparse-35-0001" precision="FP16-INT8" source="omz" />
-        <model name="yolo-v2-ava-sparse-70-0001" precision="FP16-INT8" source="omz" />
         <model name="person-detection-raisinghand-recognition-0001" precision="FP16-INT8" source="omz" />
         <model name="person-detection-asl-0001" precision="FP16-INT8" source="omz" />
         <model name="emotions-recognition-retail-0003" precision="FP16-INT8" source="omz" />
