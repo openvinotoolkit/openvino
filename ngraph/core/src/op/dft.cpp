@@ -128,6 +128,10 @@ void op::v7::DFT::validate()
         const auto& const_axes = get_constant_from_source(input_value(1));
         auto axes = const_axes->cast_vector<int64_t>();
 
+        // DFT operation supports for negative axes to transform. More precisely, according to
+        // the DFT operation specification, axes should be integers from -(r - 1) to (r - 2)
+        // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis
+        //'r - 1 + a'. The reason is the following.
         for (int64_t& axis : axes)
         {
             if (axis < 0)
@@ -224,6 +228,10 @@ void op::v7::DFT::validate_and_infer_types()
 
     const auto& const_axes = get_constant_from_source(input_value(1));
     auto axes = const_axes->cast_vector<int64_t>();
+    // DFT operation supports for negative axes to transform. More precisely, according to
+    // the DFT operation specification, axes should be integers from -(r - 1) to (r - 2)
+    // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis
+    //'r - 1 + a'. The reason is the following.
     for (int64_t& axis : axes)
     {
         if (axis < 0)
