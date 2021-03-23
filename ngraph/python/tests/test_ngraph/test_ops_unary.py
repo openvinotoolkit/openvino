@@ -201,7 +201,7 @@ def test_gelu_operator_with_parameters():
 
     result = computation(data_value)
     expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
 
 
 def test_gelu_operator_with_array():
@@ -214,7 +214,7 @@ def test_gelu_operator_with_array():
 
     result = computation()
     expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
 
 
 def test_gelu_tanh_operator_with_parameters():
