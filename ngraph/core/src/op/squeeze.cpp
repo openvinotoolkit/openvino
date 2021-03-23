@@ -53,10 +53,11 @@ void op::Squeeze::pre_validate_and_infer_types()
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
 
     auto axes_constant = get_constant_from_source(axes_node);
-    bool axes_is_empty_constant =
-        (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
+    bool axes_is_empty_constant = (axes_constant && axes_constant->get_data_ptr() != nullptr)
+                                      ? axes_constant->cast_vector<int64_t>().empty()
+                                      : false;
 
-    if (data_has_dynamic_rank || !axes_constant ||
+    if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
         (data_has_dynamic_shape && axes_is_empty_constant))
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
@@ -211,11 +212,15 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
+    // TODO: change the behaviour after the support of Squeeze with one input
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, inputs.size()));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const
 {
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
     return default_lower_bound_evaluator(this, output_values);
@@ -223,6 +228,7 @@ bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) cons
 
 bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const
 {
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
     return default_upper_bound_evaluator(this, output_values);

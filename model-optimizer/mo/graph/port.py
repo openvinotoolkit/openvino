@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -310,9 +310,7 @@ class Port:
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
                 fw_names += get_tensor_names_list(out_node.attrs())
-        if len(fw_names) > 0:
-            return ','.join(fw_names)
-        return None
+        return fw_names
 
     def disconnect(self):
         if self.type == 'out':
@@ -322,7 +320,12 @@ class Port:
                     self.node.graph.remove_edge(self.node.id, port.node.id)
             else:
                 for port in consumer_ports:
-                    self.node.graph.remove_edge(port.node.in_node(port.idx).id, port.node.id)
+                    src_node = port.node.in_node(port.idx).id
+                    dst_node = port.node.id
+                    for key, val in self.node.graph.get_edge_data(src_node, dst_node).items():
+                        if val['in'] == port.idx:
+                            self.node.graph.remove_edge(src_node, dst_node, key=key)
+                            break
         else:
             source_port = self.get_source()
             if source_port is None:

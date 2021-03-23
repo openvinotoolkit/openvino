@@ -25,7 +25,6 @@
 #include "ie_locked_memory.hpp"
 #include "ie_precision.hpp"
 #include "details/ie_blob_iterator.hpp"
-#include "details/ie_exception.hpp"
 #include "details/ie_pre_allocator.hpp"
 
 namespace InferenceEngine {
@@ -577,13 +576,14 @@ public:
     /**
      *@brief Virtual destructor.
      */
-#ifdef __clang__
+
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
     virtual ~TBlob();
 #else
     virtual ~TBlob() {
         free();
     }
-#endif  // __clang__
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
 
     /**
      * @brief Gets the size of the given type.
@@ -778,7 +778,7 @@ protected:
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         // in case when constructor without allocator was used
         if (!_allocator) {
-            _allocator = shared_from_irelease(CreateDefaultAllocator());
+            _allocator = CreateDefaultAllocator();
         }
 
         return _allocator;
@@ -806,7 +806,7 @@ protected:
     }
 };
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
@@ -819,7 +819,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
-#endif  // __clang__
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
 
 /**
  * @brief Creates a blob with the given tensor descriptor.

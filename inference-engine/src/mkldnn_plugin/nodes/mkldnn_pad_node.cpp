@@ -133,8 +133,13 @@ void MKLDNNPadNode::createPrimitive() {
     params.srcDims = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getBlockDims();
     params.dstDims = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getBlockDims();
 
-    params.srcStrides = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
-    params.dstStrides = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
+    size_t nDims = params.srcDims.size();
+    params.srcStrides.resize(nDims, 1);
+    params.dstStrides.resize(nDims, 1);
+    for (int i = nDims - 2; i >= 0; i--) {
+        params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
+        params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
+    }
 
     if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
@@ -247,7 +252,10 @@ void MKLDNNPadNode::padConstant() {
         return;
     }
 
-    InferenceEngine::Precision precision = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
+    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc.getPrecision();
     OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, precision,
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),

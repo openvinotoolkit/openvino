@@ -351,6 +351,8 @@ namespace ngraph
                 std::vector<T> get_vector() const
                 {
                     const T* p = get_data_ptr<T>();
+                    if (p == nullptr)
+                        throw std::runtime_error("Cannot create vector! Buffer is not allocated.");
                     return std::vector<T>(p, p + shape_size(m_shape));
                 }
 
@@ -469,6 +471,14 @@ namespace ngraph
                     return m_all_elements_bitwise_identical;
                 }
                 std::string convert_value_to_string(size_t index) const;
+
+                /**
+                 * \brief Allows to avoid buffer allocation on the visit_attributes call
+                 */
+                void alloc_buffer_on_visit_attributes(bool val)
+                {
+                    m_alloc_buffer_on_visit_attributes = val;
+                }
 
             protected:
                 template <typename IN_T, typename OUT_T>
@@ -591,6 +601,7 @@ namespace ngraph
                 std::shared_ptr<runtime::AlignedBuffer> m_data;
                 bool m_all_elements_bitwise_identical;
                 bool are_all_data_elements_bitwise_identical() const;
+                bool m_alloc_buffer_on_visit_attributes = true;
             };
         }
         using v0::Constant;

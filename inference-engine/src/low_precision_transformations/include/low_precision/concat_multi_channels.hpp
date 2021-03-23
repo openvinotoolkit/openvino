@@ -27,19 +27,19 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 private:
-    static void fillDequantization(
+    void fillDequantization(
         std::shared_ptr<ngraph::Node> layer,
         std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
-        std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate);
+        std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate) const;
 
-    static void fillQuantization(
+    void fillQuantization(
         const std::shared_ptr<ngraph::Node> layer,
         const std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
-        std::vector<FakeQuantizeDequantization>& dequantization);
+        std::vector<FakeQuantizeDequantization>& dequantization) const;
 
-    static FakeQuantizeDequantization getConcatenatedDequantization(
+    FakeQuantizeDequantization getConcatenatedDequantization(
         const std::shared_ptr<ngraph::opset1::Concat> concat,
-        const std::vector<FakeQuantizeDequantization>& dequantization);
+        const std::vector<FakeQuantizeDequantization>& dequantization) const;
 
     static FakeQuantizeDequantization getFoldedDequantization(
         const std::shared_ptr<ngraph::Node> operation,

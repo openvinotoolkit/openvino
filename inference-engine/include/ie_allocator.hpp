@@ -10,7 +10,7 @@
 #pragma once
 
 #include "ie_api.h"
-#include "details/ie_irelease.hpp"
+#include <memory>
 
 namespace InferenceEngine {
 
@@ -26,7 +26,7 @@ enum LockOp {
  * @interface IAllocator
  * @brief Allocator concept to be used for memory management and is used as part of the Blob.
  */
-class IAllocator : public details::IRelease {
+class IAllocator : public std::enable_shared_from_this<IAllocator> {
 public:
     /**
      * @brief Maps handle to heap memory accessible by any memory manipulation routines.
@@ -60,10 +60,7 @@ public:
     virtual bool free(void* handle) noexcept = 0;
 
 protected:
-    /**
-     * @brief Disables the ability of deleting the object without release.
-     */
-    ~IAllocator() override = default;
+     ~IAllocator() = default;
 };
 
 /**
@@ -71,6 +68,6 @@ protected:
  *
  * @return The Inference Engine IAllocator* instance
  */
-INFERENCE_ENGINE_API(InferenceEngine::IAllocator*) CreateDefaultAllocator() noexcept;
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::IAllocator>) CreateDefaultAllocator() noexcept;
 
 }  // namespace InferenceEngine

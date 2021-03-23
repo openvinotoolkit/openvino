@@ -34,7 +34,7 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
     const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(pooling);
 
     bool updatePrecision;
-    // issue #40768
+
     if ((children.size() == 1ul) && (!this->layerTransformationsManager->isQuantized(children[0]))) {
         updatePrecision = false;
     } else {

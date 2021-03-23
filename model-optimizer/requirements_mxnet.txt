@@ -1,4 +1,4 @@
-mxnet>=1.0.0,<=1.5.1
+mxnet>=1.0.0,<=1.7.0
 networkx>=1.11
 numpy>=1.14.0
 test-generator==0.1.1

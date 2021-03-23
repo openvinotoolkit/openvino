@@ -54,11 +54,12 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes)
 
     auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
     loop->set_merged_input(M_body, M, Zo);
+
+    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
     // check input descriptors
     for (auto& desc : loop->get_input_descriptions())

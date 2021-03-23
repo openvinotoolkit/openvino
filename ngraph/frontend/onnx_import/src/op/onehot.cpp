@@ -34,8 +34,8 @@ namespace ngraph
                     OutputVector inputs{node.get_ng_inputs()};
                     auto indices =
                         std::make_shared<default_opset::Convert>(inputs.at(0), element::i64);
-                    auto depth = reshape::interpret_as_scalar(inputs.at(1));
-
+                    auto depth = std::make_shared<default_opset::Convert>(
+                        reshape::interpret_as_scalar(inputs.at(1)), element::i64);
                     // Rank 1 tensor containing exactly two elements: [off_value, on_value]
                     auto values = inputs.at(2);
                     auto split_axis = default_opset::Constant::create(element::i64, {}, {0});

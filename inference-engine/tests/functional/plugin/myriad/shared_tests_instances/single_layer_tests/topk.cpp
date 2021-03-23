@@ -19,6 +19,9 @@ const std::vector<int64_t> axes = {
         0,
         1,
         2,
+        -1,
+        -2,
+        -3,
 };
 
 const std::vector<int64_t> k = {

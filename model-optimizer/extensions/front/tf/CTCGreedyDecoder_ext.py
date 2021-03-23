@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
+from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -24,7 +24,7 @@ class CTCCGreedyDecoderFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'ctc_merge_repeated': int(node.pb.attr['merge_repeated'].b),
+            'merge_repeated': bool(node.pb.attr['merge_repeated'].b),
         }
-        CTCGreedyDecoderOp.update_node_stat(node, attrs)
+        CTCGreedyDecoderSeqLenOp.update_node_stat(node, attrs)
         return cls.enabled

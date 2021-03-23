@@ -163,7 +163,10 @@ void TestModel::createOutputs(std::vector<DataDesc> descriptors) {
     }
 }
 
-Stage TestModel::addStage(const std::vector<InputInfo>& curInputInfos, const std::vector<OutputInfo>& curOutputInfos) {
+Stage TestModel::addStage(
+        const std::vector<InputInfo>& curInputInfos,
+        const std::vector<OutputInfo>& curOutputInfos,
+        StageType stageType) {
     DataVector curInputs;
     for (const auto& info : curInputInfos) {
         if (info.type == InputType::Original) {
@@ -188,7 +191,7 @@ Stage TestModel::addStage(const std::vector<InputInfo>& curInputInfos, const std
 
     auto stage = _model->addNewStage<TestStage>(
             formatString("Stage %m%m%d", std::setw(2), std::setfill('0'), _stages.size()),
-            StageType::None,
+            stageType,
             nullptr,
             curInputs,
             curOutputs);

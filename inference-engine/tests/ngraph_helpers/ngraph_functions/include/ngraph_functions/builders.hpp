@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -143,9 +144,16 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
 
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
         const ngraph::Output<Node>& inputData,
+        const ngraph::Output<Node>& sequenceLength,
         int blankIndex,
         bool mergeRepeated,
-        const element::Type& idxPrec);
+        const element::Type& idxPrecision = element::i32);
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision = element::i32);
 
 std::shared_ptr<ngraph::Node> makeCTCLoss(
         const ngraph::Output<Node>& logitsNode,
@@ -487,6 +495,14 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
                                       const ngraph::op::v5::NonMaxSuppression::BoxEncodingType &boxEncoding,
                                       const bool &sortResDescend,
                                       const ngraph::element::Type& outType);
+
+std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
+                                         const element::Type& depth_type,
+                                         const int64_t& depth_val,
+                                         const element::Type& set_type,
+                                         const float& on_val,
+                                         const float& off_val,
+                                         const int64_t& axis);
 
 }  // namespace builder
 }  // namespace ngraph

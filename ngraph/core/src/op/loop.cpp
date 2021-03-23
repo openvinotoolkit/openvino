@@ -86,10 +86,10 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     bool condition_always_true = false;
-    NODE_VALIDATION_CHECK(this,
-                          m_special_body_ports.body_condition_output_idx >= 0,
-                          "Condition body output is not provided. "
-                          "Condition is a mandatory output of the body in Loop op.");
+    if (m_special_body_ports.body_condition_output_idx < 0)
+        // special body ports were not set yet, so we can't calculate output shape
+        return;
+
     const auto& body_execution_condition =
         m_body->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
     const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
@@ -185,12 +185,9 @@ void op::v5::Loop::validate_and_infer_types()
                           "Number of inputs must be the same as number of input descriptions");
 
     // Input
-    uint64_t index_it = input_offset;
     for (const auto& input_description : m_input_descriptions)
     {
         auto index = input_description->m_input_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
-        index_it++;
 
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
         {
@@ -242,12 +239,9 @@ void op::v5::Loop::validate_and_infer_types()
     m_body->validate_nodes_and_infer_types();
 
     // Output
-    index_it = 0;
     for (const auto& output_description : m_output_descriptions)
     {
         auto index = output_description->m_output_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Output_index not in order");
-        index_it++;
 
         auto body_value =
             m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
@@ -363,6 +357,7 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
     {
         dst.m_output_descriptions.push_back(output_description->copy());
     }
+    dst.validate_and_infer_types();
 }
 
 op::v5::Loop::Loop(const op::v5::Loop& other)

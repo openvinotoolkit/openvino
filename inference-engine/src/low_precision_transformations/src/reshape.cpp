@@ -114,9 +114,9 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 
             const bool shouldBroadcast = (shape_size(newReshapeConstValues) != 1ul) && (reshapeConstValues[1] != 0) &&
                 (((reshapeConstValues[1] != -1) &&
-                    (static_cast<int64_t>(constantShape[1]) != reshapeConstValues[1])) ||
+                    (static_cast<int64_t>(newOperationConstantShape[1]) != reshapeConstValues[1])) ||
                 ((reshapeConstValues[1] == -1) &&
-                    (constantShape[1] != overallValue)));
+                    (newOperationConstantShape[1] != overallValue)));
 
             const std::shared_ptr<Node> broadcastedConstant = shouldBroadcast ?
                 fold<opset1::Broadcast>(

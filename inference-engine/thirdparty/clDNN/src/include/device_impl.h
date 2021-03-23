@@ -16,9 +16,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#define CL_HPP_ENABLE_EXCEPTIONS
-#define CL_HPP_MINIMUM_OPENCL_VERSION 120
-#define CL_HPP_TARGET_OPENCL_VERSION 120
 #include <cl2_wrapper.h>
 #include "gpu/device_info.h"
 #include "api/device.hpp"
@@ -72,8 +69,8 @@ private:
     std::vector<allocation_type> _caps;
 
     bool does_device_support(int32_t param, const cl::Device& device) {
-        cl_unified_shared_memory_capabilities_intel capabilities;
-        auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_unified_shared_memory_capabilities_intel), &capabilities, NULL);
+        cl_device_unified_shared_memory_capabilities_intel capabilities;
+        auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, NULL);
         if (err) throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
         return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
     }

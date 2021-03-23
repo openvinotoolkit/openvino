@@ -69,6 +69,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
         updateDequantization.multiply.constantPrecision = element::f32;
     }
 
+    updateDequantization.multiply.outPrecision = precision;
     std::shared_ptr<Node> deq;
     if (updatePrecisions) {
         deq = makeDequantization(fakeQuantize, updateDequantization);

@@ -23,7 +23,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
 
     std::vector<int> processes, threads, iterations;
-    std::vector<std::string> devices, models, models_names;
+    std::vector<std::string> devices, models, models_names, precisions;
 
     pugi::xml_node values;
     for (auto field = fields.begin(); field != fields.end(); field++) {
@@ -54,6 +54,8 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
                     models.push_back(full_path);
                     models_names.push_back(path);
                 }
+                std::string precision = val.attribute("precision").as_string();
+                precisions.push_back(precision);
             }
         }
     }
@@ -64,6 +66,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     iterations = !iterations.empty() ? iterations: std::vector<int>{1};
     devices = !devices.empty() ? devices : std::vector<std::string>{"NULL"};
     models = !models.empty() ? models : std::vector<std::string>{"NULL"};
+    precisions = !precisions.empty() ? precisions : std::vector<std::string>{"NULL"};
     models_names = !models_names.empty() ? models_names : std::vector<std::string>{"NULL"};
 
     for (auto &numprocesses : processes)
@@ -71,8 +74,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
             for (auto &numiters : iterations)
                 for (auto &device : devices)
                     for (int i = 0; i < models.size(); i++)
-                        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models[i], models_names[i]));
-
+                        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models[i], models_names[i], precisions[i]));
     return tests_cases;
 }
 

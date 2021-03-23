@@ -5,7 +5,7 @@ This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learn
 > **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../tools/benchmark_tool/README.md).
 
 > **TIP**: You also can work with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare 
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare
 > performance of deep learning models on various Intel® architecture
 > configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
 > <br>
@@ -75,11 +75,11 @@ benchmark_app [OPTION]
 Options:
 
     -h, --help                Print a usage message
-    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.	
+    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
     -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
                               Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
-                              Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. 
+                              Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
     The application looks for a suitable plugin for the specified device.
     -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
@@ -92,14 +92,15 @@ Options:
     -t                        Optional. Time, in seconds, to execute topology.
     -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
     -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
+    -layout                   Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
 
   CPU-specific performance options:
     -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
                               (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                              Default value is determined automatically for a device. 
-                              Please note that although the automatic selection usually provides a reasonable performance, 
+                              Default value is determined automatically for a device.
+                              Please note that although the automatic selection usually provides a reasonable performance,
                               it still may be non-optimal for some cases, especially for very small networks.
-                              Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency 
+                              Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
                               estimations the number of streams should be set to 1.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
@@ -125,12 +126,12 @@ If a model has mixed input types, input folder should contain all required files
 To run the tool, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-> 
+>
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.  
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
 
 > **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
@@ -147,9 +148,9 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```
    ```sh
    python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
-   ```     
+   ```
 3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
-   
+
    * On CPU:
    ```sh
    ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png  -d CPU -api async --progress true
@@ -162,7 +163,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
 Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-Below are fragments of sample output for CPU and FPGA devices: 
+Below are fragments of sample output for CPU and FPGA devices:
 
 * For CPU:
    ```

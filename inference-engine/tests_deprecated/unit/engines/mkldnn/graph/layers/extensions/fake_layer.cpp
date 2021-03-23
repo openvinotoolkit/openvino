@@ -21,10 +21,6 @@ class FakeExtensions : public Cpu::MKLDNNExtensions {
  public:
     void Unload() noexcept override {};
 
-    void Release() noexcept override {
-        delete this;
-    };
-
     static std::shared_ptr<TestExtensionsHolder> GetExtensionsHolder() {
         static std::shared_ptr<TestExtensionsHolder> localHolder;
         if (localHolder == nullptr) {
@@ -80,7 +76,7 @@ public:
     explicit FakeLayerPLNImpl(const CNNLayer* layer) {
         try {
             addConfig(layer, {{ConfLayout::PLN, false, 0}}, {{ConfLayout::PLN, false, 0}});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -101,7 +97,7 @@ public:
             auto blk_layout = ConfLayout::BLK8;
 #endif
             addConfig(layer, {{blk_layout, false, 0}}, {{blk_layout, false, 0}});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

@@ -21,8 +21,6 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <ngraph/pass/manager.hpp>
 
-#include "generic_ie.hpp"
-
 #include "myriad_plugin.h"
 
 using namespace InferenceEngine;
@@ -161,7 +159,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     std::ifstream blobFile(modelFileName, std::ios::binary);
 
     if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << ie::details::as_status << NETWORK_NOT_READ;
+        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotRead);
     }
 
     return ImportNetwork(blobFile, config);
@@ -217,5 +215,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
 }

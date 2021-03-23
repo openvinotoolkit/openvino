@@ -854,7 +854,10 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNDeformableConvolutionNode::createPrimitive() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcDims = config.inConfs[0].desc.getDims();
     auto weiDims = config.inConfs[2].desc.getDims();
@@ -1057,7 +1060,10 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetPtr());
     float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        THROW_IE_EXCEPTION << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_block_desc = config.inConfs[0].desc.getBlockingDesc();
     std::vector<size_t> src_strides(src_block_desc.getStrides().size());

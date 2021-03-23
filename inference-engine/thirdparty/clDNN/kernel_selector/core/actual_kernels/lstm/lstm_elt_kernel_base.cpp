@@ -55,7 +55,7 @@ JitConstants LSTMEltKernelBase::GetJitConstants(const lstm_elt_params& params) c
     }
     jit.Merge(MakeTypeJitConstants(ftype, "ACCUMULATOR"));
 
-    static const std::vector<std::string> asuffixes = {"_F","_G","_H","_CLIP"};
+    static const std::vector<std::string> asuffixes = {"_F", "_G", "_H", "_CLIP"};
     for (size_t i = 0; i < params.activations.size(); i++) {
         std::vector<base_activation_params> aparams = { params.activations[i] };
         jit.Merge(MakeActivationJitConstants(aparams, ftype, asuffixes[i]));

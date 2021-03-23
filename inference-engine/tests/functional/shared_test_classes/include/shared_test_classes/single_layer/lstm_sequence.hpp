@@ -32,7 +32,7 @@ class LSTMSequenceTest : public testing::WithParamInterface<LSTMSequenceParams>,
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj);
 protected:
-    void Infer() override;
+    void GenerateInputs() override;
     void SetUp() override;
 
 private:

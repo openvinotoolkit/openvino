@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <algorithm>
+#include <ngraph/validation_util.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -158,6 +159,7 @@ namespace shape_of
                               const HostTensorVector& output_values,
                               bool is_upper)
     {
+        NGRAPH_CHECK(shape_of_node, validate_host_tensor_vector(output_values, 1));
         const auto& input_partial_shape = shape_of_node->get_input_partial_shape(0);
         if (input_partial_shape.rank().is_dynamic())
             return false;
@@ -226,6 +228,8 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
@@ -288,6 +292,8 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 

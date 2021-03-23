@@ -16,14 +16,15 @@
 
 import importlib
 import logging as log
-import mmap
 import os
 import sys
 
+import mmap
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
+from mo.front.extractor import add_outputs_identity
 from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
@@ -253,6 +254,7 @@ def caffe_pb_to_nx(graph, proto, model):
                        kind='op')
         blob_producers[input_name] = (input_name, 0)
 
+    used_blobs = set()
     for i, layer in enumerate(proto_layers):
 
         model_layer = None
@@ -296,20 +298,8 @@ def caffe_pb_to_nx(graph, proto, model):
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
-            src_layer = blob_producers[bottom][0]
-            src_port = blob_producers[bottom][1]
-            assert (graph.has_node(src_layer))
-            edge_attrs = {
-                'out': src_port,
-                'in': dst_port,
-                'name': bottom,
-                # debug anchor for a framework name, out port and tensor name
-                'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
-                'in_attrs': ['in', 'name'],
-                'out_attrs': ['out', 'name'],
-                'data_attrs': ['fw_tensor_debug_info']
-            }
-            graph.add_edge(src_layer, layer.name, **edge_attrs)
+            add_edge_caffe(graph, bottom, layer.name, blob_producers, dst_port)
+            used_blobs.add(bottom)
 
         # update blob producers dictionary by output ports
         for src_port, top in enumerate(layer.top):
@@ -317,7 +307,35 @@ def caffe_pb_to_nx(graph, proto, model):
                 log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
             blob_producers[top] = (layer.name, src_port)
 
+    # Tensor names information corresponding to a node is stored on outgoing edges.
+    # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+    # for each output Identity node is added, and tensor name for the output is kept
+    # on (output, fake output) edge. After Result nodes adding transformation fake outputs
+    # are deleted from graph.
+    all_blobs = set(blob_producers.keys())
+    add_outputs_identity(graph, all_blobs - used_blobs, add_edge_caffe,
+                         {'blob_producers': blob_producers, 'dst_port': 0})
+
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +
                     refer_to_faq_msg(79))
-    return {name: shape for (name, shape) in zip(input_names, input_dims)}
+    return {fake_node_name: shape for (fake_node_name, shape) in zip(input_names, input_dims)}
+
+
+def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: dict, dst_port: int):
+    """
+    Creates an edge and adds it to the graph.
+    """
+    src_layer = blob_producers[bottom][0]
+    src_port = blob_producers[bottom][1]
+    edge_attrs = {
+        'out': src_port,
+        'in': dst_port,
+        'name': bottom,
+        # debug anchor for a framework name, out port and tensor name
+        'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
+        'in_attrs': ['in', 'name'],
+        'out_attrs': ['out', 'name'],
+        'data_attrs': ['fw_tensor_debug_info']
+    }
+    graph.add_edge(src_layer, dst_layer, **edge_attrs)

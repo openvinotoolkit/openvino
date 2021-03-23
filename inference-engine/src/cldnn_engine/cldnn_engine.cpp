@@ -18,10 +18,9 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <generic_ie.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -30,6 +29,8 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -53,16 +54,20 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
-#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <low_precision/pull_reshape_through_dequantization.hpp>
+#include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
@@ -136,8 +141,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
     if (clonedNetwork.getFunction()) {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
-        // Disable shape inference (WA for generic operations)
-        ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         bool enableInt8;
         {
@@ -218,30 +221,55 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 });
 
             auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-                if (std::dynamic_pointer_cast<const ngraph::op::v0::RNNCell>(node) || std::dynamic_pointer_cast<const ngraph::op::v5::RNNSequence>(node)) {
+                if (std::dynamic_pointer_cast<const ngraph::opset6::RNNCell>(node)) {
                     return false;
-                } else if (std::dynamic_pointer_cast<const ngraph::op::v3::GRUCell>(node) ||
-                           std::dynamic_pointer_cast<const ngraph::op::v5::GRUSequence>(node)) {
+                } else if (std::dynamic_pointer_cast<const ngraph::opset6::GRUCell>(node)) {
                     return false;
-                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::op::v4::LSTMCell>(node)) {
+                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset6::LSTMCell>(node)) {
                     return lstm_cell->get_clip() == 0.0f && lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::op::v0::LSTMCell>(node)) {
+                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(node)) {
                     return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-                } else if (const auto &lstm_sequence = std::dynamic_pointer_cast<const ngraph::op::v5::LSTMSequence>(node)) {
-                    return lstm_sequence->get_clip() == 0.0f && lstm_sequence->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                 }
                 return false;
             };
 
-            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                                      ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                                      ngraph::pass::ConvertLSTMSequenceToTensorIterator,
-                                      ngraph::pass::RNNCellDecomposition,
+            // Sequences supported by the plugin shouldn't be converted to TensorIterator.
+            // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
+            // should always convert to TensorIterator.
+            // RNN/GRU Sequences are not supported in GPU plugin
+            // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
+            auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
+                const auto& data = node->input(0);
+                const auto& data_pshape = data.get_partial_shape();
+                if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
+                    return false;
+                auto max_seq_len = data.get_shape().at(1);
+                if (std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(node)) {
+                    return false;
+                } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(node)) {
+                    return lstm_seq->get_clip() == 0.0f &&
+                           lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                           !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
+                                                                  max_seq_len);
+                }
+                return false;
+            };
+
+            pass_config->set_callback<ngraph::pass::RNNCellDecomposition,
                                       ngraph::pass::GRUCellDecomposition,
                                       ngraph::pass::LSTMCellDecomposition>(
                 [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                     return isCellPrimitiveSupported(node);
                 });
+
+            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                                      ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                                      ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+                    [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                        return isSequencePrimitiveSupported(node);
+                    });
 
             pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
                                       ngraph::pass::ConvertTensorIteratorToLSTMSequence,
@@ -268,6 +296,31 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                                node->input_value(1).get_shape().size() == 3lu;
                     });
 
+            pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+                [](const_node_ptr &node) -> bool {
+                    const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
+                    if (mvn != nullptr && node->get_input_size() == 2) {
+                        if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
+                            auto axesVal = axesNode->cast_vector<int>();
+                            auto& mvnShape = mvn->get_output_shape(0);
+                            for (int32_t& axis : axesVal)
+                                axis = axis < 0 ? axis + mvnShape.size() : axis;
+                            std::sort(axesVal.begin(), axesVal.end());
+                            if (mvnShape.size() == 1)
+                                return false;
+                            if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
+                                return false;
+                            int value = mvnShape.size() - 1;
+                            for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                                if (axesVal[i] != value)
+                                    return false;
+                            }
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
             // List of enabled/disabled transformations
             pass_config->disable<ngraph::pass::ConvertGELU>();
             pass_config->disable<ngraph::pass::ConvertMod>();
@@ -279,6 +332,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
             pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
+            pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+            pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -298,16 +353,28 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         if (enableInt8) {
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
-            ngraph::pass::Manager conversion_manager;
-            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
-            conversion_manager.run_passes(nGraphFunc);
+
+            ngraph::pass::Manager manager;
+            // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
+            // With this key users can work-around such issues
+            if (!config.enable_fp16_for_quantized_models) {
+                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+            }
+            auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
+            const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+            lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+            manager.run_passes(nGraphFunc);
+
             auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
                                                       LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
                                                       true);                                                       // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
+                    .setSupportAsymmetricQuantization(false)
+                    .setSupport3DTensorOnActivations(false))
                 // INT8 StridedSlice not supported
                 .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
@@ -374,7 +441,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
             input_precision != InferenceEngine::Precision::I32 &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
                 << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -494,7 +561,12 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     CLDNNPlugin::Config conf = _impl->m_config;
     UpdateConfig(conf, network, config);
 
-    Program prog;
+    if (m_defaultContext == nullptr) {
+        m_defaultContext.reset(new CLDNNRemoteCLContext(
+            std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
+            ParamMap(), conf));
+    }
+    Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     auto function = network.getFunction();
     if (function == nullptr) {
         THROW_IE_EXCEPTION << "CNNetworkImpl representation is not supported anymore";

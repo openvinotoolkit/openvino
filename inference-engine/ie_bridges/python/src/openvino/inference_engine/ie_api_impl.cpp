@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -264,10 +264,6 @@ std::string InferenceEnginePython::IENetwork::getOVNameForTensor(const std::stri
     return actual->getOVNameForTensor(orig_name);
 }
 
-std::string InferenceEnginePython::IENetwork::getOVNameForOperation(const std::string& orig_name) {
-    return actual->getOVNameForOperation(orig_name);
-}
-
 void
 InferenceEnginePython::IENetwork::addOutput(const std::string &out_layer, size_t port_id) {
     actual->addOutput(out_layer, port_id);
@@ -387,7 +383,10 @@ void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
 
 void latency_callback(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
     if (code != InferenceEngine::StatusCode::OK) {
-        THROW_IE_EXCEPTION << "Async Infer Request failed with status code " << code;
+        IE_EXCEPTION_SWITCH(code, ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{}
+                <<= std::stringstream{} << IE_LOCATION
+                << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
     }
     InferenceEnginePython::InferRequestWrap *requestWrap;
     InferenceEngine::ResponseDesc dsc;
@@ -603,7 +602,7 @@ void InferenceEnginePython::IECore::registerPlugins(const std::string &xmlConfig
 }
 
 void InferenceEnginePython::IECore::addExtension(const std::string &ext_lib_path, const std::string &deviceName) {
-    auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(ext_lib_path);
+    auto extension_ptr = std::make_shared<InferenceEngine::Extension>(ext_lib_path);
     auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
     actual.AddExtension(extension, deviceName);
 }

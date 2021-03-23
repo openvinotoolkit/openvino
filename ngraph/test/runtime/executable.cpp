@@ -24,13 +24,9 @@
 using namespace std;
 using namespace ngraph;
 
-runtime::Executable::Executable()
-{
-}
+runtime::Executable::Executable() {}
 
-runtime::Executable::~Executable()
-{
-}
+runtime::Executable::~Executable() {}
 
 bool runtime::Executable::call_with_validate(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                              const vector<shared_ptr<runtime::Tensor>>& inputs)

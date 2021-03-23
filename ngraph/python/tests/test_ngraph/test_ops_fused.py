@@ -18,15 +18,13 @@ import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import (xfail_issue_40957,
-                   xfail_issue_34327,
+from tests import (xfail_issue_34327,
                    xfail_issue_36485,
                    xfail_issue_36486,
                    xfail_issue_36487,
                    xfail_issue_44976)
 
 
-@xfail_issue_40957
 def test_elu_operator_with_scalar_and_array():
     runtime = get_runtime()
 
@@ -224,37 +222,6 @@ def test_batch_to_space():
     assert np.allclose(result, expected)
 
 
-def test_gelu_operator_with_parameters():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
-
-    data_shape = [2, 2]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-
-    model = ng.gelu(parameter_data)
-    computation = runtime.computation(model, parameter_data)
-
-    result = computation(data_value)
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected, 0.007, 0.007)
-
-
-@xfail_issue_40957
-def test_gelu_operator_with_array():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
-
-    model = ng.gelu(data_value)
-    computation = runtime.computation(model)
-
-    result = computation()
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-
-    assert np.allclose(result, expected, 0.007, 0.007)
-
-
 def test_clamp_operator():
     runtime = get_runtime()
 
@@ -273,7 +240,6 @@ def test_clamp_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_40957
 def test_clamp_operator_with_array():
     runtime = get_runtime()
 

@@ -37,7 +37,11 @@ TEST(type_prop, squared_difference)
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
     }
 
-    const auto clamp = make_shared<op::SquaredDifference>(x1, x3);
-    EXPECT_EQ(clamp->get_element_type(), element::f64);
-    EXPECT_EQ(clamp->get_shape(), (Shape{2, 2}));
+    const auto squared_diff = make_shared<op::SquaredDifference>(x1, x3);
+    EXPECT_EQ(squared_diff->get_element_type(), element::f64);
+    EXPECT_EQ(squared_diff->get_shape(), (Shape{2, 2}));
+    EXPECT_EQ(squared_diff->get_autob(), op::AutoBroadcastType::NUMPY);
+
+    const auto squared_diff_no_args = make_shared<op::SquaredDifference>();
+    EXPECT_EQ(squared_diff_no_args->get_autob(), op::AutoBroadcastType::NUMPY);
 }

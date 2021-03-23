@@ -196,7 +196,7 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 constexpr NodeTypeInfo op::v1::GroupConvolutionBackpropData::type_info;
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
-    : FusedOp()
+    : Op()
     , m_strides()
     , m_dilations()
     , m_pads_begin()
@@ -216,7 +216,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(
     const Strides& dilations,
     const PadType& auto_pad,
     const CoordinateDiff& output_padding)
-    : FusedOp({data, filters, output_shape})
+    : Op({data, filters, output_shape})
     , m_strides(strides)
     , m_dilations(dilations)
     , m_pads_begin(pads_begin)
@@ -256,7 +256,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(
     const Strides& dilations,
     const PadType& auto_pad,
     const CoordinateDiff& output_padding)
-    : FusedOp({data, filters})
+    : Op({data, filters})
     , m_strides(strides)
     , m_dilations(dilations)
     , m_pads_begin(pads_begin)
@@ -381,7 +381,7 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
     }
 }
 
-void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
+void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
 {
     const auto& data_pshape = get_input_partial_shape(0);
     element::Type data_et = get_input_element_type(0);
@@ -610,57 +610,6 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_output_type(0, result_et, output_pshape);
-}
-
-OutputVector op::v1::GroupConvolutionBackpropData::decompose_op() const
-{
-    auto data = input_value(0);
-    auto filters = input_value(1);
-    NodeVector conv_groups;
-
-    auto groups = filters.get_shape()[0];
-    // slice data
-    OutputVector sliced_data = builder::opset1::split(data, groups, 1);
-    // slice filters
-    OutputVector sliced_filters = builder::opset1::split(filters, groups, 0);
-    // We have to squeeze first empty dimension (groups).
-    std::transform(
-        std::begin(sliced_filters),
-        std::end(sliced_filters),
-        std::begin(sliced_filters),
-        [](const Output<Node>& n) -> Output<Node> { return builder::opset1::squeeze(n); });
-
-    for (auto i = 0; i < groups; ++i)
-    {
-        if (input_values().size() == 3)
-        {
-            conv_groups.push_back(
-                std::make_shared<op::v1::ConvolutionBackpropData>(sliced_data[i],
-                                                                  sliced_filters[i],
-                                                                  input_value(2),
-                                                                  m_strides,
-                                                                  m_pads_begin,
-                                                                  m_pads_end,
-                                                                  m_dilations,
-                                                                  m_auto_pad,
-                                                                  m_output_padding));
-        }
-        else
-        {
-            conv_groups.push_back(
-                std::make_shared<op::v1::ConvolutionBackpropData>(sliced_data[i],
-                                                                  sliced_filters[i],
-                                                                  m_strides,
-                                                                  m_pads_begin,
-                                                                  m_pads_end,
-                                                                  m_dilations,
-                                                                  m_auto_pad,
-                                                                  m_output_padding));
-        }
-    }
-
-    size_t concatenation_axis = 1;
-    return {std::make_shared<ngraph::op::Concat>(conv_groups, concatenation_axis)};
 }
 
 shared_ptr<Node>

@@ -55,8 +55,6 @@ class CustomAddConstExtension : public InferenceEngine::IExtension {
 
         void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-        void Release() noexcept override { delete this; }
-
         void Unload() noexcept override {}
 
         std::map<std::string, ngraph::OpSet> getOpSets() override {

@@ -174,8 +174,8 @@ def xml_ports(node: Node, element: Element, edges: Element):
             assert node.graph.node[v]['shape'] is not None, 'Output shape is not calculated properly for node {}' \
                                                             ''.format(node.id)
             tensor_names = node.out_port(port_id).get_tensor_names(port_renumber=True)
-            if tensor_names is not None:
-                port.set('names', tensor_names)
+            if tensor_names:
+                port.set('names', ','.join(tensor_names))
             xml_shape(node.graph.node[v]['shape'], port)
 
 

@@ -227,8 +227,8 @@ private:
         return cleanup_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {};
-    virtual void cleanup_impl(typed_primitive_inst<PType>& /*instance*/) {};
+    virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
+    virtual void cleanup_impl(typed_primitive_inst<PType>& /*instance*/) {}
     virtual event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& event,
                                          typed_primitive_inst<PType>& instance) = 0;
 

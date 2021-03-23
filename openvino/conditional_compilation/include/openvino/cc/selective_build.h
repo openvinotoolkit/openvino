@@ -67,7 +67,12 @@
     *
 */
 
+#include <openvino/pp.hpp>
 #include <openvino/itt.hpp>
+
+#define OV_CC_EXPAND OV_PP_EXPAND
+#define OV_CC_CAT OV_PP_CAT
+#define OV_CC_TOSTRING OV_PP_TOSTRING
 
 #ifdef SELECTIVE_BUILD_ANALYZER
 # include <string>
@@ -117,27 +122,12 @@ bool match(Ctx && ctx, T && val, Case && cs, Cases&&... cases) {
 
 #endif  // SELECTIVE_BUILD_ANALYZER
 
-// Macros for names concatenation
-#define OV_CC_CAT_(x, y) x ## y
-#define OV_CC_CAT(x, y) OV_CC_CAT_(x, y)
-#define OV_CC_CAT3_(x, y, z) x ## y ## z
-#define OV_CC_CAT3(x, y, z) OV_CC_CAT3_(x, y, z)
-#define OV_CC_CAT4_(x, y, z, w) x ## y ## z ## w
-#define OV_CC_CAT4(x, y, z, w) OV_CC_CAT4_(x, y, z, w)
-
-// Expand macro argument
-#define OV_CC_EXPAND(x) x
-
-// Macros for string conversion
-#define OV_CC_TOSTRING(...) OV_CC_TOSTRING_(__VA_ARGS__)
-#define OV_CC_TOSTRING_(...) #__VA_ARGS__
-
 #ifdef SELECTIVE_BUILD_ANALYZER      // OpenVINO analysis
 
 #define OV_CC_DOMAINS(Module)                                                                       \
-    OV_ITT_DOMAIN(OV_CC_CAT(SIMPLE_, Module));  /* Domain for simple scope surrounded by ifdefs */  \
-    OV_ITT_DOMAIN(OV_CC_CAT(SWITCH_, Module));  /* Domain for switch/cases */                       \
-    OV_ITT_DOMAIN(OV_CC_CAT(FACTORY_, Module)); /* Domain for factories */
+    OV_ITT_DOMAIN(OV_PP_CAT(SIMPLE_, Module));  /* Domain for simple scope surrounded by ifdefs */  \
+    OV_ITT_DOMAIN(OV_PP_CAT(SWITCH_, Module));  /* Domain for switch/cases */                       \
+    OV_ITT_DOMAIN(OV_PP_CAT(FACTORY_, Module)); /* Domain for factories */
 
 namespace internal {
 
@@ -188,22 +178,22 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 }  // namespace internal
 
 #define OV_SCOPE(Module, region)                                                            \
-    OV_ITT_SCOPED_TASK(OV_CC_CAT(SIMPLE_, Module), OV_CC_TOSTRING(region));
+    OV_ITT_SCOPED_TASK(OV_PP_CAT(SIMPLE_, Module), OV_PP_TOSTRING(region));
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)                                                \
-    openvino::cc::internal::match<OV_CC_CAT(SWITCH_, Module), fn>                           \
-        (OV_CC_TOSTRING(fn), ctx, val, __VA_ARGS__);
+    openvino::cc::internal::match<OV_PP_CAT(SWITCH_, Module), fn>                           \
+        (OV_PP_TOSTRING(fn), ctx, val, __VA_ARGS__);
 
 #define OV_CC_LBR (
 #define OV_CC_RBR )
 
 #define OV_CASE(Case, Type)                                                                 \
-    openvino::cc::internal::make_case_wrapper<Type>(Case, OV_CC_TOSTRING(OV_CASE OV_CC_LBR Case, Type OV_CC_RBR))
+    openvino::cc::internal::make_case_wrapper<Type>(Case, OV_PP_TOSTRING(OV_CASE OV_CC_LBR Case, Type OV_CC_RBR))
 
 #define OV_CASE2(Case1, Case2, Type1, Type2)                                                \
     openvino::cc::internal::make_case_wrapper<std::tuple<Type1, Type2>>(                    \
         std::make_tuple(Case1, Case2),                                                      \
-        OV_CC_TOSTRING(OV_CASE2 OV_CC_LBR Case1, Case2, Type1, Type2 OV_CC_RBR))
+        OV_PP_TOSTRING(OV_CASE2 OV_CC_LBR Case1, Case2, Type1, Type2 OV_CC_RBR))
 
 #elif defined(SELECTIVE_BUILD)       // OpenVINO selective build is enabled
 
@@ -213,30 +203,30 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 #define OV_CC_SCOPE_ARG_PLACEHOLDER_1 0,
 
 // This macro returns second argument, first argument is ignored
-#define OV_CC_SCOPE_SECOND_ARG(...) OV_CC_EXPAND(OV_CC_SCOPE_SECOND_ARG_(__VA_ARGS__, 0))
-#define OV_CC_SCOPE_SECOND_ARG_(...) OV_CC_EXPAND(OV_CC_SCOPE_SECOND_ARG_GET(__VA_ARGS__))
+#define OV_CC_SCOPE_SECOND_ARG(...) OV_PP_EXPAND(OV_CC_SCOPE_SECOND_ARG_(__VA_ARGS__, 0))
+#define OV_CC_SCOPE_SECOND_ARG_(...) OV_PP_EXPAND(OV_CC_SCOPE_SECOND_ARG_GET(__VA_ARGS__))
 #define OV_CC_SCOPE_SECOND_ARG_GET(ignored, val, ...) val
 
 // Return macro argument value
 #define OV_CC_SCOPE_IS_ENABLED(x) OV_CC_SCOPE_IS_ENABLED1(x)
 
 // Generate junk macro or {0, } sequence if val is 1
-#define OV_CC_SCOPE_IS_ENABLED1(val) OV_CC_SCOPE_IS_ENABLED2(OV_CC_CAT(OV_CC_SCOPE_ARG_PLACEHOLDER_, val))
+#define OV_CC_SCOPE_IS_ENABLED1(val) OV_CC_SCOPE_IS_ENABLED2(OV_PP_CAT(OV_CC_SCOPE_ARG_PLACEHOLDER_, val))
 
 // Return second argument from possible sequences {1, 0}, {0, 1, 0}
 #define OV_CC_SCOPE_IS_ENABLED2(arg1_or_junk) OV_CC_SCOPE_SECOND_ARG(arg1_or_junk 1, 0)
 
-#define OV_SCOPE(Module, region)                                                         \
-    if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, region)))
+#define OV_SCOPE(Module, region)    \
+    for (bool ovCCScopeIsEnabled = OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, region)); ovCCScopeIsEnabled; ovCCScopeIsEnabled = false)
 
 // Switch is disabled
 #define OV_CC_SWITCH_0(Module, fn, ctx, val)
 
 // Switch is enabled
-#define OV_CC_SWITCH_1(Module, fn, ctx, val) openvino::cc::internal::match<fn>(ctx, val, OV_CC_CAT4(Module, _, fn, _cases));
+#define OV_CC_SWITCH_1(Module, fn, ctx, val) openvino::cc::internal::match<fn>(ctx, val, OV_PP_CAT4(Module, _, fn, _cases));
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)    \
-    OV_CC_EXPAND(OV_CC_CAT(OV_CC_SWITCH_, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, fn)))(Module, fn, ctx, val))
+    OV_PP_EXPAND(OV_PP_CAT(OV_CC_SWITCH_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, fn)))(Module, fn, ctx, val))
 
 #define OV_CASE(Case, Type) openvino::cc::internal::make_case_wrapper<Type>(Case)
 

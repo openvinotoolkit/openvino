@@ -19,6 +19,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "pass/opset1_upgrade.hpp"
+#include "shared_utils.hpp"
 
 using namespace ngraph;
 
@@ -121,7 +122,7 @@ namespace
         default: THROW_IE_EXCEPTION << "Not implemented yet";
         }
     }
-};
+}; // namespace
 
 namespace
 {
@@ -147,7 +148,7 @@ namespace
         case element::Type_t::u16: return InferenceEngine::Precision::U16; break;
         case element::Type_t::u32: return InferenceEngine::Precision::U32; break;
         case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
-        case element::Type_t::u1: throw std::runtime_error("unsupported type");
+        case element::Type_t::u1: return InferenceEngine::Precision::BIN; break;
         case element::Type_t::undefined: throw std::runtime_error("unsupported type");
         case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
         }
@@ -156,7 +157,7 @@ namespace
 #endif
         throw std::runtime_error("unsupported type");
     }
-}
+} // namespace
 
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
@@ -244,6 +245,36 @@ testing::AssertionResult
     test::IE_Engine::compare_results_with_tolerance_as_fp(const float tolerance)
 {
     auto comparison_result = testing::AssertionSuccess();
+
+    for (const auto& output : m_network_outputs)
+    {
+        if (comparison_result == testing::AssertionFailure())
+        {
+            break;
+        }
+
+        InferenceEngine::MemoryBlob::CPtr computed_output_blob =
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(m_inference_req.GetBlob(output.first));
+
+        const auto& expected_output_blob = m_expected_outputs[output.first];
+
+        switch (expected_output_blob->getTensorDesc().getPrecision())
+        {
+        case InferenceEngine::Precision::FP32:
+        {
+            const auto test_results =
+                extract_test_results<float>(computed_output_blob, expected_output_blob);
+            comparison_result =
+                test::compare_with_tolerance(test_results.first, test_results.second, tolerance);
+            break;
+        }
+        default:
+            comparison_result = testing::AssertionFailure()
+                                << "Unsupported data type encountered in "
+                                   "'compare_results_with_tolerance_as_fp' method";
+        }
+    }
+
     return comparison_result;
 }
 
@@ -280,6 +311,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset5.begin(), opset5.end());
     const auto& opset6 = get_opset6().get_type_info_set();
     ie_ops.insert(opset6.begin(), opset6.end());
+    const auto& opset7 = get_opset7().get_type_info_set();
+    ie_ops.insert(opset7.begin(), opset7.end());
     return ie_ops;
 }
 
@@ -308,4 +341,4 @@ namespace InferenceEngine
     template class TBlob<ngraph::float16>;
     template class TBlob<char>;
 #endif
-}
+} // namespace InferenceEngine

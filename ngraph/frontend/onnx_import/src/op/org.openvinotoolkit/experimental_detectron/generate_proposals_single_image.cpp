@@ -31,7 +31,12 @@ namespace ngraph
                     using GenerateProposalsSingleImage =
                         ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
-                    auto inputs = node.get_ng_inputs();
+                    const auto inputs = node.get_ng_inputs();
+                    NGRAPH_CHECK(inputs.size() == 4,
+                                 "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
+                                 "inputs, received: ",
+                                 inputs.size());
+
                     auto im_info = inputs[0];
                     auto anchors = inputs[1];
                     auto deltas = inputs[2];

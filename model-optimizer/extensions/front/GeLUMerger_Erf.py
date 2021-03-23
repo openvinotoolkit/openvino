@@ -126,7 +126,7 @@ class GeLUMergerErf(FrontReplacementPattern):
             # check that the values match the approximation
             if fabs(div_param - sqrt2) < 1e-06 and mul_param == 0.5 and add_param == 1.0:
                 log.debug('Confirmed Erf-based GELU pattern after {} with name {}'.format(inp_node.op, inp_name))
-                gelu = GeLUOP(graph, dict(name=inp_name + '/GELU_')).create_node()
+                gelu = GeLUOP(graph, dict(name=inp_name + '/GELU_', approximation_mode='erf')).create_node()
                 div.in_port(0).get_connection().set_destination(gelu.in_port(0))
                 out_node.out_port(0).get_connection().set_source(gelu.out_port(0))
                 rename_nodes([(out_node, node_name + '/TBD'), (gelu, node_name)])

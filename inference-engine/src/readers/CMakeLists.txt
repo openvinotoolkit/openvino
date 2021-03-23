@@ -11,11 +11,8 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 file(GLOB_RECURSE reader_api_hpp "${CMAKE_CURRENT_SOURCE_DIR}/reader_api/*.hpp")
-file(GLOB_RECURSE reader_api_src "${CMAKE_CURRENT_SOURCE_DIR}/reader_api/*.cpp")
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERFACE_SOURCES ${reader_api_src})
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_SOURCES ${reader_api_hpp} ${reader_api_src})
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_SOURCES ${reader_api_hpp})
 
 add_subdirectory(ir_reader)
 add_subdirectory(ir_reader_v7)

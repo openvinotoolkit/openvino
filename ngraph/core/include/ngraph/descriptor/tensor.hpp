@@ -71,8 +71,11 @@ namespace ngraph
             const element::Type& get_element_type() const { return m_element_type; }
             const Shape& get_shape() const;
             const PartialShape& get_partial_shape() const { return m_partial_shape; }
+            /// \brief gets lower bound value description
             HostTensorPtr get_lower_value() const { return m_lower_value; }
+            /// \brief gets upper bound value description
             HostTensorPtr get_upper_value() const { return m_upper_value; }
+            /// \brief checks if lower and upper bound are set and point to the same HostTensor
             bool has_and_set_bound() const
             {
                 return m_upper_value != nullptr && m_upper_value == m_lower_value;

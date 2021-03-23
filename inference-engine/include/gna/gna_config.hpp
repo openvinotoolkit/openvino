@@ -93,6 +93,13 @@ DECLARE_GNA_CONFIG_KEY(COMPACT_MODE);
 DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 
 /**
+* @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
+* will use to find PWL functions.
+* By default (in case of NO value set), 1.0 value is used.
+*/
+DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);
+
+/**
 * @brief By default, the GNA plugin uses one worker thread for inference computations.
 * This parameter allows you to create up to 127 threads for software modes.
 *

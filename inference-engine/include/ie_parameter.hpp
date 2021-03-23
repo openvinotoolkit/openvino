@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <details/ie_exception.hpp>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -51,19 +50,23 @@ public:
     }
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Creates parameter from variant.
      * This method creates empty parameter if variant doesn't contain Parameter
      *
      * @param var ngraph variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     Parameter(const std::shared_ptr<ngraph::Variant>& var);
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Creates parameter from variant.
      * This method creates empty parameter if variant doesn't contain Parameter
      *
      * @param var ngraph variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     Parameter(std::shared_ptr<ngraph::Variant>& var);
 
     /**
@@ -201,19 +204,25 @@ public:
     }
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Converts parameter to shared pointer on ngraph::Variant
      *
      * @return shared pointer on ngraph::Variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     std::shared_ptr<ngraph::Variant> asVariant() const;
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Casts to shared pointer on ngraph::Variant
      *
      * @return shared pointer on ngraph::Variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     operator std::shared_ptr<ngraph::Variant>() const {
+        IE_SUPPRESS_DEPRECATED_START
         return asVariant();
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
@@ -265,11 +274,11 @@ private:
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
     struct Any {
-#ifdef __clang__
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
         virtual ~Any();
 #else
         virtual ~Any() = default;
-#endif
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
@@ -326,7 +335,7 @@ private:
     Any* ptr = nullptr;
 };
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
@@ -341,6 +350,6 @@ extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-#endif  // __clang__
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
 
 }  // namespace InferenceEngine

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
     uint32_t plane,
     BlobType mem_type) :
     m_context(context), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr) {
+    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
 }
 
 ParamMap CLDNNRemoteBlobImpl::getParams() const {
@@ -81,7 +81,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
 }
 
 void CLDNNRemoteBlobImpl::allocate_if_needed() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::allocate_if_needed");
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::AllocateIfNeeded");
     auto _impl = getContextImpl(m_context.lock());
     _impl->acquire_lock();
 
@@ -118,7 +118,6 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
 }
 
 void CLDNNRemoteBlobImpl::allocate() noexcept {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::allocate");
     assert(m_memObject == nullptr);
 
     std::shared_ptr<const cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
@@ -152,7 +151,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
 
 const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
     if (!_allocator) {
-        _allocator = shared_from_irelease(reinterpret_cast<IAllocator*>(&m_allocator));
+        _allocator = std::shared_ptr<IAllocator>(&m_allocator, [] (IAllocator*) {});
     }
     return _allocator;
 };
@@ -227,7 +226,6 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     m_type(ContextType::OCL),
     m_config(config),
     m_va_display(nullptr) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl");
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;

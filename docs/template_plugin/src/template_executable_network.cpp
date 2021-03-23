@@ -27,7 +27,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     try {
         CompileNetwork(function);
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::details::InferenceEngineException&) {
+    } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
         THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
@@ -74,7 +74,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     try {
         CompileNetwork(cnnnetwork.getFunction());
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::details::InferenceEngineException&) {
+    } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
         THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
@@ -143,8 +143,7 @@ InferenceEngine::IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInf
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     auto asyncThreadSafeImpl = std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                                            _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl),
-                       [](InferenceEngine::IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl));
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     return asyncRequest;
 }

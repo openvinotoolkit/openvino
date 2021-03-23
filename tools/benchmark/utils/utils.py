@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ from openvino.inference_engine import IENetwork,IECore
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
-from .inputs_filling import is_image
 from .logging import logger
 
 import json
@@ -61,13 +60,13 @@ def next_step(additional_info='', step_id=0):
     print(step_info_template)
 
 
-def config_network_inputs(ie_network: IENetwork):
+def config_network_inputs(ie_network: IENetwork, app_inputs_info):
     input_info = ie_network.input_info
-
     for key in input_info.keys():
-        if is_image(input_info[key].input_data):
+        if app_inputs_info[key].is_image:
             # Set the precision of input data provided by the user
             # Should be called before load of the network to the plugin
+            app_inputs_info[key].precision = 'U8'
             input_info[key].precision = 'U8'
 
 
@@ -227,33 +226,105 @@ def get_command_line_arguments(argv):
         parameters.append((arg_name, arg_value))
     return parameters
 
-def update_shapes(shapes, shapes_string: str, inputs_info):
-    updated = False
-    matches = re.findall(r'(.*?)\[(.*?)\],?', shapes_string)
-    if matches:
-        for match in matches:
-            input_name = match[0]
-            parsed_shape = [int(dim) for dim in match[1].split(',')]
-            if input_name != '':
-                shapes[input_name] = parsed_shape
-                updated = True
-            else:
-                shapes.update({ k:parsed_shape for k in shapes.keys() })
-                updated = True
-                break
-    else:
-        raise Exception("Can't parse `shape` parameter: {}".format(shapes_string))
-    return updated
+def parse_input_parameters(parameter_string, input_info):
+    # Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
+    return_value = {}
+    if parameter_string:
+        matches = re.findall(r'(.*?)\[(.*?)\],?', parameter_string)
+        if matches:
+            for match in matches:
+                input_name, value = match
+                if input_name != '':
+                    return_value[input_name] = value
+                else:
+                    return_value  = { k:value for k in input_info.keys() }
+                    break
+        else:
+            raise Exception("Can't parse input parameter: {}".format(parameter_string))
+    return return_value
 
-def adjust_shapes_batch(shapes, batch_size: int, inputs_info):
-    updated = False
-    for name, data in inputs_info.items():
-        layout = data.input_data.layout
-        batch_index = layout.index('N') if 'N' in layout else -1
-        if batch_index != -1 and shapes[name][batch_index] != batch_size:
-            shapes[name][batch_index] = batch_size
-            updated = True
-    return updated
+class InputInfo:
+    def __init__(self):
+        self.precision = None
+        self.layout = ""
+        self.shape = []
+
+    @property
+    def is_image(self):
+        if self.layout not in [ "NCHW", "NHWC", "CHW", "HWC" ]:
+            return False
+        return self.channels == 3
+
+    @property
+    def is_image_info(self):
+        if self.layout != "NC":
+            return False
+        return self.channels >= 2
+
+    def getDimentionByLayout(self, character):
+        if character not in self.layout:
+            raise Exception("Error: Can't get {} from layout {}".format(character, self.layout))
+        return self.shape[self.layout.index(character)]
+
+    @property
+    def width(self):
+        return self.getDimentionByLayout("W")
+
+    @property
+    def height(self):
+        return self.getDimentionByLayout("H")
+
+    @property
+    def channels(self):
+        return self.getDimentionByLayout("C")
+
+    @property
+    def batch(self):
+        return self.getDimentionByLayout("N")
+
+    @property
+    def depth(self):
+        return self.getDimentionByLayout("D")
+
+def get_inputs_info(shape_string, layout_string, batch_size, input_info):
+    shape_map = parse_input_parameters(shape_string, input_info)
+    layout_map = parse_input_parameters(layout_string, input_info)
+    reshape = False
+    info_map = {}
+    for name, descriptor in input_info.items():
+        info = InputInfo()
+        # Precision
+        info.precision = descriptor.precision
+        # Shape
+        if name in shape_map.keys():
+            parsed_shape = [int(dim) for dim in shape_map[name].split(',')]
+            info.shape = parsed_shape
+            reshape = True
+        else:
+            info.shape = descriptor.input_data.shape
+        # Layout
+        info.layout = layout_map[name].upper() if name in layout_map.keys() else descriptor.tensor_desc.layout
+        # Update shape with batch if needed
+        if batch_size != 0:
+            batch_index = info.layout.index('N') if 'N' in info.layout else -1
+            if batch_index != -1 and info.shape[batch_index] != batch_size:
+                info.shape[batch_index] = batch_size
+                reshape = True
+        info_map[name] = info
+    return info_map, reshape
+
+def get_batch_size(inputs_info):
+    batch_size = 0
+    for _, info in inputs_info.items():
+        batch_index = info.layout.index('N') if 'N' in info.layout else -1
+        if batch_index != -1:
+            if batch_size == 0:
+                batch_size = info.shape[batch_index]
+            elif batch_size != info.shape[batch_index]:
+                raise Exception("Can't deterimine batch size: batch is different for different inputs!")
+    if batch_size == 0:
+        batch_size = 1
+    return batch_size
 
 def show_available_devices():
     ie = IECore()

@@ -9,7 +9,7 @@ import logging
 import subprocess
 
 
-def cmd_exec(args, log=None, verbose=True):
+def cmd_exec(args, env=None, log=None, verbose=True):
     """ Run cmd using subprocess with logging and other improvements
     """
     if log is None:
@@ -22,6 +22,7 @@ def cmd_exec(args, log=None, verbose=True):
 
     proc = subprocess.Popen(
         args,
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         encoding="utf-8",

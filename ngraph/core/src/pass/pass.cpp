@@ -79,10 +79,6 @@ void pass::PassBase::set_callback(const param_callback& callback)
 
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
 
-pass::FunctionPass::~FunctionPass()
-{
-}
+pass::FunctionPass::~FunctionPass() {}
 
-pass::NodePass::~NodePass()
-{
-}
+pass::NodePass::~NodePass() {}

@@ -20,7 +20,6 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 
 using namespace std;
@@ -72,10 +71,14 @@ void op::Concat::validate_and_infer_types()
             }
             auto concat_axis = get_concatenation_axis();
             NODE_VALIDATION_CHECK(this,
-                                  concat_axis < this_input_rank.get_length(),
+                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0,
                                   "Concatenation axis (",
                                   concat_axis,
-                                  ") is out of bounds for ",
+                                  ") is out of bounds [",
+                                  -this_input_rank.get_length(),
+                                  ", ",
+                                  this_input_rank.get_length() - 1,
+                                  "] for ",
                                   "argument ",
                                   i,
                                   ", which has shape ",
@@ -150,6 +153,9 @@ namespace
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Concat_evaluate);
+    NGRAPH_CHECK(this, !inputs.empty());
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, inputs.size()));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }

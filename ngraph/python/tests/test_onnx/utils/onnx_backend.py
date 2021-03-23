@@ -69,7 +69,7 @@ class OpenVinoOnnxBackend(Backend):
     ):  # type: (...) -> OpenVinoOnnxBackendRep
         super().prepare(onnx_model, device, **kwargs)
         ng_model_function = import_onnx_model(onnx_model)
-        return OpenVinoOnnxBackendRep(ng_model_function, cls.backend_name)
+        return OpenVinoOnnxBackendRep(ng_model_function, device)
 
     @classmethod
     def run_model(
@@ -79,7 +79,7 @@ class OpenVinoOnnxBackend(Backend):
         device="CPU",  # type: Text
         **kwargs  # type: Any
     ):  # type: (...) -> Tuple[Any, ...]
-        cls.prepare(model, device, **kwargs).run()
+        return cls.prepare(model, device, **kwargs).run(inputs)
 
     @classmethod
     def run_node(

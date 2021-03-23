@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,24 +32,24 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
 
     /// @brief Constructs ctc_greedy_decoder primitive.
     /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param input sequence_indicators primitive id.
-    /// @param ctc_merge_repeated int
+    /// @param input Input primitive id (input, sequence_indicators, second_output(optional)).
+    /// @param blank_index Specifies the class index to use for the blank class.
+    /// @param ctc_merge_repeated Flag for merging repeated labels during the CTC calculation
     ctc_greedy_decoder(const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& sequence_indicators,
-        const bool ctc_merge_repeated,
-        const data_types data_type,
-        const tensor output_tensor,
-        const padding& output_padding = padding())
-        : primitive_base(id, { input, sequence_indicators },
-            output_padding, optional_data_type{ data_type }),
-        ctc_merge_repeated(ctc_merge_repeated),
-        output_tensor(output_tensor)
-    {}
+                       const std::vector<primitive_id>& input,
+                       const uint32_t blank_index,
+                       const bool ctc_merge_repeated,
+                       const tensor output_tensor,
+                       const padding& output_padding = padding())
+        : primitive_base(id, input, output_padding)
+        , blank_index(blank_index)
+        , ctc_merge_repeated(ctc_merge_repeated)
+        , output_tensor(output_tensor) {}
 
+    uint32_t blank_index;
     bool ctc_merge_repeated;
     tensor output_tensor;
+    primitive_id second_output;
 };
 /// @}
 /// @}

@@ -93,10 +93,8 @@ namespace ngraph
                 PadType m_auto_pad;
             };
 
-            NGRAPH_SUPPRESS_DEPRECATED_START
-
             /// \brief Data batch backprop for batched convolution operation.
-            class NGRAPH_API GroupConvolutionBackpropData : public op::util::FusedOp
+            class NGRAPH_API GroupConvolutionBackpropData : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GroupConvolutionBackpropData", 1};
@@ -210,8 +208,7 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_dynamic() const override;
-                virtual OutputVector decompose_op() const override;
-                virtual void pre_validate_and_infer_types() override;
+                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -250,7 +247,6 @@ namespace ngraph
                 CoordinateDiff m_output_padding;
             };
 
-            NGRAPH_SUPPRESS_DEPRECATED_END
         } // namespace v1
     }     // namespace op
 } // namespace ngraph

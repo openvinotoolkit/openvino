@@ -66,6 +66,7 @@ void SetBlobOfKindTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     LoadNetwork();
+    GenerateInputs();
 
     if (isBlobKindSupported(core, targetDevice, blobKind)) {
         Infer();
@@ -81,7 +82,7 @@ void SetBlobOfKindTest::ExpectSetBlobThrow() {
         const auto &info = input.second;
         auto blob = GenerateInput(*info);
         EXPECT_THROW(inferRequest.SetBlob(info->name(), blob),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }
 
