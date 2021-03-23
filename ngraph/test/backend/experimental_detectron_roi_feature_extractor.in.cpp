@@ -126,5 +126,8 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval)
 
     handle0->call_with_validate({output_features}, {backend_rois, backend_featmap});
     handle1->call_with_validate({output_rois}, {backend_rois, backend_featmap});
+
+    EXPECT_TRUE(test::all_close_f(
+        expected_output_features, read_vector<float>(output_features), MIN_FLOAT_TOLERANCE_BITS));
     ASSERT_TRUE(true);
 }
