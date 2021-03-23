@@ -36,24 +36,31 @@ void op::v7::Roll::validate_and_infer_types()
 
     const auto& shift_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          shift_et.is_dynamic() || shift_et.is_integral_number(),
+                          shift_et.is_dynamic() || shift_et == element::i32 ||
+                              shift_et == element::i64,
                           "Shift must have an integral number element type.");
 
     const auto& axes_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
-                          axes_et.is_dynamic() || axes_et.is_integral_number(),
+                          axes_et.is_dynamic() || axes_et == element::i32 ||
+                              axes_et == element::i64,
                           "Axes must have an integral number element type.");
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& shift_pshape = get_input_partial_shape(1);
     const auto& axes_pshape = get_input_partial_shape(2);
-    const auto& data_rank = data_pshape.rank().get_length();
-    const auto& shift_rank = shift_pshape.rank().get_length();
-    const auto& axes_rank = axes_pshape.rank().get_length();
 
-    NODE_VALIDATION_CHECK(this, shift_rank <= 1, "Shift must be a scalar or 1D tensor.");
+    if (shift_pshape.is_static())
+    {
+        const auto& shift_rank = shift_pshape.rank().get_length();
+        NODE_VALIDATION_CHECK(this, shift_rank <= 1, "Shift must be a scalar or 1D tensor.");
+    }
 
-    NODE_VALIDATION_CHECK(this, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
+    if (axes_pshape.is_static())
+    {
+        const auto& axes_rank = axes_pshape.rank().get_length();
+        NODE_VALIDATION_CHECK(this, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
+    }
 
     // If shift is a scalar, than axes can be arbitrary 1d tensor and we don't need
     // to check shift shape consistency with axes, otherwise the check is needed.
@@ -69,24 +76,28 @@ void op::v7::Roll::validate_and_infer_types()
     {
         auto axes = const_axes->cast_vector<int64_t>();
 
-        for (int64_t& axis : axes)
+        if (data_pshape.is_static())
         {
-            NODE_VALIDATION_CHECK(this,
-                                  axis < data_rank,
-                                  "Axes must be less than data tensor rank. Got "
-                                  "data tensor rank: ",
-                                  data_rank,
-                                  ", axis: ",
-                                  axis);
-            if (axis < 0)
+            const auto& data_rank = data_pshape.rank().get_length();
+            for (int64_t& axis : axes)
             {
-                axis += data_rank;
+                NODE_VALIDATION_CHECK(this,
+                                      axis < data_rank,
+                                      "Axes must be less than data tensor rank. Got "
+                                      "data tensor rank: ",
+                                      data_rank,
+                                      ", axis: ",
+                                      axis);
+                if (axis < 0)
+                {
+                    axis += data_rank;
+                }
+                NODE_VALIDATION_CHECK(this,
+                                      axis >= 0,
+                                      "Axes must be positive or equal to zero. Got "
+                                      "axis: ",
+                                      axis);
             }
-            NODE_VALIDATION_CHECK(this,
-                                  axis >= 0,
-                                  "Axes must be positive or equal to zero. Got "
-                                  "axis: ",
-                                  axis);
         }
     }
 
