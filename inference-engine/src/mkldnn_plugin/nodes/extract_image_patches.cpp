@@ -467,23 +467,25 @@ void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, s
         const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
         char *my_dst_ptr = dst_data + (ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3]) * dtype_size;
-        const char *my_src_ptr = src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
+        const char *my_src_ptr_start = src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
 
         int64_t num_bytes_to_set = ih_lpad * OW * dtype_size;
         memset(my_dst_ptr, 0, num_bytes_to_set);
         my_dst_ptr += num_bytes_to_set;
 
-        my_src_ptr += ih_lpad * SH * IW * dtype_size;
-        const int64_t src_incr = (SH * IW - iw_hpad * SW) * dtype_size;
-        for (int64_t i = 0; i < (ih_hpad - ih_lpad); i++, my_src_ptr += src_incr) {
+
+        //const int64_t src_incr = (SH * IW - iw_hpad * SW) * dtype_size;
+        const char* src_ptr_h_stop = my_src_ptr_start + ih_hpad * SH * IW * dtype_size;
+        for (const char *src_h_ptr = my_src_ptr_start + ih_lpad * SH * IW * dtype_size; src_h_ptr < src_ptr_h_stop; src_h_ptr += SH * IW * dtype_size) {
             num_bytes_to_set = iw_lpad * dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
             my_dst_ptr += num_bytes_to_set;
 
-            my_src_ptr += iw_lpad * SW * dtype_size;
-            for (int64_t j = 0; j < (iw_hpad - iw_lpad); j++, my_src_ptr += SW * dtype_size) {
+            const char* src_ptr_w_stop = src_h_ptr + iw_hpad * SW * dtype_size;
+            for (const char* src_w_ptr = src_h_ptr + iw_lpad * SW * dtype_size;
+                src_w_ptr < src_ptr_w_stop; src_w_ptr += SW * dtype_size) {
                 num_bytes_to_set = dtype_size;
-                memcpy(my_dst_ptr, my_src_ptr, num_bytes_to_set);
+                memcpy(my_dst_ptr, src_w_ptr, num_bytes_to_set);
                 my_dst_ptr += num_bytes_to_set;
             }
             num_bytes_to_set = (OW - iw_hpad) * dtype_size;
