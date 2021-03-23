@@ -28,7 +28,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     BUILD_DIR: $(WORK_DIR)/build
     ONNX_RUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnx_runtime
-    ONNX_RUNTIME_BUILD_DIR: $(ONNX_RUNTIME_REPO_DIR)/build/RelWithDebInfo/RelWithDebInfo
+    ONNX_RUNTIME_BUILD_DIR: $(ONNX_RUNTIME_REPO_DIR)/build
   steps:
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
@@ -129,18 +129,30 @@ jobs:
     displayName: 'Build ONNX Runtime'
 
   - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
-      skip_tests=`tr -s '\n ' ':' < $(ONNX_RUNTIME_UTILS)/skip_tests`
       ls -alR
-      $(ONNX_RUNTIME_BUILD_DIR)/onnxruntime_shared_lib_test
-      ./onnxruntime_global_thread_pools_test
-      ./onnxruntime_api_tests_without_env
-      ./onnxruntime_test_all --gtest_filter=-$skip_tests
-      ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
-      ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
-
     workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)
-    displayName: 'Run ONNX Runtime tests'
+    displayName: 'LIST ONNX_RUNTIME_BUILD_DIR'
+
+  - script: |
+      source $(INSTALL_DIR)/bin/setupvars.sh
+      # skip_tests=`tr -s '\n ' ':' < $(ONNX_RUNTIME_UTILS)/skip_tests`
+      # ls -alR
+      # $(ONNX_RUNTIME_BUILD_DIR)/onnxruntime_shared_lib_test
+      ./onnxruntime_global_thread_pools_test
+      # ./onnxruntime_api_tests_without_env
+      # ./onnxruntime_test_all --gtest_filter=-$skip_tests
+      # ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
+      # ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
+
+    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
+    displayName: 'Run ONNX Runtime tests in RelWithDebInfo'
+
+  - script: |
+      source $(INSTALL_DIR)/bin/setupvars.sh
+      ./onnxruntime_global_thread_pools_test
+
+    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/Linux/RelWithDebInfo
+    displayName: 'Run ONNX Runtime tests Linux/RelWithDebInfo'
 
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
