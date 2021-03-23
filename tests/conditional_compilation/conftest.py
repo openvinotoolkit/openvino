@@ -10,7 +10,8 @@ Sample usage:
 python3 -m pytest --test_conf=<path to test config> \
     --sea_runtool=./thirdparty/itt_collector/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
     --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
-    --install_dir=<path to full openvino installation dir> --install_cc_dir=<path to final openvino installation dir>
+    --openvino_ref=<Path to root directory with installed OpenVINO> \
+    --openvino_cc=<Path to openvino installation dir after conditional compilation>
 """
 
 import sys
@@ -55,16 +56,14 @@ def pytest_addoption(parser):
         help="Artifacts directory where tests write output or read input",
     )
     parser.addoption(
-        "--install_dir",
-        required=False,
+        "--openvino_ref",
         type=Path,
-        help="Path to install directory before conditional compilation",
+        help="Path to root directory with installed OpenVINO",
     )
     parser.addoption(
-        "--install_cc_dir",
-        required=False,
+        "--openvino_cc",
         type=Path,
-        help="Path to install directory after conditional compilation",
+        help="Path to openvino installation dir after conditional compilation",
     )
 
 
@@ -108,12 +107,12 @@ def artifacts(request):
 
 
 @pytest.fixture(scope="session")
-def install_dir(request):
+def openvino_root_dir(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("install_dir")
+    return request.config.getoption("openvino_ref")
 
 
 @pytest.fixture(scope="session")
-def install_cc_dir(request):
+def openvino_cc(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("install_cc_dir")
+    return request.config.getoption("openvino_cc")

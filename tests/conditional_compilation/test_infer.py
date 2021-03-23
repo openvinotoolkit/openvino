@@ -23,15 +23,17 @@ def run_infer(artifacts, test_id, model, out):
     return returncode, output
 
 
-def test_infer(test_id, model, artifacts, install_dir, install_cc_dir):
+def test_infer(test_id, model, artifacts, openvino_root_dir, openvino_cc):
     """ Test inference with conditional compiled binaries
     """
     tmp = os.environ["PATH"]
     out = artifacts / test_id
-    os.environ["PATH"] = tmp.replace(os.path.join(*list(install_cc_dir.parts)), os.path.join(*list(install_dir.parts)))
+    os.environ["PATH"] = tmp.replace(os.path.join(*list(openvino_cc.parts)),
+                                     os.path.join(*list(openvino_root_dir.parts)))
     returncode, output = run_infer(artifacts, test_id, model, out)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
     tmp = os.environ["PATH"]
-    os.environ["PATH"] = tmp.replace(os.path.join(*list(install_dir.parts)), os.path.join(*list(install_cc_dir.parts)))
+    os.environ["PATH"] = tmp.replace(os.path.join(*list(openvino_root_dir.parts)),
+                                     os.path.join(*list(openvino_cc.parts)))
     returncode, output = run_infer(artifacts, test_id, model, f"{out}_cc")
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
