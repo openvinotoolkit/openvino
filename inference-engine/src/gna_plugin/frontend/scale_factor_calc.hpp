@@ -549,15 +549,15 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             }
 
             auto levels = 0;
-            auto abs_val = std::max(std::abs(max_val), std::abs(min_val));
-            auto scale_val = static_cast<float>(levels) / abs_val;
-            //TODO: use FQ formula for scale factor calculation
-
             if (fakeQuantize) {
                 levels = (inputsSize == 2) ? MAX_VAL_2B_FEAT : MAX_VAL_1B_FEAT;
             } else {
                 levels = (inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max();
             }
+			
+            auto abs_val = std::max(std::abs(max_val), std::abs(min_val));
+            auto scale_val = static_cast<float>(levels) / abs_val;
+            //TODO: use FQ formula for scale factor calculation
 
             if (std::isinf(scale_val) || fp32eq(abs_val, 0.0f)) {
                 quant->_dst_quant.SetScale(fakeQuantize ? levels : 1.0f);
