@@ -80,7 +80,7 @@ class Benchmark:
         return exe_network
 
     def load_network_from_file(self, path_to_model: str, config = {}):
-        exe_network = self.ie.load_network_from_file(path_to_model,
+        exe_network = self.ie.load_network(path_to_model,
                                            self.device,
                                            config=config,
                                            num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
