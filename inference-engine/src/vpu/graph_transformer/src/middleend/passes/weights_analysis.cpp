@@ -87,6 +87,11 @@ bool isScalable(const Stage& stage) {
 }
 
 bool checkGrowingOutput(const Model& model) {
+    const auto& env = CompileEnv::get();
+    if (!env.config.checkPreprocessingInsideModel) {
+        return false;
+    }
+
     static const float SCALE_THRESHOLD = 0.125f;
 
     for (const auto& stage : model->getStages()) {
