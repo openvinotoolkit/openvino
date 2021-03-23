@@ -97,7 +97,7 @@ namespace ngraph
                 int64_t m_output_dim;
                 float m_spatial_scale;
                 int64_t m_group_size = 1;
-                std::string m_mode = "bilinear";
+                std::string m_mode = "bilinear_deformable";
                 int64_t m_spatial_bins_x = 1;
                 int64_t m_spatial_bins_y = 1;
                 float m_trans_std = 1.f;
