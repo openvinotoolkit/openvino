@@ -51,19 +51,31 @@ onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_prot
     }
 }
 
-int onnx_editor::EdgeMapper::find_node_index(const std::string& node_name,
-                                             const std::string& output_name) const
+std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& node_name,
+                                                            const std::string& output_name) const
 {
-    for (const auto& key : {node_name, output_name})
+    if (!output_name.empty())
     {
-        if (key.empty())
-        {
-            continue;
-        }
-        const auto& index_iter = m_node_name_to_index.find(key);
+        const auto& index_iter = m_node_name_to_index.find(output_name);
         if (index_iter != std::end(m_node_name_to_index))
         {
-            return index_iter->second;
+            return std::vector<int>{index_iter->second};
+        }
+    }
+    // many nodes can have the same name
+    if (!node_name.empty())
+    {
+        std::vector<int> result;
+        auto matched_nodes_range = m_node_name_to_index.equal_range(node_name);
+        for (auto& index_iter = matched_nodes_range.first; index_iter != matched_nodes_range.second;
+             ++index_iter)
+        {
+            std::cout << "sec: " << index_iter->second << "\n";
+            result.push_back(index_iter->second);
+        }
+        if (!result.empty())
+        {
+            return result;
         }
     }
     throw ngraph_error("Node with name: " + (node_name.empty() ? "not_given" : node_name) +
@@ -106,7 +118,8 @@ std::string onnx_editor::EdgeMapper::get_node_input_name(int node_index, int inp
 InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
 {
     // identification can be both based on node name and output name
-    const auto node_index = find_node_index(node.m_node_name, node.m_output_name);
+    const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
+    const auto node_index = node_indexes.at(0);
     if (!in.m_input_name.empty())
     {
         return InputEdge{node_index, in.m_input_name};
@@ -125,7 +138,8 @@ InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
 OutputEdge onnx_editor::EdgeMapper::to_output_edge(Node node, Output out) const
 {
     // identification can be both based on node name and output name
-    const auto node_index = find_node_index(node.m_node_name, node.m_output_name);
+    const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
+    const auto node_index = node_indexes.at(0);
     if (!out.m_output_name.empty())
     {
         return OutputEdge{node_index, out.m_output_name};

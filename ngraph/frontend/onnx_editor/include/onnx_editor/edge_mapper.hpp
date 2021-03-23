@@ -43,7 +43,8 @@ namespace ngraph
             OutputEdge to_output_edge(Node node, Output out) const;
 
         private:
-            int find_node_index(const std::string& node_name, const std::string& output_name) const;
+            std::vector<int> find_node_indexes(const std::string& node_name,
+                                               const std::string& output_name) const;
             std::string get_node_input_name(int node_index, int input_index) const;
             std::string get_node_output_name(int node_index, int output_index) const;
 
