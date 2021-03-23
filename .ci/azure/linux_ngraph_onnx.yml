@@ -135,25 +135,15 @@ jobs:
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
-      # skip_tests=`tr -s '\n ' ':' < $(ONNX_RUNTIME_UTILS)/skip_tests`
-      # ls -alR
-      # $(ONNX_RUNTIME_BUILD_DIR)/onnxruntime_shared_lib_test
+      skip_tests=`tr -s '\n ' ':' < $(ONNX_RUNTIME_UTILS)/skip_tests`
+      onnxruntime_shared_lib_test
       ./onnxruntime_global_thread_pools_test
-      # ./onnxruntime_api_tests_without_env
-      # ./onnxruntime_test_all --gtest_filter=-$skip_tests
-      # ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
-      # ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
-
+      ./onnxruntime_api_tests_without_env
+      ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
+      ./onnx_test_runner "$(INSTALL_DIR)/deployment_tools/inference_engine/onnxruntime/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
+      ./onnxruntime_test_all --gtest_filter=-$skip_tests
     workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run ONNX Runtime tests in RelWithDebInfo'
-
-  - script: |
-      source $(INSTALL_DIR)/bin/setupvars.sh
-      ./onnxruntime_global_thread_pools_test
-
-    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/Linux/RelWithDebInfo
-    displayName: 'Run ONNX Runtime tests Linux/RelWithDebInfo'
-
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
