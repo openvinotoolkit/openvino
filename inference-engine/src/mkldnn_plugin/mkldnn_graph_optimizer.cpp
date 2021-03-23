@@ -810,7 +810,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
 
             removeEdge(graph, p_edge);
         }
-
+        // std::cout << "!!!!!!!!!!!!!!    1: " << conv->getName() << " fused with " << depthwise0->getName() <<std::endl;
         graph.DropNode(depthwise0);
     }
 }
@@ -911,6 +911,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
         for (auto node : childConvNode->getFusedWith())
             parentConvNode->fuseWith(node);
+        std::cout << "!!!!!!!!!!!!!!    2: " << parentConvNode->getName() << " fused with " << childConvNode->getName() <<std::endl;
         childConvNode->clearFusedWith();
 
         graph.DropDWConvNode(childConvNode);

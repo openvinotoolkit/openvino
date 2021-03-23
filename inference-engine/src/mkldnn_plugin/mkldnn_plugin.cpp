@@ -341,7 +341,8 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     const auto nGraphFunc = network.getFunction();
     ngraph::NodeVector nodes;
 
-    int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0;
+    int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
+            total_deconvs = 0, mem_limited_deconvs = 0;
     auto memLimitedFactor = [&] (int size_data_moved, int datatype_size = 4) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */
                                                                  / (size_data_moved * datatype_size));};
     auto isLowPrecision = [&] (ngraph::element::Type type) -> bool {
@@ -351,12 +352,38 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
         return (type == ngraph::element::bf16) || (type == ngraph::element::f16);
     };
 
+//    auto isSuitable1x1Convolution = [](std::shared_ptr<ngraph::Node> node) {
+//        ngraph::Input<ngraph::Node> kernels = node->input(1);
+//        auto shape = kernels.get_shape();
+//
+//        if (node->get_output_size() == 1 && shape.size() == 4 && shape[2] == 1 && shape[3] == 1) {
+//            auto conv = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(node);
+//            return conv && conv->get_strides()[0] == 1 && conv->get_strides()[1] == 1;
+//        }
+//        return false;
+//    };
+//    auto isSuitableChildConvolution = [](const ngraph::Node* node) {
+//        ngraph::Input<const ngraph::Node> kernels = node->input(1);
+//        auto shape = kernels.get_shape();
+//
+//        if (node->output(0).get_shape().size() == 4 /* */
+//            && shape.size() == 4 && shape[2] == 3 && shape[3] == 3 /* 3x3 */) {
+//            const auto conv = dynamic_cast<const ngraph::op::v1::Convolution*>(node);
+//            return conv && conv->get_strides()[0] == 1 && conv->get_strides()[1] == 1
+//                && conv->get_dilations()[0] == 1 && conv->get_dilations()[1] == 1
+//                && conv->get_pads_begin()[0] == 1 &&  conv->get_pads_end()[0] == 1
+//                && conv->get_pads_begin()[1] == 1 &&  conv->get_pads_end()[1] == 1;
+//        }
+//        return false;
+//    };
     float worst_case = FLT_MAX;
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
             // todo : bias data size (always fp)
-            if (std::strcmp("MatMul", node->get_type_info().name) && std::strcmp("Convolution", node->get_type_info().name))
+            if (std::strcmp("MatMul", node->get_type_info().name) && std::strcmp("Convolution", node->get_type_info().name)
+                && std::strcmp("ConvolutionBackpropData", node->get_type_info().name)) {
                 continue;
+            }
             // todo: asymmetric conv (zero-point comes via Sub/Mul)
             // auto type0 = node->input_value(0).get_element_type(); //input
             auto type1 = node->input_value(1).get_element_type(); //weights
@@ -368,16 +395,17 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
             if (!std::strcmp("MatMul", node->get_type_info().name)) {
                 // Check that input and output shape a fully defined (not dynamic)
                 ngraph::Input<ngraph::Node> input0 = node->input(0);
-                ngraph::Input<ngraph::Node> input1 = node->input(0);
+                ngraph::Input<ngraph::Node> input1 = node->input(1);
                 ngraph::Output<ngraph::Node> output = node->output(0);
                 if (input0.get_partial_shape().is_static() && input1.get_partial_shape().is_static()
                     && output.get_partial_shape().is_static()) {
                     auto shapeInput0 = input0.get_shape();
-                    auto shapeInput1 = input0.get_shape();
+                    auto shapeInput1 = input1.get_shape();
+                    auto non_const  = !get_constant_from_source(node->input_value(1));
                     auto shapeOutput = output.get_shape();
                     dataSizeInput = std::accumulate(shapeInput0.begin(), shapeInput0.end(), 1,
                                                          std::multiplies<int>()) +
-                                                         std::accumulate(shapeInput1.begin(), shapeInput1.end(), 1,
+                            non_const * std::accumulate(shapeInput1.begin(), shapeInput1.end(), 1,
                                                                                                    std::multiplies<int>());
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
@@ -394,12 +422,18 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 auto shape = kernels.get_shape();
                 total_convs++;
 
-                if (shape.size() == 4 /* conventional 2D conv */ && shape[2] >= 3 && shape[3] >= 3) {
+                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
                     std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name()
                     << "is "<< shape[2]<< "x" << shape[2] << ", considering flops/byte amortizing the mem"  << std::endl;
                     compute_convs++;
                     continue;
                 }
+
+//                if (isSuitable1x1Convolution(node) && isSuitableChildConvolution(output.get_target_inputs().begin()->get_node())) {
+//                    std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name()
+//                              << "is "<< shape[2]<< "x" << shape[2] << ", considering DEPTHWISE"  << std::endl;
+//                    continue;
+//                }
 
                 if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
                     auto shapeInput = input.get_shape();
@@ -416,9 +450,34 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                         (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32,") << "  Name: " << node->get_friendly_name()
                               << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
                 }
+            } else if (!std::strcmp("ConvolutionBackpropData", node->get_type_info().name)) {
+                // Check that input and output shape a fully defined (not dynamic)
+                ngraph::Input<ngraph::Node> input = node->input(0);
+                ngraph::Output<ngraph::Node> output = node->output(0);
+                ngraph::Input<ngraph::Node> kernels = node->input(1);
+                auto shape = kernels.get_shape();
+                total_deconvs++;
+
+                if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
+                    auto shapeInput = input.get_shape();
+                    auto shapeOutput = output.get_shape();
+                    dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
+                                                    std::multiplies<int>());
+                    dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
+                                                     std::multiplies<int>());
+                    auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
+                    mem_limited_deconvs += factor < 1;
+                    worst_case = std::min(factor, worst_case);
+                    std::cout << "Type: " << node->get_type_info().name <<
+                              ", kernel "<< shape[2]<< "x" << shape[2] <<
+                              (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32,") << "  Name: " << node->get_friendly_name()
+                              << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+                }
             }
     }
     std::cout << "Total convs: " << total_convs<< ". Mem limited: " << mem_limited_convs << std::endl;
+    std::cout << "Total DEconvs: " << total_deconvs<< ". Mem limited: " << mem_limited_deconvs << std::endl;
+    // std::cout << "Total OTHER OPS: " << total_other_ops << ". Mem limited: " << mem_limited_other_ops << std::endl;
     std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
     std::cout << "WORST CASE: " << worst_case << std::endl;
 
@@ -481,39 +540,26 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 //            if (mode_name == CONFIG_VALUE(LATENCY)) {
 //                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
 //            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-//                const int num_logical_cores = std::thread::hardware_concurrency();
-    const auto num_cores = getNumberOfCPUCores();
-    const auto num_streams_default_not_ht = num_cores / 2;
-    const auto num_sockets = getAvailableNUMANodes().size();
-//            [num_cores] () {
-//        if (0 == num_cores % 2)
-//            return num_cores/2;
-//        else if (0 == num_cores % 5)
-//            return std::max(5, num_cores / 5);
-//        else
-//            return 1;
-//    }();
-
-    // const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
-    // this is first heuristic in series (carefully separating int8, bf16 and float32):
-    //      memory bandwidth limited
-    //      compute limited
-    //      Hybrid specific
-    //      etc
-    config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(num_cores);
-    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (NetworkToleranceForLowCache.maxMemTolerance < 1 ? "YES" : "NO") << std::endl;
-    if (NetworkToleranceForLowCache.maxMemTolerance > 1.f) {
-        if ((NetworkToleranceForLowCache.maxMemTolerance > 2.f) /* we have enough cache to double threads via the Hyper-Threading */
-            && (NetworkToleranceForLowCache.all_convs_are_compute) /* let's be conservative */
-                && (1 == num_sockets)) { /* we know the HT is not good on the multi-socket machines */
-                    config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(
-                            std::thread::hardware_concurrency());
-                    std::cout << "ENABLING HT" << std::endl;
+                const auto num_cores = getNumberOfCPUCores();
+                const auto num_streams_default_not_ht = num_cores / 2;
+                const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+                // this is first heuristic in series (carefully separating int8, bf16 and float32):
+                //      memory bandwidth limited
+                //      compute limited
+                //      Hybrid specific
+                //      etc
+                int num_streams;
+                if (NetworkToleranceForLowCache.maxMemTolerance > 1.f) {
+                    num_streams = num_cores;
+                } else if (NetworkToleranceForLowCache.maxMemTolerance > 0.5f) {
+                    num_streams = std::max(default_num_streams, num_streams_default_not_ht);
+                } else {
+                    num_streams = std::min(default_num_streams, num_streams_default_not_ht);
                 }
-        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_cores);
-    } else {
-        config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams_default_not_ht);
-    }
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
+
+                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (NetworkToleranceForLowCache.maxMemTolerance < 1 ? "YES" : "NO")
+                 << ", NUM_STREAMS " << num_streams << std::endl;
 //            }
 //        }
     //}
