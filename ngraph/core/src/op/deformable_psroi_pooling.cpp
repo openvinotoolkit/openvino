@@ -115,18 +115,6 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
     }
 
     NODE_VALIDATION_CHECK(this, m_group_size > 0, "group_size has to be greater than 0");
-    if (input_pshape.rank().is_static() && input_pshape[1].is_static())
-    {
-        const auto channels_count = input_pshape[1].get_interval().get_min_val();
-        NODE_VALIDATION_CHECK(
-            this,
-            channels_count % (m_group_size * m_group_size) == 0,
-            "Number of first input channels must be a multiply of group_size * group_size");
-        NODE_VALIDATION_CHECK(this,
-                              m_output_dim == channels_count / (m_group_size * m_group_size),
-                              "output_dim must be equal to input channels divided by "
-                              "group_size * group_size");
-    }
 
     int64_t output_rank = 4;
     std::vector<Dimension> output_dim_vec(output_rank, Dimension::dynamic());
