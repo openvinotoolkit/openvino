@@ -78,8 +78,8 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/psroi_pooling.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/range.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/region_yolo.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reorg_yolo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/region_yolo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reorg_yolo.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reverse_sequence.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/roifeatureextractor_onnx.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/select.cpp
