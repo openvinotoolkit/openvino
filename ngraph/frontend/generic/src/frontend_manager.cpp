@@ -84,7 +84,7 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(freeNameForOperation);
         }
 
-        void InputModel::setNameForDimension (Place::Ptr place, const std::string& dimName)
+        void InputModel::setNameForDimension (Place::Ptr place, size_t shapeDimIndex, const std::string& dimName)
         {
             FRONT_END_NOT_IMPLEMENTED(setNameForDimension);
         }
@@ -99,7 +99,7 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(cutAndAddNewOutput);
         }
 
-        void InputModel::addOutput (Place::Ptr place)
+        Place::Ptr InputModel::addOutput (Place::Ptr place)
         {
             FRONT_END_NOT_IMPLEMENTED(addOutput);
         }
@@ -155,11 +155,6 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(setTensorPartialValue);
         }
 
-        void InputModel::setTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization)
-        {
-            FRONT_END_NOT_IMPLEMENTED(setTensorDimSpecialization);
-        }
-
         std::vector<std::string> Place::getNames () const
         {
             FRONT_END_NOT_IMPLEMENTED(getNames);
@@ -198,6 +193,31 @@ namespace ngraph
         std::vector<Place::Ptr> Place::getConsumingPorts () const
         {
             FRONT_END_NOT_IMPLEMENTED(getConsumingPorts);
+        }
+
+        bool Place::isInput () const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isInput);
+        }
+
+        bool Place::isOutput () const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isOutput);
+        }
+
+        bool Place::isEqual (Ptr another) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isEqual);
+        }
+
+        bool Place::isEqualData (Ptr another) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isEqualData);
+        }
+
+        Place::Ptr Place::getSourceTensor (int inputPortIndex) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(getSourceTensor);
         }
 
         class PlaceInputEdgeONNX : public Place
@@ -389,19 +409,19 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(convert);
         }
 
+        std::shared_ptr<ngraph::Function> FrontEnd::convert (std::shared_ptr<ngraph::Function>) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(convert);
+        }
+
         std::shared_ptr<ngraph::Function> FrontEnd::convertPartially (InputModel::Ptr model) const
         {
             FRONT_END_NOT_IMPLEMENTED(convertPartially);
         }
 
-        std::shared_ptr<ngraph::Function> FrontEnd::convertDecodingOnly (InputModel::Ptr model) const
+        std::shared_ptr<ngraph::Function> FrontEnd::decode (InputModel::Ptr model) const
         {
             FRONT_END_NOT_IMPLEMENTED(convertDecodingOnly);
-        }
-
-        std::shared_ptr<ngraph::Function> FrontEnd::convertNoDecoding (InputModel::Ptr model) const
-        {
-            FRONT_END_NOT_IMPLEMENTED(convertNoDecoding);
         }
 
         void FrontEnd::normalize (std::shared_ptr<ngraph::Function> function) const
