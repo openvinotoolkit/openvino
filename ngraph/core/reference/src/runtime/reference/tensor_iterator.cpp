@@ -161,6 +161,8 @@ namespace ngraph
                 for (size_t i = 0; i < concat_outputs.size(); ++i)
                 {
                     const auto& concat_desc = concat_outputs[i];
+                    if (!concat_desc)
+                        continue;
                     auto shape =
                         func->get_results().at(concat_desc->m_body_value_index)->get_shape();
                     std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);

@@ -663,10 +663,10 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     }
     gnalog() << "Removing " << layer->name << " layer\n";
     if (layer->insData.size() != 1) {
-        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" that has not 1 input";
+        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" that has different number of inputs than 1";
     }
     if (layer->outData.size() != 1) {
-        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" that has not 1 output";
+        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" that has different number of outputs than 1";
     }
 
     auto isp = layer->insData.front().lock();

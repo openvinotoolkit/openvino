@@ -64,13 +64,13 @@ jobs:
 
   - task: CMake@1
     inputs:
-      #-DENABLE_PROFILING_ITT=ON
-      #-DSELECTIVE_BUILD=COLLECT
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=ON
+        -DENABLE_PROFILING_ITT=ON
+        -DSELECTIVE_BUILD=COLLECT
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 

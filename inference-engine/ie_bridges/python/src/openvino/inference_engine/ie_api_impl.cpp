@@ -383,7 +383,10 @@ void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
 
 void latency_callback(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
     if (code != InferenceEngine::StatusCode::OK) {
-        THROW_IE_EXCEPTION << "Async Infer Request failed with status code " << code;
+        IE_EXCEPTION_SWITCH(code, ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{}
+                <<= std::stringstream{} << IE_LOCATION
+                << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
     }
     InferenceEnginePython::InferRequestWrap *requestWrap;
     InferenceEngine::ResponseDesc dsc;
@@ -599,7 +602,7 @@ void InferenceEnginePython::IECore::registerPlugins(const std::string &xmlConfig
 }
 
 void InferenceEnginePython::IECore::addExtension(const std::string &ext_lib_path, const std::string &deviceName) {
-    auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(ext_lib_path);
+    auto extension_ptr = std::make_shared<InferenceEngine::Extension>(ext_lib_path);
     auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
     actual.AddExtension(extension, deviceName);
 }

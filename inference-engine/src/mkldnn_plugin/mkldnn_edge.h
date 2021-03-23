@@ -5,7 +5,8 @@
 #pragma once
 
 #include <ie_blob.h>
-
+#include <memory>
+#include <details/ie_no_copy.hpp>
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"
 #include "mkldnn_weights_cache.hpp"
@@ -71,7 +72,7 @@ public:
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
 private:
-    std::string name() const;
+    std::string name();
 
 private:
     std::weak_ptr<MKLDNNNode> parent;

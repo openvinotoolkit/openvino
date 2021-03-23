@@ -137,8 +137,9 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
             ASSERT_GE(layer.second, 0);
         }
     } else {
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration).GetExecGraphInfo(),
-                InferenceEngine::NotImplemented);
+        InferenceEngine::ExecutableNetwork network;
+        ASSERT_NO_THROW(network = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_THROW(network.GetExecGraphInfo(), InferenceEngine::NotImplemented);
     }
 }
 

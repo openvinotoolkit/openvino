@@ -25,7 +25,6 @@
 #include "ie_locked_memory.hpp"
 #include "ie_precision.hpp"
 #include "details/ie_blob_iterator.hpp"
-#include "details/ie_exception.hpp"
 #include "details/ie_pre_allocator.hpp"
 
 namespace InferenceEngine {
@@ -779,7 +778,7 @@ protected:
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         // in case when constructor without allocator was used
         if (!_allocator) {
-            _allocator = shared_from_irelease(CreateDefaultAllocator());
+            _allocator = CreateDefaultAllocator();
         }
 
         return _allocator;

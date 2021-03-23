@@ -4,4 +4,4 @@
 
 ie_add_sample(NAME hello_classification
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              OPENCV_DEPENDENCIES imgcodecs)
+              OPENCV_DEPENDENCIES core imgcodecs)

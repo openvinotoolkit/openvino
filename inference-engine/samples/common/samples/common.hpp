@@ -642,7 +642,7 @@ inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine
                 p = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME));
                 devicesMap.insert(std::pair<std::string, std::string>(deviceName, p.as<std::string>()));
             }
-            catch (InferenceEngine::details::InferenceEngineException &) {
+            catch (InferenceEngine::Exception &) {
             }
         }
     }
@@ -664,7 +664,7 @@ inline std::string getFullDeviceName(InferenceEngine::Core& ie, std::string devi
         p = ie.GetMetric(device, METRIC_KEY(FULL_DEVICE_NAME));
         return  p.as<std::string>();
     }
-    catch (InferenceEngine::details::InferenceEngineException &) {
+    catch (InferenceEngine::Exception &) {
         return "";
     }
 }

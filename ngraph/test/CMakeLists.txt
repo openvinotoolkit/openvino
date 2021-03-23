@@ -71,8 +71,10 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/floor_mod.cpp
+    op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
@@ -267,6 +269,7 @@ set(MULTI_TEST_SRC
     backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution.in.cpp
+    backend/binary_convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -375,6 +378,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
@@ -451,7 +456,7 @@ target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_importer)
+    target_link_libraries(unit-test PRIVATE onnx_importer onnx_editor)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)

@@ -17,7 +17,6 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
-#include "details/ie_irelease.hpp"
 
 #if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN || 1
 # define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
@@ -45,7 +44,7 @@ using OutputsDataMap = std::map<std::string, DataPtr>;
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_ICNNNETWORK_CLASS(ICNNNetwork) : public details::IRelease {
+class INFERENCE_ENGINE_ICNNNETWORK_CLASS(ICNNNetwork): public std::enable_shared_from_this<ICNNNetwork> {
 public:
     /**
      * @brief A shared pointer to a ICNNNetwork interface
@@ -200,9 +199,10 @@ public:
         return NOT_IMPLEMENTED;
     }
 
+protected:
     /**
-     * @brief A virtual destructor.
+     * @brief Default destructor.
      */
-    virtual ~ICNNNetwork();
+    ~ICNNNetwork() = default;
 };
 }  // namespace InferenceEngine

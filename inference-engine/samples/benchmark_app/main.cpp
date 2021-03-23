@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
         Core ie;
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
-            const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
@@ -432,7 +432,7 @@ int main(int argc, char *argv[]) {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
                     nireq = exeNetwork.GetMetric(key).as<unsigned int>();
-                } catch (const details::InferenceEngineException& ex) {
+                } catch (const std::exception& ex) {
                     THROW_IE_EXCEPTION
                             << "Every device used with the benchmark_app should "
                             << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "

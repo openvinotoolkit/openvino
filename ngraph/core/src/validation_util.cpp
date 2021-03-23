@@ -1248,7 +1248,19 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port)
                 if (stop_nodes.count(in.get_node()))
                     continue;
                 auto consumer = in.get_node()->shared_from_this();
+                // FIXME: Here we have a WA in order to save some original fields
+                // if we have conflicts because Variant merge doesn't work.
+                // We can restore original fields because we don't change the operation
+                auto orig_rt_info = consumer->get_rt_info();
+
                 copy_runtime_info({curr_node, consumer}, consumer);
+
+                auto& rt_info = consumer->get_rt_info();
+                for (const auto& it : orig_rt_info)
+                {
+                    if (rt_info.find(it.first) == rt_info.end())
+                        rt_info[it.first] = it.second;
+                }
             }
         }
     }
@@ -1440,7 +1452,7 @@ HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Co
 
 HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs)
 {
-    auto result = std::make_shared<HostTensor>(element::boolean, lhs->get_shape());
+    auto result = std::make_shared<HostTensor>();
     op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs->get_element_type(), lhs->get_shape()),
                       std::make_shared<op::Parameter>(rhs->get_element_type(), rhs->get_shape()),
                       ngraph::op::AutoBroadcastSpec::NUMPY)
