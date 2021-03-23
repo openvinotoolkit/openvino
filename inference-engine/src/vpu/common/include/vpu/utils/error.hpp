@@ -6,13 +6,14 @@
 
 #include <cassert>
 
-#include <details/ie_exception.hpp>
 
 #include <vpu/utils/io.hpp>
 
 #include <string>
 #include <memory>
 #include <utility>
+
+#include <ie_common.h>
 
 namespace vpu {
 
@@ -21,7 +22,7 @@ namespace vpu {
 
 namespace details {
 
-using VPUException = InferenceEngine::details::InferenceEngineException;
+using VPUException = InferenceEngine::Exception;
 
 class UnsupportedLayerException : public VPUException {
 public:
@@ -30,7 +31,8 @@ public:
 
 template <class Exception, typename... Args>
 void throwFormat(const char* fileName, int lineNumber, const char* messageFormat, Args&&... args) {
-    throw Exception(fileName, lineNumber, formatString(messageFormat, std::forward<Args>(args)...));
+    IE_THROW(GeneralError) << '\n' << fileName  << ':' << lineNumber << ' '
+                      << formatString(messageFormat, std::forward<Args>(args)...);
 }
 
 }  // namespace details

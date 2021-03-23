@@ -37,10 +37,7 @@ std::string NmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams> obj)
     return result.str();
 }
 
-void NmsLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void NmsLayerTest::GenerateInputs() {
     size_t it = 0;
     for (const auto &input : cnnNetwork.getInputsInfo()) {
         const auto &info = input.second;
@@ -53,11 +50,9 @@ void NmsLayerTest::Infer() {
         } else {
             blob = GenerateInput(*info);
         }
-        inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
         it++;
     }
-    inferRequest.Infer();
 }
 
 void NmsLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<Blob::Ptr> &actualOutputs) {

@@ -36,7 +36,7 @@ public:
     Precision netPrecision;
     size_t kernel;
     CoordinateDiff pads;
-    string mkldnnPrimitive;
+    std::string mkldnnPrimitive;
 
 protected:
     std::shared_ptr<Function> createGraph(InferenceEngine::Precision netPrecision) {
@@ -232,7 +232,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepth
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(size_t(1)),
         ::testing::Values(CoordinateDiff({ 0, 0 })),
-        ::testing::Values(string("jit_avx512_1x1_BF16"))),
+        ::testing::Values(std::string("jit_avx512_1x1_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
@@ -242,7 +242,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDept
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(size_t(3)),
         ::testing::Values(CoordinateDiff({ 1, 1 })),
-        ::testing::Values(string("jit_gemm_BF16"))),
+        ::testing::Values(std::string("jit_avx512_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
@@ -252,7 +252,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDept
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(size_t(3)),
         ::testing::Values(CoordinateDiff({ 0, 0 })),
-        ::testing::Values(string("jit_avx512_BF16"))),
+        ::testing::Values(std::string("jit_avx512_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

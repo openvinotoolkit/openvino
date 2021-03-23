@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -126,20 +126,49 @@ def order(op_node: Node, port_info: str, input_port: int):
     op_node['need_shape_inference'] = True
 
 
-def shape(op_node: Node, port_info: str, input_port: int):
-    graph = op_node.graph
+def strided_slice(op_node: Node, port_info: str, input_port: int):
+    """
+    StridedSLice must be permuted even if input or output tensors have rank lesser than 4
+    e.g. input_shape = (1, 10, 10), out = input[:, 0:10, :, new_axis], input_rank < 4
+    input_shape = (1, 10, 10, 3), out = input[:, 0:5, 0:4, 0], output_rank < 4
+    in both examples slice_rank is >= 4
+    slice_rank is defined by length of begin, end, strides (they all are of the same length)
+    """
     permutation_data_node = get_node_with_permutation(op_node, port_info)
     assert permutation_data_node.has_and_set('permutation'), 'Data node "{}" does not have permutation for node {}, ' \
                                                              'port_info "{}".'.format(permutation_data_node.id,
                                                                                       op_node.id, port_info)
-    permutation = permutation_data_node.permutation
-    if len(permutation.perm) == 0:
+    permute_indices_for_gather = permutation_data_node.permutation.perm
+    if len(permute_indices_for_gather) == 0:
         return
+    from mo.ops.op import PermuteAttrs
 
+    slice_rank = op_node.in_port(input_port).data.get_shape()[0]  # length of begin, end or strides
+    permute_indices_for_gather = PermuteAttrs.get_nhwc_to_nchw_permutation(slice_rank).perm
+    reorder_inputs_for_shape_or_slice(op_node, input_port, permute_indices_for_gather)
+
+
+def shape(op_node: Node, port_info: str, input_port: int):
+    permutation_data_node = get_node_with_permutation(op_node, port_info)
+    assert permutation_data_node.has_and_set('permutation'), 'Data node "{}" does not have permutation for node {}, ' \
+                                                             'port_info "{}".'.format(permutation_data_node.id,
+                                                                                      op_node.id, port_info)
+    permute_indices_for_gather = permutation_data_node.permutation.perm
+    if len(permute_indices_for_gather) == 0:
+        return
+    reorder_inputs_for_shape_or_slice(op_node, input_port, permute_indices_for_gather)
+
+
+def reorder_inputs_for_shape_or_slice(op_node: Node, input_port: int, permute_indices_for_gather: list):
+    """
+    axis and slice permutations are almost the same the only difference is that for slice in general
+    case permutation depends from slice_rank not from input_rank or output_rank
+    """
+    graph = op_node.graph
     data_node = op_node.in_node(input_port)
 
     gather_name = op_node.soft_get('name', op_node.id) + '/ShapeGather'
-    const = Const(graph, {'value': permutation.perm, 'name': gather_name + '/const',
+    const = Const(graph, {'value': permute_indices_for_gather, 'name': gather_name + '/const',
                           'need_shape_inference': True}).create_node_with_data()
     axis_const = Const(graph, {'value': int64_array(0), 'name': gather_name + '/axis'}).create_node_with_data()
     gather = Gather(graph, {'name': gather_name,
@@ -191,10 +220,9 @@ def transpose_nchw_to_nhwc(op_node: Node, port_info: str, input_port: int):
 
 
 class PermuteInputs:
-    common_inv_permutation = lambda node, port_info, input_port: axis(node, port_info, input_port)
-
     input_permutes = {
-        'axis': common_inv_permutation,
+        'axis': lambda node, port_info, input_port: axis(node, port_info, input_port),
+        'slice': lambda node, port_info, input_port: strided_slice(node, port_info, input_port),
         'order': lambda node, port_info, input_port: order(node, port_info, input_port),
         'shape': lambda node, port_info, input_port: shape(node, port_info, input_port),
         'transpose': lambda node, port_info, input_port: transpose(node, port_info, input_port),
@@ -202,16 +230,27 @@ class PermuteInputs:
                                                                                              input_port),
     }
 
-    def set_input_permutation(self, node1: Node, node2: Node, port_info: str, permutation_rule: str):
+    shape_check_rules = {
+        'rank': lambda port: bool(len(port.data.get_shape()) >= 4),
+        'dim_size': lambda port: bool(port.data.get_shape()[0] >= 4),  # if input 'dim_size' >= 4 need to permute
+    }
+
+    def set_input_permutation(self, node1: Node, node2: Node, port_info: str, permutation_rule: str,
+                              shape_check_rule: str = 'rank'):
         """
         Sets input permutation attribute on the edge between node1 and node2.
         Input permutation consists of function that perform input permutation and
         input port info 'input' or 'output' + <port_number> that points on the input with PermuteAttr.Permutation which
-        current input depends on
+        current input depends on.
+
+        shape_check_rule defines the check rule if the op node inputs need to be permuted.
+        By default 'rank' rule is applied, 'dim_size' is used only for StridedSlice so far.
         """
         assert permutation_rule in self.input_permutes, 'No `{}` permutation rule in {}'.format(permutation_rule,
                                                                                                 __class__.__name__)
+        assert shape_check_rule in self.shape_check_rules, 'No `{}` permutation shape check rule ' \
+                                                           'in {}'.format(shape_check_rule, __class__.__name__)
         nx.set_edge_attributes(G=node1.graph,
-                               values={(node1.id, node2.id, 0): (self.input_permutes[permutation_rule],
-                                                                 port_info)},
+                               values={(node1.id, node2.id, 0): (self.input_permutes[permutation_rule], port_info,
+                                                                 self.shape_check_rules[shape_check_rule])},
                                name='input_permutation')

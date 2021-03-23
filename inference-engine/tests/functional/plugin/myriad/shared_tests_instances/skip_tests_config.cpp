@@ -33,10 +33,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*DSR_GatherStaticDataDynamicIdx.*f32.*1.3.200.304.*",
         // TODO: Issue 47315
         ".*ProposalLayerTest.*",
-        // TODO: Issue 46755
-        ".*DSR_GatherElements.*",
-        // TODO: Issue 46756
-        ".*smoke_Gather_GatherElements.*",
         // TODO: Issue 48183
         R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
     };

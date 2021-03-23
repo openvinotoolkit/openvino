@@ -60,7 +60,7 @@ layout scatter_update_inst::calc_output_layout(scatter_update_node const& node) 
     const size_t nonempty_indices_dims = GetNonEmptyDimsNumber(node.input(1).get_output_layout());
 
     auto input_layout = node.input(0).get_output_layout();
-    
+
     auto output_shape = input_layout.size;
     auto input_format = input_layout.format;
     auto output_type = input_layout.data_type;

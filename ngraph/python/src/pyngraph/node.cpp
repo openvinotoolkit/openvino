@@ -39,31 +39,36 @@ void regclass_pyngraph_Node(py::module m)
 {
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
-    node.def("__add__",
-             [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return std::make_shared<ngraph::op::v1::Add>(a, b);
-             },
-             py::is_operator());
-    node.def("__sub__",
-             [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return std::make_shared<ngraph::op::v1::Subtract>(a, b);
-             },
-             py::is_operator());
-    node.def("__mul__",
-             [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return std::make_shared<ngraph::op::v1::Multiply>(a, b);
-             },
-             py::is_operator());
-    node.def("__div__",
-             [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return std::make_shared<ngraph::op::v1::Divide>(a, b);
-             },
-             py::is_operator());
-    node.def("__truediv__",
-             [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return std::make_shared<ngraph::op::v1::Divide>(a, b);
-             },
-             py::is_operator());
+    node.def(
+        "__add__",
+        [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
+            return std::make_shared<ngraph::op::v1::Add>(a, b);
+        },
+        py::is_operator());
+    node.def(
+        "__sub__",
+        [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
+            return std::make_shared<ngraph::op::v1::Subtract>(a, b);
+        },
+        py::is_operator());
+    node.def(
+        "__mul__",
+        [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
+            return std::make_shared<ngraph::op::v1::Multiply>(a, b);
+        },
+        py::is_operator());
+    node.def(
+        "__div__",
+        [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
+            return std::make_shared<ngraph::op::v1::Divide>(a, b);
+        },
+        py::is_operator());
+    node.def(
+        "__truediv__",
+        [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
+            return std::make_shared<ngraph::op::v1::Divide>(a, b);
+        },
+        py::is_operator());
 
     node.def("__repr__", [](const ngraph::Node& self) {
         std::string type_name = self.get_type_name();
@@ -117,7 +122,8 @@ void regclass_pyngraph_Node(py::module m)
         [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
             py::dict attr_dict;
             attr_dict[atr_name.c_str()] = value;
-            util::DictAttributeDeserializer dict_deserializer(attr_dict);
+            std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
+            util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
             self->visit_attributes(dict_deserializer);
         });
 }

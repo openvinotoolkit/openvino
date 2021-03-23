@@ -29,6 +29,8 @@ namespace ngraph
             {
                 OutputVector prior_box(const Node& node);
 
+                OutputVector prior_box_clustered(const Node& node);
+
             } // namespace set_1
 
         } // namespace op

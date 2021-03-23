@@ -24,6 +24,7 @@
 #include <functional>
 #include <map>
 #include "ngraph/coordinate_transform.hpp"
+#include "ngraph/op/interpolate.hpp"
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph
@@ -190,8 +191,10 @@ namespace ngraph
                         };
                         break;
                     case Transform_mode::align_corners:
-                        return [](
-                            float x_resized, float, float length_resized, float length_original) {
+                        return [](float x_resized,
+                                  float,
+                                  float length_resized,
+                                  float length_original) {
                             return length_resized == 1
                                        ? 0
                                        : x_resized * (length_original - 1) / (length_resized - 1);

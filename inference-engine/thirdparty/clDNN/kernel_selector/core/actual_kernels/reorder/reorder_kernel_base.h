@@ -106,7 +106,7 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
-    virtual bool Validate(const Params&, const optional_params&) const { return true; };
+    virtual bool Validate(const Params&, const optional_params&) const { return true; }
     KernelsData GetCommonKernelsData(const reorder_weights_params& params,
                                      const optional_params&) const;
     KernelsData GetCommonKernelsData(const reorder_params& params, const optional_params&) const;

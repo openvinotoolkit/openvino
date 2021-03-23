@@ -95,9 +95,10 @@ void ProposalBehTest::SetUp() {
 
 void ProposalBehTest::Run() {
     LoadNetwork();
+    GenerateInputs();
     Infer();
 }
 
 TEST_P(ProposalBehTest, CompareWithRefs) {
-    ASSERT_THROW(Run(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(Run(), InferenceEngine::Exception);
 }

@@ -443,9 +443,9 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     // it means that z coord is equal to 1, so z offset will be always equal to 0
                     jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
                 } else if (out_c == 6) {
-                    if (in_c < 5)
+                    if (in_c < 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
-                    else if (in_c == 5) {
+                    } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));

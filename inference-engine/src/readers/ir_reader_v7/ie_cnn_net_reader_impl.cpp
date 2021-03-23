@@ -5,7 +5,6 @@
 #include <file_utils.h>
 #include <description_buffer.hpp>
 #include <ie_cnn_net_reader_impl.h>
-#include <ie_blob_stream.hpp>
 
 #include <fstream>
 #include <map>
@@ -36,7 +35,7 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
         if (_version < 10) {
             _parser->SetWeights(weights);
         }
-    } catch (const InferenceEngineException& iee) {
+    } catch (const Exception& iee) {
         xmlDoc.reset();
         return DescriptionBuffer(desc) << iee.what();
     }
@@ -110,7 +109,7 @@ StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* res
         weightsPtr->allocate();
         readAllFile(filepath, weightsPtr->buffer(), ulFileSize);
         return SetWeights(weightsPtr, resp);
-    } catch (const InferenceEngineException& ex) {
+    } catch (const Exception& ex) {
         return DescriptionBuffer(resp) << ex.what();
     }
 }
@@ -159,7 +158,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, Respo
     } catch (const std::string& err) {
         parseSuccess = false;
         return DescriptionBuffer(desc) << err;
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         description = e.what();
         parseSuccess = false;
         return DescriptionBuffer(desc) << e.what();

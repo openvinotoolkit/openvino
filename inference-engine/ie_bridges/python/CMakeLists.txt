@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # Defines the CMake commands/policies
@@ -75,7 +75,7 @@ endif()
 
 # install
 
-ie_cpack_add_component(${PYTHON_VERSION} REQUIRED)
+ie_cpack_add_component(${PYTHON_VERSION})
 
 install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}

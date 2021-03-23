@@ -351,6 +351,8 @@ namespace ngraph
                 std::vector<T> get_vector() const
                 {
                     const T* p = get_data_ptr<T>();
+                    if (p == nullptr)
+                        throw std::runtime_error("Cannot create vector! Buffer is not allocated.");
                     return std::vector<T>(p, p + shape_size(m_shape));
                 }
 

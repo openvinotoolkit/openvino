@@ -215,7 +215,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 // ! [plugin:add_extension]
 void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
     // TODO: add extensions if plugin supports extensions
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
 }
 // ! [plugin:add_extension]
 
@@ -239,6 +239,8 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(FULL_DEVICE_NAME),
+            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            METRIC_KEY(DEVICE_ARCHITECTURE),
             METRIC_KEY(OPTIMIZATION_CAPABILITIES),
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
@@ -261,6 +263,12 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         std::string name = "Template Device Full Name";
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
+    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
+        // TODO: return device architecture for device specified by DEVICE_ID config
+        std::string arch = "TEMPLATE";
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, arch);
     } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
         std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };

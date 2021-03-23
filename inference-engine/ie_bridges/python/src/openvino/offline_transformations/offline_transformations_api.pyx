@@ -23,3 +23,9 @@ def ApplyMOCTransformations(IENetwork network, bool cf):
 
 def ApplyLowLatencyTransformation(IENetwork network):
     C.ApplyLowLatencyTransformation(network.impl)
+
+def ApplyPruningTransformation(IENetwork network):
+    C.ApplyPruningTransformation(network.impl)
+
+def CheckAPI():
+    C.CheckAPI()

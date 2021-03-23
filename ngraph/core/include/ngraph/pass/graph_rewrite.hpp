@@ -95,6 +95,7 @@ namespace ngraph
             }
             void clear_new_nodes() { m_new_nodes.clear(); }
             std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
+
         protected:
             void register_matcher(
                 const std::shared_ptr<pattern::Matcher>& m,
@@ -156,11 +157,11 @@ namespace ngraph
             ///     anchor->add_matcher<MatcherPassB, false>();
             ///
             /// \return shared_ptr to the transformation instance
-            template <
-                typename T,
-                bool Enabled = true,
-                class... Args,
-                typename std::enable_if<std::is_base_of<pass::MatcherPass, T>{}, bool>::type = true>
+            template <typename T,
+                      bool Enabled = true,
+                      class... Args,
+                      typename std::enable_if<std::is_base_of<pass::MatcherPass, T>::value,
+                                              bool>::type = true>
             std::shared_ptr<T> add_matcher(Args&&... args)
             {
                 static_assert(std::is_base_of<pass::MatcherPass, T>::value,
@@ -200,7 +201,7 @@ namespace ngraph
             /// registered matchers.
             template <typename T,
                       class... Args,
-                      typename std::enable_if<std::is_base_of<pass::GraphRewrite, T>{},
+                      typename std::enable_if<std::is_base_of<pass::GraphRewrite, T>::value,
                                               bool>::type = true>
             void add_matcher(Args&&... args)
             {

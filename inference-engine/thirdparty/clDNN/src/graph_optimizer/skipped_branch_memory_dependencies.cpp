@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (c) 2018-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "layout_optimizer.h"
 #include "program_impl.h"
 #include "program_helpers.h"
+#include "cldnn_itt.h"
 #include <vector>
 #include <memory>
 #include <list>
@@ -30,6 +31,7 @@
 using namespace cldnn;
 
 void skipped_branch_memory_dependencies::run(program_impl& p) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::SkippedBranchMemoryDependencies");
     // Primitive A can't use primitive B buffer if processing_num(B) < processing_num(A) and for any usr - the user of B
     // processing_num(usr) > processing_num(A) Otherwise it could override data that has to be used in the future.
     auto& processing_order = p.get_processing_order();

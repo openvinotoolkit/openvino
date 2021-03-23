@@ -187,26 +187,6 @@ TEST_P(Elt_x3, CompareWithRefImpl) {
     test();
 };
 
-//    CPU plug-in failure in that case
-
-//INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_x3,
-//                        ::testing::Combine(
-//                                ::testing::Values(Precision::FP32),
-//                                ::testing::Values(Precision::FP32),
-//                                ::testing::Values(SizeVector({1, 256, 38, 38})),
-//                                ::testing::Values(SizeVector()),
-//                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                        Elt_x3::getTestCaseName);
-//
-//INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Elt_x3,
-//                        ::testing::Combine(
-//                                ::testing::Values(Precision::FP32),
-//                                ::testing::Values(Precision::BF16),
-//                                ::testing::Values(SizeVector({1, 256, 38, 38})),
-//                                ::testing::Values(SizeVector()),
-//                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                        Elt_x3::getTestCaseName);
-
 INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_x3,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),

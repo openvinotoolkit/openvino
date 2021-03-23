@@ -521,7 +521,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
         case kernel_selector::weights_layout::giy_xs_os_xsv2_osv16__ao32:
             return cldnn::format::giy_xs_os_xsv2_osv16__ao32;
         default:
-            throw std::invalid_argument("Unable to convert kernel selector Weights layout " + std::to_string((int)l) + " to cldnn format");
+            throw std::invalid_argument("Unable to convert kernel selector Weights layout " +
+                                         std::to_string(static_cast<int>(l)) + " to cldnn format");
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,15 +48,14 @@ std::vector<std::string> disabledTestPatterns() {
             // Need to update activation primitive to support any broadcastable constant to enable these cases.
             R"(.*ActivationParamLayerTest.*)",
             // Unknown issues
-            R"(.*(LSTMSequence).*mode=CONVERT_TO_TI_RAND_SEQ_LEN.*)",
+            R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
-
             // INT8 StridedSlice not supported
             R"(.*(LPT/StridedSliceTransformation).*)",
-            // TODO: Issue: 47219
-            R"(.*DynamicBatchTest.*)",
+            // TODO: Issue: 48106
+            R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
     };
 }

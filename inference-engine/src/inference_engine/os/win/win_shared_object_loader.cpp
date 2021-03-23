@@ -1,8 +1,8 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
- 
-#include "details/ie_exception.hpp"
+
+#include "ie_common.h"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 
@@ -204,7 +204,7 @@ class SharedObjectLoader::Impl {
         ExcludeCurrentDirectoryW();
         LoadPluginFromDirectoryW(pluginName);
 
-        if(!shared_object) {
+        if (!shared_object) {
             shared_object = LoadLibraryW(pluginName);
         }
 
@@ -239,7 +239,7 @@ class SharedObjectLoader::Impl {
      * @brief Searches for a function symbol in the loaded module
      * @param symbolName Name of function to find
      * @return A pointer to the function if found
-     * @throws InferenceEngineException if the function is not found
+     * @throws Exception if the function is not found
      */
     void* get_symbol(const char* symbolName) const {
         if (!shared_object) {
@@ -247,7 +247,8 @@ class SharedObjectLoader::Impl {
         }
         auto procAddr = reinterpret_cast<void*>(GetProcAddress(shared_object, symbolName));
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
+            THROW_IE_EXCEPTION_WITH_STATUS(NotFound)
+                << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
 
         return procAddr;
     }

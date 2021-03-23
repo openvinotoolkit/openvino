@@ -223,7 +223,11 @@ namespace ngraph
             OutputVector results;
             for (const auto& output : m_graph_proto->output())
             {
-                results.emplace_back(get_ng_node_from_cache(output.name()));
+                const auto& ng_output = get_ng_node_from_cache(output.name());
+                if (!ngraph::op::is_null(ng_output)) // ignore optional outputs
+                {
+                    results.emplace_back(ng_output);
+                }
             }
             return results;
         }
@@ -273,15 +277,7 @@ namespace ngraph
                     break;
                 }
 
-                auto onnx_node_name = onnx_node.get_name();
-                if (onnx_node_name.empty())
-                {
-                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
-                }
-                else
-                {
-                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.get_name());
-                }
+                ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
 
                 // null node does not have tensor
                 if (!ngraph::op::is_null(ng_node_vector[i]))

@@ -23,6 +23,23 @@ ngraph::pass::LowLatency::LowLatency()
             return false;
         }
 
+        if (const auto& loop = std::dynamic_pointer_cast<opset6::Loop>(sub_graph_op))
+        {
+            const auto& trip_count =
+                std::dynamic_pointer_cast<opset6::Constant>(loop->get_input_node_shared_ptr(0));
+            const auto& num_iter = loop->get_num_iterations();
+            if (trip_count && num_iter > 0 && trip_count->get_output_target_inputs(0).size() == 1)
+            {
+                auto single_iter =
+                    std::make_shared<opset6::Constant>(ngraph::element::i64, Shape{}, 1);
+                replace_node(trip_count, single_iter);
+            }
+            else
+            {
+                // count of iterations is dynamic;
+                return false;
+            }
+        }
         // Mark the TI layer to be unrolled. Enable unconditional ti unrolling for all plugins.
         auto& rt_info = sub_graph_op->get_rt_info();
         rt_info["UNROLL_TI"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(1);

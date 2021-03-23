@@ -779,6 +779,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         desc.data.ndims = 1;
         desc.data.dims[0] = 1;
         desc.data.padded_dims[0] = 1;
+        desc.data.format_desc.blocking.strides[0] = 1;
         desc.data.padded_offsets[0] = 0;
         desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
         return;

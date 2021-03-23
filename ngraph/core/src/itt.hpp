@@ -48,8 +48,8 @@ OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
     OV_ITT_SCOPED_TASK(SIMPLE_ngraph_pass, m_callback_handle)
 #elif defined(SELECTIVE_BUILD)
 #define NGRAPH_OP_SCOPE(region)                                                                    \
-    if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_op, _, region)) == 0)                             \
-    throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_op, _, region))) +     \
+    if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ngraph_op, _, region)) == 0)                             \
+    throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ngraph_op, _, region))) +     \
                                " is disabled!")
 #define NGRAPH_PASS_CALLBACK(matcher)
 #else
@@ -60,7 +60,7 @@ OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
 #define NGRAPH_TYPE_CASE(region, a, ...)                                                           \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a))                                              \
+        OV_SCOPE(ngraph_op, OV_PP_CAT3(region, _, a))                                              \
         {                                                                                          \
             rc = evaluate<element::Type_t::a>(__VA_ARGS__);                                        \
         }                                                                                          \
@@ -70,7 +70,7 @@ OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
 #define NGRAPH_COPY_TENSOR(region, a, ...)                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a))                                              \
+        OV_SCOPE(ngraph_op, OV_PP_CAT3(region, _, a))                                              \
         {                                                                                          \
             rc = copy_tensor<element::Type_t::a>(__VA_ARGS__);                                     \
         }                                                                                          \

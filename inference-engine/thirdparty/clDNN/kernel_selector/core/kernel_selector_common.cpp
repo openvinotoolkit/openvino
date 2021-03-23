@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -291,6 +291,14 @@ std::string toString(MVNMode mode) {
     switch (mode) {
         case MVNMode::ACROSS_CHANNELS: return "ACROSS_CHANNELS";
         case MVNMode::WITHIN_CHANNELS: return "WITHIN_CHANNELS";
+        default: return "";
+    }
+}
+
+std::string toString(MVNEpsMode mode) {
+    switch (mode) {
+        case MVNEpsMode::INSIDE_SQRT : return "INSIDE_SQRT";
+        case MVNEpsMode::OUTSIDE_SQRT : return "OUTSIDE_SQRT";
         default: return "";
     }
 }

@@ -10,12 +10,13 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_eltwise_node.h"
 #include "utils/bfloat16.hpp"
+#include "emitters/jit_bf16_emitters.hpp"
 #include "mkldnn_extension_utils.h"
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/jit_uni_quantization_injector.hpp>
-#include "bf16transformer.h"
 #include "common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
 #include <mkldnn_selective_build.h>
 
 using namespace mkldnn;
@@ -206,8 +207,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_table();
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && emu_vcvtneps2bf16 != nullptr)
+            emu_vcvtneps2bf16->emit_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
     }
@@ -248,7 +249,7 @@ private:
     Vmm vmm_d_bias = Vmm(6);
     Vmm vmm_zero = Vmm(7);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -603,7 +604,7 @@ private:
             if (mayiuse(avx512_core_bf16))
                 vcvtneps2bf16(ymm_dst, vmm_dst);
             else
-                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -768,21 +769,22 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
     }
 
     weights_prec = tweights->getTensorDesc().getPrecision();
-
-    if (weights_prec == Precision::FP32) {
-        TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
-        weights_blob = make_shared_blob<float>(td);
-        weights_blob->allocate();
-        float* src = layer->blobs.at("weights")->buffer();
-        float* dst = weights_blob->wmap();
-        cpu_memcpy(dst, src, layer->blobs.at("weights")->byteSize());
-    } else if (weights_prec == Precision::BF16) {
-        MKLDNNPlugin::BF16Transformer transformer;
-        weights_blob = transformer.convertBF16ToFloat(tweights);
-    } else {
+    if (weights_prec != Precision::FP32 && weights_prec != Precision::BF16) {
         // Unknown non supported data type, return an error
         THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize with name '" << layer->name <<
             "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
+    }
+
+    TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
+    weights_blob = make_shared_blob<float>(td);
+    weights_blob->allocate();
+    float* dst = weights_blob->wmap();
+    if (weights_prec == Precision::FP32) {
+        float* src = layer->blobs.at("weights")->buffer();
+        cpu_memcpy(dst, src, layer->blobs.at("weights")->byteSize());
+    } else if (weights_prec == Precision::BF16) {
+        short* bf16src = tweights->rmap().as<short*>();
+        cpu_convert(bf16src, dst, Precision::BF16, Precision::FP32, weights_blob->size());
     }
 }
 

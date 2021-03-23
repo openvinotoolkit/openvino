@@ -31,7 +31,8 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
         }
     }
 
-    InferenceEngine::SizeVector newDims(dims.size(), 1);
+    size_t newDimsSize = (dims.size() > 1) ? dims.size() : 2;
+    InferenceEngine::SizeVector newDims(newDimsSize, 1);
     newDims[0] = numColumnsIn;
     newDims[1] = numRowsIn;
     return std::make_shared<InferenceEngine::Data>(input->getName(),

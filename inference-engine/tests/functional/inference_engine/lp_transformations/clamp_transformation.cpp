@@ -41,6 +41,7 @@ public:
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
+    bool nonDequantizationMultiply;
 };
 
 class ClampTransformation : public LayerTransformation, public testing::WithParamInterface<ClampTransformationTestValues> {
@@ -48,21 +49,29 @@ public:
     void SetUp() override {
         const ClampTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::ClampFunction::getOriginal(
-            testValues.inputShape,
-            testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
+        actualFunction = testValues.nonDequantizationMultiply ?
+            ngraph::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
+                testValues.inputShape,
+                testValues.actual.precisionBeforeDequantization) :
+            ngraph::builder::subgraph::ClampFunction::getOriginal(
+                testValues.inputShape,
+                testValues.actual.precisionBeforeDequantization,
+                testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ClampFunction::getReference(
-            testValues.inputShape,
-            testValues.expected.precisionBeforeDequantization,
-            testValues.expected.dequantizationBefore,
-            testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+        referenceFunction = testValues.nonDequantizationMultiply ?
+            ngraph::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
+                testValues.inputShape,
+                testValues.actual.precisionBeforeDequantization) :
+            ngraph::builder::subgraph::ClampFunction::getReference(
+                testValues.inputShape,
+                testValues.expected.precisionBeforeDequantization,
+                testValues.expected.dequantizationBefore,
+                testValues.expected.precisionAfterOperation,
+                testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationTestValues> obj) {
@@ -73,7 +82,8 @@ public:
             testValues.inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore;
+            testValues.expected.dequantizationBefore <<
+            (testValues.nonDequantizationMultiply ? "non_deq_mul" : "");
         return result.str();
     }
 };
@@ -408,6 +418,37 @@ const std::vector<ClampTransformationTestValues> testValues = {
             ngraph::element::f32,
             {{}, {}, {}}
         }
+    },
+    // without dequantization
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{}, {}, {}}
+        },
+        {
+            ngraph::element::f32,
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {}, {}}
+        },
+    },
+    // with non dequantization multiply (issue #49965)
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{}, {}, {}}
+        },
+        {
+            ngraph::element::f32,
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {}, {}}
+        },
+        true // non dequantization multiply
     },
 };
 INSTANTIATE_TEST_CASE_P(

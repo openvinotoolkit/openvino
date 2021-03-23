@@ -20,8 +20,11 @@ class TRANSFORMATIONS_API WeightsDequantizeToFakeQuantize;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief SoftPlusFusion transformation replaces group of
- * operations: log(exp(x) + 1) to SoftPlus op.
+ * @brief WeightsDequantizeToFakeQuantize transformation replaces
+ *      Constant (i8) -> Convert (to fp) -> Subtract (zp) -> Multiply (scale) ->
+ *  with
+ *      Constant (i8) -> Convert (to fp) -> FakeQuantize ->
+ *  deducing levels and FakeQuantize limits according to actual values in the weights Constant
  */
 class ngraph::pass::WeightsDequantizeToFakeQuantize: public ngraph::pass::MatcherPass {
 public:

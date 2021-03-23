@@ -1986,11 +1986,6 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
     struct _graphPrivate_t *g = graphHandle->private_data;
 
     struct _devicePrivate_t *d = devices;
-    if (graphBufferLength > d->dev_attr.max_memory) {
-        mvLog(MVLOG_ERROR, "The graph file is bigger than the device memory");
-        return NC_OUT_OF_MEMORY;
-    }
-
     GLOBAL_LOCK();
     while (d) {
         if (d == deviceHandle->private_data)
@@ -2005,6 +2000,11 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
         return NC_INVALID_PARAMETERS;
     }
     GLOBAL_UNLOCK();
+
+    if (graphBufferLength > d->dev_attr.max_memory) {
+        mvLog(MVLOG_ERROR, "The graph file is bigger than the device memory");
+        return NC_OUT_OF_MEMORY;
+    }
 
     lockAllInferences();
     g->id = graphIdCount++;
@@ -2719,6 +2719,24 @@ static ncStatus_t setDevicePowerConfig(struct _devicePrivate_t *d,
     return NC_OK;
 }
 
+static ncStatus_t enableAsyncDMA(struct _devicePrivate_t *d,
+                                 ncDeviceOption_t option,
+                                 const void *data, unsigned int dataLength){
+    XLinkError_t rc = X_LINK_SUCCESS;
+    deviceCommand_t config;
+
+    config.type = DEVICE_ENABLE_ASYNC_DMA;
+    config.arg = *(uint32_t*)data;
+    rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t *)&config, sizeof(config));
+    if (rc != X_LINK_SUCCESS)
+    {
+        mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
+        return parseXLinkError(rc);
+    }
+
+    return NC_OK;
+}
+
 ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
                             ncDeviceOption_t option,
                             const void *data, unsigned int dataLength){
@@ -2766,6 +2784,11 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
         case NC_RW_DEVICE_POWER_CONFIG_RESET:
         {
             rc = setDevicePowerConfig(d, option, data, dataLength);
+            break;
+        }
+        case NC_RW_ENABLE_ASYNC_DMA:
+        {
+            rc = enableAsyncDMA(d, option, data, dataLength);
             break;
         }
         default:

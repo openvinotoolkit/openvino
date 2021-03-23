@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,7 +35,9 @@ class ArgMaxFrontExtractor(FrontExtractorOp):
             'out_max_val' : 0,
 
             # Set attribute to trigger ArgMax replacer in case do not keep the dimension
-            'keepdims': keepdims
+            'keepdims': keepdims,
+
+            'remove_values_output': True
         }
 
         ArgMaxOp.update_node_stat(node, attrs)
