@@ -58,41 +58,47 @@ std::string translate_type_name(const std::string& name) {
 }
 
 using const_hash_map_t = std::unordered_map<size_t, int64_t>;
-class ConstantNodeWriteHandler {
+class ConstantWriter {
 public:
-    ConstantNodeWriteHandler(std::ostream& bin_data, bool enable_compression = true)
-        : m_bin_data(bin_data)
+    using FilePosition = int64_t;
+    using HashValue = size_t;
+    using ConstWritePositions = std::unordered_map<HashValue, FilePosition>;
+
+    ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
+        : m_binary_output(bin_data)
         , m_enable_compression(enable_compression) {
     }
 
-    int64_t write_to_binary(const char* ptr, size_t size) {
-        const size_t hash = hash_combine(ptr, size);
-        int64_t offset = m_bin_data.tellp();
+    FilePosition write(const char* ptr, size_t size) {
 
+        const auto offset = m_binary_output.tellp();
         if (!m_enable_compression) {
-            m_bin_data.write(ptr, size);
-        } else {
-            auto it = m_hash_to_const_off_map.find(hash);
-            if (it == m_hash_to_const_off_map.end()) {
-                m_hash_to_const_off_map.emplace(hash, offset);
-                m_bin_data.write(ptr, size);
-            } else {
-                offset = it->second;
-            }
+            m_binary_output.write(ptr, size);
+            return offset;
         }
+        
+        const HashValue hash = hash_combine(ptr, size);
+        const auto found = m_hash_to_file_positions.find(hash);
+        if (found != end(m_hash_to_file_positions)) {
+            return found->second;
+        }
+
+        m_binary_output.write(ptr, size);
+        m_hash_to_file_positions.insert({hash, offset});
+
         return offset;
     }
 
 private:
-    const_hash_map_t m_hash_to_const_off_map;
-    std::ostream& m_bin_data;
+    ConstWritePositions m_hash_to_file_positions;
+    std::ostream& m_binary_output;
     bool m_enable_compression;
 };
 
 void ngfunction_2_irv10(pugi::xml_node& node,
                         const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets,
-                        ConstantNodeWriteHandler& constant_write_handler);
+                        ConstantWriter& constant_write_handler);
 
 // Some of the operators were added to wrong opsets. This is a mapping
 // that allows such operators to be serialized with proper opsets.
@@ -149,7 +155,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     std::string& m_node_type_name;
     const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
-    ConstantNodeWriteHandler& m_constant_write_handler;
+    ConstantWriter& m_constant_write_handler;
 
     template <typename T>
     std::string create_atribute_list(
@@ -161,7 +167,7 @@ public:
     XmlSerializer(pugi::xml_node& data,
                   std::string& node_type_name,
                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
-                  ConstantNodeWriteHandler& constant_write_handler)
+                  ConstantWriter& constant_write_handler)
         : m_xml_node(data)
         , m_node_type_name(node_type_name)
         , m_custom_opsets(custom_opsets)
@@ -282,7 +288,7 @@ public:
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
-                int64_t offset = m_constant_write_handler.write_to_binary(
+                int64_t offset = m_constant_write_handler.write(
                     static_cast<const char *>(a->get()->get_ptr()), size);
 
                 m_xml_node.append_attribute("offset").set_value(offset);
@@ -611,7 +617,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 void ngfunction_2_irv10(pugi::xml_node& netXml,
                         const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets,
-                        ConstantNodeWriteHandler& constant_node_write_handler) {
+                        ConstantWriter& constant_node_write_handler) {
     const bool exec_graph = is_exec_graph(f);
 
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
@@ -758,7 +764,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
                 std::string name = "net";
                 pugi::xml_document xml_doc;
                 pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-                ConstantNodeWriteHandler constant_write_handler(bin_file);
+                ConstantWriter constant_write_handler(bin_file);
                 XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler);
                 visitor.on_attribute(name, f);
 
