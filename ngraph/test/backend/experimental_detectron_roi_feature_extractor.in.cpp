@@ -114,7 +114,7 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval)
     std::vector<float> expected_rois = {0, 1, 2, 3, 4, 5, 6, 7};
 
     auto output_features = backend->create_tensor(element::f32, output_features_shape);
-    auto output_rois = backend->create_tensor(element::i32, output_rois_shape);
+    auto output_rois = backend->create_tensor(element::f32, output_rois_shape);
 
     auto backend_rois = backend->create_tensor(element::f32, Shape{2, 4});
     auto backend_featmap = backend->create_tensor(element::f32, Shape{1, 2, 2, 3});
