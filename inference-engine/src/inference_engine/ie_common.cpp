@@ -102,7 +102,7 @@ Parameter::~Parameter() {
     clear();
 }
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#if defined(__ANDROID__)
 Parameter::Any::~Any() {}
 
 template struct Parameter::RealData<int>;
@@ -140,6 +140,6 @@ template class TBlob<long>;
 template class TBlob<long long>;
 template class TBlob<unsigned long>;
 template class TBlob<unsigned long long>;
-#endif  // defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#endif  // defined(__ANDROID__)
 
 }  // namespace InferenceEngine
