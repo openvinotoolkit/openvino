@@ -20,15 +20,15 @@ public:
     explicit SqueezeImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             if (layer->insData.size() != 1 && layer->insData.size() != 2)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+                IE_THROW() << layer->name << " Incorrect number of input edges!";
 
             SizeVector data_dims = layer->insData[0].lock()->getTensorDesc().getDims();
             SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
             if (data_dims.size() < dst_dims.size())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
+                IE_THROW() << layer->name << " Incorrect number of input/output dimensions!";
 
             if (layer->insData.size() == 1)
                 addConfig(layer, { { ConfLayout::PLN, false, 0 } }, { { ConfLayout::PLN, false, 0 } });

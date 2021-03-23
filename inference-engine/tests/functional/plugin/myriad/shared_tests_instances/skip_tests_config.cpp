@@ -35,5 +35,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ProposalLayerTest.*",
         // TODO: Issue 48183
         R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
+        // TODO: Issue 51472
+        ".*CachingSupportCase.*_batch2_.*",
     };
 }

@@ -9,7 +9,7 @@ namespace CommonTestUtils {
 void Port::connect(Port &port) {
     auto locked = m_parent.lock();
     if (!locked) {
-        THROW_IE_EXCEPTION << "Error getting parent class";
+        IE_THROW() << "Error getting parent class";
     }
     auto &ir_net = locked->getNetwork();
     ir_net.addEdge(*this, port);
