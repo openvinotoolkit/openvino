@@ -455,10 +455,10 @@ public:
 
         if (outputs.size() == 1) {
             if (outputs[0]->getTensorDesc().getPrecision() == Precision::FP32) {
-                dst_data = outputs[0]->cbuffer().as<float *>() +
+                dst_data = outputs[0]->buffer().as<float *>() +
                     outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             } else {
-                dst_idx = outputs[0]->cbuffer().as<int *>() +
+                dst_idx = outputs[0]->buffer().as<int *>() +
                     outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             }
             SizeVector dstDims = outputs[0]->getTensorDesc().getDims();
@@ -471,11 +471,11 @@ public:
                 return PARAMETER_MISMATCH;
             }
         } else if (outputs.size() == 2) {
-            dst_data = outputs[TOPK_VALUE]->cbuffer().as<float *>() +
+            dst_data = outputs[TOPK_VALUE]->buffer().as<float *>() +
                 outputs[TOPK_VALUE]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             SizeVector dst_data_dims = outputs[TOPK_VALUE]->getTensorDesc().getDims();
 
-            dst_idx = outputs[TOPK_INDEX]->cbuffer().as<int *>() +
+            dst_idx = outputs[TOPK_INDEX]->buffer().as<int *>() +
                 outputs[TOPK_INDEX]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             SizeVector dst_idx_dims = outputs[TOPK_INDEX]->getTensorDesc().getDims();
 
