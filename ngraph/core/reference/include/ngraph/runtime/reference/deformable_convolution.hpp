@@ -275,7 +275,7 @@ namespace ngraph
                     new_shape[in_channel_axis] /= deformable_groups;
                     return new_shape;
                 }();
-                const size_t group_offset_size = shape_size(group_offset_shape); 
+                const size_t group_offset_size = shape_size(group_offset_shape);
 
                 const T* group_filter = f;
                 const Shape group_filter_shape = [&]() {
@@ -312,7 +312,8 @@ namespace ngraph
                                                pads_begin,
                                                pads_end);
                         group_batch += group_batch_size;
-                        if (deformable_groups > 1) {
+                        if (deformable_groups > 1)
+                        {
                             group_offset += group_offset_size; // TODO
                         }
                         group_filter += group_filter_size;
