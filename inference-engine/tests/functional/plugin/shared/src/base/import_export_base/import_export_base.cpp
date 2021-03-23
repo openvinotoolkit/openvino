@@ -13,7 +13,8 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
     std::string targetDevice;
     std::map<std::string, std::string> exportConfiguration;
     std::map<std::string, std::string> importConfiguration;
-    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration) = obj.param;
+    std::string appHeader;
+    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, appHeader) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << netPrecision.name() << "_";
@@ -24,12 +25,19 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
     for (auto const& configItem : importConfiguration) {
         result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
     }
+    result << "_appHeader=" << appHeader;
     return result.str();
 }
 
 void ImportNetworkTestBase::exportImportNetwork() {
     std::stringstream strm;
+    strm.write(applicationHeader.c_str(), applicationHeader.size());
     executableNetwork.Export(strm);
+
+    strm.seekg(0, strm.beg);
+    std::string appHeader(applicationHeader.size(), ' ');
+    strm.read(&appHeader[0], applicationHeader.size());
+    ASSERT_EQ(appHeader, applicationHeader);
     executableNetwork = core->ImportNetwork(strm, targetDevice, configuration);
 }
 

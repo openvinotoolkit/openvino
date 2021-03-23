@@ -319,6 +319,13 @@ std::vector<std::shared_ptr<ngraph::Node>>
             auto rt_info = node->get_rt_info();
             cloned_node->get_rt_info() = rt_info;
 
+            for (auto output : node->outputs())
+            {
+                const auto& output_rt_info = output.get_rt_info();
+                auto new_output = output.for_node(cloned_node);
+                new_output.get_rt_info() = output_rt_info;
+            }
+
             for (auto tag : node->get_provenance_tags())
             {
                 cloned_node->add_provenance_tag(tag);
@@ -637,7 +644,8 @@ NodeVector ngraph::get_subgraph_outputs(const NodeVector& nodes,
 NodeVector ngraph::extract_subgraph(const NodeVector& results, const NodeVector& args)
 {
     NodeVector subgraph;
-    traverse_nodes(results, [&](std::shared_ptr<Node> n) { subgraph.push_back(n); }, args);
+    traverse_nodes(
+        results, [&](std::shared_ptr<Node> n) { subgraph.push_back(n); }, args);
     return subgraph;
 }
 

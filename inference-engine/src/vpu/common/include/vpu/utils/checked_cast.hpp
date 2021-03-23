@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <limits>
 
-#include <details/ie_exception.hpp>
+#include <ie_common.h>
 
 namespace vpu {
 

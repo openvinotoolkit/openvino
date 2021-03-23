@@ -50,7 +50,19 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
 
     return dispatchData;
 }
+bool PermuteKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (!Parent::Validate(p, o)) return false;
 
+    const permute_params& params = static_cast<const permute_params&>(p);
+
+    // currently reorder fusing is supported only for format change, not the layout change
+    if (DataTensor::ChannelsCount(params.inputs[0].GetLayout())
+        != DataTensor::ChannelsCount(params.output.GetLayout())) {
+        return false;
+    }
+
+    return true;
+}
 JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     std::vector<std::string> in_idx;
