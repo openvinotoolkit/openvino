@@ -14,6 +14,6 @@
         <model name="mtcnn-r" precision="FP16" source="omz" />
         <!--Models with FP16-INT8 precision-->
         <model name="facial-landmarks-35-adas-0002" precision="FP16-INT8" source="omz" />
-        <model name="yolo-v2-tiny-ava-sparse-30-0001" precision="FP16-INT8" source="omz" />
+        <model name="emotions-recognition-retail-0003" precision="FP16-INT8" source="omz" />
     </models>
 </attributes>
