@@ -25,15 +25,15 @@ from mo.graph.graph import Graph
 
 class MarkNodesWithShapeValues(BackReplacementPattern):
     """
-    This replacer marks op nodes in ShapeOf subgraphs with 'returns_shape_value' bool attribute and
+    This transformation marks op nodes in ShapeOf subgraphs with 'returns_shape_value' bool attribute and
     data nodes of float32 constants with 'correct_data_type' attribute.
-    So that float Consts and Cast_to float will be kept in FP32 even if cmd_param --data_type=FP16 was specified.
+    So that float Consts and Cast float will be kept in FP32 even if argument --data_type=FP16 is specified.
 
     This is needed to enable conversion to FP16 even if values in ShapeOf subgraphs exceed max(float16)
     or because of FP16 lower precession shape inference is incorrect on some nodes (e.g. if Interpolate in scales mode
     accepts values from ShapeOf subgraph).
 
-    This transformation must be run after shape inference and after all transformations that insert/modify
+    This transformation should be executed after shape inference and after all transformations which insert/modify
     Cast nodes in ShapeOf subgraphs therefore it's placed at the end of the back phase.
     """
     enabled = True
@@ -67,20 +67,23 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         shape_input_ops_map = self.get_operations_with_shape_inputs()
+
         nodes_with_shape_inputs = []
-        for op_type in shape_input_ops_map:
-            nodes_with_shape_inputs.extend(graph.get_op_nodes(type=op_type))
+        for node in graph.get_op_nodes():
+            if node.soft_get('type') in shape_input_ops_map:
+                nodes_with_shape_inputs.append(node)
 
         start_nodes = []
         for node in nodes_with_shape_inputs:
-            start_ports = [x for x in shape_input_ops_map[node.type] if not node.in_port(x).disconnected()]
-            start_nodes.extend([node.in_port(port_idx).get_source().node for port_idx in start_ports])
+            start_nodes.extend(
+                [node.in_port(port_idx).get_source().node for port_idx in shape_input_ops_map[node.type] if
+                 node.is_in_port_connected(port_idx)])
 
         condition = lambda node: node.soft_get('type') != 'ShapeOf'
         nodes_with_shape_values = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, set(), condition, forward=False)
         for node in nodes_with_shape_values:
             node['returns_shape_value'] = True
-            if node.type == 'Const':
+            if node.soft_get('type') == 'Const':
                 if node.value.dtype == np.float32:
                     node.out_node(0)['correct_data_type'] = True
                 elif node.value.dtype in [np.float16, np.float64]:

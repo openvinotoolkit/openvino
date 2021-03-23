@@ -25,8 +25,9 @@ from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 class ChangeCastOutputType(BackReplacementPattern):
     """
-    Change the Cast to fp64 to fp32 since not all plugins support fp64 data type.
-    Change the Cast to fp32 to fp16 when generating IR for fp16.
+    Change the Cast dst_type from fp64 to fp32 since not all plugins support fp64 data type.
+    Change the Cast dst_type from fp32 to fp16 when generating IR for fp16.
+    But leave fp32 if node returns shape value even if --data_type=FP16 (look extensions/back/MarkNodesWithShapeValues.py).
     """
     enabled = True
     force_shape_inference = True
