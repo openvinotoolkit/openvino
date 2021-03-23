@@ -79,7 +79,7 @@ set(LAYERS
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorbox_clustered.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/priorgridgenerator_onnx.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_onnx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/psroi_pooling.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/range.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/region_yolo.cpp
@@ -105,8 +105,8 @@ set(LAYERS
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topk.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/cum_sum.cpp
 )
 
