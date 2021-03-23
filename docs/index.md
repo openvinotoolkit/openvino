@@ -83,7 +83,7 @@ The Inference Engine's plug-in architecture can be extended to meet other specia
 Intel® Distribution of OpenVINO™ toolkit includes the following components:
 
 - [Deep Learning Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) - A cross-platform command-line tool for importing models and preparing them for optimal execution with the Inference Engine. The Model Optimizer imports, converts, and optimizes models, which were trained in popular frameworks, such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX*.
-- [Deep Learning Inference Engine](IE_DG/inference_engine_intro.md) - A unified API to allow high performance inference on many hardware types including Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, Intel® Vision Accelerator Design with Intel® Movidius™ vision processing unit (VPU).
+- [Deep Learning Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) - A unified API to allow high performance inference on many hardware types including Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, Intel® Vision Accelerator Design with Intel® Movidius™ vision processing unit (VPU).
 - [Inference Engine Samples](IE_DG/Samples_Overview.md) - A set of simple console applications demonstrating how to use the Inference Engine in your applications.
 - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components.
 - [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision.
