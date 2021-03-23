@@ -57,7 +57,6 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
-using const_hash_map_t = std::unordered_map<size_t, int64_t>;
 class ConstantWriter {
 public:
     using FilePosition = int64_t;
@@ -70,13 +69,12 @@ public:
     }
 
     FilePosition write(const char* ptr, size_t size) {
-
         const auto offset = m_binary_output.tellp();
         if (!m_enable_compression) {
             m_binary_output.write(ptr, size);
             return offset;
         }
-        
+
         const HashValue hash = hash_combine(ptr, size);
         const auto found = m_hash_to_file_positions.find(hash);
         if (found != end(m_hash_to_file_positions)) {
