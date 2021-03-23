@@ -60,9 +60,14 @@ def aggregate_stats(stats: dict):
 
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
-    return [str(args["executable"].resolve(strict=True)),
+    cmd = [str(args["executable"].resolve(strict=True)),
             "-m", str(args["model"].resolve(strict=True)),
             "-d", args["device"]]
+
+    if "load_from_file" in args:
+        cmd += ["--load_from_file"]
+
+    return cmd
 
 
 def run_timetest(args: dict, log=None):
@@ -72,6 +77,11 @@ def run_timetest(args: dict, log=None):
         log = logging.getLogger('run_timetest')
 
     cmd_common = prepare_executable_cmd(args)
+    tempCacheDir = {}
+    cache_enabled = "enable_cache" in args
+    if cache_enabled:
+        tempCacheDir = tempfile.TemporaryDirectory("cache")
+        cmd_common += ["--cache_dir", tempCacheDir.name]
 
     # Run executable and collect statistics
     stats = {}
@@ -82,6 +92,10 @@ def run_timetest(args: dict, log=None):
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
             return retcode, {}
+
+        # in case of enabled cache - don't include first iteration (when cache is not created yet)
+        if cache_enabled and args["niter"] > 1 and run_iter == 0:
+            continue
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
@@ -135,6 +149,16 @@ def cli_parser():
                         dest="stats_path",
                         type=Path,
                         help='path to a file to save aggregated statistics')
+    parser.add_argument('--enable_cache',
+                        dest="enable_cache",
+                        nargs='?',
+                        default=argparse.SUPPRESS,
+                        help='enables caching for models')
+    parser.add_argument('--enable_load_from_file',
+                        nargs='?',
+                        default=argparse.SUPPRESS,
+                        dest="load_from_file",
+                        help="load model from file directly without read network")
 
     args = parser.parse_args()
 

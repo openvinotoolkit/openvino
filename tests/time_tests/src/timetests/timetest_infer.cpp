@@ -16,8 +16,10 @@ using namespace InferenceEngine;
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device) {
-  auto pipeline = [](const std::string &model, const std::string &device) {
+int runPipeline(const std::string &model, const std::string &device,
+                const std::string &cacheDir, bool loadFromFile) {
+  auto pipeline = [](const std::string &model, const std::string &device,
+                     const std::string &cacheDir, bool loadFromFile) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
@@ -32,7 +34,12 @@ int runPipeline(const std::string &model, const std::string &device) {
       }
       {
         SCOPED_TIMER(create_exenetwork);
-        if (TimeTest::fileExt(model) == "blob") {
+        if (!cacheDir.empty()) {
+          ie.SetConfig({{"CACHE_DIR", cacheDir}});
+        }
+        if (loadFromFile) {
+          exeNetwork = ie.LoadNetwork(model, device);
+        } else if (TimeTest::fileExt(model) == "blob") {
           SCOPED_TIMER(import_network);
           exeNetwork = ie.ImportNetwork(model, device);
         }
@@ -66,7 +73,7 @@ int runPipeline(const std::string &model, const std::string &device) {
   };
 
   try {
-    pipeline(model, device);
+    pipeline(model, device, cacheDir, loadFromFile);
   } catch (const InferenceEngine::Exception &iex) {
     std::cerr
         << "Inference Engine pipeline failed with Inference Engine exception:\n"
