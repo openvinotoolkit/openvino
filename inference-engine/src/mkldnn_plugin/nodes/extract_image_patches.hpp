@@ -60,7 +60,7 @@ public:
     StatusCode execute(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&, ResponseDesc*) noexcept override;
 
 private:
-    template<typename T> void execute_fallback(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&) noexcept;
+    void execute_fallback(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&) noexcept;
     void execute_optimized(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&) noexcept;
 
 
