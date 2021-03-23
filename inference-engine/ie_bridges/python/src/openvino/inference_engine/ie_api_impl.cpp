@@ -564,6 +564,17 @@ std::unique_ptr <InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IE
     return exec_network;
 }
 
+std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetworkFromFile(
+        const std::string &modelPath, const std::string &deviceName, const std::map<std::string,
+        std::string> &config, int num_requests) {
+    auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(modelPath,
+                                                                                                 num_requests);
+    exec_network->actual = actual.LoadNetwork(modelPath, deviceName, config);
+    exec_network->createInferRequests(num_requests);
+
+    return exec_network;
+}
+
 std::unique_ptr <InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::importNetwork(
         const std::string &modelFIle, const std::string &deviceName, const std::map <std::string, std::string> &config,
         int num_requests) {
