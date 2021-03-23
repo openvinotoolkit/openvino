@@ -51,7 +51,7 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 
 ![Security Add-on Diagram](ovsa_diagram.png)
 
-The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is exaplined in [this document](fingerprint-changes.md)
+The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](fingerprint-changes.md).
 
 ## About the Installation
 The Model Developer, Independent Software Vendor, and User each must prepare one physical hardware machine and one Kernel-based Virtual Machine (KVM). In addition, each person must prepare a Guest Virtual Machine (Guest VM) for each role that person plays. 
@@ -117,25 +117,25 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
    sudo apt install -y cpu-checker
    ```
 3. Install the Kernel-based Virtual Machine (KVM) and QEMU packages. 
-	```sh	
-	sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager 
-	```	
+   ```sh	
+   sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager 
+   ```	
 4. Check the QEMU version:
    ```sh	
    qemu-system-x86_64 --version 
    ```	
    If the response indicates a QEMU version lower than 2.12.0 download, compile and install the latest QEMU version from [https://www.qemu.org/download](https://www.qemu.org/download).
-5.  Build and install the [`libtpm` package](https://github.com/stefanberger/libtpms/). 
-6.  Build and install the [`swtpm` package](https://github.com/stefanberger/swtpm/).
-7.  Add the `swtpm` package to the `$PATH` environment variable.
-8.  Install the software tool [`tpm2-tss`]( https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz).<br>
+5. Build and install the [`libtpm` package](https://github.com/stefanberger/libtpms/). 
+6. Build and install the [`swtpm` package](https://github.com/stefanberger/swtpm/).
+7. Add the `swtpm` package to the `$PATH` environment variable.
+8. Install the software tool [`tpm2-tss`]( https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md
-9.  Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz).<br>
+9. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md
 10. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
 11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).	
-    > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
+> **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
 12. If you are running behind a proxy, [set up a proxy for Docker](https://docs.docker.com/config/daemon/systemd/). 
 
 The following are installed and ready to use:
@@ -249,7 +249,6 @@ This example in this step uses the following names. Your configuration might use
 See the QEMU documentation for more information about the QEMU network configuration.
 
 Networking is set up on the Host Machine. Continue to the Step 3 to prepare a Guest VM for the combined role of Model Developer and Independent Software Vendor.
-
 	
 
 ### Step 3: Clone the OpenVINO™ Security Add-on
@@ -293,26 +292,26 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
    -vnc :1
    ```
-8. Choose ONE of these options to install additional required software:
-	<details><summary>Option 1: Use a script to install additional software</summary>
+8. Choose **ONE** of these options to install additional required software:
+   <details><summary>Option 1: Use a script to install additional software</summary>
 	
-	a. Copy the script `install_guest_deps.sh` from the Scripts/reference directory of the OVSA repository to the Guest VM<br>
-	b. Run the script.<br>
-	c. Shut down the Guest VM.<br><br>
-	Click the triangled line to close Option 1
-	</details>
-	<details><summary>Option 2: Manually install additional software</summary>
+   a. Copy the script `install_guest_deps.sh` from the Scripts/reference directory of the OVSA repository to the Guest VM<br>
+   b. Run the script.<br>
+   c. Shut down the Guest VM.<br><br>
+   Click the triangled line to close Option 1
+   </details>
+   <details><summary>Option 2: Manually install additional software</summary>
 	
-	a.  Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz)<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md<br>
-	b.  Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md<br>
-	c. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md<br>
-	d. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
-	e. Shut down the Guest VM.<br><br>
-	Click the triangled line to close Option 2
-	</details>
+   a. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz)<br>
+   Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md<br>
+   b. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)<br>
+   Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md<br>
+   c. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)<br>
+   Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md<br>
+   d. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
+   e. Shut down the Guest VM.<br><br>
+   Click the triangled line to close Option 2
+   </details>
 
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
    ```sh
@@ -460,7 +459,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
     /usr/share/swtpm/swtpm-create-user-config-files
     swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_runtime --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
 	```
-**Note**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the 'Scripts/reference' directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
+> **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the 'Scripts/reference' directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
 
 
 3. Start the vTPM, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
