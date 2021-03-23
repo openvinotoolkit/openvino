@@ -1,4 +1,4 @@
-# Hello Reshape SSD C++ Sample {#openvino_inference_engine_samples_hello_reshape_ssd_README}
+# Hello Reshape SSD Python Sample {#openvino_inference_engine_samples_python_hello_reshape_ssd_README}
 
 This topic demonstrates how to run the Hello Reshape SSD application, which does inference using object detection
 networks like SSD-VGG. The sample shows how to use [Shape Inference feature](../../../docs/IE_DG/ShapeInference.md).

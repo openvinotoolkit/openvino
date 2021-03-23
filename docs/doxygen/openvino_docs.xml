@@ -169,6 +169,7 @@ limitations under the License.
                 <tab type="user" title="Hello Classification C Sample" url="@ref openvino_inference_engine_ie_bridges_c_samples_hello_classification_README"/>
                 <tab type="user" title="Image Classification Python* Sample" url="@ref openvino_inference_engine_ie_bridges_python_sample_classification_sample_README"/>
                 <tab type="user" title="Hello Reshape SSD C++ Sample" url="@ref openvino_inference_engine_samples_hello_reshape_ssd_README"/>
+                <tab type="user" title="Hello Reshape SSD Python Sample" url="@ref openvino_inference_engine_samples_python_hello_reshape_ssd_README"/>
                 <tab type="user" title="Hello NV12 Input Classification C++ Sample" url="@ref openvino_inference_engine_samples_hello_nv12_input_classification_README"/>
                 <tab type="user" title="Hello NV12 Input Classification C Sample" url="@ref openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README"/>
                 <tab type="user" title="Hello Query Device C++ Sample" url="@ref openvino_inference_engine_samples_hello_query_device_README"/>
