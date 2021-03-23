@@ -111,6 +111,7 @@ IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 onnx_dyn_shapes_ab_plus_c_inference
 onnx_dyn_shapes_dynamic_rank_input_inference
 onnx_dyn_shapes_model_conv_with_dynamic_batch
+onnx_dyn_shapes_model_conv_with_dynamic_bias
 onnx_dyn_shapes_expand_1_dyn_shape
 onnx_dyn_shapes_expand_2_dyn_shape
 onnx_dyn_shapes_expand_3_dyn_shape
@@ -203,6 +204,7 @@ onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 onnx_model_max_pool_dyn_rank_without_default_attrs
 onnx_model_lp_norm_default_dynamic
+onnx_instance_normalization_dynamic
 
 # (Constant W, R inputs are required) Ticket: 49207
 # Function references undeclared parameters
@@ -1575,11 +1577,8 @@ IE_GPU.onnx_model_gather_elements_int32_axis_0
 IE_GPU.onnx_model_gather_elements_int8_axis_1
 IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_f16
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_merge
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
+# not supported fp16 blob input
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 
 # incorrect result for Minimum if u16 type is used
 minimum_u16
