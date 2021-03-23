@@ -44,7 +44,7 @@ void op::v7::Roll::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           axes_et.is_dynamic() || axes_et == element::i32 ||
                               axes_et == element::i64,
-                          "Axes must have an int32 or int64 element type.");
+                          "Axes must have int32 or int64 element type.");
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& shift_pshape = get_input_partial_shape(1);
