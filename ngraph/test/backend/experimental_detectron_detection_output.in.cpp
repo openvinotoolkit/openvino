@@ -23,9 +23,7 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
-
 #include <numeric>
-
 #include "gtest/gtest.h"
 #include "runtime/backend.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -58,8 +56,6 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
     attrs.post_nms_count = 500;
     attrs.score_threshold = 0.01000000074505806f;
 
-    // size_t rois_num = static_cast<size_t>(attrs.max_detections_per_image);
-
     auto rois = std::make_shared<op::Parameter>(element::f32, Shape{16, 4});
     auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{16, 8});
     auto scores = std::make_shared<op::Parameter>(element::f32, Shape{16, 2});
@@ -67,9 +63,9 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
 
     auto detection = std::make_shared<ExperimentalDO>(rois, deltas, scores, im_info, attrs);
 
-    auto f = make_shared<Function>(
-        OutputVector{detection->output(0), detection->output(1), detection->output(2)},
-        ParameterVector{rois, deltas, scores, im_info});
+    auto f0 = make_shared<Function>(OutputVector{detection->output(0)}, ParameterVector{rois, deltas, scores, im_info});
+    auto f1 = make_shared<Function>(OutputVector{detection->output(1)}, ParameterVector{rois, deltas, scores, im_info});
+    auto f2 = make_shared<Function>(OutputVector{detection->output(2)}, ParameterVector{rois, deltas, scores, im_info});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -142,10 +138,26 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
     copy_data(backend_scores, scores_data);
     copy_data(backend_im_info, im_info_data);
 
-    auto handle = backend->compile(f);
+    auto handle0 = backend->compile(f0);
+    auto handle1 = backend->compile(f1);
+    auto handle2 = backend->compile(f2);
 
-    handle->call({output_boxes, output_classes, output_scores},
-                 {backend_rois, backend_deltas, backend_scores, backend_im_info});
+    handle0->call_with_validate({output_boxes},
+                                {backend_rois, backend_deltas, backend_scores, backend_im_info});
+    handle1->call_with_validate({output_classes},
+                                {backend_rois, backend_deltas, backend_scores, backend_im_info});
+    handle2->call_with_validate({output_scores},
+                                {backend_rois, backend_deltas, backend_scores, backend_im_info});
 
-    ASSERT_TRUE(true);
+    auto output_boxes_vector = read_vector<float>(output_boxes);
+    size_t output_boxes_shape_size = shape_size(output_boxes_shape);
+    for (std::size_t j = 0; j < output_boxes_shape_size; ++j)
+    {
+        EXPECT_NEAR(output_boxes_vector[j], expected_output_boxes[j], 0.0000002);
+    }
+
+    EXPECT_EQ(expected_output_classes, read_vector<int32_t>(output_classes));
+
+    EXPECT_TRUE(test::all_close_f(
+        expected_output_scores, read_vector<float>(output_scores), MIN_FLOAT_TOLERANCE_BITS));
 }

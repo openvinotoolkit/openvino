@@ -2401,7 +2401,8 @@ namespace
         }
         for (size_t i = 1; i < node->outputs().size(); i++)
         {
-            if (is_type<op::v5::NonMaxSuppression>(node) && i == 1)
+            if ((is_type<op::v5::NonMaxSuppression>(node) ||
+                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node)) && i == 1)
             {
                 continue;
             }
