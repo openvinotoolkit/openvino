@@ -447,7 +447,7 @@ protected:
             ref_simplernms(*srcClsPtr, *srcDeltaPtr, *srcInfoPtr, dst_ref, p);
 
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
