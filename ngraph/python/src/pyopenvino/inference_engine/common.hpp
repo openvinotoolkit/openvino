@@ -4,15 +4,22 @@
 
 #pragma once
 
+#include <ie_parameter.hpp>
+#include <pybind11/pybind11.h>
 #include <string>
 #include "Python.h"
-#include <ie_parameter.hpp>
+#include "ie_blob.h"
 #include "ie_common.h"
 
-namespace Common {
-    InferenceEngine::Layout get_layout_from_string(const std::string &layout);
+namespace py = pybind11;
 
-    const std::string& get_layout_from_enum(const InferenceEngine::Layout &layout);
+namespace Common
+{
+    InferenceEngine::Layout get_layout_from_string(const std::string& layout);
 
-    PyObject *parse_parameter(const InferenceEngine::Parameter &param);
-};
+    const std::string& get_layout_from_enum(const InferenceEngine::Layout& layout);
+
+    PyObject* parse_parameter(const InferenceEngine::Parameter& param);
+
+    const std::shared_ptr<InferenceEngine::Blob> convert_to_blob(const py::handle& blob);
+}; // namespace Common
