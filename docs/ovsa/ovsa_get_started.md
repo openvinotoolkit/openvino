@@ -733,6 +733,7 @@ This example uses scp to share data between the ovsa_runtime and ovsa_dev Guest 
    cd $OVSA_RUNTIME_ARTEFACTS
    scp custkeystore.csr.crt username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts
    ```
+
 #### Step 3: Receive and load the access controlled model into the OpenVINO™ Model Server
 1. Receive the model as files named
    * `face_detection_model.dat`
@@ -774,6 +775,7 @@ This example uses scp to share data between the ovsa_runtime and ovsa_dev Guest 
    ]
    }
    ```
+
 #### Step 4: Start the NGINX Model Server
 The NGINX Model Server publishes the access controlled model.
    ```sh
@@ -803,6 +805,7 @@ For information about the NGINX interface, see https://github.com/openvinotoolki
    ```sh
    curl --create-dirs https://raw.githubusercontent.com/openvinotoolkit/model_server/master/example_client/images/people/people1.jpeg -o images/people1.jpeg
    ```
+
 #### Step 6: Run Inference
 
 Run the `face_detection.py` script:
