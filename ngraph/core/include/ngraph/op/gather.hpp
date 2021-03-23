@@ -101,7 +101,6 @@ namespace ngraph
                 int64_t get_batch_dims() const;
 
             private:
-                static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
                 int64_t m_batch_dims = 0;
             };
         } // namespace v7

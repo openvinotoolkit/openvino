@@ -141,6 +141,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
 }
 
 NGRAPH_RTTI_DEFINITION(op::v7::Gather, "Gather", 7);
+constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
 
 op::v7::Gather::Gather(const Output<Node>& params,
                        const Output<Node>& indices,
@@ -224,9 +225,8 @@ void op::v7::Gather::validate_and_infer_types()
     PartialShape output_pshape(result_dims);
     if (data_pshape.rank().is_static() && indices_pshape.rank().is_static())
     {
-        // data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]
-        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
-        // data.shape[axis + 1:]
+        // implementation of out_shape formula
+        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]
         int i = 0;
         for (; i < batch_dims; i++)
         {
