@@ -84,12 +84,7 @@ private:
     Vmm vmm = Vmm(0);
     Xmm xmm = Xmm(0);
     Vmm vmm_zero = Vmm(1); // reserved for pad
-    Xbyak::Xmm xmm_aux = Xbyak::Xmm(3);
-
-
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst) {
-        vmovups(op, vmm_dst);
-    }
+    Xbyak::Xmm xmm_aux = Xbyak::Xmm(2);
 
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
@@ -112,13 +107,13 @@ private:
         }
     }
 
-    void pad_with_zeros(reg64_t &reg_num_pads_arg, reg64_t &reg_dst_arg) {
+    inline void pad_with_zeros(reg64_t &reg_num_pads_arg, reg64_t &reg_dst_arg) {
         Xbyak::Label main, tail, exit;
         L(main);
         {
             cmp(reg_num_pads_arg, jpp.block_size);
             jl(tail);
-            store_vector(ptr[reg_dst_arg], vmm_zero);
+            uni_vmovups(ptr[reg_dst_arg], vmm_zero);
             add(reg_dst_arg, jpp.dtype_size * jpp.block_size);
             sub(reg_num_pads_arg, jpp.block_size);
             jmp(main);
@@ -135,7 +130,7 @@ private:
         L(exit);
     }
 
-    void read_src2vmm(const Xbyak::Xmm &xmm_arg, reg64_t &reg_src_arg) {
+    inline void read_src2vmm(const Xbyak::Xmm &xmm_arg, reg64_t &reg_src_arg) {
         const int xmm_size = 16; // bytes
         const int xmm_block_size = xmm_size / jpp.dtype_size;
         for (int i = 0; i < xmm_block_size; i++) {
@@ -151,14 +146,14 @@ private:
         }
         add(reg_src_arg, jpp.SW * jpp.dtype_size * xmm_block_size);
     }
-    void read_src2vmm(const Xbyak::Ymm &ymm_arg, reg64_t &reg_src_arg) {
+    inline void read_src2vmm(const Xbyak::Ymm &ymm_arg, reg64_t &reg_src_arg) {
         Xbyak::Xmm low_xmm = Xmm(ymm_arg.getIdx());
         read_src2vmm(low_xmm, reg_src_arg);
         read_src2vmm(xmm_aux, reg_src_arg);
         vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
     }
 
-    void read_src2vmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
+    inline void read_src2vmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
         Xbyak::Xmm low_xmm = Ymm(zmm_arg.getIdx());
         read_src2vmm(low_xmm, reg_src_arg);
         for (int i = 1; i < 4; i++) {
@@ -188,7 +183,7 @@ private:
                 cmp(reg_ow_count, jpp.block_size);
                 jle(iw_tail, T_NEAR);
                 read_src2vmm(vmm, reg_src);
-                store_vector(ptr[reg_dst], vmm);
+                uni_vmovups(ptr[reg_dst], vmm);
                 add(reg_dst, jpp.dtype_size * jpp.block_size);
                 sub(reg_ow_count, jpp.block_size);
                 jmp(iw_loop);
@@ -269,7 +264,6 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             _rates.push_back((int64_t)rates[i]);
         jit_eximpat_params jpp;
         SizeVector in_dims = inData->getTensorDesc().getDims();
-        jpp.IH = in_dims[2];
         jpp.IW = in_dims[3];
         SizeVector out_dims = layer->outData[0]->getTensorDesc().getDims();
         jpp.OH = out_dims[2];
@@ -368,7 +362,6 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
     const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
     const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
     if (eximpat_kernel) {
-        //if (0) {
         auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
             const int64_t ih_start = kh * RH - PT;
             const int64_t iw_start = kw * RW - PL;

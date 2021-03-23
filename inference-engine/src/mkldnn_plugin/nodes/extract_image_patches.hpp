@@ -20,11 +20,9 @@ namespace Cpu {
 
 struct jit_eximpat_params {
     int IW; // from input shape
-    int IH; // ???
     int OH, OW; //from out shape
     int KH, KW; // kernel sizes
-    int SW; // strides
-    int SH; // ??
+    int SH, SW; // strides
     int dtype_size; // byte size of the datatype
     int block_size; // num of dtype units in the supported vector instruction set
     InferenceEngine::Precision precision;
