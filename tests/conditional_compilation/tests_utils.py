@@ -1,26 +1,27 @@
+#!/usr/bin/env python3
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+""" Utility functions for work with json test configuration file.
+"""
 import json
 
+from inspect import getsourcefile
 from pathlib import Path
 
 
-def open_cc_json(path: Path = Path(__file__).parent / "cc_tests.json"):
+TEST_INFO_NAME = "cc_tests.json"
+
+
+def read_test_info(path: Path = Path(getsourcefile(lambda: 0)).parent / TEST_INFO_NAME):
     with open(path, 'r') as json_file:
         cc_tests_ids = json.load(json_file)
     return cc_tests_ids
 
 
-def save_cc_json(path: Path = Path(__file__).parent / "cc_tests.json", data: list = None):
+def write_test_info(path: Path = Path(getsourcefile(lambda: 0)).parent / TEST_INFO_NAME,
+                    data: dict = None):
     if data is None:
-        data = []
+        data = {}
     with open(path, "w") as json_file:
-        json.dump(data, json_file, ensure_ascii=False, indent=4)
-
-
-def save_tests_structure(cc_tests_ids: list, workspace: Path):
-    for test_dict in cc_tests_ids:
-        used_csv = []
-        for cc_csv in workspace.glob("**/*.csv"):
-            if test_dict["test_id"] in str(cc_csv):
-                used_csv.append(str(cc_csv))
-        test_dict["csv_path"] = used_csv
-    save_cc_json(data=cc_tests_ids)
+        json.dump(data, json_file, indent=4)

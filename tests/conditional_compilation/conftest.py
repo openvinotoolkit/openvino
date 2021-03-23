@@ -19,10 +19,7 @@ import yaml
 from inspect import getsourcefile
 from pathlib import Path
 
-# add current dir to imports
-sys.path.insert(0, str((Path(getsourcefile(lambda: 0))).resolve(strict=True)))
-
-from config_reader import save_tests_structure, save_cc_json  # pylint: disable=import-error
+from config_reader import write_test_info
 
 # add ../lib to imports
 sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
@@ -31,8 +28,7 @@ from path_utils import expand_env_vars  # pylint: disable=import-error
 
 
 def pytest_addoption(parser):
-    """ Define extra options for pytest options
-    """
+    """Define extra options for pytest options."""
     parser.addoption(
         "--test_conf",
         type=Path,
@@ -69,8 +65,7 @@ def pytest_addoption(parser):
 
 
 def pytest_generate_tests(metafunc):
-    """ Generate tests depending on command line options
-    """
+    """Generate tests depending on command line options."""
     params = []
     ids = []
 
@@ -91,7 +86,8 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
-    setattr(request.node._request, "test_info", {"test_id": {}})
+    """Fixture function for getting the additional attributes of the current test."""
+    setattr(request.node._request, "test_info", {"test_id": {}, "out_csv": {}})
     if not hasattr(pytestconfig, "session_info"):
         setattr(pytestconfig, "session_info", [])
 
@@ -101,13 +97,10 @@ def test_info(request, pytestconfig):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def configure_test_info(pytestconfig, artifacts):
+def configure_test_info(pytestconfig):
+    """Fixture function for saving additional attributes to configuration file."""
     yield
-    ids = [record["test_id"] for record in pytestconfig.session_info]
-    json_context = []
-    for _id in ids:
-        json_context.append(dict([("test_id", _id)]))
-    save_tests_structure(json_context, Path(artifacts))
+    write_test_info(data=pytestconfig.session_info)
 
 
 @pytest.fixture(scope="session")
