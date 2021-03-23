@@ -20,7 +20,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 - The Model Developer generates a access controlled model from the OpenVINO™ toolkit output. The access controlled model uses the model's Intermediate Representation (IR) files to create a access controlled output file archive that are distributed to Model Users. The Developer can also put the archive file in long-term storage or back it up without additional security. 
 
-- The Model Developer uses the OpenVINO™ Security Add-on Tool(`ovsatool`) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
+- The Model Developer uses the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
 
 - The Model Developer generates user-specific licenses in a JSON format file for the access controlled model. The Model Developer can define global or user-specific licenses and attach licensing policies to the licenses. For example, the Model Developer can add a time limit for a model or limit the number of times a user can run a model. 
 
@@ -31,7 +31,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 - The Independent Software Vendor hosts the OpenVINO™ Security Add-on License Service, which responds to license validation requests when a user attempts to load a access controlled model in a model server. The licenses are registered with the OpenVINO™ Security Add-on License Service.
 
-- When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool(`ovsatool`). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
+- When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
 
 </details>
 
@@ -51,7 +51,7 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 
 ![Security Add-on Diagram](ovsa_diagram.png)
 
-The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](fingerprint-changes.md).
+The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is exaplined in [this document](https://github.com/openvinotoolkit/security_addon/blob/release_2021_3/docs/fingerprint-changes.md)
 
 ## About the Installation
 The Model Developer, Independent Software Vendor, and User each must prepare one physical hardware machine and one Kernel-based Virtual Machine (KVM). In addition, each person must prepare a Guest Virtual Machine (Guest VM) for each role that person plays. 
@@ -117,25 +117,25 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
    sudo apt install -y cpu-checker
    ```
 3. Install the Kernel-based Virtual Machine (KVM) and QEMU packages. 
-   ```sh	
-   sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager 
-   ```	
+	```sh	
+	sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager 
+	```	
 4. Check the QEMU version:
    ```sh	
    qemu-system-x86_64 --version 
    ```	
    If the response indicates a QEMU version lower than 2.12.0 download, compile and install the latest QEMU version from [https://www.qemu.org/download](https://www.qemu.org/download).
-5. Build and install the [`libtpm` package](https://github.com/stefanberger/libtpms/). 
-6. Build and install the [`swtpm` package](https://github.com/stefanberger/swtpm/).
-7. Add the `swtpm` package to the `$PATH` environment variable.
-8. Install the software tool [`tpm2-tss`]( https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz).<br>
+5.  Build and install the [`libtpm` package](https://github.com/stefanberger/libtpms/). 
+6.  Build and install the [`swtpm` package](https://github.com/stefanberger/swtpm/).
+7.  Add the `swtpm` package to the `$PATH` environment variable.
+8.  Install the software tool [`tpm2-tss`]( https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md
-9. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz).<br>
+9.  Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md
 10. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
 11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).	
-> **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
+    > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
 12. If you are running behind a proxy, [set up a proxy for Docker](https://docs.docker.com/config/daemon/systemd/). 
 
 The following are installed and ready to use:
@@ -186,12 +186,12 @@ This example in this step uses the following names. Your configuration might use
    ```
 4. Save and close the network configuration file.
 5. Run two commands to activate the updated network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
-   ```sh
-   sudo netplan generate
-   ```
-   ```sh
-   sudo netplan apply
-   ```	
+```sh
+sudo netplan generate
+```
+```sh
+sudo netplan apply
+```	
    A bridge is created and an IP address is assigned to the new bridge.
 6. Verify the new bridge:
    ```sh
@@ -249,14 +249,13 @@ This example in this step uses the following names. Your configuration might use
 See the QEMU documentation for more information about the QEMU network configuration.
 
 Networking is set up on the Host Machine. Continue to the Step 3 to prepare a Guest VM for the combined role of Model Developer and Independent Software Vendor.
-	
 
 ### Step 3: Clone the OpenVINO™ Security Add-on
 
-Download the [OpenVINO™ Security Add-on](https://github.com/openvinotoolkit/security_addon)
+Download the [OpenVINO™ Security Add-on](https://github.com/openvinotoolkit/security_addon).
 
 
-### Step 4: Set Up one Guest VM for the combined roles of Model Developer and Independent Software Vendor<a name="dev-isv-vm"></a>
+### Step 4: Set Up one Guest VM for the combined roles of Model Developer and Independent Software Vendor<a name="dev-isv-vm"></a>.
 
 For each separate role you play, you must prepare a virtual machine, called a Guest VM. Because in this release, the Model Developer and Independent Software Vendor roles are combined, these instructions guide you to set up one Guest VM, named `ovsa_isv`.
 
@@ -292,27 +291,20 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
    -vnc :1
    ```
-8. Choose **ONE** of these options to install additional required software:
-   <details><summary>Option 1: Use a script to install additional software</summary>
-	
-   a. Copy the script `install_guest_deps.sh` from the Scripts/reference directory of the OVSA repository to the Guest VM<br>
-   b. Run the script.<br>
-   c. Shut down the Guest VM.<br><br>
-   Click the triangled line to close Option 1
-   </details>
-   <details><summary>Option 2: Manually install additional software</summary>
-	
-   a. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz)<br>
-   Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md<br>
-   b. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)<br>
-   Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md<br>
-   c. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)<br>
-   Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md<br>
-   d. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
-   e. Shut down the Guest VM.<br><br>
-   Click the triangled line to close Option 2
-   </details>
-
+8. Choose ONE of these options to install additional required software:
+   * **Option 1**: Use a script to install additional software
+      1. Copy the script `install_guest_deps.sh` from the `Scripts/reference directory` of the OVSA repository to the Guest VM
+      2. Run the script.
+      3. Shut down the Guest VM.<br>
+   * **Option 2** : Manually install additional software
+      1. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz). 
+      Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md
+      2. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). 
+      Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md
+      3. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). 
+      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
+      4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
+      5. Shut down the Guest VM.<br>
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
    ```sh
    sudo mkdir -p /var/OVSA/
@@ -323,25 +315,24 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    /usr/share/swtpm/swtpm-create-user-config-files
    swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_isv_dev --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
    ```
-   > **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
- 
+   **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
 10. Start the vTPM on Host, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
-   ```sh     
-   sudo swtpm socket --tpm2 --server port=8280 \
-                     --ctrl type=tcp,port=8281 \
-                     --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
+   ```sh
+    sudo swtpm socket --tpm2 --server port=8280 \
+                      --ctrl type=tcp,port=8281 \
+                      --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
 
-   sudo tpm2_startup --clear -T swtpm:port=8280
-   sudo tpm2_startup -T swtpm:port=8280
-   python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8280
-   sudo pkill -f vtpm_isv_dev
+    sudo tpm2_startup --clear -T swtpm:port=8280
+    sudo tpm2_startup -T swtpm:port=8280
+    python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8280
+    sudo pkill -f vtpm_isv_dev
      
    swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
     --tpm2 \
     --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
     --log level=20
    ```
-
+	
 11. Start the Guest VM:
    ```sh
    sudo qemu-system-x86_64 \
@@ -363,144 +354,115 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    
 12. Use a VNC client to log on to the Guest VM at `<host-ip-address>:1`
 
-</details>
-
 ### Step 5: Set Up one Guest VM for the User role
 
-1. Choose ONE of these options to create a Guest VM for the User role:
-
-	<details><summary>Option 1: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image</summary>
-	
-	1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
-
-	2. Boot the new image. 
-
-	3. Change the hostname from `ovsa_isv_dev` to `ovsa_runtime`.  
-		```sh 
-		sudo hostnamectl set-hostname ovsa_runtime
-		```
-	
-	4. Replace all instances of 'ovsa_isv_dev' to 'ovsa_runtime' in the new image.
-		```sh 	
-		sudo nano /etc/hosts
-		```
-	5. Change the `/etc/machine-id`:
-		```sh
-		sudo rm /etc/machine-id
-		systemd-machine-id-setup
-		```
-	6. Shut down the Guest VM.<br><br>
-
-	Click the triangled line above to close Option 1.
-	</details>
-
-	<details><summary>Option 2: Manually create the Guest VM</summary>
-	
-	1. Create an empty virtual disk image:
-		```sh
-		sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
-		```
-
-	2. Install Ubuntu 18.04 on the Guest VM. Name the Guest VM `ovsa_runtime`:
-		```sh
-		sudo qemu-system-x86_64 -m 8192 -enable-kvm \
-		-cpu host \
-		-drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
-		-cdrom <path-to-iso-image>/ubuntu-18.04.5-live-server-amd64.iso \
-		-device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
-		-netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-		-vnc :2
-		```
-	
-	3. Connect a VNC client with `<host-ip-address>:2`.
-	
-	4. Follow the prompts on the screen to finish installing the Guest VM. Name the Guest VM `ovsa_runtime`.
-	
-	5. Shut down the Guest VM. 
-	
-	6. Restart the Guest VM:
-		```sh
-		sudo qemu-system-x86_64 -m 8192 -enable-kvm \
-		-cpu host \
-		-drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
-		-device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
-		-netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-		-vnc :2
-		```
-	
-	7. Choose ONE of these options to install additional required software:
-		<details><summary>Option 1: Use a script to install additional software</summary>
-	
-			a. Copy the script `install_guest_deps.sh` from the Scripts/reference directory of the OVSA repository to the Guest VM
-			b. Run the script.
-			c. Shut down the Guest VM.<br><br>
-	
-			Click the triangled line to close Option 2.
-		</details>
-		<details><summary>Option 2: Manually install additional software</summary>
-		
-		a.  Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz) <br>
-    			Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md <br><br>
-			b.  Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz) <br>
-    			Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md <br><br>
-			c. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz) <br>
-    			Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md <br><br>
-			d. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/) <br><br>
-			e. Shut down the Guest VM.<br><br>
-			Click the triangled line to close the option to manually install additional software.
-		</details>
-	</details>
+1. Choose **ONE** of these options to create a Guest VM for the User role:<br>
+   **Option 1: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image**
+   1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
+   2. Boot the new image. 
+   3. Change the hostname from `ovsa_isv_dev` to `ovsa_runtime`.  
+   ```sh 
+   sudo hostnamectl set-hostname ovsa_runtime
+   ```
+   4. Replace all instances of `ovsa_isv_dev` to `ovsa_runtime` in the new image.
+   ```sh 	
+   sudo nano /etc/hosts
+   ```
+   5. Change the `/etc/machine-id`:
+   ```sh
+   sudo rm /etc/machine-id
+   systemd-machine-id-setup
+   ```
+   6. Shut down the Guest VM.<br><br>
+       
+   **Option 2: Manually create the Guest VM**
+   1. Create an empty virtual disk image:
+   ```sh
+   sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
+   ```
+   2. Install Ubuntu 18.04 on the Guest VM. Name the Guest VM `ovsa_runtime`:
+   ```sh
+   sudo qemu-system-x86_64 -m 8192 -enable-kvm \
+   -cpu host \
+   -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
+   -cdrom <path-to-iso-image>/ubuntu-18.04.5-live-server-amd64.iso \
+   -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+   -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,   downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+   -vnc :2
+   ```
+   3. Connect a VNC client with `<host-ip-address>:2`.
+   4. Follow the prompts on the screen to finish installing the Guest VM. Name the Guest VM `ovsa_runtime`.
+   5. Shut down the Guest VM. 
+   6. Restart the Guest VM:
+   ```sh
+   sudo qemu-system-x86_64 -m 8192 -enable-kvm \
+   -cpu host \
+   -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
+   -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+   -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,   downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+   -vnc :2
+   ```
+   7. Choose **ONE** of these options to install additional required software:
+      
+      **Option 1: Use a script to install additional software**
+      1. Copy the script `install_guest_deps.sh` from the `Scripts/reference` directory of the OVSA repository to the Guest VM
+      2. Run the script.
+      3. Shut down the Guest VM.<br><br>
+	        
+      **Option 2: Manually install additional software**
+      1. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz) <br>
+      Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md <br><br>
+      2. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz) <br>
+      Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md <br><br>
+      3. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz) <br>
+      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md <br><br>
+      4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/) 
+      5. Shut down the Guest VM.<br><br>            
 
 2. Create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
-	```sh
-	sudo mkdir /var/OVSA/vtpm/vtpm_runtime
+   ```sh
+   sudo mkdir /var/OVSA/vtpm/vtpm_runtime
     
-    export XDG_CONFIG_HOME=~/.config
-    /usr/share/swtpm/swtpm-create-user-config-files
-    swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_runtime --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
-	```
-> **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the 'Scripts/reference' directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
-
-
+   export XDG_CONFIG_HOME=~/.config
+   /usr/share/swtpm/swtpm-create-user-config-files
+   swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_runtime --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
+   ```
+   **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
 3. Start the vTPM, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
-	```sh     
-    sudo swtpm socket --tpm2 --server port=8380 \
-                      --ctrl type=tcp,port=8381 \
-                      --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime &
+   ```sh
+   sudo swtpm socket --tpm2 --server port=8380 \
+                     --ctrl type=tcp,port=8381 \
+                     --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime &
 
-    sudo tpm2_startup --clear -T swtpm:port=8380
-    sudo tpm2_startup -T swtpm:port=8380
-    python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8380
-    sudo pkill -f vtpm_runtime
+   sudo tpm2_startup --clear -T swtpm:port=8380
+   sudo tpm2_startup -T swtpm:port=8380
+   python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8380
+   sudo pkill -f vtpm_runtime
 	
-	swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime \
-	--tpm2 \
-	--ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_runtime/swtpm-sock \
-	--log level=20
-	```
+   swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime \
+   --tpm2 \
+   --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_runtime/swtpm-sock \
+   --log level=20
+   ```
 4. Start the Guest VM in a new terminal:
-	```sh
-	sudo qemu-system-x86_64 \
-	 -cpu host \
-	 -enable-kvm \
-	 -m 8192 \
-	 -smp 8,sockets=1,cores=8,threads=1 \
-	 -device e1000,netdev=hostnet2,mac=52:54:00:d1:67:6f \
-	 -netdev tap,id=hostnet2,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
-	 -device e1000,netdev=hostnet3,mac=52:54:00:d1:67:5f \
-	 -netdev tap,id=hostnet3,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-	 -drive if=virtio,file=<path-to-disk-image>/ovsa_runtime_vm_disk.qcow2,cache=none \
-	 -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_runtime/swtpm-sock \
-	 -tpmdev emulator,id=tpm0,chardev=chrtpm \
-	 -device tpm-tis,tpmdev=tpm0 \
-	 -vnc :2
-	```
-
+   ```sh
+   sudo qemu-system-x86_64 \
+    -cpu host \
+    -enable-kvm \
+    -m 8192 \
+    -smp 8,sockets=1,cores=8,threads=1 \
+    -device e1000,netdev=hostnet2,mac=52:54:00:d1:67:6f \
+    -netdev tap,id=hostnet2,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
+    -device e1000,netdev=hostnet3,mac=52:54:00:d1:67:5f \
+    -netdev tap,id=hostnet3,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+    -drive if=virtio,file=<path-to-disk-image>/ovsa_runtime_vm_disk.qcow2,cache=none \
+    -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_runtime/swtpm-sock \
+    -tpmdev emulator,id=tpm0,chardev=chrtpm \
+    -device tpm-tis,tpmdev=tpm0 \
+    -vnc :2
+   ```
    Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
-   
 5. Use a VNC client to log on to the Guest VM at `<host-ip-address>:<x>` where `<x>` corresponds to the vnc number in the `start_ovsa_isv_vm.sh` or in step 8.
-
- </details>  
 
 ## How to Build and Install the OpenVINO™ Security Add-on Software <a name="install-ovsa"></a>
 
@@ -627,7 +589,7 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable <a href="#setup-host">set up steps</a> and <a href="#ovsa-install">installation steps</a> before beginning this section.
 
-This document uses the [face-detection-retail-0004](@ref omz_models_model_face_detection_retail_0004) model as an example. 
+This document uses the [face-detection-retail-0004](@ref omz_models_intel_face_detection_retail_0004_description_face_detection_retail_0004) model as an example. 
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 
@@ -645,7 +607,7 @@ The Model Developer creates model, defines access control and creates the user l
    ```sh
    sudo -s
    cd /<username-home-directory>/OVSA/artefacts
-   export OVSA_DEV_ARTEFACTS=$PWD
+	export OVSA_DEV_ARTEFACTS=$PWD
    source /opt/ovsa/scripts/setupvars.sh
    ```
 2. Create files to request a certificate:<br>
@@ -674,7 +636,7 @@ This example uses `curl` to download the `face-detection-retail-004` model from 
 2. Download a model from the Model Zoo:
    ```sh
    cd $OVSA_DEV_ARTEFACTS	
-   curl --create-dirs https://storage.openvinotoolkit.org/repositories/open_model_zoo/2021.3/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://   storage.openvinotoolkit.org/repositories/open_model_zoo/2021.3/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o    model/face-detection-retail-0004.bin
+   curl --create-dirs https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://   download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o    model/face-detection-retail-0004.bin
    ```
    The model is downloaded to the `OVSA_DEV_ARTEFACTS/model` directory.
 	
@@ -690,7 +652,7 @@ This example uses `curl` to download the `face-detection-retail-004` model from 
    ```
 3. Define and enable the model access control and master license:
    ```sh	
-   /opt/ovsa/bin/ovsatool controlAccess -i model/face-detection-retail-0004.xml model/face-detection-retail-0004.bin -n "face detection" -d "face detection retail" -v 0004 -p face_detection_model.dat -m face_detection_model.masterlic -k isv_keystore -g <output-of-uuidgen>
+	/opt/ovsa/bin/ovsatool controlAccess -i model/face-detection-retail-0004.xml model/face-detection-retail-0004.bin -n "face detection" -d "face detection retail" -v 0004 -p face_detection_model.dat -m face_detection_model.masterlic -k isv_keystore -g <output-of-uuidgen>
    ```
 The Intermediate Representation files for the `face-detection-retail-0004` model are encrypted as `face_detection_model.dat` and a master license is generated as `face_detection_model.masterlic`.
 
@@ -791,27 +753,27 @@ This example uses scp to share data between the ovsa_runtime and ovsa_dev Guest 
    cp $OVSA_RUNTIME_ARTEFACTS/custkeystore model/fd/1/.
    ```
 4. Rename and edit `sample.json` to include the names of the access controlled model artefacts you received from the Model Developer. The file looks like this:
-	```sh
-	{
-	"custom_loader_config_list":[
-		{
-			"config":{
-					"loader_name":"ovsa",
-					"library_path": "/ovsa-runtime/lib/libovsaruntime.so"
-			}
-		}
-	],
-	"model_config_list":[
-		{
-		"config":{
-			"name":"controlled-access-model",
-			"base_path":"/sampleloader/model/fd",
-			"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "controlled_access_file": "face_detection_model"}
-		}
-		}
-	]
-	}
-	```
+   ```sh
+   {
+   "custom_loader_config_list":[
+   	{
+   		"config":{
+   				"loader_name":"ovsa",
+   				"library_path": "/ovsa-runtime/lib/libovsaruntime.so"
+   		}
+   	}
+   ],
+   "model_config_list":[
+   	{
+   	"config":{
+		"name":"controlled-access-model",
+   		"base_path":"/sampleloader/model/fd",
+		"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "controlled_access_file": "face_detection_model"}
+   	}
+   	}
+   ]
+   }
+   ```
 #### Step 4: Start the NGINX Model Server
 The NGINX Model Server publishes the access controlled model.
    ```sh
