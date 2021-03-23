@@ -60,19 +60,13 @@ public:
     StatusCode execute(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&, ResponseDesc*) noexcept override;
 
 private:
-    void execute_fallback(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&) noexcept;
-    void execute_optimized(std::vector<Blob::Ptr>&, std::vector<Blob::Ptr>&) noexcept;
-
-
     std::vector<int64_t> _ksizes;
     std::vector<int64_t> _strides;
     std::vector<int64_t> _rates;
-    std::vector<int64_t> _pads;
     std::string _auto_pad;
 
     std::shared_ptr<jit_uni_eximpat_kernel> eximpat_kernel;
     static const std::set<size_t> _supported_precisions_sizes;
-    inline void set_pads(const std::string & pad_str, const std::vector<int64_t> & params);
 };
 
 const std::set<size_t> ExtractImagePatchesImpl::_supported_precisions_sizes = {1, 2, 4, 8};

@@ -167,10 +167,7 @@ private:
         }
     }
 
-    // The main loop where all the work is done
     void loop() {
-        //for (int64_t i = 0; i < ih_lpad * OW; i++)
-        //    dst_data[dst_idx++] = T(0);
         mov(reg_oh_count, reg_h_hi_pad);
         mov(reg_num_pads, ptr[reg_params + GET_OFF(h_lo_pad)]);
         sub(reg_oh_count, reg_num_pads);
@@ -178,21 +175,12 @@ private:
         pad_with_zeros(reg_num_pads, reg_dst);
         Xbyak::Label ih_loop, ih_tail, ih_exit;
         Xbyak::Label iw_loop, iw_tail, iw_exit;
-        //for (int64_t ishift = ioffset + ih_lpad * SH * IW; ishift < ioffset + ih_hpad * SH * IW; ishift += SH * IW) {...}
         L(ih_loop);
         {
             cmp(reg_oh_count, 0);
             jle(ih_exit, T_NEAR);
-            /*
-            for (int64_t iw = 0; iw < iw_lpad; iw++)
-                dst_data[dst_idx++] = 0;
-            */
             mov(reg_num_pads, reg_w_lo_pad);
             pad_with_zeros(reg_num_pads, reg_dst);
-            /*
-            for (int64_t src_idx = ishift + iw_lpad * SW; src_idx < ishift + iw_hpad * SW; src_idx += SW)
-                dst_data[dst_idx++] = src_data[src_idx];
-            */
             mov(reg_ow_count, reg_ow_work_amount);
             add(reg_src, reg_src_w_incr);
             L(iw_loop);
@@ -217,10 +205,6 @@ private:
                 jmp(iw_tail);
             }
             L(iw_exit);
-            /*
-            for (int64_t i = 0; i < (OW - iw_hpad); i++)
-                dst_data[dst_idx++] = 0;
-            */
             mov(reg_num_pads, jpp.OW);
             sub(reg_num_pads, reg_w_hi_pad);
             pad_with_zeros(reg_num_pads, reg_dst);
@@ -229,8 +213,6 @@ private:
             jmp(ih_loop, T_NEAR);
         }
         L(ih_exit);
-        //for (int64_t i = 0; i < (OH - ih_hpad) * OW; i++)
-        //    dst_data[dst_idx++] = T(0);
         mov(reg_num_pads, jpp.OH);
         sub(reg_num_pads, reg_h_hi_pad);
         mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
@@ -299,7 +281,6 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         jpp.dtype_size = layer->insData.front().lock()->getPrecision().size();
         jpp.block_size = 1;
 
-        /*
         if (mayiuse(x64::avx512_common)) {
             jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jpp.dtype_size;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx512_common>(jpp));
@@ -310,11 +291,12 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jpp));
         }
-        */
+        /*
         if (mayiuse(x64::sse41)) {
             jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jpp));
         }
+         */
         if (eximpat_kernel)
             eximpat_kernel->create_ker();
 
@@ -337,167 +319,119 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
     }
 }
 
+
 StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept {
-    //if (eximpat_kernel) {
-    if (0) {
-        execute_optimized(inputs, outputs);
-    } else {
-            execute_fallback(inputs, outputs);
-    }
-    return OK;
-}
+    const char *src_data = inputs[0]->cbuffer().as<const char *>() +
+            inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    char *dst_data = outputs[0]->buffer().as<char *>() +
+            outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    const int64_t dtype_size = inputs[0]->getTensorDesc().getPrecision().size();
 
-void ExtractImagePatchesImpl::set_pads(const std::string & pad_str, const std::vector<int64_t> & params) {
-    const int64_t IH = params[0]; const int64_t IW = params[1];
-    const int64_t KH = params[2]; const int64_t KW = params[3];
-    const int64_t SH = params[4]; const int64_t SW = params[5];
-    const int64_t RH = params[6]; const int64_t RW = params[7];
-    const int64_t iwStep = KW + (RW - 1) * (KW - 1);
-    const int64_t ihStep = KH + (RH - 1) * (KH - 1);
+    const auto& inDims = inputs[0]->getTensorDesc().getDims();
+    const int64_t IC = inDims[1];
+    const int64_t IH = inDims[2];
+    const int64_t IW = inDims[3];
 
-    int64_t PL = 0, PT = 0;
-    if (!CaselessEq<std::string>()(pad_str, "valid")) {
+    const auto& outDims = outputs[0]->getTensorDesc().getDims();
+    const int64_t OB = outDims[0];
+    const int64_t OH = outDims[2];
+    const int64_t OW = outDims[3];
+
+    const int64_t KH = _ksizes[0], KW = _ksizes[1];
+    const int64_t SH = _strides[0], SW = _strides[1];
+    const int64_t RH = _rates[0], RW = _rates[1];
+
+    int64_t pad_left = 0, pad_top = 0;
+    if (!CaselessEq<std::string>()(_auto_pad, "valid")) {
+        const int64_t iwStep = KW + (RW - 1) * (KW - 1);
+        const int64_t ihStep = KH + (RH - 1) * (KH - 1);
         int64_t PW = (std::ceil(1.f * IW/SW) - 1) * SW + iwStep - IW;
         int64_t PH = (std::ceil(1.f * IH/SH) - 1) * SH + ihStep - IH;
 
         int64_t increment_sign = 0;
-        if (CaselessEq<std::string>()(pad_str, "same_lower")) {
+        if (CaselessEq<std::string>()(_auto_pad, "same_lower")) {
             increment_sign = 1;
-        } else if (CaselessEq<std::string>()(pad_str, "same_upper")) {
+        } else if (CaselessEq<std::string>()(_auto_pad, "same_upper")) {
             increment_sign = -1;
         }
 
         if ((PW > 0) && (PW < iwStep)) {
-            PL = (PW + increment_sign * (PW % 2) ) / 2;
+            pad_left = (PW + increment_sign * (PW % 2) ) / 2;
         }
         if ((PH > 0) && (PH < ihStep)) {
-            PT = (PH + increment_sign * (PH % 2) ) / 2;
+            pad_top = (PH + increment_sign * (PH % 2) ) / 2;
         }
     }
-    _pads.clear();
-    _pads.push_back(PL);
-    _pads.push_back(PT);
-}
-
-void ExtractImagePatchesImpl::execute_optimized(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept {
-    const char *src_data = inputs[0]->cbuffer().as<const char *>() +
-                        inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    char *dst_data = outputs[0]->buffer().as<char *>() +
-                  outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    const int64_t dtype_size = inputs[0]->getTensorDesc().getPrecision().size();
-
-    const auto& inDims = inputs[0]->getTensorDesc().getDims();
-    const int64_t IC = inDims[1];
-    const int64_t IH = inDims[2];
-    const int64_t IW = inDims[3];
-
-    const auto& outDims = outputs[0]->getTensorDesc().getDims();
-    const int64_t OB = outDims[0];
-    const int64_t OH = outDims[2];
-    const int64_t OW = outDims[3];
-
-    const int64_t KH = _ksizes[0], KW = _ksizes[1];
-    const int64_t SH = _strides[0], SW = _strides[1];
-    const int64_t RH = _rates[0], RW = _rates[1];
-    set_pads(_auto_pad, {IH, IW, KH, KW, SH, SW, RH, RW});
-    const int64_t PL = _pads[0], PT = _pads[1];
+    const int64_t PL = pad_left;
+    const int64_t PT = pad_top;
 
     const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
     const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
+    if (eximpat_kernel) {
+        //if (0) {
+        auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
+            const int64_t ih_start = kh * RH - PT;
+            const int64_t iw_start = kw * RW - PL;
+            const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
+            const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
+            const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH - 1.f * ih_start) / SH);
+            const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
-    auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
-        const int64_t ih_start = kh * RH - PT;
-        const int64_t iw_start = kw * RW - PL;
-        const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
-        const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
-        const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH - 1.f * ih_start) / SH);
-        const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
+            int64_t dst_offset = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
+            int64_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
 
-        //std::cout << ih_lpad << " : " << ih_hpad << " || " << iw_lpad << " : " << iw_hpad << "\n";
+            auto args = jit_eximpat_args();
+            args.src = src_data + src_offset * dtype_size;
+            args.dst = dst_data + dst_offset * dtype_size;
+            args.h_lo_pad = ih_lpad;
+            args.h_hi_pad = ih_hpad;
+            args.w_lo_pad = iw_lpad;
+            args.w_hi_pad = iw_hpad;
+            (*eximpat_kernel)(&args);
+        };
+        parallel_for4d(OB, KH, KW, IC, thread_body);
+    } else {
+        auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
+            const int64_t iw_start = kw * RW - PL;
+            const int64_t ih_start = kh * RH - PT;
+            const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
+            const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
 
-        int64_t dst_offset = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
-        int64_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
-        //const int64_t ioffset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start;
+            const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
+            const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
-        auto args = jit_eximpat_args();
-        args.src = src_data + src_offset * dtype_size;
-        args.dst = dst_data + dst_offset * dtype_size;
-        args.h_lo_pad = ih_lpad;
-        args.h_hi_pad = ih_hpad;
-        args.w_lo_pad = iw_lpad;
-        args.w_hi_pad = iw_hpad;
-        (*eximpat_kernel)(&args);
-    };
-    parallel_for4d(OB, KH, KW, IC, thread_body);
-}
+            char *my_dst_ptr = dst_data + (ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3]) * dtype_size;
+            const char *my_src_ptr = src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
 
-void ExtractImagePatchesImpl::execute_fallback(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept {
-    const char* src_data = inputs[0]->cbuffer().as<const char*>() +
-                        inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    char* dst_data = outputs[0]->buffer().as<char*>() +
-                  outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-
-    const int64_t dtype_size = inputs[0]->getTensorDesc().getPrecision().size();
-
-    const auto& inDims = inputs[0]->getTensorDesc().getDims();
-    const int64_t IC = inDims[1];
-    const int64_t IH = inDims[2];
-    const int64_t IW = inDims[3];
-
-    const auto& outDims = outputs[0]->getTensorDesc().getDims();
-    const int64_t OB = outDims[0];
-    const int64_t OH = outDims[2];
-    const int64_t OW = outDims[3];
-
-    const int64_t KH = _ksizes[0], KW = _ksizes[1];
-    const int64_t SH = _strides[0], SW = _strides[1];
-    const int64_t RH = _rates[0], RW = _rates[1];
-    set_pads(_auto_pad, {IH, IW, KH, KW, SH, SW, RH, RW});
-    const int64_t PL = _pads[0], PT = _pads[1];
-    const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
-    const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
-
-    auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
-        const int64_t iw_start = kw * RW - PL;
-        const int64_t ih_start = kh * RH - PT;
-        const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
-        const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
-
-        const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
-        const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
-
-        char *my_dst_ptr = dst_data + (ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3]) * dtype_size;
-        const char *my_src_ptr_start = src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
-
-        int64_t num_bytes_to_set = ih_lpad * OW * dtype_size;
-        memset(my_dst_ptr, 0, num_bytes_to_set);
-        my_dst_ptr += num_bytes_to_set;
-
-
-        //const int64_t src_incr = (SH * IW - iw_hpad * SW) * dtype_size;
-        const char* src_ptr_h_stop = my_src_ptr_start + ih_hpad * SH * IW * dtype_size;
-        for (const char *src_h_ptr = my_src_ptr_start + ih_lpad * SH * IW * dtype_size; src_h_ptr < src_ptr_h_stop; src_h_ptr += SH * IW * dtype_size) {
-            num_bytes_to_set = iw_lpad * dtype_size;
+            int64_t num_bytes_to_set = ih_lpad * OW * dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
             my_dst_ptr += num_bytes_to_set;
 
-            const char* src_ptr_w_stop = src_h_ptr + iw_hpad * SW * dtype_size;
-            for (const char* src_w_ptr = src_h_ptr + iw_lpad * SW * dtype_size;
-                src_w_ptr < src_ptr_w_stop; src_w_ptr += SW * dtype_size) {
-                num_bytes_to_set = dtype_size;
-                memcpy(my_dst_ptr, src_w_ptr, num_bytes_to_set);
+            const char* src_ptr_h_stop = my_src_ptr + ih_hpad * SH * IW * dtype_size;
+            for (const char *src_h_ptr = my_src_ptr + ih_lpad * SH * IW * dtype_size;
+                src_h_ptr < src_ptr_h_stop; src_h_ptr += SH * IW * dtype_size) {
+                num_bytes_to_set = iw_lpad * dtype_size;
+                memset(my_dst_ptr, 0, num_bytes_to_set);
+                my_dst_ptr += num_bytes_to_set;
+
+                const char* src_ptr_w_stop = src_h_ptr + iw_hpad * SW * dtype_size;
+                for (const char* src_w_ptr = src_h_ptr + iw_lpad * SW * dtype_size;
+                    src_w_ptr < src_ptr_w_stop; src_w_ptr += SW * dtype_size) {
+                    num_bytes_to_set = dtype_size;
+                    memcpy(my_dst_ptr, src_w_ptr, num_bytes_to_set);
+                    my_dst_ptr += num_bytes_to_set;
+                }
+                num_bytes_to_set = (OW - iw_hpad) * dtype_size;
+                memset(my_dst_ptr, 0, num_bytes_to_set);
                 my_dst_ptr += num_bytes_to_set;
             }
-            num_bytes_to_set = (OW - iw_hpad) * dtype_size;
+            num_bytes_to_set = (OH - ih_hpad) * OW * dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
-            my_dst_ptr += num_bytes_to_set;
-        }
-        num_bytes_to_set = (OH - ih_hpad) * OW * dtype_size;
-        memset(my_dst_ptr, 0, num_bytes_to_set);
-    };
-    parallel_for4d(OB, KH, KW, IC, thread_body);
+        };
+        parallel_for4d(OB, KH, KW, IC, thread_body);
+    }
+    return OK;
 }
-
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine
