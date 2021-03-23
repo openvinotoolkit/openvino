@@ -1,25 +1,25 @@
 # Inference Engine Extensibility Mechanism {#openvino_docs_IE_DG_Extensibility_DG_Intro}
 
-Inference Engine Extensibility API allows to add support of custom operations to the Inference Engine.
+Inference Engine Extensibility API enables you to add support of custom operations to the Inference Engine.
 Extension should contain operation sets with custom operations and execution kernels for custom operations.
 Physically, an extension library can be represented as a dynamic library exporting the single `CreateExtension` function
-that allows to create a new extension instance.
+that creates a new extension instance.
 
-Extensibility library can be loaded to the `InferenceEngine::Core` object using the
+To load the Extensibility library to the `InferenceEngine::Core` object, use the
 `InferenceEngine::Core::AddExtension` method.
 
 ## Inference Engine Extension Library
 
-Inference Engine Extension dynamic library contains several components:
+Inference Engine Extension dynamic library contains the following components:
 
  * [Extension Library](Extension.md):
-    - Contains custom operation sets
-    - Provides CPU implementations for custom operations
+    - Contains custom operation sets.
+    - Provides CPU implementations for custom operations.
  * [Custom nGraph Operation](AddingNGraphOps.md):
-    - Allows to use `InferenceEngine::Core::ReadNetwork` to read Intermediate Representation (IR) with unsupported
-    operations
-    - Allows to create `ngraph::Function` with unsupported operations
-    - Provides shape inference mechanism for custom operations
+    - Enables the use of `InferenceEngine::Core::ReadNetwork` to read Intermediate Representation (IR) with unsupported
+    operations.
+    - Enables the creation of `ngraph::Function` with unsupported operations.
+    - Provides a shape inference mechanism for custom operations.
 
 > **NOTE**: This documentation is written based on the `Template extension`, which demonstrates extension 
 development details. Find the complete code of the `Template extension`, which is fully compilable and up-to-date,
@@ -43,10 +43,8 @@ The following pages describe how to integrate custom _kernels_ into the Inferenc
  * [Introduction to development of custom GPU kernels](GPU_Kernel.md)
  * [Introduction to development of custom VPU kernels](VPU_Kernel.md)
 
-## Additional Resources
+## See Also
 
 * [Build an extension library using CMake*](Building.md)
-
-## See Also
 * [Using Inference Engine Samples](../Samples_Overview.md)
 * [Hello Shape Infer SSD sample](../../../inference-engine/samples/hello_reshape_ssd/README.md)
