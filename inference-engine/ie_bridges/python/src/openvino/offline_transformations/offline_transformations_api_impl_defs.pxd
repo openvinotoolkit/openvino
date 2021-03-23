@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from libcpp cimport bool
+from libcpp.string cimport string
+
 from ..inference_engine.ie_api_impl_defs cimport IENetwork
 
 cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEnginePython":
@@ -10,5 +12,7 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
     cdef void ApplyLowLatencyTransformation(IENetwork network)
 
     cdef void ApplyPruningTransformation(IENetwork network)
+
+    cdef void GenerateMappingFile(IENetwork network, string path)
 
     cdef void CheckAPI()

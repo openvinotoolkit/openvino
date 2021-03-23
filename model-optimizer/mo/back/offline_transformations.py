@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     try:
         from openvino.inference_engine import IECore # pylint: disable=import-error
-        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
+        from openvino.offline_transformations import ApplyMOCTransformations, GenerateMappingFile, CheckAPI # pylint: disable=import-error
     except Exception as e:
         print("[ WARNING ] {}".format(e))
         exit(1)
@@ -36,3 +36,6 @@ if __name__ == "__main__":
     ie = IECore()
     net = ie.read_network(model=path_to_model + "_tmp.xml", weights=path_to_model + "_tmp.bin")
     net.serialize(path_to_model + ".xml", path_to_model + ".bin")
+    path_to_mapping = path_to_model + ".mapping"
+    GenerateMappingFile(net, path_to_mapping.encode('utf-8'))
+

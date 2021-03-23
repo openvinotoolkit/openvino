@@ -5,6 +5,7 @@ from .cimport offline_transformations_api_impl_defs as C
 from ..inference_engine.ie_api cimport IENetwork
 
 from libcpp cimport bool
+from libcpp.string cimport string
 
 def ApplyMOCTransformations(IENetwork network, bool cf):
     C.ApplyMOCTransformations(network.impl, cf)
@@ -14,6 +15,9 @@ def ApplyLowLatencyTransformation(IENetwork network):
 
 def ApplyPruningTransformation(IENetwork network):
     C.ApplyPruningTransformation(network.impl)
+
+def GenerateMappingFile(IENetwork network, string path):
+    C.GenerateMappingFile(network.impl, path)
 
 def CheckAPI():
     C.CheckAPI()

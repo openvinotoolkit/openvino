@@ -4,6 +4,7 @@
 
 #include "offline_transformations_api_impl.hpp"
 
+#include <generate_mapping_file.hpp>
 #include <moc_transformations.hpp>
 #include <pruning.hpp>
 
@@ -39,6 +40,11 @@ void InferenceEnginePython::ApplyPruningTransformation(InferenceEnginePython::IE
     manager.run_passes(network.actual->getFunction());
 }
 
+void InferenceEnginePython::GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::GenerateMappingFile>(path);
+    manager.run_passes(network.actual->getFunction());
+}
 
 void InferenceEnginePython::CheckAPI() {
     std::shared_ptr<ngraph::Function> f;
