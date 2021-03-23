@@ -38,13 +38,13 @@ void op::v7::Roll::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           shift_et.is_dynamic() || shift_et == element::i32 ||
                               shift_et == element::i64,
-                          "Shift must have an integral number element type.");
+                          "Shift must have int32 or int64 element type.");
 
     const auto& axes_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           axes_et.is_dynamic() || axes_et == element::i32 ||
                               axes_et == element::i64,
-                          "Axes must have an integral number element type.");
+                          "Axes must have an int32 or int64 element type.");
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& shift_pshape = get_input_partial_shape(1);
