@@ -39,6 +39,23 @@ void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob, c
 
     auto memDesc = MKLDNNMemoryDesc(td);
 
+    auto cloneBlob = [&] () {
+        MKLDNNMemory memory{ getEngine() };
+        memory.Create(memDesc, blob->buffer());
+
+        MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+        ptr->Create(memDesc);
+        ptr->SetData(memory);
+
+        return ptr;
+    };
+
+    auto isBlobAligned = [&] () {
+        const void *ptr = blob->cbuffer().as<const void*>();
+        size_t element_size = blob->element_size();
+        return (reinterpret_cast<size_t>(ptr) % element_size) == 0;
+    };
+
     if (weightCache) {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", blob->cbuffer().as<const void*>());
@@ -46,21 +63,12 @@ void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob, c
                                     + "_" + std::to_string(blob->byteSize())
                                     + "_" + ptr;
 
-        auto cloneBlob = [&] () {
-            MKLDNNMemory memory{ getEngine() };
-            memory.Create(memDesc, blob->buffer());
-
-            MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
-            _ptr->Create(memDesc);
-            _ptr->SetData(memory);
-
-            return _ptr;
-        };
-
         constBlob = *weightCache->findOrCreate(key, cloneBlob);
-    } else {
+    } else if (isBlobAligned()) {
         constBlob = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
         constBlob->Create(memDesc, blob->buffer());
+    } else {
+        constBlob = cloneBlob();
     }
 }
 
