@@ -85,7 +85,7 @@ void op::v7::DFT::validate()
                           axes_et == element::i64 || axes_et == element::i32,
                           "DFT axes element type must be i32 or i64");
 
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+    const auto& input_shape = PartialShape(get_input_partial_shape(0));
     if (input_shape.rank().is_static())
     {
         const auto input_rank = input_shape.rank().get_length();
@@ -101,7 +101,7 @@ void op::v7::DFT::validate()
                               input_shape[input_rank - 1]);
     }
 
-    PartialShape axes_shape = PartialShape(get_input_partial_shape(1));
+    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
     if (axes_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
@@ -160,7 +160,7 @@ void op::v7::DFT::validate()
                               signal_size_et == element::i64 || signal_size_et == element::i32,
                               "DFT signal_size element type must be i32 or i64");
 
-        PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
+        const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
         if (signal_size_shape.rank().is_static())
         {
             NODE_VALIDATION_CHECK(this,
@@ -188,8 +188,8 @@ void op::v7::DFT::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v7_DFT_validate_and_infer_types);
     validate();
 
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-    PartialShape axes_shape = PartialShape(get_input_partial_shape(1));
+    const auto& input_shape = PartialShape(get_input_partial_shape(0));
+    const auto& axes_shape = PartialShape(get_input_partial_shape(1));
     PartialShape output_shape = input_shape;
     if (input_shape.rank().is_dynamic() || axes_shape.rank().is_dynamic())
     {
@@ -215,7 +215,7 @@ void op::v7::DFT::validate_and_infer_types()
         return;
     }
 
-    PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
+    const auto& signal_size_shape = PartialShape(get_input_partial_shape(2));
     if (signal_size_shape.rank().is_dynamic())
     {
         set_output_type(0, get_input_element_type(0), output_shape);
