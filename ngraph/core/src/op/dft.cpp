@@ -85,24 +85,6 @@ void op::v7::DFT::validate()
                           axes_et == element::i64 || axes_et == element::i32,
                           "DFT axes element type must be i32 or i64");
 
-    if (num_of_inputs == 3)
-    {
-        element::Type signal_size_et = get_input_element_type(2);
-        NODE_VALIDATION_CHECK(this,
-                              signal_size_et == element::i64 || signal_size_et == element::i32,
-                              "DFT signal_size element type must be i32 or i64");
-
-        PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
-        if (signal_size_shape.rank().is_static())
-        {
-            NODE_VALIDATION_CHECK(this,
-                                  signal_size_shape.rank().get_length() == 1,
-                                  "DFT Signal size input must be 1D tensor. Got signal size "
-                                  "input rank: ",
-                                  signal_size_shape.rank().get_length());
-        }
-    }
-
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));
     if (input_shape.rank().is_static())
     {
@@ -171,16 +153,33 @@ void op::v7::DFT::validate()
                               axes_vector);
     }
 
-    if (num_of_inputs == 3 && axes_shape.is_static() && get_input_partial_shape(2).is_static())
+    if (num_of_inputs == 3)
     {
-        PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
+        element::Type signal_size_et = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
-                              axes_shape.to_shape()[0] == signal_size_shape.to_shape()[0],
-                              "Sizes of inputs 'axes' and 'sinal_size' must be equal. Got "
-                              "size of 'axes': ",
-                              axes_shape.to_shape()[0],
-                              "size of 'signal_size': ",
-                              signal_size_shape.to_shape()[0]);
+                              signal_size_et == element::i64 || signal_size_et == element::i32,
+                              "DFT signal_size element type must be i32 or i64");
+
+        PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
+        if (signal_size_shape.rank().is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  signal_size_shape.rank().get_length() == 1,
+                                  "DFT Signal size input must be 1D tensor. Got signal size "
+                                  "input rank: ",
+                                  signal_size_shape.rank().get_length());
+        }
+
+        if (axes_shape.is_static() && signal_size_shape.is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  axes_shape.to_shape()[0] == signal_size_shape.to_shape()[0],
+                                  "Sizes of inputs 'axes' and 'sinal_size' must be equal. Got "
+                                  "size of 'axes': ",
+                                  axes_shape.to_shape()[0],
+                                  "size of 'signal_size': ",
+                                  signal_size_shape.to_shape()[0]);
+        }
     }
 }
 
