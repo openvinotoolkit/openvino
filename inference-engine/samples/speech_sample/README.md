@@ -140,7 +140,7 @@ The following pre-trained models are available:
 * rm\_lstm4f
 * rm\_cnn4a\_smbr
 
-All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
+All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader) .
 
 
 ### Speech Inference
@@ -210,4 +210,4 @@ cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer 
 ## See Also
 * [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)

@@ -45,4 +45,4 @@ The application outputs an image (`out1.bmp`) or a sequence of images (`out1.bmp
 ## See Also
 * [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)

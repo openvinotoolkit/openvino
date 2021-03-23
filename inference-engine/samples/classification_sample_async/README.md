@@ -49,7 +49,7 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To run the sample, use AlexNet and GoogLeNet or other public or pre-trained image classification models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
+To run the sample, use AlexNet and GoogLeNet or other public or pre-trained image classification models. You can download [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 > 
@@ -66,5 +66,5 @@ By default the application outputs top-10 inference results for each infer reque
 
 ## See Also
 * [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

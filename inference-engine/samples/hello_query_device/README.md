@@ -52,5 +52,5 @@ Available devices:
 
 ## See Also
 * [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Downloader](@ref omz_tools_downloader)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
