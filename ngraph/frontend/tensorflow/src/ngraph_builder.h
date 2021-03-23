@@ -46,6 +46,11 @@ inline bool operator!= (const Status& x, const Status& y)
     return x.status != y.status;
 }
 
+inline std::ostream& operator<< (std::ostream& out, const Status& s)
+{
+    return out << s.message;
+}
+
 #define TF_RETURN_IF_ERROR(S) if((S).status != 0)return S;
 
 // Stub for tf error system
@@ -90,6 +95,7 @@ public:
     virtual void getAttrValue (const char* name, long int* x) = 0;
     virtual void getAttrValue (const char* name, float* x) = 0;
     virtual void getAttrValue (const char* name, std::vector<std::string>* x) = 0;
+    virtual void getAttrValue (const char* name, ngraph::PartialShape* x) = 0;
 
     // a way to read Const value as a tensor
     virtual void getAttrValue (const char* name, TensorWrapper** x) = 0;
@@ -100,6 +106,7 @@ public:
     virtual std::string type_string () const = 0;
 
     virtual Status input_node (size_t index, TFNodeDecoder**) const = 0;
+    virtual Status input_node (size_t index, TFNodeDecoder**, size_t* outputPortIndex) const = 0;
     virtual DataType input_type (size_t index) const = 0;
     virtual DataType output_type (size_t index) const = 0;
 

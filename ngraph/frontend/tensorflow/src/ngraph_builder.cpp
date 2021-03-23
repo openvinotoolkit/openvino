@@ -174,24 +174,26 @@ static Status GetInputNode(const Builder::OpMap& ng_op_map, const TFNodeDecoder*
     return Status(error::NOT_FOUND, "Edge not found");
   }
 
+#endif
+
   TFNodeDecoder* tf_input;
-  TF_RETURN_IF_ERROR(op->input_node(input_idx, &tf_input));
+  size_t src_output_idx;
+  TF_RETURN_IF_ERROR(op->input_node(input_idx, &tf_input, &src_output_idx));
   std::vector<ng::Output<ng::Node>> ng_op;
   try {
     ng_op = ng_op_map.at(tf_input->name());
   } catch (const out_of_range&) {
-    return Status(error::NOT_FOUND,
-                  string("Ngraph op not found for ") + tf_input->name());
+    return Status(string("Ngraph op not found for ") + tf_input->name());
   }
   try {
     result = ng_op.at(src_output_idx);
   } catch (const out_of_range&) {
-    return Status(error::NOT_FOUND, string("Input node not found at index ") +
+    return Status(string("Input node not found at index ") +
                                         to_string(src_output_idx));
   }
   return Status::OK();
 
-#endif
+
 
     NGRAPH_TF_FE_NOT_IMPLEMENTED
 }
@@ -489,7 +491,7 @@ static Status ValuesFromConstNode(const TFNodeDecoder* node,
   return Status::OK();
 #endif
 
-            NGRAPH_TF_FE_NOT_IMPLEMENTED
+    NGRAPH_TF_FE_NOT_IMPLEMENTED
 }
 
 // Helper for Builder::TranslateGraph ("Const" op)
@@ -2826,41 +2828,116 @@ const static std::map<
         {"Xdivy", TranslateXdivyOp},
         {"ZerosLike", TranslateZerosLikeOp}};
 
+
+
 class NodeProtoWrapper : public TFNodeDecoder
 {
     const NodeDef* node_def;
+    const GraphDef* graph_def;
+    std::vector<TFNodeDecoder*>* nodes;
 public:
 
-    NodeProtoWrapper(const NodeDef* _node_def) : node_def(_node_def) {}
+    NodeProtoWrapper(const NodeDef* _node_def, const GraphDef* _graph_def, std::vector<TFNodeDecoder*>* _nodes) :
+        node_def(_node_def), graph_def(_graph_def), nodes(_nodes) {}
+
+#define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) override { *x = node_def->attr().at(name).FIELD(); }
+
 
     virtual void getAttrValue (const char* name, std::vector<int32_t>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
     virtual void getAttrValue (const char* name, std::vector<float>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual void getAttrValue (const char* name, int32_t* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual void getAttrValue (const char* name, DataType* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual void getAttrValue (const char* name, std::string* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual void getAttrValue (const char* name, bool* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual void getAttrValue (const char* name, long int* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual void getAttrValue (const char* name, float* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    GET_ATTR_VALUE(int32_t, i)
+
+    virtual void getAttrValue (const char* name, DataType* x) override
+    {
+        *x = node_def->attr().at(name).type();
+    }
+
+    virtual void getAttrValue (const char* name, ngraph::PartialShape* x) override {
+        TFTensorShapeToNGraphShape(node_def->attr().at(name).shape(), x);
+    }
+
+    GET_ATTR_VALUE(std::string, s)
+    GET_ATTR_VALUE(bool, b)
+    GET_ATTR_VALUE(long int, i)
+    GET_ATTR_VALUE(float, f)
+
     virtual void getAttrValue (const char* name, std::vector<std::string>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
     // a way to read Const value as a tensor
     virtual void getAttrValue (const char* name, TensorWrapper** x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
-    virtual unsigned int num_inputs () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual std::string name () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual bool IsArg () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual std::string type_string () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual unsigned int num_inputs () const override { return node_def->input_size(); }
+
+    virtual std::string name () const override
+    {
+        return node_def->name();
+    }
+
+    virtual std::string type_string () const override
+    {
+        return node_def->op();
+    }
 
     virtual Status input_node (size_t index, TFNodeDecoder**) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+
+    virtual Status input_node (size_t index, TFNodeDecoder** retnode, size_t* outputPortIndex) const override
+    {
+        std::string input_name = node_def->input(index);
+        if(input_name.find(':') != std::string::npos) {
+            std::cerr << "input_name: " << input_name << "\n";
+            NGRAPH_TF_FE_NOT_IMPLEMENTED;
+        }
+        // TODO: don't search linearly every time!!!
+        for(auto node: *nodes)
+        {
+            if(node->name() == input_name)
+            {
+                *retnode = node;
+                *outputPortIndex = 0;
+                return Status::OK();
+            }
+        }
+        return Status("Node is not found " + input_name + " when searched as an input for node " + name());
+    }
+
     virtual DataType input_type (size_t index) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
     virtual DataType output_type (size_t index) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
-    virtual bool IsSink () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual bool IsSource () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual bool IsControlFlow () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual std::string DebugString () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual bool IsRetval () const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual bool IsSink () const override
+    {
+        // TODO: recognize special op in TF runtime; don't know similar node for proto graph representation
+        return false;
+    }
 
+    virtual bool IsSource () const override
+    {
+        // TODO: populate with other source operation types
+        std::cerr << "IsSource for " << node_def->op() << "\n";
+        return node_def->op() == "Placeholder";
+    }
+
+    virtual bool IsControlFlow () const override
+    {
+        // TODO
+        return false;
+    }
+
+    virtual std::string DebugString () const override
+    {
+        return node_def->op() + "(with name " + node_def->name() + ")";
+    }
+
+    virtual bool IsArg () const override
+    {
+        // TODO
+        return IsSource();
+    }
+
+    virtual bool IsRetval () const override
+    {
+        // TODO
+        return IsSink();
+    }
 };
 
 void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<TFNodeDecoder*>* result)
@@ -2871,7 +2948,7 @@ void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<
     result->reserve(input_graph->node_size());
     for(int i = 0; i < input_graph->node_size(); ++i)
     {
-        result->push_back(new NodeProtoWrapper(&input_graph->node(i)));
+        result->push_back(new NodeProtoWrapper(&input_graph->node(i), input_graph, result));
     }
 }
 
@@ -2896,9 +2973,12 @@ Status Builder::TranslateGraph(
   vector<const TFNodeDecoder*> tf_ops;
 
   for (const auto n : ordered) {
-    if (n->IsSink() || n->IsSource()) {
+#if 0
+      // TODO: Investigate why do we need it
+      if (n->IsSink() || n->IsSource()) {
       continue;
     }
+#endif
 
     if (n->IsControlFlow()) {
       return errors::Unimplemented(
@@ -2924,34 +3004,51 @@ Status Builder::TranslateGraph(
   //
   // Populate the parameter list, and also put parameters into the op map.
   //
+  std::cerr << "[ INFO ] Detected " << tf_params.size() << " parameters\n";
   ng::ParameterVector ng_parameter_list(tf_params.size());
+  // enumerate placeholders in some random order, count them and use counter as an index
+  int index = 0;
 
   for (auto parm : tf_params) {
+      std::cerr << "processing " << parm->name() << "\n";
     DataType dtype;
-    if (GetNodeAttr(parm->attrs(), "T", &dtype) != Status::OK()) {
+    // TODO: replace dtype by T when converting Arg
+    if (GetNodeAttr(parm->attrs(), "dtype", &dtype) != Status::OK()) {
       return errors::InvalidArgument("No data type defined for _Arg");
     }
-    int index;
-    if (GetNodeAttr(parm->attrs(), "index", &index) != Status::OK()) {
-      return errors::InvalidArgument("No index defined for _Arg");
-    }
+
+    // TODO: use this code for Arg
+    //if (GetNodeAttr(parm->attrs(), "index", &index) != Status::OK()) {
+    //  return errors::InvalidArgument("No index defined for _Arg");
+    //}
 
     ng::element::Type ng_et;
     TF_RETURN_IF_ERROR(TFDataTypeToNGraphElementType(dtype, &ng_et));
 
-    ng::PartialShape ng_shape = inputs[index];
-#if 0
-    TF_RETURN_IF_ERROR(
-        TFTensorShapeToNGraphShape(inputs[index], &ng_shape));
-#endif
+    std::cerr << "\nX\n";
 
+    ng::PartialShape ng_shape;
+    try
+    {
+        GetNodeAttr(parm->attrs(), "shape", &ng_shape);
+    }
+    catch (google::protobuf::FatalException)
+    {
+        // suppose there is no shape
+        // TODO: do it in a good way
+    }
+
+#if 0
     string prov_tag;
     GetNodeAttr(parm->attrs(), "_prov_tag", &prov_tag);
+#endif
     auto ng_param =
-        ConstructNgNode<opset::Parameter>(prov_tag, ng_et, ng_shape);
+        ConstructNgNode<opset::Parameter>(parm->name(), ng_et, ng_shape);
     SaveNgOp(ng_op_map, parm->name(), ng_param);
     ng_parameter_list[index] =
         ngraph::as_type_ptr<opset::Parameter>(ng_param.get_node_shared_ptr());
+
+    index++;
   }
 
   //
@@ -2959,7 +3056,7 @@ Status Builder::TranslateGraph(
   //
   for (auto op : tf_ops) {
     NGRAPH_VLOG(2) << "Constructing op " << op->name() << " which is "
-                   << op->type_string();
+                   << op->type_string() << "\n";
 
     const function<Status(const TFNodeDecoder*, const std::vector<const TensorWrapper*>&,
                           Builder::OpMap&)>* op_fun;
