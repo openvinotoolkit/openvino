@@ -8,7 +8,7 @@
 
 Sample usage:
 python3 -m pytest --test_conf=<path to test config> \
-    --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
+    --sea_runtool=./thirdparty/itt_collector/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
     --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
     --install_dir=<path to full openvino installation dir> --install_cc_dir=<path to final openvino installation dir>
 """
