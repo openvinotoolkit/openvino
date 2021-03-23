@@ -19,7 +19,7 @@ add_subdirectory(compile_tool)
 # install
 
 if(ENABLE_PYTHON)
-    ie_cpack_add_component(python_tools REQUIRED DEPENDS core)
+    ie_cpack_add_component(python_tools DEPENDS core)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_tool
             DESTINATION deployment_tools/tools

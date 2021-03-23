@@ -75,7 +75,7 @@ public:
         auto plg = GetCurrentPlugin();
         try {
             plg->SetConfig(config);
-        } catch (InferenceEngine::details::InferenceEngineException) {}
+        } catch (InferenceEngine::Exception&) {}
         return plg->QueryNetwork(network, config);
     }
 
