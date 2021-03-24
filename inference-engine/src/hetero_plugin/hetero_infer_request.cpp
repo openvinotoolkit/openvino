@@ -23,7 +23,7 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
     InferRequestInternal(networkInputs, networkOutputs),
     _inferRequests(inferRequests) {
     if (_networkOutputs.empty() || _networkInputs.empty()) {
-        THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
+        IE_THROW() << "Internal error: no information about network's output/input";
     }
 
     auto requestBlob([&](const std::string& blobName, InferenceEngine::InferRequest::Ptr r) {

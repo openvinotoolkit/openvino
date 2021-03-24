@@ -336,7 +336,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
 template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runQuantize() const {
     if (ptr_int_biases == nullptr) {
-        THROW_IE_EXCEPTION << "Int biases are empty";
+        IE_THROW() << "Int biases are empty";
     }
     uint32_t num_saturate = 0;
 

@@ -188,7 +188,7 @@ private:
             serializer.append(attrs().getOrDefault<std::int32_t>("coeff1", 1));
             serializer.append(attrs().getOrDefault<std::int32_t>("coeff2", 1));
         } else {
-             THROW_IE_EXCEPTION << type << " isn't supported";
+             IE_THROW() << type << " isn't supported";
         }
 
         auto postOperation = attrs().getOrDefault<StageType>("postOperation", StageType::Empty);

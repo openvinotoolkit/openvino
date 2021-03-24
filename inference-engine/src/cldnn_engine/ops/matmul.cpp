@@ -43,7 +43,7 @@ static std::pair<ngraph::Shape, ngraph::Shape> get_aligned_shapes(const ngraph::
 
     for (size_t i = 0; i < max_size - 2; ++i) {
         if (shape_a_aligned[i] != shape_b_aligned[i] && shape_a_aligned[i] > 1 && shape_b_aligned[i] > 1) {
-            THROW_IE_EXCEPTION << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
+            IE_THROW() << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
         }
         size_t max_value = std::max(shape_a_aligned[i], shape_b_aligned[i]);
         shape_a_aligned[i] = shape_b_aligned[i] = max_value;
@@ -68,7 +68,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
         ngraph::Shape shape_a_aligned, shape_b_aligned;
         std::tie(shape_a_aligned, shape_b_aligned) = get_aligned_shapes(shape_a, shape_b, op);
         if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
-            THROW_IE_EXCEPTION << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
+            IE_THROW() << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
         }
         size_t K = *(shape_a_aligned.end() - 1);
 
@@ -119,7 +119,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             std::vector<size_t> reshapeSize = { total / features, features };
 
             if (total != reshapeSize[0] * reshapeSize[1])
-                THROW_IE_EXCEPTION << "Inconsistent reshape in Matmul op: " << op->get_friendly_name();
+                IE_THROW() << "Inconsistent reshape in Matmul op: " << op->get_friendly_name();
 
             auto reshapeInName = op->get_friendly_name() + suffix;
             auto reshapeInPrim = cldnn::reshape(reshapeInName, inputName, CldnnTensorFromIEDims(reshapeSize));
@@ -167,7 +167,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
             case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
             case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-            default: THROW_IE_EXCEPTION << "Invalid dimensions size(" << dims.size() << ") for Gemm layer";
+            default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for Gemm layer";
             }
         };
 

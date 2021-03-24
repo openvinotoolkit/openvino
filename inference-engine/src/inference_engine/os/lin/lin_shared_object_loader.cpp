@@ -19,7 +19,7 @@ public:
         shared_object = dlopen(pluginName, RTLD_LAZY);
 
         if (shared_object == nullptr)
-            THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << dlerror();
+            IE_THROW() << "Cannot load library '" << pluginName << "': " << dlerror();
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
@@ -29,7 +29,7 @@ public:
 
     ~Impl() noexcept(false) {
         if (0 != dlclose(shared_object)) {
-            THROW_IE_EXCEPTION << "dlclose failed: " << dlerror();
+            IE_THROW() << "dlclose failed: " << dlerror();
         }
     }
 
@@ -44,7 +44,7 @@ public:
 
         procAddr = dlsym(shared_object, symbolName);
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION_WITH_STATUS(NotFound)
+            IE_THROW(NotFound)
                 << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
         return procAddr;
     }

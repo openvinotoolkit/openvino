@@ -55,7 +55,7 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
     // Regardless of layout, dimensions are stored in fixed order
     return std::make_pair(dims.back(), dims.at(size - 2));
   } else {
-    THROW_IE_EXCEPTION << "Tensor does not have height and width dimensions";
+    IE_THROW() << "Tensor does not have height and width dimensions";
   }
 }
 
@@ -128,7 +128,7 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
       } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
         fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
       } else {
-        THROW_IE_EXCEPTION << "Input precision is not supported for image info!";
+        IE_THROW() << "Input precision is not supported for image info!";
       }
       continue;
     }
@@ -148,7 +148,7 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
     } else if (item.second->getPrecision() == InferenceEngine::Precision::I16) {
       fillBlobRandom<int16_t>(inputBlob);
     } else {
-      THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
+      IE_THROW() << "Input precision is not supported for " << item.first;
     }
   }
 }
