@@ -411,8 +411,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        ngraph::builder)
-ie_mark_target_as_cc(unit-test)
+                                        ngraph::builder
+                                        openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
