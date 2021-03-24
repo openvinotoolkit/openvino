@@ -41,7 +41,7 @@ namespace ngraph
                     for (size_t i = 0; i < v.size(); ++i)
                     {
                         strides[i] = stride;
-                        stride *= v[i]
+                        stride *= v[i];
                     }
                     strides.back() = stride;
                     return strides;
