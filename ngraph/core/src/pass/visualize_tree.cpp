@@ -389,6 +389,8 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     case element::Type_t::undefined: ss << "[ undefined value ]"; break;
     case element::Type_t::dynamic: ss << "[ dynamic value ]"; break;
     case element::Type_t::u1: ss << "[ u1 value ]"; break;
+    case element::Type_t::u4: ss << "[ u4 value ]"; break;
+    case element::Type_t::i4: ss << "[ i4 value ]"; break;
     case element::Type_t::bf16:
     case element::Type_t::f16:
     case element::Type_t::f32:

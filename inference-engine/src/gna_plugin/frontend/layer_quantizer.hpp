@@ -269,7 +269,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         make_custom_blob<typename QuantDesc::WeightsPrecision>(InferenceEngine::C, InferenceEngine::SizeVector({wl->_weights->size()}));
     intWeights->allocate();
     if (intWeights->buffer() == nullptr) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+        IE_THROW(NotAllocated)
                 << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
                 << "cannot copy weights for layer :"<< wl->name << " of size" << intWeights->byteSize();
     }
@@ -297,7 +297,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         }));
         bias->allocate();
         if (bias->buffer() == nullptr) {
-            THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+            IE_THROW(NotAllocated)
                 << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
                 << "cannot copy bias for layer :"<< wl->name <<"of size" << bias->byteSize();
         }
@@ -315,14 +315,14 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
-            THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
+            IE_THROW() << "Unsupported input scale factor value " << input_scale_factor;
         }
     }
     if (wl->outData[0]->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported output dims size for " << wl->name <<", should be > 1, but " << wl->outData[0]->getDims().size();
+        IE_THROW() << "Unsupported output dims size for " << wl->name <<", should be > 1, but " << wl->outData[0]->getDims().size();
     }
     if (wl->insData[0].lock().get()->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported input dims size for " << wl->name << ", should be > 1, but " << wl->insData[0].lock().get()->getDims().size();
+        IE_THROW() << "Unsupported input dims size for " << wl->name << ", should be > 1, but " << wl->insData[0].lock().get()->getDims().size();
     }
     uint32_t num_rows = isDiagonal ? 1 : wl->outData[0]->getDims()[oIdx];
     uint32_t num_columns = isDiagonal ? wl->_weights->size() : wl->insData[0].lock().get()->getDims()[iIdx];
@@ -388,7 +388,7 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
     auto intWeights = make_custom_blob<typename QuantDesc::WeightsPrecision>(InferenceEngine::C, InferenceEngine::SizeVector({conv->_weights->size()}));
     intWeights->allocate();
     if (intWeights->buffer() == nullptr) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+        IE_THROW(NotAllocated)
             << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
             << "cannot copy weights for layer :"<< conv->name << " of size" << intWeights->byteSize();
     }
@@ -413,7 +413,7 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
                                                                                                       }));
         bias->allocate();
         if (bias->buffer() == nullptr) {
-            THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated)
+            IE_THROW(NotAllocated)
                 << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
                 << "cannot copy bias for layer :"<< conv->name <<"of size" << bias->byteSize();
         }
@@ -430,14 +430,14 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
         input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
-            THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
+            IE_THROW() << "Unsupported input scale factor value " << input_scale_factor;
         }
     }
     if (conv->outData[0]->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported output dims size for " << conv->name <<", should be > 1, but " << conv->outData[0]->getDims().size();
+        IE_THROW() << "Unsupported output dims size for " << conv->name <<", should be > 1, but " << conv->outData[0]->getDims().size();
     }
     if (conv->insData[0].lock().get()->getDims().size() < 2) {
-        THROW_IE_EXCEPTION << "Unsupported input dims size for " << conv->name << ", should be > 1, but " << conv->insData[0].lock().get()->getDims().size();
+        IE_THROW() << "Unsupported input dims size for " << conv->name << ", should be > 1, but " << conv->insData[0].lock().get()->getDims().size();
     }
     auto inputData = conv->insData[0].lock();
 
