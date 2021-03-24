@@ -183,4 +183,5 @@ NGRAPH_OP(ReadValue, ngraph::op::v6) // new version
 
 // New operations added in opset7
 NGRAPH_OP(Gelu, ngraph::op::v7)
+NGRAPH_OP(IDFT, ngraph::op::v7)
 NGRAPH_OP(Roll, ngraph::op::v7)
