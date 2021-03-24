@@ -30,6 +30,51 @@ namespace ngraph
     {
         namespace reference
         {
+            void fft(const float* input_data,
+                     const Shape& input_data_shape,
+                     const int64_t* axes_data,
+                     const Shape& axes_data_shape,
+                     const int64_t* signal_size_data,
+                     const Shape& signal_size_data_shape,
+                     FFTKind fft_kind)
+             {
+             }
+
+            void fft_postprocessing(const HostTensorVector& outputs,
+                                    const ngraph::element::Type output_type,
+                                    const std::vector<float>& fft_result)
+            {
+                size_t fft_result_size = fft_result.size();
+
+                switch (output_type)
+                {
+                case element::Type_t::bf16:
+                {
+                    bfloat16* result_ptr = outputs[0]->get_data_ptr<bfloat16>();
+                    for (size_t i = 0; i < fft_result_size; ++i)
+                    {
+                        result_ptr[i] = bfloat16(fft_result[i]);
+                    }
+                }
+                break;
+                case element::Type_t::f16:
+                {
+                    float16* result_ptr = outputs[0]->get_data_ptr<float16>();
+                    for (size_t i = 0; i < fft_result_size; ++i)
+                    {
+                        result_ptr[i] = float16(fft_result[i]);
+                    }
+                }
+                break;
+                case element::Type_t::f32:
+                {
+                    float* result_ptr = outputs[0]->get_data_ptr<float>();
+                    memcpy(result_ptr, fft_result.data(), fft_result_size * sizeof(float));
+                }
+                break;
+                default:;
+                }
+            }
         }
     }
 }
