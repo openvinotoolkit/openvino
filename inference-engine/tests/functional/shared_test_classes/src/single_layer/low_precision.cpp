@@ -35,9 +35,8 @@ void LowPrecisionTest::SetUp() {
     auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrc, inputShape);
     std::vector<float> weights1Data(ngraph::shape_size(weights1Shape), 0.0f);
 
-    auto count = 10;
-    for (int i = 0; i < 256; i+=17) {
-        weights1Data[i] = count++;
+    for (size_t i = 0; i < 16; i++) {
+        weights1Data[i * 17] = 10.0f + i;
     }
 
     auto weights1 = ngraph::builder::makeConstant<float>(ngPrc, weights1Shape, weights1Data);

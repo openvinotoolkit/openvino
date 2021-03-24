@@ -1116,24 +1116,21 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
         double tmp_dst_quant_scale = quant->_weights_quant.GetScale() * quant->_src_quant.GetScale();
         if (weightsSize == 1) {
-            std::vector<std::tuple<uint16_t const, float const, float const>>::const_iterator itt = thresholds.begin();
+            auto itt = thresholds.begin();
+            auto limit = std::numeric_limits<int32_t>::max();
 
-            if (inputsSize == 2 && static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.GetScale()) >
-                static_cast<uint64_t>(std::numeric_limits<int32_t>::max() - 1) * std::get<0>(*itt)) {
+            if (inputsSize == 1) {
+                limit = std::numeric_limits<int8_t>::max();
+            }
+
+            if (static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.GetScale()) >
+                static_cast<uint64_t>(limit - 1) * std::get<0>(*itt)) {
                 gnawarn() << "Output scale for " << wl->name
                     << " too large and are being reduced. Else saturations likely will happen \n";
                 // reduce weight scale according experimental heuristic
                 while ((itt + 1) != thresholds.end() && quant->_dst_quant.GetScale() * quant->_src_quant.GetScale() /
-                    static_cast<float>(std::numeric_limits<int32_t>::max()) >= std::get<0>(*(++itt))) {}
-                quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * std::get<1>(*itt));
-            } else if (inputsSize == 1 && static_cast<uint16_t>(tmp_dst_quant_scale * quant->_src_quant.GetScale()) >
-                static_cast<uint16_t>(std::numeric_limits<int8_t>::max() - 1) * std::get<0>(*itt)) {
-                gnawarn() << "Output scale for " << wl->name
-                    << " too large and are being reduced. Else saturations likely will happen \n";
-                // reduce weight scale according experimental heuristic
-                while ((itt + 1) != thresholds.end() && quant->_dst_quant.GetScale() * quant->_src_quant.GetScale() /
-                    static_cast<float>(std::numeric_limits<int8_t>::max()) >= std::get<0>(*(++itt))) {}
-                quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * std::get<2>(*itt));
+                    static_cast<float>(limit) >= std::get<0>(*(++itt))) {}
+                quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * (inputsSize == 2 ? std::get<1>(*itt) : std::get<2>(*itt)));
             }
         }
 

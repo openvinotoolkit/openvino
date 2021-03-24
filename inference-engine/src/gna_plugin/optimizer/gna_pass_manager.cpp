@@ -126,7 +126,7 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
     return copyWithQuant;
 }
 
-static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l, bool lowPrecision) {
+static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l, std::shared_ptr<IPassManager> passmanager) {
     std::vector<CNNLayerPtr> prevLayers;
 
     // skipping memory inputs and true inputs layers
@@ -173,7 +173,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         switch (eltwise->_operation) {
             case EltwiseLayer::Sub:
             case EltwiseLayer::Sum:
-                if (!lowPrecision) {
+                if (!passmanager->isLowPrecision()) {
                     if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
                         return prevLayers;
                     }
@@ -770,10 +770,9 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 }
 
 void InsertIdentityLayerPass::run() {
-    bool lowPrecision = getPassManager()->isLowPrecision();
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     for (auto & l : *pLayers) {
-        for (auto && prev : getCandidatesForIdentityInsertion(l, lowPrecision)) {
+        for (auto && prev : getCandidatesForIdentityInsertion(l, getPassManager())) {
             // Do an upstream search until Functional layer is found
             auto original_prev_layer = prev;
             auto true_layer = l;
@@ -848,7 +847,7 @@ void InsertIdentityLayerPass::run() {
                 for (auto && nextLayer : getInputTo(nextData)) {
                     if (nextLayer.second.get() == l.get())
                         continue;
-                    if (getCandidatesForIdentityInsertion(nextLayer.second, lowPrecision).empty()) {
+                    if (getCandidatesForIdentityInsertion(nextLayer.second, getPassManager()).empty()) {
                         notAll = true;
                     }
                 }

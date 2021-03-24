@@ -1142,8 +1142,8 @@ void GNAGraphCompiler::SlicePrimitive(InferenceEngine::CNNLayerPtr layer) {
 void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& eltwise = dynamic_cast<EltwiseLayer&>(*layer.get());
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-    uint32_t inputsSignificance = gnaFlags->input_low_precision ?
-                                  GNALimitations::inputsLowPrecSignificance : GNALimitations::inputsSignificance;
+    uint32_t noOfInputsDivider = gnaFlags->input_low_precision ?
+                                  GNALimitations::noOfInputsLowPrecDivider : GNALimitations::noOfInputsDivider;
 
     // for eltwise sum/sub in 16-bit precision one input should be 4 bytes and one 2 bytes - detecting that below
     // the names of variables are left for clarity although not always reflecting the real precision/size
@@ -1215,7 +1215,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_in = in_4b_channels * in_4b_height * in_4b_width;
     uint32_t num_columns_in = in_4b_batch;
     uint32_t num_rows_out = num_rows_in;
-    uint32_t num_padding = ALIGN(num_rows_in, inputsSignificance) - num_rows_in;
+    uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivider) - num_rows_in;
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
@@ -1314,7 +1314,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
     Precision inputPrecision;
-    uint32_t inputsSignificance = GNALimitations::inputsSignificance;
+    uint32_t noOfInputsDivider = GNALimitations::noOfInputsDivider;
 
     if (!quantized) {
         inputPrecision = inputs->getPrecision();
@@ -1322,7 +1322,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         inputPrecision = Precision(Precision::I16);
     } else {
         inputPrecision = Precision(Precision::I8);
-        inputsSignificance = GNALimitations::inputsLowPrecSignificance;
+        noOfInputsDivider = GNALimitations::noOfInputsLowPrecDivider;
     }
 
     auto input_data = HasTo2DReshapeData(layer) ? Get2DReshapedData(inputs, 8) : inputs;
@@ -1331,7 +1331,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     uint32_t num_rows_in = InferenceEngine::details::product(in_dims) / batch_size;
     uint32_t num_columns_in = batch_size;
     uint32_t num_rows_out = isDiag ? num_rows_in : GetDataDimSize(outputs, 1);
-    uint32_t num_padding = ALIGN(num_rows_in, inputsSignificance) - num_rows_in;
+    uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivider) - num_rows_in;
     uint32_t num_padding_out = isDiag ? num_padding : 0;
 
     void* ptr_inputs = nullptr;
@@ -2274,11 +2274,11 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     if (LayerInfo(prevLayer).isInput()) {
         if (0 == inputDesc->bytes_allocated_for_input[prevLayer->name]) {
             // if request for allocation less that realTensorInput - we need to extend request
-            auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer, gnaFlags->input_low_precision);
+            auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
             if (num_data_bytes_in < minInput) {
-                uint32_t inputsSignificance = gnaFlags->input_low_precision ? GNALimitations::inputsLowPrecSignificance : GNALimitations::inputsSignificance;
-                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, inputsSignificance);
-                num_data_bytes_in = ALIGN(minInput, inputsSignificance);
+                uint32_t noOfInputsDivider = gnaFlags->input_low_precision ? GNALimitations::noOfInputsLowPrecDivider : GNALimitations::noOfInputsDivider;
+                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, noOfInputsDivider);
+                num_data_bytes_in = ALIGN(minInput, noOfInputsDivider);
             }
 
             // real allocation pointer will be kept in ptr not in ptr_inputs_global

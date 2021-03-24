@@ -63,6 +63,8 @@ class ModelQuantizer {
         auto sortedNewNet = InferenceEngine::details::CNNNetSortTopologically(copiedNet);
         gnalog() << "Sorted layers: " << std::endl;
         for (auto &&layer : sortedNewNet) {
+            auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+            quantData->lowPrecision = lowPrecision;
             gnalog() << layer->name << std::endl;
         }
         /// filling scale factors for input layers, memory layers will have scaleFactor of 1.0 by default

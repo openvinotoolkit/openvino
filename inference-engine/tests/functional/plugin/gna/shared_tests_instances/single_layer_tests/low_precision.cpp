@@ -6,7 +6,7 @@
 
 #include "single_layer_tests/low_precision.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "skip_tests_check.hpp"
+#include "../skip_tests_check.hpp"
 
 using namespace LowPrecisionTestDefinitions;
 
