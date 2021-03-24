@@ -149,7 +149,9 @@ namespace
         case element::Type_t::u32: return InferenceEngine::Precision::U32; break;
         case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
         case element::Type_t::u1: return InferenceEngine::Precision::BIN; break;
-        case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+        case element::Type_t::i4:
+        case element::Type_t::u4:
+        case element::Type_t::undefined:
         case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
