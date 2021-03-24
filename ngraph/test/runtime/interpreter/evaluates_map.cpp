@@ -64,6 +64,7 @@
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
 #include <ngraph/runtime/reference/roi_pooling.hpp>
+#include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
 #include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
@@ -2138,6 +2139,22 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::Roll>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::roll<T>(inputs[0]->get_data_ptr<const T>(),
+                                    inputs[1]->get_data_ptr<const int64_t>(),
+                                    inputs[2]->get_data_ptr<const int64_t>(),
+                                    outputs[0]->get_data_ptr<T>(),
+                                    inputs[0]->get_shape(),
+                                    inputs[1]->get_shape(),
+                                    inputs[2]->get_shape());
+        return true;
+    }
+
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
@@ -2197,6 +2214,7 @@ namespace
                                std::string("in evaluate_node()"));
         }
     }
+
 } // namespace
 
 runtime::interpreter::EvaluatorsMap& runtime::interpreter::get_evaluators_map()
