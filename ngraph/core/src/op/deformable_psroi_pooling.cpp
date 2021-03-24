@@ -93,13 +93,13 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           input_pshape.rank().is_dynamic() || input_pshape.rank().get_length() == 4,
-                          "Feature map input rank must equal to 4 (input rank: ",
+                          "First input rank must equal to 4 (input rank: ",
                           input_pshape.rank().get_length(),
                           ")");
     NODE_VALIDATION_CHECK(this,
                           box_coords_pshape.rank().is_dynamic() ||
                               box_coords_pshape.rank().get_length() == 2,
-                          "Box coordinates input rank must equal to 2 (input rank: ",
+                          "Second input rank must equal to 2 (input rank: ",
                           box_coords_pshape.rank().get_length(),
                           ")");
 
@@ -109,12 +109,13 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this,
                               offsets_pshape.rank().is_dynamic() ||
                                   offsets_pshape.rank().get_length() == 4,
-                              "Offsets input rank must equal to 4 (input rank: ",
+                              "Third input rank must equal to 4 (input rank: ",
                               offsets_pshape.rank().get_length(),
                               ")");
     }
 
-    NODE_VALIDATION_CHECK(this, m_group_size > 0, "group_size has to be greater than 0");
+    NODE_VALIDATION_CHECK(
+        this, m_group_size > 0, "Value of `group_size` attribute has to be greater than 0 ");
 
     int64_t output_rank = 4;
     std::vector<Dimension> output_dim_vec(output_rank, Dimension::dynamic());
