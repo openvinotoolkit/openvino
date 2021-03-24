@@ -76,7 +76,7 @@ class NonConstBeginStridedSliceReplacement(FrontReplacementSubgraph):
         # retrieve attribute values
         begin_mask = strided_slice_node.soft_get('begin_mask')
         end_mask = strided_slice_node.soft_get('end_mask')
-        shrink_mask = strided_slice_node.soft_get('begin_mask')
+        shrink_mask = strided_slice_node.soft_get('shrink_axis_mask', int64_array([0]))
 
         # check applicability of this transformation to the given sub-graph:
         # 1. check that slicing is performed along just one axis

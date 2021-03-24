@@ -39,7 +39,7 @@ class NonConstBeginStridedSliceReplacementTests(unittest.TestCase):
             **const('step', int64_array([1, 1, 1])),
             'strided_slice': {'type': 'StridedSlice', 'kind': 'op', 'op': 'StridedSlice',
                               'begin_mask': int64_array([0, 1, 0]), 'end_mask': int64_array([0, 1, 0]),
-                              'shrink_mask': int64_array([0, 1, 0]), 'name': 'non_const_begin_strided_slice'},
+                              'shrink_axis_mask': int64_array([0, 1, 0]), 'name': 'non_const_begin_strided_slice'},
             'result': {'type': 'Result', 'kind': 'op', 'op': 'Result'},
 
             # nodes from the reference graph
@@ -102,7 +102,7 @@ class NonConstBeginStridedSliceReplacementTests(unittest.TestCase):
             **const('step', int64_array([1, 1, 1])),
             'strided_slice': {'type': 'StridedSlice', 'kind': 'op', 'op': 'StridedSlice',
                               'begin_mask': int64_array([0, 1, 0]), 'end_mask': int64_array([0, 1, 0]),
-                              'shrink_mask': int64_array([0, 1, 0]), 'name': 'non_const_begin_strided_slice'},
+                              'shrink_axis_mask': int64_array([0, 1, 0]), 'name': 'non_const_begin_strided_slice'},
             'result': {'type': 'Result', 'kind': 'op', 'op': 'Result'},
         }
 
