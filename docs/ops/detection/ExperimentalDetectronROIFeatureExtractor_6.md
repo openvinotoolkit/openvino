@@ -13,12 +13,13 @@ corresponding pyramid levels.
 
 Operation applies the *ROIAlign* algorithm to the pyramid layers:
 
-* output[i, :, :, :] = ROIAlign(inputPyramid[j], rois[i])
-* j = PyramidLevelMapper(rois[i])
+`output[i, :, :, :] = ROIAlign(inputPyramid[j], rois[i])`
+
+`j = PyramidLevelMapper(rois[i])`
 
 PyramidLevelMapper maps the ROI to the pyramid level using the following formula:
 
-* j = floor(2 + log<sub>2</sub>(sqrt(w * h) / 224)
+`j = floor(2 + log2(sqrt(w * h) / 224)`
 
 Here 224 is the canonical ImageNet pre-training size, 2 is the pyramid starting level, and `w`, `h` are the ROI width and height.
 

@@ -4,29 +4,18 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of 
+**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* generates prior grids of 
 specified sizes.
 
-**Detailed description**: Operation takes coordinates of centres of boxes and add strides to them to calculate 
-coordinates of prior grids according to next algorithm:
-    
-    for (int ih = 0; ih < layer_height; ++ih)
-        for (int iw = 0; iw < layer_width; ++iw)
-            for (int s = 0; s < number_of_priors; ++s)
-                output_data[0] = priors[4 * s + 0] + step_w * (iw + 0.5)
-                output_data[1] = priors[4 * s + 1] + step_h * (ih + 0.5)
-                output_data[2] = priors[4 * s + 2] + step_w * (iw + 0.5)
-                output_data[3] = priors[4 * s + 3] + step_h * (ih + 0.5)
-                output_data += 4
+**Detailed description**: Operation takes coordinates of centres of boxes and add strides with offset `0.5` to them to 
+calculate coordinates of prior grids.
+
+Numbers of generated sells is `featmap_height` and `featmap_width` if *h* and *w* are zeroes, otherwise *h* and *w* 
+respectively. Steps of generated grid are `image_height` / `layer_height` and `image_width` / `layer_width` if 
+*stride_h* and *stride_w* are zeroes, otherwise *stride_h* and *stride_w* respectively.
 
 `featmap_height`, `featmap_width`, `image_height` and `image_width` are spatial dimensions values from second and third 
-inputs respectively. `priors` is a data from first input.
-
-If *h* and *w* are zeroes, then `layer_height` = `featmap_height` and `layer_width` = `featmap_width`, otherwise *h* 
-and *w* respectively.
-
-If *stride_h* and *stride_w* are zeroes then `step_h` = `image_height` / `layer_height` and 
-`step_w` = `image_width` / `layer_width`, otherwise *stride_h* and *stride_w* respectively.
+inputs respectively.
 
 **Attributes**:
 

@@ -9,11 +9,47 @@ the detection output using information on location and score predictions.
 
 **Detailed description**: Operation doing next steps:
 
-1.  Applies deltas to boxes sizes;
+Let us have bounding boxes [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]
+
+1.  Applies deltas to boxes sizes [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>] and takes coordinates of 
+refined boxes according to formulas:
+
+`x1_new = ctr_x + (dx - 0.5 * exp(min(d_log_w, max_delta_log_wh))) * box_w`
+
+`y0_new = ctr_y + (dy - 0.5 * exp(min(d_log_h, max_delta_log_wh))) * box_h`
+
+`x1_new = ctr_x + (dx + 0.5 * exp(min(d_log_w, max_delta_log_wh))) * box_w - 1.0`
+
+`y1_new = ctr_y + (dy + 0.5 * exp(min(d_log_h, max_delta_log_wh))) * box_h - 1.0`
+    
+* `box_w` and `box_h` are width and height of box:
+
+`box_w = x1 - x0 + 1.0`
+
+`box_h = y1 - y0 + 1.0`
+
+* `ctr_x` and `ctr_y` are center location of box:
+
+`ctr_x = x0 + 0.5f * box_w`
+
+`ctr_y = y0 + 0.5f * box_h`
+    
+* `dx`, `dy`, `d_log_w` and `d_log_h` are deltas calculated according to next formulas and `deltas_tensor` is second 
+input:
+
+`dx = deltas_tensor[roi_idx, 4 * class_idx + 0] / deltas_weights[0]`
+
+`dy = deltas_tensor[roi_idx, 4 * class_idx + 1] / deltas_weights[1]`
+
+`d_log_w = deltas_tensor[roi_idx, 4 * class_idx + 2] / deltas_weights[2]`
+
+`d_log_h = deltas_tensor[roi_idx, 4 * class_idx + 3] / deltas_weights[3]`
+
 2.  If *class_agnostic_box_regression* is `true` then operation removes predictions for background classes;
 3.  Clips boxes to image;
 4.  Applies *score_threshold* on detection scores;
-5.  Applies non-maximum suppression class-wise with *nms_threshold*;
+5.  Applies non-maximum suppression class-wise with *nms_threshold* and returns *post_nms_count* or less detections per 
+class;
 6.  Operation returns *max_detections_per_image* detections if total number of detections is more than it, otherwise 
 returns total number of detections and the output tensor is filled with undefined values for rest output tensor 
 elements.
@@ -47,7 +83,7 @@ elements.
 
 * *post_nms_count*
 
-    * **Description**: *sampling_ratio* attribute specifies the maximal number of detections per class.
+    * **Description**: *post_nms_count* attribute specifies the maximal number of detections per class.
     * **Range of values**: non-negative integer number
     * **Type**: int
     * **Default value**: None
@@ -82,7 +118,7 @@ elements.
 
 * *deltas_weights*
 
-    * **Description**: *deltas_weights* attribute specifies deltas of weights.
+    * **Description**: *deltas_weights* attribute specifies weights for bounding boxes sizes deltas.
     * **Range of values**: a list of non-negative floating point numbers
     * **Type**: float[]
     * **Default value**: None
@@ -90,14 +126,14 @@ elements.
 
 **Inputs**
 
-* **1**: A 2D tensor of type *T* with input ROIs, with shape `[number_of_POIs, 4]` describing the ROIs as 4-tuples: 
+* **1**: A 2D tensor of type *T* with input ROIs, with shape `[number_of_ROIs, 4]` describing the ROIs as 4-tuples: 
 [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. The batch dimension of first, second and third inputs 
 should be the same. **Required.**
 
-* **2**: A 2D tensor of type *T* with shape `[number_of_POIs, num_classes * 4]` describing deltas for input boxes.
+* **2**: A 2D tensor of type *T* with shape `[number_of_ROIs, num_classes * 4]` describing deltas for input boxes.
  **Required.**
 
-* **3**: A 2D tensor of type *T* with shape `[number_of_POIs, num_classes]` describing detections scores. **Required.**
+* **3**: A 2D tensor of type *T* with shape `[number_of_ROIs, num_classes]` describing detections scores. **Required.**
 
 * **4**: A 2D tensor of type *T* with shape `[1, 3]` contains 3 elements
  `[image_height, image_width, scale_height_and_width]` describing input image size info. **Required.**
