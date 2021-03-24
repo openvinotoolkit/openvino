@@ -11,6 +11,7 @@
 #include <vpu/configuration/options/copy_optimization.hpp>
 #include <vpu/configuration/options/protocol.hpp>
 #include <vpu/configuration/options/power_config.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -52,9 +53,11 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<CopyOptimizationOption>();
     _configuration.registerOption<ProtocolOption>();
     _configuration.registerOption<PowerConfigOption>();
+    _configuration.registerOption<HwAccelerationOption>();
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     _configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
+    _configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
 IE_SUPPRESS_DEPRECATED_END
 
     _inputsInfo.clear();

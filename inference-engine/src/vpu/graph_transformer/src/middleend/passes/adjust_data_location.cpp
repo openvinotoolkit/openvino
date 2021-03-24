@@ -14,6 +14,8 @@
 #include <vpu/middleend/allocator/allocator.hpp>
 #include <vpu/middleend/hw/utility.hpp>
 
+#include <vpu/configuration/options/hw_acceleration.hpp>
+
 namespace vpu {
 
 namespace {
@@ -147,7 +149,7 @@ void PassImpl::collectMemReqs(const Model& model) {
 }
 
 void PassImpl::resetStageOrder(const Model& model) {
-    if (!CompileEnv::get().config.compileConfig().hwOptimization)
+    if (!CompileEnv::get().config.get<HwAccelerationOption>())
         return;
 
     static const std::string s_expectCMXOutput {"expectCMXOutput"};

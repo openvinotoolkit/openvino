@@ -146,6 +146,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_PROTOCOL, {std::string()}},
         {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, {true}},
         {InferenceEngine::MYRIAD_POWER_MANAGEMENT, {InferenceEngine::MYRIAD_POWER_FULL}},
+        {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, {true}}
     };
     return defaultEntries;
 }
@@ -186,6 +187,12 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE,         InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE}),
         std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_SHAVES,  InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE_SHAVES}),
         std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_NCES,    InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_STAGE_NCES}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+
+        std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
+        std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }
@@ -202,6 +209,8 @@ const std::vector<std::string>& getPublicOptions() {
         VPU_CONFIG_KEY(LOG_LEVEL),
         InferenceEngine::MYRIAD_PROTOCOL,
         VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
+        InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
+        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)
     };
     return publicOptions;
 }

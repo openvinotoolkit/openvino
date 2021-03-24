@@ -10,6 +10,7 @@
 #include <vpu/configuration/options/copy_optimization.hpp>
 #include <vpu/configuration/options/protocol.hpp>
 #include <vpu/configuration/options/power_config.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -355,10 +356,12 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<CopyOptimizationOption>();
     configuration.registerOption<ProtocolOption>();
     configuration.registerOption<PowerConfigOption>();
+    configuration.registerOption<HwAccelerationOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
+    configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
 IE_SUPPRESS_DEPRECATED_END
 
     return configuration;

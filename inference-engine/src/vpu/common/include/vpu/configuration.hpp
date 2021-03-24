@@ -20,7 +20,6 @@ struct CompilationConfig {
     int numExecutors = -1;
     int tilingCMXLimitKB = -1;
 
-    bool hwOptimization = true;
     bool hwExtraSplit = false;
 
     std::string irWithVpuScalesDir;

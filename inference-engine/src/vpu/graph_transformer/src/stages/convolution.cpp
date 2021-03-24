@@ -16,6 +16,7 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 #include <vpu/stage_builder.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 namespace vpu {
 
@@ -163,7 +164,7 @@ void parseConv2D(const Model      & model,
                           kernelStrideY,
                           dilationX,
                           dilationY,
-                          env.config.compileConfig().hwOptimization,
+                          env.config.get<HwAccelerationOption>(),
                           env.config.compileConfig().hwDilation,
                           env.config.compileConfig().hwDisabled(layer->name));
 
@@ -476,7 +477,7 @@ void parseConvND(const Model      & model,
                           strides[1],
                           dilations[0],
                           dilations[1],
-                          env.config.compileConfig().hwOptimization,
+                          env.config.get<HwAccelerationOption>(),
                           env.config.compileConfig().hwDilation,
                           env.config.compileConfig().hwDisabled(layer->name));
 

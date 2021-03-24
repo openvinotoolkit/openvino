@@ -33,6 +33,7 @@
 #include <legacy/ie_util_internal.hpp>
 
 #include <vpu/parsed_config.hpp>
+#include <vpu/vpu_config.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/stage_builder.hpp>
 #include <vpu/frontend/frontend.hpp>
@@ -43,6 +44,8 @@
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
 #include <mvnc.h>
+
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 namespace vpu {
 
@@ -81,7 +84,7 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
 #endif
 
     if (platform == ncDevicePlatform_t::NC_MYRIAD_2) {
-        g_compileEnv->config.compileConfig().hwOptimization = false;
+        g_compileEnv->config.set(ie::MYRIAD_ENABLE_HW_ACCELERATION, ie::PluginConfigParams::NO);
     }
 
     VPU_THROW_UNLESS(g_compileEnv->config.compileConfig().numSHAVEs <= g_compileEnv->config.compileConfig().numCMXSlices,
@@ -275,7 +278,7 @@ int DeviceResources::numStreams() {
 }
 
 int DefaultAllocation::numStreams(const ncDevicePlatform_t& platform, const PluginConfiguration& configuration) {
-    return platform == ncDevicePlatform_t::NC_MYRIAD_X && configuration.compileConfig().hwOptimization ? 2 : 1;
+    return platform == ncDevicePlatform_t::NC_MYRIAD_X && configuration.get<HwAccelerationOption>() ? 2 : 1;
 }
 
 int DefaultAllocation::numSlices(const ncDevicePlatform_t& platform, int numStreams) {

@@ -28,7 +28,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         CONFIG_KEY(CONFIG_FILE),
 
-        ie::MYRIAD_ENABLE_HW_ACCELERATION,
         ie::MYRIAD_CUSTOM_LAYERS,
         ie::MYRIAD_THROUGHPUT_STREAMS,
 
@@ -36,7 +35,6 @@ IE_SUPPRESS_DEPRECATED_START
         // Public deprecated
         //
 
-        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
         VPU_CONFIG_KEY(CUSTOM_LAYERS),
 
         //
@@ -114,7 +112,6 @@ IE_SUPPRESS_DEPRECATED_END
 const std::unordered_set<std::string>& ParsedConfig::getDeprecatedOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getDeprecatedOptions(), {
-        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
         VPU_CONFIG_KEY(CUSTOM_LAYERS),
         VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
     });
@@ -171,7 +168,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
     setOption(_compileConfig.packDataInCmx,                  switches, config, ie::MYRIAD_PACK_DATA_IN_CMX);
     setOption(_compileConfig.ignoreUnknownLayers,            switches, config, ie::MYRIAD_IGNORE_UNKNOWN_LAYERS);
-    setOption(_compileConfig.hwOptimization,                 switches, config, ie::MYRIAD_ENABLE_HW_ACCELERATION);
     setOption(_compileConfig.hwExtraSplit,                   switches, config, ie::MYRIAD_HW_EXTRA_SPLIT);
     setOption(_compileConfig.injectSwOps,                    switches, config, ie::MYRIAD_HW_INJECT_STAGES);
     setOption(_compileConfig.mergeHwPoolToConv,              switches, config, ie::MYRIAD_HW_POOL_CONV_MERGE);
@@ -236,7 +232,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableMemoryTypesAnnotation,    switches, config, ie::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
 
 IE_SUPPRESS_DEPRECATED_START
-    setOption(_compileConfig.hwOptimization,                 switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
     setOption(_compileConfig.customLayers,                             config, VPU_CONFIG_KEY(CUSTOM_LAYERS));
     setOption(_printReceiveTensorTime,                       switches, config, VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
     setOption(_compileConfig.detectBatch,                    switches, config, VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));

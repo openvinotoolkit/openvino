@@ -23,6 +23,7 @@
 #include <vpu/configuration/options/copy_optimization.hpp>
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/protocol.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 #include "myriad_plugin.h"
 
@@ -126,14 +127,12 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     // TODO: remove once all options are migrated
 IE_SUPPRESS_DEPRECATED_START
     _config = {
-        { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
         { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
         { MYRIAD_CUSTOM_LAYERS, "" },
         { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
         { MYRIAD_THROUGHPUT_STREAMS, "-1" },
 
         // Deprecated
-        { KEY_VPU_HW_STAGES_OPTIMIZATION, CONFIG_VALUE(YES) },
         { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, CONFIG_VALUE(NO) },
         { KEY_VPU_CUSTOM_LAYERS, "" },
         { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
@@ -150,10 +149,12 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<CopyOptimizationOption>();
     _parsedConfig.registerOption<PowerConfigOption>();
     _parsedConfig.registerOption<ProtocolOption>();
+    _parsedConfig.registerOption<HwAccelerationOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     _parsedConfig.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
+    _parsedConfig.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
 IE_SUPPRESS_DEPRECATED_END
 }
 

@@ -17,6 +17,8 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 
+#include <vpu/configuration/options/hw_acceleration.hpp>
+
 namespace vpu {
 
 static
@@ -221,7 +223,7 @@ void parsePool2D(const     Model      & model,
     //
 
     const auto& env = CompileEnv::get();
-    bool hwOptimization = env.config.compileConfig().hwOptimization;
+    bool hwOptimization = env.config.get<HwAccelerationOption>();
     bool hwDisabled = env.config.compileConfig().hwDisabled(layer->name);
 
     int inputWidth = input->desc().dim(Dim::W);
@@ -480,7 +482,7 @@ void parsePoolND(const     Model      & model,
     //
 
     const auto& env = CompileEnv::get();
-    bool hwOptimization = env.config.compileConfig().hwOptimization;
+    bool hwOptimization = env.config.get<HwAccelerationOption>();
     bool hwDisabled = env.config.compileConfig().hwDisabled(layer->name);
 
     bool tryHW = canTryHW(poolLayer->_type,

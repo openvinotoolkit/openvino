@@ -33,14 +33,12 @@ MyriadMetrics::MyriadMetrics() {
 IE_SUPPRESS_DEPRECATED_START
     // TODO: remove once all options are migrated
     _supportedConfigKeys = {
-        MYRIAD_ENABLE_HW_ACCELERATION,
         MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
         MYRIAD_CUSTOM_LAYERS,
         MYRIAD_ENABLE_FORCE_RESET,
         MYRIAD_THROUGHPUT_STREAMS,
 
         // deprecated
-        KEY_VPU_HW_STAGES_OPTIMIZATION,
         KEY_VPU_PRINT_RECEIVE_TENSOR_TIME,
         KEY_VPU_CUSTOM_LAYERS,
         KEY_VPU_MYRIAD_FORCE_RESET,

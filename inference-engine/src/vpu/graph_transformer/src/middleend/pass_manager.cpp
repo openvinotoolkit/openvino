@@ -11,6 +11,7 @@
 
 #include <vpu/compile_env.hpp>
 #include <vpu/configuration/options/copy_optimization.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 namespace vpu {
 
@@ -94,7 +95,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(convertShapeNotation);
     ADD_DUMP_PASS("convertShapeNotation");
 
-    if (!env.config.compileConfig().disableReorder && !env.config.compileConfig().hwOptimization) {
+    if (!env.config.compileConfig().disableReorder && !env.config.get<HwAccelerationOption>()) {
         ADD_PASS(reorderInputsToChannelMinor);
         ADD_DUMP_PASS("reorderInputsToChannelMinor");
     }
@@ -126,7 +127,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // To overcome fp16 limitations
     //
 
-    if (env.config.compileConfig().hwOptimization && env.config.compileConfig().enableWeightsAnalysis) {
+    if (env.config.get<HwAccelerationOption>() && env.config.compileConfig().enableWeightsAnalysis) {
         ADD_PASS(analyzeWeightableLayers);
         ADD_DUMP_PASS("analyzeWeightableLayers");
     }
@@ -151,7 +152,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // Model HW-specific optimizations
     //
 
-    if (env.config.compileConfig().hwOptimization) {
+    if (env.config.get<HwAccelerationOption>()) {
         ADD_PASS(replaceFCbyConv);
         ADD_DUMP_PASS("replaceFCbyConv");
 
@@ -198,7 +199,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(hwPadding);
     ADD_DUMP_PASS("hwPadding");
 
-    if (env.config.compileConfig().hwOptimization) {
+    if (env.config.get<HwAccelerationOption>()) {
         ADD_PASS(splitLargeKernelConv);
         ADD_DUMP_PASS("splitLargeKernelConv");
     }
@@ -219,7 +220,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // HW stages tiling
     //
 
-    if (env.config.compileConfig().hwOptimization) {
+    if (env.config.get<HwAccelerationOption>()) {
         ADD_PASS(hwConvTiling);
         ADD_PASS(hwPoolTiling);
         ADD_PASS(hwFullyConnectedTiling);
@@ -335,7 +336,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
     // HW/SW injection
 
-    if (env.config.compileConfig().hwOptimization && env.config.compileConfig().injectSwOps.getOrDefault(true)) {
+    if (env.config.get<HwAccelerationOption>() && env.config.compileConfig().injectSwOps.getOrDefault(true)) {
         ADD_PASS(injectSw);
         ADD_DUMP_PASS("injectSw");
     }
@@ -351,7 +352,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // HW stages finalization
     //
 
-    if (env.config.compileConfig().hwOptimization) {
+    if (env.config.get<HwAccelerationOption>()) {
         ADD_PASS(finalizeHwOps);
         ADD_DUMP_PASS("hwFinalization");
     }
