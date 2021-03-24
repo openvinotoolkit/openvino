@@ -212,6 +212,7 @@ InferenceEngine::Layout getLayout(const std::string& value) {
             { "NCHW", InferenceEngine::Layout::NCHW },
             { "NHWC", InferenceEngine::Layout::NHWC },
             { "CHW", InferenceEngine::Layout::CHW },
+            { "HWC", InferenceEngine::Layout::HWC},
             { "NC", InferenceEngine::Layout::NC },
             { "C", InferenceEngine::Layout::C },
     };

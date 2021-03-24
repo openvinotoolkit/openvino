@@ -108,7 +108,6 @@ static const char layout_message[] = "Optional. Prompts how network layouts shou
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
-// TODO: duplicate options from compile_tool
 static constexpr char inputs_precision_message[] =
                                              "Optional. Specifies precision for all input layers of the network.";
 
