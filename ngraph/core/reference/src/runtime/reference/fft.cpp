@@ -16,7 +16,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <queue>
+#include <complex>
+#include <cstring>
+#include <functional>
 #include <vector>
 #include "ngraph/runtime/reference/fft.hpp"
 #include "ngraph/shape.hpp"
@@ -30,15 +32,93 @@ namespace ngraph
     {
         namespace reference
         {
+            namespace
+            {
+                std::vector<int64_t> compute_strides(const std::vector<int64_t>& v)
+                {
+                    std::vector<int64_t> strides(v.size() + 1);
+                    int64_t stride = 1;
+                    for (size_t i = 0; i < v.size(); ++i)
+                    {
+                        strides[i] = stride;
+                        stride *= v[i]
+                    }
+                    strides.back() = stride;
+                    return strides;
+                }
+            }
+
             void fft(const float* input_data,
                      const Shape& input_data_shape,
                      const int64_t* axes_data,
                      const Shape& axes_data_shape,
                      const int64_t* signal_size_data,
                      const Shape& signal_size_data_shape,
+                     float* fft_result,
+                     const Shape& output_shape,
                      FFTKind fft_kind)
-             {
-             }
+            {
+                using complex_type = std::complex<float>;
+
+                const complex_type* complex_input_data_ptr =
+                    reinterpret_cast<const complex_type*>(input_data);
+                complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(fft_result);
+
+                size_t complex_data_rank = input_data_shape.size() - 1;
+
+                std::vector<int64_t> reversed_shape(complex_data_rank);
+                for (size_t i = 0; i < complex_data_rank; ++i)
+                {
+                    reversed_shape[i] =
+                        static_cast<int64_t>(output_shape[complex_data_rank - i - 1]);
+                }
+
+                auto strides = compute_strides(reversed_shape);
+
+                size_t num_of_fft_axes = axes_data_shape[0];
+
+                std::vector<int64_t> sorted_axes(num_of_fft_axes);
+                memcpy(sorted_axes.data(), axes_data, num_of_fft_axes * sizeof(int64_t));
+                std::sort(sorted_axes.begin(), sorted_axes.end(), std::greater<int64_t>());
+
+                std::vector<int64_t> fft_axes(num_of_fft_axes);
+                std::vector<int64_t> fft_lengths(num_of_fft_axes);
+                std::vector<int64_t> fft_strides(num_of_fft_axes);
+
+                int64_t fft_size = 1;
+
+                for (size_t i = 0; i < num_of_fft_axes; ++i)
+                {
+                    int64_t a = sorted_axes[i];
+                    int64_t fft_axis = complex_data_rank - 1 - a;
+                    fft_axes[i] = fft_axis;
+                    fft_lengths[i] = reversed_shape[fft_axis];
+                    fft_strides[i] = strides[fft_axis];
+                    fft_size *= fft_lengths[i];
+                }
+
+                if (fft_size <= 0)
+                {
+                    return;
+                }
+
+                int64_t fft_axes_as_bitset = 0;
+                for (int64_t axis : fft_axes)
+                {
+                    fft_axes_as_bitset |= static_cast<int64_t>(1) << axis;
+                }
+
+                int64_t outer_rank = static_cast<int64_t>(complex_data_rank - num_of_fft_axes);
+                std::vector<int64_t> outer_axes(outer_rank);
+                for (size_t j = 0, i = 0; i < complex_data_rank; ++i)
+                {
+                    if (fft_axes_as_bitset & (static_cast<int64_t>(1) << i))
+                    {
+                        outer_axes[j] = i;
+                        ++j;
+                    }
+                }
+            }
 
             void fft_postprocessing(const HostTensorVector& outputs,
                                     const ngraph::element::Type output_type,
