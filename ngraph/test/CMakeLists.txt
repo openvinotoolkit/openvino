@@ -17,12 +17,12 @@
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
+add_subdirectory(runtime)
+
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
     return()
 endif()
-
-add_subdirectory(runtime)
 
 message(STATUS "unit tests enabled")
 
