@@ -17,13 +17,12 @@
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
-add_subdirectory(runtime)
-
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
-    add_subdirectory(util)
     return()
 endif()
+
+add_subdirectory(runtime)
 
 message(STATUS "unit tests enabled")
 
@@ -412,13 +411,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation
-                                        openvino::itt
-                                        openvino::pp
-                                        ngraph
-                                        ngraph::builder
-                                        ngraph_backend
-                                        libgtest)
+                                        ngraph::builder)
+ie_mark_target_as_cc(unit-test)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -453,7 +447,6 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
