@@ -554,7 +554,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             } else {
                 levels = (inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max();
             }
-			
+
             auto abs_val = std::max(std::abs(max_val), std::abs(min_val));
             auto scale_val = static_cast<float>(levels) / abs_val;
             //TODO: use FQ formula for scale factor calculation
