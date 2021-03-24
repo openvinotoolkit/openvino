@@ -7770,7 +7770,7 @@ TEST_P(scatter_nd_update_scale_activation_eltwise, basic) {
     create_topologies(input_layout("input", get_input_layout(p)),
         data("scatter_nd_update_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices)),
         data("scatter_nd_update_updates", get_mem(get_updates_layout(p), 0, 100)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("scale_data", get_mem(get_per_channel_layout(p), -0.5, 0.5)),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.input_shape })),
         scatter_nd_update("scatter_nd_update_prim", "input", "scatter_nd_update_indices", "scatter_nd_update_updates", p.indices_rank),
         activation("activation", "scatter_nd_update_prim", activation_func::abs),
