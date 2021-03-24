@@ -19,7 +19,7 @@ void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
     auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
-    auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
+    auto gather = std::make_shared<ngraph::op::v7::Gather>(paramOuts[0], indicesNode, axisNode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
 }
