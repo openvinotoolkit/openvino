@@ -18,7 +18,7 @@ public:
     explicit GRNImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 1 || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             bias = layer->GetParamAsFloat("bias");
 
