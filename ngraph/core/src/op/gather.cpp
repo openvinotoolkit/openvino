@@ -143,20 +143,20 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
 NGRAPH_RTTI_DEFINITION(op::v7::Gather, "Gather", 7);
 constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
 
-op::v7::Gather::Gather(const Output<Node>& params,
+op::v7::Gather::Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis,
                        const int64_t batch_dims)
-    : Op({params, indices, axis})
+    : Op({data, indices, axis})
     , m_batch_dims(batch_dims)
 {
     constructor_validate_and_infer_types();
 }
 
-op::v7::Gather::Gather(const Output<Node>& params,
+op::v7::Gather::Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis)
-    : Op({params, indices, axis})
+    : Op({data, indices, axis})
     , m_batch_dims(0)
 {
     constructor_validate_and_infer_types();
@@ -202,29 +202,31 @@ void op::v7::Gather::validate_and_infer_types()
 
     int64_t axis = get_axis();
     int64_t batch_dims = get_batch_dims();
+    NODE_VALIDATION_CHECK(this, axis != AXIS_NOT_SET_VALUE, "The axis is not specified");
     NODE_VALIDATION_CHECK(this,
                           axis >= 0 && axis < data_rank.get_length(),
-                          "The axis must be => 0 and <= data_rank. But instead got axis = ",
+                          "The axis must be => 0 and < data_rank. But instead got axis = ",
                           axis,
-                          " batch_dims = ",
-                          batch_dims);
+                          " data_rank = ",
+                          data_rank.get_length());
 
     if (data_rank.is_static() && axis != AXIS_NOT_SET_VALUE)
     {
         NODE_VALIDATION_CHECK(this,
                               axis >= batch_dims,
-                              "The axis must be => 0 and <= data_rank. But instead got: axis = ",
+                              "The axis must be => batch_dims. But instead got: axis = ",
                               axis,
-                              ", data_rank = ",
-                              data_rank.get_length());
+                              ", batch_dims = ",
+                              batch_dims);
     }
 
-    auto out_rank =
-        data_pshape.rank().get_length() + indices_pshape.rank().get_length() - 1 - batch_dims;
-    std::vector<Dimension> result_dims(out_rank);
-    PartialShape output_pshape(result_dims);
     if (data_pshape.rank().is_static() && indices_pshape.rank().is_static())
     {
+        auto out_rank =
+            data_pshape.rank().get_length() + indices_pshape.rank().get_length() - 1 - batch_dims;
+        std::vector<Dimension> result_dims(out_rank);
+        PartialShape output_pshape(result_dims);
+
         // implementation of out_shape formula
         // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
         // data.shape[axis + 1:]
@@ -254,13 +256,12 @@ void op::v7::Gather::validate_and_infer_types()
         {
             output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
         }
+        set_output_type(0, data_type, output_pshape);
     }
     else
     {
-        output_pshape = PartialShape::dynamic();
+        set_output_type(0, data_type, PartialShape::dynamic());
     }
-
-    set_output_type(0, data_type, output_pshape);
 }
 
 int64_t op::v7::Gather::get_axis() const

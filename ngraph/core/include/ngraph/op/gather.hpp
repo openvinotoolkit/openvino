@@ -78,7 +78,7 @@ namespace ngraph
                 /// \param indices Tensor with indexes to gather
                 /// \param axis The tensor is a dimension index to gather data from
                 /// \param batch_dims The number of batch dimension in data and indices tensors
-                Gather(const Output<Node>& params,
+                Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis,
                        const int64_t batch_dims);
@@ -86,7 +86,7 @@ namespace ngraph
                 /// \param data The tensor from which slices are gathered
                 /// \param indices Tensor with indexes to gather
                 /// \param axis The tensor is a dimension index to gather data from
-                Gather(const Output<Node>& params,
+                Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis);
 
