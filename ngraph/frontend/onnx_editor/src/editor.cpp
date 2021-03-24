@@ -17,7 +17,6 @@
 #include <fstream>
 #include <onnx/onnx_pb.h>
 #include <onnx/shape_inference/implementation.h>
-#include <utility>
 
 #include "detail/subgraph_extraction.hpp"
 #include "ngraph/log.hpp"
