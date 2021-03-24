@@ -18,10 +18,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeDecomposition, "FakeQuantizeDec
 bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize> &fq) {
     auto il = fq->input_value(1);
     auto ih = fq->input_value(2);
-    auto greater_equal = std::make_shared<ngraph::opset1::GreaterEqual>(il, ih);
+    auto equal = std::make_shared<ngraph::opset1::Equal>(il, ih);
 
     ngraph::OutputVector result(1);
-    if (!greater_equal->constant_fold(result, greater_equal->input_values()))
+    if (!equal->constant_fold(result, equal->input_values()))
         return false;
 
     auto res_node = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(result[0].get_node_shared_ptr());
@@ -62,10 +62,15 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             decomp_ops.push_back(data.get_node_shared_ptr());
         }
 
+        // compute min and max intervals bounds to support inverted intervals
+        const auto input_min = std::make_shared<ngraph::opset1::Minimum>(input_low, input_high);
+        const auto input_max = std::make_shared<ngraph::opset1::Maximum>(input_low, input_high);
+        decomp_ops.push_back(input_min);
+        decomp_ops.push_back(input_max);
         // if we set input_low or input_high in formula we got output = output_low and output = output_high respectively
         // so we just clamp x
-        const auto max = std::make_shared<ngraph::opset1::Maximum>(data, input_low);
-        const auto min = std::make_shared<ngraph::opset1::Minimum>(max, input_high);
+        const auto max = std::make_shared<ngraph::opset1::Maximum>(data, input_min);
+        const auto min = std::make_shared<ngraph::opset1::Minimum>(max, input_max);
         decomp_ops.push_back(max);
         decomp_ops.push_back(min);
 

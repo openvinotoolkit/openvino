@@ -144,7 +144,8 @@ int64_t dataLowBounds{-10}, dataHighBounds{10};
 
 const std::vector<std::pair<std::vector<float>, std::vector<float>>> input_ranges = {
     {{0.0f}, {5.f}},
-    {{-10.0f}, {-5.f}}
+    {{-10.0f}, {-5.f}},
+    {{5.f}, {0.0f}}
 };
 
 const std::vector<float> outputLow{5.0f}, outputHigh{25.0f};

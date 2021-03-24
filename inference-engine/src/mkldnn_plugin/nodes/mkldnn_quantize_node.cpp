@@ -1005,8 +1005,8 @@ void MKLDNNQuantizeNode::init() {
             isOutputHighBroadcasted = true;
         }
 
-        cropLow.resize(inputLowAxisSize);
-        cropHigh.resize(inputHighAxisSize);
+        cropLow.resize(std::max(inputLowAxisSize, inputHighAxisSize));
+        cropHigh.resize(std::max(inputLowAxisSize, inputHighAxisSize));
         inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));
         inputShift.resize(std::max(inputLowAxisSize, inputHighAxisSize));
         outputScale.resize(std::max(outputLowAxisSize, outputHighAxisSize));
@@ -1016,14 +1016,10 @@ void MKLDNNQuantizeNode::init() {
 
         for (int i = 0; i < cropLow.size(); i++) {
             float il = inputLowData[isInputLowBroadcasted ? 0 : i];
-
-            cropLow[i] = il;
-        }
-
-        for (int i = 0; i < cropHigh.size(); i++) {
             float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
-            cropHigh[i] = ih;
+            cropLow[i] = std::min(il, ih);
+            cropHigh[i] = std::max(il, ih);
         }
 
         for (int i = 0; i < inputScale.size(); i++) {

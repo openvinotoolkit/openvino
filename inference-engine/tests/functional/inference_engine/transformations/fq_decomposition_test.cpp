@@ -103,8 +103,11 @@ protected:
                     data = std::make_shared<ngraph::opset1::Convert>(data, ranges_prec);
                 }
 
-                const auto max = std::make_shared<ngraph::opset1::Maximum>(data, il);
-                const auto min = std::make_shared<ngraph::opset1::Minimum>(max, ih);
+                const auto i_min = std::make_shared<ngraph::opset1::Minimum>(il, ih);
+                const auto i_max = std::make_shared<ngraph::opset1::Maximum>(il, ih);
+
+                const auto max = std::make_shared<ngraph::opset1::Maximum>(data, i_min);
+                const auto min = std::make_shared<ngraph::opset1::Minimum>(max, i_max);
 
                 const auto levels_minus_one = std::make_shared<ngraph::opset1::Constant>(ranges_prec, ngraph::Shape{}, levels - 1);
 
@@ -215,7 +218,6 @@ INSTANTIATE_TEST_CASE_P(FakeQuantize6D_Decomposition, FakeQuantizeDecompositionT
                         FakeQuantizeDecompositionTest::getTestCaseName);
 
 const std::vector<std::pair<float, float>> input_ranges_unsupported = {
-    {10.0f, -10.f},
     {5.0f, 5.0f},
     {-5.0f, -5.0f}
 };
