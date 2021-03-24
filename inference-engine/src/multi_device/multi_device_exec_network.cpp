@@ -68,8 +68,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         unsigned int optimalNum = 0;
         try {
             optimalNum = network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-        } catch (const InferenceEngine::details::InferenceEngineException &iie) {
-            THROW_IE_EXCEPTION
+        } catch (const InferenceEngine::Exception &iie) {
+            IE_THROW()
                     << "Every device used with the Multi-Device should "
                     << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                     << "Failed to query the metric for the " << device << " with error:" << iie.what();
@@ -168,10 +168,9 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n.GetContext();
-        } catch (const NotImplemented& ex) {
-        }
+        } catch (const NotImplemented&) {}
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "None of the devices in the MULTI has an associated remote context."
+    IE_THROW(NotImplemented) << "None of the devices in the MULTI has an associated remote context."
                        << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
@@ -209,7 +208,7 @@ IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
     auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == config.end() || config.size() > 1) {
-        THROW_IE_EXCEPTION << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
+        IE_THROW() << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
     } else {
         auto multiPlugin = std::dynamic_pointer_cast<MultiDeviceInferencePlugin>(this->_plugin);
         assert(multiPlugin != nullptr);
@@ -218,7 +217,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& kvp) {
                 return kvp.numRequestsPerDevices != -1;
             })) {
-            THROW_IE_EXCEPTION << "You can only change device priorities but not number of requests"
+            IE_THROW() << "You can only change device priorities but not number of requests"
                      <<" with the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES!";
         }
 
@@ -226,7 +225,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
             std::lock_guard<std::mutex> lock{_mutex};
             for (auto && device : metaDevices) {
                 if (_networksPerDevice.find(device.deviceName) == _networksPerDevice.end()) {
-                    THROW_IE_EXCEPTION << NOT_FOUND_str << "You can only change device priorities but not add new devices with"
+                    IE_THROW(NotFound) << "You can only change device priorities but not add new devices with"
                         << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. "
                         << device.deviceName <<
                             " device was not in the original device list!";
@@ -245,7 +244,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
     if (it != _config.end()) {
         return it->second;
     } else {
-        THROW_IE_EXCEPTION << NOT_FOUND_str << name <<" not found in the ExecutableNetwork config";
+        IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
     }
 }
 
@@ -255,8 +254,8 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         for (auto n : _networksPerDevice) {
             try {
                 res += n.second.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-            } catch (const InferenceEngine::details::InferenceEngineException &iie) {
-                  THROW_IE_EXCEPTION
+            } catch (const InferenceEngine::Exception &iie) {
+                  IE_THROW()
                         << "Every device used with the Multi-Device should "
                         << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                         << "Failed to query the metric for the " << n.first << " with error:" << iie.what();
@@ -279,7 +278,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         std::vector<std::string> configKeys = { MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported Network metric: " << name;
+        IE_THROW() << "Unsupported Network metric: " << name;
     }
 }
 

@@ -20,7 +20,7 @@ inline pugi::xml_node GetChild(const pugi::xml_node& node, std::vector<std::stri
         if (!dn.empty()) return dn;
     }
     if (failIfMissing)
-        THROW_IE_EXCEPTION << "missing <" << InferenceEngine::details::dumpVec(tags)
+        IE_THROW() << "missing <" << InferenceEngine::details::dumpVec(tags)
                            << "> Tags at offset :" << node.offset_debug();
     return pugi::xml_node();
 }
@@ -65,7 +65,7 @@ public:
                 if (std::is_same<LT, CropLayer>::value) {
                     auto crop_res = std::dynamic_pointer_cast<CropLayer>(res);
                     if (!crop_res) {
-                        THROW_IE_EXCEPTION << "Crop layer is nullptr";
+                        IE_THROW() << "Crop layer is nullptr";
                     }
                     std::string axisStr, offsetStr, dimStr;
                     FOREACH_CHILD(_cn, dn, "crop") {

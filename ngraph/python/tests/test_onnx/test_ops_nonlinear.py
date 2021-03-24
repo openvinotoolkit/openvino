@@ -18,7 +18,6 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35918
 
 
 def import_and_compute(op_type, input_data, **node_attrs):
@@ -107,10 +106,10 @@ def test_selu():
 @pytest.mark.parametrize(
     "data, alpha_value",
     [
-        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 1, marks=xfail_issue_35918),
-        pytest.param([0.0], 1, marks=xfail_issue_35918),
-        pytest.param([-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1], 1, marks=xfail_issue_35918),
-        pytest.param([[1, 2, 3], [4, 5, 6]], 1, marks=xfail_issue_35918),
+        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 1.0),
+        pytest.param([0.0], 1.0),
+        pytest.param([-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1], 1.0),
+        pytest.param([[1, 2, 3], [4, 5, 6]], 1.0),
         pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 0.5)
     ]
 )

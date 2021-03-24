@@ -41,6 +41,7 @@ void ActivationLayerTest::SetUp() {
     auto constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    params[0]->set_friendly_name("Input");
     auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
@@ -147,7 +148,7 @@ ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph:
             return seluParam;
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+            IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
 
@@ -178,7 +179,7 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+            IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
 
@@ -211,4 +212,32 @@ void ActivationParamLayerTest::SetUp() {
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
+
+void ActivationDynamicLayerTest::Run() {
+    const auto& params = function->get_parameters();
+    ngraph::PartialShape output_shape;
+
+    // make each parameter dimension dynamic with range {1 .. prev_dim * 2}
+    for (const auto& parameter : params) {
+        auto& dynamic_pshape = parameter->get_partial_shape();
+        NGRAPH_CHECK(dynamic_pshape.rank().is_static(),
+                     "tests are not prepared to work with dynamically ranked inputs");
+        for (size_t i = 0; i < dynamic_pshape.rank().get_length(); ++i) {
+            if (static_dims.count(i))
+                continue;
+            dynamic_pshape[i] = {1, dynamic_pshape[i].get_max_length() * 2};
+        }
+        parameter->set_partial_shape(dynamic_pshape);
+        if (parameter->get_friendly_name() == "Input")
+            output_shape = dynamic_pshape;
+    }
+    function->validate_nodes_and_infer_types();
+
+    const auto& results = function->get_results();
+    NGRAPH_CHECK(results.size() == 1);
+    ASSERT_EQ(results[0]->get_output_partial_shape(0), output_shape);
+    // no inference and checks are done here -- just shape check because we miss CNNNetwork functionality
+    // to handle dynamic inputs-outputs and test functionality to generate blob of a certain shape
+}
+
 }  // namespace LayerTestsDefinitions

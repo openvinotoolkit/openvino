@@ -135,6 +135,7 @@ namespace util
         }
 
         py::dict get_attributes() const { return m_attributes; }
+
     protected:
         py::dict m_attributes;
     };

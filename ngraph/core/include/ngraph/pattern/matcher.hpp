@@ -275,6 +275,7 @@ namespace ngraph
 
             std::shared_ptr<Node> get_match_root() { return m_match_root.get_node_shared_ptr(); }
             Output<Node> get_match_value() { return m_match_root; }
+
         private:
             Output<Node> m_initial_pattern;
             Output<Node> m_pattern;

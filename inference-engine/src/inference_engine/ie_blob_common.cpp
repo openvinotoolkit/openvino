@@ -11,7 +11,7 @@
 namespace InferenceEngine {
 
 Blob::Ptr Blob::createROI(const ROI&) const {
-    THROW_IE_EXCEPTION << "[NOT_IMPLEMENTED] createROI is not implemented for current type of Blob";
+    IE_THROW(NotImplemented) << "createROI is not implemented for current type of Blob";
 }
 
 Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi) {

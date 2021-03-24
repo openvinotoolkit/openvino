@@ -120,6 +120,7 @@ namespace ngraph
 
             // \brief This allows switch(element_type)
             constexpr operator Type_t() const { return m_type; }
+
         private:
             Type_t m_type{Type_t::undefined};
         };
@@ -210,6 +211,7 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<element::Type>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
         operator element::Type&() { return m_ref; }
+
     protected:
         element::Type& m_ref;
     };

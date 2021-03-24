@@ -185,10 +185,10 @@ endif()
 message(STATUS "Installation directory: ${CMAKE_INSTALL_PREFIX}")
 
 # Destinations
-set(NGRAPH_INSTALL_LIB "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_LIBDIR}")
-set(NGRAPH_INSTALL_INCLUDE "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_INCLUDEDIR}")
-set(NGRAPH_INSTALL_DOC "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_DOCDIR}")
-set(NGRAPH_INSTALL_BIN "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_BINDIR}")
+set(NGRAPH_INSTALL_LIB "deployment_tools/ngraph/${CMAKE_INSTALL_LIBDIR}")
+set(NGRAPH_INSTALL_INCLUDE "deployment_tools/ngraph/${CMAKE_INSTALL_INCLUDEDIR}")
+set(NGRAPH_INSTALL_DOC "deployment_tools/ngraph/${CMAKE_INSTALL_DOCDIR}")
+set(NGRAPH_INSTALL_BIN "deployment_tools/ngraph/${CMAKE_INSTALL_BINDIR}")
 
 if (LINUX)
     if (DEFINED NGRAPH_RPATH)
@@ -254,45 +254,6 @@ if(NGRAPH_ADDRESS_SANITIZER_ENABLE OR NGRAPH_THREAD_SANITIZER_ENABLE OR NGRAPH_U
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -fno-omit-frame-pointer")
 endif()
 
-# Since UNIX support Bash we can use a Bash script to do the clang-format functions
-# This is much faster than the cmake method
-if (UNIX)
-    add_custom_target(style-check COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/maint/check-code-format.sh)
-    add_custom_target(style-apply COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/maint/apply-code-format.sh)
-    add_custom_target(style COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/maint/apply-code-format.sh)
-else()
-    add_custom_target(style-check
-        COMMAND ${CMAKE_COMMAND}
-        -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/style_check.cmake
-    )
-
-    add_custom_target(style-apply
-        COMMAND ${CMAKE_COMMAND}
-        -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/style_apply.cmake
-    )
-
-    add_custom_target(style
-        COMMAND ${CMAKE_COMMAND}
-        -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/style_apply.cmake
-    )
-endif()
-
-add_custom_target(fix-mode
-    COMMAND ${CMAKE_COMMAND}
-    -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/fix_mode.cmake
-)
-
-#-----------------------------------------------------------------------------------------------
-# enable or disable output from NGRAPH_DEBUG statements
-#-----------------------------------------------------------------------------------------------
-if(NGRAPH_DEBUG_ENABLE)
-    add_definitions(-DNGRAPH_DEBUG_ENABLE)
-endif()
-
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 #-----------------------------------------------------------------------------------------------
@@ -313,6 +274,35 @@ if(NOT DEFINED EXTERNAL_PROJECTS_ROOT)
     set(EXTERNAL_PROJECTS_ROOT ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
+add_subdirectory(core)
+
+if (NGRAPH_EXPORT_TARGETS_ENABLE)
+    include(CMakePackageConfigHelpers)
+    set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
+
+    if(BUILD_SHARED_LIBS)
+        install(EXPORT ngraphTargets
+            FILE ngraphTargets.cmake
+            NAMESPACE ngraph::
+            DESTINATION "deployment_tools/ngraph/cmake"
+            COMPONENT ngraph)
+    endif()
+
+    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
+        INSTALL_DESTINATION cmake)
+
+    write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
+        VERSION ${NGRAPH_VERSION}
+        COMPATIBILITY SameMajorVersion)
+
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
+        DESTINATION "deployment_tools/ngraph/cmake"
+        COMPONENT ngraph)
+endif()
+
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     if (MSVC)
         # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
@@ -328,47 +318,21 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     endif()
 
     set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS OFF)
+    set(BUILD_SHARED_LIBS ON)
+
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         include(cmake/external_protobuf.cmake)
     else()
         find_package(Protobuf 2.6.1 REQUIRED)
     endif()
+
+    # target onnx_proto will be shared lib, onnx static
     include(cmake/external_onnx.cmake)
     if (TARGET ext_protobuf)
         add_dependencies(onnx ext_protobuf)
     endif()
     set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
     unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
-endif()
-
-add_subdirectory(core)
-
-if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    include(CMakePackageConfigHelpers)
-    set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
-    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
-
-    if(BUILD_SHARED_LIBS)
-        install(EXPORT ngraphTargets
-            FILE ngraphTargets.cmake
-            NAMESPACE ngraph::
-            DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
-            COMPONENT ngraph)
-    endif()
-
-    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
-        INSTALL_DESTINATION cmake)
-
-    write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        VERSION ${NGRAPH_VERSION}
-        COMPATIBILITY SameMajorVersion)
-
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
-        COMPONENT ngraph)
 endif()
 
 add_subdirectory(frontend)
@@ -387,4 +351,6 @@ if (NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)
 endif()
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION DESTINATION "${NGRAPH_COMPONENT_PREFIX}." COMPONENT ngraph)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION
+    DESTINATION "deployment_tools/ngraph"
+    COMPONENT ngraph)
