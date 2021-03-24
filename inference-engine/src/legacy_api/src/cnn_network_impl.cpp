@@ -57,18 +57,18 @@ std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
         for (const DataWeakPtr& insWeakData : layer->insData) {
             const DataPtr insData = insWeakData.lock();
             if (insData == nullptr) {
-                THROW_IE_EXCEPTION << "input data is absent";
+                IE_THROW() << "input data is absent";
             }
 
             const CNNLayerWeakPtr parentWeak = getCreatorLayer(insData);
             const CNNLayerPtr parent = parentWeak.lock();
             if (parent == nullptr) {
-                THROW_IE_EXCEPTION << "parentLayer is absent";
+                IE_THROW() << "parentLayer is absent";
             }
 
             const auto parentIt = result.find(parent.get());
             if (parentIt == result.end()) {
-                THROW_IE_EXCEPTION << "parent layer '" << parent->name << "' was not found";
+                IE_THROW() << "parent layer '" << parent->name << "' was not found";
             }
 
             if (!parentIt->second) {
@@ -161,28 +161,28 @@ void CNNNetworkImpl::removeLayer(const std::string& layerName) {
 void CNNNetworkImpl::renameLayer(const std::string& currentName, const std::string& newName) {
     const auto currentIt = _layers.find(currentName);
     if (currentIt == _layers.end()) {
-        THROW_IE_EXCEPTION << "Layer '" << currentName << "' was not found in layers";
+        IE_THROW() << "Layer '" << currentName << "' was not found in layers";
     }
 
     if (_layers.find(newName) != _layers.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in layers";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in layers";
     }
 
     if (_inputData.find(newName) != _inputData.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in input data";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in input data";
     }
 
     if (_outputData.find(newName) != _outputData.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in output data";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in output data";
     }
 
     const auto currentDataIt = _data.find(currentName);
     if (currentDataIt == _data.end()) {
-        THROW_IE_EXCEPTION << "Layer '" << currentName << "' was not found in data";
+        IE_THROW() << "Layer '" << currentName << "' was not found in data";
     }
 
     if (_data.find(newName) != _data.end()) {
-        THROW_IE_EXCEPTION << "Layer with name '" << currentName << "' already exists in data";
+        IE_THROW() << "Layer with name '" << currentName << "' already exists in data";
     }
 
     bool wasUpdatedInput = false;
@@ -230,7 +230,7 @@ void CNNNetworkImpl::validate(int version) {
     InputsDataMap inputs;
     this->getInputsInfo(inputs);
     if (inputs.empty()) {
-        THROW_IE_EXCEPTION << "No input layers";
+        IE_THROW() << "No input layers";
     }
 
     bool res = CNNNetForestDFS(
@@ -245,14 +245,14 @@ void CNNNetworkImpl::validate(int version) {
                     auto iter = inputTo.find(layerName);
                     auto dataName = data->getName();
                     if (iter == inputTo.end()) {
-                        THROW_IE_EXCEPTION << "Data " << data->getName() << " which inserted into the layer "
+                        IE_THROW() << "Data " << data->getName() << " which inserted into the layer "
                                            << layerName << " does not point at this layer";
                     }
                     if (!getCreatorLayer(data).lock()) {
-                        THROW_IE_EXCEPTION << "Data " << dataName << " has no creator layer";
+                        IE_THROW() << "Data " << dataName << " has no creator layer";
                     }
                 } else {
-                    THROW_IE_EXCEPTION << "Data which inserted into the layer " << layerName << " is nullptr";
+                    IE_THROW() << "Data which inserted into the layer " << layerName << " is nullptr";
                 }
             }
             for (auto data : layer->outData) {
@@ -261,7 +261,7 @@ void CNNNetworkImpl::validate(int version) {
                 for (auto layerIter : inputTo) {
                     CNNLayerPtr layerInData = layerIter.second;
                     if (!layerInData) {
-                        THROW_IE_EXCEPTION << "Layer which takes data " << dataName << " is nullptr";
+                        IE_THROW() << "Layer which takes data " << dataName << " is nullptr";
                     }
                     auto insertedDatas = layerInData->insData;
 
@@ -270,18 +270,18 @@ void CNNNetworkImpl::validate(int version) {
                             return d.lock() == data;
                         });
                     if (it == insertedDatas.end()) {
-                        THROW_IE_EXCEPTION << "Layer " << layerInData->name << " which takes data " << dataName
+                        IE_THROW() << "Layer " << layerInData->name << " which takes data " << dataName
                                            << " does not point at this data";
                     }
                 }
                 auto dataNameSetPair = dataNames.insert(dataName);
                 if (!dataNameSetPair.second) {
-                    THROW_IE_EXCEPTION << "Data name " << dataName << " is not unique";
+                    IE_THROW() << "Data name " << dataName << " is not unique";
                 }
             }
             auto layerSetPair = layerNames.insert(layerName);
             if (!layerSetPair.second) {
-                THROW_IE_EXCEPTION << "Layer name " << layerName << " is not unique";
+                IE_THROW() << "Layer name " << layerName << " is not unique";
             }
         },
         false);
@@ -290,13 +290,13 @@ void CNNNetworkImpl::validate(int version) {
     for (auto i : inputs) {
         CNNLayerPtr layer = getCreatorLayer(i.second->getInputData()).lock();
         if (layer && !equal(layer->type, inputType)) {
-            THROW_IE_EXCEPTION << "Input layer " << layer->name << " should have Input type but actually its type is "
+            IE_THROW() << "Input layer " << layer->name << " should have Input type but actually its type is "
                                << layer->type;
         }
     }
 
     if (!res) {
-        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        IE_THROW() << "Sorting not possible, due to existed loop.";
     }
 }
 
@@ -325,7 +325,7 @@ void CNNNetworkImpl::resolveOutput() {
     // check orphan nodes...
     for (auto kvp : _data) {
         if (!kvp.second->isInitialized())
-            THROW_IE_EXCEPTION << "data name [" << kvp.first << "] dimensions is not known";
+            IE_THROW() << "data name [" << kvp.first << "] dimensions is not known";
 
         // data nodes not going to any layer are basically graph output...
         if (getInputTo(kvp.second).empty()) {
@@ -337,7 +337,7 @@ void CNNNetworkImpl::resolveOutput() {
 void CNNNetworkImpl::addOutput(const string& dataName) {
     auto it = _data.find(dataName);
     if (it == _data.end()) {
-        THROW_IE_EXCEPTION << "data [" << dataName << "] doesn't exist";
+        IE_THROW() << "data [" << dataName << "] doesn't exist";
     }
     auto data = it->second;
     assert(data->getName() == dataName);
@@ -400,7 +400,7 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
             std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
         return OK;
 #endif
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
@@ -434,7 +434,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             if (layerT) {
                 const auto it = layersMap.find(layerT.get());
                 if (it == layersMap.end()) {
-                    THROW_IE_EXCEPTION << "layer '" << layerT->name << "' was not found in layers map";
+                    IE_THROW() << "layer '" << layerT->name << "' was not found in layers map";
                 }
                 constOrAbsent = it->second;
             } else {
@@ -448,7 +448,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             }
         }
         return OK;
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
@@ -472,7 +472,7 @@ StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* respon
             }
         }
         return reshape(inputShapes, responseDesc);
-    } catch (const InferenceEngineException& e) {
+    } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();

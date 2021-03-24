@@ -54,6 +54,7 @@ limitations under the License.
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
                             <tab type="user" title="Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
                             <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_QuartzNet"/>
+                            <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_YOLACT"/>
                             <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_F3Net"/>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
@@ -145,6 +146,7 @@ limitations under the License.
                 <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                 <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                 <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
+                <tab type="user" title="Gather-7" url="@ref openvino_docs_ops_movement_Gather_7"/>
                 <tab type="user" title="GatherElements-6" url="@ref openvino_docs_ops_movement_GatherElements_6"/>
                 <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>

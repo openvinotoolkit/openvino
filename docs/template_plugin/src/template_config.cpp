@@ -29,12 +29,12 @@ Configuration::Configuration(const ConfigMap& config, const Configuration & defa
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
             deviceId = std::stoi(value);
             if (deviceId > 0) {
-                THROW_IE_EXCEPTION << "Device ID " << deviceId << " is not supported";
+                IE_THROW() << "Device ID " << deviceId << " is not supported";
             }
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = (CONFIG_VALUE(YES) == value);
         } else if (throwOnUnsupported) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << ": " << key;
+            IE_THROW(NotFound) << ": " << key;
         }
     }
 }
@@ -53,6 +53,6 @@ InferenceEngine::Parameter Configuration::Get(const std::string& name) const {
     } else if (name == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
         return {std::to_string(_streamsExecutorConfig._threadsPerStream)};
     } else {
-        THROW_IE_EXCEPTION << NOT_FOUND_str << ": " << name;
+        IE_THROW(NotFound) << ": " << name;
     }
 }

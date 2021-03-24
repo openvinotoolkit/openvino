@@ -77,9 +77,9 @@ class AsyncInferRequestThreadSafeDefault : public IAsyncInferRequestInternal {
             state = _state;
             switch (_state) {
             case InferState::Busy :
-                THROW_IE_EXCEPTION_WITH_STATUS(REQUEST_BUSY);
+                IE_THROW(RequestBusy);
             case InferState::Canceled :
-                THROW_IE_EXCEPTION_WITH_STATUS(INFER_CANCELLED);
+                IE_THROW(InferCancelled);
             case InferState::Idle : {
                 _futures.erase(std::remove_if(std::begin(_futures), std::end(_futures),
                                                 [](const std::shared_future<void>& future) {
@@ -118,9 +118,9 @@ protected:
         std::lock_guard<std::mutex> lock {_mutex};
         switch (_state) {
         case InferState::Busy :
-            THROW_IE_EXCEPTION_WITH_STATUS(REQUEST_BUSY);
+            IE_THROW(RequestBusy);
         case InferState::Canceled :
-            THROW_IE_EXCEPTION_WITH_STATUS(INFER_CANCELLED);
+            IE_THROW(InferCancelled);
         default: break;
         }
     }
@@ -169,7 +169,7 @@ public:
      */
     StatusCode Wait(int64_t millis_timeout) override {
         if (millis_timeout < IInferRequest::WaitMode::RESULT_READY) {
-            THROW_IE_EXCEPTION_WITH_STATUS(PARAMETER_MISMATCH)
+            IE_THROW(ParameterMismatch)
                 << " Timeout can't be less "
                 << IInferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
         }
@@ -247,7 +247,7 @@ public:
 
     void GetUserData(void** data) override {
         CheckState();
-        if (data == nullptr) THROW_IE_EXCEPTION << NOT_ALLOCATED_str;
+        if (data == nullptr) IE_THROW(NotAllocated);
         *data = _userData;
     }
 
@@ -277,7 +277,7 @@ public:
     void ThrowIfCanceled() const {
         std::lock_guard<std::mutex> lock{_mutex};
         if (_state == InferState::Canceled) {
-            THROW_IE_EXCEPTION_WITH_STATUS(INFER_CANCELLED);
+            IE_THROW(InferCancelled);
         }
     }
 
@@ -400,9 +400,9 @@ private:
                     IE_ASSERT(nullptr != nextStageExecutor);
                     nextStageExecutor->run(MakeNextStageTask(itNextStage, itEndStage, std::move(callbackExecutor)));
                 }
-            } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
-                requestStatus = ie_ex.hasStatus() ? ie_ex.getStatus() : StatusCode::GENERAL_ERROR;
-                localCurrentException = std::make_exception_ptr(ie_ex);
+            } catch (InferenceEngine::Exception& ie_ex) {
+                requestStatus = ExceptionToStatus(ie_ex);
+                localCurrentException = std::current_exception();
             } catch (...) {
                 requestStatus = StatusCode::GENERAL_ERROR;
                 localCurrentException = std::current_exception();

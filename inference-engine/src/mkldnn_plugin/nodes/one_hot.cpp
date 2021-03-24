@@ -31,18 +31,18 @@ public:
             int output_dims_size = dst_dims.size();
             if (layer->CheckParamPresence("axis") &&
                 (-1 > axis || axis >= output_dims_size)) {
-                    THROW_IE_EXCEPTION << "The value of " << layer->name << " layer axis parameter must be between -1 <= axis < "\
+                    IE_THROW() << "The value of " << layer->name << " layer axis parameter must be between -1 <= axis < "\
                                        << output_dims_size << ", but actually it is " << axis;
             }
 
             if (!( ((1 + src_dims.size()) == dst_dims.size()) ||
                    (src_dims.size() == 1 && dst_dims.size() == 1 && dst_dims[0] == depth && src_dims[0] == 1)))
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
+                IE_THROW() << layer->name << " Incorrect number of input/output dimensions!";
 
             // check a precision of the input tensor
             auto input_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
             if (input_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for the input. Only I32 is supported!";
+                IE_THROW() << layer->name << " Incorrect input precision for the input. Only I32 is supported!";
             }
             output_precision = layer->outData[0]->getTensorDesc().getPrecision();
             if (Precision::BF16 == output_precision) {
@@ -73,7 +73,7 @@ public:
             config.outConfs.push_back(dataConfig);
 
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception& ex) {
             errorMsg = ex.what();
         }
     }

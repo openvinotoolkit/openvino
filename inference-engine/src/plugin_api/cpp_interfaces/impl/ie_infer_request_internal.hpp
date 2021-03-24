@@ -67,7 +67,7 @@ public:
      * @brief Default common implementation for all plugins
      */
     void Cancel() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     /**
@@ -79,15 +79,15 @@ public:
     void SetBlob(const std::string& name, const Blob::Ptr& userBlob) override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
         if (name.empty()) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+            IE_THROW(NotFound) << "Failed to set blob with empty name";
         }
-        if (!userBlob) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+        if (!userBlob) IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
         const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
         const bool remoteBlobPassed   = userBlob->is<RemoteBlob>();
         if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
-            THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
+            IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
         if (userBlob->size() == 0) {
-            THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
+            IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
         }
 
         InputInfo::Ptr foundInput;
@@ -95,14 +95,14 @@ public:
         size_t dataSize = userBlob->size();
         if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
             if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                IE_THROW(ParameterMismatch)
                                    << "Failed to set Blob with precision not corresponding to user input precision";
             }
 
             auto& devBlob = _deviceInputs[name];
             const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
             if (compoundBlobPassed && !preProcRequired) {
-                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                IE_THROW(NotImplemented)
                                    << "cannot set compound blob: supported only for input pre-processing";
             }
 
@@ -113,7 +113,7 @@ public:
                     ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                     : 1;
                 if (dataSize != inputSize) {
-                    THROW_IE_EXCEPTION << "Input blob size is not equal network input size (" << dataSize
+                    IE_THROW() << "Input blob size is not equal network input size (" << dataSize
                                        << "!=" << inputSize << ").";
                 }
                 _inputs[name] = userBlob;
@@ -121,18 +121,18 @@ public:
             }
         } else {
             if (compoundBlobPassed) {
-                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                IE_THROW(NotImplemented)
                                    << "cannot set compound blob: supported only for input pre-processing";
             }
             size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                 ? details::product(foundOutput->getTensorDesc().getDims()) :
                 1;
             if (dataSize != outputSize) {
-                THROW_IE_EXCEPTION << "Output blob size is not equal network output size (" << dataSize
+                IE_THROW() << "Output blob size is not equal network output size (" << dataSize
                                    << "!=" << outputSize << ").";
             }
             if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                IE_THROW(ParameterMismatch)
                                    << "Failed to set Blob with precision not corresponding to user output precision";
             }
             _outputs[name] = userBlob;
@@ -192,7 +192,7 @@ public:
         if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
             copyPreProcess(info, foundInput->getPreProcess());
         } else {
-            THROW_IE_EXCEPTION << "Pre-process can't be set to output blob";
+            IE_THROW() << "Pre-process can't be set to output blob";
         }
 
         SetBlob(name, data);
@@ -209,13 +209,13 @@ public:
         if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
             return foundInput->getPreProcess();
         } else {
-            THROW_IE_EXCEPTION << "Output blob can't have pre-processing";
+            IE_THROW() << "Output blob can't have pre-processing";
         }
     }
 
     void SetBatch(int batch) override {
         (void)batch;
-        THROW_IE_EXCEPTION << "Dynamic batch is not supported";
+        IE_THROW() << "Dynamic batch is not supported";
     };
 
     /**
@@ -241,7 +241,7 @@ public:
 
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
         // meaning base plugin reports as no state available - plugin owners need to create proper override of this
-        THROW_IE_EXCEPTION << "Plugin doesn't override QueryState";
+        IE_THROW() << "Plugin doesn't override QueryState";
         return {};
     }
 
@@ -289,7 +289,7 @@ protected:
         foundInput = nullptr;
         foundOutput = nullptr;
         if (_networkOutputs.empty()) {
-            THROW_IE_EXCEPTION << "Internal error: network outputs is not set";
+            IE_THROW() << "Internal error: network outputs is not set";
         }
         auto foundInputPair = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
                                            [&](const std::pair<std::string, InputInfo::Ptr>& pair) {
@@ -300,7 +300,7 @@ protected:
                                                 return pair.first == name;
                                             });
         if (foundOutputPair == std::end(_networkOutputs) && (foundInputPair == std::end(_networkInputs))) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find input or output with name: \'" << name << "\'";
+            IE_THROW(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
         }
         if (foundInputPair != std::end(_networkInputs)) {
             foundInput = foundInputPair->second;
@@ -326,7 +326,7 @@ protected:
         std::string strNotMatched("The " + sType + " blob size is not equal to the network " + sType + " size");
 
         if (!blob) {
-            THROW_IE_EXCEPTION << strNotAllocated;
+            IE_THROW() << strNotAllocated;
         }
         size_t refSize;
         if (refDims.empty()) {
@@ -337,7 +337,7 @@ protected:
                                                        return pair.first == name;
                                                    });
                 if (foundInputPair == std::end(_networkInputs)) {
-                    THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find input with name: \'" << name << "\'";
+                    IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
                 }
                 dims = foundInputPair->second->getTensorDesc().getDims();
                 refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR
@@ -349,7 +349,7 @@ protected:
                                                         return pair.first == name;
                                                     });
                 if (foundOutputPair == std::end(_networkOutputs)) {
-                    THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find output with name: \'" << name << "\'";
+                    IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
                 }
                 dims = foundOutputPair->second->getTensorDesc().getDims();
                 refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR
@@ -361,10 +361,10 @@ protected:
         }
 
         if (refSize != blob->size()) {
-            THROW_IE_EXCEPTION << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
+            IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
         }
         const bool remoteBlobPassed = blob->is<RemoteBlob>();
-        if (!remoteBlobPassed && blob->buffer() == nullptr) THROW_IE_EXCEPTION << strNotAllocated;
+        if (!remoteBlobPassed && blob->buffer() == nullptr) IE_THROW() << strNotAllocated;
     }
 
     /**
