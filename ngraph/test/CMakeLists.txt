@@ -149,6 +149,7 @@ set(SRC
     type_prop/hard_sigmoid.cpp
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
+    type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
@@ -177,6 +178,7 @@ set(SRC
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
     type_prop/roi_pooling.cpp
+    type_prop/roll.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
@@ -412,6 +414,7 @@ endif()
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         openvino::conditional_compilation
                                         openvino::itt
+                                        openvino::pp
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend

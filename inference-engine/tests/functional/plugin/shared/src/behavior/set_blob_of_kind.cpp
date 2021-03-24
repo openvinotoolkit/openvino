@@ -52,7 +52,7 @@ bool isBlobKindSupported(const std::shared_ptr<Core>& core,
     case FuncTestUtils::BlobKind::BatchOfSimple:
         return isBatchedBlobSupported(core, targetDevice);
     default:
-        THROW_IE_EXCEPTION << "Test does not support the blob kind";
+        IE_THROW() << "Test does not support the blob kind";
     }
 }
 
