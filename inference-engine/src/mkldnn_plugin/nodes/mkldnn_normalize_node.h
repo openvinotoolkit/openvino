@@ -89,6 +89,24 @@ public:
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
+    enum class NormEpsMode {
+        ADD,
+        MAX
+    };
+    NormEpsMode epsMode = NormEpsMode::ADD;
+
+    float epsApply(const float &modulo) const {
+        if (epsMode == NormEpsMode::ADD) {
+            return modulo + eps;
+        } else if (epsMode == NormEpsMode::MAX) {
+            return std::max(modulo, eps);
+        } else {
+            THROW_IE_EXCEPTION << errorPrefix << "has unsupported epsilon mode";
+        }
+    }
+
+    bool cornerCase = false;
+
     template<typename T>
     struct NormalizeExecute;
 

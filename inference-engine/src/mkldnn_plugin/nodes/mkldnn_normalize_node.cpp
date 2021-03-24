@@ -648,8 +648,13 @@ MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "NormalizeL2 node with name '" + getName() + "' ";
-        eps = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op)->get_eps();
+        const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
+        eps = norm->get_eps();
+        epsMode = norm->get_eps_mode() == ngraph::op::EpsMode::MAX ? NormEpsMode::MAX : NormEpsMode::ADD;
         across_spatial = ngraph::shape_size(op->get_input_shape(AXES)) != 1;
+        // One of the corner cases is when axes is an empty list,
+        // then we divide each input element by itself resulting value 1 for all non-zero elements
+        cornerCase = op->get_input_shape(AXES).empty();
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -659,18 +664,17 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<ngraph::N
     try {
         const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
         if (!norm) {
-            errorMessage = "CPU plug-in supports NormalizeL2 node only from opset1. Node name: " + op->get_friendly_name();
+            errorMessage = "Only opset1 NormalizeL2 operation is supported";
             return false;
         }
-        std::string errorPrefix = "NormalizeL2 node with name '" + op->get_friendly_name() + "' ";
         const auto dataDims = norm->get_input_shape(DATA);
         if (dataDims.size() < 2 && dataDims.size() > 4) {
-            errorMessage = errorPrefix + "doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
             return false;
         }
         const auto axesNode = std::dynamic_pointer_cast<const ngraph::op::v0::Constant>(norm->get_input_node_shared_ptr(AXES));
         if (!axesNode) {
-            errorMessage = errorPrefix + "supports only constant 'axes' input";
+            errorMessage = "Supports only constant 'axes' input";
             return false;
         }
 
@@ -686,12 +690,14 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<ngraph::N
             }
             return false;
         };
-        if (!isSupportedAxes(axesNode->cast_vector<size_t>(), dataDims)) {
-            errorMessage = errorPrefix + "supports only per channel or per channel and per spatial reduction";
+        const auto axes = axesNode->cast_vector<size_t>();
+        if (!isSupportedAxes(axes, dataDims) && ngraph::shape_size(axesNode->get_shape()) != 0) {
+            errorMessage = "Doesn't support reduction axes: " + vec2str(axes);
             return false;
         }
-        if (norm->get_eps_mode() != ngraph::op::EpsMode::ADD) {
-            errorMessage = errorPrefix + "supports only eps_mode = add";
+        const auto mode = norm->get_eps_mode();
+        if (mode != ngraph::op::EpsMode::ADD && mode != ngraph::op::EpsMode::MAX) {
+            errorMessage = "Doesn't support eps_mode: " + ngraph::as_string(mode);
             return false;
         }
     } catch (...) {
@@ -765,7 +771,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     };
 
     // only plain layout support when w/o sse42
-    if (getParentEdgeAt(DATA)->getDims().ndims() == 4) {
+    if (getParentEdgeAt(DATA)->getDims().ndims() == 4 && !cornerCase) {
         if (mayiuse(cpu::x64::sse41)) {
             pushDesc(memory::format_tag::nhwc);
             if (mayiuse(cpu::x64::avx512_common)) {
@@ -781,7 +787,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
-    return canFuseSimpleOperation(node);
+    return !cornerCase && canFuseSimpleOperation(node);
 }
 
 void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
@@ -816,54 +822,56 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << "has nullable preferable primitive descriptor";
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc.getPrecision());
-    jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
-    jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    if (!cornerCase) {
+        auto selectedPD = getSelectedPrimitiveDescriptor();
+        jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
+        jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc.getPrecision());
+        jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
+        jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
 
-    jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
-    if (getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
-        jcp.is_nchw = true;
-    } else if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
-        jcp.is_blk = true;
-    } else {
-        jcp.is_nhwc = true;
-    }
+        jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
+        if (getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
+            jcp.is_nchw = true;
+        } else if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+            jcp.is_blk = true;
+        } else {
+            jcp.is_nhwc = true;
+        }
 
-    jcp.across_spatial = across_spatial;
-    auto dims = getParentEdgeAt(0)->getDesc().getDims();
-    size_t dims_size = dims.size();
-    jcp.n = (dims_size > 0) ? dims[0] : 1lu;
-    jcp.c = (dims_size > 1) ? dims[1] : 1lu;
-    jcp.h = (dims_size > 2) ? dims[2] : 1lu;
-    jcp.w = (dims_size > 3) ? dims[3] : 1lu;
+        jcp.across_spatial = across_spatial;
+        auto dims = getParentEdgeAt(0)->getDesc().getDims();
+        size_t dims_size = dims.size();
+        jcp.n = (dims_size > 0) ? dims[0] : 1lu;
+        jcp.c = (dims_size > 1) ? dims[1] : 1lu;
+        jcp.h = (dims_size > 2) ? dims[2] : 1lu;
+        jcp.w = (dims_size > 3) ? dims[3] : 1lu;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
-        normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
-    }
-    if (normalize_kernel)
-        normalize_kernel->create_ker();
+        if (mayiuse(cpu::x64::avx512_common)) {
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::sse41)) {
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+        }
+        if (normalize_kernel)
+            normalize_kernel->create_ker();
 
-    if (normalize_modulo_kernel)
-        normalize_modulo_kernel->create_ker();
+        if (normalize_modulo_kernel)
+            normalize_modulo_kernel->create_ker();
 
-    const auto &p = (*attr.get()).post_ops_;
-    for (int i = 0; i < p.len(); i++) {
-        auto &post_op = p.entry_[i];
-        if (post_op.is_eltwise()) {
-            eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(
-                post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
-        } else if (post_op.is_depthwise()) {
-            depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(
-                    post_op.depthwise.alg));
+        const auto &p = (*attr.get()).post_ops_;
+        for (int i = 0; i < p.len(); i++) {
+            auto &post_op = p.entry_[i];
+            if (post_op.is_eltwise()) {
+                eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(
+                    post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
+            } else if (post_op.is_depthwise()) {
+                depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(
+                        post_op.depthwise.alg));
+            }
         }
     }
 }
@@ -966,7 +974,7 @@ void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t
             });
 
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for(C, [&](size_t ic) {
@@ -1005,7 +1013,7 @@ void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t
             });
 
             for (size_t m = 0; m < H * W; m++) {
-                moduloM[m] = 1.0f / (std::sqrt(moduloM[m]) + eps);
+                moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
             }
 
             // normalize
@@ -1049,7 +1057,7 @@ void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_da
             });
 
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for(C, [&](size_t ic) {
@@ -1080,7 +1088,7 @@ void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_da
             });
 
             for (size_t m = 0; m < H * W; m++) {
-                moduloM[m] = 1.0f / (std::sqrt(moduloM[m]) + eps);
+                moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
             }
 
             // normalize
@@ -1147,7 +1155,7 @@ void MKLDNNNormalizeL2Node::normalize_nhwc(const in_data_t* src_data, out_data_t
                 return modulo_kernel + modulo_tail;
             });
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for2d(H, W, [&](int ih, int iw) {
@@ -1182,7 +1190,7 @@ void MKLDNNNormalizeL2Node::normalize_nhwc(const in_data_t* src_data, out_data_t
                 }
 
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (modulo + eps);
+                float modulo_inv = 1.0f / (epsApply(modulo));
 
                 // normalize
                 arg.dst = dst_data_bhw;
@@ -1245,7 +1253,7 @@ void MKLDNNNormalizeL2Node::normalize_blk(const in_data_t* src_data, out_data_t*
             });
 
             modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (modulo + eps);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for2d(CB, H, [&](size_t cb, size_t h) {
@@ -1282,7 +1290,7 @@ void MKLDNNNormalizeL2Node::normalize_blk(const in_data_t* src_data, out_data_t*
                 }
 
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (modulo + eps);
+                float modulo_inv = 1.0f / (epsApply(modulo));
 
                 // normalize
                 arg.dst = dst_data_bhw;
@@ -1297,7 +1305,12 @@ void MKLDNNNormalizeL2Node::normalize_blk(const in_data_t* src_data, out_data_t*
 
 template <typename in_data_t, typename out_data_t>
 void MKLDNNNormalizeL2Node::normalize_function(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
-    if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
+    if (cornerCase) {
+        const auto workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
+        parallel_for(workAmount, [&](size_t i) {
+            dst_data[i] = src_data[i] == 0 ? 0 : 1;
+        });
+    } else if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
         if (jcp.is_nchw) {
             normalize_nchw(src_data, dst_data, dims);
         } else if (jcp.is_nhwc) {
