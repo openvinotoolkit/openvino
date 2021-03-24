@@ -37,7 +37,7 @@ Detailed information on how to convert models from the <a href="https://github.c
 
 **Supported Frozen Topologies from TensorFlow Object Detection Models Zoo**
 
-Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md">Object Detection Models Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
+Detailed information on how to convert models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Object Detection Models Zoo</a> and <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Object Detection Models Zoo</a> is available in the [Converting TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md) chapter. The table below contains models from the Object Detection Models zoo that are supported.
 
 | Model Name| TensorFlow Object Detection API Models (Frozen)|
 | :------------- | -----:|
@@ -117,13 +117,13 @@ Where `HEIGHT` and `WIDTH` are the input images height and width for which the m
 | YOLOv4 | [Repo](https://github.com/Ma-Dan/keras-yolo4) |
 | STN | [Repo](https://github.com/oarriaga/STN.keras) |
 
-* YOLO topologies from DarkNet* can be converted using [instruction](tf_specific/Convert_YOLO_From_Tensorflow.md),
-* FaceNet topologies can be converted using [instruction](tf_specific/Convert_FaceNet_From_Tensorflow.md).
-* CRNN topologies can be converted using [instruction](tf_specific/Convert_CRNN_From_Tensorflow.md).
-* NCF topologies can be converted using [instruction](tf_specific/Convert_NCF_From_Tensorflow.md)
-* [GNMT](https://github.com/tensorflow/nmt) topology can be converted using [instruction](tf_specific/Convert_GNMT_From_Tensorflow.md)
-* [BERT](https://github.com/google-research/bert) topology can be converted using [this instruction](tf_specific/Convert_BERT_From_Tensorflow.md).
-* [XLNet](https://github.com/zihangdai/xlnet) topology can be converted using [this instruction](tf_specific/Convert_XLNet_From_Tensorflow.md).
+* YOLO topologies from DarkNet* can be converted using [these instructions](tf_specific/Convert_YOLO_From_Tensorflow.md).
+* FaceNet topologies can be converted using [these instructions](tf_specific/Convert_FaceNet_From_Tensorflow.md).
+* CRNN topologies can be converted using [these instructions](tf_specific/Convert_CRNN_From_Tensorflow.md).
+* NCF topologies can be converted using [these instructions](tf_specific/Convert_NCF_From_Tensorflow.md).
+* [GNMT](https://github.com/tensorflow/nmt) topology can be converted using [these instructions](tf_specific/Convert_GNMT_From_Tensorflow.md).
+* [BERT](https://github.com/google-research/bert) topology can be converted using [these instructions](tf_specific/Convert_BERT_From_Tensorflow.md).
+* [XLNet](https://github.com/zihangdai/xlnet) topology can be converted using [these instructions](tf_specific/Convert_XLNet_From_Tensorflow.md).
 
   
 
@@ -139,7 +139,7 @@ There are three ways to store non-frozen TensorFlow models and load them to the 
 
     If you do not have an inference graph file, refer to [Freezing Custom Models in Python](#freeze-the-tensorflow-model).
 
-    To convert such TensorFlow model:
+    To convert such a TensorFlow model:
 
     1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
     2. Run the `mo_tf.py` script with the path to the checkpoint file to convert a model:

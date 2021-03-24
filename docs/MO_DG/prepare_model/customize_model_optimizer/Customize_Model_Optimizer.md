@@ -31,20 +31,18 @@
       * [Pattern-Defined Back Phase Transformations](#pattern-defined-back-phase-transformations)
       * [Generic Back Phase Transformations](#generic-back-phase-transformations)
 
-Model Optimizer extensibility mechanism allows to support new operations and custom transformations to generate the
-optimized Intermediate Representation (IR) as described in the
+The Model Optimizer extensibility mechanism allows you to support new operations and custom transformations to generate the optimized Intermediate Representation (IR) as described in the
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
-mechanism is a core part of the Model Optimizer and the Model Optimizer uses it under the hood, so the Model Optimizer
-itself is a huge set of examples on how to add custom logic to support your model.
+mechanism is a core part of the Model Optimizer, which it uses under the hood, so the Model Optimizer
+itself is a huge set of examples for adding custom logic to support your model.
 
 There are several cases when the customization is needed:
 
 * A model contains operation(s) not known for the Model Optimizer, but these operation(s) could be expressed as a
 combination of supported operations. In this case a custom transformation should be implemented to replace unsupported
 operation(s) with supported ones.
-* A model contains sub-graph of operations which can be replaced with a smaller number of operations to get the better
-performance. This example corresponds to so called fusing transformations. For example, replace a sub-graph performing
-the following calculation \f$x / (1.0 + e^{-(beta * x)})\f$ with a single operation of type
+* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better
+performance. This example corresponds to so-called *fusing transformations*, for example, replacing a sub-graph performing the calculation \f$x / (1.0 + e^{-(beta * x)})\f$ with a single operation of type
 [Swish](../../../ops/activation/Swish_4.md).
 * A model contains a custom framework operation (the operation which is not a part of an official operation set of the
 framework) which was developed using the framework extensibility mechanism. In this case the Model Optimizer should know

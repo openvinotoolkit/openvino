@@ -2,7 +2,7 @@
 
 This document provides the instructions and examples on how to use Model Optimizer to convert [GluonCV SSD and YOLO-v3 models](https://gluon-cv.mxnet.io/model_zoo/detection.html) to IR.
 
-1. Choose the topology available from the [GluonCV Moodel Zoo](https://gluon-cv.mxnet.io/model_zoo/detection.html) and export to the MXNet format using the GluonCV API. For example, for the `ssd_512_mobilenet1.0` topology: 
+1. Choose the topology available from the [GluonCV Model Zoo](https://gluon-cv.mxnet.io/model_zoo/detection.html) and export to the MXNet format using the GluonCV API. For example, for the `ssd_512_mobilenet1.0` topology: 
 ```python
 from gluoncv import model_zoo, data, utils
 from gluoncv.utils import export_block

@@ -81,7 +81,7 @@ The following steps will be covered:
 4. <a href="#get-started">Get Started with Code Samples and Demo Applications</a>.
 5. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit</a>.
 
-## <a name="Install-Core"></a>Install the Intel® Distribution of OpenVINO™ toolkit Core Components
+## <a name="Install-Core"></a>Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
 
 If you have a previous version of the Intel® Distribution of OpenVINO™ toolkit installed, rename or delete these two directories:
 
@@ -125,8 +125,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
    For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`.
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
    ![](../img/openvino-install-macos-04.png)
-   > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
-   Click **Next** to save the installation options and show the Installation summary screen.
+   > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions. Click **Next** to save the installation options and show the Installation summary screen.
 
 10. On the **Installation summary** screen, press **Install** to begin the installation.
 
@@ -144,22 +143,26 @@ You need to update several environment variables before you can compile and run 
    source /opt/intel/openvino_2021/bin/setupvars.sh
    ```  
 
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
+
 <strong>Optional</strong>: The OpenVINO environment variables are removed when you close the shell. You can permanently set the environment variables as follows:
 
 1. Open the `.bash_profile` file in the current user home directory:
    ```sh
    vi ~/.bash_profile
    ```
-2. Press the **i** key to switch to the insert mode.
+2. Press the **i** key to switch to insert mode.
 
 3. Add this line to the end of the file:
    ```sh
    source /opt/intel/openvino_2021/bin/setupvars.sh
    ```
 
-3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
 
-4. To verify your change, open a new terminal. You will see `[setupvars.sh] OpenVINO environment initialized`.
+4. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
+
+5. To verify your change, open a new terminal. You will see `[setupvars.sh] OpenVINO environment initialized`.
 
 The environment variables are set. Continue to the next section to configure the Model Optimizer.
 
@@ -265,13 +268,13 @@ Proceed to the <a href="#get-started">Get Started</a> to get started with runnin
 
 Now you are ready to get started. To continue, see the following pages:
 * [OpenVINO™ Toolkit Overview](../index.md)
-* [Get Started Guide for Windows](../get_started/get_started_macos.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+* [Get Started Guide for macOS](../get_started/get_started_macos.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
 
-1. From the `<INSTALL_DIR>`, locate and open `openvino_toolkit_uninstaller.app`.
+1. From the the installation directory (by default, `/opt/intel/openvino_2021`), locate and open `openvino_toolkit_uninstaller.app`.
 2. Follow the uninstallation wizard instructions.
 3. When uninstallation is complete, click **Finish**. 
 

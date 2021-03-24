@@ -5,7 +5,7 @@
 Inference Engine CPU plugin can infer models in the 8-bit integer (INT8) precision. 
 For details, refer to [INT8 inference on the CPU](../../../IE_DG/Int8Inference.md).
 
-Intermediate Representation (IR) should be specifically formed to be suitable for the INT8 inference. 
+Intermediate Representation (IR) should be specifically formed to be suitable for INT8 inference. 
 Such an IR is called an INT8 IR and you can generate it in two ways:
 - [Quantize model with the Post-Training Optimization tool](@ref pot_README)
 - Use the Model Optimizer for TensorFlow\* pre-TFLite models (`.pb` model file with `FakeQuantize*` operations)
@@ -18,11 +18,11 @@ To execute the `Convolution` operation in INT8 on CPU, both data and weight inpu
 ![](../../img/expanded_int8_Convolution_weights.png)
 
 INT8 IR is also suitable for FP32 and FP16 inference if a chosen plugin supports all operations of the IR, because the only difference between an INT8 IR and FP16 or FP32 IR is the existence of `FakeQuantize` in the INT8 IR. 
-Plugins with the INT8 inference support recognize these sub-graphs and quantize them during the inference time. 
-Plugins without the INT8 support execute all operations, including `FakeQuantize`, as is in the FP32 or FP16 precision.   
+Plugins with INT8 inference support recognize these sub-graphs and quantize them during the inference time. 
+Plugins without INT8 support execute all operations, including `FakeQuantize`, as is in the FP32 or FP16 precision.   
 
 Accordingly, the presence of FakeQuantize operations in the IR is a recommendation for a plugin on how to quantize particular operations in the model. 
-If capable, a plugin accepts the recommendation and performs the INT8 inference, otherwise the plugin ignores the recommendation and executes a model in the floating-point precision. 
+If capable, a plugin accepts the recommendation and performs INT8 inference, otherwise the plugin ignores the recommendation and executes a model in the floating-point precision. 
 
 ## Compressed INT8 Weights
 

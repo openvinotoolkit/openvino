@@ -35,7 +35,7 @@ To get pb-file from the archive contents, you need to do the following.
 
    
 
-2. Save and run the following script:
+2. Save and run the following Python script in `~/XLNet-Base/xlnet`:
 
 ```python
 from collections import namedtuple
@@ -92,7 +92,6 @@ with tf.Session() as sess:
         writer.flush()
 ```
 
-The script should save into `~/XLNet-Base/xlnet`.
 
 ## Download the Pre-Trained Large XLNet Model
 
@@ -120,7 +119,7 @@ To get pb-file from the archive contents, you need to do the following.
 
 
 
-2. Save and run the following script:
+2. Save and run the following Python script in `~/XLNet-Large/xlnet`:
 
 ```python
 from collections import namedtuple

@@ -171,7 +171,7 @@ The script:
 To run the script that performs inference on a CPU:
 
 ```sh
-./demo_squeezenet_download_convert_run.sh
+./demo_benchmark_app.sh
 ```
 When the verification script completes, you see the performance counters, resulting latency, and throughput values displayed on the screen.
 </details>

@@ -1,10 +1,11 @@
 # Converting a Model Using General Conversion Parameters {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General}
 
-To simply convert a model trained by any supported framework, run the Model Optimizer launch script ``mo.py`` with
-specifying a path to the input model file:
+To simply convert a model trained by any supported framework, run the Model Optimizer launch script ``mo.py`` specifying a path to the input model file:
 ```sh
 python3 mo.py --input_model INPUT_MODEL
 ```
+
+The script is in `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
 
@@ -157,7 +158,7 @@ If both mean and scale values are specified, the mean is subtracted first and th
 There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
 * Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
 * Open the example script/application executing the model and track how the input data is read and passed to the framework.
-* Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, the pre-processing is most probably the part of the model.
+* Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, pre-processing is probably part of the model.
 
 ## When to Specify Input Shapes <a name="when_to_specify_input_shapes"></a>
 There are situations when the input data shape for the model is not fixed, like for the fully-convolutional neural networks. In this case, for example, TensorFlow\* models contain `-1` values in the `shape` attribute of the `Placeholder` operation. Inference Engine does not support input layers with undefined size, so if the input shapes are not defined in the model, the Model Optimizer fails to convert the model. The solution is to provide the input shape(s) using the `--input` or `--input_shape` command line parameter for all input(s) of the model or provide the batch size using the `-b` command line parameter if the model contains just one input with undefined batch size only. In the latter case, the `Placeholder` shape for the TensorFlow\* model looks like this `[-1, 224, 224, 3]`. 
