@@ -287,13 +287,12 @@ private:
         bool is(const std::type_info& id) const override {
             return id == typeid(T);
         }
+
         Any* copy() const override {
             return new RealData {get()};
         }
 
-        T& get() & {
-            return std::get<0>(*static_cast<std::tuple<T>*>(this));
-        }
+        T& get() &;
 
         const T& get() const& {
             return std::get<0>(*static_cast<const std::tuple<T>*>(this));
@@ -332,18 +331,23 @@ private:
 };
 
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::TensorDesc>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<float>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<uint32_t>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::string>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<unsigned long>);
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<long long>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<std::string>>);
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<float>>);
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<uint32_t>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<unsigned long>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::map<std::string, Parameter>>);
 
 }  // namespace InferenceEngine

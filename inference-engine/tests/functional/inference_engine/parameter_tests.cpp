@@ -33,6 +33,13 @@ public:
 size_t DestructorTest::destructorCount = 0;
 size_t DestructorTest::constructorCount = 0;
 
+// These lines are requred to solve linkage issue
+template<>
+DestructorTest*& Parameter::RealData<DestructorTest*>::get() & {
+    return std::get<0>(*static_cast<std::tuple<DestructorTest*>*>(this));
+}
+template struct Parameter::RealData<DestructorTest*>;
+
 class ParameterTests : public ::testing::Test {
 public:
     void SetUp() override {
