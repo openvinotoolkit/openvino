@@ -137,6 +137,7 @@
 #include "ngraph/op/rnn_sequence.hpp"
 #include "ngraph/op/roi_align.hpp"
 #include "ngraph/op/roi_pooling.hpp"
+#include "ngraph/op/roll.hpp"
 #include "ngraph/op/round.hpp"
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/op/scatter_nd_update.hpp"
