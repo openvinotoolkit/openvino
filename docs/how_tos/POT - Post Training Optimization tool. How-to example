@@ -1,0 +1,86 @@
+A real example to calibrate mobilenet model
+Tested on OpenVINO 2021, Ubuntu 18.04
+
+Please check the full video
+XXXXXX
+
+install
+----------
+export OV=/opt/intel/openvino_2021/
+cd $OV/deployment_tools/model_optimizer/install_prerequisites
+sudo ./install_prerequisites.sh
+
+
+cd $OV/deployment_tools/open_model_zoo/tools/accuracy_checker
+sudo python3 setup.py install
+
+cd $OV/deployment_tools/tools/post_training_optimization_toolkit
+sudo python3 setup.py install
+
+--
+1) download mobilenet-v2
+cd ~/POT
+
+python3 $OV/deployment_tools/tools/model_downloader/downloader.py --name mobilenet-v2-pytorch -o .
+cd public/mobilenet-v2-pytorch/
+
+
+2) Model Optimizer
+
+cd $OV/deployment_tools/open_model_zoo/tools/downloader
+python3 -mpip install --user -r ./requirements-pytorch.in
+
+vi $OV/deployment_tools/open_model_zoo/models/public/mobilenet-v2-pytorch/model.yml
+
+cd ~/POT/public/mobilenet-v2-pytorch
+
+python3 $OV/deployment_tools/open_model_zoo/tools/downloader/pytorch_to_onnx.py        
+    --model-name=MobileNetV2  
+   --model-path=. 
+--weights=mobilenet-v2.pth  
+--import-module=MobileNetV2   
+--input-shape=1,3,224,224  
+--output-file=mobilenet-v2.onnx  
+--input-names=data  
+--output-names=prob
+
+vi $OV/deployment_tools/open_model_zoo/models/public/mobilenet-v2-pytorch/model.yml
+
+
+mo_onnx.py   -m mobilenet-v2.onnx    --input=data --mean_values=data[123.675,116.28,103.53]  --scale_values=data[58.624,57.12,57.375]                                                                      --reverse_input_channels                                                                                            --output=prob
+
+mv mobilenet-v2.xml ~/POT/model.xml
+mv mobilenet-v2.bin ~/POT/model.bin
+
+3) accuracy check
+
+sudo vi $OV/deployment_tools/open_model_zoo/tools/accuracy_checker/dataset_definitions.yml
+(edit imagenet_1000_classes)
+
+export DEFINITIONS_FILE=/opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/accuracy_checker/dataset_definitions.yml
+
+------
+cp /opt/intel/openvino_2021/deployment_tools/tools/post_training_optimization_toolkit/configs/examples/quantization/classification/mobilenetV2_pytorch_int8.json ~/POT
+
+cp /opt/intel/openvino_2021/deployment_tools/open_model_zoo/tools/accuracy_checker/configs/mobilenet-v2.yml ~/POT
+-----
+
+vi mobilenetV2_pytorch_int8.json
+vi mobilenet-v2.yml
+
+
+pot -c /home/gtamir/POT/mobilenetV2_pytorch_int8.json --output-dir /home/gtamir/POT/ --evaluate  --log-level INFO
+pot -c /home/user/POT/mobilenetV2_pytorch_int8.json --output-dir /home/user/POT/ --evaluate  --log-level INFO
+
+
+4) Run the calibration process..
+pot --config  /home/gtamir/POT/mobilenetV2_pytorch_int8.json  --output-dir /home/gtamir/POT/                                                                                   --evaluate                                                                                                          --log-level INFO 
+
+AccuracyAwareQuantization
+DefaultQuantization
+
+
+
+
+
+
