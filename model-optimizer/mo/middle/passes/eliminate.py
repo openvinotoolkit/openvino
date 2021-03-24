@@ -135,7 +135,7 @@ def eliminate_dead_nodes(graph):
         if node_attrs.get('type', None) == 'Const':
             if node_attrs.get('nchw_layout', False):
                 Node(graph, node_name).out_node()['nchw_layout'] = True
-            if node_attrs.get('force_shape', False):
+            if np.all(node_attrs.get('force_shape', False)):
                 Node(graph, node_name).out_node()['force_shape'] = node_attrs['force_shape']
             if node_attrs.get('force_type', False):
                 Node(graph, node_name).out_node()['force_type'] = node_attrs['force_type']
