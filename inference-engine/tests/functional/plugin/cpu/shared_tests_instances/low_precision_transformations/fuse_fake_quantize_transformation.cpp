@@ -26,7 +26,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         }
     },
     {
-        ngraph::Shape{128, 1},
+        ngraph::Shape{128, 3},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,

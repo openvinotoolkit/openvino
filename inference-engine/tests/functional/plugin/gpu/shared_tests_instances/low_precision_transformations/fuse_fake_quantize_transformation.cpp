@@ -26,7 +26,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Multiply with different input and output shape
     {
-        ngraph::Shape{128, 1},
+        ngraph::Shape{128, 3},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
