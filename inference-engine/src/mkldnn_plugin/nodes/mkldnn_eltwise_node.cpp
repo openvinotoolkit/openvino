@@ -1099,7 +1099,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
         auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
-            if (lt == ChannelsFirst && edge->getDims().size() != 1) {
+            if (lt == ChannelsFirst && edge->getDims().ndims() != 1) {
                 auto dims = edge->getDims().ToSizeVector();
                 auto ndims = dims.size();
                 std::vector<size_t> order(ndims);
@@ -1115,7 +1115,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 }
 
                 return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
-            } else if (lt == Blocked && edge->getDims().size() != 1 && edge->getDims()[1] != 1) {
+            } else if (lt == Blocked && edge->getDims().ndims() != 1 && edge->getDims()[1] != 1) {
                 size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
 
                 std::vector<size_t> blocks = edge->getDims().ToSizeVector();
@@ -1723,7 +1723,7 @@ void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode) {
         fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
     }
 
-    const size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].size() > 1 ? 1 : 0]);
+    const size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].ndims() > 1 ? 1 : 0]);
     const size_t bufferSizeAligned = rnd_up(bufferSize, 16);
 
     size_t initSize = scales.size();

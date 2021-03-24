@@ -173,6 +173,8 @@ protected:
 };
 
 TEST_P(ConvReLUPoolConvReLUPool, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

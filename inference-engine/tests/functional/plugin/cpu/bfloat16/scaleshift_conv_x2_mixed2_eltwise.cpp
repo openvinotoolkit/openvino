@@ -117,6 +117,8 @@ protected:
 };
 
 TEST_P(ScaleshiftConv_x2_mixed2_Eltwise, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

@@ -140,6 +140,8 @@ protected:
 };
 
 TEST_P(TopKInputsI32, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

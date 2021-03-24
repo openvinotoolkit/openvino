@@ -342,7 +342,6 @@ void MKLDNNGraph::InitGraph() {
 
     CreatePrimitives();
 
-//
 //    if (!config.dumpToDot.empty())
 //        dumpToDotFile(config.dumpToDot + "_init.dot");
 

@@ -135,6 +135,8 @@ protected:
 };
 
 TEST_P(Concat_in_place, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

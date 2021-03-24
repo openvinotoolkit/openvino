@@ -107,58 +107,58 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
-    displayName: 'nGraph UT'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  #   displayName: 'nGraph UT'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
-    displayName: 'IE UT old - IB'
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
+  #   displayName: 'IE UT old - IB'
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
-    displayName: 'IE UT'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
+  #   displayName: 'IE UT'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
-    displayName: 'CPU UT'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
+  #   displayName: 'CPU UT'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
-    displayName: 'GNA UT'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
+  #   displayName: 'GNA UT'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
+  #   displayName: 'VPU UT'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
+  #   displayName: 'ONNX Importer UT'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
-    displayName: 'IE FuncTests'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+  #   displayName: 'IE FuncTests'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
-    displayName: 'TEMPLATE FuncTests'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
+  #   displayName: 'TEMPLATE FuncTests'
+  #   continueOnError: false
 
   - script: |
       set PATH=$(TEST_ENV_PATH)
@@ -166,30 +166,30 @@ jobs:
     displayName: 'CPU FuncTests - IB'
     continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\MklDnnBehaviorTests  --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
-    displayName: 'MklDnnBehaviorTests'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     $(BIN_DIR)\MklDnnBehaviorTests  --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
+  #   displayName: 'MklDnnBehaviorTests'
+  #   continueOnError: false
 
     # Add for gtest-parallel, it hangs now (CVS-33386)
     #python $(WORK_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      set DATA_PATH=$(MODELS_PATH)
-      set MODELS_PATH=$(MODELS_PATH)
-      rem "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests-IB.xml
-      $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
-    displayName: 'MklDnnFunctionalTests'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     set DATA_PATH=$(MODELS_PATH)
+  #     set MODELS_PATH=$(MODELS_PATH)
+  #     rem "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests-IB.xml
+  #     $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
+  #   displayName: 'MklDnnFunctionalTests'
+  #   continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      set DATA_PATH=$(MODELS_PATH)
-      set MODELS_PATH=$(MODELS_PATH)
-      $(BIN_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
-    displayName: 'IE CAPITests'
-    continueOnError: false
+  # - script: |
+  #     set PATH=$(TEST_ENV_PATH)
+  #     set DATA_PATH=$(MODELS_PATH)
+  #     set MODELS_PATH=$(MODELS_PATH)
+  #     $(BIN_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+  #   displayName: 'IE CAPITests'
+  #   continueOnError: false
 
   - task: PublishTestResults@2
     condition: always()

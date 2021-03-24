@@ -128,6 +128,8 @@ protected:
 };
 
 TEST_P(ScaleshiftConvEltwiseScaleshift, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

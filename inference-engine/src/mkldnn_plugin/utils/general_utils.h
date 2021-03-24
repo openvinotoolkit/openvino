@@ -56,5 +56,16 @@ inline std::string getExceptionDescWithoutStatus(const InferenceEngine::details:
     return desc;
 }
 
+template<typename T>
+std::string vec2str(const std::vector<T> &vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(result, "."));
+        result << vec.back() << ")";
+        return result.str();
+    }
+    return std::string("()");
+}
 
 }  // namespace MKLDNNPlugin

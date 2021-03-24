@@ -9,11 +9,16 @@
 #include "reshape_fully_connected.hpp"
 #include "convert_broadcast_to_tiles.hpp"
 #include "convert_tile_to_seq_tiles.hpp"
+#include "reshape_1d_ops.hpp"
 
 namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
+    manager.register_pass<Reshape1DConvolution>();
+    manager.register_pass<Reshape1DGroupConvolution>();
+    manager.register_pass<Reshape1DAvgPool>();
+    manager.register_pass<Reshape1DMaxPool>();
     manager.register_pass<ConvertBroadcastToTiles>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<ConvertMatMulToFC>();

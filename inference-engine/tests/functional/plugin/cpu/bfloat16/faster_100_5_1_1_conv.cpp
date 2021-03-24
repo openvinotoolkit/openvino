@@ -111,6 +111,8 @@ protected:
 };
 
 TEST_P(Faster100_5_1_1_Conv, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
