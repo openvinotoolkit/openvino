@@ -691,7 +691,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     IE_ASSERT(gnaFlags->sw_fp32 ? (quantized == nullptr) : (quantized != nullptr));
 
     if (power.power < 0.0f || power.power > 2.8f) {
-        THROW_IE_EXCEPTION << "[GNA plugin] unsupported power factor, expected be in <0, 2.8> range but was " << power.power;
+        IE_THROW() << "[GNA plugin] unsupported power factor, expected be in <0, 2.8> range but was " << power.power;
     }
 
     auto input = layer->insData[0].lock();
@@ -1353,7 +1353,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         // direct order is 0, 1, 2, 3, supported order is only 0,3,2,1 where dim 2 is usually equals to 1
         auto permuteOrder = connectionInfo.permute->GetParamAsInts("order");
         if (permuteOrder != vector<int>({ 0, 3, 2, 1 })) {
-            THROW_IE_EXCEPTION << "[GNA plugin] Unsupported permute order: was " << layer->GetParamAsString("order") <<
+            IE_THROW() << "[GNA plugin] Unsupported permute order: was " << layer->GetParamAsString("order") <<
                 ", but only support 0, 3, 2, 1";
         }
 
@@ -1361,7 +1361,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
          * TODO: weights transpose happened after quantisation might result in poor quality for in 8 - move this to passes
          */
         if (weightable._weights->getTensorDesc().getPrecision() == Precision::I8) {
-            THROW_IE_EXCEPTION << "[GNA plugin] Unsupported permute operation for 8 bit weights for layer: " << layer->name;
+            IE_THROW() << "[GNA plugin] Unsupported permute operation for 8 bit weights for layer: " << layer->name;
         }
 
         // this affine connected to convolution via pool or activation

@@ -7,7 +7,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    static const std::vector<ngraph::element::Type> precisionsMyriad = {
+    static const std::vector<ngraph::element::Type> nightly_precisionsMyriad = {
             ngraph::element::f32,
             ngraph::element::f16,
             ngraph::element::i32,
@@ -15,14 +15,34 @@ namespace {
             ngraph::element::u8,
     };
 
+    static const std::vector<ngraph::element::Type> smoke_precisionsMyriad = {
+            ngraph::element::f32,
+    };
+
     static const std::vector<std::size_t> batchSizesMyriad = {
             1, 2
     };
 
+    static std::vector<nGraphFunctionWithName> smoke_functions() {
+        auto funcs = LoadNetworkCacheTestBase::getStandardFunctions();
+        if (funcs.size() > 1) {
+            funcs.erase(funcs.begin() + 1, funcs.end());
+        }
+        return funcs;
+    }
+
     INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
                             ::testing::Combine(
+                                    ::testing::ValuesIn(smoke_functions()),
+                                    ::testing::ValuesIn(smoke_precisionsMyriad),
+                                    ::testing::ValuesIn(batchSizesMyriad),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(nightly_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
-                                    ::testing::ValuesIn(precisionsMyriad),
+                                    ::testing::ValuesIn(nightly_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                             LoadNetworkCacheTestBase::getTestCaseName);

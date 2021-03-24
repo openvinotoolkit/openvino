@@ -414,6 +414,7 @@ endif()
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         openvino::conditional_compilation
                                         openvino::itt
+                                        openvino::pp
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend

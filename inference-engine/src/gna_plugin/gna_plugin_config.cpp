@@ -211,7 +211,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
             }
         } else {
-            THROW_IE_EXCEPTION_WITH_STATUS(NotFound)
+            IE_THROW(NotFound)
                 << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
                 << "Incorrect GNA Plugin config. Key " << item.first << " not supported";
         }
