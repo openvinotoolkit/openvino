@@ -35,7 +35,7 @@ namespace ngraph
                 /// \param input           Input tensor with position sensitive score maps
                 /// \param coords          Input tensor with list of five element tuples
                 ///                        describing ROI coordinates
-                /// \param offsets         Input blob with transformation values
+                /// \param offsets         Input tensor with transformation values
                 /// \param output_dim      Pooled output channel number
                 /// \param group_size      Number of horizontal bins per row to divide ROI area,
                 ///                        it defines output width and height

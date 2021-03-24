@@ -120,7 +120,7 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
     std::vector<Dimension> output_dim_vec(output_rank, Dimension::dynamic());
     if (box_coords_pshape.rank().is_static())
     {
-        output_dim_vec[0] = box_coords_pshape[0]; // Number of ROI's
+        output_dim_vec[0] = box_coords_pshape[0]; // Number of ROIs
     }
     output_dim_vec[1] = m_output_dim;
     for (int i = 2; i < output_rank; ++i)
