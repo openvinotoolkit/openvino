@@ -57,6 +57,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_SHAVES}},
         {{InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_STAGE_NCES}},
 
+        {{InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, CONFIG_VALUE(YES)}},
+        {{InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, CONFIG_VALUE(NO)}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
@@ -80,6 +83,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {KEY_LOG_LEVEL, LOG_INFO},
             {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_INFER},
+            {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10"},
@@ -146,7 +150,8 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_PROTOCOL, {std::string()}},
         {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, {true}},
         {InferenceEngine::MYRIAD_POWER_MANAGEMENT, {InferenceEngine::MYRIAD_POWER_FULL}},
-        {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, {true}}
+        {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, {true}},
+        {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, {false}},
     };
     return defaultEntries;
 }
@@ -193,6 +198,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
         std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }
@@ -225,6 +233,7 @@ const std::vector<std::string>& getPrivateOptions() {
     static const std::vector<std::string> privateOptions = {
         InferenceEngine::MYRIAD_COPY_OPTIMIZATION,
         InferenceEngine::MYRIAD_POWER_MANAGEMENT,
+        InferenceEngine::MYRIAD_HW_EXTRA_SPLIT,
     };
     return privateOptions;
 }
@@ -265,6 +274,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "ON"}},
         {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "OFF"}},
 
+        {{InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, "ON"}},
+        {{InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, "OFF"}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"}},
 
@@ -290,6 +302,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_PROTOCOL, "BLUETOOTH"},
             {InferenceEngine::MYRIAD_POWER_MANAGEMENT, "FULL"},
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
+            {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, "ON"},
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"},
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "OFF"},

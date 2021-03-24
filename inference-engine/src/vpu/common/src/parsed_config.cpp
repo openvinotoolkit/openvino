@@ -41,8 +41,6 @@ IE_SUPPRESS_DEPRECATED_START
         // Private options
         //
 
-        ie::MYRIAD_HW_EXTRA_SPLIT,
-
         ie::MYRIAD_NUMBER_OF_SHAVES,
         ie::MYRIAD_NUMBER_OF_CMX_SLICES,
         ie::MYRIAD_TILING_CMX_LIMIT_KB,
@@ -168,7 +166,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
     setOption(_compileConfig.packDataInCmx,                  switches, config, ie::MYRIAD_PACK_DATA_IN_CMX);
     setOption(_compileConfig.ignoreUnknownLayers,            switches, config, ie::MYRIAD_IGNORE_UNKNOWN_LAYERS);
-    setOption(_compileConfig.hwExtraSplit,                   switches, config, ie::MYRIAD_HW_EXTRA_SPLIT);
     setOption(_compileConfig.injectSwOps,                    switches, config, ie::MYRIAD_HW_INJECT_STAGES);
     setOption(_compileConfig.mergeHwPoolToConv,              switches, config, ie::MYRIAD_HW_POOL_CONV_MERGE);
     setOption(_compileConfig.hwDilation,                     switches, config, ie::MYRIAD_HW_DILATION);

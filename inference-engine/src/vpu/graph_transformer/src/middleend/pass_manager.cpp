@@ -12,6 +12,7 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/configuration/options/copy_optimization.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/hw_extra_split.hpp>
 
 namespace vpu {
 
@@ -226,7 +227,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         ADD_PASS(hwFullyConnectedTiling);
         ADD_DUMP_PASS("hwTiling");
 
-        if (env.config.compileConfig().hwExtraSplit) {
+        if (env.config.get<HwExtraSplitOption>()) {
             ADD_PASS(hwExtraSplit);
             ADD_DUMP_PASS("hwExtraSplit");
         }

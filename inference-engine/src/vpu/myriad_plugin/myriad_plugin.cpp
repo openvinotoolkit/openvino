@@ -24,6 +24,7 @@
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/protocol.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/hw_extra_split.hpp>
 
 #include "myriad_plugin.h"
 
@@ -150,6 +151,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<PowerConfigOption>();
     _parsedConfig.registerOption<ProtocolOption>();
     _parsedConfig.registerOption<HwAccelerationOption>();
+    _parsedConfig.registerOption<HwExtraSplitOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

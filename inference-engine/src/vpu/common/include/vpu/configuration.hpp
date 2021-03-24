@@ -20,8 +20,6 @@ struct CompilationConfig {
     int numExecutors = -1;
     int tilingCMXLimitKB = -1;
 
-    bool hwExtraSplit = false;
-
     std::string irWithVpuScalesDir;
 
     std::string customLayers;
