@@ -1,9 +1,11 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, DataPtr, InputInfoPtr, InputInfoCPtr
+from openvino.inference_engine import IECore, IENetwork, DataPtr, \
+    InputInfoPtr, InputInfoCPtr, PreProcessInfo
 
 import os
+import pytest
 
 
 def model_path(is_myriad=False):
@@ -18,11 +20,10 @@ def model_path(is_myriad=False):
 
 test_net_xml, test_net_bin = model_path()
 
+
 def test_name():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert not(isinstance(net.input_info['data'], InputInfoCPtr))
-    assert isinstance(net.input_info['data'], InputInfoPtr)
     assert net.name == "test_model"
 
 
@@ -73,10 +74,17 @@ def test_output_precision_setter():
     assert net.outputs['fc_out'].precision == "I8"
 
 
+def test_add_output():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net.add_output('28/Reshape')
+    assert sorted(net.outputs) == ['28/Reshape', 'fc_out']
+
+
 def test_add_outputs():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    net.add_outputs('28/Reshape')
+    net.add_outputs("28/Reshape")
     net.add_outputs(['29/WithoutBiases'])
     assert sorted(net.outputs) == ['28/Reshape', '29/WithoutBiases', 'fc_out']
 
@@ -126,3 +134,112 @@ def test_serialize():
     assert ops_serialized_net_names == ops_net_names
     os.remove("./serialized_net.xml")
     os.remove("./serialized_net.bin")
+
+
+def test_tensor_names():
+    model = """
+            <net name="Network" version="10">
+                <layers>
+                    <layer name="in1" type="Parameter" id="0" version="opset1">
+                        <data element_type="f32" shape="1,3,22,22"/>
+                        <output>
+                            <port id="0" precision="FP32" names="input">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="activation" id="1" type="ReLU" version="opset1">
+                        <input>
+                            <port id="1" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="2" precision="FP32" names="relu_t, identity_t">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="output" type="Result" id="2" version="opset1">
+                        <input>
+                            <port id="0" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+                    <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+                </edges>
+            </net>
+            """
+    ie = IECore()
+    weights = b''
+    net = ie.read_network(model=model.encode('utf-8'), weights=weights, init_from_buffer=True)
+    assert net.get_ov_name_for_tensor("relu_t") == "activation"
+    assert net.get_ov_name_for_tensor("identity_t") == "activation"
+    assert net.get_ov_name_for_tensor("input") == "in1"
+
+
+def test_output_unsupported_precision_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    with pytest.raises(ValueError) as e:
+        net.outputs['fc_out'].precision = "BLA"
+    assert "Unsupported precision BLA! List of supported precisions: " in str(e.value)
+
+
+def test_input_unsupported_precision_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    with pytest.raises(ValueError) as e:
+        net.input_info['data'].precision = "BLA"
+    assert "Unsupported precision BLA! List of supported precisions: " in str(e.value)
+
+
+def test_input_unsupported_layout_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    with pytest.raises(ValueError) as e:
+        net.input_info['data'].layout = "BLA"
+    assert "Unsupported layout BLA! List of supported layouts: " in str(e.value)
+
+
+def test_input_info_precision_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.input_info['data'].layout == "NCHW"
+    net.input_info['data'].layout = "NHWC"
+    assert net.input_info['data'].layout == "NHWC"
+
+
+def test_input_input_info_layout_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.input_info['data'].precision == "FP32"
+    net.input_info['data'].precision = "I8"
+    assert net.input_info['data'].precision == "I8"
+
+
+def test_input_info():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert not(isinstance(net.input_info['data'], InputInfoCPtr))
+    assert isinstance(net.input_info['data'], InputInfoPtr)
+    assert net.input_info['data'].layout == "NCHW"
+    assert net.input_info['data'].precision == "FP32"
+    assert isinstance(net.input_info['data'].input_data, DataPtr)
+    assert isinstance(net.input_info['data'].preprocess_info, PreProcessInfo)

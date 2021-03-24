@@ -31,6 +31,14 @@ pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${NGRAPH_LIBRARIES})
 
+# perform copy
+if(OpenVINO_MAIN_SOURCE_DIR)
+    add_custom_command(TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
+            )
+endif()
+
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
 
