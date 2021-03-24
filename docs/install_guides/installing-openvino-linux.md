@@ -68,7 +68,6 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 
 - Ubuntu 18.04.x long-term support (LTS), 64-bit
 - Ubuntu 20.04.0 long-term support (LTS), 64-bit
-- Red Hat* Enterprise Linux* 8.2 (64 bit)
 - CentOS 7.6, 64-bit (for target only)
 - Yocto Project v3.0, 64-bit (for target only and requires modifications)
 

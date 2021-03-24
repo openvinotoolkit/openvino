@@ -10,8 +10,8 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 - Ubuntu\* 18.04 long-term support (LTS), 64-bit
 - Ubuntu\* 20.04 long-term support (LTS), 64-bit
-- CentOS\* 7
-- RHEL\* 8
+- CentOS\* 7.6
+- Red Hat* Enterprise Linux* 8.2 (64 bit)
 
 **Host Operating Systems**
 
