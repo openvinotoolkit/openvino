@@ -28,6 +28,8 @@ namespace ngraph
     {
         namespace v6
         {
+            /// \brief An operation ExperimentalDetectronGenerateProposalsSingleImage 
+            /// computes ROIs and their scores based on input data.
             class NGRAPH_API ExperimentalDetectronGenerateProposalsSingleImage : public Op
             {
             public:

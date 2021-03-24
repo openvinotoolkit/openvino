@@ -28,6 +28,8 @@ namespace ngraph
     {
         namespace v6
         {
+            /// \brief An operation ExperimentalDetectronPriorGridGenerator generates prior
+            /// grids of specified sizes.
             class NGRAPH_API ExperimentalDetectronPriorGridGenerator : public Op
             {
             public:

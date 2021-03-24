@@ -29,6 +29,8 @@ namespace ngraph
     {
         namespace v6
         {
+            /// \brief An operation ExperimentalDetectronROIFeatureExtractor 
+            /// is the ROIAlign operation applied over a feature pyramid.
             class NGRAPH_API ExperimentalDetectronROIFeatureExtractor : public Op
             {
             public:

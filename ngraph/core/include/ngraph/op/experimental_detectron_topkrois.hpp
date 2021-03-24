@@ -28,6 +28,8 @@ namespace ngraph
     {
         namespace v6
         {
+            /// \brief An operation ExperimentalDetectronTopKROIs, according to the repository
+            /// is TopK operation applied to probabilities of input ROIs.
             class NGRAPH_API ExperimentalDetectronTopKROIs : public Op
             {
             public:
