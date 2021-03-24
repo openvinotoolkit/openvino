@@ -26,11 +26,15 @@
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/binarize_weights.hpp"
+#include "transformations/common_optimizations/conv_to_binary_conv.hpp"
 #include "transformations/common_optimizations/space_to_batch_fusion.hpp"
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
@@ -110,6 +114,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
+    manager.register_pass<ngraph::pass::BinarizeWeights>();
+    manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
@@ -154,6 +160,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::AddFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::MulFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);
