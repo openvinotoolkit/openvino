@@ -54,8 +54,8 @@ set(LAYERS
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_loss.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/depth_to_space.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput_onnx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput_onnx.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/embedding_bag_offset_sum.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/embedding_bag_packed_sum.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/embedding_bag_sum.cpp
