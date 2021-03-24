@@ -67,7 +67,6 @@ private:
 
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
-
     reg64_t reg_oh_count = r10;
     reg64_t reg_ow_count = r11;
     reg64_t reg_num_pads = r12;
@@ -78,7 +77,6 @@ private:
     reg64_t reg_h_hi_pad = rbp;
     reg64_t reg_src_w_incr = rbx;
     reg64_t reg_ow_work_amount = rsi;
-
     reg64_t reg_params = abi_param1;
 
     Vmm vmm = Vmm(0);
@@ -89,6 +87,7 @@ private:
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
+            case 8: uni_vmovsd(xmm_src, op); break;
             case 4: uni_vmovss(xmm_src, op); break;
             case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
             case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
@@ -99,6 +98,7 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
         Xbyak::Xmm xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
+            case 8: uni_vmovsd(op, xmm_dst); break;
             case 4: uni_vmovss(op, xmm_dst); break;
             case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
             case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
@@ -154,7 +154,7 @@ private:
     }
 
     inline void read_src2vmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
-        Xbyak::Xmm low_xmm = Ymm(zmm_arg.getIdx());
+        Xbyak::Xmm low_xmm = Xmm(zmm_arg.getIdx());
         read_src2vmm(low_xmm, reg_src_arg);
         for (int i = 1; i < 4; i++) {
             read_src2vmm(xmm_aux, reg_src_arg);
@@ -163,13 +163,13 @@ private:
     }
 
     void loop() {
+        Xbyak::Label ih_loop, ih_tail, ih_exit;
+        Xbyak::Label iw_loop, iw_tail, iw_exit;
         mov(reg_oh_count, reg_h_hi_pad);
         mov(reg_num_pads, ptr[reg_params + GET_OFF(h_lo_pad)]);
         sub(reg_oh_count, reg_num_pads);
         mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
         pad_with_zeros(reg_num_pads, reg_dst);
-        Xbyak::Label ih_loop, ih_tail, ih_exit;
-        Xbyak::Label iw_loop, iw_tail, iw_exit;
         L(ih_loop);
         {
             cmp(reg_oh_count, 0);
@@ -285,12 +285,7 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
             eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jpp));
         }
-        /*
-        if (mayiuse(x64::sse41)) {
-            jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jpp));
-        }
-         */
+
         if (eximpat_kernel)
             eximpat_kernel->create_ker();
 

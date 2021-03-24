@@ -19,13 +19,12 @@ namespace Extensions {
 namespace Cpu {
 
 struct jit_eximpat_params {
-    int IW; // from input shape
-    int OH, OW; //from out shape
-    int KH, KW; // kernel sizes
-    int SH, SW; // strides
-    int dtype_size; // byte size of the datatype
-    int block_size; // num of dtype units in the supported vector instruction set
-    InferenceEngine::Precision precision;
+    int IW;
+    int OH, OW;
+    int KH, KW;
+    int SH, SW;
+    int dtype_size;
+    int block_size;
 };
 
 struct jit_eximpat_args {
@@ -34,18 +33,14 @@ struct jit_eximpat_args {
     int64_t w_lo_pad;
     int64_t w_hi_pad;
     const void* src;
-    void* dst; // const?
+    void* dst;
 };
 
 struct jit_uni_eximpat_kernel {
     void (*ker_)(const jit_eximpat_args *);
-
     void operator()(const jit_eximpat_args *args) { assert(ker_); ker_(args); }
-
     jit_eximpat_params jpp;
-
     virtual void create_ker() = 0;
-
     explicit jit_uni_eximpat_kernel(jit_eximpat_params jpp) : ker_(nullptr), jpp(jpp) {}
     virtual ~jit_uni_eximpat_kernel() {}
 };
