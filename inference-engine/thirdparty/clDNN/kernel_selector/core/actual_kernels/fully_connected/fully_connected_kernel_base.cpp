@@ -152,6 +152,15 @@ bool FullyConnectedKernelBase::Validate(const Params& p, const optional_params&)
             return false;
     }
 
+    auto fc_is_3D = params.output.GetLayout() == DataLayout::bfyx;
+    auto dst_size_n = fc_is_3D ? params.output.Y().v : params.output.Feature().v;
+
+    if (!params.bias.empty()) {
+        if (params.bias.data()->LogicalSize() != dst_size_n) {
+            return false;
+        }
+    }
+
     return true;
 }
 
