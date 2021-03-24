@@ -7,8 +7,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <thread>
-#include <chrono>
 #include <sys/stat.h>
 
 #include "test_constants.hpp"
@@ -17,15 +15,9 @@
 
 #ifdef _WIN32
 #include <direct.h>
-#include <process.h>
-#include <windows.h>
-#include <stdio.h>
-#include <tchar.h>
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -244,66 +236,5 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
     }
     splitPath.push_back(paths);
     return splitPath;
-}
-
-inline int checkProcessStatus(unsigned int pid) {
-    int status = 0;
-#ifndef _WIN32
-    waitpid(pid, &status, WNOHANG);
-#else
-    DWORD winProcessId = static_cast<DWORD>(pid);
-            HANDLE winProcess = ::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, winProcessId);
-            if (winProcess != NULL) {
-               LPDWORD winStatus = NULL;
-                ::WaitForSingleObject(winProcess, INFINITE);
-                ::GetExitCodeProcess(winProcess, winStatus);
-                ::CloseHandle(winProcess);
-                status = static_cast<int>(*winStatus);
-            }
-#endif
-    return status;
-}
-
-inline void lockAndWaitFile(const std::string& lockedFilename) {
-    unsigned int processId = getpid();
-    if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
-        std::ifstream lockedFile;
-        lockedFile.open(lockedFilename);
-        std::string content;
-        lockedFile >> content;
-        lockedFile.close();
-
-        auto updateLockedFile = [&lockedFilename, &processId]() {
-            std::ofstream lockedFile;
-            lockedFile.open(lockedFilename);
-            lockedFile << processId;
-            lockedFile.close();
-        };
-
-        unsigned int lockerPid;
-        try {
-            lockerPid = std::stoi(content);
-        } catch (...) {
-            updateLockedFile();
-            return;
-        }
-
-        if (lockerPid == processId) {
-            return;
-        }
-        auto currentTime = std::chrono::system_clock::now();
-        auto exitTime = std::chrono::system_clock::now() + std::chrono::minutes(1);
-        while (CommonTestUtils::fileExists(lockedFilename.c_str()) && currentTime < exitTime &&
-               checkProcessStatus(lockerPid) != 0 && checkProcessStatus(lockerPid) != -1) {
-            std::this_thread::sleep_for(std::chrono::microseconds(std::chrono::milliseconds(500)));
-            currentTime = std::chrono::system_clock::now();
-        }
-        if (CommonTestUtils::fileExists(lockedFilename.c_str())) {
-            updateLockedFile();
-            return;
-        }
-    }
-    std::string content = std::to_string(processId);
-    CommonTestUtils::createFile(lockedFilename, content);
 }
 }  // namespace CommonTestUtils

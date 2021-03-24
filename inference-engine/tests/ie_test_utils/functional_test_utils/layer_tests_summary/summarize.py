@@ -1,3 +1,7 @@
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import xml.etree.ElementTree as ET
 from jinja2 import Environment, FileSystemLoader
 import argparse
@@ -17,7 +21,6 @@ out_help = "Path where to save html report"
 parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
 parser.add_argument("--out", help=out_help, default="")
 args = parser.parse_args()
-
 
 def merge_xmls(xmls):
     if len(xmls) == 1:
