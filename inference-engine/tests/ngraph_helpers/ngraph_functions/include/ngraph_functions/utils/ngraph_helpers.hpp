@@ -198,6 +198,8 @@ enum class TensorIteratorBody {
 
 enum class SequenceTestsMode {
     PURE_SEQ,
+    PURE_SEQ_RAND_SEQ_LEN_CONST,
+    PURE_SEQ_RAND_SEQ_LEN_PARAM,
     CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
     CONVERT_TO_TI_MAX_SEQ_LEN_PARAM,
     CONVERT_TO_TI_RAND_SEQ_LEN_CONST,

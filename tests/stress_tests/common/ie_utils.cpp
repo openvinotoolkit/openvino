@@ -32,7 +32,7 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
       } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
         fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
       } else {
-        THROW_IE_EXCEPTION << "Input precision is not supported for image info!";
+        IE_THROW() << "Input precision is not supported for image info!";
       }
       continue;
     }
@@ -52,7 +52,7 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
     } else if (item.second->getPrecision() == InferenceEngine::Precision::I16) {
       fillBlobRandom<int16_t>(inputBlob);
     } else {
-      THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
+      IE_THROW() << "Input precision is not supported for " << item.first;
     }
   }
 }

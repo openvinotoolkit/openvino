@@ -21,7 +21,7 @@ void RawMatcher::match() {
         InferenceEngine::InputsDataMap networkInputs;
         networkInputs = cnnNetwork.getInputsInfo();
         if (networkInputs.size() == 0) {
-            THROW_IE_EXCEPTION << "No inputs detected.";
+            IE_THROW() << "No inputs detected.";
         }
 
         if (config._paths_to_images.size() % ( config.batchSize * networkInputs.size()) != 0) {
@@ -86,7 +86,7 @@ void RawMatcher::match() {
         for (auto & imageName : config._paths_to_images) {
             FormatReader::ReaderPtr reader(imageName.c_str());
             if (reader.get() == nullptr) {
-                THROW_IE_EXCEPTION << "[ERROR]: Image " + imageName + " cannot be read!";
+                IE_THROW() << "[ERROR]: Image " + imageName + " cannot be read!";
             }
             actualNetSize += reader->size();
             // Store image data
@@ -103,14 +103,14 @@ void RawMatcher::match() {
                 height = dims.at(3);
                 width = dims.at(4);
             } else {
-                THROW_IE_EXCEPTION << inputData->getName() << " has unsupported layout " << inputData->getTensorDesc().getLayout();
+                IE_THROW() << inputData->getName() << " has unsupported layout " << inputData->getTensorDesc().getLayout();
             }
 
             std::shared_ptr<unsigned char> data(reader->getData(width, height));
             if (data.get() != nullptr) {
                 imagesData.push_back(data);
             } else {
-                THROW_IE_EXCEPTION << "Invalid image '" << imageName << "'";
+                IE_THROW() << "Invalid image '" << imageName << "'";
             }
         }
 
@@ -150,7 +150,7 @@ void RawMatcher::match() {
                     blob = InferenceEngine::make_shared_blob<uint8_t>(desc);
                     break;
                 default:
-                    THROW_IE_EXCEPTION << "Unsupported blob precision: " << desc.getPrecision();
+                    IE_THROW() << "Unsupported blob precision: " << desc.getPrecision();
             }
             blob->allocate();
 
@@ -209,7 +209,7 @@ void RawMatcher::match() {
                 *config.perfInfoPtr = inferRequest.GetPerformanceCounts();
             }
         }
-    } catch (details::InferenceEngineException &e) {
+    } catch (Exception &e) {
         FAIL() << e.what();
     }
     catch (std::exception &e) {

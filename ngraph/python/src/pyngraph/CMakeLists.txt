@@ -30,7 +30,17 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
+# perform copy
+if(OpenVINO_MAIN_SOURCE_DIR)
+    add_custom_command(TARGET _${PROJECT_NAME}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
+            )
+endif()
+
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+    add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
+
     ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
 
     install(TARGETS _${PROJECT_NAME}

@@ -87,7 +87,7 @@ void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
         return false;
     });
     if (!ti_proc_ok)
-        THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
+        IE_THROW() << "Plugin doesn't support Tensor Iterator in pure form. "
                               "None TI optimization pattern has been applied successfully";
 }
 
@@ -756,7 +756,7 @@ void MKLDNNGraph::CreatePrimitives() {
 }
 
 void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in) {
-    if (!IsReady()) THROW_IE_EXCEPTION<< "Wrong state. Topology not ready.";
+    if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
 
     auto input = inputNodes.find(name);
     if (input != inputNodes.end()) {
@@ -779,17 +779,17 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
             if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
                 _meanImages[name].Subtract(outDims, reinterpret_cast<float *>(inter_data_ptr), in->getTensorDesc().getLayout());
             } else {
-                THROW_IE_EXCEPTION << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
+                IE_THROW() << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
             }
         }
     } else {
-        THROW_IE_EXCEPTION << "Input blob for infer '" << name << "' doesn't correspond to input in network";
+        IE_THROW() << "Input blob for infer '" << name << "' doesn't correspond to input in network";
     }
 }
 
 void MKLDNNGraph::PullOutputData(BlobMap &out) {
     if (!IsReady())
-        THROW_IE_EXCEPTION << "Wrong state. Topology not ready.";
+        IE_THROW() << "Wrong state. Topology not ready.";
 
     for (MKLDNNNodePtr &node : outputNodes) {
         // remove out_ from node name
@@ -814,10 +814,10 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
         auto dstPrec = ext_blob->getTensorDesc().getPrecision();
         if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
-                THROW_IE_EXCEPTION << "Output blob byte size is not equal network output byte size ("
+                IE_THROW() << "Output blob byte size is not equal network output byte size ("
                                    << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
         if (ext_blob->size() != intr_blob.GetElementsCount())
-            THROW_IE_EXCEPTION << "Output blob number of elements is not equal network output number of elements ("
+            IE_THROW() << "Output blob number of elements is not equal network output number of elements ("
                                << ext_blob->size() << "!=" << intr_blob.GetElementsCount() << ").";
 
         void *ext_blob_ptr = ext_blob->buffer();
@@ -839,7 +839,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 
 void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     if (!IsReady()) {
-        THROW_IE_EXCEPTION << "Wrong state. Topology is not ready.";
+        IE_THROW() << "Wrong state. Topology is not ready.";
     }
 
     mkldnn::stream stream(eng);
@@ -992,7 +992,7 @@ void MKLDNNGraph::setProperty(const std::map<std::string, std::string>& properti
     config.readProperties(properties);
 }
 
-Config MKLDNNGraph::getProperty() {
+Config MKLDNNGraph::getProperty() const {
     return config;
 }
 
@@ -1170,7 +1170,7 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
     if (reorderPtr == nullptr) {
-        THROW_IE_EXCEPTION << "MKLDNNGraph::InsertReorder: Cannot cast to MKLDNNReorderNode";
+        IE_THROW() << "MKLDNNGraph::InsertReorder: Cannot cast to MKLDNNReorderNode";
     }
     reorderPtr->setDescs(inDesc, outDesc);
     reorderPtr->_scales = scales;
@@ -1191,7 +1191,7 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
 void MKLDNNGraph::dumpToDotFile(std::string file) const {
     std::ofstream dot;
     dot.open(file);
-    if (!dot.is_open()) THROW_IE_EXCEPTION << "CPU Plugin cannot create dot file " << file << ".";
+    if (!dot.is_open()) IE_THROW() << "CPU Plugin cannot create dot file " << file << ".";
 
     dump_graph_as_dot(*this, dot);
     dot.close();
@@ -1292,7 +1292,7 @@ bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node, bool initNo
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
     if (iIndex < 0 || oIndex < 0)
-        THROW_IE_EXCEPTION << "Cannot insert node '" << node->getName() << "' between nodes: "
+        IE_THROW() << "Cannot insert node '" << node->getName() << "' between nodes: "
                            << edge->getParent()->getName() << " and "
                            << edge->getChild()->getName() << ".";
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "details/ie_exception.hpp"
+#include "ie_common.h"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 
@@ -210,7 +210,7 @@ class SharedObjectLoader::Impl {
 
         if (!shared_object) {
             char cwd[1024];
-            THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
+            IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
                                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
@@ -226,7 +226,7 @@ class SharedObjectLoader::Impl {
 
         if (!shared_object) {
             char cwd[1024];
-            THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
+            IE_THROW() << "Cannot load library '" << pluginName << "': " << GetLastError()
                 << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
@@ -239,15 +239,15 @@ class SharedObjectLoader::Impl {
      * @brief Searches for a function symbol in the loaded module
      * @param symbolName Name of function to find
      * @return A pointer to the function if found
-     * @throws InferenceEngineException if the function is not found
+     * @throws Exception if the function is not found
      */
     void* get_symbol(const char* symbolName) const {
         if (!shared_object) {
-            THROW_IE_EXCEPTION << "Cannot get '" << symbolName << "' content from unknown library!";
+            IE_THROW() << "Cannot get '" << symbolName << "' content from unknown library!";
         }
         auto procAddr = reinterpret_cast<void*>(GetProcAddress(shared_object, symbolName));
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION << details::as_status << NOT_FOUND 
+            IE_THROW(NotFound)
                 << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
 
         return procAddr;

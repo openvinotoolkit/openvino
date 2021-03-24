@@ -83,7 +83,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         if (it != _config.end()) {
             queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
         } else {
-            THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+            IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
     }
 
@@ -104,7 +104,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                                            : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
                 auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
                 if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    THROW_IE_EXCEPTION << "Node " << nodeWithAffinityName <<
+                    IE_THROW() << "Node " << nodeWithAffinityName <<
                                         " was not assigned on any pointed device.";
                 }
                 queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
@@ -121,13 +121,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             affinities[node.get()] = itAffinity->second;
             devices.emplace(itAffinity->second);
         } else if (allEmpty) {
-            THROW_IE_EXCEPTION << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
+            IE_THROW() << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
                 node->get_friendly_name() << ", Type: " << node->get_type_name() <<
                 ") were not able to be assigned on any pointed device.\n" <<
                 "It happened because these layers are not supported in plugins by default.\n" <<
                 "You need to implement custom layers to support them.";
         } else {
-            THROW_IE_EXCEPTION << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
+            IE_THROW() << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
                 node->get_friendly_name() << ", Type: " << node->get_type_name() <<
                 ") were not assigned to any device.\n" <<
                 "It might happen if you assigned layers manually and missed some layers or\n" <<
@@ -431,7 +431,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Error reading HETERO plugin xml header";
+        IE_THROW(NetworkNotRead) << "Error reading HETERO plugin xml header";
     }
 
     using namespace XMLParseUtils;
@@ -480,7 +480,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         bool loaded = false;
         try {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch (const InferenceEngine::NotImplemented &) {
+        } catch (const InferenceEngine::NotImplemented& ex) {
             // read XML content
             std::string xmlString;
             std::uint64_t dataSize = 0;
@@ -608,10 +608,10 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     for (auto&& subnetwork : networks) {
         try {
             subnetwork._network.Export(heteroModel);
-        } catch (const InferenceEngine::NotImplemented &) {
+        } catch (const InferenceEngine::NotImplemented& ex) {
             auto subnet = subnetwork._clonedNetwork;
             if (!subnet.getFunction()) {
-                THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";
+                IE_THROW() << "Hetero plugin supports only ngraph function representation";
             }
 
             // Note: custom ngraph extensions are not supported
@@ -681,7 +681,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string 
             }
         }
 
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 
     return result;
@@ -792,6 +792,6 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
             }
         }
 
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
 }

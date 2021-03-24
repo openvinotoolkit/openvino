@@ -27,9 +27,9 @@ public:
     explicit DetectionOutputImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 3 && layer->insData.size() != 5)
-                THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << layer->name;
+                IE_THROW() << "Incorrect number of input edges for layer " << layer->name;
             if (layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << layer->name;
+                IE_THROW() << "Incorrect number of output edges for layer " << layer->name;
 
             _num_classes = layer->GetParamAsInt("num_classes");
             _background_label_id = layer->GetParamAsInt("background_label_id", 0);
@@ -61,15 +61,15 @@ public:
             _priors_batches = layer->insData[idx_priors].lock()->getDims().front() != 1;
 
             if (_num_priors * _num_loc_classes * 4 != static_cast<int>(layer->insData[idx_location].lock()->getDims()[1]))
-                THROW_IE_EXCEPTION << "Number of priors must match number of location predictions ("
+                IE_THROW() << "Number of priors must match number of location predictions ("
                                    << _num_priors * _num_loc_classes * 4 << " vs "
                                    << layer->insData[idx_location].lock()->getDims()[1] << ")";
 
             if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims().back()))
-                THROW_IE_EXCEPTION << "Number of priors must match number of confidence predictions.";
+                IE_THROW() << "Number of priors must match number of confidence predictions.";
 
             if (_decrease_label_id && _background_label_id != 0)
-                THROW_IE_EXCEPTION << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
+                IE_THROW() << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
 
             _num = static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims()[0]);
 
@@ -114,7 +114,7 @@ public:
 
             std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
             addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

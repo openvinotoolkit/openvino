@@ -31,6 +31,7 @@
 #include <cmath>
 #include <gmock/gmock.h>
 #include <limits>
+#include <type_traits>
 
 using namespace cldnn;
 using namespace tests;
@@ -1620,4 +1621,245 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_5_4_1_2_3) {
     {
         EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
+}
+
+struct TiledPermuteParam {
+    std::vector<cldnn::tensor::value_type> sizes;
+    cldnn::format format_fsv;
+};
+
+class TiledPermuteTest : public ::testing::TestWithParam<TiledPermuteParam> {
+public:
+    const cldnn::engine engine;
+    TiledPermuteTest(): engine(get_test_engine()) { }
+
+    template<typename T>
+    void compare_value(T a, T b) const {
+        EXPECT_EQ(a, b);
+    }
+
+    template<typename T>
+    void set_random_values(const cldnn::memory& mem) const {
+        tests::set_random_values<T>(mem);
+    }
+
+    template<data_types Data_Type>
+    void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv);
+};
+
+template<>
+void TiledPermuteTest::compare_value(float a, float b) const {
+    EXPECT_FLOAT_EQ(a, b);
+}
+
+// f16 format
+template<>
+void TiledPermuteTest::compare_value(FLOAT16 a, FLOAT16 b) const {
+    EXPECT_FLOAT_EQ(static_cast<float>(a), static_cast<float>(b));
+}
+
+template<>
+void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory& mem) const {
+    // tests::set_random_values<int8_t>() is not supported
+    std::mt19937 gen;
+    static std::uniform_int_distribution<int32_t> uid(std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+    auto ptr = mem.pointer<int8_t>();
+    for (auto it = ptr.begin(); it != ptr.end(); ++it) {
+        *it = static_cast<int8_t>(uid(gen));
+    }
+}
+
+template<data_types Data_Type>
+void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv)
+{
+    // convert half_t to FLOAT16
+    using type_ = typename data_type_to_type<Data_Type>::type;
+    using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
+
+    size_t input_size = 1;
+    for (size_t i = 0; i<sizes.size(); ++i) {
+        input_size *= sizes.at(i);
+    }
+
+    std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
+    std::swap(internal_sizes.at(2), internal_sizes.back());
+    cldnn::tensor tensor(internal_sizes);
+
+    cldnn::format format = sizes.size() == 4?cldnn::format::bfyx:cldnn::format::bfzyx;
+
+    std::vector<uint16_t> order{0, static_cast<uint16_t>(sizes.size()-1)};
+    for (uint16_t i = 1; i<(sizes.size()-1); ++i) {
+        order.push_back(i);
+    }
+
+    auto input = memory::allocate(engine, {Data_Type, format, tensor});
+    set_random_values<type>(input);
+
+    topology topology_ref = topology(
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", {Data_Type, format_fsv, tensor}),
+        permute("output", "reorder", order )
+    );
+
+    // run with permute_ref
+    cldnn::build_options options_ref;
+    cldnn::implementation_desc permute_ref = { format_fsv, "permute_ref" };
+    options_ref.set_option(cldnn::build_option::force_implementations({ {"output", permute_ref} }));
+
+    cldnn::network network_ref(engine, topology_ref, options_ref);
+    network_ref.set_input_data("input", input);
+    auto outputs_ref = network_ref.execute();
+    auto output_ref = outputs_ref.begin()->second.get_memory();
+    auto output_ref_ptr = output_ref.pointer<type>();
+
+    // run with permute_tile_8x8_4x4_fsv16
+    cldnn::build_options options_tile;
+    cldnn::implementation_desc permute_tile_8x8_4x4_fsv = { format_fsv, "permute_tile_8x8_4x4_fsv" };
+    options_tile.set_option(cldnn::build_option::force_implementations({ {"output", permute_tile_8x8_4x4_fsv} }));
+
+    cldnn::network network_tile(engine, topology_ref, options_tile);
+    network_tile.set_input_data("input", input);
+    auto outputs_tile = network_tile.execute();
+    auto output_tile = outputs_tile.begin()->second.get_memory();
+    auto output_tile_ptr = output_tile.pointer<type>();
+
+    // compare results
+    const size_t output_size= output_ref.get_layout().get_linear_size();
+    for (size_t i = 0; i < output_size; i++)
+    {
+        compare_value<type>(output_ref_ptr[i], output_tile_ptr[i]);
+    }
+}
+
+class permute_tile_fsv_4d: public TiledPermuteTest {};
+
+INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_4d,
+    ::testing::ValuesIn(std::vector<TiledPermuteParam> {
+        // b_fs_yx_fsv16
+        // normal cases
+        {{1, 16, 16, 3}, format::b_fs_yx_fsv16},
+        // f_not_aligned
+        {{1, 16 - 7, 16, 2}, format::b_fs_yx_fsv16},
+        {{1, 16 - 15, 16, 2}, format::b_fs_yx_fsv16},
+        // y_not_aligned
+        {{1, 16, 16 - 1, 2}, format::b_fs_yx_fsv16},
+        {{1, 16, 16 - 9, 2}, format::b_fs_yx_fsv16},
+        // fy_not_aligned
+        {{1, 16 - 15, 16 - 1, 2}, format::b_fs_yx_fsv16},
+        {{1, 16 - 1, 16 - 7, 2}, format::b_fs_yx_fsv16},
+        {{1, 16 - 7, 16 - 9, 2}, format::b_fs_yx_fsv16},
+        {{1, 16 - 9, 16 - 15, 2}, format::b_fs_yx_fsv16},
+
+        // b_fs_yx_fsv32
+        // normal cases
+        {{1, 32, 32, 3}, format::b_fs_yx_fsv32},
+        // f_not_aligned
+        {{1, 32 - 7, 32, 2}, format::b_fs_yx_fsv32},
+        {{1, 32 - 15, 32, 2}, format::b_fs_yx_fsv32},
+        // y_not_aligned
+        {{1, 32, 32 - 1, 2}, format::b_fs_yx_fsv32},
+        {{1, 32, 32 - 9, 2}, format::b_fs_yx_fsv32},
+        // fy_not_aligned
+        {{1, 32 - 15, 32 - 1, 2}, format::b_fs_yx_fsv32},
+        {{1, 32 - 1, 32 - 7, 2}, format::b_fs_yx_fsv32},
+        {{1, 32 - 7, 32 - 9, 2}, format::b_fs_yx_fsv32},
+        {{1, 32 - 9, 32 - 15, 2}, format::b_fs_yx_fsv32},
+
+        // b_fs_yx_fsv4
+        // normal cases
+        {{1, 4, 4, 2}, format::b_fs_yx_fsv4},
+        // f_not_aligned
+        {{1, 4 - 1, 4, 2}, format::b_fs_yx_fsv4},
+        {{1, 4 - 3, 4, 2}, format::b_fs_yx_fsv4},
+        // y_not_aligned
+        {{1, 4, 4 - 1, 2}, format::b_fs_yx_fsv4},
+        {{1, 4, 4 - 3, 2}, format::b_fs_yx_fsv4},
+        // fy_not_aligned
+        {{1, 4 - 3, 4 - 1, 2}, format::b_fs_yx_fsv4},
+        {{1, 4 - 1, 4 - 3, 2}, format::b_fs_yx_fsv4},
+    }),);
+
+TEST_P(permute_tile_fsv_4d, f16) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_4d, f32) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_4d, i8) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_4d, i32) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_4d, i64) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv);
+}
+
+class permute_tile_fsv_5d: public TiledPermuteTest {};
+
+INSTANTIATE_TEST_CASE_P(, permute_tile_fsv_5d,
+    ::testing::ValuesIn(std::vector<TiledPermuteParam> {
+        // b_fs_zyx_fsv16
+        // normal cases
+        {{1, 16, 16, 3, 2}, format::b_fs_zyx_fsv16},
+        // f_not_aligned
+        {{1, 16 - 7, 16, 2, 2}, format::b_fs_zyx_fsv16},
+        {{1, 16 - 15, 16, 2, 2}, format::b_fs_zyx_fsv16},
+        // z_not_aligned
+        {{1, 16, 16 - 1, 2, 2}, format::b_fs_zyx_fsv16},
+        {{1, 16, 16 - 9, 2, 2}, format::b_fs_zyx_fsv16},
+        // fz_not_aligned
+        {{1, 16 - 15, 16 - 1, 2, 2}, format::b_fs_zyx_fsv16},
+        {{1, 16 - 1, 16 - 7, 2, 2}, format::b_fs_zyx_fsv16},
+        {{1, 16 - 7, 16 - 9, 2, 2}, format::b_fs_zyx_fsv16},
+        {{1, 16 - 9, 16 - 15, 2, 2}, format::b_fs_zyx_fsv16},
+
+        // b_fs_zyx_fsv32
+        // normal cases
+        {{1, 32, 32, 3, 2}, format::b_fs_zyx_fsv32},
+        // f_not_aligned
+        {{1, 32 - 7, 32, 2, 2}, format::b_fs_zyx_fsv32},
+        {{1, 32 - 15, 32, 2, 2}, format::b_fs_zyx_fsv32},
+        // z_not_aligned
+        {{1, 32, 32 - 1, 2, 2}, format::b_fs_zyx_fsv32},
+        {{1, 32, 32 - 9, 2, 2}, format::b_fs_zyx_fsv32},
+        // fz_not_aligned
+        {{1, 32 - 15, 32 - 1, 2, 2}, format::b_fs_zyx_fsv32},
+        {{1, 32 - 1, 32 - 7, 2, 2}, format::b_fs_zyx_fsv32},
+        {{1, 32 - 7, 32 - 9, 2, 2}, format::b_fs_zyx_fsv32},
+        {{1, 32 - 9, 32 - 15, 2, 2}, format::b_fs_zyx_fsv32},
+    }),);
+
+TEST_P(permute_tile_fsv_5d, f16) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_5d, f32) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_5d, i8) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_5d, i32) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_5d, i64) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv);
 }

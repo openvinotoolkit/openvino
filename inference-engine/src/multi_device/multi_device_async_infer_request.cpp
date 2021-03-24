@@ -48,7 +48,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend(),
                                [&name](const MultiDevicePlugin::DeviceInformation& d){ return d.deviceName == name; });
                        if (_multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend() == res) {
-                           THROW_IE_EXCEPTION << "None of the devices (for which current MULTI-device configuration was "
+                           IE_THROW() << "None of the devices (for which current MULTI-device configuration was "
                                                  "initialized) supports a remote blob created on the device named " << name;
 
                        } else {
@@ -74,7 +74,10 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                   if (nullptr != InferenceEngine::CurrentException())
                       std::rethrow_exception(InferenceEngine::CurrentException());
                   else
-                      THROW_IE_EXCEPTION << InferenceEngine::details::as_status << status;
+                      IE_EXCEPTION_SWITCH(status, ExceptionType,
+                        InferenceEngine::details::ThrowNow<ExceptionType>{}
+                            <<= std::stringstream{} << IE_LOCATION
+                            <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
               }
               if (_needPerfCounters)
                   _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();

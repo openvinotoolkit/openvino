@@ -48,7 +48,7 @@ void Program::ValidateInputs(const std::shared_ptr<ngraph::Node>& op, std::vecto
         }
     }
 
-    THROW_IE_EXCEPTION << "Invalid inputs count (" << op->get_input_size() << ") in "
+    IE_THROW() << "Invalid inputs count (" << op->get_input_size() << ") in "
                        << op->get_friendly_name() << " (" << op->get_type_name()
                        << " op::v" << op->get_type_info().version << ")";
 }
@@ -103,7 +103,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
 
     auto func = network.getFunction();
     if (!func) {
-        THROW_IE_EXCEPTION << "Function pointer inside CNNNetwork is nullptr";
+        IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
     auto ops = func->get_ordered_ops();
@@ -111,7 +111,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
     if (m_config.max_dynamic_batch > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(ops, networkInputs)) {
-            THROW_IE_EXCEPTION << "Such topology cannot be compiled for dynamic batch!";
+            IE_THROW() << "Such topology cannot be compiled for dynamic batch!";
         }
     }
 
@@ -156,7 +156,7 @@ int Program::GetMaxBatchSizeForSingleProgram() {
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {
     if (program_id >= m_programs.size())
-        THROW_IE_EXCEPTION << "Invalid program ID";
+        IE_THROW() << "Invalid program ID";
 
     return m_programs[program_id];
 }
@@ -215,7 +215,7 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
         CreateSingleLayerPrimitive(topology, op);
         CleanupBuild();
         DisableQueryMode();
-    } catch (std::exception& ex) {
+    } catch (std::exception&) {
         // Exception means that an operation or some of it's parameters are not supported
         CleanupBuild();
         return false;
@@ -247,7 +247,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     }
 
     if (!is_created) {
-        THROW_IE_EXCEPTION << "Operation: " << op->get_friendly_name()
+        IE_THROW() << "Operation: " << op->get_friendly_name()
                            << " of type " << op->get_type_name()
                            << "(op::v" << op->get_type_info().version << ") is not supported";
     }
@@ -268,7 +268,7 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
 
         if (!queryMode) {
             if (primitiveIDs.find(prevName) == primitiveIDs.end()) {
-                THROW_IE_EXCEPTION << "Input " << prevName << " hasn't been found in primitiveIDs map";
+                IE_THROW() << "Input " << prevName << " hasn't been found in primitiveIDs map";
             }
             inputPrimitives.push_back(primitiveIDs.at(prevName));
         } else {
