@@ -34,18 +34,15 @@ onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_prot
             // node output name is unique
             m_node_name_to_index.emplace(out_name, topological_index);
             m_node_outputs[topological_index].push_back(out_name);
-            std::cout << "output: " << topological_index << ", " << out_name << "\n";
         }
         for (const auto& in_name : node_proto.input())
         {
-            std::cout << "in_name: " << topological_index << ", " << in_name << "\n";
             m_node_inputs[topological_index].push_back(in_name);
         }
         if (!node_proto.name().empty())
         {
             // node name can identify node, but it can be ambiguous
             m_node_name_to_index.emplace(node_proto.name(), topological_index);
-            std::cout << "node_name: " << topological_index << ", " << node_proto.name() << "\n";
         }
         ++topological_index;
     }
@@ -69,7 +66,6 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
         for (auto& index_iter = matched_nodes_range.first; index_iter != matched_nodes_range.second;
              ++index_iter)
         {
-            std::cout << "sec: " << index_iter->second << "\n";
             result.push_back(index_iter->second);
         }
         if (!result.empty())
