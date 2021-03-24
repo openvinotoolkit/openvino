@@ -45,6 +45,15 @@ DECLARE_VPU_CONFIG(MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
 
 /**
+ * @brief MyriadPlugin uses heuristic algorithm to avoid accuracy degradations.
+ * This algorithm tries to find the preprocessing at the beginning of the model to adjust its parameters.
+ * This option should be set to "NO" if preprocessing is not a part of the model and performed separately
+ * in order to avoid accuracy degradation.
+ * Default is "YES"
+ */
+DECLARE_VPU_CONFIG(MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
+
+/**
  * @brief Used to enable reshapeBeforeConvTiling pass in cases where
  * user have reshape parameter "alt_width" in IR.
  * Default is "NO".
