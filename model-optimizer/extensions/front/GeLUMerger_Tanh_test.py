@@ -54,7 +54,7 @@ nodes_attributes_tanh = {
 
 nodes_attributes_ref = {
     'inp': {'kind': 'op', 'op': 'AnyOp'},
-    'gelu': {'kind': 'op', 'op': 'Gelu', 'approximation': 'tanh'},
+    'gelu': {'kind': 'op', 'op': 'Gelu', 'approximation_mode': 'tanh'},
     'out': {'kind': 'op', 'op': 'AnyOp'},
 }
 

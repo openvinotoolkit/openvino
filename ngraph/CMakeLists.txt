@@ -185,10 +185,10 @@ endif()
 message(STATUS "Installation directory: ${CMAKE_INSTALL_PREFIX}")
 
 # Destinations
-set(NGRAPH_INSTALL_LIB "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_LIBDIR}")
-set(NGRAPH_INSTALL_INCLUDE "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_INCLUDEDIR}")
-set(NGRAPH_INSTALL_DOC "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_DOCDIR}")
-set(NGRAPH_INSTALL_BIN "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_BINDIR}")
+set(NGRAPH_INSTALL_LIB "deployment_tools/ngraph/${CMAKE_INSTALL_LIBDIR}")
+set(NGRAPH_INSTALL_INCLUDE "deployment_tools/ngraph/${CMAKE_INSTALL_INCLUDEDIR}")
+set(NGRAPH_INSTALL_DOC "deployment_tools/ngraph/${CMAKE_INSTALL_DOCDIR}")
+set(NGRAPH_INSTALL_BIN "deployment_tools/ngraph/${CMAKE_INSTALL_BINDIR}")
 
 if (LINUX)
     if (DEFINED NGRAPH_RPATH)
@@ -254,13 +254,6 @@ if(NGRAPH_ADDRESS_SANITIZER_ENABLE OR NGRAPH_THREAD_SANITIZER_ENABLE OR NGRAPH_U
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -fno-omit-frame-pointer")
 endif()
 
-#-----------------------------------------------------------------------------------------------
-# enable or disable output from NGRAPH_DEBUG statements
-#-----------------------------------------------------------------------------------------------
-if(NGRAPH_DEBUG_ENABLE)
-    add_definitions(-DNGRAPH_DEBUG_ENABLE)
-endif()
-
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 #-----------------------------------------------------------------------------------------------
@@ -292,7 +285,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         install(EXPORT ngraphTargets
             FILE ngraphTargets.cmake
             NAMESPACE ngraph::
-            DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
+            DESTINATION "deployment_tools/ngraph/cmake"
             COMPONENT ngraph)
     endif()
 
@@ -306,7 +299,7 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
+        DESTINATION "deployment_tools/ngraph/cmake"
         COMPONENT ngraph)
 endif()
 
@@ -358,4 +351,6 @@ if (NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)
 endif()
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION DESTINATION "${NGRAPH_COMPONENT_PREFIX}." COMPONENT ngraph)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION
+    DESTINATION "deployment_tools/ngraph"
+    COMPONENT ngraph)
