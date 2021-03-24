@@ -193,6 +193,7 @@ void op::v7::IDFT::validate_and_infer_types()
 
     const auto& input_shape = PartialShape(get_input_partial_shape(0));
     const auto& axes_shape = PartialShape(get_input_partial_shape(1));
+    PartialShape output_shape = input_shape;
     if (input_shape.rank().is_dynamic())
     {
         set_output_type(0, get_input_element_type(0), output_shape);
