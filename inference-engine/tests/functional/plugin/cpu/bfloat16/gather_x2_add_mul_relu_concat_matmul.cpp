@@ -131,6 +131,8 @@ protected:
 };
 
 TEST_P(Gather_x2_add_mul_relu_concat_matmul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

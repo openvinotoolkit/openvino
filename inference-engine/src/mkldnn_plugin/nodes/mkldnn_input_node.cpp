@@ -14,6 +14,7 @@
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/cpu_convert.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -167,6 +168,9 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
     if (!constBlob)
         return;
     auto dstBlob = getChildEdgeAt(0)->getBlob();
+
+    if (isEmptyTensorDesc(dstBlob->getTensorDesc()) || isEmptyTensorDesc(constBlob->getTensorDesc()))
+        return;
 
     if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()
         || isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc())) {

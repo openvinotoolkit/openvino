@@ -121,6 +121,8 @@ protected:
 };
 
 TEST_P(ScaleshiftConv_x2_ConcatRelu, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

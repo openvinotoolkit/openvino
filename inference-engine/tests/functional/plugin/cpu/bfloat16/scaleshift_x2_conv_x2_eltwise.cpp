@@ -136,6 +136,8 @@ protected:
 };
 
 TEST_P(Scaleshift_x2_Conv_x2_Eltwise, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

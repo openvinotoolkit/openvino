@@ -156,6 +156,8 @@ protected:
 };
 
 TEST_P(Scaleshift_x3_ConvEltwiseRelu, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

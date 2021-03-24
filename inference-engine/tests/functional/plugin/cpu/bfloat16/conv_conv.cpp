@@ -105,6 +105,8 @@ protected:
 };
 
 TEST_P(ConvConv, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
