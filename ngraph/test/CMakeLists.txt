@@ -64,6 +64,7 @@ set(SRC
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
+    int4.cpp
     intervals.cpp
     main.cpp
     matcher_pass.cpp
@@ -157,6 +158,7 @@ set(SRC
     type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
+    type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
@@ -165,6 +167,7 @@ set(SRC
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
+    type_prop/power.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
@@ -209,6 +212,7 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    uint4.cpp
     util.cpp
 )
 
