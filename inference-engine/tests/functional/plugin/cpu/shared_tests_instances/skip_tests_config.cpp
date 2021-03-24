@@ -60,7 +60,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)",
         // TODO: 51676. Incorrect conversion of min and max limits from double to integral
-        R"(.*ClampLayerTest.*netPrc=(I64|I32|U64).*)"
+        R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
+        R"(.*ClampLayerTest.*netPrc=U64.*)"
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
