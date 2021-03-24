@@ -9,8 +9,6 @@ the detection output using information on location and score predictions.
 
 **Detailed description**: Operation doing next steps:
 
-Let us have bounding boxes [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]
-
 1.  Applies deltas to boxes sizes [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>] and takes coordinates of 
 refined boxes according to formulas:
 
