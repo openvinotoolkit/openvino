@@ -24,7 +24,7 @@ namespace LayerTestsUtils {
 bool isReported = false;
 bool extendReport = true;
 bool saveReportWithUniqueName = false;
-std::tuple<std::string> outputFolder = {"."};
+std::vector<std::string> outputFolder = {"."};
 
 Summary *Summary::p_instance = nullptr;
 SummaryDestroyer Summary::destroyer;
@@ -112,6 +112,9 @@ void TestEnvironment::saveReport() {
     if (isReported) {
         return;
     }
+    if (outputFolder.size() > 1) {
+        throw std::runtime_error("Num of output folders should be 1");
+    }
 
     std::string filename = CommonTestUtils::REPORT_FILENAME;
     if (saveReportWithUniqueName) {
@@ -120,11 +123,11 @@ void TestEnvironment::saveReport() {
     }
     filename += CommonTestUtils::REPORT_EXTENSION;
 
-    if (!CommonTestUtils::directoryExists(std::get<0>(outputFolder))) {
-        CommonTestUtils::createDirectoryRecursive(std::get<0>(outputFolder));
+    if (!CommonTestUtils::directoryExists(outputFolder.front())) {
+        CommonTestUtils::createDirectoryRecursive(outputFolder.front());
     }
 
-    std::string outputFilePath = std::get<0>(outputFolder) + std::string(CommonTestUtils::FileSeparator) + filename;
+    std::string outputFilePath = outputFolder.front() + std::string(CommonTestUtils::FileSeparator) + filename;
 
     std::vector<ngraph::OpSet> opsets;
     opsets.push_back(ngraph::get_opset1());

@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     LayerTestsUtils::extendReport = false;
     LayerTestsUtils::saveReportWithUniqueName = false;
-    LayerTestsUtils::outputFolder = ".";
+    LayerTestsUtils::outputFolder = {"."};
     bool print_custom_help = false;
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {

@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
     LayerTestsUtils::extendReport = false;
     LayerTestsUtils::saveReportWithUniqueName = false;
-    LayerTestsUtils::outputFolder = ".";
+    LayerTestsUtils::outputFolder = {"."};
 
     // Workaround for Gtest + Gflag
     std::vector<char*> argv_gflags_vec;

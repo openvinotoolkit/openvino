@@ -33,7 +33,7 @@ namespace LayerTestsUtils {
 
 extern bool extendReport;
 extern bool saveReportWithUniqueName;
-extern std::tuple<std::string> outputFolder;
+extern std::vector<std::string> outputFolder;
 
 // filename length limitation due to Windows constraints (max 256 characters)
 constexpr std::size_t maxFileNameLength = 140;
