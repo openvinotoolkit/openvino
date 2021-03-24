@@ -1,5 +1,6 @@
 ﻿# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+#
 
 set(WHEEL_PACKAGE_NAME "openvino" CACHE STRING "Name of the package")
 set(WHEEL_LICENCE_TYPE "OSI Approved :: Apache Software License" CACHE STRING "License type for the package")
