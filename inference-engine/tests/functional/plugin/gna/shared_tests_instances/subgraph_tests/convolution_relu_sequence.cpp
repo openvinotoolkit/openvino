@@ -8,10 +8,31 @@
 
 #include "subgraph_tests/convolution_relu_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "../skip_tests_check.hpp"
 
 using namespace SubgraphTestsDefinitions;
 
 namespace {
+
+class GnaConvolutionReluSequenceTest : public ConvolutionReluSequenceTest, GnaLayerTestCheck {
+protected:
+    void Run() override {
+        GnaLayerTestCheck::SkipTestCheck();
+
+        if (!GnaLayerTestCheck::skipTest) {
+            ConvolutionReluSequenceTest::Run();
+        }
+    }
+
+    void SetUp() {
+        ConvolutionReluSequenceTest::SetUp();
+    }
+};
+
+TEST_P(GnaConvolutionReluSequenceTest, CompareWithRefs) {
+    Run();
+}
+
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
@@ -130,7 +151,7 @@ const std::vector<std::map<std::string, std::string> > configs = {
 };
 
 // Enable when using GNA 2.1 library
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionReluSequenceTest, ConvolutionReluSequenceTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionReluSequenceTest, GnaConvolutionReluSequenceTest,
     ::testing::Combine(
         ::testing::ValuesIn(convReluSpecificParamsAllAll),
         ::testing::ValuesIn(netPrecisions),
@@ -138,6 +159,6 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionReluSequenceTest, ConvolutionR
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs)),
-    ConvolutionReluSequenceTest::getTestCaseName);
+    GnaConvolutionReluSequenceTest::getTestCaseName);
 
 } // namespace

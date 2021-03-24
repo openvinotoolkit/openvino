@@ -109,7 +109,7 @@ int64_t MemorySolver::maxTopDepth() {
 
 int64_t MemorySolver::getOffset(int id) const {
     auto res = _offsets.find(id);
-    if (res == _offsets.end()) THROW_IE_EXCEPTION << "There are no box for provided ID";
+    if (res == _offsets.end()) IE_THROW() << "There are no box for provided ID";
     return res->second;
 }
 
