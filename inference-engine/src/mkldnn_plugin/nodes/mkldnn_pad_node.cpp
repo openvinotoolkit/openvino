@@ -176,7 +176,7 @@ void MKLDNNPadNode::createPrimitive() {
 
     params.lastDstDim = params.dstStrides[std::max(endIdx - 1, 0)];
     params.nDimsForWork = endIdx - std::max(beginIdx, 0);
-    params.nThreads = params.nDimsForWork > 0 ? 0 : 1lu;
+    params.nThreads = params.nDimsForWork > 0 ? 0 : 1;
     params.workAmount = params.nDimsForWork > 0 ? params.dstDims[0] : 1lu;
     for (int i = 1; i <= beginIdx; ++i) {
         params.workAmount *= params.dstDims[i];

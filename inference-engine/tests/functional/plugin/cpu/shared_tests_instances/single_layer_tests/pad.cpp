@@ -19,7 +19,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::U8,
 };
 
-const std::vector<float> argPadValue = {{}, 1.f, -1.f, 2.5f};
+const std::vector<float> argPadValue = {0.f, 1.f, -1.f, 2.5f};
 
 const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::EDGE,

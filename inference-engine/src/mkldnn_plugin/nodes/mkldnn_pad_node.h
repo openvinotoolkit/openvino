@@ -49,7 +49,7 @@ private:
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
         InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
-        size_t nThreads = 0lu;
+        int nThreads = 0;
         size_t nDimsForWork = 0lu;
         size_t workAmount = 0lu;
         size_t lastDstDim = 1lu;
