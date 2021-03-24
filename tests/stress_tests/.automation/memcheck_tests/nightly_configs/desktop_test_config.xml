@@ -104,7 +104,6 @@
         <model name="yolo-v2-ava-sparse-35-0001" precision="FP16-INT8" source="omz" />
         <model name="person-detection-raisinghand-recognition-0001" precision="FP16-INT8" source="omz" />
         <model name="person-detection-asl-0001" precision="FP16-INT8" source="omz" />
-        <model name="emotions-recognition-retail-0003" precision="FP16-INT8" source="omz" />
         <model name="yolo-v2-tiny-ava-0001" precision="FP16-INT8" source="omz" />
         <model name="license-plate-recognition-barrier-0001" precision="FP16-INT8" source="omz" />
         <model name="person-detection-retail-0013" precision="FP16-INT8" source="omz" />
