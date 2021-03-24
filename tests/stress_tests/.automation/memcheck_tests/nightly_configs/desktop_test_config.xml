@@ -85,7 +85,6 @@
         <model name="se-resnet-50" precision="FP16" source="omz" />
         <model name="densenet-121" precision="FP16" source="omz" />
         <!--Models with FP16-INT8 precision-->
-        <model name="facial-landmarks-35-adas-0002" precision="FP16-INT8" source="omz" />
         <model name="vehicle-attributes-recognition-barrier-0039" precision="FP16-INT8" source="omz" />
         <model name="person-detection-action-recognition-0006" precision="FP16-INT8" source="omz" />
         <model name="person-vehicle-bike-detection-crossroad-1016" precision="FP16-INT8" source="omz" />
