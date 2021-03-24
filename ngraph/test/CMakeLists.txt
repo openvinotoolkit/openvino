@@ -64,6 +64,7 @@ set(SRC
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
+    int4.cpp
     intervals.cpp
     main.cpp
     matcher_pass.cpp
@@ -149,6 +150,7 @@ set(SRC
     type_prop/hard_sigmoid.cpp
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
+    type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
@@ -156,6 +158,7 @@ set(SRC
     type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
+    type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
@@ -164,6 +167,7 @@ set(SRC
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
+    type_prop/power.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
@@ -177,6 +181,7 @@ set(SRC
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
     type_prop/roi_pooling.cpp
+    type_prop/roll.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
@@ -207,6 +212,7 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    uint4.cpp
     util.cpp
 )
 
@@ -412,6 +418,7 @@ endif()
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         openvino::conditional_compilation
                                         openvino::itt
+                                        openvino::pp
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend
