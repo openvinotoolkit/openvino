@@ -26,7 +26,7 @@ static cldnn::gather::gather_axis GetGatherAxis(int32_t axis, cldnn::format inpu
             case -1: return cldnn::gather::gather_axis::along_y;
             case -2: return cldnn::gather::gather_axis::along_f;
             case -3: return cldnn::gather::gather_axis::along_b;
-            default: THROW_IE_EXCEPTION << "Unsupported gather axis: " << axis;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
         }
     } else if (inputFormat == cldnn::format::bfzyx) {
         switch (axis) {
@@ -37,7 +37,7 @@ static cldnn::gather::gather_axis GetGatherAxis(int32_t axis, cldnn::format inpu
             case -2: return cldnn::gather::gather_axis::along_z;
             case -3: return cldnn::gather::gather_axis::along_f;
             case -4: return cldnn::gather::gather_axis::along_b;
-            default: THROW_IE_EXCEPTION << "Unsupported gather axis: " << axis;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
         }
     } else if (inputFormat == cldnn::format::bfwzyx) {
         switch (axis) {
@@ -50,10 +50,10 @@ static cldnn::gather::gather_axis GetGatherAxis(int32_t axis, cldnn::format inpu
             case -3: return cldnn::gather::gather_axis::along_w;
             case -4: return cldnn::gather::gather_axis::along_f;
             case -5: return cldnn::gather::gather_axis::along_b;
-            default: THROW_IE_EXCEPTION << "Unsupported gather axis: " << axis;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
         }
     } else {
-        THROW_IE_EXCEPTION << "Unsupported gather axis: " << axis;
+        IE_THROW() << "Unsupported gather axis: " << axis;
     }
 }
 

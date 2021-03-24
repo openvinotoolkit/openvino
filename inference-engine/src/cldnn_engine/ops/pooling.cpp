@@ -25,7 +25,7 @@ static PoolingParameters GetPoolingParameters(const ngraph::Shape& kernel,
                                               const ngraph::Shape& pads_end) {
     cldnn::tensor k, s, pb, pe;
     if (pads_begin.size() != strides.size() || pads_end.size() != strides.size() || kernel.size() != strides.size())
-        THROW_IE_EXCEPTION << "Strides, KernelSizes and Pads are supposed to have the same elements count";
+        IE_THROW() << "Strides, KernelSizes and Pads are supposed to have the same elements count";
 
     std::vector<cldnn::tensor::value_type> pb_casted(pads_begin.begin(), pads_begin.end());
     std::vector<cldnn::tensor::value_type> pe_casted(pads_end.begin(), pads_end.end());
@@ -51,7 +51,7 @@ static PoolingParameters GetPoolingParameters(const ngraph::Shape& kernel,
             pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pe_casted[0], 0, 0));
             break;
         }
-        default: THROW_IE_EXCEPTION << "Unsupported pooling parameters size. Only 1d, 2d, and 3d cases are supported";
+        default: IE_THROW() << "Unsupported pooling parameters size. Only 1d, 2d, and 3d cases are supported";
     }
 
     return {k, s, pb, pe};
