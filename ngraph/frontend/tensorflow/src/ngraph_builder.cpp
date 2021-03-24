@@ -176,7 +176,7 @@ static Status GetInputNode(const Builder::OpMap& ng_op_map, const TFNodeDecoder*
 
 #endif
 
-  TFNodeDecoder* tf_input;
+  const TFNodeDecoder* tf_input;
   size_t src_output_idx;
   TF_RETURN_IF_ERROR(op->input_node(input_idx, &tf_input, &src_output_idx));
   std::vector<ng::Output<ng::Node>> ng_op;
@@ -318,12 +318,43 @@ static Status TensorDataToVector(const TensorWrapper& tensor, std::vector<T>* ve
 
 template <typename T>
 static Status GetStaticInputVector(
+        Builder::OpMap& ng_op_map,
+        const TFNodeDecoder* op, int64_t input_index,
+        const std::vector<const TensorWrapper*>& static_input_map,
+        std::vector<T>* vector) {
+    ng::Output<ng::Node> ng_input;
+    GetInputNode(ng_op_map, op, input_index, ng_input);
+    std::cerr << "y\n";
+    if(auto constant = std::dynamic_pointer_cast<ngraph::opset5::Constant>(ng_input.get_node_shared_ptr()))
+    {
+        std::cerr << "y\n";
+        std::cerr << constant->get_output_partial_shape(0) << " " << constant->get_data_ptr() << "\n";
+        std::cerr << *reinterpret_cast<const int*>(constant->get_data_ptr()) << "\n";
+        *vector = constant->cast_vector<T>();
+        std::cerr << "z\n";
+        return Status::OK();
+    }
+
+    NGRAPH_TF_FE_NOT_IMPLEMENTED;
+/*
+    TFNodeDecoder* input_node;
+    TF_RETURN_IF_ERROR(op->input_node(input_index, &input_node));
+    TensorWrapper* input_tensor;
+    TF_RETURN_IF_ERROR(
+            GetStaticNodeTensor(input_node, static_input_map, &input_tensor));
+    TF_RETURN_IF_ERROR(TensorDataToVector(input_tensor, vector));
+    return Status::OK();*/
+}
+
+#if 0
+template <typename T>
+static Status GetStaticInputVector(
     const TFNodeDecoder* op, int64_t input_index,
     const std::vector<const TensorWrapper*>& static_input_map,
     std::vector<T>* vector) {
   TFNodeDecoder* input_node;
   TF_RETURN_IF_ERROR(op->input_node(input_index, &input_node));
-  TensorWrapper input_tensor;
+  TensorWrapper* input_tensor;
   TF_RETURN_IF_ERROR(
       GetStaticNodeTensor(input_node, static_input_map, &input_tensor));
   TF_RETURN_IF_ERROR(TensorDataToVector(input_tensor, vector));
@@ -372,6 +403,7 @@ static Status GetStaticInputNode(
   }
   return Status::OK();
 }
+#endif
 
 // Taken from: tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc
 // Extract values from a Const op to `values`. Returns true if succeeds.
@@ -384,41 +416,57 @@ template <typename T, typename VecT = T>
 static Status ValuesFromConstNode(const TFNodeDecoder* node,
                                   ngraph::Shape* const_tensor_shape,
                                   std::vector<VecT>* values) {
-#if 0
-  if (node.op() != "Const") {
+#if 1
+
+  if (node->op() != "Const") {
     return errors::InvalidArgument("TFNodeDecoder not a Const");
   }
+            DataType dt;
+            node->getAttrValue("dtype", &dt);
 
-  if (node.attr().at("dtype").type() != DataTypeToEnum<T>::value) {
-    std::stringstream ss;
-    ss << "Invalid data type defined for Const. Defined: "
-       << node.attr().at("dtype").type();
-    return errors::InvalidArgument(ss.str());
-  }
+
+            /*
+            if (dt != DataTypeToEnum<T>::value) {
+              std::stringstream ss;
+              ss << "Invalid data type defined for Const. Defined: "
+                 << node.attr().at("dtype").type();
+              return errors::InvalidArgument(ss.str());
+            }
+             */
 
   // TensorWrapper represents the content of the tensor in either <type>_val or
   // tensor_content.
-  const TensorWrapper& tensor = node.attr().at("value").tensor();
-  typename checkpoint::SaveTypeTraits<T>::RepeatedField* tensor_values =
-      checkpoint::MutableTensorProtoData<T>(const_cast<TensorWrapper*>(&tensor));
+  TensorWrapper* tensor;
+  node->getAttrValue("value", &tensor);
+  //typename checkpoint::SaveTypeTraits<T>::RepeatedField* tensor_values =
+  //    checkpoint::MutableTensorProtoData<T>(const_cast<TensorWrapper*>(&tensor));
 
-  const TensorShapeProto& shape = tensor.tensor_shape();
-  *const_tensor_shape = shape;
-  if (!tensor_values->empty() && tensor.has_tensor_shape()) {
+  const TensorShapeProto& shape = tensor->tensor_def->tensor_shape();
+  ngraph::PartialShape pshape;
+    TFTensorShapeToNGraphShape(shape, &pshape);
+            *const_tensor_shape = pshape.get_shape();
+    if(pshape.is_dynamic())
+        NGRAPH_TF_FE_NOT_IMPLEMENTED;
+    auto tensor_content = tensor->tensor_def->tensor_content();
+    std::vector<char> tensor_values_plain(tensor_content.begin(), tensor_content.end());
+    const T* tensor_values = reinterpret_cast<const T*>(tensor_values_plain.data());
+
+  if (!tensor_values_plain.empty() && tensor->tensor_def->has_tensor_shape()) {
     // When tensor_shape is set, theoretically the representation of the data
     // could be compressed. So, before copying values to the returned vector,
     // make sure no compression happens.
-    if (shape.dim_size() == 1 && shape.dim(0).size() == tensor_values->size()) {
-      values->insert(values->end(), tensor_values->begin(),
-                     tensor_values->end());
+    //if (shape.dim_size() == 1 && shape.dim(0).size() == tensor_values_plain.size()/sizeof(T)) {
+      values->insert(values->end(), tensor_values,
+                     tensor_values + tensor_values_plain.size()/sizeof(T));
       return Status::OK();
-    }
+    //}
   }
 
-  const auto tensor_content_size = tensor.tensor_content().size();
-  CHECK_EQ(0, tensor_content_size % sizeof(VecT))
-      << " tensor_content_size (" << tensor_content_size
-      << ") is not a multiple of " << sizeof(VecT);
+  const auto tensor_content_size = tensor->tensor_def->tensor_content().size();
+  if(tensor_content_size % sizeof(VecT)) {
+      std::cerr << "[ ERROR ] tensor_content_size (" << tensor_content_size
+                << ") is not a multiple of " << sizeof(VecT);
+  }
 
   // If tensor_content_size is zero, we'll have to take the values from
   // int_val, float_val, etc.
@@ -436,42 +484,41 @@ static Status ValuesFromConstNode(const TFNodeDecoder* node,
     auto val_lastsaved = (T)0;  // cast
 
     for (auto i = 0; i < n_elements; i++) {
-      auto& tensor = node.attr().at("value").tensor();
-      auto dt = node.attr().at("dtype").type();
+      auto& tensor_proto = *tensor->tensor_def;
       int64_t val_size = 0;
       auto val_i = (T)0;  // cast
       switch (dt) {
         // TODO(amprocte/NGRAPH-2502): there are more element types to support
         // here
         case DT_INT32:
-          val_size = tensor.int_val_size();
-          if (val_size > 0) val_i = tensor.int_val()[i];
+          val_size = tensor_proto.int_val_size();
+          if (val_size > 0) val_i = tensor_proto.int_val()[i];
           break;
         case DT_INT64:
-          val_size = tensor.int64_val_size();
-          if (val_size > 0) val_i = tensor.int64_val()[i];
+          val_size = tensor_proto.int64_val_size();
+          if (val_size > 0) val_i = tensor_proto.int64_val()[i];
           break;
         case DT_FLOAT:
-          val_size = tensor.float_val_size();
-          if (val_size > 0) val_i = tensor.float_val()[i];
+          val_size = tensor_proto.float_val_size();
+          if (val_size > 0) val_i = tensor_proto.float_val()[i];
           break;
         case DT_BOOL:
-          val_size = tensor.bool_val_size();
-          if (val_size > 0) val_i = tensor.bool_val()[i];
+          val_size = tensor_proto.bool_val_size();
+          if (val_size > 0) val_i = tensor_proto.bool_val()[i];
           break;
         case DT_DOUBLE:
-          val_size = tensor.double_val_size();
-          if (val_size > 0) val_i = tensor.double_val()[i];
+          val_size = tensor_proto.double_val_size();
+          if (val_size > 0) val_i = tensor_proto.double_val()[i];
           break;
         default:
           NGRAPH_VLOG(0)
-              << "Const node has empty tensor and we don't know how to "
+              << "Const node has empty tensor_proto and we don't know how to "
                  "handle this element type";
-          NGRAPH_VLOG(0) << node.DebugString();
+          NGRAPH_VLOG(0) << node->DebugString();
           NGRAPH_VLOG(0) << shape.DebugString();
-          return errors::Unimplemented("Encountered unknown element type ",
-                                       DataType_Name(dt),
-                                       " on an empty tensor");
+          return errors::Unimplemented("Encountered unknown element type " +
+                                       DataType_Name(dt) +
+                                       " on an empty tensor_proto");
       }
       if (val_size == 0) {
         return errors::InvalidArgument("Empty values vector");
@@ -483,15 +530,17 @@ static Status ValuesFromConstNode(const TFNodeDecoder* node,
       }
     }
   } else {
-    values->resize(tensor_content_size / sizeof(VecT));
-    port::CopyToArray(tensor.tensor_content(),
-                      reinterpret_cast<char*>(values->data()));
+
+      return Status::OK();
+      //values->resize(tensor_content_size / sizeof(VecT));
+    //port::CopyToArray(tensor.tensor_content(),
+    //                  reinterpret_cast<char*>(values->data()));
   }
 
   return Status::OK();
 #endif
 
-    NGRAPH_TF_FE_NOT_IMPLEMENTED
+
 }
 
 // Helper for Builder::TranslateGraph ("Const" op)
@@ -673,7 +722,7 @@ static Status TranslateArgMinMax(
   TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
 
   std::vector<int64_t> tf_dim;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &tf_dim));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &tf_dim));
 
   ng::Shape input_shape = ng_input.get_shape();
   size_t input_rank = input_shape.size();
@@ -866,7 +915,7 @@ static Status TranslateConcatV2Op(
 
   std::vector<int64_t> tf_concat_axis_vec;
   TF_RETURN_IF_ERROR(GetStaticInputVector(
-      op, op->num_inputs() - 1, static_input_map, &tf_concat_axis_vec));
+          ng_op_map, op, op->num_inputs() - 1, static_input_map, &tf_concat_axis_vec));
 
   int64_t concat_axis = tf_concat_axis_vec[0];
 
@@ -1018,7 +1067,7 @@ static Status TranslateConv2DBackpropInputOp(
 
   std::vector<int64_t> tf_input_sizes;
   TF_RETURN_IF_ERROR(
-      GetStaticInputVector(op, 0, static_input_map, &tf_input_sizes));
+      GetStaticInputVector(ng_op_map, op, 0, static_input_map, &tf_input_sizes));
 
   if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(),
                   [](int32_t size) { return size <= 0; })) {
@@ -1287,7 +1336,7 @@ static Status TranslateExpandDimsOp(
   ng::Output<ng::Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
   std::vector<int64_t> dims;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &dims));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &dims));
   auto ng_dims = ConstructNgNode<opset::Constant>(
       op->name(), ng::element::i64, ngraph::Shape{dims.size()}, dims);
   SaveNgOp(ng_op_map, op->name(),
@@ -1440,7 +1489,7 @@ static Status TranslateGatherV2Op(
       GetInputNodes(ng_op_map, op, ng_input, ng_input_coords, ng_unused));
 
   std::vector<int64_t> tf_axis;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 2, static_input_map, &tf_axis));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 2, static_input_map, &tf_axis));
 
   if (tf_axis.size() > 1) {
       std::ostringstream buf;
@@ -1871,7 +1920,7 @@ static Status TranslateNonMaxSuppressionV2Op(
 
   std::vector<int> max_output_size;
   TF_RETURN_IF_ERROR(
-      GetStaticInputVector(op, 2, static_input_map, &max_output_size));
+      GetStaticInputVector(ng_op_map, op, 2, static_input_map, &max_output_size));
 
   // max_output_size must be scalar
   if (max_output_size.size() != 1) {
@@ -1919,7 +1968,7 @@ static Status TranslateReduceOp(
   }
 
   std::vector<int64_t> axes;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &axes));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &axes));
 
   ng::Shape input_shape = ng_input.get_shape();
   size_t input_rank = input_shape.size();
@@ -1970,7 +2019,7 @@ static Status TranslateOneHotOp(
 
   auto ng_features_shape = ng_features.get_shape();
   std::vector<int> depth;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &depth));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &depth));
 
   // Depth must be scalar
   if (depth.size() != 1) {
@@ -2056,7 +2105,7 @@ static Status TranslatePadOp(const TFNodeDecoder* op,
 
   // Set pads_begin & pads_end (from the pad_val_op)
   std::vector<int64_t> paddings;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &paddings));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &paddings));
   NGRAPH_VLOG(3) << op->name() << " pads {" << ng::join(paddings) << "}";
   if (paddings.size() % 2 != 0) {
     return errors::InvalidArgument(
@@ -2089,21 +2138,21 @@ static Status TranslateRangeOp(
   ng::Output<ng::Node> ng_start, ng_stop, ng_step;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_start, ng_stop, ng_step));
 
-  DataType start_type = op->input_type(0);
-  DataType stop_type = op->input_type(1);
-  DataType step_type = op->input_type(2);
+  //DataType start_type = op->input_type(0);
+  //DataType stop_type = op->input_type(1);
+  //DataType step_type = op->input_type(2);
   ng::element::Type out_type;
   TF_RETURN_IF_ERROR(
       TFDataTypeToNGraphElementType(op->output_type(0), &out_type));
-  ng::Output<ng::Node> start_node, stop_node, step_node;
-  TF_RETURN_IF_ERROR(
-      GetStaticInputNode(op, 0, static_input_map, start_type, start_node));
-  TF_RETURN_IF_ERROR(
-      GetStaticInputNode(op, 1, static_input_map, stop_type, stop_node));
-  TF_RETURN_IF_ERROR(
-      GetStaticInputNode(op, 2, static_input_map, step_type, step_node));
-  auto ng_range = ConstructNgNode<opset::Range>(op->name(), start_node,
-                                                stop_node, step_node, out_type);
+  //ng::Output<ng::Node> start_node, stop_node, step_node;
+  //TF_RETURN_IF_ERROR(
+  //    GetStaticInputNode(op, 0, static_input_map, start_type, start_node));
+  //TF_RETURN_IF_ERROR(
+  //    GetStaticInputNode(op, 1, static_input_map, stop_type, stop_node));
+  //TF_RETURN_IF_ERROR(
+  //    GetStaticInputNode(op, 2, static_input_map, step_type, step_node));
+  auto ng_range = ConstructNgNode<opset::Range>(op->name(), ng_start,
+                                                ng_stop, ng_step, out_type);
 
   SaveNgOp(ng_op_map, op->name(), ng_range);
   return Status::OK();
@@ -2162,7 +2211,7 @@ static Status TranslateReshapeOp(
   NGRAPH_VLOG(3) << "Input shape: " << ng::join(ng_input.get_shape());
 
   std::vector<int64_t> shape;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &shape));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &shape));
 
   NGRAPH_VLOG(3) << "Requested result shape: " << ng::join(shape);
 
@@ -2243,8 +2292,8 @@ static Status TranslateSliceOp(
 
   std::vector<int64_t> begin_vec;
   std::vector<int64_t> size_vec;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &begin_vec));
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 2, static_input_map, &size_vec));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &begin_vec));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 2, static_input_map, &size_vec));
 
   if (begin_vec.size() != size_vec.size())
     return errors::InvalidArgument(
@@ -2357,7 +2406,7 @@ static Status TranslateSplitOp(
 
   std::vector<int> split_dim_vec;
   TF_RETURN_IF_ERROR(
-      GetStaticInputVector(op, 0, static_input_map, &split_dim_vec));
+      GetStaticInputVector(ng_op_map, op, 0, static_input_map, &split_dim_vec));
   int split_dim = split_dim_vec[0] + (split_dim_vec[0] < 0 ? (int64_t)rank : 0);
   auto ng_split_dim = ConstructNgNode<opset::Constant>(
       op->name(), ng::element::u64, ng::Shape{}, split_dim);
@@ -2383,7 +2432,7 @@ static Status TranslateSplitVOp(
 
   std::vector<int64_t> split_dim_vec;
   TF_RETURN_IF_ERROR(
-      GetStaticInputVector(op, 2, static_input_map, &split_dim_vec));
+      GetStaticInputVector(ng_op_map, op, 2, static_input_map, &split_dim_vec));
   // there should be at least one element specified as axis and not more than
   // one as axis is 0-D
   if (split_dim_vec.size() != 1) {
@@ -2398,7 +2447,7 @@ static Status TranslateSplitVOp(
 
   std::vector<int> split_lengths_vec;
   TF_RETURN_IF_ERROR(
-      GetStaticInputVector(op, 1, static_input_map, &split_lengths_vec));
+      GetStaticInputVector(ng_op_map, op, 1, static_input_map, &split_lengths_vec));
 
   // length: Length of size_splits
   int length = 0;
@@ -2503,12 +2552,16 @@ static Status TranslateStridedSliceOp(
                  << "  ellipsis mask: " << ellipsis_mask;
 
   std::vector<int64_t> begin_vec;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &begin_vec));
+    std::cerr << "x\n";
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &begin_vec));
   std::vector<int64_t> end_vec;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 2, static_input_map, &end_vec));
+    std::cerr << "x\n";
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 2, static_input_map, &end_vec));
   std::vector<int64_t> stride_vec;
+    std::cerr << "x\n";
   TF_RETURN_IF_ERROR(
-      GetStaticInputVector(op, 3, static_input_map, &stride_vec));
+      GetStaticInputVector(ng_op_map, op, 3, static_input_map, &stride_vec));
+    std::cerr << "x\n";
 
   auto begin = ConstructNgNode<opset::Constant>(
       op->name(), ng::element::i64, ng::Shape{begin_vec.size()}, begin_vec);
@@ -2517,6 +2570,7 @@ static Status TranslateStridedSliceOp(
   auto strides = ConstructNgNode<opset::Constant>(
       op->name(), ng::element::i64, ng::Shape{stride_vec.size()}, stride_vec);
 
+    std::cerr << "x\n";
   auto mask_to_vec = [](int32_t mask) {
     auto length = sizeof(mask) * CHAR_BIT;
     std::vector<int64_t> vec(length, 0);
@@ -2547,7 +2601,7 @@ static Status TranslateTileOp(
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_multiples));
 
   std::vector<int64_t> multiples;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &multiples));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &multiples));
 
   auto ng_repeats = ConstructNgNode<opset::Constant>(
       op->name(), ng::element::i64, ng::Shape{multiples.size()}, multiples);
@@ -2571,7 +2625,7 @@ static Status TranslateTopKV2Op(
   // scalar input tensor specifying how many max/min elts should be computed
   // CPU backend only supports element type i64
   std::vector<int64_t> ng_k_vec;
-  TF_RETURN_IF_ERROR(GetStaticInputVector(op, 1, static_input_map, &ng_k_vec));
+  TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &ng_k_vec));
   auto ng_k = ConstructNgNode<opset::Constant>(op->name(), ng::element::i64,
                                                ng::Shape{}, ng_k_vec[0]);
 
@@ -2840,19 +2894,30 @@ public:
     NodeProtoWrapper(const NodeDef* _node_def, const GraphDef* _graph_def, std::vector<TFNodeDecoder*>* _nodes) :
         node_def(_node_def), graph_def(_graph_def), nodes(_nodes) {}
 
-#define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) override { *x = node_def->attr().at(name).FIELD(); }
+#define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) const override \
+    { *x = node_def->attr().at(name).FIELD(); }
+#define GET_ATTR_VALUE_VECTOR(TYPE, FIELD) virtual void getAttrValue (const char* name, std::vector<TYPE>* x) const override \
+    {\
+        const auto& list = node_def->attr().at(name).list();\
+        x->reserve(/*node_def->attr().at(name).FIELD##_size()*/list.FIELD##_size());\
+        for(size_t i = 0; i < list.FIELD##_size(); ++i)\
+        {\
+            x->push_back(list.FIELD(i));\
+        }\
+    }
 
-
-    virtual void getAttrValue (const char* name, std::vector<int32_t>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
-    virtual void getAttrValue (const char* name, std::vector<float>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+            GET_ATTR_VALUE_VECTOR(int32_t, i)
+            GET_ATTR_VALUE_VECTOR(float, f)
+    //virtual void getAttrValue (const char* name, std::vector<int32_t>* x) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    //virtual void getAttrValue (const char* name, std::vector<float>* x) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
     GET_ATTR_VALUE(int32_t, i)
 
-    virtual void getAttrValue (const char* name, DataType* x) override
+    virtual void getAttrValue (const char* name, DataType* x) const override
     {
         *x = node_def->attr().at(name).type();
     }
 
-    virtual void getAttrValue (const char* name, ngraph::PartialShape* x) override {
+    virtual void getAttrValue (const char* name, ngraph::PartialShape* x) const override {
         TFTensorShapeToNGraphShape(node_def->attr().at(name).shape(), x);
     }
 
@@ -2861,10 +2926,19 @@ public:
     GET_ATTR_VALUE(long int, i)
     GET_ATTR_VALUE(float, f)
 
-    virtual void getAttrValue (const char* name, std::vector<std::string>* x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, std::vector<std::string>* x) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
     // a way to read Const value as a tensor
-    virtual void getAttrValue (const char* name, TensorWrapper** x) override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual void getAttrValue (const char* name, TensorWrapper** x) const override
+    {
+        // TODO: use std::shared_ptr! memory is lost!
+        *x = new TensorWrapper(&node_def->attr().at(name).tensor());
+    }
+
+    virtual std::string op () const override
+    {
+        return node_def->op();
+    }
 
     virtual unsigned int num_inputs () const override { return node_def->input_size(); }
 
@@ -2878,9 +2952,9 @@ public:
         return node_def->op();
     }
 
-    virtual Status input_node (size_t index, TFNodeDecoder**) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    virtual Status input_node (size_t index, TFNodeDecoder const * *) const override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
 
-    virtual Status input_node (size_t index, TFNodeDecoder** retnode, size_t* outputPortIndex) const override
+    virtual Status input_node (size_t index, TFNodeDecoder const * * retnode, size_t* outputPortIndex) const override
     {
         std::string input_name = node_def->input(index);
         if(input_name.find(':') != std::string::npos) {
@@ -2953,7 +3027,7 @@ void PopulateNodesTopologicallySorted (const GraphDef* input_graph, std::vector<
 }
 
 Status Builder::TranslateGraph(
-        const std::vector<ngraph::PartialShape>& inputs,
+        const std::map<std::string, ngraph::PartialShape>& inputs,
         const std::vector<const TensorWrapper*>& static_input_map, const GraphDef* input_graph,
         const std::string name, std::shared_ptr<ngraph::Function>& ng_function) {
   //
@@ -3028,14 +3102,17 @@ Status Builder::TranslateGraph(
     std::cerr << "\nX\n";
 
     ng::PartialShape ng_shape;
-    try
-    {
-        GetNodeAttr(parm->attrs(), "shape", &ng_shape);
-    }
-    catch (google::protobuf::FatalException)
-    {
-        // suppose there is no shape
-        // TODO: do it in a good way
+    auto overridenInputShape = inputs.find(parm->name());
+    if(overridenInputShape == inputs.end()) {
+        try {
+            GetNodeAttr(parm->attrs(), "shape", &ng_shape);
+        }
+        catch (google::protobuf::FatalException) {
+            // suppose there is no shape
+            // TODO: do it in a good way
+        }
+    } else {
+        ng_shape = overridenInputShape->second;
     }
 
 #if 0
@@ -3107,6 +3184,20 @@ Status Builder::TranslateGraph(
     auto ng_result = ConstructNgNode<opset::Result>(n->name(), result);
     ng_result_list[index] =
         ngraph::as_type_ptr<opset::Result>(ng_result.get_node_shared_ptr());
+  }
+
+  // Find all terminal nodes in ngraph graph to complete list of results
+  for(auto op: tf_ops)
+  {
+      auto p = ng_op_map.find(op->name());
+      if(p != ng_op_map.end())
+      {
+          for(auto output: p->second)
+          {
+              if(output.get_target_inputs().empty())
+                  ng_result_list.push_back(std::make_shared<default_opset::Result>(output));
+          }
+      }
   }
 
   //

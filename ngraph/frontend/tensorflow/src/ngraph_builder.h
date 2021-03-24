@@ -22,6 +22,7 @@
 #include <iterator>
 #include <algorithm>
 
+// TODO: remove explicit proto dependency from this common header
 #include "graph.pb.h"
 
 #include "ngraph/ngraph.hpp"
@@ -86,27 +87,29 @@ public:
 
     // a hack to minimize amount of code
     TFNodeDecoder& attrs () const { return const_cast<TFNodeDecoder&>(*this); }
-    virtual void getAttrValue (const char* name, std::vector<int32_t>* x) = 0;
-    virtual void getAttrValue (const char* name, std::vector<float>* x) = 0;
-    virtual void getAttrValue (const char* name, int32_t* x) = 0;
-    virtual void getAttrValue (const char* name, DataType* x) = 0;
-    virtual void getAttrValue (const char* name, std::string* x) = 0;
-    virtual void getAttrValue (const char* name, bool* x) = 0;
-    virtual void getAttrValue (const char* name, long int* x) = 0;
-    virtual void getAttrValue (const char* name, float* x) = 0;
-    virtual void getAttrValue (const char* name, std::vector<std::string>* x) = 0;
-    virtual void getAttrValue (const char* name, ngraph::PartialShape* x) = 0;
+    virtual void getAttrValue (const char* name, std::vector<int32_t>* x) const = 0;
+    virtual void getAttrValue (const char* name, std::vector<float>* x) const = 0;
+    virtual void getAttrValue (const char* name, int32_t* x) const = 0;
+    virtual void getAttrValue (const char* name, DataType* x) const = 0;
+    virtual void getAttrValue (const char* name, std::string* x) const = 0;
+    virtual void getAttrValue (const char* name, bool* x) const = 0;
+    virtual void getAttrValue (const char* name, long int* x) const = 0;
+    virtual void getAttrValue (const char* name, float* x) const = 0;
+    virtual void getAttrValue (const char* name, std::vector<std::string>* x) const = 0;
+    virtual void getAttrValue (const char* name, ngraph::PartialShape* x) const = 0;
+
+    virtual std::string op () const = 0;
 
     // a way to read Const value as a tensor
-    virtual void getAttrValue (const char* name, TensorWrapper** x) = 0;
+    virtual void getAttrValue (const char* name, TensorWrapper** x) const = 0;
 
     virtual unsigned int num_inputs () const = 0;
     virtual std::string name () const = 0;
     virtual bool IsArg () const = 0;
     virtual std::string type_string () const = 0;
 
-    virtual Status input_node (size_t index, TFNodeDecoder**) const = 0;
-    virtual Status input_node (size_t index, TFNodeDecoder**, size_t* outputPortIndex) const = 0;
+    virtual Status input_node (size_t index, TFNodeDecoder const * *) const = 0;
+    virtual Status input_node (size_t index, TFNodeDecoder const * *, size_t* outputPortIndex) const = 0;
     virtual DataType input_type (size_t index) const = 0;
     virtual DataType output_type (size_t index) const = 0;
 
@@ -117,9 +120,14 @@ public:
     virtual bool IsRetval () const = 0;
 };
 
+// TODO: separate interface from proto implementation; here is a proto implementation
 class TensorWrapper
 {
 public:
+
+    const TensorProto* tensor_def;
+
+    TensorWrapper (const TensorProto* _tensor_def) : tensor_def(_tensor_def) {}
 
     // a hack to minimize amount of code
     TensorWrapper &attrs() const { return const_cast<TensorWrapper &>(*this); }
@@ -147,7 +155,7 @@ Status GetNodeAttr (TFNodeDecoder& attrs, const char* attr_name, T* result)
     class Builder {
  public:
   static Status TranslateGraph(
-      const std::vector<ngraph::PartialShape>& inputs,
+      const std::map<std::string, ngraph::PartialShape>& inputs,
       const std::vector<const TensorWrapper*>& static_input_map, const GraphDef* tf_graph,
       const std::string name, std::shared_ptr<ngraph::Function>& ng_function);
 
