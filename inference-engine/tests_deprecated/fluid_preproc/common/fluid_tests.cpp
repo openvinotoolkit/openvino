@@ -117,7 +117,7 @@ cv::String colorFormatToString(InferenceEngine::ColorFormat f) {
         case ColorFormat::RGBX: return "RGBX";
         case ColorFormat::BGRX: return "BGRX";
         case ColorFormat::NV12: return "NV12";
-        default: THROW_IE_EXCEPTION << "Unrecognized color format";
+        default: IE_THROW() << "Unrecognized color format";
     }
 }
 
@@ -179,7 +179,7 @@ int numChannels(InferenceEngine::ColorFormat fmt) {
         case ColorFormat::BGR: return 3;
         case ColorFormat::RGBX: return 4;
         case ColorFormat::BGRX: return 4;
-        default: THROW_IE_EXCEPTION << "Unrecognized color format";
+        default: IE_THROW() << "Unrecognized color format";
     }
 }
 
@@ -223,7 +223,7 @@ InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout
         }
         break;
         default:
-            THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+            IE_THROW() << "Inconsistent input layout for image processing: " << layout;
     }
     return resultBlob;
 }
@@ -263,7 +263,7 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
         }
         break;
         default:
-            THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+            IE_THROW() << "Inconsistent input layout for image processing: " << layout;
     }
 }
 } // anonymous namespace
