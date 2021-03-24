@@ -102,12 +102,8 @@ Parameter::~Parameter() {
     clear();
 }
 
+#ifdef __ANDROID__
 Parameter::Any::~Any() {}
-
-template <typename T>
-T& Parameter::RealData<T>::get() & {
-    return std::get<0>(*static_cast<std::tuple<T>*>(this));
-}
 
 template struct Parameter::RealData<int>;
 template struct Parameter::RealData<bool>;
@@ -116,17 +112,13 @@ template struct Parameter::RealData<double>;
 template struct Parameter::RealData<uint32_t>;
 template struct Parameter::RealData<std::string>;
 template struct Parameter::RealData<unsigned long>;
-template struct Parameter::RealData<long long>;
 template struct Parameter::RealData<std::vector<int>>;
 template struct Parameter::RealData<std::vector<std::string>>;
-template struct Parameter::RealData<std::vector<float>>;
-template struct Parameter::RealData<std::vector<uint32_t>>;
 template struct Parameter::RealData<std::vector<unsigned long>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 template struct Parameter::RealData<Blob::Ptr>;
-template struct Parameter::RealData<TensorDesc>;
-template struct Parameter::RealData<std::map<std::string, Parameter>>;
+#endif
 
 //
 // ie_blob.h

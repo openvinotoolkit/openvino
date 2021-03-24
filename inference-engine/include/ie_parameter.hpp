@@ -273,8 +273,12 @@ private:
     template <class T, class EqualTo = T>
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
-    struct INFERENCE_ENGINE_API_CLASS(Any) {
+    struct Any {
+#ifdef __ANDROID__
         virtual ~Any();
+#else
+        virtual ~Any() = default;
+#endif
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
@@ -287,12 +291,13 @@ private:
         bool is(const std::type_info& id) const override {
             return id == typeid(T);
         }
-
         Any* copy() const override {
             return new RealData {get()};
         }
 
-        T& get() &;
+        T& get() & {
+            return std::get<0>(*static_cast<std::tuple<T>*>(this));
+        }
 
         const T& get() const& {
             return std::get<0>(*static_cast<const std::tuple<T>*>(this));
@@ -330,24 +335,21 @@ private:
     Any* ptr = nullptr;
 };
 
+#ifdef __ANDROID__
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::TensorDesc>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<float>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<uint32_t>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::string>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<unsigned long>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<long long>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<std::string>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<float>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<uint32_t>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<unsigned long>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::map<std::string, Parameter>>);
+#endif
 
 }  // namespace InferenceEngine
