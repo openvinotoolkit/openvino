@@ -9,3 +9,4 @@ Use the links below to review the benchmarking results for each alternative:
 * [Intel® Distribution of OpenVINO™ toolkit Benchmark Results](performance_benchmarks_openvino.md)  
 * [OpenVINO™ Model Server Benchmark Results](performance_benchmarks_ovms.md)  
 
+Performance for a particular application can also be evaluated virtually using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
