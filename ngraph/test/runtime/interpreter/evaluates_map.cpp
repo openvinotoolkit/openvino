@@ -2214,7 +2214,6 @@ namespace
                                std::string("in evaluate_node()"));
         }
     }
-
 } // namespace
 
 runtime::interpreter::EvaluatorsMap& runtime::interpreter::get_evaluators_map()

@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "runtime/backend.hpp"
@@ -30,10 +31,10 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, roll_2d_input)
 {
     Shape shape{4, 3};
-    auto x = make_shared<op::Parameter>(element::f32, shape);
-    auto shift = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{1});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{0});
-    auto f = make_shared<Function>(make_shared<op::v7::Roll>(x, shift, axes), ParameterVector{x});
+    auto x = make_shared<opset7::Parameter>(element::f32, shape);
+    auto shift = make_shared<opset7::Constant>(element::i64, Shape{1}, vector<int64_t>{1});
+    auto axes = make_shared<opset7::Constant>(element::i64, Shape{1}, vector<int64_t>{0});
+    auto f = make_shared<Function>(make_shared<opset7::Roll>(x, shift, axes), ParameterVector{x});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -50,10 +51,10 @@ NGRAPH_TEST(${BACKEND_NAME}, roll_2d_input)
 NGRAPH_TEST(${BACKEND_NAME}, roll_2d_input_negative_shift)
 {
     Shape shape{4, 3};
-    auto x = make_shared<op::Parameter>(element::f32, shape);
-    auto shift = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{-1, 2});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
-    auto f = make_shared<Function>(make_shared<op::v7::Roll>(x, shift, axes), ParameterVector{x});
+    auto x = make_shared<opset7::Parameter>(element::f32, shape);
+    auto shift = make_shared<opset7::Constant>(element::i64, Shape{2}, vector<int64_t>{-1, 2});
+    auto axes = make_shared<opset7::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
+    auto f = make_shared<Function>(make_shared<opset7::Roll>(x, shift, axes), ParameterVector{x});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -70,10 +71,10 @@ NGRAPH_TEST(${BACKEND_NAME}, roll_2d_input_negative_shift)
 NGRAPH_TEST(${BACKEND_NAME}, roll_repeated_axes)
 {
     Shape shape{4, 3};
-    auto x = make_shared<op::Parameter>(element::f32, shape);
-    auto shift = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{1, 2, 1});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{0, 1, 0});
-    auto f = make_shared<Function>(make_shared<op::v7::Roll>(x, shift, axes), ParameterVector{x});
+    auto x = make_shared<opset7::Parameter>(element::f32, shape);
+    auto shift = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{1, 2, 1});
+    auto axes = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{0, 1, 0});
+    auto f = make_shared<Function>(make_shared<opset7::Roll>(x, shift, axes), ParameterVector{x});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -90,10 +91,10 @@ NGRAPH_TEST(${BACKEND_NAME}, roll_repeated_axes)
 NGRAPH_TEST(${BACKEND_NAME}, roll_3d_input)
 {
     Shape shape{4, 2, 3};
-    auto x = make_shared<op::Parameter>(element::f32, shape);
-    auto shift = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{2, 1, 3});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{0, 1, 2});
-    auto f = make_shared<Function>(make_shared<op::v7::Roll>(x, shift, axes), ParameterVector{x});
+    auto x = make_shared<opset7::Parameter>(element::f32, shape);
+    auto shift = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{2, 1, 3});
+    auto axes = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{0, 1, 2});
+    auto f = make_shared<Function>(make_shared<opset7::Roll>(x, shift, axes), ParameterVector{x});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     auto x_tensor = backend->create_tensor(element::f32, shape);
@@ -110,10 +111,10 @@ NGRAPH_TEST(${BACKEND_NAME}, roll_3d_input)
 NGRAPH_TEST(${BACKEND_NAME}, roll_3d_input_negative_shift)
 {
     Shape shape{4, 2, 3};
-    auto x = make_shared<op::Parameter>(element::f32, shape);
-    auto shift = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{-5, 1, 3});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{0, 1, 1});
-    auto f = make_shared<Function>(make_shared<op::v7::Roll>(x, shift, axes), ParameterVector{x});
+    auto x = make_shared<opset7::Parameter>(element::f32, shape);
+    auto shift = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{-5, 1, 3});
+    auto axes = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{0, 1, 1});
+    auto f = make_shared<Function>(make_shared<opset7::Roll>(x, shift, axes), ParameterVector{x});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     auto x_tensor = backend->create_tensor(element::f32, shape);
@@ -130,10 +131,10 @@ NGRAPH_TEST(${BACKEND_NAME}, roll_3d_input_negative_shift)
 NGRAPH_TEST(${BACKEND_NAME}, roll_negative_axes)
 {
     Shape shape{4, 2, 3};
-    auto x = make_shared<op::Parameter>(element::f32, shape);
-    auto shift = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{2, -1, -7});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{-1, -1, -2});
-    auto f = make_shared<Function>(make_shared<op::v7::Roll>(x, shift, axes), ParameterVector{x});
+    auto x = make_shared<opset7::Parameter>(element::f32, shape);
+    auto shift = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{2, -1, -7});
+    auto axes = make_shared<opset7::Constant>(element::i64, Shape{3}, vector<int64_t>{-1, -1, -2});
+    auto f = make_shared<Function>(make_shared<opset7::Roll>(x, shift, axes), ParameterVector{x});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     auto x_tensor = backend->create_tensor(element::f32, shape);
