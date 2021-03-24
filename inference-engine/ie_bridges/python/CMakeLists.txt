@@ -75,7 +75,7 @@ endif()
 
 # install
 
-ie_cpack_add_component(${PYTHON_VERSION} REQUIRED)
+ie_cpack_add_component(${PYTHON_VERSION})
 
 install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}

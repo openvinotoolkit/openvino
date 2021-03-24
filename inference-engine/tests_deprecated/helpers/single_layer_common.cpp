@@ -55,7 +55,7 @@ void GenRandomDataCommon(Blob::Ptr blob) {
             tempSum +=val;
         }
     } else {
-        THROW_IE_EXCEPTION << blob->getTensorDesc().getPrecision() << " is not supported by GenRandomDataCommon";
+        IE_THROW() << blob->getTensorDesc().getPrecision() << " is not supported by GenRandomDataCommon";
     }
 }
 
@@ -71,7 +71,7 @@ BufferWrapper::BufferWrapper(const Blob::Ptr& blob, Precision _precision) : prec
     } else if (precision == Precision::U8) {
         u8_ptr = blob->buffer().as<uint8_t*>();
     } else {
-        THROW_IE_EXCEPTION << "Unsupported precision for compare: " << precision;
+        IE_THROW() << "Unsupported precision for compare: " << precision;
     }
 }
 

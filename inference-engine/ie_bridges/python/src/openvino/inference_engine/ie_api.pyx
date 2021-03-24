@@ -319,7 +319,7 @@ cdef class IECore:
     #    and creates an `ExecutableNetwork` object of the `IENetwork` class.
     #    You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware
     #    resources).
-    #  @param network: A valid `IENetwork` instance
+    #  @param network: A valid `IENetwork` instance. Model file name .xml, .onnx can also be passed as argument
     #  @param device_name: A device name of a target plugin
     #  @param config: A dictionary of plugin configuration keys and their values
     #  @param num_requests: A positive integer value of infer requests to be created. Number of infer requests is limited
@@ -333,7 +333,7 @@ cdef class IECore:
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
     #  ```
-    cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config=None, int num_requests=1):
+    cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
         if num_requests < 0:
@@ -342,7 +342,10 @@ cdef class IECore:
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
-        exec_net.impl = move(self.impl.loadNetwork(network.impl, device_name.encode(), c_config, num_requests))
+        if isinstance(network, str):
+            exec_net.impl = move(self.impl.loadNetworkFromFile((<str>network).encode(), device_name.encode(), c_config, num_requests))
+        else:
+            exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, device_name.encode(), c_config, num_requests))
         return exec_net
 
     ## Creates an executable network from a previously exported network

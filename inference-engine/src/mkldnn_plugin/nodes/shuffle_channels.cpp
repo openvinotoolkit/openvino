@@ -53,27 +53,27 @@ public:
     explicit ShuffleChannelsImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             SizeVector src_dims = layer->insData[0].lock()->getTensorDesc().getDims();
             SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
             if (src_dims.size() != dst_dims.size())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
+                IE_THROW() << layer->name << " Incorrect number of input/output dimensions!";
 
             const auto precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
             if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-                THROW_IE_EXCEPTION << layer->name << "has unsupported precision: " << precision.name();
+                IE_THROW() << layer->name << "has unsupported precision: " << precision.name();
 
             int axis = layer->GetParamAsInt("axis", 1);
             if (axis < 0)
                 axis += dst_dims.size();
 
             if (axis < 0 || axis >= static_cast<int>(dst_dims.size()))
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimensions and axis number!";
+                IE_THROW() << layer->name << " Incorrect input parameters dimensions and axis number!";
 
             size_t group = layer->GetParamAsUInt("group", 1);
             if (group == 0 || dst_dims[axis] % group)
-                THROW_IE_EXCEPTION << layer->name << " Group parameter must evenly divide the channel dimension!";
+                IE_THROW() << layer->name << " Group parameter must evenly divide the channel dimension!";
 
             //  Find number of dictionaries, index range and data length
             own_dims[0] = 1;
@@ -84,7 +84,7 @@ public:
                 dataLength *= dst_dims[i];
 
             if (dataLength == 0)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimension!";
+                IE_THROW() << layer->name << " Incorrect input parameters dimension!";
 
             own_dims[1] = dst_dims[axis] / group;
             own_dims[2] = group;
@@ -107,7 +107,7 @@ public:
 
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

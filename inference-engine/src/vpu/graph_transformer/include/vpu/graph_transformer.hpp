@@ -112,6 +112,7 @@ struct CompilationConfig final {
     bool forcePureTensorIterator = false;
     bool enableMemoryTypesAnnotation = false;
     bool enableWeightsAnalysis = true;
+    bool checkPreprocessingInsideModel = true;
     bool enableCustomReshapeParam = false;
 
     //

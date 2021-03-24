@@ -125,7 +125,7 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     InferenceEngine::IInferRequest::Ptr req = static_cast<InferenceEngine::IInferRequest::Ptr &>(execNet.CreateInferRequest());
     req->SetCompletionCallback(
             [](InferenceEngine::IInferRequest::Ptr, InferenceEngine::StatusCode status) {
-                THROW_IE_EXCEPTION << "returnGeneralErrorIfCallbackThrowException";
+                IE_THROW() << "returnGeneralErrorIfCallbackThrowException";
             });
 
     InferenceEngine::ResponseDesc resp;

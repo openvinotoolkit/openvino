@@ -29,6 +29,12 @@ static size_t _asIndex(const char* source, const element::Type& element_type)
     // According to the GatherTree op specification only I32 and FP32 precisions are supported.
     switch (element_type)
     {
+    case element::Type_t::f16:
+    {
+        ngraph::float16 tmpBuff = 0.f;
+        memcpy(&tmpBuff, source, sizeof(ngraph::float16));
+        return tmpBuff;
+    }
     case element::Type_t::f32:
     {
         float tmpBuff = 0.f;

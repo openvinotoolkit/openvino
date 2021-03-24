@@ -9,7 +9,6 @@
 #include <vpu/utils/ie_itt.hpp>
 
 #include <precision_utils.h>
-#include <details/ie_exception.hpp>
 #include <blob_transform.hpp>
 #include <blob_factory.hpp>
 

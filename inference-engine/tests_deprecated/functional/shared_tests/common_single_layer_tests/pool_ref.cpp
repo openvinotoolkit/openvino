@@ -12,7 +12,7 @@ using namespace InferenceEngine;
 void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
     auto poolLayer = dynamic_cast<InferenceEngine::PoolingLayer*>(layer);
     if (!poolLayer) {
-        THROW_IE_EXCEPTION << "Layer is not instance of PoolingLayer class";
+        IE_THROW() << "Layer is not instance of PoolingLayer class";
     }
 
     poolLayer->_kernel.clear();
@@ -81,7 +81,7 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
             std::string alg = poolLayer->GetParamAsString("pool-method", "max");
             poolLayer->_type = alg == "avg" ? InferenceEngine::PoolingLayer::AVG : InferenceEngine::PoolingLayer::MAX;
             if (alg != "max" && alg != "avg") {
-                THROW_IE_EXCEPTION << "Layer has incorrect pool-type!";
+                IE_THROW() << "Layer has incorrect pool-type!";
             }
         }
     } else {
@@ -95,7 +95,7 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
         std::vector<unsigned int> strides = poolLayer->GetParamAsUInts("strides", default_1);
         for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
-                THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << poolLayer->name;
+                IE_THROW() << "Stride could not be 0.\nIn layer " << poolLayer->name;
             }
             poolLayer->_stride.insert(i - 1, strides[strides.size() - i]);
         }
@@ -114,7 +114,7 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
         std::string alg = poolLayer->GetParamAsString("pool-method", "max");
         poolLayer->_type = alg == "avg" ? InferenceEngine::PoolingLayer::AVG : InferenceEngine::PoolingLayer::MAX;
         if (alg != "max" && alg != "avg") {
-            THROW_IE_EXCEPTION << "Layer has incorrect pad-type!";
+            IE_THROW() << "Layer has incorrect pad-type!";
         }
     }
     // TODO: checks for presence of all required attributes, and that there's no extraneous parameters only.
@@ -124,7 +124,7 @@ template<>
 void ref_pool_common<float>(const std::vector<InferenceEngine::Blob::Ptr> srcs, Blob &dst,
         const CommonTestUtils::pool_common_params &p) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW)
-        THROW_IE_EXCEPTION << "Reference FP32 convolution supports NCHW layout only";
+        IE_THROW() << "Reference FP32 convolution supports NCHW layout only";
     size_t KW = p.kernel[X_AXIS];
     size_t KH = p.kernel[Y_AXIS];
 

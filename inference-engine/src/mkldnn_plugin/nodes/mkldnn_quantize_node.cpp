@@ -823,20 +823,20 @@ MKLDNNQuantizeNode::MKLDNNQuantizeNode(CNNLayerPtr layer, const mkldnn::engine& 
 void MKLDNNQuantizeNode::init() {
     auto* quantizeLayer = dynamic_cast<QuantizeLayer*>(getCnnLayer().get());
     if (quantizeLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert Quantize layer " << getName();
+        IE_THROW() << "Cannot convert Quantize layer " << getName();
 
     levels = quantizeLayer->levels;
     if (levels <= 1)
-        THROW_IE_EXCEPTION << "Quantize layer " << getName() << " supports only parameter levels > 1";
+        IE_THROW() << "Quantize layer " << getName() << " supports only parameter levels > 1";
 
     if (getParentEdges().size() != 5)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (getParentEdgesAtPort(i).size() != 1)
-            THROW_IE_EXCEPTION << "Quantize layer " << getName() << " has unsupported number of parent edges at port " << i;
+            IE_THROW() << "Quantize layer " << getName() << " has unsupported number of parent edges at port " << i;
     }
 
     auto initAxisIdx = [&](size_t edgeIdx) {
@@ -857,7 +857,7 @@ void MKLDNNQuantizeNode::init() {
             }
         }
         if (numberOfNonUnit > 1) {
-            THROW_IE_EXCEPTION << "Quantize layer " << getName() << " supports only per-tensor and per-channel quantizations";
+            IE_THROW() << "Quantize layer " << getName() << " supports only per-tensor and per-channel quantizations";
         }
 
         return axisIdx;
@@ -897,7 +897,7 @@ void MKLDNNQuantizeNode::init() {
     }
 
     if (quantizationParamsAxisesIdxs.size() > 1 || quantizationParamsAxisesSizes.size() > 1)
-        THROW_IE_EXCEPTION << "Unsupported input sizes for Quantize layer with name " << getName();
+        IE_THROW() << "Unsupported input sizes for Quantize layer with name " << getName();
 
     if (quantizationParamsAxisesIdxs.size() == 1) {
         axis = *quantizationParamsAxisesIdxs.begin();
@@ -913,15 +913,15 @@ void MKLDNNQuantizeNode::init() {
 
     if (quantizationParamsAxisesSizes.size() == 1) {
         if (*quantizationParamsAxisesSizes.begin() != axisRealSize)
-            THROW_IE_EXCEPTION << "Unsupported input sizes for Quantize layer with name " << getName();
+            IE_THROW() << "Unsupported input sizes for Quantize layer with name " << getName();
     }
 
     for (size_t i = 1; i < getParentEdges().size(); i++) {
         if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant())
-            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
+            IE_THROW() << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
         auto prec = getCnnLayer()->insData[i].lock()->getPrecision();
         if (prec != Precision::FP32)
-            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
+            IE_THROW() << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
     }
 
     auto inputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
@@ -1032,7 +1032,7 @@ void MKLDNNQuantizeNode::init() {
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
             if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
-                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+                IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
                                    << "inputLow = " << il << ", inputHigh = " << ih;
             }
 #endif
@@ -1047,7 +1047,7 @@ void MKLDNNQuantizeNode::init() {
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
             if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
+                IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
                                    << "outputLow = " << ol << ", outputHigh = " << oh;
             }
 #endif
@@ -1120,24 +1120,24 @@ void MKLDNNQuantizeNode::getSupportedDescriptors() {
     std::string errorPrefix = "Quantize layer with name '" + getName() + "' ";
 
     if (getParentEdgesAtPort(0)[0]->getDims().ndims() != getChildEdgesAtPort(0)[0]->getDims().ndims()) {
-        THROW_IE_EXCEPTION << errorPrefix << "has different ranks for input and output tensors";
+        IE_THROW() << errorPrefix << "has different ranks for input and output tensors";
     }
 
     if (getParentEdgesAtPort(0)[0]->getDims().ndims() < 1ul || getParentEdgesAtPort(0)[0]->getDims().ndims() > 5ul) {
-        THROW_IE_EXCEPTION << errorPrefix << "has unsupported number of dimensions for input at edge 0";
+        IE_THROW() << errorPrefix << "has unsupported number of dimensions for input at edge 0";
     }
 
     if (isBinarization()) {
         if (getParentEdgesAtPort(0)[0]->getDims().ndims() != 4ul) {
-            THROW_IE_EXCEPTION << errorPrefix << "doesn't support input/output rank != 4";
+            IE_THROW() << errorPrefix << "doesn't support input/output rank != 4";
         }
     }
 
     if (getAxis() != 1) {
         if (isBinarization())
-            THROW_IE_EXCEPTION << errorPrefix << "doesn't support non per-tensor binarization for axis: " << getAxis();
+            IE_THROW() << errorPrefix << "doesn't support non per-tensor binarization for axis: " << getAxis();
         if (getAxis() != 0)
-            THROW_IE_EXCEPTION << errorPrefix << "doesn't support non per-tensor quantization for axis: " << getAxis();
+            IE_THROW() << errorPrefix << "doesn't support non per-tensor quantization for axis: " << getAxis();
     }
 }
 
@@ -1211,7 +1211,7 @@ void MKLDNNQuantizeNode::createPrimitive() {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         if (mayiuse(cpu::x64::avx512_common)) {
@@ -1529,7 +1529,7 @@ void MKLDNNQuantizeNode::executeQuantization() {
 void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         if (jqp.op_type == QuantizeOpType::Binarization)

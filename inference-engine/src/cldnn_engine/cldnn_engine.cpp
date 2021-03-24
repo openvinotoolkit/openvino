@@ -18,7 +18,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -113,7 +113,7 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
         if (device_map.find(val) == device_map.end()) {
-            THROW_IE_EXCEPTION << "Invalid device ID: " << val;
+            IE_THROW() << "Invalid device ID: " << val;
         }
         device_info = device_map.at(val).get_info();
     }
@@ -221,30 +221,55 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 });
 
             auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-                if (std::dynamic_pointer_cast<const ngraph::op::v0::RNNCell>(node) || std::dynamic_pointer_cast<const ngraph::op::v5::RNNSequence>(node)) {
+                if (std::dynamic_pointer_cast<const ngraph::opset6::RNNCell>(node)) {
                     return false;
-                } else if (std::dynamic_pointer_cast<const ngraph::op::v3::GRUCell>(node) ||
-                           std::dynamic_pointer_cast<const ngraph::op::v5::GRUSequence>(node)) {
+                } else if (std::dynamic_pointer_cast<const ngraph::opset6::GRUCell>(node)) {
                     return false;
-                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::op::v4::LSTMCell>(node)) {
+                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset6::LSTMCell>(node)) {
                     return lstm_cell->get_clip() == 0.0f && lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::op::v0::LSTMCell>(node)) {
+                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(node)) {
                     return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-                } else if (const auto &lstm_sequence = std::dynamic_pointer_cast<const ngraph::op::v5::LSTMSequence>(node)) {
-                    return lstm_sequence->get_clip() == 0.0f && lstm_sequence->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
                 }
                 return false;
             };
 
-            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                                      ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                                      ngraph::pass::ConvertLSTMSequenceToTensorIterator,
-                                      ngraph::pass::RNNCellDecomposition,
+            // Sequences supported by the plugin shouldn't be converted to TensorIterator.
+            // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
+            // should always convert to TensorIterator.
+            // RNN/GRU Sequences are not supported in GPU plugin
+            // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
+            auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
+                const auto& data = node->input(0);
+                const auto& data_pshape = data.get_partial_shape();
+                if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
+                    return false;
+                auto max_seq_len = data.get_shape().at(1);
+                if (std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(node)) {
+                    return false;
+                } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(node)) {
+                    return lstm_seq->get_clip() == 0.0f &&
+                           lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                           !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
+                                                                  max_seq_len);
+                }
+                return false;
+            };
+
+            pass_config->set_callback<ngraph::pass::RNNCellDecomposition,
                                       ngraph::pass::GRUCellDecomposition,
                                       ngraph::pass::LSTMCellDecomposition>(
                 [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                     return isCellPrimitiveSupported(node);
                 });
+
+            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                                      ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                                      ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+                    [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                        return isSequencePrimitiveSupported(node);
+                    });
 
             pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
                                       ngraph::pass::ConvertTensorIteratorToLSTMSequence,
@@ -416,7 +441,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
             input_precision != InferenceEngine::Precision::I32 &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            IE_THROW(NotImplemented)
                 << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -489,7 +514,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     auto casted = std::dynamic_pointer_cast<ClContext>(context);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid context";
+        IE_THROW() << "Invalid context";
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
@@ -514,7 +539,7 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
 #endif
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
-        THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;
+        IE_THROW() << "Invalid remote context type" << contextTypeStr;
     }
 }
 
@@ -536,10 +561,15 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     CLDNNPlugin::Config conf = _impl->m_config;
     UpdateConfig(conf, network, config);
 
-    Program prog;
+    if (m_defaultContext == nullptr) {
+        m_defaultContext.reset(new CLDNNRemoteCLContext(
+            std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
+            ParamMap(), conf));
+    }
+    Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     auto function = network.getFunction();
     if (function == nullptr) {
-        THROW_IE_EXCEPTION << "CNNetworkImpl representation is not supported anymore";
+        IE_THROW() << "CNNetworkImpl representation is not supported anymore";
     }
 
     std::unordered_set<std::string> originalOpNames;
@@ -751,7 +781,7 @@ Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::st
     if (option != _impl->m_config.key_config_map.end()) {
         result = option->second;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported config key : " << name;
+        IE_THROW() << "Unsupported config key : " << name;
     }
     return result;
 }
@@ -826,7 +856,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported metric key " << name;
+        IE_THROW() << "Unsupported metric key " << name;
     }
 }
 

@@ -33,6 +33,9 @@ class PSROIPoolingLayerTest : public testing::WithParamInterface<psroiParams>,
         public:
             static std::string getTestCaseName(testing::TestParamInfo<psroiParams> obj);
             void GenerateInputs() override;
+    static void fillROITensor(float* buffer, int numROIs, int batchSize,
+                              int height, int width, int groupSize,
+                              float spatialScale, int spatialBinsX, int spatialBinsY, const std::string& mode);
 
         protected:
             void SetUp() override;

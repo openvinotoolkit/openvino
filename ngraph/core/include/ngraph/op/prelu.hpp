@@ -18,9 +18,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -32,7 +29,7 @@ namespace ngraph
             /// x <  0 => f(x) = x * slope
             /// x >= 0 => f(x) = x
             ///
-            class NGRAPH_API PRelu : public ngraph::op::util::FusedOp
+            class NGRAPH_API PRelu : public ngraph::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -44,12 +41,11 @@ namespace ngraph
                 PRelu(const Output<Node>& data, const Output<Node>& slope);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                void pre_validate_and_infer_types() override;
+                void validate_and_infer_types() override;
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
@@ -58,5 +54,3 @@ namespace ngraph
         using v0::PRelu;
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

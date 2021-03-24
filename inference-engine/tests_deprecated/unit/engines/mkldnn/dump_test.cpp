@@ -19,7 +19,7 @@ TEST(MKLDNNDumpTests, UnallocatedBlob_NoDump) {
 
     EXPECT_THROW({
         BlobDumper(blob).dump(buff);
-    }, details::InferenceEngineException);
+    }, Exception);
 }
 
 TEST(MKLDNNDumpTests, EmptyBlob_NoDump) {
@@ -30,7 +30,7 @@ TEST(MKLDNNDumpTests, EmptyBlob_NoDump) {
 
     EXPECT_THROW({
         BlobDumper(blob).dump(buff);
-    }, details::InferenceEngineException);
+    }, Exception);
 }
 
 TEST(MKLDNNDumpTests, Ser) {

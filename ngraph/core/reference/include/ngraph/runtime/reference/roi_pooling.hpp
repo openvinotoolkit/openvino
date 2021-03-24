@@ -211,9 +211,8 @@ namespace ngraph
                                         const T bottom_left = feature_maps[bottom_left_idx];
                                         const T bottom_right = feature_maps[bottom_right_idx];
 
-                                        const T top =
-                                            top_left +
-                                            (top_right - top_left) * (in_x - left_x_index);
+                                        const T top = top_left + (top_right - top_left) *
+                                                                     (in_x - left_x_index);
                                         const T bottom =
                                             bottom_left +
                                             (bottom_right - bottom_left) * (in_x - left_x_index);

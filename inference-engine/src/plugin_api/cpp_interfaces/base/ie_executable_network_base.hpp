@@ -38,7 +38,7 @@ public:
      */
     explicit ExecutableNetworkBase(std::shared_ptr<IExecutableNetworkInternal> impl) {
         if (impl.get() == nullptr) {
-            THROW_IE_EXCEPTION << "implementation not defined";
+            IE_THROW() << "implementation not defined";
         }
         _impl = impl;
     }

@@ -228,7 +228,7 @@ protected:
             graph.Infer(srcs, outputBlobs2);
 
             compare(*output, *output2, 0.0005f);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

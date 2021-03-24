@@ -142,7 +142,7 @@ TEST_P(IEClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
     initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = GNAConfigParams::GNA_SW_FP32;
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName, initialConfig);
 
-    ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), InferenceEngineException);
+    ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), Exception);
 }
 
 // TODO: Convolution with 3D input is not supported on GNA

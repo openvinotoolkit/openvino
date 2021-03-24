@@ -361,7 +361,7 @@ protected:
                     actual_reorder_nodes ++;
             }
             ASSERT_EQ(actual_reorder_nodes, p.num_reorder_nodes);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

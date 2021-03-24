@@ -38,6 +38,8 @@
 #include "runtime/gna_float_runtime.hpp"
 #include <layers/gna_fake_quantize_layer.hpp>
 #include "gna_graph_patterns.hpp"
+#include "gna_tensor_tools.hpp"
+#include <debug.h>
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -128,7 +130,7 @@ void GNAPlugin::copyInputData(T *dst,
                 T *ptr_dst_vec = reinterpret_cast<T *>(dst) + i * num_vector_stride;
                 const U *ptr_src_vec = reinterpret_cast<const U *>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                for (int j=0; j < num_vector_elements; j++) {
+                for (uint32_t j=0; j < num_vector_elements; j++) {
                     ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                 }
             }
@@ -246,12 +248,22 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                     ptr_src_vec, num_active_elements * sizeof(int16_t));
             }
         } else if (num_bytes_per_element == 4) {  // should work for both int and float
-            for (uint32_t i = 0; i < num_frames; i++) {
-                void *ptr_dst_vec = reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(float);
-                const void *ptr_src_vec = reinterpret_cast<const uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(float);
-                memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
-                ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
-                    ptr_src_vec, num_active_elements * sizeof(float));
+            if (num_bytes_per_element_input == 2) {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
+                    auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
+                        ptr_dst_vec[j] = ptr_src_vec[j];
+                    }
+                }
+            } else {
+                for (uint32_t i = 0; i < num_frames; i++) {
+                    void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
+                    const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
+                    memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
+                    ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
+                        ptr_src_vec, num_active_elements * sizeof(float));
+                }
             }
         } else {
             THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
@@ -497,59 +509,7 @@ bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) 
     return false;
 }
 
-static void TransposeTensorFromNCHWToNHWC(size_t precision, size_t rows, size_t columns, uint8_t* buffer, bool transpose_rows,
-                                          const std::vector<TranspositionInfo> &transpositionInfo) {
-    size_t weightsTotalSize = rows * columns * precision;
-    std::vector<uint8_t> transposedWeights(weightsTotalSize);
-    size_t weightsPartOffset = 0;
-    bool transposed = false;
-    for (const auto &transpositionInfoPart : transpositionInfo) {
-        auto partSize = transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-        size_t weightsPartSize = partSize * precision * (transpose_rows ? rows : columns);
-        if (transpositionInfoPart.transpose &&
-            transpositionInfoPart.num_transpose_rows != 1 &&
-            transpositionInfoPart.num_transpose_columns != 1) {
-            if (transpose_rows) {
-                for (int weightsRowIx = 0; weightsRowIx < rows; ++weightsRowIx) {
-                    auto weightsRowsOffset = weightsRowIx * partSize * precision;
-                    auto cbuffer = buffer + weightsPartOffset + weightsRowsOffset;
-                    auto weights_ptr = transposedWeights.data() + weightsPartOffset + weightsRowsOffset;
-                    for (int colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
-                        for (int rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
-                            auto offsetWrite = (colsIx * transpositionInfoPart.num_transpose_rows + rowIx) * precision;
-                            auto offsetRead = (transpositionInfoPart.num_transpose_columns * rowIx + colsIx) * precision;
-                            ie_memcpy(weights_ptr + offsetWrite, weightsPartSize - weightsRowsOffset - offsetWrite,
-                                cbuffer + offsetRead, precision);
-                        }
-                    }
-                }
-            } else {
-                auto cbuffer = buffer + weightsPartOffset;
-                auto weights_ptr = transposedWeights.data() + weightsPartOffset;
-                for (int colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
-                    for (int rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
-                        auto offsetWrite = (colsIx * transpositionInfoPart.num_transpose_rows + rowIx) * columns * precision;
-                        auto offsetRead = (transpositionInfoPart.num_transpose_columns * rowIx + colsIx) * columns * precision;
-                        ie_memcpy(weights_ptr + offsetWrite, weightsPartSize - offsetWrite, cbuffer + offsetRead, columns * precision);
-                    }
-                }
-            }
-            transposed = true;
-        } else {
-            // Just copy data which should not be transposed
-            ie_memcpy(transposedWeights.data() + weightsPartOffset,
-                      weightsPartSize,
-                      buffer + weightsPartOffset,
-                      weightsPartSize);
-        }
-        weightsPartOffset += weightsPartSize;
-    }
-    if (transposed) {
-        ie_memcpy(buffer, weightsTotalSize, transposedWeights.data(), weightsTotalSize);
-    }
-}
-
-void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> &layers) {
+void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net) {
     auto printTranspositionInfo = [](const std::vector<TranspositionInfo> &transpositionInfo) {
         for (const auto &transpositionInfoPart : transpositionInfo) {
             gnalog() << "transpose=" << transpositionInfoPart.transpose << " rows_num=" << transpositionInfoPart.num_transpose_rows
@@ -557,134 +517,35 @@ void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> 
         }
     };
 
-    auto foundPartToTranspose = [](const std::vector<TranspositionInfo> &transpositionInfo) {
-        auto partToTranspose = std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo),
-            [](const TranspositionInfo &infoPart) { return infoPart.transpose; });
-        return partToTranspose != std::end(transpositionInfo);
-    };
-
-    for (auto& l : layers) {
+    auto inputLayers = CNNNetGetAllInputLayers(net);
+    for (const auto& inputLayer : inputLayers) {
         // Collect information for inputs transposition
-        if (LayerInfo(l).isInput()) {
-            auto transpositionInfo = FindTranspositionInfoFromNextLayers(l);
-            if (!transpositionInfo.empty()) {
-                transpose_inputs_info.insert({l->name, transpositionInfo});
-                gnalog() << "Input " << l->name << " transposition info: \n";
-                printTranspositionInfo(transpositionInfo);
-            }
-        }
+        if (!LayerInfo(inputLayer).isInput()) continue;
+        auto transpositionInfo = FindTranspositionInfoFromNextLayers(inputLayer);
+        if (transpositionInfo.empty()) continue;
 
+        transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
+        gnalog() << "Input " << inputLayer->name << " transposition info: \n";
+        printTranspositionInfo(transpositionInfo);
+    }
+
+    auto outputsMap = net.getOutputsInfo();
+    for (const auto& outPort : outputsMap) {
+        auto outLayer = getCreatorLayer(outPort.second).lock();
         // Collect information for outputs transposition
-        if (LayerInfo(l).isOutput()) {
-            auto transpositionInfo = FindTranspositionInfoFromPrevLayers(l);
-            if (!transpositionInfo.empty()) {
-                // Swap transposition info rows and columns since we need to transpose output back from NHWC to NCHW
-                for (auto && transpositionInfoPart : transpositionInfo) {
-                    if (transpositionInfoPart.transpose) {
-                        std::swap(transpositionInfoPart.num_transpose_rows, transpositionInfoPart.num_transpose_columns);
-                    }
-                }
-                transpose_outputs_info.insert({l->name, transpositionInfo});
-                gnalog() << "Output " << l->name << " transposition info: \n";
-                printTranspositionInfo(transpositionInfo);
-            }
-        }
+        if (!LayerInfo(outLayer).isOutput()) continue;
+        auto transpositionInfo = FindTranspositionInfoFromPrevLayers(outLayer);
+        if (transpositionInfo.empty()) continue;
 
-        // Transpose weights
-        if (LayerInfo(l).isScaleShift()) {
-            std::vector<TranspositionInfo> transpositionInfo;
-            // Try to find a convolution in previous layers
-            if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
-                transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
-                // If no convolutions are found try to find them in next layers
-                if (!foundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
-                    transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
-                }
-            }
-            if (!transpositionInfo.empty()) {
-                auto weightable = dynamic_cast<WeightableLayer*>(l.get());
-                IE_ASSERT(weightable != nullptr);
-                TransposeTensorFromNCHWToNHWC(weightable->precision.size(), 1, weightable->_weights->size(),
-                    weightable->_weights->cbuffer().as<uint8_t*>(), true, transpositionInfo);
-                if (weightable->_biases) {
-                    TransposeTensorFromNCHWToNHWC(weightable->precision.size(), 1, weightable->_biases->size(),
-                        weightable->_biases->cbuffer().as<uint8_t*>(), true, transpositionInfo);
-                }
-                gnalog() << l->name << " weights and biases rows transposition info:\n";
-                printTranspositionInfo(transpositionInfo);
+        // Swap transposition info rows and columns since we need to transpose output back from NHWC to NCHW
+        for (auto && transpositionInfoPart : transpositionInfo) {
+            if (transpositionInfoPart.transpose) {
+                std::swap(transpositionInfoPart.num_transpose_rows, transpositionInfoPart.num_transpose_columns);
             }
         }
-
-        if (LayerInfo(l).isFullyConnected()) {
-            auto weightable = dynamic_cast<WeightableLayer*>(l.get());
-            IE_ASSERT(weightable != nullptr);
-            auto precision = weightable->precision.size();
-            auto out_dims = l->outData[0]->getDims();
-            auto in_dims = l->input()->getDims();
-            auto weightsRows = InferenceEngine::details::product(std::begin(out_dims) + 1, std::end(out_dims));
-            auto weightsColumns = InferenceEngine::details::product(std::begin(in_dims) + 1, std::end(in_dims));
-            // Find a convolution in previous layers to rotate weights rows
-            if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
-                auto transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
-                if (!transpositionInfo.empty()) {
-                    size_t totalColumns = 0;
-                    for (auto && transpositionInfoPart : transpositionInfo) {
-                        totalColumns += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-                    }
-                    if (weightsColumns != totalColumns) {
-                        THROW_GNA_EXCEPTION << l->name << " weights columns from transposition info (" << totalColumns
-                                            << ") don't match input dimensions (" << weightsColumns << ")";
-                    }
-                    TransposeTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
-                                                  true, transpositionInfo);
-                    gnalog() << l->name << " weights rows transposition info:\n";
-                    printTranspositionInfo(transpositionInfo);
-                }
-            }
-            // Find a convolution in next layers to rotate weights columns
-            if (!l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
-                auto transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
-                if (!transpositionInfo.empty()) {
-                    size_t totalRows = 0;
-                    for (const auto& transpositionInfoPart : transpositionInfo) {
-                        totalRows += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-                    }
-                    if (weightsRows != totalRows) {
-                        THROW_GNA_EXCEPTION << l->name << "weights rows from transposition info (" << totalRows
-                                            << ") don't match output dimensions (" << weightsRows << ")";
-                    }
-                    TransposeTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
-                                                  false, transpositionInfo);
-                    gnalog() << l->name << " weights columns transposition info:\n";
-                    printTranspositionInfo(transpositionInfo);
-                }
-            }
-        }
-
-        if (LayerInfo(l).isEltwise()) {
-            // We need to transpose a constant which is an eltwise input
-            auto firstInput = InferenceEngine::CNNNetPrevLayer(l, 0);
-            auto secondInput = InferenceEngine::CNNNetPrevLayer(l, 1);
-            if (!LayerInfo(firstInput).isConst() && !LayerInfo(secondInput).isConst()) {
-                continue;
-            }
-            // Let a constant to be the second input
-            if (LayerInfo(firstInput).isConst()) {
-                std::swap(firstInput, secondInput);
-            }
-            // Find a convolution in previous or next layers
-            auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
-            if (!foundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
-                transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
-            }
-            if (!transpositionInfo.empty()) {
-                auto blob = secondInput->blobs["custom"];
-                TransposeTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(), 1, blob->size(),
-                                              blob->buffer().as<uint8_t*>(), true, transpositionInfo);
-                gnalog() << l->name << " data transposition info:\n";
-                printTranspositionInfo(transpositionInfo);
-            }
-        }
+        transpose_outputs_info.insert({outLayer->name, transpositionInfo});
+        gnalog() << "Output " << outLayer->name << " transposition info: \n";
+        printTranspositionInfo(transpositionInfo);
     }
 }
 
@@ -795,9 +656,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     UpdateGnaQuantModeFromNetwork(network);
     UpdateInputScaleFromNetwork(network);
 
-    auto layers = details::CNNNetSortTopologically(network);
-    if (MustBeConvertedFromNCHWToNHWC(layers)) {
-        ConvertModelLayoutFromNCHWToNHWC(layers);
+    if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
+        FillInputsAndOutputsTranspositionInfo(network);
     }
 
     // network optimisation phases
@@ -814,6 +674,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
+
+        passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
@@ -1247,7 +1109,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             Wait(0);
             freeNnet = nnets.begin();
         } else {
-            THROW_IE_EXCEPTION << as_status << REQUEST_BUSY
+            IE_THROW(RequestBusy)
                                << "GNA executable network has max of "
                                << static_cast<uint32_t >(gnaFlags->gna_lib_async_threads_num)
                                << " parallel infer requests, please sync one of already running";
@@ -1263,12 +1125,6 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
             THROW_GNA_EXCEPTION << "Expected input blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was: "
                                 << input.second->getTensorDesc().getLayout();
-        }
-
-        auto dims = input.second->getTensorDesc().getDims();
-        if (inputLayout == Layout::CHW && (dims[0] != 1 || dims[1] != 1)) {
-            THROW_GNA_EXCEPTION << "For Layout::CHW only dimension with height = 1 and channel = 1 is supported, but was: "
-                                << dims;
         }
 
         if (inputLayout == Layout::NCHW || inputLayout == Layout::CHW) {
@@ -1302,6 +1158,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             }
         }
 
+        auto dims = input.second->getTensorDesc().getDims();
         auto  importedElements = is1D ? dims[0] : details::product(++std::begin(dims), std::end(dims));
         auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
@@ -1338,7 +1195,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                                     << ") do not match input buffer length of " << elementsPerBatch;
             }
             auto input_ptr = reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]);
-            TransposeTensorFromNCHWToNHWC(gnadevice ? 2 : 4, batchSize, elementsPerBatch, input_ptr, true, transpose_info->second);
+            ConvertTensorFromNCHWToNHWC(gnadevice ? 2 : 4, batchSize, elementsPerBatch, input_ptr, true, transpose_info->second);
         }
         ++inputNum;
     }
@@ -1415,9 +1272,9 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+        if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CHW) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
         }
@@ -1440,12 +1297,12 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
                                     << ") do not match output buffer length of " << elementsPerBatch;
             }
-            TransposeTensorFromNCHWToNHWC(outputDesc.num_bytes_per_element,
-                                            batchSize,
-                                            elementsPerBatch,
-                                            reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]),
-                                            true,
-                                            transpose_output_info->second);
+            ConvertTensorFromNCHWToNHWC(outputDesc.num_bytes_per_element,
+                                        batchSize,
+                                        elementsPerBatch,
+                                        reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]),
+                                        true,
+                                        transpose_output_info->second);
         }
 
         ExportScores(outputBlob->buffer(),
@@ -1733,7 +1590,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     InferenceEngine::QueryNetworkResult res;
 
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
+        IE_THROW(NotImplemented) << " ngraph::Function is not supported natively";
     }
 
     std::unordered_set<CNNLayer *> allLayers;

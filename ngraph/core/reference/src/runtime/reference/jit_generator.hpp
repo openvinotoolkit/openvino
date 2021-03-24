@@ -45,7 +45,8 @@ namespace ngraph
             public:
                 static const Xbyak::Reg64 param;
 
-                typedef enum {
+                typedef enum
+                {
                     isa_any,
                     sse42,
                     avx,

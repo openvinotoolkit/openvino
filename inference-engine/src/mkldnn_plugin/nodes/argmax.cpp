@@ -18,7 +18,7 @@ public:
     explicit ArgMaxImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 1 || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             conf.out_max_val_ = layer->GetParamAsBool("out_max_val", false);
             conf.top_k_       = layer->GetParamAsInt("top_k");
@@ -28,7 +28,7 @@ public:
                                 std::stoi(layer->params.at("axis")) :0;
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

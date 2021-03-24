@@ -429,7 +429,7 @@ protected:
                     FAIL() << "Wrong out_shape dimensions!";
             }
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

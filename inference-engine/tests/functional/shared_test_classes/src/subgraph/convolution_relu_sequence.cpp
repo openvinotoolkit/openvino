@@ -11,7 +11,8 @@ std::string ConvolutionReluSequenceTest::getTestCaseName(testing::TestParamInfo<
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     std::string targetDevice;
-    std::tie(convParamsAll, netPrecision, inPrc, outPrc, targetDevice) =
+    std::map<std::string, std::string> config;
+    std::tie(convParamsAll, netPrecision, inPrc, outPrc, targetDevice, config) =
         obj.param;
 
     std::ostringstream result;
@@ -27,8 +28,13 @@ std::string ConvolutionReluSequenceTest::getTestCaseName(testing::TestParamInfo<
         result << "PB" << CommonTestUtils::vec2str(single.padBegin) << "_";
         result << "PE" << CommonTestUtils::vec2str(single.padEnd) << "_";
         result << "O=" << single.numOutChannels << "_";
+        result << "PW" << CommonTestUtils::vec2str(single.poolingWindow) << "_";
+        result << "PS" << CommonTestUtils::vec2str(single.poolingStride) << "_";
     }
 
+    for (auto&& single : config) {
+        result << single.first << "=" << single.second;
+    }
     return result.str();
 }
 
@@ -37,8 +43,10 @@ void ConvolutionReluSequenceTest::SetUp() {
     const InferenceEngine::SizeVector dilation = { 1, 1 };
     convReluSpecificParamsAll convParamsAll;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(convParamsAll, netPrecision, inPrc, outPrc, targetDevice) =
+    std::map<std::string, std::string> config;
+    std::tie(convParamsAll, netPrecision, inPrc, outPrc, targetDevice, config) =
         this->GetParam();
+    configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { convParamsAll.inputShape});
     auto lastOutputs = ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params).front();
@@ -67,6 +75,14 @@ void ConvolutionReluSequenceTest::SetUp() {
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
                     dilation, ngraph::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));
         lastOutputs = std::make_shared<ngraph::opset1::Relu>(conv);
+        if (single.poolingWindow.size() == 2 &&
+                (single.poolingWindow[0] != 1 ||
+                 single.poolingWindow[1] != 1)) {
+            lastOutputs = std::make_shared<ngraph::opset3::MaxPool>(lastOutputs, single.poolingStride,
+                ngraph::Shape{ 0, 0 },
+                ngraph::Shape{ 0, 0 },
+                single.poolingWindow);
+        }
         inputChannels = single.numOutChannels;
     }
 

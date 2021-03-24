@@ -25,27 +25,27 @@ public:
     explicit TopKImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 2)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+                IE_THROW() << layer->name << " Incorrect number of input edges!";
 
             if (layer->outData.size() != 1 && layer->outData.size() != 2)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of output edges!";
+                IE_THROW() << layer->name << " Incorrect number of output edges!";
 
             if (layer->insData[TOPK_K].lock()->getTensorDesc().getDims().size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " TopKImpl - Index vector should be 1 dimension";
+                IE_THROW() << layer->name << " TopKImpl - Index vector should be 1 dimension";
 
             SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
             SizeVector src_data_dims = layer->insData[TOPK_DATA].lock()->getTensorDesc().getDims();
             if (src_data_dims.size() != dst_dims.size())
-                THROW_IE_EXCEPTION << layer->name << " TopKImpl - Incorrect input/output tensor dimension sizes";
+                IE_THROW() << layer->name << " TopKImpl - Incorrect input/output tensor dimension sizes";
 
             if (layer->outData.size() == 2) {
                 SizeVector dst_idx_dims = layer->outData[TOPK_INDEX]->getTensorDesc().getDims();
                 if (dst_dims.size() != dst_idx_dims.size())
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect output tensor dimension sizes";
+                    IE_THROW() << layer->name << " Incorrect output tensor dimension sizes";
 
                 for (size_t i = 0; i < dst_dims.size(); i++) {
                     if (dst_dims[i] != dst_idx_dims[i])
-                        THROW_IE_EXCEPTION << layer->name << " Input/output tensor dimension mismatch";
+                        IE_THROW() << layer->name << " Input/output tensor dimension mismatch";
                 }
             }
 
@@ -57,7 +57,7 @@ public:
             axis = static_cast<size_t>(axis_);
 
             if (src_dims.size() < (1 + axis))
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimensions and axis number!";
+                IE_THROW() << layer->name << " Incorrect input parameters dimensions and axis number!";
 
             if (layer->GetParamAsString("mode", "max") == "max")
                 mode_max = true;
@@ -78,13 +78,13 @@ public:
             for (size_t i = 0; i < axis; i++) {
                 axis_step *= src_dims[i];
                 if (src_data_dims[i] != dst_dims[i])
-                    THROW_IE_EXCEPTION << layer->name << " Input/output tensor dimension mismatch";
+                    IE_THROW() << layer->name << " Input/output tensor dimension mismatch";
             }
             axis_dim = src_dims[axis];
             for (size_t i = (axis + 1); i < src_dims.size(); i++) {
                 axis_stride *= src_dims[i];
                 if (src_data_dims[i] != dst_dims[i])
-                    THROW_IE_EXCEPTION << layer->name << " Input/output tensor dimension mismatch";
+                    IE_THROW() << layer->name << " Input/output tensor dimension mismatch";
             }
             dim = static_cast<int>(src_dims[axis]);
             before_num = count(src_dims, 0, axis);
@@ -102,7 +102,7 @@ public:
                 //       integer tensor. Will change it for corresponding output desc.
                 confs.back().outConfs[1].desc.setPrecision(Precision::I32);
             }
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

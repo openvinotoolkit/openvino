@@ -16,6 +16,10 @@
 
 #pragma once
 
+#include <ngraph/op/normalize_l2.hpp>
+#include <ngraph/runtime/reference/sum.hpp>
+#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+
 namespace ngraph
 {
     namespace runtime

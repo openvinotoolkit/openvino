@@ -29,25 +29,69 @@
 <hr class="my-4">
 <h2>Operations coverage summary {{ timestamp }}</h2>
 <hr class="my-4">
+<table class="table table-hover" id="legend">
+    <thead>
+    <tr>
+        <th class="table-info" scope="col"></th>
+        <th scope="col">Not verified Ngraph references</th>
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="col"></th>
+        <th scope="col">Collected statistic info</th>
+    </tr>
+    </thead>
+</table>
 <table class="table table-hover" id="report">
     <thead>
     <tr>
-        <th scope="col">Operation</th>
+        <th class="table-primary" scope="col">Operation</th>
         {% for d in devices -%}
-        <th>{{ d }}</th>
+        <th class="table-primary">{{ d }}</th>
         {% endfor %}
     </tr>
     </thead>
     <tbody>
+        <tr>
+        <th class="table-secondary" scope="row">Total: {{ordered_ops|length}}</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{results[d]|length}}</td>
+        {% endfor %}
+
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{pass_rate_avg[d]}}%</td>
+        {% endfor %}
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="row">General passrate (=passed_tests/all_tests):</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{general_pass_rate[d]}}%</td>
+        {% endfor %}
+    </tr>
+        <tr>
+        <th class="table-secondary" scope="row">Operation test number (without Parameter-0, Constant-0 and Result-0 ops):</th>
+        {% for d in devices -%}
+        <td class="table-secondary" >{{general_test_count[d]}}</td>
+        {% endfor %}
+    </tr>
+    </tbody>
+    <tbody>
     {% for op in ordered_ops -%}
     <tr>
-        <th scope="row">{{ op }}</th>
+        {% if op in verified_operations -%}
+            <th scope="row">{{ op }}</th>
+        {% else -%}
+            <th  class="table-info" scope="row">{{ op }}</th>
+        {% endif -%}
         {% for d in devices -%}
         {% if op in results[d] -%}
-        <td>
+            <td>
             {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
-            <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }})
-        </td>
+               <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }}</span>,
+               <span style="color: red">c:{{ results[d][op].crashed }}</span>)
+            </td>
         {% else -%}
         <td class="table-warning">No tests</td>
         {% endif -%}
@@ -55,13 +99,7 @@
         {% endfor %}
     </tr>
     {% endfor -%}
-    <tr>
-        <th scope="row">Total: {{ordered_ops|length}}</th>
-        {% for d in devices -%}
-        <td>{{results[d]|length}}</td>
-        {% endfor %}
 
-    </tr>
     </tbody>
 </table>
 </body>

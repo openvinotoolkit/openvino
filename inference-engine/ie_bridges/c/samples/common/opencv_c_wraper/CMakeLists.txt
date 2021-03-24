@@ -12,7 +12,7 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio  QUIET)
+find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is built without OPENCV support")
 else()

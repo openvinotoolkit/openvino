@@ -25,7 +25,7 @@ void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& o
 
     if (broadcast_type.m_type != ngraph::op::AutoBroadcastType::NONE &&
         broadcast_type.m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-        THROW_IE_EXCEPTION << "Unsupported broadcast type (" << broadcast_type.m_type << ") in layer " + op->get_friendly_name();
+        IE_THROW() << "Unsupported broadcast type (" << broadcast_type.m_type << ") in layer " + op->get_friendly_name();
     }
 
     if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {

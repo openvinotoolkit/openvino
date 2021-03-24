@@ -120,7 +120,7 @@ class smoke_CPULogisticOnlyTest : public TestsCommon,
 
             compare(*dst, dst_ref);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

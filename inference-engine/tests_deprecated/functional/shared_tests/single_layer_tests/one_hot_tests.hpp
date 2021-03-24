@@ -183,7 +183,7 @@ protected:
             ref_one_hot_4d(*src, dst_ref, p);
 
             compare(*output, dst_ref);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

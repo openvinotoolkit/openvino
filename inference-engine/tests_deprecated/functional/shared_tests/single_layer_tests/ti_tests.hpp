@@ -30,7 +30,7 @@ static void setValuesInBlob(Blob::Ptr blob, float value) {
     std::vector<float> values_vector(output_size, value);
 
     if (!blob->is<MemoryBlob>())
-        THROW_IE_EXCEPTION << "Only MemoryBlob is expected here";
+        IE_THROW() << "Only MemoryBlob is expected here";
 
     auto m_blob = blob->as<MemoryBlob>();
     if (m_blob->wmap().as<void*>() == nullptr)
@@ -169,7 +169,7 @@ protected:
             setValuesInBlob(req.GetBlob("in2"), 1.0f);
             req.Infer();
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -321,7 +321,7 @@ protected:
             setValuesInBlob(req.GetBlob("in1"), 1.0f);
             req.Infer();
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

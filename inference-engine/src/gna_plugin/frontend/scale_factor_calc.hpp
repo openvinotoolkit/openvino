@@ -72,7 +72,7 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
             auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
-            if (slope < std::numeric_limits<int16_t>::min() && slope > std::numeric_limits<int16_t>::max()) {
+            if (slope < static_cast<uint32_t>(std::numeric_limits<int16_t>::min()) && slope > static_cast<uint32_t>(std::numeric_limits<int16_t>::max())) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
             }
@@ -119,7 +119,7 @@ static float selectBestWeightsScaleFactors(float inScale, float outScale, std::v
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale * weightScale, outScale);
             auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
-            if (slope < std::numeric_limits<int16_t>::min() && slope > std::numeric_limits<int16_t>::max()) {
+            if (slope < static_cast<uint32_t>(std::numeric_limits<int16_t>::min()) && slope > static_cast<uint32_t>(std::numeric_limits<int16_t>::max())) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
             }
@@ -254,7 +254,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         } else if (layer.isPower()) {
             auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
             if (!powerLayer) {
-                THROW_IE_EXCEPTION << "Incorrect Power Layer pointer \n";
+                IE_THROW() << "Incorrect Power Layer pointer \n";
             }
 
             auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
@@ -413,7 +413,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
  public :
     bool operator()(InferenceEngine::CNNLayer *cnnLayer, int weightsSize, ScaleFactorUpdateResult &result, const bool fakeQuantize) {
         if ( !cnnLayer ) {
-            THROW_IE_EXCEPTION << "Incorrect Convolutional Layer pointer \n";
+            IE_THROW() << "Incorrect Convolutional Layer pointer \n";
         }
         LayerInfo layerInfo(*cnnLayer);
         // TODO: current approach set input scale factor for true input layer(s) equals to provided factor,
@@ -573,7 +573,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
             auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
             if (!powerLayer) {
-                THROW_IE_EXCEPTION << "Incorrect Power Layer pointer \n";
+                IE_THROW() << "Incorrect Power Layer pointer \n";
             }
 
             auto powerScale = std::abs(powerLayer->scale);

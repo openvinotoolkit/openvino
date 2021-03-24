@@ -52,6 +52,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const AutoBroadcastSpec& get_auto_broadcast() const { return m_auto_broadcast; }
+
             private:
                 AutoBroadcastSpec m_auto_broadcast;
             };

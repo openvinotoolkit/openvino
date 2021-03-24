@@ -57,14 +57,17 @@ Two attributes, `transpose_a` and `transpose_b` specify embedded transposition f
 
 **Inputs**:
 
-*   **1**: Input batch of matrices A. Rank >= 1. Required.
+*   **1**: Tensor of type *T* with matrices A. Rank >= 1. Required.
 
-*   **2**: Input batch of matrices B. Rank >= 1. Required.
+*   **2**: Tensor of type *T* with matrices B. Rank >= 1. Required.
 
 **Outputs**
 
-*   **1**: Tensor with results of the multiplication.
+*   **1**: Tensor of type *T* with results of the multiplication.
 
+**Types**:
+
+* *T*: any supported floating point or integer type.
 
 **Example**
 

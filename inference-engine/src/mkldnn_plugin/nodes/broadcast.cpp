@@ -20,14 +20,14 @@ public:
     explicit BroadcastImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             if (layer->insData.size() != 2)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+                IE_THROW() << layer->name << " Incorrect number of input edges!";
 
             SizeVector shape_dims = layer->insData[BROADCAST_SHAPE].lock()->getTensorDesc().getDims();
             if (shape_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Shape vector should be 1 dimension";
+                IE_THROW() << layer->name << " Shape vector should be 1 dimension";
 
             LayerConfig config;
             DataConfig dataConfig, shapeConfig;
@@ -46,7 +46,7 @@ public:
             config.outConfs.push_back(outConfig);
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

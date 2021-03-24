@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <details/ie_exception.hpp>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -51,19 +50,23 @@ public:
     }
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Creates parameter from variant.
      * This method creates empty parameter if variant doesn't contain Parameter
      *
      * @param var ngraph variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     Parameter(const std::shared_ptr<ngraph::Variant>& var);
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Creates parameter from variant.
      * This method creates empty parameter if variant doesn't contain Parameter
      *
      * @param var ngraph variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     Parameter(std::shared_ptr<ngraph::Variant>& var);
 
     /**
@@ -201,19 +204,25 @@ public:
     }
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Converts parameter to shared pointer on ngraph::Variant
      *
      * @return shared pointer on ngraph::Variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     std::shared_ptr<ngraph::Variant> asVariant() const;
 
     /**
+     * @deprecated Use ngraph::Variant directly
      * @brief Casts to shared pointer on ngraph::Variant
      *
      * @return shared pointer on ngraph::Variant
      */
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Variant directly")
     operator std::shared_ptr<ngraph::Variant>() const {
+        IE_SUPPRESS_DEPRECATED_START
         return asVariant();
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
@@ -297,7 +306,7 @@ private:
         template <class U>
         typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
         equal(const Any& left, const Any& rhs) const {
-            THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
+            IE_THROW() << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
@@ -313,13 +322,13 @@ private:
 
     template <typename T>
     static T& dyn_cast(Any* obj) {
-        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
+        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
         return dynamic_cast<RealData<T>&>(*obj).get();
     }
 
     template <typename T>
     static const T& dyn_cast(const Any* obj) {
-        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
+        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
         return dynamic_cast<const RealData<T>&>(*obj).get();
     }
 

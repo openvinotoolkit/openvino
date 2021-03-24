@@ -31,9 +31,9 @@
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/op/util/variable.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "node_factory.hpp"
-#include "tensor_iterator_builder.hpp"
 
 namespace py = pybind11;
 
@@ -60,14 +60,7 @@ namespace
                          "Currently NodeFactory doesn't support Constant node: ",
                          op_type_name);
 
-            if (op_type_name == "TensorIterator")
-            {
-                // XXX: How to differentiate opsets?
-                return util::TensorIteratorBuilder(as_node_vector(arguments), attributes)
-                    .configure(std::static_pointer_cast<ngraph::op::TensorIterator>(op_node));
-            }
-
-            util::DictAttributeDeserializer visitor(attributes);
+            util::DictAttributeDeserializer visitor(attributes, m_variables);
 
             op_node->set_arguments(arguments);
             op_node->visit_attributes(visitor);
@@ -93,6 +86,7 @@ namespace
                 {"opset4", OpsetFunction(ngraph::get_opset4)},
                 {"opset5", OpsetFunction(ngraph::get_opset5)},
                 {"opset6", OpsetFunction(ngraph::get_opset6)},
+                {"opset7", OpsetFunction(ngraph::get_opset7)},
             };
 
             auto it = s_opsets.find(opset_ver);
@@ -103,7 +97,8 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset = ngraph::get_opset6();
+        const ngraph::OpSet& m_opset = ngraph::get_opset7();
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> m_variables;
     };
 } // namespace
 

@@ -20,6 +20,8 @@
 
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::UnaryElementwiseArithmetic, "UnaryElementwiseArithmetic", 0);
+
 op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic()
     : Op()
 {

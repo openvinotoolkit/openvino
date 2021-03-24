@@ -92,7 +92,7 @@ inline PreProcessDataPtr CreatePreprocDataHelper() {
     FileUtils::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
     if (!FileUtils::fileExist(preprocLibraryPath)) {
-        THROW_IE_EXCEPTION << "Please, make sure that pre-processing library "
+        IE_THROW() << "Please, make sure that pre-processing library "
             << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
             << getIELibraryPath();
     }

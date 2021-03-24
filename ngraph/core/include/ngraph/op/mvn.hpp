@@ -79,6 +79,7 @@ namespace ngraph
                 bool get_normalize_variance() const { return m_normalize_variance; }
                 AxisSet get_reduction_axes() const { return m_reduction_axes; }
                 void set_reduction_axes(AxisSet axes) { m_reduction_axes = axes; }
+
             private:
                 double m_eps = 1e-9;
                 bool m_across_channels;
@@ -137,6 +138,7 @@ namespace ngraph
                 float get_eps() const { return m_eps; }
                 bool get_normalize_variance() const { return m_normalize_variance; }
                 MVNEpsMode get_eps_mode() const { return m_eps_mode; }
+
             private:
                 bool m_normalize_variance = true;
                 float m_eps = (float)1e-6;

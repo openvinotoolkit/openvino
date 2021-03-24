@@ -16,9 +16,6 @@ public:
     MKLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
                             const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
                             const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
-
-    void Infer_ThreadUnsafe() override;
-
     ~MKLDNNAsyncInferRequest() override;
 };
 

@@ -22,50 +22,50 @@ public:
     explicit SparseFillEmptyRowsImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 4 || layer->outData.size() != 3) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
             }
 
             // check dimensions of input tensors
             SizeVector input_indices_dims = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getDims();
             if (input_indices_dims.size() != 2 || input_indices_dims[1] != 2) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input indices. It must be Nx2 dimension tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input indices. It must be Nx2 dimension tensor.";
             }
             SizeVector input_values_dims = layer->insData[INPUT_VALUES_PORT].lock()->getTensorDesc().getDims();
             if (input_values_dims.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input values. It must be N dimension tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input values. It must be N dimension tensor.";
             }
             if (input_indices_dims[0] != input_values_dims[0]) {
-                THROW_IE_EXCEPTION << layer->name << " Mismatch of the first dimensions of input indices and values.";
+                IE_THROW() << layer->name << " Mismatch of the first dimensions of input indices and values.";
             }
             SizeVector input_dense_shape_dims = layer->insData[INPUT_DENSE_SHAPE_PORT].lock()->getTensorDesc().getDims();
             if (input_dense_shape_dims.size() != 1 || input_dense_shape_dims[0] != 2) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input dense shape.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input dense shape.";
             }
             SizeVector input_default_value_dims = layer->insData[INPUT_DEFAULT_VALUE_PORT].lock()->getTensorDesc().getDims();
             if (input_default_value_dims[0] != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input dense shape.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input dense shape.";
             }
             inMaxNumValues = input_indices_dims[0];
 
             // check dimensions of output tensors
             SizeVector output_indices_dims = layer->outData[OUTPUT_INDICES_PORT]->getTensorDesc().getDims();
             if (output_indices_dims.size() != 2 || output_indices_dims[1] != 2) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output indices. It must be Nx2 dimension tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for output indices. It must be Nx2 dimension tensor.";
             }
             SizeVector output_values_dims = layer->outData[OUTPUT_VALUES_PORT]->getTensorDesc().getDims();
             if (output_values_dims.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output values. It must be N dimension tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for output values. It must be N dimension tensor.";
             }
             if (output_indices_dims[0] != output_values_dims[0]) {
-                THROW_IE_EXCEPTION << layer->name << " Mismatch of the first dimensions of output indices and values.";
+                IE_THROW() << layer->name << " Mismatch of the first dimensions of output indices and values.";
             }
             SizeVector output_empty_rows_indicator_dims = layer->outData[OUTPUT_EMPTY_ROWS_INDICATOR_PORT]->getTensorDesc().getDims();
             if (output_empty_rows_indicator_dims.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output empty rows indicator. It must be 1-D tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for output empty rows indicator. It must be 1-D tensor.";
             }
             outMaxNumValues = output_indices_dims[0];
             if (outMaxNumValues < inMaxNumValues) {
-                THROW_IE_EXCEPTION << layer->name << " The first dimension size of input indices can not be greater the first dimension of output indices.";
+                IE_THROW() << layer->name << " The first dimension size of input indices can not be greater the first dimension of output indices.";
             }
 
             // TODO: check that dense shape value is set
@@ -75,7 +75,7 @@ public:
                 {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
                 DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         }
-        catch (InferenceEngine::details::InferenceEngineException &ex) {
+        catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

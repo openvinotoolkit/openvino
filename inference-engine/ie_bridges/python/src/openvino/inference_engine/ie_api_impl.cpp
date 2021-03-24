@@ -34,7 +34,7 @@ std::map <std::string, InferenceEngine::Layout> layout_map = {{"ANY",     Infere
 #define IE_CHECK_CALL(expr) {                       \
     auto ret = (expr);                              \
     if (ret != InferenceEngine::StatusCode::OK) {   \
-        THROW_IE_EXCEPTION << response.msg;         \
+        IE_THROW() << response.msg;         \
     }                                               \
 }                                                   \
 
@@ -51,14 +51,14 @@ uint32_t getOptimalNumberOfRequests(const InferenceEngine::IExecutableNetwork::P
             if (parameter_value.is<unsigned int>())
                 return parameter_value.as<unsigned int>();
             else
-                THROW_IE_EXCEPTION << "Unsupported format for " << key << "!"
+                IE_THROW() << "Unsupported format for " << key << "!"
                                    << " Please specify number of infer requests directly!";
         } else {
-            THROW_IE_EXCEPTION << "Can't load network: " << key << " is not supported!"
+            IE_THROW() << "Can't load network: " << key << " is not supported!"
                                << " Please specify number of infer requests directly!";
         }
     } catch (const std::exception &ex) {
-        THROW_IE_EXCEPTION << "Can't load network: " << ex.what()
+        IE_THROW() << "Can't load network: " << ex.what()
                            << " Please specify number of infer requests directly!";
     }
 }
@@ -176,7 +176,7 @@ InferenceEnginePython::IENetwork::IENetwork(const std::string &model, const std:
 
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork> &cnn_network)
         : actual(cnn_network) {
-    if (actual == nullptr) THROW_IE_EXCEPTION << "IENetwork was not initialized.";
+    if (actual == nullptr) IE_THROW() << "IENetwork was not initialized.";
     name = actual->getName();
     batch_size = actual->getBatchSize();
 }
@@ -185,7 +185,7 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
     auto* capsule_ptr = PyCapsule_GetPointer(network, "ngraph_function");
     auto* function_sp = static_cast<std::shared_ptr<ngraph::Function>*>(capsule_ptr);
     if (function_sp == nullptr)
-        THROW_IE_EXCEPTION << "Cannot create CNNNetwork from capsule! Capsule doesn't contain nGraph function!";
+        IE_THROW() << "Cannot create CNNNetwork from capsule! Capsule doesn't contain nGraph function!";
 
     InferenceEngine::CNNNetwork cnnNetwork(*function_sp);
     actual = std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
@@ -383,7 +383,10 @@ void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
 
 void latency_callback(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
     if (code != InferenceEngine::StatusCode::OK) {
-        THROW_IE_EXCEPTION << "Async Infer Request failed with status code " << code;
+        IE_EXCEPTION_SWITCH(code, ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{}
+                <<= std::stringstream{} << IE_LOCATION
+                << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
     }
     InferenceEnginePython::InferRequestWrap *requestWrap;
     InferenceEngine::ResponseDesc dsc;
@@ -556,6 +559,17 @@ std::unique_ptr <InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IE
     auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(network.name,
                                                                                                  num_requests);
     exec_network->actual = actual.LoadNetwork(*network.actual, deviceName, config);
+    exec_network->createInferRequests(num_requests);
+
+    return exec_network;
+}
+
+std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetworkFromFile(
+        const std::string &modelPath, const std::string &deviceName, const std::map<std::string,
+        std::string> &config, int num_requests) {
+    auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(modelPath,
+                                                                                                 num_requests);
+    exec_network->actual = actual.LoadNetwork(modelPath, deviceName, config);
     exec_network->createInferRequests(num_requests);
 
     return exec_network;

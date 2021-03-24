@@ -6619,7 +6619,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCheckIncorrectScaleShift) {
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights));
 
     MKLDNNGraphTestClass graph;
-    ASSERT_THROW(graph.CreateGraph(network), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(graph.CreateGraph(network), InferenceEngine::Exception);
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {

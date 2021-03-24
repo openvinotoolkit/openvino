@@ -45,8 +45,8 @@ namespace ngraph
                         throw ngraph_error(
                             std::string(
                                 "Offset value exceeds indices size in the model.\noffset: ") +
-                            std::to_string(offsets[emb_index]) + "; indices size: " +
-                            std::to_string(indices_count));
+                            std::to_string(offsets[emb_index]) +
+                            "; indices size: " + std::to_string(indices_count));
 
                     indices_ref = nullptr;
                     indices_num = 0lu;

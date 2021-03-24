@@ -68,6 +68,7 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,
         ie::MYRIAD_DISABLE_CONVERT_STAGES,
         ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS,
+        ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL,
         ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION,
         ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM,
 
@@ -186,6 +187,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.forcePureTensorIterator,        switches, config, ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR);
     setOption(_compileConfig.disableConvertStages,           switches, config, ie::MYRIAD_DISABLE_CONVERT_STAGES);
     setOption(_compileConfig.enableWeightsAnalysis,          switches, config, ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
+    setOption(_compileConfig.checkPreprocessingInsideModel,  switches, config, ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
     setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
     setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
@@ -225,7 +227,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
         (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {
-        THROW_IE_EXCEPTION << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
+        IE_THROW() << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
     }
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);

@@ -5,6 +5,7 @@
 #include "offline_transformations_api_impl.hpp"
 
 #include <moc_transformations.hpp>
+#include <pruning.hpp>
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
@@ -31,6 +32,13 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
     });
     manager.run_passes(network.actual->getFunction());
 }
+
+void InferenceEnginePython::ApplyPruningTransformation(InferenceEnginePython::IENetwork network) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Pruning>();
+    manager.run_passes(network.actual->getFunction());
+}
+
 
 void InferenceEnginePython::CheckAPI() {
     std::shared_ptr<ngraph::Function> f;

@@ -50,7 +50,7 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     case Precision::MIXED:
     case Precision::CUSTOM:
     default:
-        THROW_IE_EXCEPTION << "Incorrect precision!";
+        IE_THROW() << "Incorrect precision!";
     }
 }
 
@@ -86,7 +86,7 @@ inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
     } else if (precision == "undefined") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::undefined);
     } else {
-        THROW_IE_EXCEPTION << "Incorrect precision: " << precision;
+        IE_THROW() << "Incorrect precision: " << precision;
     }
 }
 
@@ -123,7 +123,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     case ::ngraph::element::Type_t::boolean:
         return Precision(Precision::BOOL);
     default:
-        THROW_IE_EXCEPTION << "Incorrect precision " << precision.get_type_name() << "!";
+        IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!"; return{};
     }
 }
 

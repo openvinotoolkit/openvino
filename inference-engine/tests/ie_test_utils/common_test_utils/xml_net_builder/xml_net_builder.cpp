@@ -5,7 +5,6 @@
 #include <utility>
 #include <algorithm>
 #include <string>
-#include "details/ie_exception.hpp"
 #include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
 
 namespace CommonTestUtils {
@@ -41,13 +40,13 @@ void LayerDesc::resetPortIDs() {
 
 LayerDesc::LayerPortData LayerDesc::getNextInData() {
     if (_currentInPort == _inPortsID.size())
-        THROW_IE_EXCEPTION << "Failed to get next input port: reached the last one";
+        IE_THROW() << "Failed to get next input port: reached the last one";
     return _inPortsID[_currentInPort++];
 }
 
 LayerDesc::LayerPortData LayerDesc::getNextOutData() {
     if (_currentOutPort == _outPortsID.size())
-        THROW_IE_EXCEPTION << "Failed to get next output port: reached the last one";
+        IE_THROW() << "Failed to get next output port: reached the last one";
     return _outPortsID[_currentOutPort++];
 }
 
@@ -76,7 +75,7 @@ EdgesBuilder &EdgesBuilder::connect(size_t layer1, size_t layer2) {
         return desc->getLayerID() == layer2;
     });
     if (found1 == layersDesc.end() || found2 == layersDesc.end())
-        THROW_IE_EXCEPTION << "Failed to find layers with index: " << layer1 << " and " << layer2;
+        IE_THROW() << "Failed to find layers with index: " << layer1 << " and " << layer2;
 
     nodeEdges.node("edge")
             .attr("from-layer", (*found1)->getLayerID())

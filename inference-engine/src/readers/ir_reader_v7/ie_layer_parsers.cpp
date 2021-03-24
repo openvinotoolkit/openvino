@@ -20,7 +20,7 @@ IE_SUPPRESS_DEPRECATED_START
 CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) {
     pugi::xml_node dn = GetChild(node, {"data", "activation_data"}, false);
     if (dn.empty()) {
-        THROW_IE_EXCEPTION << "Activation layer has no data node";
+        IE_THROW() << "Activation layer has no data node";
     }
 
     std::string type;
@@ -28,7 +28,7 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
         pugi::xml_attribute attr = *ait;
         if (CaselessEq<std::string>()("type", attr.name())) {
             if (!type.empty()) {
-                THROW_IE_EXCEPTION << "Activation layer has multiple types";
+                IE_THROW() << "Activation layer has multiple types";
             }
             type = attr.value();
         }
@@ -50,7 +50,7 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
     auto activationBuilder = activationCreators.find(type);
     if (activationBuilder == activationCreators.end()) {
         auto activationCreator = std::make_shared<LayerCreator<CNNLayer>>(type);
-        if (!activationCreator) THROW_IE_EXCEPTION << "Cannot create activation layer with type " << type;
+        if (!activationCreator) IE_THROW() << "Cannot create activation layer with type " << type;
 
         activation = activationCreator->CreateLayer(node, layerParsePrms);
         activation->type = type;
@@ -178,7 +178,7 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     std::string ti_name = node.attribute("name").as_string();
 
     auto body = node.child("body");
-    if (body.empty()) THROW_IE_EXCEPTION << "TensorIterator " << ti_name << " has no body";
+    if (body.empty()) IE_THROW() << "TensorIterator " << ti_name << " has no body";
 
     auto all_inputs = allRequiredInputs(node);
     auto all_outputs = allRequiredOutputs(node);

@@ -128,7 +128,7 @@ public:
 static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, RemoteContext::Ptr ctx, ID3D11Texture2D* nv12_surf) {
     auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid remote context passed";
+        IE_THROW() << "Invalid remote context passed";
     }
 
     // despite of layout, blob dimensions always follow in N,C,H,W order
@@ -174,7 +174,7 @@ static inline D3DContext::Ptr make_shared_context(Core& core, std::string device
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, ID3D11Buffer* buffer) {
     auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid remote context passed";
+        IE_THROW() << "Invalid remote context passed";
     }
 
     ParamMap params = {
@@ -196,7 +196,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, ID3D11Texture2D* surface, uint32_t plane = 0) {
     auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid remote context passed";
+        IE_THROW() << "Invalid remote context passed";
     }
     ParamMap params = {
         { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE) },

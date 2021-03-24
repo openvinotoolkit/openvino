@@ -116,6 +116,7 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
             if (lstm_target_inputs.empty())
                 return false;
             auto transpose_after = lstm_target_inputs.begin()->get_node()->shared_from_this();
+            unsqueeze_1->set_friendly_name(transpose_after->get_friendly_name());
             ngraph::replace_node(transpose_after, unsqueeze_1);
             ngraph::replace_node(lstm_sequence, {lstm_sequence_ie->output(0), unsqueeze_2->output(0), unsqueeze_3->output(0)});
         }
@@ -186,6 +187,7 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
             if (gru_target_inputs.empty())
                 return false;
             auto transpose_after = gru_target_inputs.begin()->get_node()->shared_from_this();
+            unsqueeze_1->set_friendly_name(transpose_after->get_friendly_name());
             ngraph::replace_node(transpose_after, unsqueeze_1);
             ngraph::replace_node(gru_sequence, {gru_sequence_ie->output(0), unsqueeze_2->output(0)});
         }
@@ -257,6 +259,7 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
             if (rnn_target_inputs.empty())
                 return false;
             auto transpose_after = rnn_target_inputs.begin()->get_node()->shared_from_this();
+            unsqueeze_1->set_friendly_name(transpose_after->get_friendly_name());
             ngraph::replace_node(transpose_after, unsqueeze_1);
             ngraph::replace_node(rnn_sequence, {rnn_sequence_ie->output(0), unsqueeze_2->output(0)});
         }

@@ -26,6 +26,8 @@ MyriadMetrics::MyriadMetrics() {
         METRIC_KEY(OPTIMIZATION_CAPABILITIES),
         METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
         METRIC_KEY(DEVICE_THERMAL),
+        METRIC_KEY(DEVICE_ARCHITECTURE),
+        METRIC_KEY(IMPORT_EXPORT_SUPPORT),
     };
 
 IE_SUPPRESS_DEPRECATED_START
@@ -114,6 +116,14 @@ const std::unordered_set<std::string>& MyriadMetrics::OptimizationCapabilities()
     return _optimizationCapabilities;
 }
 
+std::string MyriadMetrics::DeviceArchitecture(const std::map<std::string, InferenceEngine::Parameter> & options) const {
+    // TODO: Task 49309. Return same architecture for devices which can share same cache
+    // E.g. when device "MYRIAD.ma2480-1" is loaded, options.at("DEVICE_ID") will be "ma2480-1"
+    // For DEVICE_ID="ma2480-0" and DEVICE_ID="ma2480-1" this method shall return same string, like "ma2480"
+    // In this case inference engine will be able to reuse cached model and total reduce load network time
+    return "MYRIAD";
+}
+
 RangeType MyriadMetrics::RangeForAsyncInferRequests(
     const std::map<std::string, std::string>& config) const {
 
@@ -126,7 +136,7 @@ RangeType MyriadMetrics::RangeForAsyncInferRequests(
             }
         }
         catch(...) {
-            THROW_IE_EXCEPTION << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
+            IE_THROW() << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
         }
     }
 

@@ -17,6 +17,7 @@
 #include "ngraph/node_output.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
@@ -87,6 +88,20 @@ namespace ngraph
         {
             input.replace_source_output(replacement);
         }
+    }
+
+    using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+
+    RTMap& Output<Node>::get_rt_info() { return m_node->m_outputs.at(m_index).get_rt_info(); }
+
+    const RTMap& Output<Node>::get_rt_info() const
+    {
+        return m_node->m_outputs.at(m_index).get_rt_info();
+    }
+
+    const RTMap& Output<const Node>::get_rt_info() const
+    {
+        return m_node->m_outputs.at(m_index).get_rt_info();
     }
 
     bool Output<Node>::operator==(const Output& other) const
@@ -177,15 +192,15 @@ namespace ngraph
     bool Output<const Node>::operator>=(const Output& other) const { return !(*this < other); }
     std::ostream& operator<<(std::ostream& out, const Output<Node>& output)
     {
-        return output.get_node()->write_description(out, 0) << "[" << output.get_index()
-                                                            << "]:" << output.get_element_type()
-                                                            << output.get_partial_shape();
+        return output.get_node()->write_description(out, 0)
+               << "[" << output.get_index() << "]:" << output.get_element_type()
+               << output.get_partial_shape();
     }
 
     std::ostream& operator<<(std::ostream& out, const Output<const Node>& output)
     {
-        return output.get_node()->write_description(out, 0) << "[" << output.get_index()
-                                                            << "]:" << output.get_element_type()
-                                                            << output.get_partial_shape();
+        return output.get_node()->write_description(out, 0)
+               << "[" << output.get_index() << "]:" << output.get_element_type()
+               << output.get_partial_shape();
     }
 }

@@ -160,7 +160,7 @@ protected:
             ref_batchnorm4D(*srcPtr, (const float*) weights->buffer(), ((const float*) weights->buffer() + p.in.c), dst_ref, p);
 
             compare(*dst, dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

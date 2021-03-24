@@ -20,7 +20,7 @@ public:
     explicit ReverseSequenceImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 2 || layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             src_dims = layer->insData[REVERSESEQUENCE_DATA].lock()->getTensorDesc().getDims();
 
@@ -30,15 +30,15 @@ public:
 
             SizeVector seq_lengths_dims = layer->insData[REVERSESEQUENCE_LENGTHS].lock()->getTensorDesc().getDims();
             if (seq_lengths_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Seq_lengths vector should be 1 dimension";
+                IE_THROW() << layer->name << " Seq_lengths vector should be 1 dimension";
 
             SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
             if (src_dims.size() != dst_dims.size())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output sizes!";
+                IE_THROW() << layer->name << " Incorrect number of input/output sizes!";
 
             for (size_t i = 0; i < dst_dims.size(); i++) {
                 if (src_dims[i] != dst_dims[i])
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimension!";
+                    IE_THROW() << layer->name << " Incorrect number of input/output dimension!";
             }
 
             seq_axis = layer->GetParamAsInt("seq_axis", 1);
@@ -46,17 +46,17 @@ public:
                 seq_axis += src_dims.size();
 
             if (seq_axis < 0 || seq_axis >= static_cast<int>(src_dims.size()))
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'seq_axis' parameters dimensions and axis number!";
+                IE_THROW() << layer->name << " Incorrect 'seq_axis' parameters dimensions and axis number!";
 
             batch_axis = layer->GetParamAsInt("batch_axis", 0);
             if (batch_axis < 0)
                 batch_axis += src_dims.size();
 
             if (batch_axis < 0 || batch_axis >= static_cast<int>(src_dims.size()))
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'batch_axis' parameters dimensions and axis number!";
+                IE_THROW() << layer->name << " Incorrect 'batch_axis' parameters dimensions and axis number!";
 
             if (seq_lengths_dims[0] != dst_dims[batch_axis])
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'seq_lengths_dims' parameters dimension!";
+                IE_THROW() << layer->name << " Incorrect 'seq_lengths_dims' parameters dimension!";
 
             srcStrides = layer->insData[REVERSESEQUENCE_DATA].lock()->getTensorDesc().getBlockingDesc().getStrides();
             work_amount_dst = srcStrides[0] * src_dims[0];
@@ -64,7 +64,7 @@ public:
             addConfig(layer,
                     { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, lengthsPrecision) },
                     { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

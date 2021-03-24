@@ -27,7 +27,7 @@ public:
     explicit StridedSliceImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() > 4 || layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             src_dims = layer->insData[STRIDEDSLICE_DATA].lock()->getTensorDesc().getDims();
 
@@ -36,24 +36,24 @@ public:
             if (layer->insData.size() > 1) {
                 begin_dims = layer->insData[STRIDEDSLICE_BEGIN].lock()->getTensorDesc().getDims();
                 if (begin_dims.size() > 1)
-                    THROW_IE_EXCEPTION << layer->name << " Begin vector should be 1 dimension";
+                    IE_THROW() << layer->name << " Begin vector should be 1 dimension";
                 bounds_size = begin_dims[0];
             }
 
             if (layer->insData.size() > 2) {
                 end_dims = layer->insData[STRIDEDSLICE_END].lock()->getTensorDesc().getDims();
                 if (end_dims.size() > 1)
-                    THROW_IE_EXCEPTION << layer->name << " End vector should be 1 dimension";
+                    IE_THROW() << layer->name << " End vector should be 1 dimension";
                 if (begin_dims[0] != end_dims[0])
-                    THROW_IE_EXCEPTION << layer->name << " Begin vector size should be equal end vectror size";
+                    IE_THROW() << layer->name << " Begin vector size should be equal end vectror size";
             }
 
             if (layer->insData.size() > 3) {
                 stride_dims = layer->insData[STRIDEDSLICE_STRIDE].lock()->getTensorDesc().getDims();
                 if (stride_dims.size() > 1)
-                    THROW_IE_EXCEPTION << layer->name << " End vector should be 1 dimension";
+                    IE_THROW() << layer->name << " End vector should be 1 dimension";
                 if (begin_dims[0] != stride_dims[0])
-                    THROW_IE_EXCEPTION << layer->name << " Stride vector size should be equal begin vectror size";
+                    IE_THROW() << layer->name << " Stride vector size should be equal begin vectror size";
             }
             dst_dims = layer->outData[0]->getTensorDesc().getDims();
 
@@ -83,7 +83,7 @@ public:
                 }
             }
             if (ellipsis_mask_counter > 1)
-                THROW_IE_EXCEPTION << layer->name << " 'Ellipsis_mask' must be a power of two (only one ellipsis)!";
+                IE_THROW() << layer->name << " 'Ellipsis_mask' must be a power of two (only one ellipsis)!";
             for (; i < src_dims.size(); ++i) ellipsis_mask.push_back(0);
 
             std::string new_axis_mask_str = layer->GetParamAsString("new_axis_mask", "");
@@ -142,7 +142,7 @@ public:
                     DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32) },
                     { DataConfigurator(ConfLayout::PLN, dataPrecision) });
             }
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

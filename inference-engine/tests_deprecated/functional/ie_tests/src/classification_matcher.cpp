@@ -107,7 +107,7 @@ void ClassificationMatcher::readLabels(std::string labelFilePath) {
             config.labels.push_back(TestsCommon::trim(line));
         }
     } else {
-        THROW_IE_EXCEPTION << "cannot open label file: " << labelFilePath;
+        IE_THROW() << "cannot open label file: " << labelFilePath;
 
     }
 }
@@ -115,7 +115,7 @@ void ClassificationMatcher::readLabels(std::string labelFilePath) {
 int ClassificationMatcher::getIndexByLabel(const std::string &label) {
     auto result = std::find(begin(config.labels), end(config.labels), label);
     if (result == config.labels.end()) {
-        THROW_IE_EXCEPTION << "cannot locate index for label : " << label;
+        IE_THROW() << "cannot locate index for label : " << label;
     }
     return static_cast<int>(std::distance(begin(config.labels), result));
 }
@@ -125,7 +125,7 @@ std::string ClassificationMatcher::getLabel(unsigned int index) {
         return "label #" + std::to_string(index);
     }
     if (index >= config.labels.size()) {
-        THROW_IE_EXCEPTION << "index out of labels file: " << index;
+        IE_THROW() << "index out of labels file: " << index;
     }
 
     return config.labels[index];
@@ -185,7 +185,7 @@ template <class T>
 inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& output) {
     SizeVector dims = input.getTensorDesc().getDims();
     size_t input_rank = dims.size();
-    if (!input_rank || !dims[0]) THROW_IE_EXCEPTION << "Input blob has incorrect dimensions!";
+    if (!input_rank || !dims[0]) IE_THROW() << "Input blob has incorrect dimensions!";
     size_t batchSize = dims[0];
     std::vector<unsigned> indexes(input.size() / batchSize);
 
@@ -224,7 +224,7 @@ void ClassificationMatcher::match_n(size_t top, int index) {
         }
 
         if (config._paths_to_images.size() % batchSize != 0) {
-            THROW_IE_EXCEPTION << "Can not process all input images("<< config._paths_to_images.size()
+            IE_THROW() << "Can not process all input images("<< config._paths_to_images.size()
                                <<") using given batch size of " << batchSize;
         }
         // loading images in batches
@@ -264,7 +264,7 @@ void ClassificationMatcher::match_n(size_t top, int index) {
                 } else if (outputBlobPtr->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
                     outputFP32 = dynamic_pointer_cast<InferenceEngine::TBlob<float>>(outputBlobPtr);
                 } else {
-                    THROW_IE_EXCEPTION << "Unsupported output format for test. Supported FP16, FP32";
+                    IE_THROW() << "Unsupported output format for test. Supported FP16, FP32";
                 }
 
             vector<unsigned> topClassesIndexes;
@@ -274,7 +274,7 @@ void ClassificationMatcher::match_n(size_t top, int index) {
 
             saveResults(topClassesIndexes, probabilities, top);
         }
-    } catch (InferenceEngine::details::InferenceEngineException &e) {
+    } catch (InferenceEngine::Exception &e) {
         FAIL() << e.what();
     } catch (std::exception &e) {
         FAIL() << e.what();

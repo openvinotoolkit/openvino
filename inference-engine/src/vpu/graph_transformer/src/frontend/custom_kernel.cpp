@@ -189,7 +189,7 @@ uint32_t getKernelEntry(const char* ELFData, const std::string& kernelName) {
         }
     }
 
-    THROW_IE_EXCEPTION << "Cannot find kernel entry point for custom kernel " << kernelName;
+    IE_THROW() << "Cannot find kernel entry point for custom kernel " << kernelName;
 }
 
 CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir): _configDir {std::move(configDir)} {
@@ -201,7 +201,7 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
 
         std::ifstream inputFile(fileName, std::ios::binary);
         if (!inputFile.is_open()) {
-            THROW_IE_EXCEPTION << "Couldn't open kernel file " << fileName;
+            IE_THROW() << "Couldn't open kernel file " << fileName;
         }
 
         std::ostringstream contentStream;
@@ -256,7 +256,7 @@ std::pair<CustomDimSource, int> parseDimSource(const std::string& dims) {
         } else if (cmp(source, "output")) {
             return CustomDimSource::Output;
         } else {
-            THROW_IE_EXCEPTION << "Invalid dim source argument" << source;
+            IE_THROW() << "Invalid dim source argument" << source;
         }
     }();
 
@@ -287,7 +287,7 @@ CustomDataFormat formatFromString(const std::string& str) {
         return it->second;
     }
 
-    THROW_IE_EXCEPTION << "Tensor node has an invalid format '" << str << "'";
+    IE_THROW() << "Tensor node has an invalid format '" << str << "'";
 }
 
 SmallVector<std::string> parseSizeRule(const std::string& size) {
@@ -322,7 +322,7 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         } else if (cmp(typeStr, "data")) {
             kp.type = CustomParamType::Data;
         } else {
-            THROW_IE_EXCEPTION << "Tensor node has an invalid type '" << typeStr << "'";
+            IE_THROW() << "Tensor node has an invalid type '" << typeStr << "'";
         }
 
         if (kp.type == CustomParamType::InputBuffer || kp.type == CustomParamType::OutputBuffer) {
@@ -349,7 +349,7 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         } else if (cmp(typeStr, "local_data")) {
             kp.type = CustomParamType::LocalData;
         } else {
-            THROW_IE_EXCEPTION << "Data node has an invalid type '" << typeStr << "'";
+            IE_THROW() << "Data node has an invalid type '" << typeStr << "'";
         }
 
         kp.argName = XMLParseUtils::GetStrAttr(data, "arg-name");
@@ -358,11 +358,11 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         const auto dimString = XMLParseUtils::GetStrAttr(data, "dim", "");
 
         if (kp.irSource.empty() && dimString.empty()) {
-            THROW_IE_EXCEPTION << "Data node has no source or dim";
+            IE_THROW() << "Data node has no source or dim";
         }
 
         if (!kp.irSource.empty() && !dimString.empty()) {
-            THROW_IE_EXCEPTION << "Data node can only have source or dim";
+            IE_THROW() << "Data node can only have source or dim";
         }
 
         if (kp.type == CustomParamType::LocalData) {
@@ -386,7 +386,7 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         } else if (cmp(type, "float")) {
             kp.type = CustomParamType::Float;
         } else {
-            THROW_IE_EXCEPTION << "Scalar node has an invalid type " << type;
+            IE_THROW() << "Scalar node has an invalid type " << type;
         }
 
         kp.argName = XMLParseUtils::GetStrAttr(scalar, "arg-name");

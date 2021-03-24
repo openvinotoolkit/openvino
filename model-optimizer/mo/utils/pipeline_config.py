@@ -32,6 +32,7 @@ mapping_rules = [
     ('resizer_image_width', 'image_resizer/fixed_shape_resizer/width'),
     ('resizer_min_dimension', 'image_resizer/keep_aspect_ratio_resizer/min_dimension'),
     ('resizer_max_dimension', 'image_resizer/keep_aspect_ratio_resizer/max_dimension'),
+    ('pad_to_max_dimension', 'image_resizer/keep_aspect_ratio_resizer/pad_to_max_dimension', False),
     # anchor generator attributes
     ('anchor_generator_height', 'first_stage_anchor_generator/grid_anchor_generator/height$', 256),
     ('anchor_generator_width', 'first_stage_anchor_generator/grid_anchor_generator/width$', 256),

@@ -88,7 +88,7 @@ static void next_step(const std::string additional_info = "") {
 
     step_id++;
     if (step_names.count(step_id) == 0)
-        THROW_IE_EXCEPTION << "Step ID " << step_id << " is out of total steps number " << step_names.size();
+        IE_THROW() << "Step ID " << step_id << " is out of total steps number " << step_names.size();
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
@@ -432,8 +432,8 @@ int main(int argc, char *argv[]) {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
                     nireq = exeNetwork.GetMetric(key).as<unsigned int>();
-                } catch (const details::InferenceEngineException& ex) {
-                    THROW_IE_EXCEPTION
+                } catch (const std::exception& ex) {
+                    IE_THROW()
                             << "Every device used with the benchmark_app should "
                             << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                             << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
@@ -531,7 +531,7 @@ int main(int argc, char *argv[]) {
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
-            THROW_IE_EXCEPTION << "No idle Infer Requests!";
+            IE_THROW() << "No idle Infer Requests!";
         }
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -560,7 +560,7 @@ int main(int argc, char *argv[]) {
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.getIdleRequest();
             if (!inferRequest) {
-                THROW_IE_EXCEPTION << "No idle Infer Requests!";
+                IE_THROW() << "No idle Infer Requests!";
             }
 
             if (FLAGS_api == "sync") {

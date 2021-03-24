@@ -70,6 +70,7 @@ namespace ngraph
         void set_univeral_handler(const op_handler& handler) { m_universal_handler = handler; }
         /// \brief If set, handles all ops not in the handlers
         void set_default_handler(const op_handler& handler) { m_default_handler = handler; }
+
     protected:
         op_handler get_handler(Node* node)
         {
@@ -106,6 +107,7 @@ namespace ngraph
             virtual ~Inst() {}
             virtual void handle(Evaluator& evaluator, InstStack& inst_stack, Node* node) = 0;
             Node* get_node() { return m_node; }
+
         protected:
             Node* m_node;
         };

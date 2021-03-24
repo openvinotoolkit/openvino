@@ -7,6 +7,8 @@
 #include <istream>
 #include <vector>
 #include <utility>
+#include <ie_input_info.hpp>
+#include <ie_icnn_network.hpp>
 
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"

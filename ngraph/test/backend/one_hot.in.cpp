@@ -207,10 +207,7 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_on_off_float)
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::i32, shape_a);
-    copy_data(a,
-              vector<int32_t>{
-                  0, 1, 1, 2, 1, 0, 0, 2, 1,
-              });
+    copy_data(a, vector<int32_t>{0, 1, 1, 2, 1, 0, 0, 2, 1});
     auto result = backend->create_tensor(element::f32, shape_r);
 
     auto handle = backend->compile(f);

@@ -51,6 +51,7 @@ namespace ngraph
                 // Post-validation hook that will be invoked after op decomposition
                 // in validate_and_infer_types().
                 virtual void post_validate_and_infer_types() {}
+
             protected:
                 FusedOp();
 

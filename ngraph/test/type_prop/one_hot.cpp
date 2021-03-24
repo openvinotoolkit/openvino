@@ -194,3 +194,36 @@ TEST(type_prop, one_hot_v1_off_value_not_scalar)
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST(type_prop, one_hot_v1_out_types_1)
+{
+    auto indices = make_shared<op::Parameter>(element::i32, Shape{3, 2});
+    auto depth = op::Constant::create(element::i32, Shape{}, {2});
+    int64_t axis = -1;
+    auto on_value = op::Constant::create(element::f32, Shape{}, {-3.3});
+    auto off_value = op::Constant::create(element::f32, Shape{}, {-10.12});
+    auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(ont_hot->get_element_type(), element::f32);
+}
+
+TEST(type_prop, one_hot_v1_out_types_2)
+{
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 2});
+    auto depth = op::Constant::create(element::i32, Shape{}, {2});
+    int64_t axis = -1;
+    auto on_value = op::Constant::create(element::i32, Shape{}, {-1});
+    auto off_value = op::Constant::create(element::i32, Shape{}, {7});
+    auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(ont_hot->get_element_type(), element::i32);
+}
+
+TEST(type_prop, one_hot_v1_out_types_3)
+{
+    auto indices = make_shared<op::Parameter>(element::i32, Shape{3, 2});
+    auto depth = op::Constant::create(element::i32, Shape{}, {2});
+    int64_t axis = -1;
+    auto on_value = op::Constant::create(element::boolean, Shape{}, {true});
+    auto off_value = op::Constant::create(element::boolean, Shape{}, {false});
+    auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(ont_hot->get_element_type(), element::boolean);
+}

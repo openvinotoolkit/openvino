@@ -16,14 +16,14 @@ MKLDNNEdge::MKLDNNEdge(const MKLDNNNodePtr &parent, const MKLDNNNodePtr &child, 
 const MKLDNNNodePtr MKLDNNEdge::getParent() const {
     auto parentPtr = parent.lock();
     if (!parentPtr)
-        THROW_IE_EXCEPTION << "Edge contains empty parent node";
+        IE_THROW() << "Edge contains empty parent node";
     return parentPtr;
 }
 
 const MKLDNNNodePtr MKLDNNEdge::getChild() const {
     auto childPtr = child.lock();
     if (!childPtr)
-        THROW_IE_EXCEPTION << "Edge contains empty child node";
+        IE_THROW() << "Edge contains empty child node";
     return childPtr;
 }
 
@@ -70,7 +70,7 @@ bool MKLDNNEdge::needReorder() {
     auto parentSPD = getParent()->getSelectedPrimitiveDescriptor();
     auto childSPD = getChild()->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)
-        THROW_IE_EXCEPTION << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
+        IE_THROW() << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
 
     int outNumber = getOutputNum();
     int inNumber = getInputNum();
@@ -132,7 +132,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getOutputDesc() {
 
 InferenceEngine::TensorDesc MKLDNNEdge::getDesc() {
     if (!MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc()))
-        THROW_IE_EXCEPTION << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
+        IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
                            << getChild()->getName();
     return getInputDesc();
 }
@@ -150,7 +150,7 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
         return;
 
     if (memoryPtr)
-        THROW_IE_EXCEPTION << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
+        IE_THROW() << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
 
     auto inputDesc = getInputDesc();
     auto outputDesc = getOutputDesc();
@@ -158,9 +158,9 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
             (inputDesc.getDims().size() > 0 && inputDesc.getDims()[0] != 1 &&
             (inputDesc.getPrecision() != outputDesc.getPrecision() ||
              inputDesc.getBlockingDesc() != outputDesc.getBlockingDesc())))
-        THROW_IE_EXCEPTION << "Cannot allocate memory. Nodes have primitive descriptors with different formats.";
+        IE_THROW() << "Cannot allocate memory. Nodes have primitive descriptors with different formats.";
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY)
-        THROW_IE_EXCEPTION << "Cannot get input descriptor!";
+        IE_THROW() << "Cannot get input descriptor!";
 
     auto parentPtr = getParent();
     memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
@@ -168,10 +168,29 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     status = Status::Allocated;
 }
 
-std::string MKLDNNEdge::name() const {
+std::string MKLDNNEdge::name() {
+    auto tensorDescToStr = [](InferenceEngine::TensorDesc const & desc) {
+        std::string name = desc.getPrecision().name();
+
+        auto blockingDesc = desc.getBlockingDesc();
+        auto dims = blockingDesc.getBlockDims();
+
+        if (!dims.empty()) {
+            name += "[";
+            for (size_t i = 1; i < dims.size(); ++i) {
+                name += std::to_string(dims[i - 1]) + ",";
+            }
+            name += std::to_string(dims.back()) + "]";
+        }
+
+        return name;
+    };
+
     auto parentPtr = getParent();
     auto childPtr = getChild();
-    return parentPtr->getName() + std::to_string(parent_port) + "<->" + childPtr->getName() + std::to_string(child_port);
+
+    return parentPtr->getName() + std::to_string(parent_port) + tensorDescToStr(getInputDesc())
+            + "<->" + childPtr->getName() + std::to_string(child_port);
 }
 
 void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
@@ -195,10 +214,10 @@ void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
 
 void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
     if (state == Status::NotAllocated) {
-        THROW_IE_EXCEPTION << "Incorrect behaviour! Use method sharedMemFrom()";
+        IE_THROW() << "Incorrect behaviour! Use method sharedMemFrom()";
     }
     if (state == Status::Validated) {
-        THROW_IE_EXCEPTION << "Incorrect behaviour! Use method validate()";
+        IE_THROW() << "Incorrect behaviour! Use method validate()";
     }
     if (status != Status::Uninitialized && state == Status::NeedAllocation)
         return;
@@ -216,7 +235,7 @@ const MKLDNNDims& MKLDNNEdge::getDims() {
 
         int inNum = getOutputNum();
         if (inNum < 0) {
-            THROW_IE_EXCEPTION << "Error cannot find input data for " << child.lock()->getName()
+            IE_THROW() << "Error cannot find input data for " << child.lock()->getName()
                                << " from " << parent.lock()->getName();
         }
         if (inNum < childPtr->inDims.size()) {
@@ -225,7 +244,7 @@ const MKLDNNDims& MKLDNNEdge::getDims() {
 
         int outNum = getInputNum();
         if (outNum < 0) {
-            THROW_IE_EXCEPTION << "Error cannot find output data for " << parent.lock()->getName()
+            IE_THROW() << "Error cannot find output data for " << parent.lock()->getName()
                                << " to " << child.lock()->getName();
         }
         if (outNum >= parentPtr->outDims.size())
@@ -235,7 +254,7 @@ const MKLDNNDims& MKLDNNEdge::getDims() {
         }
 
         if (inDims.ndims() && outDims.ndims() && inDims.ndims() != outDims.ndims() && inDims.size() != outDims.size())
-            THROW_IE_EXCEPTION << "Nodes " << getParent()->getName() << " and " << getChild()->getName()
+            IE_THROW() << "Nodes " << getParent()->getName() << " and " << getChild()->getName()
                                << " have incompatible dimensions!";
 
         if (outDims.ndims() != 0) {
@@ -248,7 +267,7 @@ const MKLDNNDims& MKLDNNEdge::getDims() {
 
 
         if (!(outDims.ndims() == 0 && inDims.ndims() == 0) && !dims.ndims())
-            THROW_IE_EXCEPTION << "Cannot detect right dims for nodes " << getParent()->getName()
+            IE_THROW() << "Cannot detect right dims for nodes " << getParent()->getName()
                                << " and " << getChild()->getName();
     }
     return dims;
@@ -257,7 +276,7 @@ const MKLDNNDims& MKLDNNEdge::getDims() {
 bool MKLDNNEdge::nodeCanChangeDesc(const MKLDNNNodePtr &node) const {
     PrimitiveDescInfo * selectedPd = node->getSelectedPrimitiveDescriptor();
     if (selectedPd == nullptr)
-        THROW_IE_EXCEPTION << "Primitive descriptor for node " << node->getName() << " is not selected.";
+        IE_THROW() << "Primitive descriptor for node " << node->getName() << " is not selected.";
 
     for (auto &inputDesc : selectedPd->getConfig().inConfs) {
         if (inputDesc.desc.getLayout() != InferenceEngine::Layout::ANY) {
@@ -308,11 +327,11 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<memory::f
 
     auto parentPtr = getParent();
     if (parentPtr->getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Primitive descriptor for node " << parentPtr->getName() << " is not selected.";
+        IE_THROW() << "Primitive descriptor for node " << parentPtr->getName() << " is not selected.";
 
     int inputIdx = getInputNum();
     if (inputIdx < 0)
-        THROW_IE_EXCEPTION << "Edge cannot be found for node" << parentPtr->getName() << ".";
+        IE_THROW() << "Edge cannot be found for node" << parentPtr->getName() << ".";
 
     if (inputIdx >= parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size())
         inputIdx = 0;
@@ -429,12 +448,12 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<memory::
     auto parentPtr = getParent();
 
     if (childPtr->getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Primitive descriptor for node " << childPtr->getName() << " is not selected.";
+        IE_THROW() << "Primitive descriptor for node " << childPtr->getName() << " is not selected.";
 
     int outputIdx = getOutputNum();
     int inputIdx = getInputNum();
     if (outputIdx < 0) {
-        THROW_IE_EXCEPTION << "Edge cannot be found for node" << childPtr->getName() << ".";
+        IE_THROW() << "Edge cannot be found for node" << childPtr->getName() << ".";
     }
     if (outputIdx >= childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size())
         outputIdx = 0;
@@ -576,7 +595,7 @@ MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
 
 InferenceEngine::Blob::Ptr MKLDNNEdge::getBlob() {
     if (!memoryPtr)
-        THROW_IE_EXCEPTION << "Cannot get blob! Edge isn't initialized.";
+        IE_THROW() << "Cannot get blob! Edge isn't initialized.";
     InferenceEngine::TensorDesc desc = getDesc();
 
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
@@ -601,7 +620,7 @@ void MKLDNNEdge::validate() {
     getDims();
 
     if (status != Status::Allocated) {
-        THROW_IE_EXCEPTION << "Error memory is not allocated!";
+        IE_THROW() << "Error memory is not allocated!";
     }
     status = Status::Validated;
 }
@@ -609,7 +628,7 @@ void MKLDNNEdge::validate() {
 MKLDNNEdgePtr MKLDNNEdge::getSharedEdge() const {
     auto memoryFromEdgePtr = memoryFromEdge.lock();
     if (!memoryFromEdgePtr) {
-        THROW_IE_EXCEPTION << "Cannot get memory ptr for edge(" << getParent()->getName() << "->"
+        IE_THROW() << "Cannot get memory ptr for edge(" << getParent()->getName() << "->"
                            << getChild()->getName() << "). The pointer on the edge with memory is empty!";
     }
     return memoryFromEdgePtr;
@@ -636,7 +655,7 @@ void MKLDNNEdge::init() {
     for (auto edge : edges_at_same_port) {
         if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
             if (edge->getSharedEdge() != edgePtr)
-                THROW_IE_EXCEPTION << "Unsupported behavior. Cannot mark edge "
+                IE_THROW() << "Unsupported behavior. Cannot mark edge "
                                    << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
                                    << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
         } else {
@@ -707,7 +726,7 @@ bool MKLDNNEdge::inPlace(LOOK look) {
     auto parentSPD = getParent()->getSelectedPrimitiveDescriptor();
     auto childSPD = getChild()->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)
-        THROW_IE_EXCEPTION << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
+        IE_THROW() << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
     int inputNum = getInputNum();
     int outputNum = getOutputNum();
     if (inputNum >= parentSPD->getConfig().outConfs.size())

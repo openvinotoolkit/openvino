@@ -6,7 +6,6 @@
 
 #include <functional>
 
-#include <details/ie_exception.hpp>
 
 namespace vpu {
 

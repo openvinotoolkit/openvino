@@ -398,7 +398,7 @@ protected:
             compare(*output_values, output_values_ref, 0.0f);
             compare(*output_empty_rows_indicator, output_empty_rows_indicator_ref, 0.0f);
         }
-        catch (const InferenceEngine::details::InferenceEngineException &e) {
+        catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

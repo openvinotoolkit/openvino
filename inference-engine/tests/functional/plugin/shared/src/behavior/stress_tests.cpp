@@ -42,8 +42,9 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
         LoadNetwork();
 
         std::cout << "Infer(): " << j << std::flush;
-
-        GenerateInputs();
+        if (j == 0) {
+            GenerateInputs();
+        }
         Infer();
         Validate();
     }

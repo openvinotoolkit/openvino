@@ -46,7 +46,7 @@ public:
             block_dims = layer->GetParamAsInts("block_dims");
             order = layer->GetParamAsInts("order");
             addConfig(layer);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -60,7 +60,7 @@ public:
 
         // Fill tensor parameters into config
         auto fill_port = [&] (std::vector<DataConfig>& port, const DataPtr& data) {
-            if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
+            if (!data) IE_THROW() << "Cannot get input data!";
 
             DataConfig dataConfig;
             dataConfig.inPlace = 0;
@@ -308,7 +308,7 @@ protected:
             ref_permute(*srcPtr, dst_ref, p);
 
             compare(*output, dst_ref);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -598,7 +598,7 @@ protected:
             };
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkPermute);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkPermute);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

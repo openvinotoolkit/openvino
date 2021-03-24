@@ -22,9 +22,7 @@
 using namespace std;
 using namespace ngraph;
 
-op::util::LogicalReduction::LogicalReduction()
-{
-}
+op::util::LogicalReduction::LogicalReduction() {}
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
     : Op({arg,

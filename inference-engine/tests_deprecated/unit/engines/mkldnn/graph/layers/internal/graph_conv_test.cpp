@@ -332,7 +332,7 @@ protected:
             dst_ref.allocate();
             ref_conv(*srcPtr, (const float *)weights->buffer(), weights->size() / sizeof(float), dst_ref, p);
             compare(*output, dst_ref, 0.0002f);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -481,7 +481,7 @@ protected:
 
             graph.checkDynBatch(srcs, outputBlobs, dims[0], dims[0], checkConvolution, MKLDNNGraphTestClass::CheckDynBatchType::Child);
             graph.checkDynBatch(srcs, outputBlobs, 1, dims[0], checkConvolution, MKLDNNGraphTestClass::CheckDynBatchType::Child);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

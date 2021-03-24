@@ -17,8 +17,6 @@
 disable_deprecated_warnings()
 
 function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
-    find_package(Threads REQUIRED)
-
     file(GLOB SOURCES *.cpp)
 
     add_executable(${TARGET_NAME} ${SOURCES})
@@ -55,7 +53,9 @@ endfunction()
 if(ENABLE_MYRIAD)
     add_perfcheck_target(myriad_perfcheck myriadPlugin)
 
+    ie_cpack_add_component(myriad_tools DEPENDS myriad)
+
     install(TARGETS myriad_perfcheck
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-            COMPONENT myriad)
+            COMPONENT myriad_tools)
 endif()

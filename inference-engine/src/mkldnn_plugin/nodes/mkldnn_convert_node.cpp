@@ -7,7 +7,7 @@
 #include "common/cpu_convert.h"
 #include "common/tensor_desc_creator.h"
 
-#define THROW_ERROR THROW_IE_EXCEPTION << getTypeStr() << " layer with name '" << getName() <<"' ERROR: "
+#define THROW_ERROR IE_THROW() << getTypeStr() << " layer with name '" << getName() <<"' ERROR: "
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

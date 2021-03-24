@@ -21,10 +21,10 @@ public:
     explicit LogSoftmaxImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             if (layer->insData.size() != 1)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+                IE_THROW() << layer->name << " Incorrect number of input edges!";
 
             SizeVector dims = layer->insData[0].lock()->getTensorDesc().getDims();
             if (!dims.size())
@@ -34,7 +34,7 @@ public:
                 axis += dims.size();
 
             if (dims.size() < static_cast<size_t>((size_t)(1) + axis))
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimensions and axis number!";
+                IE_THROW() << layer->name << " Incorrect input parameters dimensions and axis number!";
 
             int j;
             for (j = dims.size() - 1; j >= 0; j--) {
@@ -49,7 +49,7 @@ public:
                 reduced_axis_stride *= dims[i];
 
             addConfig(layer, { { ConfLayout::PLN, false, 0, Precision::FP32 } }, { { ConfLayout::PLN, false, 0, Precision::FP32 } });
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

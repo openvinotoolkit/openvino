@@ -85,6 +85,7 @@ namespace ngraph
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ParameterVector>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         ParameterVector& m_ref;
     };

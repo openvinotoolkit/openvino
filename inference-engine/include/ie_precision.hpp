@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "details/ie_exception.hpp"
+#include "ie_common.h"
+
 
 namespace InferenceEngine {
 
@@ -77,7 +78,7 @@ public:
      */
     explicit Precision(size_t bitsSize, const char* name = nullptr) {
         if (bitsSize == 0) {
-            THROW_IE_EXCEPTION << "Precision with 0 elements size not supported";
+            IE_THROW() << "Precision with 0 elements size not supported";
         }
         precisionInfo.bitsSize = bitsSize;
         if (name == nullptr) {
@@ -239,7 +240,7 @@ public:
      */
     size_t size() const {
         if (precisionInfo.bitsSize == 0) {
-            THROW_IE_EXCEPTION << " cannot estimate element if precision is " << precisionInfo.name;
+            IE_THROW() << " cannot estimate element if precision is " << precisionInfo.name;
         }
         return precisionInfo.bitsSize >> 3;
     }

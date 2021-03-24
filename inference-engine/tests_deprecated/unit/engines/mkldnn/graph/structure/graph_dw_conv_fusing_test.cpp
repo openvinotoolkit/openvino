@@ -319,7 +319,7 @@ protected:
 
 
             compare(*output, conv2_dst_ref);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

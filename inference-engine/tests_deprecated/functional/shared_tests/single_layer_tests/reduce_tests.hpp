@@ -393,7 +393,7 @@ protected:
             inferRequest.Infer();
 
             compare(*output, dst_ref);
-        } catch (const details::InferenceEngineException &e) {
+        } catch (const Exception &e) {
             FAIL() << e.what();
         }
     }

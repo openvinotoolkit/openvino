@@ -26,7 +26,7 @@ public:
     explicit ExperimentalSparseWeightedReduceImpl(const CNNLayer* layer) {
         try {
             if ((layer->insData.size() != 5 && layer->insData.size() != 6) || layer->outData.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
             }
             if (layer->insData.size() == 6) {
                 with_weights = true;
@@ -36,7 +36,7 @@ public:
             std::string reduce_mode = layer->type;
             if (reduce_mode == "ExperimentalSparseWeightedSum") reduction_op = ReducedOp::sum;
             else
-                THROW_IE_EXCEPTION << layer->name << " Incorrect ExperimentalSparseWeightedReduce layer type!";
+                IE_THROW() << layer->name << " Incorrect ExperimentalSparseWeightedReduce layer type!";
 
             // check a precision of input tensors
             input_indices_precision = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getPrecision();
@@ -49,23 +49,23 @@ public:
                 input_values_precision == Precision::I32 &&
                 input_dense_shape_precision == Precision::I32);
             if (are_other_precisions_valid == false) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision of the input tensors.";
+                IE_THROW() << layer->name << " Incorrect precision of the input tensors.";
             }
 
             if (input_parameters_table_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Incorrect precision of the input parameters table values. Only FP32 is supported!";
             }
 
             if (input_default_value_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Incorrect precision of the input default value. Only I32 is supported!";
             }
 
             if (with_weights) {
                 Precision input_weights_precision = layer->insData[INPUT_WEIGHTS_PORT].lock()->getTensorDesc().getPrecision();
                 if (input_weights_precision != Precision::FP32) {
-                    THROW_IE_EXCEPTION << layer->name
+                    IE_THROW() << layer->name
                                        << " Incorrect precision of the input weights values. Only FP32 is supported!";
                 }
             }
@@ -73,41 +73,41 @@ public:
             // check dimensions of input tensors
             SizeVector input_indices_dims = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getDims();
             if (input_indices_dims.size() != 2 || input_indices_dims[1] != 2) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Incorrect dimensions for input indices. It must be Nx2 dimension tensor.";
             }
             SizeVector input_values_dims = layer->insData[INPUT_VALUES_PORT].lock()->getTensorDesc().getDims();
             if (input_values_dims.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Incorrect dimensions for input values. It must be N dimension tensor.";
             }
             if (input_indices_dims[0] != input_values_dims[0]) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Mismatch of the first dimensions of input indices and values.";
             }
             SizeVector input_dense_shape_dims = layer->insData[INPUT_DENSE_SHAPE_PORT].lock()->getTensorDesc().getDims();
             if (input_dense_shape_dims.size() != 1 || input_dense_shape_dims[0] != 2) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Incorrect dimensions for input dense shape.";
             }
             SizeVector input_parameters_table_dims = layer->insData[INPUT_PARAMETERS_TABLE_PORT].lock()->getTensorDesc().getDims();
             if (input_parameters_table_dims.size() < 2) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Incorrect dimensions for input parameters table.";
             }
             SizeVector input_default_value_dims = layer->insData[INPUT_DEFAULT_VALUE_PORT].lock()->getTensorDesc().getDims();
             if (input_default_value_dims.size() != 0) {
-                THROW_IE_EXCEPTION << layer->name
+                IE_THROW() << layer->name
                                    << " Incorrect dimensions for input default value.";
             }
             if (with_weights) {
                 SizeVector input_weights_dims = layer->insData[INPUT_WEIGHTS_PORT].lock()->getTensorDesc().getDims();
                 if (input_weights_dims.size() != 1) {
-                    THROW_IE_EXCEPTION << layer->name
+                    IE_THROW() << layer->name
                                        << " Incorrect dimensions for input weights. It must be N dimension tensor.";
                 }
                 if (input_weights_dims[0] != input_values_dims[0]) {
-                    THROW_IE_EXCEPTION << layer->name
+                    IE_THROW() << layer->name
                                        << " Mismatch of the first dimensions of input weights and values.";
                 }
             }
@@ -116,7 +116,7 @@ public:
             // check dimensions of output tensors
             SizeVector output_dims = layer->outData[OUTPUT_PORT]->getTensorDesc().getDims();
             if (output_dims.size() != input_parameters_table_dims.size()) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for the output tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for the output tensor.";
             }
             output_batch_size = output_dims[0];
             output_elem_size = 1;
@@ -138,7 +138,7 @@ public:
                     DataConfigurator(ConfLayout::PLN, Precision::I32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
             }
         }
-        catch (InferenceEngine::details::InferenceEngineException &ex) {
+        catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

@@ -1452,7 +1452,7 @@ HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Co
 
 HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs)
 {
-    auto result = std::make_shared<HostTensor>(element::boolean, lhs->get_shape());
+    auto result = std::make_shared<HostTensor>();
     op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs->get_element_type(), lhs->get_shape()),
                       std::make_shared<op::Parameter>(rhs->get_element_type(), rhs->get_shape()),
                       ngraph::op::AutoBroadcastSpec::NUMPY)

@@ -144,7 +144,7 @@ static inline void blob_copy_4d(Blob::Ptr src, Blob::Ptr dst) {
         break;
 
     default:
-        THROW_IE_EXCEPTION << "Unsupported blob transformation for precision " << src->getTensorDesc().getPrecision();
+        IE_THROW() << "Unsupported blob transformation for precision " << src->getTensorDesc().getPrecision();
     }
 }
 
@@ -284,28 +284,28 @@ static inline void blob_copy_5d(Blob::Ptr src, Blob::Ptr dst) {
         break;
 
     default:
-        THROW_IE_EXCEPTION << "Unsupported blob transformation for precision " << src->getTensorDesc().getPrecision();
+        IE_THROW() << "Unsupported blob transformation for precision " << src->getTensorDesc().getPrecision();
     }
 }
 
 void blob_copy(Blob::Ptr src, Blob::Ptr dst) {
-    if (src->buffer() == nullptr) THROW_IE_EXCEPTION << "Cannot copy blob data. Source is not allocated.";
+    if (src->buffer() == nullptr) IE_THROW() << "Cannot copy blob data. Source is not allocated.";
 
-    if (dst->buffer() == nullptr) THROW_IE_EXCEPTION << "Cannot copy blob data. Destination is not allocated.";
+    if (dst->buffer() == nullptr) IE_THROW() << "Cannot copy blob data. Destination is not allocated.";
 
     if (src->getTensorDesc().getPrecision() != dst->getTensorDesc().getPrecision())
-        THROW_IE_EXCEPTION << "Unimplemented blob transformation from precision " << src->getTensorDesc().getPrecision()
+        IE_THROW() << "Unimplemented blob transformation from precision " << src->getTensorDesc().getPrecision()
                            << " to " << src->getTensorDesc().getPrecision();
 
     if (src->getTensorDesc().getDims() != dst->getTensorDesc().getDims())
-        THROW_IE_EXCEPTION << "Unimplemented blob transformation from different shapes ";
+        IE_THROW() << "Unimplemented blob transformation from different shapes ";
 
     if (src->getTensorDesc().getDims().size() == 4)
         blob_copy_4d(src, dst);
     else if (src->getTensorDesc().getDims().size() == 5)
         blob_copy_5d(src, dst);
     else
-        THROW_IE_EXCEPTION << "Unimplemented blob transformation. Only 4d or 5d supported.";
+        IE_THROW() << "Unimplemented blob transformation. Only 4d or 5d supported.";
 }
 
 }  // namespace InferenceEngine

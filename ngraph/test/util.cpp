@@ -301,6 +301,13 @@ TEST(graph_util, clone_rt_info)
 
         nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
         affinity[node->get_friendly_name()] = testAffinity;
+
+        for (auto&& output : node->outputs())
+        {
+            auto& outputInfo = output.get_rt_info();
+            outputInfo["affinity"] =
+                std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
+        }
     }
 
     auto clonedFunction = ngraph::clone_function(*original_f);
@@ -314,6 +321,12 @@ TEST(graph_util, clone_rt_info)
             ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(itInfo->second)->get();
         ASSERT_TRUE(affinity.find(node->get_friendly_name()) != affinity.end());
         ASSERT_TRUE(affinity[node->get_friendly_name()] == value);
+
+        for (auto&& output : node->outputs())
+        {
+            auto& outputInfo = output.get_rt_info();
+            ASSERT_TRUE(outputInfo.count("affinity"));
+        }
     }
 }
 

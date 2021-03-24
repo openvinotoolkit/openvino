@@ -69,6 +69,7 @@ namespace ngraph
                 const std::vector<float>& get_anchors() const { return m_anchors; }
                 int get_axis() const { return m_axis; }
                 int get_end_axis() const { return m_end_axis; }
+
             private:
                 size_t m_num_coords;
                 size_t m_num_classes;

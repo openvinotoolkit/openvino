@@ -109,6 +109,7 @@ namespace ngraph
             /// particular
             /// transformation. For mo details see PassConfig class.
             std::shared_ptr<PassConfig> get_pass_config() { return m_pass_config; }
+
         protected:
             template <typename T, class... Args>
             std::shared_ptr<T> push_pass(Args&&... args)

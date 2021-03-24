@@ -5,7 +5,7 @@
 set(TARGET_NAME ieUnitTests)
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio imgproc QUIET)
+find_package(OpenCV COMPONENTS core QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} needs OpenCV for its build")
 else()

@@ -23,6 +23,7 @@ import numpy as np
 from extensions.ops.elementwise import Mul
 from extensions.ops.split import AttributedVariadicSplit
 from mo.front.common.partial_infer.utils import float_array
+from mo.front.extractor import add_outputs_identity
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
@@ -138,6 +139,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     prev_layer_id = 'Parameter'
     graph.add_node(prev_layer_id, name=prev_layer_id, kind='op', op='Parameter', parameters=None)
 
+    used_layers = set()
     while True:
         component_type = find_next_component(file_descr)
         if component_type == end_of_nnet_tag.lower()[1:-1]:
@@ -169,8 +171,18 @@ def load_kalid_nnet1_model(graph, file_descr, name):
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))
+        used_layers.add(prev_layer_id)
         prev_layer_id = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
+
+    # Tensor names information corresponding to a node is stored on outgoing edges.
+    # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+    # for each output Identity node is added, and tensor name for the output is kept
+    # on (output, fake output) edge. After Result nodes adding transformation fake outputs
+    # are deleted from graph.
+    output_layers = graph.nodes - used_layers
+    add_outputs_identity(graph, output_layers, lambda g, output, fake_output: g.create_edge(
+        Node(g, output), Node(g, fake_output), 0, 0, create_edge_attrs(output, fake_output, output)))
 
 
 def load_kalid_nnet2_model(graph, file_descr, nnet_name):
@@ -181,6 +193,7 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
 
     all_components = load_components(file_descr, graph)
 
+    used_layers = set()
     for layer_id in all_components:
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
@@ -190,8 +203,18 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))
+        used_layers.add(prev_layer_id)
         prev_layer_id = layer_id
         log.debug('{} and {} were connected'.format(prev_layer_id, layer_id))
+
+    # Tensor names information corresponding to a node is stored on outgoing edges.
+    # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+    # for each output Identity node is added, and tensor name for the output is kept
+    # on (output, fake output) edge. After Result nodes adding transformation fake outputs
+    # are deleted from graph.
+    output_layers = graph.nodes - used_layers
+    add_outputs_identity(graph, output_layers, lambda g, output, fake_output: g.create_edge(
+        Node(g, output), Node(g, fake_output), 0, 0, create_edge_attrs(output, fake_output, output)))
 
 
 def load_kaldi_nnet3_model(graph, file_descr, nnet_name):

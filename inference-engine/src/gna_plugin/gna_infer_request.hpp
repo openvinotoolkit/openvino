@@ -90,7 +90,7 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         if (inferRequestIdx == -1) {
             return InferenceEngine::INFER_NOT_STARTED;
         } else if (millis_timeout < -1) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
+            IE_THROW(ParameterMismatch);
         }
 
         if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {

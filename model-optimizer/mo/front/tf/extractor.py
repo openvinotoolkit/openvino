@@ -33,24 +33,30 @@ def get_tf_edges(node: Node):
     """
     edge_list = []
     for in_port, src_node_id in enumerate(node.pb.input):
-        src_node, src_port = get_tf_node_port(src_node_id)
-        tensor_name = src_node + ":" + str(src_port)
-        cf_flag = False
-        if src_node[0] == '^':
-            src_node = src_node[1:]
-            cf_flag = True
-        edge = (src_node, node.id, {
-            'in': in_port,
-            'out': src_port,
-            # debug anchor for a framework name, out port and tensor name
-            'fw_tensor_debug_info': [(src_node_id, src_port, tensor_name)],
-            'in_attrs': ['in', 'control_flow_edge', 'permutation'],
-            'out_attrs': ['out', 'permutation'],
-            'data_attrs': ['fw_tensor_debug_info'],
-            'control_flow_edge': cf_flag
-        })
-        edge_list.append(edge)
+        edge_list.append(create_tf_edge(src_node_id, node.id, in_port))
     return edge_list
+
+
+def create_tf_edge(src_node_id: str, dst_node_id: str, in_port: int):
+    """
+    Creates an edge for given nodes and input port.
+    """
+    src_node, src_port = get_tf_node_port(src_node_id)
+    tensor_name = src_node + ":" + str(src_port)
+    cf_flag = False
+    if src_node[0] == '^':
+        src_node = src_node[1:]
+        cf_flag = True
+    return (src_node, dst_node_id, {
+        'in': in_port,
+        'out': src_port,
+        # debug anchor for a framework name, out port and tensor name
+        'fw_tensor_debug_info': [(src_node_id, src_port, tensor_name)],
+        'in_attrs': ['in', 'control_flow_edge', 'permutation'],
+        'out_attrs': ['out', 'permutation'],
+        'data_attrs': ['fw_tensor_debug_info'],
+        'control_flow_edge': cf_flag
+    })
 
 
 def node_pb_arg(pb_extractor: callable):

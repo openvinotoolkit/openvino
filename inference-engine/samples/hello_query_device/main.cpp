@@ -27,7 +27,9 @@ std::ostream & operator << (std::ostream & stream, const std::vector<T> & v) {
 }
 
 void printParameterValue(const Parameter & value) {
-    if (value.is<bool>()) {
+    if (value.empty()) {
+        std::cout << "EMPTY VALUE" << std::endl;
+    } else if (value.is<bool>()) {
         std::cout << std::boolalpha << value.as<bool>() << std::noboolalpha << std::endl;
     } else if (value.is<int>()) {
         std::cout << value.as<int>() << std::endl;
@@ -112,7 +114,7 @@ int main(int argc, char *argv[]) {
             std::cout << std::endl;
         }
     } catch (const std::exception & ex) {
-        std::cerr << ex.what() << std::endl;
+        std::cerr << std::endl << "Exception occurred: " << ex.what() << std::endl << std::flush;
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

@@ -15,7 +15,6 @@
 
 #include "ie_core.hpp"
 #include "ie_precision.hpp"
-#include "details/ie_exception.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
 
@@ -109,6 +108,12 @@ private:
 
 private:
     std::vector<float> constantsValue;
+};
+
+class ActivationDynamicLayerTest : public ActivationLayerTest {
+public:
+    std::unordered_set<size_t> static_dims;
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

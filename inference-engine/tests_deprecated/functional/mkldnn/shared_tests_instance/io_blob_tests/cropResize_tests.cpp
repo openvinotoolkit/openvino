@@ -203,7 +203,7 @@ TEST_F(IEPreprocessTest, smoke_NetworkInputSmallSize) {
             EXPECT_NO_THROW(preprocess->execute(out_blob, info, false));
         } else {
             EXPECT_THROW(preprocess->execute(out_blob, info, false),
-                         InferenceEngine::details::InferenceEngineException);
+                         InferenceEngine::Exception);
         }
     }
 }

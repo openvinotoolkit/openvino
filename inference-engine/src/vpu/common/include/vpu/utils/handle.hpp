@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <details/ie_exception.hpp>
+#include <ie_common.h>
 
 namespace vpu {
 

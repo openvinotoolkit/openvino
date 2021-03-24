@@ -3536,7 +3536,7 @@ public:
         EXPECT_EQ(output_ptr.size(), (size_t)(p.b_out_num * p.f_out_num * p.m_size * p.n_size));
         if (sizeof(input0_type) == 1) {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_FLOAT_EQ(float(output_ptr[i]), float(out_data[i])) << "index = " << i;
+                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), 1e-1) << "index = " << i;
             }
         } else if (sizeof(input0_type) == 2) {
             for (size_t i = 0; i < out_data.size(); ++i) {

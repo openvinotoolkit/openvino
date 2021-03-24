@@ -44,7 +44,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
-    } catch (InferenceEngine::details::InferenceEngineException &err) {
+    } catch (InferenceEngine::Exception &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
         ASSERT_TRUE(resp_msg.find(ref_msg) != std::string::npos) << resp_msg;
@@ -73,8 +73,8 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
-    } catch (InferenceEngine::details::InferenceEngineException &err) {
-        FAIL();
+    } catch (InferenceEngine::Exception &err) {
+        FAIL() << err.what();
     }
 }
 
@@ -118,11 +118,11 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
         res->input(0).replace_source_output(ngraph_node->output(0));
 
         EXPECT_THROW(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl, true),
-                     InferenceEngine::details::InferenceEngineException)
+                     InferenceEngine::Exception)
                      << "failed node: " << ngraph_node->get_type_name() << std::endl;
         try {
             InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl, true);
-        } catch (InferenceEngine::details::InferenceEngineException &err) {
+        } catch (InferenceEngine::Exception &err) {
             std::string type_name = ngraph_node->get_type_name();
 
             std::map<std::string, std::string> exceptions = { {"Broadcast", "Tile"}, {"Interpolate", "Interp"},
@@ -199,7 +199,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
         OutputsDataMap outputs = nGraphImpl.getOutputsInfo();
         ASSERT_EQ(outputs.size(), 1);
         ASSERT_EQ(outputs.begin()->first, "topK.1");
-    } catch (InferenceEngine::details::InferenceEngineException &err) {
+    } catch (InferenceEngine::Exception &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
         ASSERT_TRUE(resp_msg.find(ref_msg) != std::string::npos) << resp_msg;
@@ -225,8 +225,8 @@ TEST(ConvertFunctionToCNNNetworkTests, UnsupportedDynamicOps) {
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
-        FAIL() << "InferenceEngineException must be thrown";
-    } catch(InferenceEngine::details::InferenceEngineException & e) {
+        FAIL() << "InferenceEngine::Exception must be thrown";
+    } catch(InferenceEngine::Exception & e) {
         EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Unsupported dynamic ops: \n"
                                                              "v0::Parameter param () -> (f32?)\n"
                                                              "v0::Relu relu (param[0]:f32?) -> (f32?)\n"
@@ -358,8 +358,8 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesNegative) {
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
-        FAIL() << "InferenceEngineException must be thrown";
-    } catch(InferenceEngine::details::InferenceEngineException & e) {
+        FAIL() << "InferenceEngine::Exception must be thrown";
+    } catch(InferenceEngine::Exception & e) {
         EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two output operations with the same name:")));
     }
 }
@@ -386,8 +386,8 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
     try {
         input2->set_friendly_name("param");
         InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
-        FAIL() << "InferenceEngineException must be thrown";
-    } catch(InferenceEngine::details::InferenceEngineException & e) {
+        FAIL() << "InferenceEngine::Exception must be thrown";
+    } catch(InferenceEngine::Exception & e) {
         EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two output operations with the same name:")));
     }
 }

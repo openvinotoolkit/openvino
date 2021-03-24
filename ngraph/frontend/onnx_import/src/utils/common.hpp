@@ -39,8 +39,6 @@ namespace ngraph
         {
             const ngraph::element::Type& get_ngraph_element_type(std::int64_t onnx_type);
 
-            size_t get_onnx_data_size(int32_t onnx_type);
-
             /// \brief      Return a monotonic sequence.
             ///
             /// \note       Limitations: this function may not work for very large integer values

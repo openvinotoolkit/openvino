@@ -16,12 +16,10 @@
 
 #include <exception>
 #include <fstream>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
 #include <sstream>
 
-#include "ngraph/except.hpp"
+#include "onnx_common/parser.hpp"
 #include "onnx_test_util.hpp"
 
 using namespace ngraph;
@@ -29,52 +27,6 @@ using namespace ngraph::test;
 
 namespace
 {
-    void parse_from_istream(std::istream& model_stream, ONNX_NAMESPACE::ModelProto& model_proto)
-    {
-        if (!model_stream.good())
-        {
-            model_stream.clear();
-            model_stream.seekg(0);
-            if (!model_stream.good())
-            {
-                throw ngraph_error("Provided input stream has incorrect state.");
-            }
-        }
-
-        if (!model_proto.ParseFromIstream(&model_stream))
-        {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
-            throw ngraph_error(
-                "Error during import of ONNX model provided as input stream "
-                " with binary protobuf message.");
-#else
-            // Rewind to the beginning and clear stream state.
-            model_stream.clear();
-            model_stream.seekg(0);
-            google::protobuf::io::IstreamInputStream iistream(&model_stream);
-            // Try parsing input as a prototxt message
-            if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
-            {
-                throw ngraph_error(
-                    "Error during import of ONNX model provided as input stream with prototxt "
-                    "protobuf message.");
-            }
-#endif
-        }
-    }
-
-    void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto)
-    {
-        std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
-
-        if (!file_stream.is_open())
-        {
-            throw ngraph_error("Could not open the file: " + file_path);
-        };
-
-        parse_from_istream(file_stream, model_proto);
-    }
-
     ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph,
                                    const ONNX_NAMESPACE::GraphProto& ref_graph)
     {
@@ -127,8 +79,8 @@ namespace
     {
         if (lhs.name() != rhs.name())
         {
-            return ComparisonResult::fail(item_type + " names in the graph don't match: " +
-                                          lhs.name() + " vs " + rhs.name());
+            return ComparisonResult::fail(
+                item_type + " names in the graph don't match: " + lhs.name() + " vs " + rhs.name());
         }
 
         const auto& lhs_tensor = lhs.type().tensor_type();
@@ -159,14 +111,14 @@ namespace
                     (rhs_dim.has_dim_value() && lhs_dim.has_dim_param()))
                 {
                     return ComparisonResult::fail("Dynamic vs static dimension mismatch for " +
-                                                  item_type + " " + lhs.name() + " at index: " +
-                                                  std::to_string(j));
+                                                  item_type + " " + lhs.name() +
+                                                  " at index: " + std::to_string(j));
                 }
                 else if (lhs_dim.has_dim_value() && lhs_dim.dim_value() != rhs_dim.dim_value())
                 {
                     return ComparisonResult::fail("Shape dimensions don't match for " + item_type +
-                                                  " " + lhs.name() + " at index: " +
-                                                  std::to_string(j) + ". " +
+                                                  " " + lhs.name() +
+                                                  " at index: " + std::to_string(j) + ". " +
                                                   std::to_string(lhs_dim.dim_value()) + " vs " +
                                                   std::to_string(rhs_dim.dim_value()));
                 }
@@ -316,9 +268,8 @@ namespace ngraph
                                              const std::string& reference_model_path)
         {
             std::stringstream model_stream{model};
-            ONNX_NAMESPACE::ModelProto model_proto, ref_model;
-            parse_from_istream(model_stream, model_proto);
-            parse_from_file(reference_model_path, ref_model);
+            const auto model_proto = onnx_common::parse_from_istream(model_stream);
+            const auto ref_model = onnx_common::parse_from_file(reference_model_path);
             return compare_onnx_graphs(model_proto.graph(), ref_model.graph());
         }
     } // namespace test

@@ -10,7 +10,7 @@
 #include <sched.h>
 #include "ie_system_conf.h"
 #include "ie_parallel.hpp"
-#include "details/ie_exception.hpp"
+#include "ie_common.h"
 #include <numeric>
 
 

@@ -225,7 +225,7 @@ namespace ngraph
                 clip_activation(r_t, activation_f);
 
                 // calculate h_t
-                vector<T> h_t(gate_shape_size);
+                std::vector<T> h_t(gate_shape_size);
                 if (linear_before_reset)
                 {
                     // ht = g(Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh)
@@ -287,8 +287,8 @@ namespace ngraph
                 }
                 clip_activation(h_t, activation_g);
                 // Ht = (1 - zt) (.) ht + zt (.) Ht-1
-                vector<T> mul1(gate_shape_size);
-                vector<T> mul2(gate_shape_size);
+                std::vector<T> mul1(gate_shape_size);
+                std::vector<T> mul2(gate_shape_size);
                 T one[] = {1};
                 reference::subtract(
                     one, z_t.data(), mul1.data(), {1}, gate_shape, op::AutoBroadcastSpec::NUMPY);

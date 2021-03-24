@@ -192,7 +192,7 @@ MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     auto *ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
     if (ti == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert to TensorIterator layer.";
+        IE_THROW() << "Cannot convert to TensorIterator layer.";
 
     n_iter = getNumIteration(*ti);
     sub_graph.CreateGraph(ti->body, ext_mng, weightCache);
@@ -227,7 +227,7 @@ void MKLDNNTensorIteratorNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNTensorIteratorNode::createPrimitive() {
     auto ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
     if (ti == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert to TensorIterator layer.";
+        IE_THROW() << "Cannot convert to TensorIterator layer.";
 
     const auto &eng = getEngine();
 

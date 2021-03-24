@@ -63,7 +63,8 @@ namespace ngraph
 
                 explicit Label(const element::Type& type = element::dynamic,
                                const PartialShape& s = PartialShape::dynamic())
-                    : Label(type, s, [](const Output<Node>&) { return true; }, OutputVector())
+                    : Label(
+                          type, s, [](const Output<Node>&) { return true; }, OutputVector())
                 {
                 }
 
@@ -118,10 +119,11 @@ namespace ngraph
                 {
                 }
                 Label(const Output<Node>& value)
-                    : Label(value.get_element_type(),
-                            value.get_partial_shape(),
-                            [](const Output<Node>&) { return true; },
-                            OutputVector{})
+                    : Label(
+                          value.get_element_type(),
+                          value.get_partial_shape(),
+                          [](const Output<Node>&) { return true; },
+                          OutputVector{})
                 {
                 }
                 Label(const Output<Node>& node,

@@ -47,6 +47,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 Strides get_strides() const { return m_strides; }
+
             private:
                 Strides m_strides;
             };

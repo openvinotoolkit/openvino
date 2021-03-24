@@ -1,24 +1,24 @@
 # How to Implement Custom Layers for VPU (Intel® Neural Compute Stick 2) {#openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel}
 
-> **NOTE:** OpenCL™ custom layer support is available in the preview mode.
+> **NOTES:** 
+> * OpenCL\* custom layer support is available in the preview mode.
+> * This section assumes you are familiar with developing kernels using OpenCL.
 
-> **NOTE:** This section assumes you are familiar with developing kernels using OpenCL™.
+To customize your topology with an OpenCL layer, follow the steps below:
 
-To customize your topology with an OpenCL™ layer, follow the steps below:
+1. Write and compile your OpenCL code with the standalone offline OpenCL compiler (`clc`).
+2. Write a configuration file to bind the OpenCL kernel to the topology file (`.xml`) of the model IR.
+3. Pass the configuration file to the Inference Engine with the model IR.
 
-1. Write and compile you OpenCL™ code with the standalone offline OpenCL™ compiler (`clc`).
-2. Write a configuration file to bind the OpenCL™ kernel to the topology file (`.xml`) of the model IR.
-3. Pass the configuration file to Inference engine with the model IR.
-
-## Compile OpenCL™ code for VPU (Intel® Neural Compute Stick 2)
+## Compile OpenCL code for VPU (Intel® Neural Compute Stick 2)
 
 > **NOTE:** OpenCL compiler, targeting Intel® Neural Compute Stick 2 for the SHAVE* processor only, is redistributed with OpenVINO.
 OpenCL support is provided by ComputeAorta*, and is distributed under a license agreement between Intel® and Codeplay* Software Ltd.
 
-The OpenCL™ toolchain for the Intel® Neural Compute Stick 2 supports offline compilation only, so first compile OpenCL C code using the standalone `clc` compiler. You can find the compiler binary at `<INSTALL_DIR>/deployment_tools/tools/cl_compiler`.
+The OpenCL toolchain for the Intel® Neural Compute Stick 2 supports offline compilation only, so first compile OpenCL C code using the standalone `clc` compiler. You can find the compiler binary at `<INSTALL_DIR>/deployment_tools/tools/cl_compiler`.
 
 > **NOTE:** By design, custom OpenCL layers support any OpenCL kernels written with 1.2 version assumed. It also supports half float
-extension and is optimized for this type, because it is a native type for Intel®  Movidius™ VPUs.
+extension and is optimized for this type, because it is a native type for Intel® Movidius™ VPUs.
 
 1. Prior to running a compilation, make sure that the following variables are set:
    * `SHAVE_MA2X8XLIBS_DIR=<INSTALL_DIR>/deployment_tools/tools/cl_compiler/lib/`
@@ -57,25 +57,25 @@ Configuration file for this kernel might be the following:
 ```
 Each custom layer is described with the `CustomLayer` node. It has the following nodes and attributes:
   - Root node `CustomLayer` contains the following attributes:
-    - `name` – (Required) A name of the Inference Engine layer to bind the kernel with.
+    - `name` – (Required) The name of the Inference Engine layer to bind the kernel with.
     - `type` and `version` – (Required) Reserved for future use. Set them to `MVCL` and `1` respectively.
-    - `max-shaves` – (Optional) The maximum number of SHAVE cores that should be dedicated for the layer. It is useful for debugging concurrency issues or for resource saving if memory bound kernel does not scale well with the number of cores, so more resources can be left for the rest of a topology.
+    - `max-shaves` – (Optional) The maximum number of SHAVE cores that should be dedicated for the layer. It is useful for debugging concurrency issues or for resource saving that memory bound kernel does not scale well with the number of cores, so more resources can be left for the rest of a topology.
   - Sub-node `Kernel` must contain the following attributes:
-    - `entry` – A name of your kernel function as you defined it in a source file (in the example above, it is `reorg_nhwc`).
+    - `entry` – The name of your kernel function as you defined it in a source file. In the example above, it is `reorg_nhwc`.
     - Node `Source` must contain the following attributes:
-      - `filename` – A path to a compiled binary relative to the `.xml` binding file.
+      - `filename` – The path to a compiled binary relative to the `.xml` binding file.
   - Sub-node `Parameters` – Describes parameters bindings. For more information, see the description below.
   - Sub-node `WorkSizes` – Describes local and global work group sizes and the source for dimension deduction as a pair `direction,port`. In the example above, the work group is described relatively to the dimension of the input tensor that comes through port 0 in the IR. `global` and `local` work group configurations support any simple math expressions with +,-,\*,/, and () from `B`(batch), `Y`(height), `X`(width) and `F`(channels).
-  - Sub-node `Where` – Allows to customize bindings with the `key="value"` attribute. For example, to substitute only 3x3 convolutions, write `<Where kernel="3,3"/>` in the binging xml.
+  - Sub-node `Where` – Allows to customize bindings with the `key="value"` attribute. For example, to substitute only 3x3 convolutions, write `<Where kernel="3,3"/>` in the binding xml.
 
   Parameter description supports `Tensor` of one of tensor types such as `input`, `output`, `input_buffer`, `output_buffer` or `data`, `Scalar`, or `Data` nodes and has the following format:
   - Each `Tensor` node of `input` or `output` type must contain the following attributes:
-    - `arg-name` – A name of a kernel parameter in the kernel signature.
+    - `arg-name` – The name of a kernel parameter in the kernel signature.
     - `type` – Node type: `input` or `output` as in the IR.
     - `port-index` – A number of input/output ports as in the IR.
     - `format` – The channel order in the tensor. Optional conversion layers are generated if the custom layer format is not compatible with formats of neighboring layers. `BFXY`, `BYXF`, and `ANY` formats are supported currently.
   - Each `Tensor` node of `input_buffer` or `output_buffer` type must contain the following attributes:
-    - `arg-name` – A name of a kernel parameter in the kernel signature.
+    - `arg-name` – The name of a kernel parameter in the kernel signature.
     - `type` – Node type: `input_buffer` or `output_buffer`. Use the appropriate type to bind multiple kernels that correspond to different stages of the same layer.
     - `port-index` – The unique identifier to bind by.
     - `dim` – The dim source with the same `direction,port` format used for `WorkSizes` bindings.
@@ -110,7 +110,7 @@ Each custom layer is described with the `CustomLayer` node. It has the following
   </CustomLayer>
   ```
   - Each `Tensor` node that has the type `data` must contain the following attributes:
-   - `source` – A name of the blob as it is in the IR (typical example is `weights` for convolution
+   - `source` – A name of the blob as it is in the IR. Typical example is `weights` for convolution.
    - `format` – Specifies the channel order in the tensor. Optional conversion layers are generated if the custom layer format is not.
   ```xml
   <CustomLayer name="BinaryConvolution" type="MVCL" version="1">
@@ -127,15 +127,15 @@ Each custom layer is described with the `CustomLayer` node. It has the following
   </CustomLayer>
   ```
   - Each `Scalar` node must contain the following attributes:
-   - `arg-name` – A name of a kernel parameter in the kernel signature.
+   - `arg-name` – The name of a kernel parameter in the kernel signature.
    - `type` – `int` or `float` value. It is used for correct argument extraction from IR parameters.
    - `source` – Contains the name of the parameter in the IR file or input/output (`I`/`O`, `In`/`On`, where `n` is a port number)
    followed by dimension `B`(batch), `Y`(height), `X`(width), or `F`(channels).
 
   - Each `Data` node must contain the following attributes:
-    - `arg-name` – A name of a kernel parameter in the kernel signature.
-    - `type` – Node type. Currently, `local_data` is the only supported value, which defines buffer allocated in fast local on-chip memory. It is limited to 100K for all `__local` and
-    `__private` arrays defined inside the kernel as well as all `__local` parameters passed to the kernel. Please, consider that a manual-DMA extension requires double buffering.
+    - `arg-name` – The name of a kernel parameter in the kernel signature.
+    - `type` – Node type. Currently, `local_data` is the only supported value, which defines buffer allocated in fast local on-chip memory. It is limited to 100KB for all `__local` and
+    `__private` arrays defined inside the kernel as well as all `__local` parameters passed to the kernel. Note that a manual-DMA extension requires double buffering.
     If the custom layer is detected to run out of local memory, the inference fails.
     - `dim` – The dim source with the same `direction,port` format used for `WorkSizes` bindings.
     - `size` – Amount of bytes needed. The current expression syntax supports only expression over dimensions of over selected input/output tensor or constants and may be extended in the future.
@@ -177,7 +177,7 @@ config["VPU_CUSTOM_LAYERS"] = "/path/to/your/customLayers.xml";
 auto exeNetwork = core.LoadNetwork(cnnNetwork, "MYRIAD", networkConfig);
 ```
 
-## Optimizing Kernels with OpenCL™ for VPU (Intel® Neural Compute Stick 2)
+## Optimizing Kernels with OpenCL for VPU (Intel® Neural Compute Stick 2)
 
 This section provides optimization guidelines on writing custom layers with OpenCL for VPU devices. Knowledge about general OpenCL
 programming model and OpenCL kernel language is assumed and not a subject of this section. The OpenCL model mapping to VPU is described in the table below.
@@ -196,9 +196,9 @@ work grid among available compute resources and executes them in an arbitrary or
 
 1. Split work evenly across work groups.
 2. Adjust work group granularity to maintain equal workload for all compute codes.
-3. Set the maximum number of cores (using the `max-shaves` attribute for the `CustomLayer` node). This keeps more resources for the rest of topology. It is also useful if the kernel scalability reached its limits, which may happen while optimizing memory bound kernels or kernels with poor parallelization.
+3. Set the maximum number of cores using the `max-shaves` attribute for the `CustomLayer` node. This keeps more resources for the rest of topology. It is also useful if the kernel scalability reached its limits, which may happen while optimizing memory bound kernels or kernels with poor parallelization.
 4. Try an alternate data layout (`BFXY`/`BYXF`) for the kernel if it improves work group partitioning or data access patterns.
-Consider full topology performance (not just specific layer boost) since data conversion layers would be automatically inserted
+Consider not just specific layer boost, but full topology performance because data conversion layers would be automatically inserted
 as appropriate.
 
 Offline OpenCL compiler (`clc`) features automatic vectorization over `get_global_id(0)` usage, if uniform access is detected.
@@ -218,11 +218,11 @@ patterns. WGV works if and only if vector types are not used in the code.
 Here is a short list of optimization tips:
 
 1. Help auto-vectorizer ensure non-aliasing pointers for kernel parameters by putting `restrict` where possible.
-  - This may give a performance boost, especially for kernels with unrolling, like `ocl_grn` from the example below.
+  - This can give a performance boost, especially for kernels with unrolling, like `ocl_grn` from the example below.
   - Place `restrict` markers for kernels with manually vectorized codes. In the `ocl_grn` kernel below, the unrolled version without `restrict` is up to 20% slower than the most optimal one, which combines unrolling and `restrict`.
-2. Put `#&zwj;pragma unroll N` to your loop header. Since the compiler does not trigger unrolling by default, it is your responsibility to
+2. Put `#&zwj;pragma unroll N` to your loop header. The compiler does not trigger unrolling by default, so it is your responsibility to
 annotate the code with pragmas as appropriate. The `ocl_grn` version with `#&zwj;pragma unroll 4` is up to 50% faster, most of which comes from unrolling the first loop, because LLVM, in general, is better in scheduling 3-stage loops (load-compute-store), while the fist loop
- `variance += (float)(src_data[c*H*W + y*W + x] * src_data[c*H*W + y*W + x]);` is only 2-stage (load-compute). Please, pay
+ `variance += (float)(src_data[c*H*W + y*W + x] * src_data[c*H*W + y*W + x]);` is only 2-stage (load-compute). Pay
 attention to unrolling such cases first. Unrolling factor is loop-dependent. Choose the smallest number that
 still improves performance as an optimum between the kernel size and execution speed. For this specific kernel, changing the unroll factor from `4`to `6` results in the same performance, so unrolling factor equal to 4 is an optimum. For Intel® Neural Compute Stick 2, unrolling is conjugated with the automatic software pipelining for load, store, and compute stages:
 ```cpp
@@ -294,15 +294,15 @@ __kernel void ocl_grn_line(__global const half* restrict src_data,  __global hal
 Both versions perform the same, but the second one has more complex code.
 
 3. If it is easy to predict the work group size, you can also use the `reqd_work_group_size` kernel attribute to ask the compiler
-to unroll the code up to local size of the work group. Please note that if the kernel is actually executed with the
+to unroll the code up to the local size of the work group. Note that if the kernel is actually executed with the
 different work group configuration, the result is undefined.
 
-4. Prefer to use the `half` compute, if it keeps reasonable accuracy. 16-bit float is a native type for Intel® Neural Compute Stick 2, most of the functions `half_*` are mapped to a single hardware instruction.
+4. Prefer to use the `half` compute if it keeps reasonable accuracy. 16-bit float is a native type for Intel® Neural Compute Stick 2, most of the functions `half_*` are mapped to a single hardware instruction.
 Use the standard `native_*` function for the rest of types.
 
-5. Prefer to use the `convert_half` function over `vstore_half` if conversion to 32-bit float is required. `convert_half` is mapped to a single hardware instruction. For the `cvtf32f16` kernel above, the line `outImage[idx] = convert_half(inImage[idx]*scale+bais);` is 8 times slower than the code with `vstore_half`.
+5. Prefer to use the `convert_half` function over `vstore_half` if conversion to 32-bit float is required. `convert_half` is mapped to a single hardware instruction. For the `cvtf32f16` kernel above, the line `outImage[idx] = convert_half(inImage[idx]*scale+bais);` is eight times slower than the code with `vstore_half`.
 
-6. Mind early exits. Early exit may be extremely costly for the current version of the `clc` compiler due to conflicts with the
+6. Mind early exits. Early exit can be extremely costly for the current version of the `clc` compiler due to conflicts with the
 auto-vectorizer. The generic advice would be to setup local size by `x` dimension equal to inputs or/and outputs width.
 If it is impossible to define the work grid that exactly matches inputs or/and outputs to eliminate checks, for example,
 `if (get_global_id(0) >= width) return`, use line-wise kernel variant with manual vectorization. 
@@ -333,9 +333,9 @@ The kernel example below demonstrates the impact of early exits on kernel perfor
      out[W*H*c + W*h + w] = src[W2*H2*c2 + W2*h2 + w2];
    }
    ```
-This `reorg` kernel is auto-vectorizable, but an input for YOLO v2 topology is `NCHW=<1,64,26,26>` and it is not multiple of vector width (which is `8` for `half` data type). As a result, the Inference Engine does not select the auto-vectorized kernel.
-To compare performance of auto-vectorized and scalar version of the kernel, change the input size to`NCHW=<1,64,26,32>`. This allows the auto-vectorized version to be selected by the Inference Engine and can give you about 30% uplift.
-Since the auto-vectorized version is faster, it makes sense to enable it for the YOLO v2 topology input size by setting the local size multiple of vector (e.g. 32) and adjust global sizes accordingly. As a result, the execution work grid exceeds actual input dimension, so out-of-bound checks should be inserted. See the updated kernel version below:
+This `reorg` kernel is auto-vectorizable, but an input for YOLO v2 topology is `NCHW=<1,64,26,26>` and it is not multiple of vector width, which is `8` for `half` data type. As a result, the Inference Engine does not select the auto-vectorized kernel.
+To compare performance of auto-vectorized and scalar version of the kernel, change the input size to`NCHW=<1,64,26,32>`. This enables the auto-vectorized version to be selected by the Inference Engine and can give you about 30% uplift.
+Since the auto-vectorized version is faster, it makes sense to enable it for the YOLO v2 topology input size by setting the local size multiple of vector, for example, 32, and adjust global sizes accordingly. As a result, the execution work grid exceeds actual input dimension, so out-of-bound checks should be inserted. See the updated kernel version below:
    ```cpp
    // Version with out-of-bound checks added
    __kernel void reorg(const __global half* restrict src, __global half* restrict out, int W, int stride)
@@ -445,7 +445,7 @@ from/to a `__blobal` pointer since work-group copying could be done in a vector 
      }
    }
    ```
-This kernel can be rewritten to introduce special data binding `__dma_preload` and `__dma_postwrite intrinsics`. This means that instead of one kernel, a group of three kernels should be implemented: `kernelName`, `__dma_preload_kernelName` and `__dma_postwrite_kernelName`.  `__dma_preload_kernelName` for a particular work group `n` is guaranteed to be executed before `n`-th work group itself, while `__dma_postwrite_kernelName` is guaranteed to be executed after a corresponding work group. You can define one of those functions that are intended to be used to copy data from-to `__global` and `__local` memory. The syntactics requires exact functional signature match. The example below illustrates how to prepare your kernel for manual-DMA.
+This kernel can be rewritten to introduce special data binding `__dma_preload` and `__dma_postwrite intrinsics`. This means that instead of one kernel, a group of three kernels should be implemented: `kernelName`, `__dma_preload_kernelName`, and `__dma_postwrite_kernelName`.  `__dma_preload_kernelName` for a particular work group `n` is guaranteed to be executed before the `n`-th work group itself, while `__dma_postwrite_kernelName` is guaranteed to be executed after a corresponding work group. You can define one of those functions that are intended to be used to copy data from-to `__global` and `__local` memory. The syntactics requires exact functional signature match. The example below illustrates how to prepare your kernel for manual-DMA.
    ```cpp
    __kernel void __dma_preload_grn_NCHW(
      __global const half* restrict src,
@@ -612,7 +612,7 @@ __kernel void grn_NCHW(
 }
 ```
 
-Please note `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup since it was completely limited by memory usage.
+Note the `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup because it was completely limited by memory usage.
 
 An alternative method of using DMA is to use work item copy extension. Those functions are executed inside a kernel and requires work groups equal to single work item.
 

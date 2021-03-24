@@ -233,7 +233,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
             // config file might not exist - like global config, for example
             return;
         } else {
-            THROW_IE_EXCEPTION << "Error loading custom layer configuration file: " << configFile << ", " << res.description()
+            IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", " << res.description()
                 << " at offset " << res.offset;
         }
     }
@@ -246,7 +246,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
     char* abs_path_ptr = realpath(configFile.c_str(), path);
 #endif
     if (abs_path_ptr == nullptr) {
-        THROW_IE_EXCEPTION << "Error loading custom layer configuration file: " << configFile << ", "
+        IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "
                            << "Can't get canonicalized absolute pathname.";
     }
 
@@ -262,7 +262,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
         // path is absolute
         dir_path = abs_file_name.substr(0, dir_split_pos);
     } else {
-        THROW_IE_EXCEPTION << "Error loading custom layer configuration file: " << configFile << ", "
+        IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "
                            << "Path is not valid";
     }
 
@@ -271,7 +271,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
         layer->LoadSingleLayer(r);
         if (layer->Error()) {
             customLayers.clear();
-            THROW_IE_EXCEPTION << layer->m_ErrorMessage;
+            IE_THROW() << layer->m_ErrorMessage;
         } else {
             customLayers[layer->Name()] = layer;
         }

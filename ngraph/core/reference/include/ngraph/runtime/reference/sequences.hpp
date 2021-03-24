@@ -191,17 +191,18 @@ namespace ngraph
                         size_t part_size_single_batch = part_shape_size / batch * sizeof(T);
                         for (int i = 0; i < batch; ++i)
                         {
+                            auto shift = i * part_size_single_batch;
                             if ((time_step + 1) > seq_len_values[i])
                             {
                                 continue;
                             }
-                            std::memcpy(h_list[time_step].data() + i * part_size_single_batch,
-                                        outputs[1] + i * part_size_single_batch,
+                            std::memcpy(h_list[time_step].data() + shift,
+                                        outputs[1] + shift,
                                         part_size_single_batch);
                             if (type == CellType::LSTM)
                             {
-                                std::memcpy(c_list[time_step].data() + i * part_size_single_batch,
-                                            outputs[2] + i * part_size_single_batch,
+                                std::memcpy(c_list[time_step].data() + shift,
+                                            outputs[2] + shift,
                                             part_size_single_batch);
                             }
                         }
@@ -220,16 +221,27 @@ namespace ngraph
                         {
                             for (int i = 0; i < batch; ++i)
                             {
-                                std::memcpy(outputs[1] + i * part_size_single_batch,
-                                            h_list[seq_len_values[i] - 1].data() +
-                                                i * part_size_single_batch,
-                                            part_size_single_batch);
-                                if (type == CellType::LSTM)
+                                auto idx = seq_len_values[i] - 1;
+                                auto shift = i * part_size_single_batch;
+                                if (idx >= 0 && idx < h_list.size())
                                 {
-                                    std::memcpy(outputs[2] + i * part_size_single_batch,
-                                                c_list[seq_len_values[i] - 1].data() +
-                                                    i * part_size_single_batch,
+                                    std::memcpy(outputs[1] + shift,
+                                                h_list[idx].data() + shift,
                                                 part_size_single_batch);
+                                    if (type == CellType::LSTM)
+                                    {
+                                        std::memcpy(outputs[2] + shift,
+                                                    c_list[idx].data() + shift,
+                                                    part_size_single_batch);
+                                    }
+                                }
+                                else
+                                {
+                                    std::memset(outputs[1] + shift, 0, part_size_single_batch);
+                                    if (type == CellType::LSTM)
+                                    {
+                                        std::memset(outputs[2] + shift, 0, part_size_single_batch);
+                                    }
                                 }
                             }
                         }

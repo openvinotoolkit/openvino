@@ -270,7 +270,7 @@ protected:
             ref_activation(*srcPtr, dst_ref, p);
 
             compare(*output, dst_ref, 0.0005f);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -378,7 +378,7 @@ protected:
 
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkActivation);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkActivation);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

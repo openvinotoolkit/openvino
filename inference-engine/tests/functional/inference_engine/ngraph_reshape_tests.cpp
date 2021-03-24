@@ -437,7 +437,7 @@ public:
 
 TEST_F(NGraphReshapeTests, LoadBadNewExtension) {
     InferenceEngine::Core ie;
-    ASSERT_THROW(ie.AddExtension(std::make_shared<BadExtension>()), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(ie.AddExtension(std::make_shared<BadExtension>()), InferenceEngine::Exception);
 }
 
 TEST_F(NGraphReshapeTests, TestInterpParameters) {

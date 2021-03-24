@@ -409,6 +409,8 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node> & node, element::
             new_const = change_constant_precision<element::Type_t::i16, element::Type_t::i32>(constant);
         } else if (from == element::u32 && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::u32, element::Type_t::i32>(constant);
+        } else if (from == element::f64 && to == element::f32) {
+            new_const = change_constant_precision<element::Type_t::f64, element::Type_t::f32>(constant);
         } else if (from == element::f16 && to == element::f32) {
             new_const = change_constant_precision<element::Type_t::f16, element::Type_t::f32>(constant);
         } else if (from == element::boolean && to == element::u8) {

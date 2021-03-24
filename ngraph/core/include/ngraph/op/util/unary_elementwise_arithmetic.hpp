@@ -56,6 +56,8 @@ namespace ngraph
                 UnaryElementwiseArithmetic(const Output<Node>& arg);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
 

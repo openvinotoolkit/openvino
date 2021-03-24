@@ -225,11 +225,11 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
 
                 // Check errors
                 if (sts == GENERAL_ERROR) {
-                    THROW_IE_EXCEPTION << "Scoring failed! Critical error: " << dsc.msg;
+                    IE_THROW() << "Scoring failed! Critical error: " << dsc.msg;
                 } else if (sts == NOT_IMPLEMENTED) {
-                    THROW_IE_EXCEPTION << "Scoring failed! Input data is incorrect and not supported!";
+                    IE_THROW() << "Scoring failed! Input data is incorrect and not supported!";
                 } else if (sts == NETWORK_NOT_LOADED) {
-                    THROW_IE_EXCEPTION << "Scoring failed! " << dsc.msg;
+                    IE_THROW() << "Scoring failed! " << dsc.msg;
                 }
                 if (!fetchResult.fetchMore) break;
             }

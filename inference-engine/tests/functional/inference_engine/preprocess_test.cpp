@@ -13,7 +13,7 @@ TEST_F(PreProcessTests, throwsOnSettingNullMeanImage) {
     InferenceEngine::PreProcessInfo info;
     info.init(1);
     ASSERT_THROW(info.setMeanImage(InferenceEngine::Blob::Ptr(nullptr)),
-            InferenceEngine::details::InferenceEngineException);
+            InferenceEngine::Exception);
 }
 
 TEST_F(PreProcessTests, throwsOnSetting2DMeanImage) {
@@ -21,7 +21,7 @@ TEST_F(PreProcessTests, throwsOnSetting2DMeanImage) {
     info.init(1);
     InferenceEngine::Blob::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,
         {1, 1}, InferenceEngine::Layout::HW}));
-    ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::Exception);
 }
 
 TEST_F(PreProcessTests, throwsOnSettingWrongSizeMeanImage) {
@@ -30,7 +30,7 @@ TEST_F(PreProcessTests, throwsOnSettingWrongSizeMeanImage) {
     InferenceEngine::TBlob<float>::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,
         { 2, 1, 1 }, InferenceEngine::Layout::CHW }));
     blob->allocate();
-    ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::Exception);
 }
 
 TEST_F(PreProcessTests, noThrowWithCorrectSizeMeanImage) {

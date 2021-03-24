@@ -21,12 +21,18 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
     {}
 };
 
+const std::vector<std::string> appHeaders = {
+        "",
+        "APPLICATION_HEADER"
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportNonZero,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                             ::testing::ValuesIn(exportConfigs),
-                            ::testing::ValuesIn(importConfigs)),
+                            ::testing::ValuesIn(importConfigs),
+                            ::testing::ValuesIn(appHeaders)),
                         ImportNonZero::getTestCaseName);
 
 } // namespace

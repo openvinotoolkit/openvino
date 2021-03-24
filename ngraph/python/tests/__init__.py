@@ -67,12 +67,6 @@ xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
                                       "Value -1,0 cannot be casted to int.")
-xfail_issue_35916 = xfail_test(reason="RuntimeError: Unsupported input dims count for layer Z")
-xfail_issue_35917 = xfail_test(reason="RuntimeError: Unsupported input dims count for "
-                                      "layer MatMul")
-xfail_issue_35918 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
-                                      "Mismatched attribute type in 'test_node : alpha'")
-xfail_issue_35921 = xfail_test(reason="ValueError - shapes mismatch in gemm")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
@@ -155,12 +149,8 @@ xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not suppor
 xfail_issue_47317 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Add): 2>': "
                                       "Check shape_size(axes_shape) == input_rank' failed")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
-xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[name]` doesn't support "
-                                      "FP64 precision.")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_48100 = xfail_test(reason="RuntimeError: cpu_convert can't convert from: "
-                                      "FP64 precision to: FP32")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -195,3 +185,4 @@ xfail_issue_49750 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v4
 xfail_issue_49752 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::Pad")
 xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::StridedSlice")
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
+xfail_issue_49913 = xfail_test(reason="CPU supports Gelu with tanh mode only")

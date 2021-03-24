@@ -9,8 +9,7 @@
 #include <type_traits>
 #include <limits>
 
-#include <details/ie_exception.hpp>
-
+#include <ie_common.h>
 namespace vpu {
 
 using fp16_t = short;

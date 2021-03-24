@@ -29,11 +29,14 @@ set(ONNX_VERSION 1.8.1)
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
+set(ONNX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/onnx_patch.diff")
 
 FetchContent_Declare(
     ext_onnx
     GIT_REPOSITORY ${ONNX_GIT_REPO_URL}
     GIT_TAG ${ONNX_GIT_BRANCH}
+    # apply patch to fix problems with symbols visibility for MSVC
+    PATCH_COMMAND git apply --verbose ${ONNX_PATCH_FILE}
 )
 
 macro(onnx_set_target_properties)
@@ -45,12 +48,30 @@ macro(onnx_set_target_properties)
     elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
         target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
+
+        # it fixes random problems with double registration of descriptors to protobuf database
+        set_target_properties(onnx_proto PROPERTIES
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
+    endif()
+
+    target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
+
+    install(TARGETS onnx_proto
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+
+    if (NGRAPH_EXPORT_TARGETS_ENABLE)
+        export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
     endif()
 endmacro()
 
 FetchContent_GetProperties(ext_onnx)
 if(NOT ext_onnx_POPULATED)
     FetchContent_Populate(ext_onnx)
+    set(ONNX_USE_PROTOBUF_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Use dynamic protobuf by ONNX library")
     set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
     set(ONNX_USE_LITE_PROTO ${NGRAPH_USE_PROTOBUF_LITE} CACHE BOOL "Use protobuf lite for ONNX library")
     set(ONNX_ML ON CACHE BOOL "Use ONNX ML")
@@ -63,6 +84,3 @@ if(NOT ext_onnx_POPULATED)
 else()
     onnx_set_target_properties()
 endif()
-
-set(ONNX_INCLUDE_DIR ${ext_onnx_SOURCE_DIR})
-set(ONNX_PROTO_INCLUDE_DIR ${ext_onnx_BINARY_DIR})

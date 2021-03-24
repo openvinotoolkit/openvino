@@ -25,28 +25,28 @@ public:
         try {
             std::string errorPrefix = std::string("Layer ") + layer->type + " with name '" + layer->name + "' ";
             if (details::CaselessEq<std::string>()("ExtractImagePatchesLayer", layer->type))
-                THROW_IE_EXCEPTION << errorPrefix << "is not an instance of ExtractImagePatchesLayer class";
+                IE_THROW() << errorPrefix << "is not an instance of ExtractImagePatchesLayer class";
 
             if (layer->insData.size() != 1 || layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of input or output edges!"
+                IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
                     << " Input: " << layer->insData.size() << "; Output: " << layer->outData.size();
 
             auto inData = layer->insData[0].lock();
             if (inData == nullptr)
-                THROW_IE_EXCEPTION << errorPrefix << "has nullable input data";
+                IE_THROW() << errorPrefix << "has nullable input data";
 
             if (inData->getTensorDesc().getDims().size() != 4)
-                THROW_IE_EXCEPTION << errorPrefix << "must have 4D input tensor. Actual: " << inData->getTensorDesc().getDims().size();
+                IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << inData->getTensorDesc().getDims().size();
 
             if (layer->outData[0]->getTensorDesc().getDims().size() != 4)
-                THROW_IE_EXCEPTION << errorPrefix << "must have 4D output tensor. Actual: " << layer->outData[0]->getTensorDesc().getDims().size();
+                IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << layer->outData[0]->getTensorDesc().getDims().size();
 
             if (inData->getLayout() != NCHW)
-                THROW_IE_EXCEPTION << errorPrefix << "has unsupported layout: " << inData->getLayout();
+                IE_THROW() << errorPrefix << "has unsupported layout: " << inData->getLayout();
 
             const auto precision = inData->getTensorDesc().getPrecision();
             if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-                THROW_IE_EXCEPTION << errorPrefix << "has unsupported precision: " << precision.name();
+                IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
             auto ksizes = layer->GetParamAsUInts("sizes");
             auto strides = layer->GetParamAsUInts("strides");
@@ -55,9 +55,9 @@ public:
             if (!CaselessEq<std::string>()(_auto_pad, "valid")
                     && !CaselessEq<std::string>()(_auto_pad, "same_upper")
                     && !CaselessEq<std::string>()(_auto_pad, "same_lower"))
-                THROW_IE_EXCEPTION <<  errorPrefix << "has unsupported auto_pad value: " << _auto_pad;
+                IE_THROW() <<  errorPrefix << "has unsupported auto_pad value: " << _auto_pad;
             if (ksizes.size() != 2 || strides.size() != 2 || rates.size() != 2)
-                THROW_IE_EXCEPTION << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
+                IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
 
             _ksizes.clear();
             _strides.clear();
@@ -83,7 +83,7 @@ public:
 
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

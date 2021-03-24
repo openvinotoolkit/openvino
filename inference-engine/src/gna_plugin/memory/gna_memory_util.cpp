@@ -5,7 +5,6 @@
 #include "gna_memory_util.hpp"
 
 #include <cstdint>
-#include <details/ie_exception.hpp>
 #include "gna_plugin_log.hpp"
 
 int32_t GNAPluginNS::memory::MemoryOffset(void *ptr_target, void *ptr_base) {

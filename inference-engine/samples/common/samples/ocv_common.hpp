@@ -26,7 +26,7 @@ void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, in
     const size_t channels = blobSize[1];
     InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
     if (!mblob) {
-        THROW_IE_EXCEPTION << "We expect blob to be inherited from MemoryBlob in matU8ToBlob, "
+        IE_THROW() << "We expect blob to be inherited from MemoryBlob in matU8ToBlob, "
             << "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
@@ -71,7 +71,7 @@ static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat &mat) {
             strideW == channels &&
             strideH == channels * width;
 
-    if (!is_dense) THROW_IE_EXCEPTION
+    if (!is_dense) IE_THROW()
                 << "Doesn't support conversion from not dense cv::Mat";
 
     InferenceEngine::TensorDesc tDesc(InferenceEngine::Precision::U8,

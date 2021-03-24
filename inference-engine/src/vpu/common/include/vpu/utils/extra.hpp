@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <details/ie_exception.hpp>
 
 namespace vpu {
 

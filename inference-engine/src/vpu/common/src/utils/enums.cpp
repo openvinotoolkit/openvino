@@ -12,6 +12,8 @@
 #include <vpu/utils/string.hpp>
 #include <vpu/utils/small_vector.hpp>
 
+#include <ie_common.h>
+
 namespace vpu {
 
 namespace {

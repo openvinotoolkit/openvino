@@ -9,7 +9,6 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
 
-#include <details/ie_exception.hpp>
 
 #include <gtest/gtest.h>
 
@@ -146,7 +145,7 @@ TEST_P(StaticShapeBroadcastNumpyTests, CanValidateAndInferTypes) {
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> op;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
             m_tensor, shapeOf));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(auto fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
     ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->output(0).get_shape());
@@ -162,7 +161,7 @@ TEST_P(StaticShapeBroadcastExplicitTests, CanValidateAndInferTypes) {
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> op;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
             m_tensor, shapeOf, m_axesMapping));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(auto fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
     ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->get_output_shape(0));
@@ -178,7 +177,7 @@ TEST_P(StaticShapeBroadcastBidirectionalTests, CanValidateAndInferTypes) {
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> op;
     ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
             m_tensor, shapeOf, ngraph::op::BroadcastType::BIDIRECTIONAL));
-    ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
+    ASSERT_NO_THROW(auto fun = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
     ASSERT_EQ(m_tensorWithOutput->get_shape(), op->output(0).get_shape());

@@ -31,38 +31,38 @@ void MKLDNNROIAlignNode::getSupportedDescriptors() {
 
     class CNNLayer *genericLayer = getCnnLayer().get();
     if (genericLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert ROIPooling layer.";
+        IE_THROW() << "Cannot convert ROIPooling layer.";
 
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
     if (getParentEdges().size() != 3)
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
     if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims().ndims() != 2) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
 
     if (getParentEdgeAt(2)->getDims().ndims() != 1) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
     }
 
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims()[1] != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "has invalid shape on 1st input: ["
+        IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
                            << getParentEdgeAt(1)->getDims()[0] << "," << getParentEdgeAt(1)->getDims()[1] << "]";
     }
 
     if (getParentEdgeAt(1)->getDims()[0] != getParentEdgeAt(2)->getDims()[0]) {
-        THROW_IE_EXCEPTION << errorPrefix << "has different sizes of inputs for proposals ("
+        IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
                            << getParentEdgeAt(1)->getDims()[0] << ") and indexes ("
                            << getParentEdgeAt(2)->getDims()[0] << ")";
     }
@@ -77,7 +77,7 @@ void MKLDNNROIAlignNode::getSupportedDescriptors() {
     } else if (m == "avg") {
         opType = ROIAlignOpType::Avg;
     } else {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support roi pooling method: " << m;
+        IE_THROW() << errorPrefix << "doesn't support roi pooling method: " << m;
     }
 }
 
@@ -137,7 +137,7 @@ void MKLDNNROIAlignNode::execute(mkldnn::stream strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
     if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
           (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
-        THROW_IE_EXCEPTION <<"ROIAlign doesn't support demanded precisions";
+        IE_THROW() <<"ROIAlign doesn't support demanded precisions";
 
     ROIAlignContext ctx = {
             *this
@@ -194,9 +194,9 @@ void MKLDNNROIAlignNode::executeSpecified() {
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
-            THROW_IE_EXCEPTION << "Batch index cannot be less, than -1";
+            IE_THROW() << "Batch index cannot be less, than -1";
         } else if (roiBatchInd >= inputDimVector[0]) {
-            THROW_IE_EXCEPTION << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
+            IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
         }
 
         float x1 = srcRoiPtr[0] * spatialScale;

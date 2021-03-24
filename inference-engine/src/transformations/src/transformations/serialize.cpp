@@ -125,17 +125,6 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         return join(adapter.get());
     }
 
-public:
-    XmlSerializer(pugi::xml_node& data,
-                  std::ostream& bin_data,
-                  std::string& node_type_name,
-                  const std::map<std::string, ngraph::OpSet>& custom_opsets)
-        : m_xml_node(data)
-        , m_bin_data(bin_data)
-        , m_node_type_name(node_type_name)
-        , m_custom_opsets(custom_opsets) {
-    }
-
     std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
         const std::string& map_type) {
         std::vector<std::string> output;
@@ -151,99 +140,116 @@ public:
         return output;
     }
 
-    void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<void>& adapter) override {
+    void input_descriptions_on_adapter(const std::vector<std::shared_ptr<
+                                        ngraph::op::util::SubGraphOp::InputDescription>>& input_descriptions,
+                                        const std::vector<std::string>& parameter_mapping,
+                                        const std::vector<std::string>& result_mapping,
+                                        pugi::xml_node& port_map) {
+        NGRAPH_CHECK(!parameter_mapping.empty(), "No parameters found in body Function.");
+
+        if (!m_xml_node.parent().child("port_map")) {
+            port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
+        }
+
+        for (const auto& input_description : input_descriptions) {
+            pugi::xml_node input = port_map.append_child("input");
+            input.append_attribute("external_port_id").set_value(input_description->m_input_index);
+            input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
+
+            if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+                input.prepend_attribute("axis").set_value(slice_input->m_axis);
+                input.append_attribute("start").set_value(slice_input->m_start);
+                input.append_attribute("end").set_value(slice_input->m_end);
+                input.append_attribute("stride").set_value(slice_input->m_stride);
+                input.append_attribute("part_size").set_value(slice_input->m_part_size);
+            } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+                pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
+                if (!back_edges) {
+                    back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
+                }
+                pugi::xml_node edge = back_edges.append_child("edge");
+                edge.append_attribute("from-layer").set_value(result_mapping[merged_input->m_body_value_index].c_str());
+                edge.append_attribute("to-layer").set_value(parameter_mapping[merged_input->m_body_parameter_index].c_str());
+            }
+        }
+    }
+
+    void output_descriptions_on_adapter(const std::vector<std::shared_ptr<
+                                        ngraph::op::util::SubGraphOp::OutputDescription>>& output_descriptions,
+                                        const std::vector<std::string>& parameter_mapping,
+                                        const std::vector<std::string>& result_mapping,
+                                        pugi::xml_node& port_map) {
+        NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
+
+        if (!port_map) {
+            port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
+        }
+
+        for (const auto& output_description : output_descriptions) {
+            pugi::xml_node output = port_map.append_child("output");
+            output.append_attribute("external_port_id").set_value(parameter_mapping.size() + output_description->m_output_index);
+            output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
+
+            if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+                output.prepend_attribute("axis").set_value(concat_output->m_axis);
+                output.append_attribute("start").set_value(concat_output->m_start);
+                output.append_attribute("end").set_value(concat_output->m_end);
+                output.append_attribute("stride").set_value(concat_output->m_stride);
+                output.append_attribute("part_size").set_value(concat_output->m_part_size);
+            }
+        }
+    }
+
+    void special_body_ports_on_adapter(const ngraph::op::v5::Loop::SpecialBodyPorts& special_body_ports,
+                                    const std::vector<std::string>& parameter_mapping,
+                                    const std::vector<std::string>& result_mapping,
+                                    pugi::xml_node& port_map) {
+        NGRAPH_CHECK(port_map, "port_map section not found, purpose attribute cannot be added.");
+
+        if (special_body_ports.current_iteration_input_idx != -1) {
+            pugi::xml_node iter_input = port_map.append_child("input");
+            iter_input.append_attribute("external_port_id").set_value("-1");
+            iter_input.append_attribute("internal_layer_id").set_value(parameter_mapping[special_body_ports.current_iteration_input_idx].c_str());
+            iter_input.append_attribute("purpose").set_value("current_iteration");
+        }
+
+        if (special_body_ports.body_condition_output_idx != -1) {
+            pugi::xml_node exec_output = port_map.append_child("output");
+            exec_output.append_attribute("external_port_id").set_value("-1");
+            exec_output.append_attribute("internal_layer_id").set_value(result_mapping[special_body_ports.body_condition_output_idx].c_str());
+            exec_output.append_attribute("purpose").set_value("execution_condition");
+        }
+    }
+
+public:
+    XmlSerializer(pugi::xml_node& data,
+                  std::ostream& bin_data,
+                  std::string& node_type_name,
+                  const std::map<std::string, ngraph::OpSet>& custom_opsets)
+        : m_xml_node(data)
+        , m_bin_data(bin_data)
+        , m_node_type_name(node_type_name)
+        , m_custom_opsets(custom_opsets) {
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
         if (m_xml_node.parent().child("body")) {
-            // parameters and results from body are required for port_map attributes serialization
-            std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
             std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
+            std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
+            pugi::xml_node port_map = m_xml_node.parent().child("port_map");
 
             NGRAPH_CHECK(!parameter_mapping.empty() || !result_mapping.empty(), "No parameters or results found in body Function.");
-
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
             // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (here "m_xml_node")
             // with empty attributes is removed.
             if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                        <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
-                if (!m_xml_node.parent().child("port_map")) {
-                    port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
-                }
-
-                for (const auto& input_description : a->get()) {
-                    pugi::xml_node input = port_map.append_child("input");
-                    input.append_attribute("external_port_id").set_value(input_description->m_input_index);
-                    input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
-
-                    if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
-                        input.prepend_attribute("axis").set_value(slice_input->m_axis);
-                        if (slice_input->m_start) {
-                            input.append_attribute("start").set_value(slice_input->m_start);
-                        }
-                        if (slice_input->m_end != -1) {
-                            input.append_attribute("end").set_value(slice_input->m_end);
-                        }
-                        if (slice_input->m_stride != 1) {
-                            input.append_attribute("stride").set_value(slice_input->m_stride);
-                        }
-                        if (slice_input->m_part_size != 1) {
-                            input.append_attribute("part_size").set_value(slice_input->m_part_size);
-                        }
-                    } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
-                        pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
-                        if (!back_edges) {
-                            back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
-                        }
-                        pugi::xml_node edge = back_edges.append_child("edge");
-                        edge.append_attribute("from-layer").set_value(result_mapping[merged_input->m_body_value_index].c_str());
-                        edge.append_attribute("to-layer").set_value(parameter_mapping[merged_input->m_body_parameter_index].c_str());
-                    }
-                }
+                                <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+                input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                        <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
-                if (!port_map) {
-                    port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
-                }
-
-                for (const auto& output_description : a->get()) {
-                    pugi::xml_node output = port_map.append_child("output");
-                    output.append_attribute("external_port_id").set_value(parameter_mapping.size() + output_description->m_output_index);
-                    output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
-
-                    if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
-                        output.prepend_attribute("axis").set_value(concat_output->m_axis);
-                        if (concat_output->m_start) {
-                            output.append_attribute("start").set_value(concat_output->m_start);
-                        }
-                        if (concat_output->m_end != -1) {
-                            output.append_attribute("end").set_value(concat_output->m_end);
-                        }
-                        if (concat_output->m_stride != 1) {
-                            output.append_attribute("stride").set_value(concat_output->m_stride);
-                        }
-                        if (concat_output->m_part_size != 1) {
-                            output.append_attribute("part_size").set_value(concat_output->m_part_size);
-                        }
-                    }
-                }
+                                <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+                output_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
-                NGRAPH_CHECK(port_map, "port_map section not found, purpose attribute cannot be added.");
-
-                if (a->get().current_iteration_input_idx != -1) {
-                    pugi::xml_node iter_input = port_map.append_child("input");
-                    iter_input.append_attribute("external_port_id").set_value("-1");
-                    iter_input.append_attribute("internal_layer_id").set_value(parameter_mapping[a->get().current_iteration_input_idx].c_str());
-                    iter_input.append_attribute("purpose").set_value("current_iteration");
-                }
-
-                if (a->get().body_condition_output_idx != -1) {
-                    pugi::xml_node exec_output = port_map.append_child("output");
-                    exec_output.append_attribute("external_port_id").set_value("-1");
-                    exec_output.append_attribute("internal_layer_id").set_value(result_mapping[a->get().body_condition_output_idx].c_str());
-                    exec_output.append_attribute("purpose").set_value("execution_condition");
-                }
+                special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             }
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
                 m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
@@ -392,9 +398,10 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 6>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 7>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
-        ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6()};
+        ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
+        ngraph::get_opset7()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
