@@ -174,7 +174,38 @@ OutputEdge onnx_editor::EdgeMapper::to_output_edge(Node node, Output out) const
 {
     // identification can be both based on node name and output name
     const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
-    const auto node_index = node_indexes.at(0);
+    int node_index = -1;
+    if (node_indexes.size() == 1)
+    {
+        node_index = node_indexes[0];
+    }
+    else if (!out.m_output_name.empty()) // output indexes are not deterministic
+    {
+        // many nodes with the same name
+        // check if some of found index matches output name
+        int matched_outputs_number = 0;
+        for (const auto& index : node_indexes)
+        {
+            if (std::count(std::begin(m_node_outputs[index]),
+                           std::end(m_node_outputs[index]),
+                           out.m_output_name) > 0)
+            {
+                node_index = index;
+                ++matched_outputs_number;
+            }
+        }
+        if (matched_outputs_number == 0)
+        {
+            throw ngraph_error("Output edge described by: " + node.m_node_name +
+                               " and output name: " + out.m_output_name + " was not found");
+        }
+    }
+    else
+    {
+        throw ngraph_error("Given node name: " + node.m_node_name +
+                           " and output index: " + std::to_string(out.m_output_index) +
+                           " are ambiguous to determine output edge");
+    }
     if (!out.m_output_name.empty())
     {
         return OutputEdge{node_index, out.m_output_name};

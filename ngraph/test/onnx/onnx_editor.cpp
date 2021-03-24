@@ -974,6 +974,57 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and
     }
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_but_matched_output)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const OutputEdge edge = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"add1"});
+    EXPECT_EQ(edge.m_node_idx, 1);
+    EXPECT_EQ(edge.m_tensor_name, "add1");
+
+    const OutputEdge edge2 = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"add2"});
+    EXPECT_EQ(edge2.m_node_idx, 3);
+    EXPECT_EQ(edge2.m_tensor_name, "add2");
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_and_not_matched_output)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    try
+    {
+        const OutputEdge edge = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"split2"});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Output edge described by: add_ambiguous_name and output name: split2 was not found") !=
+                    std::string::npos);
+    }
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_and_output_index)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    try
+    {
+        const OutputEdge edge = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{0});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Given node name: add_ambiguous_name and output index: 0 are ambiguous to determine output edge") !=
+                    std::string::npos);
+    }
+}
+
 NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
 {
     ONNXModelEditor editor{file_util::path_join(
