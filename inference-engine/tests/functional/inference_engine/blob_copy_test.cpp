@@ -27,7 +27,7 @@ InferenceEngine::Layout setLayout(IsInterleaved isInterleaved, int dimsSize) {
     } else if (dimsSize == 2) {
         return (isInterleaved) ?  InferenceEngine::Layout::NHWC : InferenceEngine::Layout::NCHW;
     }
-    THROW_IE_EXCEPTION << "Can't set layout";
+    IE_THROW() << "Can't set layout";
 }
 
 //  Support only for 4d and 5d blobs
@@ -37,7 +37,7 @@ SizeVector  SetDimVector(BatchNum batchNum, ChannelNum channelNum, Dims dims) {
     } else if (dims.size() == 3) {
         return SizeVector{ batchNum, channelNum, dims[0], dims[1], dims[2] };
     }
-    THROW_IE_EXCEPTION << "Can't set dimVector";
+    IE_THROW() << "Can't set dimVector";
 }
 
 //  For FP16 and Q78 precision we use int16_t type
@@ -68,7 +68,7 @@ InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision, Size
         case InferenceEngine::Precision::U8:
             return make_shared_blob<uint8_t>(tensorDesc);
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision";
+            IE_THROW() << "Unsupported precision";
     }
 }
 
@@ -140,7 +140,7 @@ void FillBlob(Blob::Ptr& inputBlob) {
         case InferenceEngine::Precision::U8:
             return FillBlobRandom<uint8_t>(inputBlob);
         default:
-            THROW_IE_EXCEPTION << "Cant fill blob with \"" << precision << "\" precision\n";
+            IE_THROW() << "Cant fill blob with \"" << precision << "\" precision\n";
     }
 }
 
@@ -410,7 +410,7 @@ void copy3DBlobsAllBytesWithReLayoutWrapper(const Blob::Ptr& srcLayoutBlob, Blob
     case InferenceEngine::Precision::U8:
         return copy3DBlobsAllBytesWithReLayout<uint8_t>(srcLayoutBlob, trgLayoutBlob);
     default:
-        THROW_IE_EXCEPTION << "Cant copy blob with \"" << precision << "\" precision\n";
+        IE_THROW() << "Cant copy blob with \"" << precision << "\" precision\n";
     }
 }
 
