@@ -1142,6 +1142,8 @@ void GNAGraphCompiler::SlicePrimitive(InferenceEngine::CNNLayerPtr layer) {
 void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& eltwise = dynamic_cast<EltwiseLayer&>(*layer.get());
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    uint32_t inputsSignificance = gnaFlags->input_low_precision ?
+                                  GNALimitations::inputsLowPrecSignificance : GNALimitations::inputsSignificance;
 
     // for eltwise sum/sub in 16-bit precision one input should be 4 bytes and one 2 bytes - detecting that below
     // the names of variables are left for clarity although not always reflecting the real precision/size
@@ -1213,7 +1215,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_in = in_4b_channels * in_4b_height * in_4b_width;
     uint32_t num_columns_in = in_4b_batch;
     uint32_t num_rows_out = num_rows_in;
-    uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+    uint32_t num_padding = ALIGN(num_rows_in, inputsSignificance) - num_rows_in;
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
@@ -1228,8 +1230,8 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         inputs2Bytes->getPrecision().size(),
         outputs->getPrecision().size(),
         // TODO: only fp32 and Int16 tested
-        quantized == nullptr ? inputs2Bytes->getPrecision().size() : 2,
-        quantized == nullptr ? inputs4Bytes->getPrecision().size() : 4,
+        quantized == nullptr ? inputs2Bytes->getPrecision().size() : (!gnaFlags->input_low_precision ? 2 : 1),
+        quantized == nullptr ? inputs4Bytes->getPrecision().size() : (!gnaFlags->input_low_precision ? 4 : 1),
         quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
         quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
