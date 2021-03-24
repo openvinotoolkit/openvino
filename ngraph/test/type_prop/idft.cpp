@@ -293,10 +293,6 @@ INSTANTIATE_TEST_CASE_P(
         NonConstantAxesTestParams{
             {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
             {2},
-            {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
-        NonConstantAxesTestParams{
-            {2, 180, 180, Dimension(1, 18)},
-            PartialShape::dynamic(),
             {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}}),
     PrintToDummyParamName());
 
