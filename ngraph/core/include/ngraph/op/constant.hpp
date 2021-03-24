@@ -208,8 +208,10 @@ namespace ngraph
                                 typename element_type_traits<element::Type_t::u64>::value_type>(
                                 value));
                         break;
-                    case element::Type_t::u1: throw std::runtime_error("unsupported type");
-                    case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+                    case element::Type_t::i4:
+                    case element::Type_t::u1:
+                    case element::Type_t::u4:
+                    case element::Type_t::undefined:
                     case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
                     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -586,8 +588,10 @@ namespace ngraph
                     case element::Type_t::u64:
                         write_buffer<uint64_t, T>(target, source, target_element_count);
                         break;
-                    case element::Type_t::u1: throw std::runtime_error("unsupported type");
-                    case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+                    case element::Type_t::i4:
+                    case element::Type_t::u1:
+                    case element::Type_t::u4:
+                    case element::Type_t::undefined:
                     case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
                     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

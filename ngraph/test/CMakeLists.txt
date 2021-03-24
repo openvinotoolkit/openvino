@@ -64,6 +64,7 @@ set(SRC
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
+    int4.cpp
     intervals.cpp
     main.cpp
     matcher_pass.cpp
@@ -211,6 +212,7 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    uint4.cpp
     util.cpp
 )
 

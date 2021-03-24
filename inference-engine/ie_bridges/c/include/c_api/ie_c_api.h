@@ -177,7 +177,9 @@ typedef enum {
     FP64 = 13,  /**< 64bit floating point value */
     Q78 = 20,   /**< 16bit specific signed fixed point precision */
     I16 = 30,   /**< 16bit signed integer value */
+    U4 = 39,    /**< 4bit unsigned integer value */
     U8 = 40,    /**< 8bit unsigned integer value */
+    I4 = 49,    /**< 4bit signed integer value */
     I8 = 50,    /**< 8bit signed integer value */
     U16 = 60,   /**< 16bit unsigned integer value */
     I32 = 70,   /**< 32bit signed integer value */

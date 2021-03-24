@@ -56,6 +56,12 @@ namespace ngraph
     };
 
     template <>
+    struct element_type_traits<element::Type_t::i4>
+    {
+        using value_type = int8_t;
+    };
+
+    template <>
     struct element_type_traits<element::Type_t::i8>
     {
         using value_type = int8_t;
@@ -81,6 +87,12 @@ namespace ngraph
 
     template <>
     struct element_type_traits<element::Type_t::u1>
+    {
+        using value_type = int8_t;
+    };
+
+    template <>
+    struct element_type_traits<element::Type_t::u4>
     {
         using value_type = int8_t;
     };
