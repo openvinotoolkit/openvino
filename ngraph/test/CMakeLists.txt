@@ -177,6 +177,7 @@ set(SRC
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
     type_prop/roi_pooling.cpp
+    type_prop/roll.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
