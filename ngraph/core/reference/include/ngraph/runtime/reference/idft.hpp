@@ -29,3 +29,30 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
+
+namespace ngraph
+{
+    namespace runtime
+    {
+        namespace reference
+        {
+            enum class FFTKind
+            {
+                Forward,
+                Inverse
+            };
+
+            void fft(const float* input_data,
+                     const Shape& input_data_shape,
+                     const int64_t* axes_data,
+                     const Shape& axes_data_shape,
+                     const int64_t* signal_size_data,
+                     const Shape& signal_size_data_shape,
+                     FFTKind fft_kind);
+
+            void fft_postprocessing(const HostTensorVector& outputs,
+                                    const ngraph::element::Type output_type,
+                                    const std::vector<float>& fft_result);
+        }
+    }
+}
