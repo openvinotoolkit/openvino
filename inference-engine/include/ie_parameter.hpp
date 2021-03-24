@@ -273,7 +273,7 @@ private:
     template <class T, class EqualTo = T>
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
-    struct Any {
+    struct INFERENCE_ENGINE_API_CLASS(Any) {
         virtual ~Any();
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
@@ -331,7 +331,6 @@ private:
     Any* ptr = nullptr;
 };
 
-#if defined(__ANDROID__)
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
@@ -346,6 +345,5 @@ extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-#endif  // __ANDROID__
 
 }  // namespace InferenceEngine

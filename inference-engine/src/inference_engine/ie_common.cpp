@@ -104,7 +104,6 @@ Parameter::~Parameter() {
 
 Parameter::Any::~Any() {}
 
-#if defined(__ANDROID__)
 template struct Parameter::RealData<int>;
 template struct Parameter::RealData<bool>;
 template struct Parameter::RealData<float>;
@@ -140,6 +139,7 @@ template class TBlob<long>;
 template class TBlob<long long>;
 template class TBlob<unsigned long>;
 template class TBlob<unsigned long long>;
-#endif  // defined(__ANDROID__)
+template class TBlob<bool>;
+template class TBlob<char>;
 
 }  // namespace InferenceEngine
