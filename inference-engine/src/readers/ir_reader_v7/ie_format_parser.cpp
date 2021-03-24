@@ -74,7 +74,7 @@ void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters
     if (!preStr.empty()) prms.precision = Precision::FromStr(preStr);
 
     if (prms.precision == Precision::MIXED) {
-        THROW_IE_EXCEPTION << "Layer precision must not be MIXED, at layer name: " << prms.name
+        IE_THROW() << "Layer precision must not be MIXED, at layer name: " << prms.name
                            << ", offset: " << node.offset_debug();
     }
 
@@ -133,7 +133,7 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
                                  int inputPort) {
     DataPtr& dataPtr = _portsToData[dataId];
     if (!dataPtr)
-        THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
+        IE_THROW() << "in Layer " << targetLayer->name
                            << ": trying to connect an edge to non existing output port: " << dataId;
 
     getInputTo(dataPtr)[targetLayer->name] = targetLayer;
@@ -149,13 +149,13 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
             } else {
                 // TODO: Make a correct exception
 
-                /*THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
+                /*IE_THROW() << "in Layer " << targetLayer->name
                   << ": trying to connect an edge to mismatch precision of output port: "
                   << dataPtr->getName();*/
             }
         }
         if (!equal(parseInfo.inputPorts[i].dims, dataPtr->getDims()))
-            THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
+            IE_THROW() << "in Layer " << targetLayer->name
                                << ": trying to connect an edge to mismatch dimensions of output port: "
                                << dataPtr->getName() << " dims input: " << dumpVec(parseInfo.inputPorts[i].dims)
                                << " dims output: " << dumpVec(dataPtr->getDims());
@@ -164,7 +164,7 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
         _portsToData[insId] = dataPtr;
         return;
     }
-    THROW_IE_EXCEPTION << "input port " << inputPort << " does not exist in layer " << targetLayer->name;
+    IE_THROW() << "input port " << inputPort << " does not exist in layer " << targetLayer->name;
 }
 
 FormatParser::FormatParser(size_t version): _version(version) {
@@ -291,7 +291,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         ParseGenericParams(node, lprms);
 
         CNNLayer::Ptr layer = CreateLayer(node, lprms);
-        if (!layer) THROW_IE_EXCEPTION << "Don't know how to create Layer type: " << lprms.prms.type;
+        if (!layer) IE_THROW() << "Don't know how to create Layer type: " << lprms.prms.type;
 
         layersParseInfo[layer->name] = lprms;
         _network->addLayer(layer);
@@ -314,7 +314,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
             _portsToData[outId] = ptr;
 
             if (getCreatorLayer(ptr).lock())
-                THROW_IE_EXCEPTION << "two layers set to the same output [" << outName << "], conflict at offset "
+                IE_THROW() << "two layers set to the same output [" << outName << "], conflict at offset "
                                    << node.offset_debug();
 
             getCreatorLayer(ptr) = layer;
@@ -335,7 +335,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         const auto dataId = gen_id(fromLayer, fromPort);
         auto targetLayer = layerById[toLayer];
         if (!targetLayer)
-            THROW_IE_EXCEPTION << "Layer ID " << toLayer << " was not found while connecting edge at offset "
+            IE_THROW() << "Layer ID " << toLayer << " was not found while connecting edge at offset "
                                << _ec.offset_debug();
 
         SetLayerInput(*_network, dataId, targetLayer, toPort);
@@ -358,7 +358,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     // Keep all data from InputLayers
     for (auto inLayer : inputLayers) {
         if (inLayer->outData.size() != 1)
-            THROW_IE_EXCEPTION << "Input layer must have 1 output. "
+            IE_THROW() << "Input layer must have 1 output. "
                                   "See documentation for details.";
         keep_input_info(inLayer->outData[0]);
     }
@@ -406,7 +406,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         }
     }
 
-    if (!_network->allLayers().size()) THROW_IE_EXCEPTION << "Incorrect model! Network doesn't contain layers.";
+    if (!_network->allLayers().size()) IE_THROW() << "Incorrect model! Network doesn't contain layers.";
 
     size_t inputLayersNum(0);
     CaselessEq<std::string> cmp;
@@ -416,7 +416,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     }
 
     if (!inputLayersNum && !cmp(root.name(), "body"))
-        THROW_IE_EXCEPTION << "Incorrect model! Network doesn't contain input layers.";
+        IE_THROW() << "Incorrect model! Network doesn't contain input layers.";
 
     // check all input ports are occupied
     for (const auto& kvp : _network->allLayers()) {
@@ -424,11 +424,11 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         const LayerParseParameters& parseInfo = layersParseInfo[layer->name];
         size_t inSize = layer->insData.size();
         if (inSize != parseInfo.inputPorts.size())
-            THROW_IE_EXCEPTION << "Layer " << layer->name << " does not have any edge connected to it";
+            IE_THROW() << "Layer " << layer->name << " does not have any edge connected to it";
 
         for (unsigned i = 0; i < inSize; i++) {
             if (!layer->insData[i].lock()) {
-                THROW_IE_EXCEPTION << "Layer " << layer->name.c_str() << " input port "
+                IE_THROW() << "Layer " << layer->name.c_str() << " input port "
                                    << parseInfo.inputPorts[i].portId << " is not connected to any data";
             }
         }
@@ -457,7 +457,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 template <typename BlobType>
 inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& segment) {
     if (segment.getEnd() > weights->size())
-        THROW_IE_EXCEPTION << "segment size(" << segment.getEnd() << ") exceeds given buffer limits(" << weights->size() <<"). Please, validate weights file";
+        IE_THROW() << "segment size(" << segment.getEnd() << ") exceeds given buffer limits(" << weights->size() <<"). Please, validate weights file";
 
     size_t noOfElement = segment.size / sizeof(BlobType);
     // RanC: TODO: IR does not provide me with weight slayout.
@@ -471,7 +471,7 @@ inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, con
 
     /* this validation is not reduntant I have no prior knowledge of the weights anymore...
        if (pbpWeights->byteSize() != lprms.weights.size)
-       THROW_IE_EXCEPTION << "bytes size weights for " << pWL->name << " mismatch, expecting "
+       IE_THROW() << "bytes size weights for " << pWL->name << " mismatch, expecting "
        << pbpWeights->byteSize() << " bytes which are " << pbpWeights->size() << " elements";
        */
     return binBlob;
@@ -492,7 +492,7 @@ Blob::Ptr FormatParser::GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, c
     } else if (segment.precision == Precision::I8 || segment.precision == Precision::BIN) {
         return GetTypedBlobFromSegment<int8_t>(weights, segment);
     } else {
-        THROW_IE_EXCEPTION << "precision " << segment.precision << " is not supported...";
+        IE_THROW() << "precision " << segment.precision << " is not supported...";
     }
 }
 
@@ -504,7 +504,7 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
         auto fit = layersParseInfo.find(kvp.second->name);
         // todo: may check that earlier - while parsing...
         if (fit == layersParseInfo.end())
-            THROW_IE_EXCEPTION << "Internal Error: ParseInfo for " << kvp.second->name << " are missing...";
+            IE_THROW() << "Internal Error: ParseInfo for " << kvp.second->name << " are missing...";
         auto& lprms = fit->second;
 
         WeightableLayer* pWL = dynamic_cast<WeightableLayer*>(kvp.second.get());
@@ -513,7 +513,7 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
                 if (lprms.prms.type == "BinaryConvolution") {
                     auto segment = lprms.blobs["weights"];
                     if (segment.getEnd() > weights->size())
-                        THROW_IE_EXCEPTION << "segment exceeds given buffer limits. Please, validate weights file";
+                        IE_THROW() << "segment exceeds given buffer limits. Please, validate weights file";
                     size_t noOfElement = segment.size;
                     SizeVector w_dims({noOfElement});
                     typename TBlobProxy<uint8_t>::Ptr binBlob(
@@ -547,7 +547,7 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
         const std::string& inputName = kvp.first;
         auto& segments = kvp.second;
         auto inputInfo = _network->getInput(inputName);
-        if (!inputInfo) THROW_IE_EXCEPTION << "Internal error: missing input name " << inputName;
+        if (!inputInfo) IE_THROW() << "Internal error: missing input name " << inputName;
 
         auto dims = inputInfo->getTensorDesc().getDims();
         size_t width = 0ul, height = 0ul;
@@ -562,7 +562,7 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
             height = dims.at(3);
             width = dims.at(4);
         } else {
-            THROW_IE_EXCEPTION << inputName << " has unsupported layout " << inputInfo->getTensorDesc().getLayout();
+            IE_THROW() << inputName << " has unsupported layout " << inputInfo->getTensorDesc().getLayout();
         }
 
         PreProcessInfo& pp = inputInfo->getPreProcess();
@@ -583,7 +583,7 @@ void FormatParser::ParseDims(SizeVector& dims, const pugi::xml_node& parentNode)
         const pugi::char_t* dimVal = node.child_value();
         stringstream ss(dimVal);
         if (!(ss >> dim) || dim == 0) {
-            THROW_IE_EXCEPTION << "dimension (" << dimVal << ") in node " << node.name()
+            IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
                                << " must be a positive integer: at offset " << node.offset_debug();
         }
         dims.push_back(dim);
@@ -594,7 +594,7 @@ const DataPtr& FormatParser::GetDataBy(int layer_id, int port_id) const {
     const auto id = gen_id(layer_id, port_id);
     const auto& found = _portsToData.find(id);
     if (found == _portsToData.end())
-        THROW_IE_EXCEPTION << "No data found for layer_id=" << layer_id << " port_id=" << port_id;
+        IE_THROW() << "No data found for layer_id=" << layer_id << " port_id=" << port_id;
     return found->second;
 }
 
@@ -625,7 +625,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
         InputsDataMap inputs;
         _network->getInputsInfo(inputs);
 
-        if (inputs.empty()) THROW_IE_EXCEPTION << "network has no input";
+        if (inputs.empty()) IE_THROW() << "network has no input";
 
         for (auto i : inputs) {
             if (i.second->getTensorDesc().getDims().size() == 4) {
@@ -641,7 +641,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
     } else {
         preProcessInput = _network->getInput(inputName);
         if (!preProcessInput)
-            THROW_IE_EXCEPTION << "pre-process name ref '" << inputName << "' refers to un-existing input";
+            IE_THROW() << "pre-process name ref '" << inputName << "' refers to un-existing input";
     }
 
     // dims vector without batch size
@@ -649,7 +649,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
     size_t noOfChannels = 0, width = 0, height = 0;
 
     if (inputDims.size() < 2) {
-        THROW_IE_EXCEPTION << "network did not define input dimensions properly";
+        IE_THROW() << "network did not define input dimensions properly";
     } else if (inputDims.size() == 2) {  // NC
         noOfChannels = inputDims[1];
         width = inputDims[1];
@@ -686,7 +686,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
     FOREACH_CHILD(chan, ppNode, "channel") {
         int chanNo = GetIntAttr(chan, "id", lastChanNo + 1);
         if (chanNo >= static_cast<int>(noOfChannels) || chanNo < 0) {
-            THROW_IE_EXCEPTION << "Pre-process channel id invalid: " << chanNo;
+            IE_THROW() << "Pre-process channel id invalid: " << chanNo;
         }
         lastChanNo = chanNo;
         preProcessChannel = pp[chanNo];
@@ -695,7 +695,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
             if (!meanNode.attribute("value") && (!meanNode.attribute("size"))) {
-                THROW_IE_EXCEPTION << "mean should have at least one of the following attribute: value, size";
+                IE_THROW() << "mean should have at least one of the following attribute: value, size";
             }
             if (meanNode.attribute("value")) {
                 preProcessChannel->meanValue = GetFloatAttr(meanNode, "value");
@@ -707,12 +707,12 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
                 preProcessSegment.start = static_cast<size_t>(GetIntAttr(meanNode, "offset"));
                 preProcessSegment.precision = meanSegmentPrecision;
                 if (width * height * meanSegmentPrecision.size() != preProcessSegment.size) {
-                    THROW_IE_EXCEPTION << "mean blob size mismatch expected input, got: " << preProcessSegment.size
+                    IE_THROW() << "mean blob size mismatch expected input, got: " << preProcessSegment.size
                                        << " extpecting " << width << " x " << height << " x "
                                        << meanSegmentPrecision.size();
                 }
                 if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
-                    THROW_IE_EXCEPTION << "mean blob defined without specifying precision.";
+                    IE_THROW() << "mean blob defined without specifying precision.";
             }
         }
         auto scaleNode = chan.child("scale");
@@ -736,7 +736,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
         for (auto id : idsForMeanImage) {
             validMeanImageIds += std::to_string(id) + " ";
         }
-        THROW_IE_EXCEPTION << "mean is not provided for all channels\n"
+        IE_THROW() << "mean is not provided for all channels\n"
                               "Provided mean values for : "
                            << validMeanValuesIds
                            << "\n"

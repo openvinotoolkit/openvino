@@ -16,7 +16,7 @@ static inline cldnn::scatter_update::scatter_update_axis GetScatterUpdateAxis(in
     if (axis < 0)
         axis += rank;
     if (axis < 0 || axis >= rank)
-        THROW_IE_EXCEPTION << "ScatterUpdate axis is not correspond to number of dimensions";
+        IE_THROW() << "ScatterUpdate axis is not correspond to number of dimensions";
 
     // Difference in dimension ordering between IE and clDNN,
     // reverse spatial dimensions after batch and feature.
@@ -35,7 +35,7 @@ static inline cldnn::scatter_update::scatter_update_axis GetScatterUpdateAxis(in
         case 3: return cldnn::scatter_update::scatter_update_axis::along_y;
         case 4: return cldnn::scatter_update::scatter_update_axis::along_z;
         case 5: return cldnn::scatter_update::scatter_update_axis::along_w;
-        default: THROW_IE_EXCEPTION << "Unsupported ScatterUpdate axis: " << axis;
+        default: IE_THROW() << "Unsupported ScatterUpdate axis: " << axis;
     }
 
     return cldnn::scatter_update::scatter_update_axis::along_f;  // shouldn't get here
@@ -49,7 +49,7 @@ void CreateScatterUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::Sca
     size_t rank = op->get_input_shape(0).size();
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(3));
     if (!axes_constant) {
-        THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
     int32_t axis = axes_constant->cast_vector<int32_t>()[0];
 
