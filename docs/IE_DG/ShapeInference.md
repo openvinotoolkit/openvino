@@ -66,8 +66,8 @@ Shape collision during shape propagation may be a sign that a new shape does not
 Changing the model input shape may result in intermediate operations shape collision.
 
 Examples of such operations:
-- [`Reshape` operation](../ops/shape/Reshape_1.md) with a hard-coded output shape value
-- [`MatMul` operation](../ops/matrix/MatMul_1.md) with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
+- `[Reshape](../ops/shape/Reshape_1.md)` operation with a hard-coded output shape value
+- `[MatMul](../ops/matrix/MatMul_1.md)` operation with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
 
 Model structure and logic should not change significantly after model reshaping.
 - The Global Pooling operation is commonly used to reduce output feature map of classification models output.
