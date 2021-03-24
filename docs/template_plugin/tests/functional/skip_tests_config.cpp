@@ -14,5 +14,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*SplitLayerTest.*numSplits\=30.*)",
         // CVS-44774
         ".*PreprocessTest.*",
+        // CVS-51758
+        ".*PreprocessConversionTest.*",
     };
 }

@@ -37,4 +37,59 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             PreprocessTest::getTestCaseName);
+
+
+    const std::vector<InferenceEngine::Precision> ioPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::U8
+    };
+    const std::vector<InferenceEngine::Layout> netLayouts = {
+        InferenceEngine::Layout::NCHW,
+        // InferenceEngine::Layout::NHWC
+    };
+
+    const std::vector<InferenceEngine::Layout> ioLayouts = {
+        InferenceEngine::Layout::NCHW,
+        InferenceEngine::Layout::NHWC
+    };
+
+    const std::vector<std::map<std::string, std::string>> heteroConfigs = {
+            {{ "TARGET_FALLBACK" , CommonTestUtils::DEVICE_CPU}}
+    };
+
+    INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessTest,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                    ::testing::ValuesIn(heteroConfigs)),
+                            PreprocessTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessConversionTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(ioPrecisions),
+                                ::testing::ValuesIn(ioPrecisions),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::ValuesIn(ioLayouts),
+                                ::testing::ValuesIn(ioLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::ValuesIn(heteroConfigs)),
+                        PreprocessConversionTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessConversionTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(ioPrecisions),
+                                ::testing::ValuesIn(ioPrecisions),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::ValuesIn(ioLayouts),
+                                ::testing::ValuesIn(ioLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                ::testing::ValuesIn(multiConfigs)),
+                        PreprocessConversionTest::getTestCaseName);
+
 }  // namespace
