@@ -411,7 +411,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                                                           std::multiplies<int>());
                     total_gemms++;
                     auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
-                    mem_limited_gemms += factor < 1;
+                    mem_limited_gemms += factor < NetworkPerfStats::memThresholdNotLimited;
                     worst_case = std::min(factor, worst_case);
                 }
             } else if (!std::strcmp("Convolution", node->get_type_info().name)) {
@@ -424,7 +424,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
 
                 if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
                     std::cout << "Type: " << node->get_type_info().name <<   "  Name: " << node->get_friendly_name()
-                    << "is "<< shape[2]<< "x" << shape[2] << ", considering flops/byte amortizing the mem"  << std::endl;
+                    << " is "<< shape[2]<< "x" << shape[2] << ", considering flops/byte amortizing the mem"  << std::endl;
                     compute_convs++;
                     continue;
                 }
@@ -443,12 +443,13 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                           std::multiplies<int>());
                     auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
-                    mem_limited_convs += factor < 1;
+                    mem_limited_convs += factor < NetworkPerfStats::memThresholdNotLimited;
                     worst_case = std::min(factor, worst_case);
                     std::cout << "Type: " << node->get_type_info().name <<
                         ", kernel "<< shape[2]<< "x" << shape[2] <<
                         (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32,") << "  Name: " << node->get_friendly_name()
-                              << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+                              << ", dataSize: " << dataSizeInput + dataSizeOutput
+                              << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
                 }
             } else if (!std::strcmp("ConvolutionBackpropData", node->get_type_info().name)) {
                 // Check that input and output shape a fully defined (not dynamic)
@@ -466,12 +467,13 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                     dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
                                                      std::multiplies<int>());
                     auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
-                    mem_limited_deconvs += factor < 1;
+                    mem_limited_deconvs += factor < NetworkPerfStats::memThresholdNotLimited;
                     worst_case = std::min(factor, worst_case);
                     std::cout << "Type: " << node->get_type_info().name <<
-                              ", kernel "<< shape[2]<< "x" << shape[2] <<
-                              (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32,") << "  Name: " << node->get_friendly_name()
-                              << "dataSize: " << dataSizeInput + dataSizeOutput << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+                              ", kernel "<< shape[2]<< "x" << shape[2]
+                              << (isINT8 ? " INT8," : isBF16 ? " BF16," : " FP32,") << "  Name: " << node->get_friendly_name()
+                              << ", dataSize: " << dataSizeInput + dataSizeOutput
+                              << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
                 }
             }
     }
@@ -482,7 +484,8 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     std::cout << "WORST CASE: " << worst_case << std::endl;
 
     NetworkPerfStats res;
-    res.maxMemTolerance = (total_convs || total_gemms) ? worst_case : -1 /*conservatively assume mem limited*/;
+    res.maxMemTolerance = (total_convs || total_gemms || total_deconvs)
+            ? worst_case : NetworkPerfStats::memThresholdAssumeLimited /*conservatively behave as before, default num streams*/;
     res.all_convs_are_compute = total_convs && (total_convs == compute_convs);
     return res;
 }
@@ -549,16 +552,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 //      Hybrid specific
                 //      etc
                 int num_streams;
-                if (NetworkToleranceForLowCache.maxMemTolerance > 1.f) {
+                if (NetworkToleranceForLowCache.maxMemTolerance >= NetworkPerfStats::memThresholdNotLimited) {
                     num_streams = num_cores;
-                } else if (NetworkToleranceForLowCache.maxMemTolerance > 0.5f) {
+                } else if (NetworkToleranceForLowCache.maxMemTolerance >=  NetworkPerfStats::memThresholdAssumeLimited) {
                     num_streams = std::max(default_num_streams, num_streams_default_not_ht);
                 } else {
                     num_streams = std::min(default_num_streams, num_streams_default_not_ht);
                 }
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
 
-                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  " << (NetworkToleranceForLowCache.maxMemTolerance < 1 ? "YES" : "NO")
+                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  "
+                << (NetworkToleranceForLowCache.maxMemTolerance < NetworkPerfStats::memThresholdAssumeLimited ? "YES" : "NO")
                  << ", NUM_STREAMS " << num_streams << std::endl;
 //            }
 //        }
