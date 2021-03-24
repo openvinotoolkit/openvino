@@ -161,7 +161,7 @@ cdef class Blob:
                 self._ptr = C.make_shared_blob[uint16_t](c_tensor_desc)
             elif  precision == "U8" or precision == "BOOL":
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc)
-            elif  precision == "I8" or precision == "BIN":
+            elif  precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc)
             elif  precision == "I32":
                 self._ptr = C.make_shared_blob[int32_t](c_tensor_desc)
@@ -205,7 +205,7 @@ cdef class Blob:
             elif  precision == "U8" or precision == "BOOL":
                 U8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc, &U8_array_memview[0], U8_array_memview.shape[0])
-            elif  precision == "I8" or precision == "BIN":
+            elif  precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 I8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc, &I8_array_memview[0], I8_array_memview.shape[0])
             elif  precision == "I32":
