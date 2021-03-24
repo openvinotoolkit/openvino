@@ -32,29 +32,3 @@ void DepthAndSpaceUtils::prepareParams(const SizeVector& srcDims, const SizeVect
     params.blockShift = mode == Mode::BLOCKS_FIRST ? params.srcChannels : 1;
     params.channelShift = mode == Mode::BLOCKS_FIRST ? 1 : blockStep;
 }
-
-void DepthAndSpaceUtils::prepareOptimizedParams(const size_t nDims, const Precision precision) {
-    optimizedParams.dst_block_dims.resize(nDims);
-    for (size_t i = 0; i < nDims; i++)
-        optimizedParams.dst_block_dims[i] = optimizedParams.src_block_dims[order[i]];
-
-    optimizedParams.src_block_order.resize(nDims);
-    optimizedParams.dst_block_order.resize(nDims);
-    for (size_t i = 0; i < nDims; i++) {
-        optimizedParams.src_block_order[i] = i;
-        optimizedParams.dst_block_order[i] = i;
-    }
-
-    optimizedParams.src_block_strides.resize(nDims);
-    optimizedParams.dst_block_strides.resize(nDims);
-    optimizedParams.src_block_strides[nDims - 1] = 1;
-    optimizedParams.dst_block_strides[nDims - 1] = 1;
-    for (int i = nDims - 2; i >= 0; i--) {
-        optimizedParams.src_block_strides[i] =
-                optimizedParams.src_block_strides[i + 1] * optimizedParams.src_block_dims[i + 1];
-        optimizedParams.dst_block_strides[i] =
-                optimizedParams.dst_block_strides[i + 1] * optimizedParams.dst_block_dims[i + 1];
-    }
-
-    optimizedParams.data_size = precision.size();
-}

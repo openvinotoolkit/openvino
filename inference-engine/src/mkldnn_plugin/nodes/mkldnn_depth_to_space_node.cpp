@@ -15,7 +15,7 @@
 #include <string>
 #include <cmath>
 
-#define THROW_ERROR THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << getName() << "' "
+#define THROW_ERROR IE_THROW() << "DepthToSpace layer with name '" << getName() << "' "
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -139,15 +139,15 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     size_t nDims = srcDims.size();
     const size_t nSpatialDims = nDims - 2;
     const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat();
-    nDims += nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
-    const size_t lastIdx = nDims - 1;
+    const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
+    const size_t lastIdx = reshapedRank - 1;
+    size_t firstSpatialOrder = 2;
 
-    order.resize(nDims);
-    optimizedParams.src_block_dims.resize(nDims);
-    order[0] = 0;
+    order.resize(reshapedRank, 0);
+    optimizedParams.src_block_dims.resize(reshapedRank);
     optimizedParams.src_block_dims[0] = srcDims[0];
 
-    auto orderAndReshape = [&](const size_t idx1, const size_t idx2, const size_t shift, const SizeVector& dims) {
+    auto reshapeAndSetPermOrder = [&](const size_t idx1, const size_t idx2, const size_t shift, const SizeVector& dims) {
         for (size_t i = 0; i < nSpatialDims; i++) {
             order[i * 2 + shift] = i + idx1;
             order[i * 2 + shift + 1] = i + idx2;
@@ -187,27 +187,28 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
             order[lastIdx] = lastIdx - nSpatialDims;
         }
 
-        orderAndReshape(orderShiftForDims, orderShiftForBlocks, 2, srcBlockedDims);
+        reshapeAndSetPermOrder(orderShiftForDims, orderShiftForBlocks, firstSpatialOrder, srcBlockedDims);
     } else if (getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
         srcDims.push_back(srcDims[1]);
         dstDims.push_back(dstDims[1]);
         srcDims.erase(srcDims.begin() + 1);
         dstDims.erase(dstDims.begin() + 1);
+        firstSpatialOrder = 1;
 
         size_t shift = static_cast<size_t>(mode == DEPTH_FIRST) + nSpatialDims + 1;
         order[lastIdx] = mode == Mode::DEPTH_FIRST ? nSpatialDims + 1 : lastIdx;
         optimizedParams.src_block_dims[order[lastIdx]] = srcDims.back() / blockStep;
 
-        orderAndReshape(1, shift, 1, srcDims);
+        reshapeAndSetPermOrder(firstSpatialOrder, shift, firstSpatialOrder, srcDims);
     } else {
         size_t shift = static_cast<size_t>(mode == DEPTH_FIRST) + 1;
         order[1] = mode == DEPTH_FIRST ? 1 : nSpatialDims + 1;
         optimizedParams.src_block_dims[order[1]] = srcDims[1] / blockStep;
 
-        orderAndReshape(nSpatialDims + 2, shift, 2, srcDims);
+        reshapeAndSetPermOrder(nSpatialDims + firstSpatialOrder, shift, firstSpatialOrder, srcDims);
     }
 
-    prepareOptimizedParams(nDims, getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision());
+    prepareOptimizedParams(getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision());
     prepareConfigParams();
 }
 
@@ -229,51 +230,51 @@ void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
     }
 
     if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
-        size_t dstCountBlocks = this->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc.getBlockingDesc().getBlockDims()[1];
-        size_t block = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getBlockingDesc().getBlockDims().back();
-        size_t blockRemainder = params.dstChannels % block;
-        size_t lastBlock = blockRemainder == 0 ? block : blockRemainder;
+        const size_t dstCountBlocks = this->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc.getBlockingDesc().getBlockDims()[1];
+        const size_t block = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getBlockingDesc().getBlockDims().back();
+        const size_t blockRemainder = params.dstChannels % block;
+        const size_t lastBlock = blockRemainder == 0 ? block : blockRemainder;
 
-        size_t srcBlock = block * params.shape5D[2] * params.shape5D[3] * params.shape5D[4];
-        size_t dstBlock = block * params.shape5D[2] * params.block3D[0] * params.shape5D[3] * params.block3D[1] *
-                          params.shape5D[4] * params.block3D[2];
+        const size_t srcBlock = block * params.shape5D[2] * params.shape5D[3] * params.shape5D[4];
+        const size_t dstBlock = block * params.shape5D[2] * params.block3D[0] * params.shape5D[3] * params.block3D[1] *
+                                params.shape5D[4] * params.block3D[2];
 
         parallel_for2d(params.shape5D[0], params.shape5D[2], [&](size_t i0, size_t i2) {
-            size_t srcIdx1 = i0 * params.batchStep + i2 * params.shape5D[3] * params.shape5D[4] * block;
-            size_t dstIdx1 = i0 * dstBlock * dstCountBlocks;
+            const size_t srcIdx1 = i0 * params.batchStep + i2 * params.shape5D[3] * params.shape5D[4] * block;
+            const size_t dstIdx1 = i0 * dstBlock * dstCountBlocks;
             for (size_t b2 = 0; b2 < params.block3D[0]; ++b2) {
-                size_t blk2 = b2 * params.block3D[1] * params.block3D[2] * params.blockShift;
-                size_t blockNum2 = blk2 / block;
-                size_t blockRemainder2 = blk2 - blockNum2 * block;
+                const size_t blk2 = b2 * params.block3D[1] * params.block3D[2] * params.blockShift;
+                const size_t blockNum2 = blk2 / block;
+                const size_t blockRemainder2 = blk2 - blockNum2 * block;
 
-                size_t srcIdx2 = srcIdx1 + blockNum2 * srcBlock;
-                size_t dstIdx2 = dstIdx1 + (i2 * params.block3D[0] + b2) * params.shape5D[3] * params.block3D[1] *
+                const size_t srcIdx2 = srcIdx1 + blockNum2 * srcBlock;
+                const size_t dstIdx2 = dstIdx1 + (i2 * params.block3D[0] + b2) * params.shape5D[3] * params.block3D[1] *
                                  params.shape5D[4] * params.block3D[2] * block;
                 for (size_t b3 = 0; b3 < params.block3D[1]; ++b3) {
-                    size_t blk3 = blockRemainder2 + b3 * params.blockShift * params.block3D[2];
-                    size_t blockNum3 = blk3 / block;
-                    size_t blockRemainder3 = blk3 - blockNum3 * block;
+                    const size_t blk3 = blockRemainder2 + b3 * params.blockShift * params.block3D[2];
+                    const size_t blockNum3 = blk3 / block;
+                    const size_t blockRemainder3 = blk3 - blockNum3 * block;
 
                     for (size_t i3 = 0; i3 < params.shape5D[3]; ++i3) {
-                        size_t srcIdx3 = srcIdx2 + i3 * params.shape5D[4] * block + blockNum3 * srcBlock;
-                        size_t dstIdx3 = dstIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2] * block;
+                        const size_t srcIdx3 = srcIdx2 + i3 * params.shape5D[4] * block + blockNum3 * srcBlock;
+                        const size_t dstIdx3 = dstIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2] * block;
                         for (size_t b4 = 0; b4 < params.block3D[2]; ++b4) {
-                            size_t blk4 = blockRemainder3 + b4 * params.blockShift;
-                            size_t blockNum4 = blk4 / block;
-                            size_t blockRemainder4 = blk4 - blockNum4 * block;
+                            const size_t blk4 = blockRemainder3 + b4 * params.blockShift;
+                            const size_t blockNum4 = blk4 / block;
+                            const size_t blockRemainder4 = blk4 - blockNum4 * block;
 
                             for (size_t i4 = 0; i4 < params.shape5D[4]; ++i4) {
-                                size_t srcIdx4 = srcIdx3 + i4 * block + blockNum4 * srcBlock;
-                                size_t dstIdx4 = dstIdx3 + (i4 * params.block3D[2] + b4) * block;
+                                const size_t srcIdx4 = srcIdx3 + i4 * block + blockNum4 * srcBlock;
+                                const size_t dstIdx4 = dstIdx3 + (i4 * params.block3D[2] + b4) * block;
                                 for (size_t i5 = 0; i5 < dstCountBlocks; ++i5) {
-                                    size_t size = (i5 == dstCountBlocks - 1) ? lastBlock : block;
+                                    const size_t size = (i5 == dstCountBlocks - 1) ? lastBlock : block;
                                     for (size_t i6 = 0; i6 < size; ++i6) {
-                                        size_t blk5 = blockRemainder4 + (i6 + i5 * block) * params.channelShift;
-                                        size_t blockNum5 = blk5 / block;
-                                        size_t blockRemainder5 = blk5 - blockNum5 * block;
+                                        const size_t blk5 = blockRemainder4 + (i6 + i5 * block) * params.channelShift;
+                                        const size_t blockNum5 = blk5 / block;
+                                        const size_t blockRemainder5 = blk5 - blockNum5 * block;
 
-                                        size_t srcIdx5 = srcIdx4 + blockRemainder5 + blockNum5 * srcBlock;
-                                        size_t dstIdx5 = dstIdx4 + i6 + i5 * dstBlock;
+                                        const size_t srcIdx5 = srcIdx4 + blockRemainder5 + blockNum5 * srcBlock;
+                                        const size_t dstIdx5 = dstIdx4 + i6 + i5 * dstBlock;
                                         cpu_memcpy(dstData + dstIdx5 * optimizedParams.data_size,
                                                    srcData + srcIdx5 * optimizedParams.data_size,
                                                    optimizedParams.data_size);
@@ -287,24 +288,24 @@ void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
         });
     } else if (getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
         parallel_for2d(params.shape5D[0], params.shape5D[2], [&](size_t i0, size_t i2) {
-            size_t srcIdx1 = i0 * params.batchStep;
-            size_t dstIdx1 = i0 * params.batchStep;
+            const size_t srcIdx1 = i0 * params.batchStep;
+            const size_t dstIdx1 = i0 * params.batchStep;
             for (size_t b2 = 0; b2 < params.block3D[0]; b2++) {
-                size_t srcIdx2 = srcIdx1 + i2 * params.shape5D[3] * params.shape5D[4] * params.srcChannels +
-                        b2 * params.block3D[1] * params.block3D[2] * params.blockShift;
-                size_t dstIdx2 = dstIdx1 +
-                        (i2 * params.block3D[0] + b2) * params.shape5D[3] * params.block3D[1] * params.shape5D[4] * params.block3D[2] * params.dstChannels;
+                const size_t srcIdx2 = srcIdx1 + i2 * params.shape5D[3] * params.shape5D[4] * params.srcChannels +
+                                       b2 * params.block3D[1] * params.block3D[2] * params.blockShift;
+                const size_t dstIdx2 = dstIdx1 + (i2 * params.block3D[0] + b2) *
+                                       params.shape5D[3] * params.block3D[1] * params.shape5D[4] * params.block3D[2] * params.dstChannels;
                 for (size_t i3 = 0; i3 < params.shape5D[3]; i3++) {
                     for (size_t b3 = 0; b3 < params.block3D[1]; b3++) {
-                        size_t srcIdx3 = srcIdx2 + i3 * params.shape5D[4] * params.srcChannels + b3 * params.block3D[2] * params.blockShift;
-                        size_t dstIdx3 = dstIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2] * params.dstChannels;
+                        const size_t srcIdx3 = srcIdx2 + i3 * params.shape5D[4] * params.srcChannels + b3 * params.block3D[2] * params.blockShift;
+                        const size_t dstIdx3 = dstIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2] * params.dstChannels;
                         for (size_t i4 = 0; i4 < params.shape5D[4]; i4++) {
                             for (size_t b4 = 0; b4 < params.block3D[2]; b4++) {
-                                size_t srcIdx4 = srcIdx3 + i4 * params.srcChannels + b4 * params.blockShift;
-                                size_t dstIdx4 = dstIdx3 + (i4 * params.block3D[2] + b4) * params.dstChannels;
+                                const size_t srcIdx4 = srcIdx3 + i4 * params.srcChannels + b4 * params.blockShift;
+                                const size_t dstIdx4 = dstIdx3 + (i4 * params.block3D[2] + b4) * params.dstChannels;
                                 for (size_t i1 = 0; i1 < params.dstChannels; i1++) {
-                                    size_t srcIdx5 = srcIdx4 + i1 * params.channelShift;
-                                    size_t dstIdx5 = dstIdx4 + i1;
+                                    const size_t srcIdx5 = srcIdx4 + i1 * params.channelShift;
+                                    const size_t dstIdx5 = dstIdx4 + i1;
                                     cpu_memcpy(dstData + dstIdx5 * optimizedParams.data_size,
                                                srcData + srcIdx5 * optimizedParams.data_size,
                                                optimizedParams.data_size);
@@ -317,21 +318,22 @@ void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
         });
     } else {
         parallel_for2d(params.shape5D[0], params.dstChannels, [&](size_t i0, size_t i1) {
-            size_t srcIdx1 = i0 * params.batchStep + i1 * params.channelShift * params.spatialStep;
-            size_t dstIdx1 = i0 * params.batchStep + i1 * blockStep * params.spatialStep;
+            const size_t srcIdx1 = i0 * params.batchStep + i1 * params.channelShift * params.spatialStep;
+            const size_t dstIdx1 = i0 * params.batchStep + i1 * blockStep * params.spatialStep;
             for (size_t i2 = 0; i2 < params.shape5D[2]; i2++) {
                 for (size_t b2 = 0; b2 < params.block3D[0]; b2++) {
-                    size_t srcIdx2 = srcIdx1 + i2 * params.shape5D[3] * params.shape5D[4] +
-                            b2 * params.block3D[1] * params.block3D[2] * params.blockShift * params.spatialStep;
-                    size_t dstIdx2 = dstIdx1 + (i2 * params.block3D[0] + b2) * params.shape5D[3] * params.block3D[1] * params.shape5D[4] * params.block3D[2];
+                    const size_t srcIdx2 = srcIdx1 + i2 * params.shape5D[3] * params.shape5D[4] +
+                                           b2 * params.block3D[1] * params.block3D[2] * params.blockShift * params.spatialStep;
+                    const size_t dstIdx2 = dstIdx1 + (i2 * params.block3D[0] + b2) *
+                                           params.shape5D[3] * params.block3D[1] * params.shape5D[4] * params.block3D[2];
                     for (size_t i3 = 0; i3 < params.shape5D[3]; i3++) {
                         for (size_t b3 = 0; b3 < params.block3D[1]; b3++) {
-                            size_t srcIdx3 = srcIdx2 + i3 * params.shape5D[4] + b3 * params.block3D[2] * params.blockShift * params.spatialStep;
-                            size_t dstIdx3 = dstIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2];
+                            const size_t srcIdx3 = srcIdx2 + i3 * params.shape5D[4] + b3 * params.block3D[2] * params.blockShift * params.spatialStep;
+                            const size_t dstIdx3 = dstIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2];
                             for (size_t i4 = 0; i4 < params.shape5D[4]; i4++) {
                                 for (size_t b4 = 0; b4 < params.block3D[2]; b4++) {
-                                    size_t srcIdx4 = srcIdx3 + i4 + b4 * params.blockShift * params.spatialStep;
-                                    size_t dstIdx4 = dstIdx3 + i4 * params.block3D[2] + b4;
+                                    const size_t srcIdx4 = srcIdx3 + i4 + b4 * params.blockShift * params.spatialStep;
+                                    const size_t dstIdx4 = dstIdx3 + i4 * params.block3D[2] + b4;
                                     cpu_memcpy(dstData + dstIdx4 * optimizedParams.data_size,
                                                srcData + srcIdx4 * optimizedParams.data_size,
                                                optimizedParams.data_size);

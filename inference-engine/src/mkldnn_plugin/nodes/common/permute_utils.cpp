@@ -137,6 +137,36 @@ private:
     Xbyak::Xmm xmm = Xbyak::Xmm(0);
 };
 
+void PermuteUtils::prepareOptimizedParams(const Precision precision) {
+    const size_t nDims = optimizedParams.src_block_dims.size();
+    if (nDims != order.size())
+        IE_THROW() << "SrcBlockDims and order must have the same size for permutation preparing params";
+
+    optimizedParams.dst_block_dims.resize(nDims);
+    for (size_t i = 0; i < nDims; i++)
+        optimizedParams.dst_block_dims[i] = optimizedParams.src_block_dims[order[i]];
+
+    optimizedParams.src_block_order.resize(nDims);
+    optimizedParams.dst_block_order.resize(nDims);
+    for (size_t i = 0; i < nDims; i++) {
+        optimizedParams.src_block_order[i] = i;
+        optimizedParams.dst_block_order[i] = i;
+    }
+
+    optimizedParams.src_block_strides.resize(nDims);
+    optimizedParams.dst_block_strides.resize(nDims);
+    optimizedParams.src_block_strides[nDims - 1] = 1;
+    optimizedParams.dst_block_strides[nDims - 1] = 1;
+    for (int i = nDims - 2; i >= 0; i--) {
+        optimizedParams.src_block_strides[i] =
+                optimizedParams.src_block_strides[i + 1] * optimizedParams.src_block_dims[i + 1];
+        optimizedParams.dst_block_strides[i] =
+                optimizedParams.dst_block_strides[i + 1] * optimizedParams.dst_block_dims[i + 1];
+    }
+
+    optimizedParams.data_size = precision.size();
+}
+
 void PermuteUtils::prepareConfigParams() {
     jit_permute_config_params jcp;
 

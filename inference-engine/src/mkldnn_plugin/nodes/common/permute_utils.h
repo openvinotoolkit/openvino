@@ -44,6 +44,7 @@ struct jit_uni_permute_kernel {
 
 class PermuteUtils {
 protected:
+    void prepareOptimizedParams(const InferenceEngine::Precision precision);
     void prepareConfigParams();
     void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data);
 

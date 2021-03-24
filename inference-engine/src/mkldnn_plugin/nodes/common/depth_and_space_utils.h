@@ -12,7 +12,6 @@ namespace MKLDNNPlugin {
 class DepthAndSpaceUtils : public PermuteUtils {
 protected:
     void prepareParams(const InferenceEngine::SizeVector& srcDims, const InferenceEngine::SizeVector& dstDims);
-    void prepareOptimizedParams(const size_t nDims, const InferenceEngine::Precision precision);
 
     enum Mode {
         BLOCKS_FIRST = 0,
