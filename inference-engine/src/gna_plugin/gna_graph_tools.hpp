@@ -69,7 +69,7 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayer(const InferenceEngine::CNNL
         IE_ASSERT(prevData != nullptr);
         return getCreatorLayer(prevData).lock();
     } else {
-        THROW_IE_EXCEPTION << "Layer " << layer->name << " has no previous layer";
+        IE_THROW() << "Layer " << layer->name << " has no previous layer";
     }
 }
 
@@ -84,7 +84,7 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayer(const InferenceEngine::CNNL
         auto prevData = layer->insData[idx].lock();
         return getCreatorLayer(prevData).lock();
     } else {
-        THROW_IE_EXCEPTION << "Layer " << layer->name << " has no previous layer";
+        IE_THROW() << "Layer " << layer->name << " has no previous layer";
     }
 }
 
@@ -301,16 +301,16 @@ inline std::pair<DataPtr, std::map<std::string, CNNLayerPtr>::iterator> CNNLayer
 inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
                              InferenceEngine::CNNLayerPtr rhs) {
     if (lhs == nullptr || rhs ==nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetSwapLayers : nullptr";
+        IE_THROW() << "CNNNetSwapLayers : nullptr";
     }
     if (lhs.get() == rhs.get())
         return;
 
     if (lhs->outData.size() > 1) {
-        THROW_IE_EXCEPTION << "Unsupported layer for swap operation : " << lhs->name;
+        IE_THROW() << "Unsupported layer for swap operation : " << lhs->name;
     }
     if (rhs->outData.size() > 1) {
-        THROW_IE_EXCEPTION << "Unsupported layer for swap operation : " << rhs->name;
+        IE_THROW() << "Unsupported layer for swap operation : " << rhs->name;
     }
 
     auto &rhs_outputs = getInputTo(rhs->outData.front());
@@ -513,7 +513,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                                   size_t outDataIndex = invalid_data_idx,
                                   size_t inDataIndex = invalid_data_idx) {
     if (after == nullptr && before == nullptr) {
-        THROW_IE_EXCEPTION << "Cannot Insert Layer: before or after layers should be valid layer pointers";
+        IE_THROW() << "Cannot Insert Layer: before or after layers should be valid layer pointers";
     }
 
     bool bLocated = false;
@@ -624,7 +624,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
         }
     }
     if (!bLocated) {
-        THROW_IE_EXCEPTION << "Cannot insert layer between: " <<
+        IE_THROW() << "Cannot insert layer between: " <<
                            ((after == nullptr) ? std::string("nullptr") : after->name) << " and " <<
                            ((before == nullptr) ? std::string("nullptr") : before->name);
     }
@@ -659,24 +659,24 @@ std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr or
  */
 inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     if (!layer) {
-        THROW_IE_EXCEPTION << "Cannot remove layer pointed to NULL";
+        IE_THROW() << "Cannot remove layer pointed to NULL";
     }
     gnalog() << "Removing " << layer->name << " layer\n";
     if (layer->insData.size() != 1) {
-        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" that has different number of inputs than 1";
+        IE_THROW() << "Cannot remove layer : "<< layer->name <<" that has different number of inputs than 1";
     }
     if (layer->outData.size() != 1) {
-        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" that has different number of outputs than 1";
+        IE_THROW() << "Cannot remove layer : "<< layer->name <<" that has different number of outputs than 1";
     }
 
     auto isp = layer->insData.front().lock();
     if (!isp) {
-        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" cannot get it's input";
+        IE_THROW() << "Cannot remove layer : "<< layer->name <<" cannot get it's input";
     }
     // if dimensions of input layer not equal target dimensions - shape infer  or reshape layer required, so skipping those cases
     auto osp = layer->outData.front();
     if (checkDims && isp->getDims() != osp->getDims()) {
-        THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" its input layer("
+        IE_THROW() << "Cannot remove layer : "<< layer->name <<" its input layer("
                            << isp->getName() << ") and output(" << osp->getName() << ") have incompatible dimensions";
     }
 
@@ -693,12 +693,12 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
         for (int i = 0; i < outData.second->insData.size(); i++) {
             auto insData = outData.second->insData[i].lock();
             if (!insData) {
-                THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<", its output layer(" <<
+                IE_THROW() << "Cannot remove layer : "<< layer->name <<", its output layer(" <<
                                    outData.first << " has invalid input configuration";
             }
             auto creator = getCreatorLayer(insData).lock();
             if (!creator) {
-                THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<", its output layer(" <<
+                IE_THROW() << "Cannot remove layer : "<< layer->name <<", its output layer(" <<
                                    outData.first << " has invalid input configuration";
             }
 
@@ -732,26 +732,26 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
     gnalog() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
         << new_prev_layer->name << " -- > " << layer->name << "layer\n";
     if (!layer) {
-        THROW_IE_EXCEPTION << "Cannot reconnect layer pointed to NULL";
+        IE_THROW() << "Cannot reconnect layer pointed to NULL";
     }
     if (!old_prev_layer) {
-        THROW_IE_EXCEPTION << "Cannot reconnect layer old parent is NULL";
+        IE_THROW() << "Cannot reconnect layer old parent is NULL";
     }
     if (!new_prev_layer) {
-        THROW_IE_EXCEPTION << "Cannot reconnect layer new parent is NULL";
+        IE_THROW() << "Cannot reconnect layer new parent is NULL";
     }
 
     if (layer->insData.size() < 1) {
-        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << layer->name
+        IE_THROW() << "Cannot reconnect layer : " << layer->name
             << " operation supports only layers with at least 1 incomming port";
     }
 
     if (old_prev_layer->outData.size() != 1) {
-        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << old_prev_layer->name << " must have exactly 1 outgoing port";
+        IE_THROW() << "Cannot reconnect layer : " << old_prev_layer->name << " must have exactly 1 outgoing port";
     }
 
     if (new_prev_layer->outData.size() != 1) {
-        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << new_prev_layer->name << " must have exactly 1 outgoing port";
+        IE_THROW() << "Cannot reconnect layer : " << new_prev_layer->name << " must have exactly 1 outgoing port";
     }
     // layer has ports
     // each port has several layers connected to port
@@ -760,7 +760,7 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
     auto new_prev_layer_out_port_0 = new_prev_layer->outData.front();
 
     if (checkDims && old_prev_layer_out_port_0->getDims() != new_prev_layer_out_port_0->getDims()) {
-        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << old_prev_layer->name << " as its output have different dims than"
+        IE_THROW() << "Cannot reconnect layer : " << old_prev_layer->name << " as its output have different dims than"
             << new_prev_layer->name;
     }
 

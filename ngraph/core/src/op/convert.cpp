@@ -96,6 +96,7 @@ namespace convert
             TYPE_OUT_CASE(f16, arg, out);
             TYPE_OUT_CASE(f32, arg, out);
             TYPE_OUT_CASE(f64, arg, out);
+            TYPE_OUT_CASE(boolean, arg, out);
         default: rc = false; break;
         }
         return rc;
@@ -115,6 +116,7 @@ namespace convert
             NGRAPH_TYPE_CASE(evaluate_convert, u64, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, f16, arg, out);
             NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
+            NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);
         default: rc = false; break;
         }
         return rc;

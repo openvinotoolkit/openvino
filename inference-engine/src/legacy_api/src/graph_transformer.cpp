@@ -65,13 +65,13 @@ static std::vector<DataPtr> get_outputs(details::CNNNetworkImpl* _network) {
 ConstTransformer::ConstTransformer(details::CNNNetworkImpl* _network)
         : network(_network), inputs(get_inputs(_network)), outputs(get_outputs(_network)) {
     if (!_network)
-        THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
+        IE_THROW() << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
 }
 
 ConstTransformer::ConstTransformer(std::vector<DataPtr> &_inputs, std::vector<DataPtr> &_outputs)
         : network(nullptr), inputs(_inputs), outputs(_outputs) {
     if (inputs.empty() || outputs.empty())
-        THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with empty list of inputs or outputs";
+        IE_THROW() << "[ERROR]: Failed to init ConstTransformer with empty list of inputs or outputs";
 }
 
 std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std::map<std::string, bool>& constLayers,
@@ -306,13 +306,13 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
             bool isForShape = constLayers.at(layerName);
 
             if (!isForShape && layer->type != "Const")
-                THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
+                IE_THROW() << "Failed to find reference implementation for `" + layer->name +
                                       "` Layer with `" + layer->type + "` Type on constant propagation";
             if (!isForShape) {
                 auto & blobs = layer->blobs;
                 auto it = blobs.find("custom");
                 if (it == blobs.end())
-                    THROW_IE_EXCEPTION << "Missed `custom` blob in Const layer";
+                    IE_THROW() << "Missed `custom` blob in Const layer";
 
                 auto dataName = layer->outData[0]->getName();
                 constData[dataName] = (*it).second;
@@ -334,7 +334,7 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
 
     auto in_data = layer->insData[0].lock();
     if (in_data == nullptr)
-        THROW_IE_EXCEPTION << "Layer '" << layer->name << "' has invalid input data";
+        IE_THROW() << "Layer '" << layer->name << "' has invalid input data";
     auto out_data = layer->outData[0];
 
     auto precision = out_data->getPrecision();

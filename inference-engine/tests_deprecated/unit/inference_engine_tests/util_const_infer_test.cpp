@@ -209,7 +209,7 @@ IE::BlobMap RemoveLayerTests::fillConstDataDiffPrec (const std::vector<std::stri
                     break;
                 }
                 default:
-                    THROW_IE_EXCEPTION << "Not supported data type";
+                    IE_THROW() << "Not supported data type";
             }
             constData[outData->getName()] = blob;
         }

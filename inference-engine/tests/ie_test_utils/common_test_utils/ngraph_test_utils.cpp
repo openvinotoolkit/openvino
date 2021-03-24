@@ -101,7 +101,7 @@ namespace detail {
 template<typename Ptr>
 Ptr not_null(Ptr &&p) {
     if (!p) {
-        THROW_IE_EXCEPTION << "empty pointer";
+        IE_THROW() << "empty pointer";
     }
     return std::forward<Ptr>(p);
 }
@@ -141,7 +141,7 @@ public:
             return true;  // noting extra to check
         }
 
-        THROW_IE_EXCEPTION << "Type is not supported: [" << lhs->get_type_info().name << "]";
+        IE_THROW() << "Type is not supported: [" << lhs->get_type_info().name << "]";
 
         return false;
     }
@@ -183,7 +183,7 @@ public:
             return equal_type_and_partial_shape(*m_parameter, m_input);
         }
 
-        THROW_IE_EXCEPTION << "Type is not supported: [" << m_description->get_type_info().name
+        IE_THROW() << "Type is not supported: [" << m_description->get_type_info().name
                            << "]";
 
         return false;
@@ -237,7 +237,7 @@ public:
             return l_output->m_iteration == r_output->m_iteration;
         }
 
-        THROW_IE_EXCEPTION << "Type is not supported: [" << lhs->get_type_info().name << "]";
+        IE_THROW() << "Type is not supported: [" << lhs->get_type_info().name << "]";
 
         return false;
     }
@@ -273,7 +273,7 @@ public:
             return equal_type_and_partial_shape(m_result->output(0), m_output);
         }
 
-        THROW_IE_EXCEPTION << "Type is not supported: [" << m_description->get_type_info().name
+        IE_THROW() << "Type is not supported: [" << m_description->get_type_info().name
                            << "]";
 
         return false;
