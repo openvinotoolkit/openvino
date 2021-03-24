@@ -157,6 +157,7 @@ set(SRC
     type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
+    type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
