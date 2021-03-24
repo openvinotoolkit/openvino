@@ -1,5 +1,6 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "subgraph_tests/multiple_connect_split_concat.hpp"
 #include "subgraph_tests/connect_split_concat_concat.hpp"
