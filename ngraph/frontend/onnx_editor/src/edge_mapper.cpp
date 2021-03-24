@@ -62,7 +62,6 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
             return std::vector<int>{index_iter->second};
         }
     }
-    // many nodes can have the same name
     if (!node_name.empty())
     {
         std::vector<int> result;
@@ -119,7 +118,43 @@ InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
 {
     // identification can be both based on node name and output name
     const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
-    const auto node_index = node_indexes.at(0);
+    int node_index = -1;
+    if (node_indexes.size() == 1)
+    {
+        node_index = node_indexes[0];
+    }
+    else if (!in.m_input_name.empty()) // input indexes are not deterministic
+    {
+        // many nodes with the same name
+        // check if some of found index matches input name
+        int matched_inputs_number = 0;
+        for (const auto& index : node_indexes)
+        {
+            if (std::count(std::begin(m_node_inputs[index]),
+                           std::end(m_node_inputs[index]),
+                           in.m_input_name) > 0)
+            {
+                node_index = index;
+                ++matched_inputs_number;
+            }
+        }
+        if (matched_inputs_number == 0)
+        {
+            throw ngraph_error("Input edge described by: " + node.m_node_name +
+                               " and input name: " + in.m_input_name + " was not found");
+        }
+        if (matched_inputs_number > 1)
+        {
+            throw ngraph_error("Given node name: " + node.m_node_name + " and input name: " +
+                               in.m_input_name + " are ambiguous to determine input edge");
+        }
+    }
+    else
+    {
+        throw ngraph_error("Given node name: " + node.m_node_name +
+                           " and input index: " + std::to_string(in.m_input_index) +
+                           " are ambiguous to determine input edge");
+    }
     if (!in.m_input_name.empty())
     {
         return InputEdge{node_index, in.m_input_name};

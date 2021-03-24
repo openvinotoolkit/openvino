@@ -911,6 +911,69 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling)
     }
 }
 
+// Nodes with ambiguous node names tests
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_but_matched_input)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in2"});
+    EXPECT_EQ(edge.m_node_idx, 1);
+    EXPECT_EQ(edge.m_tensor_name, "in2");
+
+    const InputEdge edge2 = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"add1"});
+    EXPECT_EQ(edge2.m_node_idx, 3);
+    EXPECT_EQ(edge2.m_tensor_name, "add1");
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and_not_matched_input)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    try
+    {
+        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in3"});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Input edge described by: add_ambiguous_name and input name: in3 was not found") !=
+                    std::string::npos);
+    }
+
+    try
+    {
+        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"relu1"});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Given node name: add_ambiguous_name and input name: relu1 are ambiguous to determine input edge") !=
+                    std::string::npos);
+    }
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and_input_index)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    try
+    {
+        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{0});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Given node name: add_ambiguous_name and input index: 0 are ambiguous to determine input edge") !=
+                    std::string::npos);
+    }
+}
+
 NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
 {
     ONNXModelEditor editor{file_util::path_join(
@@ -933,10 +996,6 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
-
-// combinations to test:
-// - node names dublicates!
-// mapper to separate file
 
 using TestEngine = test::INTERPRETER_Engine;
 

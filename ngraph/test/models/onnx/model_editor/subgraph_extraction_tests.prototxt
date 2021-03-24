@@ -12,6 +12,7 @@ graph {
     input: "in2"
     output: "add1"
     op_type: "Add"
+    name: "add_ambiguous_name"
   }
   node {
     input: "in3"
@@ -24,6 +25,7 @@ graph {
     input: "add1"
     output: "add2"
     op_type: "Add"
+    name: "add_ambiguous_name"
   }
   node {
     input: "add1"
