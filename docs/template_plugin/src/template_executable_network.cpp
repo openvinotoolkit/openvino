@@ -27,12 +27,12 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     try {
         CompileNetwork(function);
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::details::InferenceEngineException&) {
+    } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
-        THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
+        IE_THROW() << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        THROW_IE_EXCEPTION << "Generic exception is thrown";
+        IE_THROW() << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
@@ -74,12 +74,12 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     try {
         CompileNetwork(cnnnetwork.getFunction());
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::details::InferenceEngineException&) {
+    } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
-        THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
+        IE_THROW() << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        THROW_IE_EXCEPTION << "Generic exception is thrown";
+        IE_THROW() << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_import_stream]
@@ -181,7 +181,7 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
         unsigned int value = _cfg._streamsExecutorConfig._streams;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 // ! [executable_network:get_metric]

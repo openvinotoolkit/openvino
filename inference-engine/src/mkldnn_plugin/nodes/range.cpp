@@ -19,26 +19,26 @@ public:
     explicit RangeImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
 
             if (layer->insData.size() != 3)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+                IE_THROW() << layer->name << " Incorrect number of input edges!";
 
             SizeVector start_dims = layer->insData[RANGE_START].lock()->getTensorDesc().getDims();
             if (start_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Start scalar should have 1 dimension";
+                IE_THROW() << layer->name << " Start scalar should have 1 dimension";
 
             SizeVector limit_dims = layer->insData[RANGE_LIMIT].lock()->getTensorDesc().getDims();
             if (limit_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Limit scalar should have 1 dimension";
+                IE_THROW() << layer->name << " Limit scalar should have 1 dimension";
 
             SizeVector delta_dims = layer->insData[RANGE_DELTA].lock()->getTensorDesc().getDims();
             if (delta_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Delta scalar should have 1 dimension";
+                IE_THROW() << layer->name << " Delta scalar should have 1 dimension";
 
             SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
             if (dst_dims.size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Output vector should have 1 dimension";
+                IE_THROW() << layer->name << " Output vector should have 1 dimension";
 
             if (!(layer->insData[RANGE_START].lock()->getTensorDesc().getPrecision() == Precision::I32 &&
                   layer->insData[RANGE_LIMIT].lock()->getTensorDesc().getPrecision() == Precision::I32 &&
@@ -54,7 +54,7 @@ public:
                 addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
                                  { DataConfigurator(ConfLayout::PLN) });
             }
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

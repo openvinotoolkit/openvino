@@ -257,29 +257,29 @@ void MKLDNNROIPoolingNode::getSupportedDescriptors() {
 
     GenericLayer* genericLayer = getCnnLayer().get();
     if (genericLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert ROIPooling layer.";
+        IE_THROW() << "Cannot convert ROIPooling layer.";
 
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
     if (getParentEdges().size() != 2)
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
     if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims().ndims() != 2) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
 
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims()[1] != 5) {
-        THROW_IE_EXCEPTION << errorPrefix << "has invalid shape on 1st input: ["
+        IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
                                           << getParentEdgeAt(1)->getDims()[0] << "," << getParentEdgeAt(1)->getDims()[1] << "]";
     }
 
@@ -292,7 +292,7 @@ void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     } else if (m == "bilinear") {
         opType = ROIPoolingOpType::Bilinear;
     } else {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support roi pooling method: " << m;
+        IE_THROW() << errorPrefix << "doesn't support roi pooling method: " << m;
     }
 }
 
@@ -334,7 +334,7 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNROIPoolingNode::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
@@ -383,7 +383,7 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_strides = config.inConfs[0].desc.getBlockingDesc().getStrides();

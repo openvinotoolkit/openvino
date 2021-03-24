@@ -94,7 +94,7 @@ void HwConstData::fillTempBuf(void* outBuf) const {
 
         std::copy(srcData + slice.start, srcData + slice.start + slice.size, dstData);
     } else {
-        THROW_IE_EXCEPTION << "Invalid number of dimensions " << _origDesc.numDims();
+        IE_THROW() << "Invalid number of dimensions " << _origDesc.numDims();
     }
 }
 

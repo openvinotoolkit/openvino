@@ -296,7 +296,7 @@ protected:
 
             compare(*out_vec[0], *dsts_vec[0]);
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
