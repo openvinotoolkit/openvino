@@ -49,9 +49,9 @@ def main():  # noqa
         log.info(f'Loading the {args.device} configuration: {args.config}')
         ie.set_config({'CONFIG_FILE': args.config}, args.device)
 
-# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation------------------------------
+# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
     log.info(f'Reading the network: {args.model}')
-    # (.xml and .bin files) or ONNX (.onnx file) format
+    # (.xml and .bin files) or (.onnx file)
     net = ie.read_network(model=args.model)
 
     if len(net.input_info) != 1:
