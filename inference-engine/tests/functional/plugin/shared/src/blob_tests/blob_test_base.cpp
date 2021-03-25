@@ -57,13 +57,19 @@ InferenceEngine::Blob::Ptr BlobTestBase::GenerateInput(const InferenceEngine::In
 }
 
 std::vector<std::vector<uint8_t>> BlobTestBase::CalculateReference() {
-    if (generateReferenceFn) return generateReferenceFn(cnnNetwork, inputs);
-    else return CalculateRefs();
+    if (generateReferenceFn) {
+        return generateReferenceFn(cnnNetwork, inputs);
+    } else {
+        return CalculateRefs();
+    }
 }
 
 InferenceEngine::Blob::Ptr BlobTestBase::PrepareTestBlob(InferenceEngine::Blob::Ptr inputBlob) {
-    if (makeBlobFn) return makeBlobFn(inputBlob, executableNetwork);
-    else return inputBlob;
+    if (makeBlobFn) {
+        return makeBlobFn(inputBlob, executableNetwork);
+    } else {
+        return inputBlob;
+    }
 }
 
 void BlobTestBase::Infer() {
@@ -131,16 +137,16 @@ void BlobTestBase::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     ConfigureNetwork();
-    if(preprocessFn) preprocessFn(cnnNetwork);
+    if (preprocessFn) preprocessFn(cnnNetwork);
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
     GenerateInputs();
     Infer();
     Validate();
 
-    if(teardownFn) teardownFn();
+    if (teardownFn) teardownFn();
 }
 
 TEST_P(BlobTestBase, CompareWithRefs) {
     Run();
 };
-}
+} // namespace BlobTestsDefinitions
