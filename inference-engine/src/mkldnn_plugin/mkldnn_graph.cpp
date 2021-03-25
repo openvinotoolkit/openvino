@@ -279,7 +279,10 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             graphEdges.push_back(edge);
         }
 
-        if (op->get_type_info() != ngraph::op::v0::Result::type_info) {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+                ngraph::op::v0::Result::type_info,
+                ngraph::op::v3::Assign::type_info,
+                ngraph::op::v6::Assign::type_info)) {
             for (int oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));

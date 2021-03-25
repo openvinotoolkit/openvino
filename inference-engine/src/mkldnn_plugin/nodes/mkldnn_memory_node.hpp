@@ -18,11 +18,7 @@ class MKLDNNMemoryNode {
     std::string _id;
  public:
     explicit MKLDNNMemoryNode(std::string id) : _id(id) {}
-    explicit MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
-//        if (lp->params.find("id") != lp->params.end()) {
-//            _id = lp->GetParamAsString("id");
-//        }
-    }
+    explicit MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op);
     virtual ~MKLDNNMemoryNode() = default;
     std::string getId() {
         return _id;
@@ -63,6 +59,7 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
  public:
     MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryOutputNode() override;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {}
@@ -88,6 +85,7 @@ public:
     MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryInputNode() override;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool created() const override {
         return getType() == MemoryInput;
     }

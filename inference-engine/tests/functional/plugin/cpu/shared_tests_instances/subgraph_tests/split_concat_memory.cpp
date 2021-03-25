@@ -34,7 +34,3 @@ INSTANTIATE_TEST_CASE_P(smoke_CPU, SplitConcatMemory,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         SplitConcatMemory::getTestCaseName);
 }  // namespace
-
-
-
-

@@ -144,45 +144,41 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
-    THROW_IE_EXCEPTION << "Not implemented";
-    // TODO [NM]: disabled until MKLDNNMemoryInputNode is not migrated on ngraph
-//    for (auto &node : graph->GetNodes()) {
-//        if (node->getType() == MemoryInput) {
-//            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-//            auto cur_id = cur_node->getId();
-//            for (const auto& state : memoryStates) {
-//                if (state->GetName() == cur_id) {
-//                    auto cur_state_mem = cur_node->getStore();
-//                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
-//                    auto data_size = state->GetState()->byteSize();
-//                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
-//
-//                    cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
-//                }
-//            }
-//        }
-//    }
+    for (auto &node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto cur_id = cur_node->getId();
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
+                    auto cur_state_mem = cur_node->getStore();
+                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+                    auto data_size = state->GetState()->byteSize();
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+
+                    cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
+                }
+            }
+        }
+    }
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
-    THROW_IE_EXCEPTION << "Not implemented";
-    // TODO [NM]: disabled until MKLDNNMemoryInputNode is not migrated on ngraph
-//    for (auto &node : graph->GetNodes()) {
-//        if (node->getType() == MemoryInput) {
-//            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-//            auto cur_id = cur_node->getId();
-//            for (const auto& state : memoryStates) {
-//                if (state->GetName() == cur_id) {
-//                    auto cur_state_mem = cur_node->getStore();
-//                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
-//                    auto data_size = state->GetState()->byteSize();
-//                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
-//
-//                    cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
-//                }
-//            }
-//        }
-//    }
+    for (auto &node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto cur_id = cur_node->getId();
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
+                    auto cur_state_mem = cur_node->getStore();
+                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+                    auto data_size = state->GetState()->byteSize();
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+
+                    cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
+                }
+            }
+        }
+    }
 }
 
 
