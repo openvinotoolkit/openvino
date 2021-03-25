@@ -27,6 +27,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         {},
         false,
+        {},
         "output",
         "FP32"
     },
@@ -35,6 +36,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
+        {},
         "output",
         "FP32"
     },
@@ -43,6 +45,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
+        {},
         "output_original",
         "U8"
     },
@@ -51,6 +54,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
+        {},
         "output",
         "FP32"
     },
@@ -59,6 +63,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } },
         false,
+        {},
         "output",
         "FP32"
     },
@@ -67,6 +72,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
+        {},
         "output",
         "FP32"
     },
@@ -75,6 +81,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         true,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
+        {},
         "output_original",
         "U8"
     },
@@ -83,6 +90,16 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         true,
         { 255ul, ngraph::Shape { 1 }, { 0.f }, { 254.f }, { -18.7f }, { 18.7f } },
         false,
+        {},
+        "output_original",
+        "U8"
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 6, 1, 1}},
         "output_original",
         "U8"
     },

@@ -16,7 +16,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string AddTransformation::getTestCaseName(testing::TestParamInfo< AddTransformationParams> obj) {
+std::string AddTransformation::getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj) {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
@@ -30,20 +30,14 @@ std::string AddTransformation::getTestCaseName(testing::TestParamInfo< AddTransf
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        (param.broadcast ? "_broadcast" : "");
-    if (!param.fakeQuantize1.empty()) {
-        result << "_on_branch1_" <<
-            param.fakeQuantize1.inputLowValues[0] << "_" <<
-            param.fakeQuantize1.inputHighValues[0] << "_" <<
-            param.fakeQuantize1.outputLowValues[0] << "_" <<
-            param.fakeQuantize1.outputHighValues[0];
-    }
-    if (!param.fakeQuantize2.empty()) {
-        result << "_on_branch2_" <<
-            param.fakeQuantize2.inputLowValues[0] << "_" <<
-            param.fakeQuantize2.inputHighValues[0] << "_" <<
-            param.fakeQuantize2.outputLowValues[0] << "_" <<
-            param.fakeQuantize2.outputHighValues[0];
+        (param.broadcast ? "_broadcast" : "") <<
+        param.fakeQuantize1 << "_" <<
+        param.operation1 << "_" <<
+        param.fakeQuantize2 << "_" <<
+        param.operation2;
+
+    for (const auto& expected : param.expected) {
+        result << "_" << expected;
     }
     return result.str();
 }
@@ -55,8 +49,16 @@ void AddTransformation::SetUp() {
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::AddFunction::getOriginal(
-        precision, inputShape, param.broadcast,
-        param.fakeQuantize1, param.fakeQuantize2);
+        precision,
+        inputShape,
+        param.broadcast,
+        param.fakeQuantize1,
+        param.operation1,
+        param.fakeQuantize2,
+        param.operation2,
+        param.constInput);
+
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.original").run_on_function(function);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
     validate();
@@ -82,6 +84,13 @@ void AddTransformation::validate() {
 
 TEST_P(AddTransformation, CompareWithRefImpl) {
     Run();
+
+    const auto params = std::get<3>(GetParam());
+    for (const auto& expected : params.expected) {
+        const LayerTestsCommon::PerformanceItem actual = getPerformanceItem(expected.name);
+        EXPECT_EQ(expected.type, actual.layerType);
+        EXPECT_EQ(expected.expectedKernelType, actual.runtimePrecision);
+    }
 };
 
 }  // namespace LayerTestsDefinitions

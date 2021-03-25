@@ -10,6 +10,7 @@
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ngraph_functions/common/add.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -19,6 +20,7 @@ public:
     bool asymmetricQuantizationOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool asymmetricQuantizationOnWeights;
+    ngraph::builder::subgraph::Add add;
     std::string layerName;
     std::string expectedKernelType;
 };

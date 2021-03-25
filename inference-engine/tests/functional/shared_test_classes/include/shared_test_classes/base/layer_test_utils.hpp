@@ -134,6 +134,38 @@ enum RefMode {
 
 class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
+    class PerformanceItem {
+    public:
+        PerformanceItem() {}
+
+        PerformanceItem(
+            std::string execOrder,
+            std::string execTimeMcs,
+            std::string layerType,
+            std::string originalLayersNames,
+            std::string outputLayouts,
+            std::string outputPrecisions,
+            std::string primitiveType,
+            std::string runtimePrecision) :
+            execOrder(execOrder),
+            execTimeMcs(execTimeMcs),
+            layerType(layerType),
+            originalLayersNames(originalLayersNames),
+            outputLayouts(outputLayouts),
+            outputPrecisions(outputPrecisions),
+            primitiveType(primitiveType),
+            runtimePrecision(runtimePrecision) {}
+
+        std::string execOrder;
+        std::string execTimeMcs;
+        std::string layerType;
+        std::string originalLayersNames;
+        std::string outputLayouts;
+        std::string outputPrecisions;
+        std::string primitiveType;
+        std::string runtimePrecision;
+    };
+
     virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
 
     virtual void Run();
@@ -154,6 +186,8 @@ public:
     std::map<std::string, std::string>& GetConfiguration();
 
     std::string getRuntimePrecision(const std::string& layerName);
+
+    PerformanceItem getPerformanceItem(const std::string& layerName);
 
 protected:
     LayerTestsCommon();

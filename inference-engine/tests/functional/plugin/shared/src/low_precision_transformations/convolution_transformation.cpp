@@ -31,7 +31,8 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
         param.fakeQuantizeOnData << "_" <<
-        param.fakeQuantizeOnWeights;
+        param.fakeQuantizeOnWeights << "_" <<
+        param.add.constantShape;
     return result.str();
 }
 
@@ -49,7 +50,8 @@ void ConvolutionTransformation::SetUp() {
         inputShape,
         // TODO: pass from test parameters
         param.fakeQuantizeOnData,
-        param.fakeQuantizeOnWeights);
+        param.fakeQuantizeOnWeights,
+        param.add);
 
     validate();
 }

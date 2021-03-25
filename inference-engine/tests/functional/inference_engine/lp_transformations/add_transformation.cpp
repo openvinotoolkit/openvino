@@ -19,6 +19,7 @@
 
 #include <low_precision/add.hpp>
 #include "lpt_ngraph_functions/add_function.hpp"
+#include "lpt_ngraph_functions/common/constant.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 using namespace testing;
@@ -34,7 +35,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
         ngraph::element::Type precision2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
-        std::vector<float> constValues;
+        ngraph::builder::subgraph::Constant constant;
     };
 
     class Expected {
@@ -44,7 +45,7 @@ public:
         ngraph::element::Type precision2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
-        std::vector<float> constValues;
+        ngraph::builder::subgraph::Constant constant;
         std::string operationType;
 
         Expected() = default;
@@ -54,14 +55,13 @@ public:
                  const ngraph::element::Type& precision2,
                  ngraph::builder::subgraph::DequantizationOperations dequantization2,
                  ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
-                 std::vector<float> constValues,
+                 ngraph::builder::subgraph::Constant constant,
                  std::string operationType = "Add"): precision1(precision1), dequantization1(std::move(dequantization1)),
                                          precision2(precision2), dequantization2(std::move(dequantization2)),
-                                         dequantizationAfter(std::move(dequantizationAfter)), constValues(std::move(constValues)),
+                                         dequantizationAfter(std::move(dequantizationAfter)), constant(std::move(constant)),
                                          operationType(std::move(operationType)) {}
     };
 
-    ngraph::element::Type precision;
     ngraph::Shape inputShape;
     bool broadcast;
     int constInput;
@@ -105,12 +105,12 @@ public:
             testValues.actual.precision2,
             testValues.actual.dequantization2,
             testValues.constInput,
-            testValues.actual.constValues,
+            testValues.actual.constant,
             testValues.additionalLayer);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-                low_precision::LayerTransformation::Params(testValues.params));
+            low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
 
         referenceFunction = AddFunction::getReference(
@@ -125,7 +125,7 @@ public:
             testValues.expected.dequantizationAfter,
             // Constant operations after transformations are on 1 input only
             testValues.constInput == -1 ? -1 : 1,
-            testValues.expected.constValues,
+            testValues.expected.constant,
             testValues.additionalLayer,
             testValues.expected.operationType);
     }
@@ -144,7 +144,7 @@ public:
             testValues.actual.precision2 << "_" <<
             testValues.actual.dequantization2 << "_" <<
             testValues.constInput << "_" <<
-            testValues.actual.constValues << "_" <<
+            testValues.actual.constant << "_" <<
             testValues.additionalLayer;
         return result.str();
     }
@@ -164,7 +164,6 @@ const std::vector<ngraph::element::Type> netPrecision = {
 const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     // Multiply with zero on the first branch
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -188,7 +187,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     },
     // Multiply with zero on the second branch
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -242,7 +240,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     //           \    /
     //            Add
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -296,7 +293,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     //           \    /
     //            Add
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -327,7 +323,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -350,7 +345,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -373,7 +367,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -396,7 +389,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -422,7 +414,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     // I8 + broadcast
 
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         true,
         -1,
@@ -445,7 +436,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         true,
         -1,
@@ -468,7 +458,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         true,
         -1,
@@ -491,7 +480,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         true,
         -1,
@@ -514,7 +502,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         ""
     },
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         true,
         -1,
@@ -538,7 +525,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     },
 
     {
-        ngraph::element::f32,
         ngraph::Shape{4, 1},
         false,
         -1,
@@ -548,7 +534,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {ngraph::element::f32},  { }, { {1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {4, 1}, true, 0ul }},
             ngraph::element::f32,
             {},
-            { 5.f, 6.f, 7.f, 8.f }
+            {{ 5.f, 6.f, 7.f, 8.f }}
         },
         {
             ngraph::element::u8,
@@ -556,14 +542,13 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             ngraph::element::f32,
             { {},  {}, {} },
             { {},  {}, {} },
-            { 5.f, 6.f, 7.f, 8.f }
+            {{ 5.f, 6.f, 7.f, 8.f }}
         },
         ""
     },
 
     // constant input: Add -> Subtract
     {
-    ngraph::element::f32,
         ngraph::Shape{ 1, 2, 2, 2 },
         false,
         1,
@@ -573,7 +558,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {ngraph::element::f32},  {}, {5.f}},
             ngraph::element::i8,
             { {},  {}, {} },
-            { 10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f }
+            {{ 10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f }}
         },
         {
             ngraph::element::i8,
@@ -581,7 +566,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             ngraph::element::f32,
             { {},  {}, {} },
             { {},  {}, {5.f} },
-            { -2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f },
+            {{ -2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f }},
             "Subtract"
         },
         ""
@@ -589,7 +574,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
 
     // constant input: Add -> Subtract
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 2, 2, 2},
         false,
         0,
@@ -599,7 +583,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {}},
             ngraph::element::i8,
             { {ngraph::element::f32},  {}, { 5.f } },
-            { 10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f }
+            { {10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f} }
         },
         {
             ngraph::element::i8,
@@ -608,14 +592,13 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, { }},
 
             { {},  {}, {5.f} },
-            { -2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f },
+            { {-2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f} },
             "Subtract"
         },
         "",
     },
     // convolution before FQ (choose that branch)
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -639,7 +622,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     },
     // group convolution before FQ (choose that branch)
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         -1,
@@ -690,7 +672,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     //       \      /
     //      Multiply
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         1,
@@ -750,7 +731,6 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
     //       \      /
     //      Multiply
     {
-        ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
         false,
         0,
@@ -778,6 +758,98 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, { 5.f } },
             { -3.f },
             "Subtract"
+        },
+        ""
+    },
+    {
+        ngraph::Shape{ 1, 6, 3, 3 },
+        false,
+        1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {{5.f, 5.e-40, 5.f, 5.f, 5.f, 5.f}}},
+            ngraph::element::i8,
+            {},
+            {{ 2.f, 3.f, 4.f, 5.f, 6.f, 7.f }, ngraph::element::undefined, {1, 6, 1, 1}}
+        },
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {{5.f, 5.e-40, 5.f, 5.f, 5.f, 5.f}}},
+            ngraph::element::i8,
+            {},
+            {},
+            {{ 2.f, 3.f, 4.f, 5.f, 6.f, 7.f }, ngraph::element::undefined, {1, 6, 1, 1}},
+            "Add"
+        },
+        ""
+    },
+    {
+        ngraph::Shape{ 1, 6, 3, 3 },
+        false,
+        1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {5.e-40}},
+            ngraph::element::i8,
+            {},
+            {{ 2.f, 3.f, 4.f, 5.f, 6.f, 7.f }, ngraph::element::undefined, {1, 6, 1, 1}}
+        },
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {5.e-40}},
+            ngraph::element::i8,
+            {},
+            {},
+            {{ 2.f, 3.f, 4.f, 5.f, 6.f, 7.f }, ngraph::element::undefined, {1, 6, 1, 1}},
+            "Add"
+        },
+        ""
+    },
+    {
+        ngraph::Shape{ 1, 6, 3, 3 },
+        false,
+        1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {{5.f, 5.e-40, 5.f, 5.f, 5.f, 5.f}}},
+            ngraph::element::i8,
+            { {},  {}, {} },
+            { 3.f }
+        },
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {{5.f, 5.e-40, 5.f, 5.f, 5.f, 5.f}}},
+            ngraph::element::i8,
+            {},
+            {},
+            { 3.f },
+            "Add"
+        },
+        ""
+    },
+    {
+        ngraph::Shape{ 1, 6, 3, 3 },
+        false,
+        1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {5.e-40}},
+            ngraph::element::i8,
+            { {},  {}, {} },
+            { 3.f }
+        },
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f32},  {}, {5.e-40}},
+            ngraph::element::i8,
+            {},
+            {},
+            { 3.f },
+            "Add"
         },
         ""
     }

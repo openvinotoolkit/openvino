@@ -8,6 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include <string>
 
+#include "lpt_ngraph_functions/common/add.hpp"
 #include "lpt_ngraph_functions/common/constant.hpp"
 #include "lpt_ngraph_functions/common/multiply.hpp"
 #include "lpt_ngraph_functions/common/reshape.hpp"
@@ -27,7 +28,8 @@ public:
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData,
-        const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
+        const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+        const Add& add);
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,

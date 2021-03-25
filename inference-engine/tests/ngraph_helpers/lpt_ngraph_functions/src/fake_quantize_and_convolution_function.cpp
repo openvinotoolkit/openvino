@@ -18,7 +18,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fqOnData,
-    const FakeQuantizeOnWeights& fqOnWeights) {
+    const FakeQuantizeOnWeights& fqOnWeights,
+    const Add& add) {
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
@@ -44,9 +45,16 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
-    convolution->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
+    const auto output = add.empty() ?
+        std::dynamic_pointer_cast<ngraph::Node>(convolution) :
+        std::make_shared<opset1::Add>(
+            convolution,
+            std::make_shared<opset1::Constant>(add.outPrecision, add.constantShape, add.values));
+
+    output->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(output) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeAndConvolutionFunction");
 }
 

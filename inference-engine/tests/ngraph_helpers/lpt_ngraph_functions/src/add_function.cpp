@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/network_helper.hpp"
-#include "low_precision/layer_transformation.hpp"
-
 #include "ngraph/opsets/opset1.hpp"
 
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/add_function.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 using namespace ngraph::pass::low_precision;
 
@@ -27,14 +27,14 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::element::Type& precision2,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
     const int constInput,
-    const std::vector<float>& constValues,
+    const ngraph::builder::subgraph::Constant constant,
     const std::string& additionalLayer) {
     std::shared_ptr<ngraph::Node> input1;
     if (constInput == 0) {
         input1 = std::make_shared<ngraph::opset1::Constant>(
-            precision,
-            inputShape,
-            constValues);
+            constant.outPrecision == element::undefined ? precision : constant.outPrecision,
+            constant.shapeIsDefined ? constant.shape : inputShape,
+            constant.values);
     } else {
         input1 = std::make_shared<ngraph::opset1::Parameter>(
             precision1.is_real() ? precision : precision1,
@@ -52,9 +52,9 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     std::shared_ptr<ngraph::Node> input2;
     if (constInput == 1) {
         input2 = std::make_shared<ngraph::opset1::Constant>(
-            precision,
-            inputShape,
-            constValues);
+            constant.outPrecision == element::undefined ? precision : constant.outPrecision,
+            constant.shapeIsDefined ? constant.shape : inputShape,
+            constant.values);
     } else {
         input2 = std::make_shared<ngraph::opset1::Parameter>(
             precision2.is_real() ? precision : precision2, ngraph::Shape(inputShape));
@@ -124,37 +124,101 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::Shape& inputShape,
     const bool broadcast,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2) {
+    const AddOperation& operation1,
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2,
+    const AddOperation& operation2,
+    const int constInput) {
     ngraph::Shape inputShape2 = inputShape;
 
+    ngraph::Shape constantShape = inputShape;
+    constantShape[0] = 1ul;
+
     if (broadcast) {
-        inputShape2[2] = 1;
-        inputShape2[3] = 1;
+        inputShape2[2] = 1ul;
+        inputShape2[3] = 1ul;
+
+        constantShape[2] = 1ul;
+        constantShape[3] = 1ul;
     }
 
     auto fq1 = fqOnData1;
     auto fq2 = fqOnData2;
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-    const auto fakeQuantize1 = fq1.empty() ?
-        nullptr :
-        ngraph::builder::makeFakeQuantize(
-            input1, precision, fq1.quantizationLevel, fq1.constantShape,
-            fq1.inputLowValues, fq1.inputHighValues, fq1.outputLowValues, fq1.outputHighValues);
+    auto createBranch = [](
+        const ngraph::element::Type precision,
+        const std::shared_ptr<ngraph::Node>& parent,
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+        const AddOperation& operation,
+        const size_t branchIndex) -> std::shared_ptr<ngraph::Node> {
+        auto result = fqOnData.empty() ?
+            parent :
+            std::dynamic_pointer_cast<ngraph::Node>(ngraph::builder::makeFakeQuantize(
+                parent,
+                precision,
+                fqOnData.quantizationLevel,
+                fqOnData.constantShape,
+                fqOnData.inputLowValues,
+                fqOnData.inputHighValues,
+                fqOnData.outputLowValues,
+                fqOnData.outputHighValues));
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
-    const auto fakeQuantize2 = fq2.empty() ?
-        nullptr :
-        ngraph::builder::makeFakeQuantize(
-            input2, precision, fq2.quantizationLevel, fq2.constantShape,
-            fq2.inputLowValues, fq2.inputHighValues, fq2.outputLowValues, fq2.outputHighValues);
+        if (!operation.empty()) {
+            std::shared_ptr<Node> tmpOnWeights = std::make_shared<ngraph::opset1::Constant>(
+                operation.constantOnWeights.outPrecision,
+                operation.constantOnWeights.shape,
+                operation.constantOnWeights.values);
+            tmpOnWeights->set_friendly_name("constantOnWeights" + std::to_string(branchIndex));
 
-    const auto add = std::make_shared<ngraph::opset1::Add>(
-        fq1.empty() ? input1 : fakeQuantize1,
-        fq2.empty() ? input2 : fakeQuantize2);
+            if (!operation.fakeQuantizeOnWeights.empty()) {
+                tmpOnWeights = ngraph::builder::subgraph::makeFakeQuantize(
+                    tmpOnWeights,
+                    operation.constantOnWeights.outPrecision,
+                    operation.fakeQuantizeOnWeights);
+                tmpOnWeights->set_friendly_name("fakeQuantizeOnWeights" + std::to_string(branchIndex));
+            }
+
+            if (!operation.dequantizationOperations.empty()) {
+                tmpOnWeights = makeDequantization(tmpOnWeights, operation.dequantizationOperations);
+            }
+
+            result = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+                std::vector<element::Type>{ element::f32, element::f32 },
+                std::vector<element::Type>{ element::f32 },
+                ngraph::op::TemporaryReplaceOutputType(result, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(tmpOnWeights, element::f32).get(),
+                ngraph::Strides{ 1, 1 },
+                ngraph::CoordinateDiff{ 0, 0 },
+                ngraph::CoordinateDiff{ 0, 0 },
+                ngraph::Strides{ 1, 1 });
+            result->set_friendly_name("convolution" + std::to_string(branchIndex));
+        }
+
+        return result;
+    };
+
+    ngraph::ParameterVector inputs;
+
+    const std::shared_ptr<ngraph::Node> input1 = constInput == 0 ?
+        std::make_shared<ngraph::opset1::Constant>(element::f32, constantShape, std::vector<float>(1.f, ngraph::shape_size(constantShape))) :
+        std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ngraph::opset1::Parameter>(precision, inputShape));
+    if (is_type<op::Parameter>(input1)) {
+        inputs.push_back(as_type_ptr<op::Parameter>(input1));
+    }
+    const auto parent1 = createBranch(precision, input1, fq1, operation1, 0ul);
+
+    const std::shared_ptr<ngraph::Node>& input2 = constInput == 1 ?
+        std::make_shared<ngraph::opset1::Constant>(element::f32, constantShape, std::vector<float>(1.f, ngraph::shape_size(constantShape))) :
+        std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2));
+    if (is_type<op::Parameter>(input2)) {
+        inputs.push_back(as_type_ptr<op::Parameter>(input2));
+    }
+    const auto parent2 = createBranch(precision, input2, fq2, operation2, 1ul);
+
+    const auto add = std::make_shared<ngraph::opset1::Add>(parent1, parent2);
+    add->set_friendly_name("add");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "AddTransformation");
+    return std::make_shared<ngraph::Function>(results, inputs, "AddTransformation");
 }
 
 std::shared_ptr<ngraph::Function> AddFunction::getReference(
@@ -168,15 +232,15 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const int constInputIndex,
-    const std::vector<float>& constValues,
+    const ngraph::builder::subgraph::Constant constant,
     const std::string& additionalLayer,
     const std::string& operationType) {
     std::shared_ptr<ngraph::Node> input1;
     if (constInputIndex == 0) {
         input1 = std::make_shared<ngraph::opset1::Constant>(
-            dequantizationAfter.empty() ? precision : element::f32,
-            inputShape,
-            constValues);
+            constant.outPrecision == element::undefined ? (dequantizationAfter.empty() ? precision : element::f32) : constant.outPrecision,
+            constant.shapeIsDefined ? constant.shape : inputShape,
+            constant.values);
     } else {
         input1 = std::make_shared<ngraph::opset1::Parameter>(
             precision1.is_real() ? precision : precision1,
@@ -190,9 +254,9 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     std::shared_ptr<ngraph::Node> input2;
     if (constInputIndex == 1) {
         input2 = std::make_shared<ngraph::opset1::Constant>(
-            dequantizationAfter.empty() ? precision : element::f32,
-            inputShape,
-            constValues);
+            constant.outPrecision == element::undefined ? (dequantizationAfter.empty() ? precision : element::f32) : constant.outPrecision,
+            constant.shapeIsDefined ? constant.shape : inputShape,
+            constant.values);
     } else {
         input2 = std::make_shared<ngraph::opset1::Parameter>(
             precision2.is_real() ? precision : precision2, ngraph::Shape(inputShape));

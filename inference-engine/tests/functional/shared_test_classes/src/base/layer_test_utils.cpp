@@ -464,6 +464,42 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
     return "";
 }
 
+LayerTestsCommon::PerformanceItem LayerTestsCommon::getPerformanceItem(const std::string& layerName) {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+
+    for (const auto& op : function->get_ops()) {
+        const auto name = op->get_friendly_name();
+        if (name == layerName) {
+            auto getValue = [](
+                const std::shared_ptr<ngraph::Node>& op,
+                const std::string& key,
+                const bool mandatory = false) -> std::string {
+                const auto& rtInfo = op->get_rt_info();
+                const auto& it = rtInfo.find(key);
+                if (it == rtInfo.end()) {
+                    if (mandatory) {
+                        THROW_IE_EXCEPTION << "Runtime item '" << key << "' was not found for node: " << op->get_friendly_name();
+                    }
+                    return "";
+                }
+                return ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second)->get();
+            };
+            return LayerTestsCommon::PerformanceItem(
+                getValue(op, "execOrder"),
+                getValue(op, "execTimeMcs"),
+                getValue(op, "layerType", true),
+                getValue(op, "originalLayersNames"),
+                getValue(op, "outputLayouts"),
+                getValue(op, "outputPrecisions"),
+                getValue(op, "primitiveType", true),
+                getValue(op, "runtimePrecision", true));
+        }
+    }
+
+    return LayerTestsCommon::PerformanceItem();
+}
+
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;
 }
