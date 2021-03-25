@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,11 @@
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/binarize_weights.hpp"
+#include "transformations/common_optimizations/conv_to_binary_conv.hpp"
+#include "transformations/common_optimizations/space_to_batch_fusion.hpp"
+#include "transformations/common_optimizations/batch_to_space_fusion.hpp"
+#include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -102,10 +107,15 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
     common_fusions->add_matcher<ngraph::pass::MVNFusion>();
+    common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
+    common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
+    manager.register_pass<ngraph::pass::BinarizeWeights>();
+    manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
