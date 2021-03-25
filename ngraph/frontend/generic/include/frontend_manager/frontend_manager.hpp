@@ -200,6 +200,7 @@ public:
     virtual void setNameForOperation (Place::Ptr operation, const std::string& newName);
     virtual void freeNameForTensor (const std::string& name);
     virtual void freeNameForOperation (const std::string& name);
+
     virtual void setNameForDimension (Place::Ptr place, size_t shapeDimIndex, const std::string& dimName);
 
 

@@ -19,7 +19,7 @@
 #include "onnx_import/editor/editor.hpp"
 #include "tensorflow_frontend/tensorflow.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "paddlepaddle_frontend/pdpd.hpp"
+#include "paddlepaddle_frontend/frontend.hpp"
 
 
 namespace ngraph

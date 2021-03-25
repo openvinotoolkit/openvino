@@ -19,9 +19,8 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 find_package(Protobuf REQUIRED IMPORTED)
-include_directories(${Protobuf_INCLUDE_DIRS})
 
-set(TENSORFLOW_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(PADDLEPADDLE_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -34,7 +33,7 @@ set(PROTOBUF_GENERATE_CPP_APPEND_PATH ON)
 file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${proto_files})
 
-include_directories(${Protobuf_INCLUDE_DIRS})
+include_directories(${Protobuf_INCLUDE_DIRS} ${PADDLEPADDLE_FRONTEND_INCLUDE_DIR})
 
 # Create shared library
 add_library(paddlepaddle_frontend SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
