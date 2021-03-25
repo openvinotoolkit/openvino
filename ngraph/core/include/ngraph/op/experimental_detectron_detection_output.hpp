@@ -28,8 +28,8 @@ namespace ngraph
     {
         namespace v6
         {
-            /// \brief An operation ExperimentalDetectronDetectionOutput performs 
-            /// non-maximum suppression to generate the detection output using 
+            /// \brief An operation ExperimentalDetectronDetectionOutput performs
+            /// non-maximum suppression to generate the detection output using
             /// information on location and score predictions.
             class NGRAPH_API ExperimentalDetectronDetectionOutput : public Op
             {
