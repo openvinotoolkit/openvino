@@ -8,32 +8,43 @@
 namespace CPUTestUtils {
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
-#define FMT_2_STR(_fmt) do { \
+#define CASE(_fmt) do { \
     if (v == _fmt) return #_fmt; \
 } while (0)
-    FMT_2_STR(nchw);
-    FMT_2_STR(nChw8c);
-    FMT_2_STR(nChw16c);
-    FMT_2_STR(nhwc);
-    FMT_2_STR(ncdhw);
-    FMT_2_STR(nCdhw8c);
-    FMT_2_STR(nCdhw16c);
-    FMT_2_STR(ndhwc);
-    FMT_2_STR(nc);
-    FMT_2_STR(x);
-    FMT_2_STR(abc);
-    FMT_2_STR(bac);
-    FMT_2_STR(abdc);
-    FMT_2_STR(abdec);
-    FMT_2_STR(tnc);
-    FMT_2_STR(ntc);
-    FMT_2_STR(ldnc);
-    FMT_2_STR(ldigo);
-    FMT_2_STR(ldgoi);
-    FMT_2_STR(ldio);
-    FMT_2_STR(ldoi);
-    FMT_2_STR(ldgo);
-#undef FMT_2_STR
+    CASE(undef);
+    CASE(a);
+    CASE(ab);
+    CASE(abcd);
+    CASE(acdb);
+    CASE(aBcd8b);
+    CASE(aBcd16b);
+    CASE(abcde);
+    CASE(acdeb);
+    CASE(aBcde8b);
+    CASE(aBcde16b);
+    CASE(abc);
+    CASE(bac);
+    CASE(abdc);
+    CASE(abdec);
+    CASE(nchw);
+    CASE(nChw8c);
+    CASE(nChw16c);
+    CASE(nhwc);
+    CASE(ncdhw);
+    CASE(nCdhw8c);
+    CASE(nCdhw16c);
+    CASE(ndhwc);
+    CASE(nc);
+    CASE(x);
+    CASE(tnc);
+    CASE(ntc);
+    CASE(ldnc);
+    CASE(ldigo);
+    CASE(ldgoi);
+    CASE(ldio);
+    CASE(ldoi);
+    CASE(ldgo);
+#undef CASE
     assert(!"unknown fmt");
     return "undef";
 }
@@ -136,8 +147,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
             return skip_unsquized_1D || permule_of_1;
         };
 
-        std::cout << "Current Layer type: " << getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) << '\n';
-
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
             isNodeFound = true;
             ASSERT_LE(inFmts.size(), node->get_input_size());
@@ -155,14 +164,26 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
                     }
                 }
             }
-            for (int i = 0; i < outFmts.size(); i++) {
-                const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-                const auto shape = node->get_output_shape(i);
 
-                if (!should_be_skipped(shape, outFmts[i])) {
-                    ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
-                }
+            const auto actualOutputMemoryFormat = getExecValueOutputsLayout(node);
+            const auto shape = node->get_output_shape(0);
+            if (!should_be_skipped(shape, outFmts[0])) {
+                /* actual output formats are represented as a single string, for example 'fmt1' or 'fmt1, fmt2, fmt3'
+                 * convert expected formats to the same representation */
+                auto outFmtsToSingleString = [] (const std::vector<cpu_memory_format_t>& fmts) -> std::string {
+                    std::string outFmtsStr;
+                    for (const auto fmt : fmts) {
+                        outFmtsStr += cpu_fmt2str(fmt);
+                        outFmtsStr += ",";
+                    }
+                    outFmtsStr.pop_back(); // remove last comma
+
+                    return outFmtsStr;
+                };
+
+                ASSERT_EQ(outFmtsToSingleString(outFmts), actualOutputMemoryFormat);
             }
+
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
 
             ASSERT_EQ(selectedType, primType);
