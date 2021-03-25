@@ -85,12 +85,10 @@ using namespace std;
 using namespace GNAPluginNS;
 using namespace InferenceEngine::details;
 
-#ifdef __clang__
 namespace InferenceEngine {
     template<>
-    InferenceEngine::TBlob<intel_compound_bias_t, std::enable_if<true, void> >::~TBlob() { free(); }
+    InferenceEngine::TBlob<gna_compound_bias_t, std::enable_if<true, void> >::~TBlob() { free(); }
 }
-#endif  // __clang__
 
 template <typename T, typename U>
 void GNAPlugin::copyInputData(T *dst,
@@ -1109,7 +1107,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             Wait(0);
             freeNnet = nnets.begin();
         } else {
-            THROW_IE_EXCEPTION_WITH_STATUS(RequestBusy)
+            IE_THROW(RequestBusy)
                                << "GNA executable network has max of "
                                << static_cast<uint32_t >(gnaFlags->gna_lib_async_threads_num)
                                << " parallel infer requests, please sync one of already running";
@@ -1590,7 +1588,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     InferenceEngine::QueryNetworkResult res;
 
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented) << " ngraph::Function is not supported natively";
+        IE_THROW(NotImplemented) << " ngraph::Function is not supported natively";
     }
 
     std::unordered_set<CNNLayer *> allLayers;
