@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporationconvert2OutputVector
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -942,6 +942,12 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
     switch (type) {
         case SequenceTestsMode::PURE_SEQ:
             os << "PURE_SEQ";
+            break;
+        case SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST:
+            os << "PURE_SEQ_RAND_SEQ_LEN_CONST";
+            break;
+        case SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM:
+            os << "PURE_SEQ_RAND_SEQ_LEN_PARAM";
             break;
         case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
             os << "CONVERT_TO_TI_RAND_SEQ_LEN_PARAM";

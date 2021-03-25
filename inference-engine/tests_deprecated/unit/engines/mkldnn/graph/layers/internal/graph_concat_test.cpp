@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,7 +197,7 @@ protected:
                     index2++; index++;
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -379,7 +379,7 @@ protected:
 
             graph.checkDynBatch(srcs, outputBlobs, MB, MB, checkConcat, checkType);
             graph.checkDynBatch(srcs, outputBlobs, 1, MB, checkConcat, checkType);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -529,7 +529,7 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
         if (!FIND_STR(model, TL) || !FIND_STR(model, TP)) {
             if (!FIND_STR(model, "_FSL_") || !FIND_STR(model, "_FSP_") ||
                     !FIND_STR(model, "_FSLTL_") || !FIND_STR(model, "_FSLTP_")) {
-                THROW_IE_EXCEPTION << "Incorrect configuration!";
+                IE_THROW() << "Incorrect configuration!";
             }
             REPLACE_WITH_NUM(model, "_FSL_", f_l);
             REPLACE_WITH_NUM(model, "_FSP_", f_p);
@@ -791,7 +791,7 @@ protected:
                     }
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -1021,7 +1021,7 @@ protected:
                     index2++; index++;
                 }
             }
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

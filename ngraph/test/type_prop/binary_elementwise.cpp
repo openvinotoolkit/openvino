@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -179,7 +167,6 @@ void test_binary_logical(std::string /* node_type */,
         {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
-
     };
 
     test_binary_differ_arguments_view_element_types(tv0_2_4_param_0, tv0_2_4_param_2);
@@ -216,9 +203,13 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
     auto param2 = make_shared<op::Parameter>(et, Shape{3, 1});
     auto param3 = make_shared<op::Parameter>(et, Shape{2, 3, 6});
     auto param4 = make_shared<op::Parameter>(et, Shape{6});
+    auto param5 = make_shared<op::Parameter>(et, Shape{});
+
     EXPECT_EQ(make_shared<T>(param1, param2, autob)->get_shape(), (Shape{1, 3, 6}));
     EXPECT_EQ(make_shared<T>(param1, param3, autob)->get_shape(), (Shape{2, 3, 6}));
     EXPECT_EQ(make_shared<T>(param4, param3, autob)->get_shape(), (Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param5, param3, autob)->get_shape(), (Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param3, param5, autob)->get_shape(), (Shape{2, 3, 6}));
 
     auto pp1 = make_shared<op::Parameter>(et, PartialShape{1, Dimension::dynamic(), 6});
     auto pp2 = make_shared<op::Parameter>(et, PartialShape{3, 1});

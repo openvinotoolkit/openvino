@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -255,7 +255,7 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string BIN_EXT = ".bin";
 
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::remove(test_name.begin(), test_name.end(), '/');
+    test_name.erase(std::remove(test_name.begin(), test_name.end(), '/'), test_name.end());
     test_name += getTimestamp();
 
     m_out_xml_path = test_name + XML_EXT;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ public:
      */
     explicit ExecutableNetworkBase(std::shared_ptr<IExecutableNetworkInternal> impl) {
         if (impl.get() == nullptr) {
-            THROW_IE_EXCEPTION << "implementation not defined";
+            IE_THROW() << "implementation not defined";
         }
         _impl = impl;
     }

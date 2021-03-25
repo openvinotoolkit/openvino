@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -225,7 +213,7 @@ namespace ngraph
                 clip_activation(r_t, activation_f);
 
                 // calculate h_t
-                vector<T> h_t(gate_shape_size);
+                std::vector<T> h_t(gate_shape_size);
                 if (linear_before_reset)
                 {
                     // ht = g(Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh)
@@ -287,8 +275,8 @@ namespace ngraph
                 }
                 clip_activation(h_t, activation_g);
                 // Ht = (1 - zt) (.) ht + zt (.) Ht-1
-                vector<T> mul1(gate_shape_size);
-                vector<T> mul2(gate_shape_size);
+                std::vector<T> mul1(gate_shape_size);
+                std::vector<T> mul2(gate_shape_size);
                 T one[] = {1};
                 reference::subtract(
                     one, z_t.data(), mul1.data(), {1}, gate_shape, op::AutoBroadcastSpec::NUMPY);

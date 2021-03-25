@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,11 +29,13 @@ export(TARGETS ${TARGET_NAME} NAMESPACE IE::
 
 # install
 
+ie_cpack_add_component(core_c DEPENDS core)
+
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core_c
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
         DESTINATION ${IE_CPACK_IE_DIR}/include/
-        COMPONENT core)
+        COMPONENT core_c)

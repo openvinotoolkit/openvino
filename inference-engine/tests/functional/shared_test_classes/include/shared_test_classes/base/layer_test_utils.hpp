@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,8 @@
 namespace LayerTestsUtils {
 
 extern bool extendReport;
+extern bool saveReportWithUniqueName;
+extern std::vector<std::string> outputFolder;
 
 // filename length limitation due to Windows constraints (max 256 characters)
 constexpr std::size_t maxFileNameLength = 140;
@@ -180,10 +182,11 @@ public:
 
             const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
             float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
-            ASSERT_TRUE(max != 0 && (diff <= static_cast<float>(threshold)))
-                                        << "Relative comparison of values expected: " << ref << " and actual: " << res
-                                        << " at index " << i << " with threshold " << threshold
-                                        << " failed";
+            if (max == 0 || (diff > static_cast<float>(threshold))) {
+                IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
+                                   << " at index " << i << " with threshold " << threshold
+                                   << " failed";
+            }
         }
     }
 
