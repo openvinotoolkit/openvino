@@ -74,7 +74,7 @@ std::tuple<networkPreprocessFuncType,
            generateReferenceFuncType,
            makeTestBlobFuncType,
            teardownFuncType> fnSet = {nullptr, nullptr, nullptr, MakeTestBlobOCL, Teardown};
-} // namespace
+} // namespace RemoteOCL
 
 INSTANTIATE_TEST_CASE_P(smoke_Remote_OCL, BlobTestBase,
     ::testing::Combine(
@@ -99,4 +99,4 @@ INSTANTIATE_TEST_CASE_P(smoke_Remote_OCL_dynamic_batch, BlobTestBase,
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(RemoteOCL::dyn_batch_config)),
     BlobTestBase::getTestCaseName);
-}
+} // namespace BlobTestsDefinitions

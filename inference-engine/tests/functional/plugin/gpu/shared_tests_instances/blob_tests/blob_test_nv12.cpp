@@ -39,7 +39,7 @@ std::map<std::string, std::string> dyn_batch_config = {
     {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}
 };
 
-void PreprocessNetwork (InferenceEngine::CNNNetwork& network) {
+void PreprocessNetwork(InferenceEngine::CNNNetwork& network) {
     InputInfo::Ptr input_info = network.getInputsInfo().begin()->second;
     std::string input_name = network.getInputsInfo().begin()->first;
 
@@ -79,7 +79,7 @@ InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info)
         InferenceEngine::Layout::NHWC);
     const size_t offset = width * height;
 
-    for(int i = offset; i < blob->byteSize(); i++) {
+    for (int i = offset; i < blob->byteSize(); i++) {
         ptr[i] = 128;
     }
     // --------------------------- Create a blob to hold the NV12 input data -------------------------------
@@ -114,7 +114,7 @@ std::vector<std::vector<uint8_t>> generateReference(InferenceEngine::CNNNetwork&
     }
 
     std::vector<std::vector<uint8_t>> res;
-    for(auto& output : cpu_outputs) {
+    for (auto& output : cpu_outputs) {
         auto buffer = output->buffer().as<uint8_t*>();
         res.push_back(std::vector<uint8_t>(buffer, buffer + output->byteSize()));
     }
@@ -156,4 +156,4 @@ INSTANTIATE_TEST_CASE_P(nv12_dynamic_batch, BlobTestBase,
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(nv12::dyn_batch_config)),
     BlobTestBase::getTestCaseName);
-}
+} // namespace BlobTestsDefinitions

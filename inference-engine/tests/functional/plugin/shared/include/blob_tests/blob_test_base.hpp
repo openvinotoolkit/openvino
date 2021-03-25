@@ -13,8 +13,6 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-
-
 namespace BlobTestsDefinitions {
 using InferenceEngine::Blob;
 using nghraphSubgraphFuncType = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t>, ngraph::element::Type)>;
@@ -68,4 +66,4 @@ protected:
     void Infer() override;
     void Validate() override;
 };
-}
+} // namespace BlobTestsDefinitions
