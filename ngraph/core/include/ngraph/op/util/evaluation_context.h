@@ -26,8 +26,30 @@ namespace ngraph
 
     using VariablePtr = std::shared_ptr<Variable>;
     using VariableValuePtr = std::shared_ptr<VariableValue>;
-    using VariableContext = std::unordered_map<VariablePtr, VariableValuePtr>;
+    using VariableMap = std::unordered_map<VariablePtr, VariableValuePtr>;
 
+    class VariableContext {
+    public:
+        void reset_variable_context() {
+            for (const auto& el : m_variable_context) {
+                el.second->set_reset(true);
+            }
+        }
+
+        void add_variable_context(const VariableMap& variable_context_to_add) {
+            m_variable_context.insert(variable_context_to_add.begin(), variable_context_to_add.end());
+        }
+
+        void add_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value) {
+            m_variable_context[variable] = variable_value;
+        }
+
+        const VariableMap& get_context() const {
+            return m_variable_context;
+        }
+    public:
+        VariableMap m_variable_context;
+    };
     // Base class (interface) e.g. Context, methods reset, set, add, get
     // class EvaluationContext : public Context
     // class VariableContext : public Context
@@ -36,28 +58,14 @@ namespace ngraph
     public:
         EvaluationContext() = default;
 
-        void set_variable_context(const VariableContext& variable_context) {
+        void set_variable_context(const std::shared_ptr<VariableContext>& variable_context) {
             m_variable_context = variable_context;
         };
 
-        const VariableContext& get_variable_context() const {
+        const std::shared_ptr<VariableContext>& get_variable_context() const {
             return m_variable_context;
         }
-
-        void reset_variable_context() {
-            for (const auto& el : m_variable_context) {
-                el.second->set_reset(true);
-            }
-        }
-
-        void add_variable_context(const VariableContext& variable_context_to_add) {
-            m_variable_context.insert(variable_context_to_add.begin(), variable_context_to_add.end());
-        }
-
-        void add_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value) {
-            m_variable_context[variable] = variable_value;
-        }
     private:
-        VariableContext m_variable_context;
+        std::shared_ptr<VariableContext> m_variable_context;
     };
 }

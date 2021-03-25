@@ -130,7 +130,7 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const EvaluationContext& evaluation_context) const
 {
     NGRAPH_OP_SCOPE(v6_Assign_evaluate);
-    const auto& variable_context = evaluation_context.get_variable_context();
+    const auto& variable_context = evaluation_context.get_variable_context()->get_context();
     const auto& var_value = variable_context.find(m_variable);
 
     // todo: exception?

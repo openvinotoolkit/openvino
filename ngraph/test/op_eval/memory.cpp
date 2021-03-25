@@ -43,8 +43,10 @@ TEST(op_eval, assign_readvalue_copy_test)
 
     // creating context
     EvaluationContext eval_context;
+    auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::i64>(Shape{3}, inputs));
-    eval_context.add_variable_value(variable, variable_value);
+    variable_context->add_variable_value(variable, variable_value);
+    eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
     const uint64_t COUNT_RUNS = 3;
@@ -73,8 +75,10 @@ TEST(op_eval, assign_readvalue_add)
 
     // creating context
     EvaluationContext eval_context;
+    auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::i64>(Shape{3}, inputs));
-    eval_context.add_variable_value(variable, variable_value);
+    variable_context->add_variable_value(variable, variable_value);
+    eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
     const uint64_t COUNT_RUNS = 3;
@@ -104,8 +108,10 @@ TEST(op_eval, assign_readvalue_add_reset)
 
     // creating context
     EvaluationContext eval_context;
+    auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::i64>(Shape{3}, inputs));
-    eval_context.add_variable_value(variable, variable_value);
+    variable_context->add_variable_value(variable, variable_value);
+    eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
     const uint64_t COUNT_RUNS = 3;
@@ -120,7 +126,7 @@ TEST(op_eval, assign_readvalue_add_reset)
             EXPECT_EQ(result_data[i], expected_result[i]);
     }
 
-    eval_context.reset_variable_context();
+    eval_context.get_variable_context()->reset_variable_context();
 
     for (int i = 0; i < COUNT_RUNS; ++i) {
         ASSERT_TRUE(
@@ -148,8 +154,10 @@ TEST(op_eval, assign_readvalue_add_modify)
 
     // creating context
     EvaluationContext eval_context;
+    auto variable_context = make_shared<VariableContext>();
     auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::i64>(Shape{3}, inputs));
-    eval_context.add_variable_value(variable, variable_value);
+    variable_context->add_variable_value(variable, variable_value);
+    eval_context.set_variable_context(variable_context);
 
     auto result = make_shared<HostTensor>();
     const uint64_t COUNT_RUNS = 3;
@@ -167,8 +175,8 @@ TEST(op_eval, assign_readvalue_add_modify)
     const auto& variables = fun->find_variables();
     EXPECT_EQ(variables.size(), 1);
 
-    const auto& var_value = eval_context.get_variable_context().find(variables[0]);
-    EXPECT_NE(var_value, eval_context.get_variable_context().end());
+    const auto& var_value = eval_context.get_variable_context()->get_context().find(variables[0]);
+    EXPECT_NE(var_value, eval_context.get_variable_context()->get_context().end());
 
     var_value->second->set_value(make_host_tensor<element::Type_t::i64>(Shape{3}, {2, 2, 2}));
 
