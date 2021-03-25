@@ -19,7 +19,7 @@ import yaml
 from inspect import getsourcefile
 from pathlib import Path
 
-from config_reader import write_test_info
+from config_reader import write_session_info
 
 # add ../lib to imports
 sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
@@ -100,7 +100,7 @@ def test_info(request, pytestconfig):
 def save_session_info(pytestconfig):
     """Fixture function for saving additional attributes to configuration file."""
     yield
-    write_test_info(data=pytestconfig.session_info)
+    write_session_info(data=pytestconfig.session_info)
 
 
 @pytest.fixture(scope="session")
