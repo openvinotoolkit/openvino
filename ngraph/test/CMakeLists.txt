@@ -9,7 +9,6 @@ add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
-    add_subdirectory(util)
     return()
 endif()
 
@@ -113,6 +112,7 @@ set(SRC
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
+    type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -404,13 +404,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation
-                                        openvino::itt
-                                        openvino::pp
-                                        ngraph
                                         ngraph::builder
-                                        ngraph_backend
-                                        libgtest)
+                                        openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -445,7 +440,6 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

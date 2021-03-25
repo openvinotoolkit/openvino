@@ -608,7 +608,6 @@ InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::LSTMSequence node,
 InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::NonMaxSuppression node,
                                     const InferenceEngine::InputInfo& info,
                                     size_t port) {
-    std::cout << "lklkllll" << std::endl;
     if (port == 1) {
         InferenceEngine::Blob::Ptr blob;
         blob = make_blob_with_precision(info.getTensorDesc());
