@@ -39,7 +39,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-target_link_libraries(ngraph PRIVATE openvino::itt ngraph::builder ngraph::reference)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference)
 
 ie_mark_target_as_cc(ngraph)
 
