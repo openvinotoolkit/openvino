@@ -261,7 +261,6 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             {
                 m_node_modifiers(*arg, attributes);
             }
-            m_ss << "    " << clone_name << " -> " << node->get_name();
             m_ss << "    " << clone_name << "[";
             for (auto attr : attributes)
             {
@@ -269,7 +268,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             }
             m_ss << "]\n";
 
-            m_ss << label_edge(arg, node, arg_index, jump_distance) << "\n";
+            m_ss << "    " << clone_name << " -> " << node->get_name()
+                 << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
         }
         else if (jump_distance > max_jump_distance)
@@ -404,12 +404,14 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements)
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i)
     {
-        if (i != 0 && i % 8 == 0)
+        if (i < max_elements)
         {
-            ss << std::endl;
+            if (i != 0 && i % 8 == 0)
+            {
+                ss << std::endl;
+            }
         }
-
-        if (i >= max_elements)
+        else
         {
             ss << "...";
             if (!additional_ss.empty())
