@@ -24,8 +24,13 @@ using namespace ngraph::op;
 
 MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
-    if (!one_of(op->get_type_info(), v0::Parameter::type_info, v0::Constant::type_info, v0::Result::type_info))
-        IE_THROW() << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+    if (!one_of(op->get_type_info(),
+            v0::Parameter::type_info,
+            v0::Constant::type_info,
+            v0::Result::type_info,
+            v3::ReadValue::type_info,
+            v6::ReadValue::type_info))
+        IE_THROW(NotImplemented) << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
 
     constant = ConstantType::NoConst;
     constBlob = nullptr;
@@ -84,6 +89,14 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
         auto mem_tdesc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
         dataConfig.desc = mem_tdesc;
         config.outConfs.push_back(dataConfig);
+        // ReadValue operation expects constant input
+        if (!getParentEdges().empty()) {
+            DataConfig inConfig;
+            inConfig.inPlace = -1;
+            inConfig.constant = true;
+            inConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+            config.inConfs.push_back(inConfig);
+        }
     } else if (getType() == Output) {
         precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;

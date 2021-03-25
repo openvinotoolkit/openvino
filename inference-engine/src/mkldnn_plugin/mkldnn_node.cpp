@@ -139,6 +139,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "SoftMax", SoftMax },
         { "Split", Split },
 //        { "Slice", Split },
+        { "VariadicSplit", Split },
         { "Concat", Concatenation },
         { "ConvolutionBackpropData", Deconvolution },
         { "GroupConvolutionBackpropData", Deconvolution },
@@ -166,8 +167,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "DeformableConvolution", DeformableConvolution },
 //        { "TensorIterator", TensorIterator },
 //        { "Loop", TensorIterator },
-//        { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
-//        { "Memory", MemoryOutput },  // for construction from layer ctor
+        { "ReadValue", MemoryInput},  // for construction from name ctor, arbitrary name is used
+        { "Assign", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
         { "MVN", MVN},
         { "NormalizeL2", NormalizeL2},
@@ -227,22 +228,14 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
-    if (op->get_output_size() != 0 && typeStr != "Result") {
+    if (typeStr != "Result" && typeStr != "Assign") {
+        if (op->get_output_size() == 0) {
+            IE_THROW() << "Node with type '" << typeStr << "' and name '" << name << "' does not have any outputs.";
+        }
         for (size_t i = 0; i < op->get_output_size(); i++) {
             outDims.emplace_back(op->get_output_shape(i));
             originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
         }
-    } else {
-        // TODO [NM]: get rid of this condition
-        if (!(CaselessEq<std::string>()(typeStr, "Result"))) {
-            IE_THROW() << "Inappropriate layer type: " << typeStr << " name: " << name;
-        }
-//        if (!(CaselessEq<std::string>()(typeStr, "memory") ||
-//            CaselessEq<std::string>()(typeStr, "memoryinput") ||
-//            CaselessEq<std::string>()(typeStr, "output") ||
-//            CaselessEq<std::string>()(typeStr, "reorder"))) {
-//            IE_THROW() << "Inappropriate layer type: " << typeStr << " name: " << name;
-//        }
     }
 
     const auto& rtInfo = op->get_rt_info();
