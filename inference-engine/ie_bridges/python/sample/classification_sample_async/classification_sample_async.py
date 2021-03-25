@@ -74,6 +74,8 @@ def main():
 
     # Get a number of input images
     num_of_input = len(args.input)
+    # Get a number of classes recognized by a model
+    num_of_classes = max(net.outputs[out_blob].shape)
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
@@ -132,7 +134,7 @@ def main():
             log.info('probability | classid')
             log.info('---------------------')
 
-            probs = res[0]
+            probs = res.reshape(num_of_classes)
             top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 
             for class_id in top_n_idexes:

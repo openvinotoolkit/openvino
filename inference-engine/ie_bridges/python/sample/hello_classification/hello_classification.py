@@ -58,6 +58,9 @@ def main():
     net.input_info[input_blob].precision = 'U8'
     net.outputs[out_blob].precision = 'FP32'
 
+    # Get a number of classes recognized by a model
+    num_of_classes = max(net.outputs[out_blob].shape)
+
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     exec_net = ie.load_network(network=net, device_name=args.device)
@@ -97,7 +100,7 @@ def main():
     log.info('probability | classid')
     log.info('---------------------')
 
-    probs = res[0]
+    probs = res.reshape(num_of_classes)
     top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 
     for class_id in top_n_idexes:
