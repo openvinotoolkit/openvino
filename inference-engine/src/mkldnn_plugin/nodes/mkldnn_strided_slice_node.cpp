@@ -52,10 +52,8 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     if (!inData || !beginData || !endData)
         THROW_ERROR << "has nullable input data";
 
-    params.parametersAreConstant = true;
-    if (!CaselessEq<std::string>()(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()->getCnnLayer()->type, "const") ||
-        !CaselessEq<std::string>()(getParentEdgesAtPort(END_ID)[0]->getParent()->getCnnLayer()->type, "const"))
-        params.parametersAreConstant = false;
+    params.parametersAreConstant = CaselessEq<std::string>()(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()->getCnnLayer()->type, "const") &&
+                                   CaselessEq<std::string>()(getParentEdgesAtPort(END_ID)[0]->getParent()->getCnnLayer()->type, "const");
 
     const SizeVector srcDims = inData->getTensorDesc().getDims();
     const SizeVector dstDims = stridedSliceLayer->outData[0]->getTensorDesc().getDims();
@@ -202,12 +200,12 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     }
     config.outConfs.resize(1);
 
-    auto canUseBlocked = [=](const size_t blockSize) {
-        return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
-    };
-
     std::vector<TensorDescCreatorTypes> supportedTypes;
-    if (params.equalDims) {
+    if (nDims > 2 && params.equalDims) {
+        auto canUseBlocked = [=](const size_t blockSize) {
+            return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
+        };
+
         supportedTypes.push_back(TensorDescCreatorTypes::nspc);
         if (canUseBlocked(8lu))
             supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
@@ -248,17 +246,19 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     params.srcDims = srcBlockingDesc.getBlockDims();
     params.dstDims = dstBlockingDesc.getBlockDims();
     params.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[DATA_ID].desc.getPrecision().size();
-    size_t realNDims = params.dstDims.size();
 
-    if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isPlainFormat())
-        orderParametersByLayouts();
+    if (params.parametersAreConstant) {
+        size_t realNDims = params.dstDims.size();
+        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isPlainFormat())
+            orderParametersByLayouts();
 
-    SizeVector newSrcDims, newDstDims;
-    dimsNormalization(newSrcDims, newDstDims);
-    dimsGluing(realNDims, newSrcDims, newDstDims);
+        SizeVector newSrcDims, newDstDims;
+        dimsNormalization(newSrcDims, newDstDims);
+        dimsGluing(realNDims, newSrcDims, newDstDims);
 
-    if (params.dstDims.size() == 1 || params.nDimsForWork != 1)
-        indicesCalculation();
+        if (params.dstDims.size() == 1 || params.nDimsForWork != 1)
+            indicesCalculation();
+    }
 }
 
 void MKLDNNStridedSliceNode::orderParametersByLayouts() {
@@ -528,15 +528,14 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
     if (!params.parametersAreConstant) {
         auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
         auto dstDims = getChildEdgeAt(0)->getDims();
-        const size_t nSrcDims = srcDims.size();
         const size_t ellipsisMaskCounter = std::accumulate(ellipsisMask.begin(), ellipsisMask.end(), 0);
 
         auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
             const int *ptr = reinterpret_cast<const int*>(this->getParentEdgeAt(type)->getMemoryPtr()->GetPtr());
             parameter.assign(ptr, ptr + size);
 
-            if (ellipsisMaskCounter == 0 && size < dstDims.size()) {
-                for (size_t i = size; i < dstDims.size(); i++) parameter.push_back(value);
+            if (ellipsisMaskCounter == 0 && size < dstDims.ndims()) {
+                for (size_t i = size; i < dstDims.ndims(); i++) parameter.push_back(value);
             }
         };
 
@@ -547,15 +546,15 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
         if (strideDims.size())
             fillingInParameters(stride, STRIDE_ID, strideDims[0], 1);
 
-        if (nSrcDims > 3 && params.equalDims && ellipsisMaskCounter != 0)
-            addHiddenDims(nSrcDims);
+        if (srcDims.ndims() > 3 && params.equalDims && ellipsisMaskCounter != 0)
+            addHiddenDims(srcDims.ndims());
 
         if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isPlainFormat())
             orderParametersByLayouts();
 
         SizeVector newSrcDims, newDstDims;
         dimsNormalization(newSrcDims, newDstDims);
-        dimsGluing(dstDims.size(), newSrcDims, newDstDims);
+        dimsGluing(dstDims.ndims(), newSrcDims, newDstDims);
 
         if (params.dstDims.size() == 1 || params.nDimsForWork != 1)
             indicesCalculation();
