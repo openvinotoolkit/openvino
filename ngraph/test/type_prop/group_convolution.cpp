@@ -274,21 +274,21 @@ TEST(type_prop, group_convolution_invalid_et_inputs)
 
     try
     {
-        const element::Type integral_et = element::u32;
-        auto data_batch = make_shared<op::Parameter>(integral_et, data_batch_pshape);
-        auto filters = make_shared<op::Parameter>(integral_et, filters_pshape);
+        const element::Type boolean_et = element::boolean;
+        auto data_batch = make_shared<op::Parameter>(boolean_et, data_batch_pshape);
+        auto filters = make_shared<op::Parameter>(boolean_et, filters_pshape);
         auto groupConv = make_shared<op::v1::GroupConvolution>(
             data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
-        // data batch and filters must be of float point element type
-        FAIL() << "Integral element type of inputs not detected";
+        // data batch and filters must be of numeric element type
+        FAIL() << "Boolean element type of inputs not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Element type of inputs must be float point");
+        EXPECT_HAS_SUBSTRING(error.what(), "Element type of inputs must be numeric");
     }
     catch (...)
     {
-        FAIL() << "Float element types of data batch and filters validation check failed for "
+        FAIL() << "Numeric element types of data batch and filters validation check failed for "
                   "unexpected reason.";
     }
 }

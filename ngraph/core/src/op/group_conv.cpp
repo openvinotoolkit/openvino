@@ -105,8 +105,10 @@ void op::v1::GroupConvolution::validate_and_infer_types()
         filters_et,
         ").");
 
-    NODE_VALIDATION_CHECK(
-        this, result_et.is_real(), "Element type of inputs must be float point. Got: ", result_et);
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element type of inputs must be numeric. Got: ",
+                          result_et);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -497,8 +499,10 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
         filters_et,
         ").");
 
-    NODE_VALIDATION_CHECK(
-        this, result_et.is_real(), "Element type of inputs must be float point. Got: ", result_et);
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element type of inputs must be numeric. Got: ",
+                          result_et);
 
     NODE_VALIDATION_CHECK(
         this,

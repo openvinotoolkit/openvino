@@ -518,23 +518,23 @@ TEST(type_prop, group_convolution_backprop_data_invalid_et_inputs)
         const PartialShape data_pshape{1, 16, 6, 6};      // [N, C_IN * GROUPS, H, W]
         const PartialShape filters_pshape{2, 8, 2, 3, 3}; // [GROUPS, C_IN, C_OUT, kH, kW]
 
-        const element::Type_t inputs_et = element::u32;
+        const element::Type boolean_et = element::boolean;
 
-        auto data = make_shared<op::Parameter>(inputs_et, data_pshape);
-        auto filters = make_shared<op::Parameter>(inputs_et, filters_pshape);
+        auto data = make_shared<op::Parameter>(boolean_et, data_pshape);
+        auto filters = make_shared<op::Parameter>(boolean_et, filters_pshape);
         auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
             data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
-        // data and filters must be of float point element type
-        FAIL() << "Integral element type of inputs not detected";
+        // data and filters must be of numeric element type
+        FAIL() << "Boolean element type of inputs not detected";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Element type of inputs must be float point"));
+                             std::string("Element type of inputs must be numeric"));
     }
     catch (...)
     {
-        FAIL() << "Float element types of data batch and filters validation check failed for "
+        FAIL() << "Numeric element types of data batch and filters validation check failed for "
                   "unexpected reason.";
     }
 

@@ -78,8 +78,8 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
     const PartialShape& filters_pshape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          data_batch_et.is_real(),
-                          "Data batch element type must be float point. Got: ",
+                          data_batch_et.is_real() || data_batch_et.is_integral_number(),
+                          "Data batch element type must be numeric. Got: ",
                           data_batch_et);
 
     // TODO: Add NodeValidationCheck to filters et once u1 is supported in nGraph Python API

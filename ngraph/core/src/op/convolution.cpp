@@ -74,8 +74,10 @@ void op::v1::Convolution::validate_and_infer_types()
         filters_et,
         ").");
 
-    NODE_VALIDATION_CHECK(
-        this, result_et.is_real(), "Element types must be float point. Got: ", result_et);
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element types must be numeric. Got: ",
+                          result_et);
 
     PartialShape result_shape =
         validate_and_infer_convolution_forward_output_shape(this,
