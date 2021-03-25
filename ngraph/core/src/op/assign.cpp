@@ -132,18 +132,23 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v6_Assign_evaluate);
     const auto& variable_context = evaluation_context.get_variable_context();
     const auto& var_value = variable_context.find(m_variable);
-    NODE_VALIDATION_CHECK(this,
-                          var_value == variable_context.end(),
-                          ".");
 
-    const auto& variable_value = var_value->second->get_value();
-    variable_value->set_unary(inputs[0]);
+    // todo: exception?
+    NODE_VALIDATION_CHECK(this,
+                          var_value != variable_context.end(),
+                          "No context found for ",
+                          m_variable->get_info().variable_id,
+                          " variable.");
+
+    var_value->second->set_reset(false);
+    const auto& value = var_value->second->get_value();
+    value->set_unary(inputs[0]);
     outputs[0]->set_unary(inputs[0]);
 
     void *output = outputs[0]->get_data_ptr();
     void *input = inputs[0]->get_data_ptr();
     memcpy(output, input, outputs[0]->get_size_in_bytes());
-    memcpy(variable_value->get_data_ptr(), input, variable_value->get_size_in_bytes());
+    memcpy(value->get_data_ptr(), input, value->get_size_in_bytes());
     return true;
 }
 

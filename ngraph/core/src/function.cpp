@@ -469,16 +469,16 @@ void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
 
 VariableVector Function::find_variables() const {
     const auto& ops = get_ordered_ops();
-    VariableVector variables;
+    set<VariablePtr> variables;
     for (const auto& op : ops) {
         // find all ops that can store variables
         if (const auto& read_value = std::dynamic_pointer_cast<op::ReadValueBase>(op)) {
-            variables.push_back(read_value->get_variable());
+            variables.insert(read_value->get_variable());
         } else if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(op)) {
-            variables.push_back(assign->get_variable());
+            variables.insert(assign->get_variable());
         }
     }
-    return variables;
+    return VariableVector(variables.begin(), variables.end());
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;

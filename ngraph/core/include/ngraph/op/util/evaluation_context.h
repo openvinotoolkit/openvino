@@ -28,6 +28,9 @@ namespace ngraph
     using VariableValuePtr = std::shared_ptr<VariableValue>;
     using VariableContext = std::unordered_map<VariablePtr, VariableValuePtr>;
 
+    // Base class (interface) e.g. Context, methods reset, set, add, get
+    // class EvaluationContext : public Context
+    // class VariableContext : public Context
     class NGRAPH_API EvaluationContext
     {
     public:
@@ -41,6 +44,12 @@ namespace ngraph
             return m_variable_context;
         }
 
+        void reset_variable_context() {
+            for (const auto& el : m_variable_context) {
+                el.second->set_reset(true);
+            }
+        }
+
         void add_variable_context(const VariableContext& variable_context_to_add) {
             m_variable_context.insert(variable_context_to_add.begin(), variable_context_to_add.end());
         }
@@ -48,7 +57,6 @@ namespace ngraph
         void add_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value) {
             m_variable_context[variable] = variable_value;
         }
-
     private:
         VariableContext m_variable_context;
     };

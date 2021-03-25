@@ -117,7 +117,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     const auto& var_value = variable_context.find(m_variable);
 
     bool use_context = var_value != variable_context.end() && !var_value->second->get_reset();
-    const auto& input_tensor = use_context? inputs[0]: var_value->second->get_value();
+    const auto& input_tensor = use_context? var_value->second->get_value(): inputs[0];
     outputs[0]->set_unary(input_tensor);
     void *output = outputs[0]->get_data_ptr();
     void *input = input_tensor->get_data_ptr();
