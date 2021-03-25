@@ -113,15 +113,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OneHotLayerCPUTest.*)",
         R"(.*AddConvertToReorderTest.*)",
 
-        // Unsupported operation of type: ReadValue
-        R"(.*SplitConcatMemory.*)",
-
         // InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone
         R"(.*AddOutputsTest.*)",
 
         // serialize
         R"(.*ExecGraphTests.*)",
-        R"(.*ExecGraphKeepAssignNode.*)",
         R"(.*ExecGraphRuntimePrecision.*)",
         R"(.*ExecGraphUniqueNodeNames.*)",
         // smoke_LPT/MatMulTransformation
