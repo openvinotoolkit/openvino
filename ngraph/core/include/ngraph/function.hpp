@@ -151,8 +151,14 @@ namespace ngraph
         /// \param outputs Tensors for the outputs to compute. One for each result
         /// \param inputs Tensors for the inputs. One for each inputs.
         bool evaluate(const HostTensorVector& output_tensors,
+                      const HostTensorVector& input_tensors) const;
+
+        /// \brief Evaluate the function on inputs, putting results in outputs.
+        /// \param outputs Tensors for the outputs to compute. One for each result
+        /// \param inputs Tensors for the inputs. One for each inputs.
+        bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors,
-                      const EvaluationContext& evaluation_context = EvaluationContext()) const;
+                      const EvaluationContext& evaluation_context) const;
 
         /// \brief Return a list of function's sinks.
         const SinkVector& get_sinks() const { return m_sinks; }

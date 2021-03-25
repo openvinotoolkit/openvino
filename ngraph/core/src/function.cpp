@@ -388,6 +388,12 @@ int64_t Function::get_result_index(const Output<Node>& value) const
 }
 
 bool Function::evaluate(const HostTensorVector& output_tensors,
+                        const HostTensorVector& input_tensors) const
+{
+    return evaluate(output_tensors, input_tensors, EvaluationContext());
+}
+
+bool Function::evaluate(const HostTensorVector& output_tensors,
                         const HostTensorVector& input_tensors,
                         const EvaluationContext& evaluation_context) const
 {
