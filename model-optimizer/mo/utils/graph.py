@@ -20,7 +20,7 @@ from re import match, compile
 
 import networkx as nx
 
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -118,7 +118,7 @@ def is_connected_component(graph: Graph, node_names: list):
 
 
 def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None,
-                            include_control_flow=True):
+                            include_control_flow=True, allow_non_reachable_end_nodes=False):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. Input nodes for the sub-graph nodes are also
     added to the sub-graph. Constant inputs of the 'start_nodes' are also added to the sub-graph.
@@ -128,6 +128,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
     :param detect_extra_start_node: callable function to add additional nodes to the list of start nodes instead of
     traversing the graph further. The list of additional start nodes is returned of the function is not None.
     :param include_control_flow: flag to specify whether to follow the control flow edges or not
+    :param allow_non_reachable_end_nodes: do not fail if the end nodes are not reachable from the start nodes
     :return: list of nodes of the identified sub-graph or None if the sub-graph cannot be extracted.
     """
     sub_graph_nodes = list()
@@ -162,7 +163,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
     for start_node in start_nodes:
         graph.dfs(start_node, forward_visited)
     for end_node in end_nodes:
-        if end_node not in forward_visited:
+        if not allow_non_reachable_end_nodes and end_node not in forward_visited:
             raise Error('End node "{}" is not reachable from start nodes: {}. '.format(end_node, start_nodes) +
                         refer_to_faq_msg(74))
 
@@ -297,4 +298,24 @@ def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str='/'):
                     result.add(node_id)
                     break
     return [Node(graph, node_id) for node_id in result]
+
+
+def clear_tensor_names_info(nodes: list):
+    """
+    Clears tensor names information from 'fw_tensor_debug_info' attribute for all edges outgoing from
+    given nodes.
+    This method is used in cases when transformation adds postprocessing and the result does not
+    correspond to the original tensor.
+    This method should only be used during the front phase.
+    :param nodes: list of Node objects.
+    """
+    for node in nodes:
+        for out_idx in node.out_nodes():
+            out_node = node.out_node(out_idx)
+            fw_info_list = get_edge_attribute_between_nodes(node, out_node, 'fw_tensor_debug_info')
+            new_fw_info = []
+            for fw_info in fw_info_list:
+                if fw_info is not None and len(fw_info) >= 2:
+                    new_fw_info.append((fw_info[0], fw_info[1], None))
+            set_edge_attribute_between_nodes(node, out_node, 'fw_tensor_debug_info', new_fw_info)
 

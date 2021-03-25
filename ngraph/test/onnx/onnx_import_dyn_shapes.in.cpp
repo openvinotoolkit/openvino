@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -286,6 +274,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch)
     const auto expected_out_shape = Shape{1, 10, 6, 6};
     const std::vector<int64_t> expected_values(shape_size(expected_out_shape), 13);
     test_case.add_expected_output<int64_t>(expected_out_shape, expected_values);
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/conv_with_dynamic_bias.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+
+    const auto data_shape = Shape{1, 3, 7, 7};
+    const auto filters_shape = Shape{10, 3, 2, 2};
+    const auto data_elems = shape_size(data_shape);
+    const auto filters_elems = shape_size(filters_shape);
+
+    test_case.add_input(data_shape, std::vector<int64_t>(data_elems, 1));
+    test_case.add_input(filters_shape, std::vector<int64_t>(filters_elems, 1));
+    test_case.add_input(Shape{10}, std::vector<int64_t>(10, 1));
+
+    const auto expected_out_shape = Shape{1, 10, 6, 6};
+    const std::vector<int64_t> expected_values(shape_size(expected_out_shape), 13);
+    test_case.add_expected_output(expected_out_shape, expected_values);
 
     test_case.run();
 }

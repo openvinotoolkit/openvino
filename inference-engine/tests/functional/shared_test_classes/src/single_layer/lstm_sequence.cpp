@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,8 @@ namespace LayerTestsDefinitions {
     }
 
     void LSTMSequenceTest::SetUp() {
+        using namespace ngraph::helpers;
+        using namespace ngraph::builder;
         size_t seq_lenghts;
 
         size_t batch;
@@ -64,33 +66,36 @@ namespace LayerTestsDefinitions {
                  {batch}, {num_directions, 4 * hidden_size, input_size}, {num_directions, 4 * hidden_size, hidden_size}, {num_directions, 4 * hidden_size}},
         };
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
-        if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
-            m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
-            auto seq_lengths = ngraph::builder::makeParams(ngraph::element::i64, {inputShapes[3]}).at(0);
+        auto params = makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+        if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
+            m_mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM ||
+            m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) {
+            auto seq_lengths = makeParams(ngraph::element::i64, {inputShapes[3]}).at(0);
             seq_lengths->set_friendly_name("seq_lengths");
             params.push_back(seq_lengths);
         }
         std::vector<ngraph::Shape> WRB = {inputShapes[4], inputShapes[5], inputShapes[6], inputShapes[3]};
-        auto lstm_sequence = ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
-                                                       WRB, hidden_size, activations, {}, {}, clip, true, direction,
-                                                       m_mode);
+        auto lstm_sequence = makeLSTM(convert2OutputVector(castOps2Nodes(params)), WRB, hidden_size, activations,
+                                      {}, {}, clip, true, direction, m_mode);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(1)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(2))};
         function = std::make_shared<ngraph::Function>(results, params, "lstm_sequence");
-        if (m_mode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
+        bool is_pure_sequence = (m_mode == SequenceTestsMode::PURE_SEQ ||
+                                 m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
+                                 m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
+        if (!is_pure_sequence) {
             ngraph::pass::Manager manager;
             if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.run_passes(function);
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
-        }
+       }
     }
 
     void LSTMSequenceTest::GenerateInputs() {

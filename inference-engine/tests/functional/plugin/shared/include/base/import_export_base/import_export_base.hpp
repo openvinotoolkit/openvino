@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,8 @@ typedef std::tuple<
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Export Configuration
-    std::map<std::string, std::string>  // Import Configuration
+    std::map<std::string, std::string>, // Import Configuration
+    std::string                         // Application Header
 > exportImportNetworkParams;
 
 namespace FuncTestUtils {
@@ -26,6 +27,7 @@ public:
 protected:
     std::map<std::string, std::string> exportConfiguration;
     std::map<std::string, std::string> importConfiguration;
+    std::string                        applicationHeader;
 
 private:
     virtual void exportImportNetwork();

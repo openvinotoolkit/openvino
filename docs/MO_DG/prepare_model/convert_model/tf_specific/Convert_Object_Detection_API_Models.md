@@ -18,27 +18,30 @@ To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/d
 * `--input_model <path_to_frozen.pb>` --- File with a pre-trained model (binary or text .pb file after freezing) OR `--saved_model_dir <path_to_saved_model>` for the TensorFlow\* 2 models
 * `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf` directory. Use:
     * `ssd_v2_support.json` --- for frozen SSD topologies from the models zoo version up to 1.13.X inclusively
-    * `ssd_support_api_v.1.14.json` --- for frozen SSD topologies trained using the TensorFlow\* Object Detection API version 1.14 up to 1.14.X inclusively
-    * `ssd_support_api_v.1.15.json` --- for frozen SSD topologies trained using the TensorFlow\* Object Detection API version 1.15 up to 2.0
-    * `ssd_support_api_v.2.0.json` --- for frozen SSD topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
-    * `faster_rcnn_support.json` --- for frozen Faster R-CNN topologies from the models zoo
+    * `ssd_support_api_v.1.14.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.14 up to 1.14.X inclusively
+    * `ssd_support_api_v.1.15.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.15 up to 2.0
+    * `ssd_support_api_v.2.0.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 2.0 up to 2.3.X inclusively
+    * `ssd_support_api_v.2.4.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 2.4 or higher
+    * `efficient_det_support_api_v.2.0.json` --- for EfficientDet topologies trained using the TensorFlow\* Object Detection API version 2.0 up to 2.3.X inclusively
+    * `efficient_det_support_api_v.2.4.json` --- for EfficientDet topologies trained using the TensorFlow\* Object Detection API version 2.4 or higher
+    * `faster_rcnn_support.json` --- for Faster R-CNN topologies from the TF 1.X models zoo trained with TensorFlow\* version up to 1.6.X inclusively
     * `faster_rcnn_support_api_v1.7.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.7.0 up to 1.9.X inclusively
     * `faster_rcnn_support_api_v1.10.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.10.0 up to 1.12.X inclusively
     * `faster_rcnn_support_api_v1.13.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.13.X
     * `faster_rcnn_support_api_v1.14.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.14.0 up to 1.14.X inclusively
     * `faster_rcnn_support_api_v1.15.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.15.0 up to 2.0
     * `faster_rcnn_support_api_v2.0.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
-    * `mask_rcnn_support.json` --- for frozen Mask R-CNN topologies from the models zoo
+    * `mask_rcnn_support.json` --- for Mask R-CNN topologies from the TF 1.X models zoo trained with TensorFlow\* version 1.9.0 or lower.
     * `mask_rcnn_support_api_v1.7.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.7.0 up to 1.9.X inclusively
     * `mask_rcnn_support_api_v1.11.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.11.0 up to 1.12.X inclusively
     * `mask_rcnn_support_api_v1.13.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.13.0 up to 1.13.X inclusively
     * `mask_rcnn_support_api_v1.14.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.14.0 up to 1.14.X inclusively
     * `mask_rcnn_support_api_v1.15.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.15.0 up to 2.0
     * `mask_rcnn_support_api_v2.0.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
-    * `rfcn_support.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.9.0 or lower.
-    * `rfcn_support_api_v1.10.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.10.0 up to 1.12.X inclusively
-    * `rfcn_support_api_v1.13.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.13.X.
-    * `rfcn_support_api_v1.14.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.14.0 or higher.
+    * `rfcn_support.json` --- for RFCN topology from the models zoo trained with TensorFlow\* version up to 1.9.X inclusively
+    * `rfcn_support_api_v1.10.json` --- for RFCN topology from the models zoo frozen with TensorFlow\* version 1.10.0 up to 1.12.X inclusively
+    * `rfcn_support_api_v1.13.json` --- for RFCN topology from the models zoo frozen with TensorFlow\* version 1.13.X
+    * `rfcn_support_api_v1.14.json` --- for RFCN topology from the models zoo frozen with TensorFlow\* version 1.14.0 or higher
 * `--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>` --- A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow\* Object Detection API zoo, the configuration file is named `pipeline.config`. If you plan to train a model yourself, you can find templates for these files in the [models repository](https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs).
 * `--input_shape` (optional) --- A custom input image shape. Refer to [Custom Input Shape](#tf_od_custom_input_shape) for more information how the `--input_shape` parameter is handled for the TensorFlow* Object Detection API models.
 
@@ -96,7 +99,7 @@ def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max
 
 Models with `keep_aspect_ratio_resizer` were trained to recognize object in real aspect ratio, in contrast with most of the classification topologies trained to recognize objects stretched vertically and horizontally as well. By default, the Model Optimizer converts topologies with `keep_aspect_ratio_resizer` to consume a square input image. If the non-square image is provided as input, it is stretched without keeping aspect ratio that results to objects detection quality decrease.
 
-> **NOTE**: It is highly recommended to specify the `--input_shape` command line parameter for the models with `keep_aspect_ratio_resizer` if the input image dimensions are known in advance.
+> **NOTE**: It is highly recommended specifying the `--input_shape` command line parameter for the models with `keep_aspect_ratio_resizer` if the input image dimensions are known in advance.
 
 ## Important Notes About Feeding Input Images to the Samples
 

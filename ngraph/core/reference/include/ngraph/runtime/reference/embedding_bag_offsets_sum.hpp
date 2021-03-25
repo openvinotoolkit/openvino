@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,8 @@ namespace ngraph
                         throw ngraph_error(
                             std::string(
                                 "Offset value exceeds indices size in the model.\noffset: ") +
-                            std::to_string(offsets[emb_index]) + "; indices size: " +
-                            std::to_string(indices_count));
+                            std::to_string(offsets[emb_index]) +
+                            "; indices size: " + std::to_string(indices_count));
 
                     indices_ref = nullptr;
                     indices_num = 0lu;

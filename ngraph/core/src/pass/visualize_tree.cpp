@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <fstream>
 
@@ -237,6 +225,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
                                              unordered_map<Node*, HeightMap>& height_maps,
                                              size_t& fake_node_ctr)
 {
+    static const int const_max_elements = getenv_int("NGRAPH_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
+
     size_t arg_index = 0;
     for (auto input_value : node->input_values())
     {
@@ -245,12 +235,28 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
         if (is_type<ngraph::op::Constant>(arg) || is_type<ngraph::op::Parameter>(arg))
         {
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
-            auto color = (arg->description() == "Parameter" ? "blue" : "black");
-            m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
-                 << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\n"
-                 << get_constant_value(arg) << "\"]\n";
-            m_ss << "    " << clone_name << " -> " << node->get_name()
-                 << label_edge(arg, node, arg_index, jump_distance) << "\n";
+            auto color = string("color=\"") +
+                         (arg->description() == "Parameter" ? "blue" : "black") + string("\"");
+            std::vector<std::string> attributes{
+                "shape=\"box\"",
+                "style=\"dashed\"",
+                color,
+                string("label=\"") + get_node_name(arg) + string("\n") +
+                    get_constant_value(arg, const_max_elements) + string("\"")};
+
+            if (m_node_modifiers && !arg->output(0).get_rt_info().empty())
+            {
+                m_node_modifiers(*arg, attributes);
+            }
+            m_ss << "    " << clone_name << " -> " << node->get_name();
+            m_ss << "    " << clone_name << "[";
+            for (auto attr : attributes)
+            {
+                m_ss << " " << attr << " ";
+            }
+            m_ss << "]\n";
+
+            m_ss << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
         }
         else if (jump_distance > max_jump_distance)
@@ -259,11 +265,13 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             m_ss << add_attributes(node);
             auto recv_node_name = "RECV_" + to_string(fake_node_ctr);
             auto send_node_name = "SEND_" + to_string(fake_node_ctr);
-            m_ss << "    " << recv_node_name << "[shape=\"box\" style=\"solid,filled\" "
-                                                "fillcolor=\"#ffcccc\" label=\"Receive["
+            m_ss << "    " << recv_node_name
+                 << "[shape=\"box\" style=\"solid,filled\" "
+                    "fillcolor=\"#ffcccc\" label=\"Receive["
                  << arg->get_name() << "]\"]\n";
-            m_ss << "    " << send_node_name << "[shape=\"box\" style=\"solid,filled\" "
-                                                "fillcolor=\"#ccffcc\" label=\"Send["
+            m_ss << "    " << send_node_name
+                 << "[shape=\"box\" style=\"solid,filled\" "
+                    "fillcolor=\"#ccffcc\" label=\"Send["
                  << node->get_name() << "]\"]\n";
             m_ss << "    " << arg->get_name() << " -> " << send_node_name
                  << label_edge(arg, node, arg_index, jump_distance) << "\n";
@@ -329,29 +337,26 @@ static std::string pretty_partial_shape(const PartialShape& shape)
 }
 
 template <typename T>
-static std::string pretty_value(const vector<T>& values)
+static std::string pretty_value(const vector<T>& values, size_t max_elements)
 {
     std::stringstream ss;
-    bool first = true;
     for (size_t i = 0; i < values.size(); ++i)
     {
-        if (i > 32)
+        if (i != 0 && i % 8 == 0)
+        {
+            ss << std::endl;
+        }
+
+        if (i >= max_elements)
         {
             ss << "...";
             break;
         }
 
         const auto& value = values[i];
-        if (!first)
+        if (i > 0)
             ss << ", ";
         ss << value;
-
-        if (((i + 1) % 8) == 0)
-        {
-            ss << std::endl;
-        }
-
-        first = false;
     }
     return ss.str();
 }
@@ -372,24 +377,26 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     case element::Type_t::undefined: ss << "[ undefined value ]"; break;
     case element::Type_t::dynamic: ss << "[ dynamic value ]"; break;
     case element::Type_t::u1: ss << "[ u1 value ]"; break;
+    case element::Type_t::u4: ss << "[ u4 value ]"; break;
+    case element::Type_t::i4: ss << "[ i4 value ]"; break;
     case element::Type_t::bf16:
     case element::Type_t::f16:
     case element::Type_t::f32:
     case element::Type_t::f64:
-        ss << "[" << pretty_value(constant->cast_vector<double>()) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements) << "]";
         break;
     case element::Type_t::i8:
     case element::Type_t::i16:
     case element::Type_t::i32:
     case element::Type_t::i64:
-        ss << "[" << pretty_value(constant->cast_vector<int64_t>()) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements) << "]";
         break;
     case element::Type_t::boolean:
     case element::Type_t::u8:
     case element::Type_t::u16:
     case element::Type_t::u32:
     case element::Type_t::u64:
-        ss << "[" << pretty_value(constant->cast_vector<uint64_t>()) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements) << "]";
         break;
     }
     return ss.str();

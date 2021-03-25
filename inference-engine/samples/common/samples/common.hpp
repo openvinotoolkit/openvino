@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,7 @@ static UNUSED std::vector<std::vector<size_t>> blobToImageOutputArray(InferenceE
         H = outputDims.at(3);
         W = outputDims.at(4);
     } else {
-        THROW_IE_EXCEPTION << "Output blob has unsupported layout " << output->getTensorDesc().getLayout();
+        IE_THROW() << "Output blob has unsupported layout " << output->getTensorDesc().getLayout();
     }
 
     // Get classes
@@ -268,7 +268,7 @@ static UNUSED void writeOutputBmp(std::vector<std::vector<size_t>> data, size_t 
     auto width = data.at(0).size();
 
     if (height > (size_t) std::numeric_limits<int32_t>::max || width > (size_t) std::numeric_limits<int32_t>::max) {
-        THROW_IE_EXCEPTION << "File size is too big: " << height << " X " << width;
+        IE_THROW() << "File size is too big: " << height << " X " << width;
     }
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
@@ -351,7 +351,7 @@ static UNUSED bool writeOutputBmp(std::string name, unsigned char *data, size_t 
     };
 
     if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        THROW_IE_EXCEPTION << "File size is too big: " << height << " X " << width;
+        IE_THROW() << "File size is too big: " << height << " X " << width;
     }
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
@@ -520,7 +520,7 @@ static UNUSED bool writeOutputBmp(unsigned char *data, size_t height, size_t wid
     };
 
     if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        THROW_IE_EXCEPTION << "File size is too big: " << height << " X " << width;
+        IE_THROW() << "File size is too big: " << height << " X " << width;
     }
 
     int padSize  = static_cast<int>(4 - (width * 3) % 4) % 4;
@@ -642,7 +642,7 @@ inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine
                 p = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME));
                 devicesMap.insert(std::pair<std::string, std::string>(deviceName, p.as<std::string>()));
             }
-            catch (InferenceEngine::details::InferenceEngineException &) {
+            catch (InferenceEngine::Exception &) {
             }
         }
     }
@@ -664,7 +664,7 @@ inline std::string getFullDeviceName(InferenceEngine::Core& ie, std::string devi
         p = ie.GetMetric(device, METRIC_KEY(FULL_DEVICE_NAME));
         return  p.as<std::string>();
     }
-    catch (InferenceEngine::details::InferenceEngineException &) {
+    catch (InferenceEngine::Exception &) {
         return "";
     }
 }
@@ -1034,7 +1034,7 @@ inline std::size_t getTensorWidth(const InferenceEngine::TensorDesc& desc) {
         // Regardless of layout, dimensions are stored in fixed order
         return dims.back();
     } else {
-        THROW_IE_EXCEPTION << "Tensor does not have width dimension";
+        IE_THROW() << "Tensor does not have width dimension";
     }
     return 0;
 }
@@ -1057,7 +1057,7 @@ inline std::size_t getTensorHeight(const InferenceEngine::TensorDesc& desc) {
         // Regardless of layout, dimensions are stored in fixed order
         return dims.at(size - 2);
     } else {
-        THROW_IE_EXCEPTION << "Tensor does not have height dimension";
+        IE_THROW() << "Tensor does not have height dimension";
     }
     return 0;
 }
@@ -1083,10 +1083,10 @@ inline std::size_t getTensorChannels(const InferenceEngine::TensorDesc& desc) {
             case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
             case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
             default:
-                THROW_IE_EXCEPTION << "Tensor does not have channels dimension";
+                IE_THROW() << "Tensor does not have channels dimension";
         }
     } else {
-        THROW_IE_EXCEPTION << "Tensor does not have channels dimension";
+        IE_THROW() << "Tensor does not have channels dimension";
     }
     return 0;
 }
@@ -1110,10 +1110,10 @@ inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
             case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
             case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
             default:
-                THROW_IE_EXCEPTION << "Tensor does not have channels dimension";
+                IE_THROW() << "Tensor does not have channels dimension";
         }
     } else {
-        THROW_IE_EXCEPTION << "Tensor does not have channels dimension";
+        IE_THROW() << "Tensor does not have channels dimension";
     }
     return 0;
 }
