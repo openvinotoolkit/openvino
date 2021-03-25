@@ -464,7 +464,7 @@ void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
 VariableVector Function::find_variables() const
 {
     const auto& ops = get_ordered_ops();
-    set<VariablePtr> variables;
+    unordered_set<VariablePtr> variables;
     for (const auto& op : ops)
     {
         // find all ops that can store variables
