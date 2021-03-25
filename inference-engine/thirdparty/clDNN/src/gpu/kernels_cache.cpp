@@ -281,11 +281,12 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 }
 
 kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {
+    int n_threads = _context.get_configuration().n_threads;
 #if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
     arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-    arena->initialize(DEFAULT_NUM_THREADS);
+    arena->initialize(n_threads);
 #elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
-    pool = std::unique_ptr<thread_pool>(new thread_pool(DEFAULT_NUM_THREADS));
+    pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
 #endif
 }
 

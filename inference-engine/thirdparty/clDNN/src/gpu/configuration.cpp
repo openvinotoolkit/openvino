@@ -22,6 +22,7 @@ configuration::configuration()
       throttle_mode(throttle_mode_types::disabled),
       queues_num(0),
       tuning_cache_path("cache.json"),
-      kernels_cache_path("") {}
+      kernels_cache_path(""),
+      n_threads((std::thread::hardware_concurrency() == 0) ? 1 : std::thread::hardware_concurrency()) {}
 }  // namespace gpu
 }  // namespace cldnn

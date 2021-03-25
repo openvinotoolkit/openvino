@@ -72,6 +72,11 @@ DECLARE_CLDNN_CONFIG_KEY(ENABLE_FP16_FOR_QUANTIZED_MODELS);
 */
 DECLARE_CLDNN_CONFIG_KEY(NV12_TWO_INPUTS);
 
+/**
+* @brief This key sets the number of threads used to build program.
+* 2 is a default value.
+*/
+DECLARE_CLDNN_CONFIG_KEY(MAX_NUM_THREADS);
 
 }  // namespace CLDNNConfigParams
 }  // namespace InferenceEngine
