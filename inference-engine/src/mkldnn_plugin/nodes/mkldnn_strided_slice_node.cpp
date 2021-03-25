@@ -91,9 +91,9 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     }
 
     auto createMask = [&](const char* maskName, std::vector<int>& mask) {
-      mask = stridedSliceLayer->GetParamAsInts(maskName);
+        mask = stridedSliceLayer->GetParamAsInts(maskName);
         if (strcmp(maskName, "ellipsis_mask") != 0 || mask.size() == 0) {
-            for (size_t i = mask.size(); i < nSrcDims; ++i) mask.push_back(0);
+            for (size_t i = mask.size(); i < dstDims.size(); ++i) mask.push_back(0);
         }
     };
 
@@ -113,10 +113,8 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
         THROW_ERROR << "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed";
 
     int newAxis = std::accumulate(newAxisMask.begin(), newAxisMask.end(), 0);
-    size_t maxDims = nSrcDims + newAxis;
-
     int shrinkAxis = std::accumulate(shrinkAxisMask.begin(), shrinkAxisMask.end(), 0);
-    params.equalDims = nSrcDims == maxDims && shrinkAxis == 0;
+    params.equalDims = newAxis == 0 && shrinkAxis == 0;
 
     if (params.parametersAreConstant) {
         auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
