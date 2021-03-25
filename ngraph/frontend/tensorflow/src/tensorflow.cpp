@@ -16,6 +16,11 @@
 
 
 #include <fstream>
+
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/transpose_sinking.h>
+#include <ngraph/pass/constant_folding.hpp>
+
 #include "graph.pb.h"
 
 #include "../include/tensorflow_frontend/tensorflow.hpp"
@@ -56,9 +61,15 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert 
 
     std::shared_ptr<ngraph::Function> f;
     std::cerr << "[ STATUS ] TranslateGraph return: " << tensorflow::ngraph_bridge::Builder::TranslateGraph(
-            model_tf->partialShapes, {}, model_tf->graph_def.get(), "here_should_be_a_graph_name", f);
-    //auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{}, ngraph::ParameterVector{});
-    std::cerr << "[ ERROR ] Convetion functionality is not implemented; an empty function will be returned.";
+            model_tf->partialShapes, {}, model_tf->graph_def.get(), "here_should_be_a_graph_name", f) << "\n";
+    std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
+    std::cerr << "[ STATUS ] Running Transpose Sinking transformation\n";
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::TransposeSinking>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.run_passes(f);
+
     std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
     return f;
 }
