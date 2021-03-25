@@ -152,9 +152,9 @@ public:
     template<typename T>
     void process_data(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept {
         const T* src_data = inputs[0]->cbuffer().as<const T*>() +
-        behavior/invalid_cases/proposal.cpp             inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                            inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         T* dst_data = outputs[0]->cbuffer().as<T*>() +
-                          outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                      outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         if (dataLength > 1) {
             //  Vectorized & Parallel

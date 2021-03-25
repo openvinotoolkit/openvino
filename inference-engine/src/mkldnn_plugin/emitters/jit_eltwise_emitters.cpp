@@ -1305,13 +1305,7 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
 }
 jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
-<<<<<<< c9d0292929cecb8988b8473ae4fe13022a5f8a81
-    auto *powerLayer = dynamic_cast<InferenceEngine::PowerLayer *>(node->getCnnLayer().get());
-    if (powerLayer == nullptr)
-        IE_THROW() << "Cannot convert power layer.";
-=======
-    THROW_IE_EXCEPTION << "[NM] Not implemented";
->>>>>>> [CPU] Plug-in migration on ngraph initial commit
+    IE_THROW() << "[NM] Not implemented";
 
 //    power = powerLayer->power;
 //    scale = powerLayer->scale;

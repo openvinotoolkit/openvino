@@ -366,7 +366,7 @@ public:
         }
 
         if (getFusingPort() == -1) {
-            THROW_IE_EXCEPTION << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
+            IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
         }
 
         parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
@@ -562,20 +562,20 @@ public:
 
     InferenceEngine::Precision getOriginalInputPrecisionAtPort(size_t port) const {
         if (originalInputPrecisions.size() <= port) {
-            THROW_IE_EXCEPTION << "Incorrect input port number for node " << getName();
+            IE_THROW() << "Incorrect input port number for node " << getName();
         }
         return originalInputPrecisions[port];
     }
     InferenceEngine::Precision getOriginalOutputPrecisionAtPort(size_t port) const {
         if (originalOutputPrecisions.size() <= port) {
-            THROW_IE_EXCEPTION << "Incorrect output port number for node " << getName();
+            IE_THROW() << "Incorrect output port number for node " << getName();
         }
         return originalOutputPrecisions[port];
     }
 
     void setOriginalInputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
         if (originalInputPrecisions.size() <= port) {
-            THROW_IE_EXCEPTION << "Incorrect input port number for node " << getName();
+            IE_THROW() << "Incorrect input port number for node " << getName();
         }
         originalInputPrecisions[port] = precision;
     }
