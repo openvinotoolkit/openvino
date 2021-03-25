@@ -55,6 +55,10 @@ class NonConstBeginStridedSliceReplacement(FrontReplacementSubgraph):
     """
     enabled = True
 
+    def run_before(self):
+        from extensions.front.Pack import Pack
+        return [Pack]
+
     @staticmethod
     def pattern(**kwargs):
         return dict(
@@ -101,13 +105,20 @@ class NonConstBeginStridedSliceReplacement(FrontReplacementSubgraph):
         slice_start_index_node = begin_node.in_port(sliced_axis).get_source().node
         if add_node.soft_get('type') != 'Add':
             return
-        slice_size_node = add_node.in_port(1).get_source().node
-        if slice_size_node.soft_get('type') != 'Const':
+
+        if add_node.in_port(1).get_source().node.soft_get('type') == 'Const':
+            slice_size_node = add_node.in_port(1).get_source().node
+            if add_node.in_port(0).get_source().node.id != slice_start_index_node.id:
+                return
+        elif add_node.in_port(0).get_source().node.soft_get('type') == 'Const':
+            slice_size_node = add_node.in_port(0).get_source().node
+            if add_node.in_port(1).get_source().node.id != slice_start_index_node.id:
+                return
+        else:
             return
-        slice_size = slice_size_node.soft_get('value')
-        if add_node.in_port(0).get_source().node.id != slice_start_index_node.id:
-            return
-        step_value = step_node.soft_get('value')[sliced_axis]
+        slice_size = slice_size_node.value
+        step_value = step_node.value[sliced_axis]
+
         # 5. check that step_value equal to 1 and step_value equal to 1
         # TODO: support other cases when slice_size not equal to 1 and step_value not equal to 1
         if slice_size != 1 or step_value != 1:

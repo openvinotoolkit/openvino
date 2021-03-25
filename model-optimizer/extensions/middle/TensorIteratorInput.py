@@ -239,8 +239,8 @@ class BackEdgeSimpleInputMatcher(MiddleReplacementPattern):
 
         # We need to create new TensorItertorInput node only if this node doesn't exist already.
         if (len(init_input.in_nodes()) == 0 or \
-           (len(init_input.in_nodes()) == 1 and init_input.has_valid('value') and
-            init_input.in_node(0).soft_get('op') != 'TensorIteratorInput')):
+                (len(init_input.in_nodes()) == 1 and init_input.has_valid('value') and
+                 init_input.in_node(0).soft_get('op') != 'TensorIteratorInput')):
 
             input_node = TensorIteratorInput(graph, dict(external_port_id=None,
                                                          internal_layer_id=None,
@@ -421,7 +421,7 @@ class SmartMatcherInputSlicingWithGather(MiddleReplacementPattern):
 
         # create TensorIteratorInput node that reflects slicing of input for each time step along axis
         ti_input_node = TensorIteratorInput(graph, dict(axis=axis, start=init_time, stride=time_step,
-                                                        name= resulted_slice_node_name + '/TensorIteratorInput_')
+                                                        name=resulted_slice_node_name + '/TensorIteratorInput')
                                             ).create_node()
         size_node.in_port(0).get_connection().add_destination(ti_input_node.in_port(0))
         initial_input_node.in_port(0).get_connection().set_destination(ti_input_node.in_port(1))
@@ -431,7 +431,4 @@ class SmartMatcherInputSlicingWithGather(MiddleReplacementPattern):
         # delete no longer needed nodes responsible for slicing of input in the original graph
         node_names_for_remove = ['EnterInput', 'MergeInput', 'SwitchInput',
                                  'IdentityInput', 'NextIterationInput', 'SqueezeSlice', 'UnsqueezeIndex', 'Gather']
-        nodes_for_remove = []
-        for node_name in node_names_for_remove:
-            nodes_for_remove.append(match[node_name].id)
-        graph.remove_nodes_from(nodes_for_remove)
+        graph.remove_nodes_from([match[node_name].id for node_name in node_names_for_remove])
