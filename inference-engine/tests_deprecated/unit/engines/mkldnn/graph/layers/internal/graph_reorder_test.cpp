@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ TEST_F(MKLDNNGraphReorderTests, cannotCreatePrimitiveDescriprorsWithoutOtherLaye
     node.reset(MKLDNNPlugin::MKLDNNNode::factory().create(layer, eng, {}, cache));
     ASSERT_EQ(MKLDNNPlugin::Type::Reorder, node->getType());
 
-    ASSERT_THROW(node->getSupportedDescriptors(), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(node->getSupportedDescriptors(), InferenceEngine::Exception);
 }
 
 TEST_F(MKLDNNGraphReorderTests, CreateReorder) {

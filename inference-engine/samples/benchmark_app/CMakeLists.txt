@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,4 +9,4 @@ ie_add_sample(NAME benchmark_app
               SOURCES ${SRC}
               HEADERS ${HDR}
               DEPENDENCIES format_reader
-              OPENCV_DEPENDENCIES imgcodecs)
+              OPENCV_DEPENDENCIES core)

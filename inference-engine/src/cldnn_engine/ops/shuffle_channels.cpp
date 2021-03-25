@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,13 +25,13 @@ void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::S
         axis += in_rank;
 
     if (axis < 0 || axis >= in_rank)
-        THROW_IE_EXCEPTION << "Incorrect axis value! Actual axis is" + std::to_string(group);
+        IE_THROW() << "Incorrect axis value! Actual axis is" + std::to_string(group);
 
     if (group < 1)
-        THROW_IE_EXCEPTION << "Invalid group size value (should equal at least one). Actual block size is" << std::to_string(group);
+        IE_THROW() << "Invalid group size value (should equal at least one). Actual block size is" << std::to_string(group);
 
     if (op->get_input_shape(0)[axis] % group != 0)
-        THROW_IE_EXCEPTION << "Group parameter must evenly divide the channel dimension. Actual group size is " << std::to_string(axis);
+        IE_THROW() << "Group parameter must evenly divide the channel dimension. Actual group size is " << std::to_string(axis);
 
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputPrimitives[0],

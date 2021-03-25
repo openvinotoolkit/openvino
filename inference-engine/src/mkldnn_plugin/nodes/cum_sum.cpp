@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,12 @@ public:
         try {
             layerName = layer->name;
             if ((layer->insData.size() != numOfInputs && layer->insData.size() != (numOfInputs - 1)) || layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' has incorrect number of input/output edges!";
+                IE_THROW() << "CumSum layer with name '" << layerName << "' has incorrect number of input/output edges!";
 
             const auto &dataTensor = layer->insData[CUM_SUM_DATA].lock()->getTensorDesc();
             const auto &dataShape = dataTensor.getDims();
             if (dataShape.size() < 1) {
-                THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' doesn't support 'data' input tensor with rank: " << dataShape.size();
+                IE_THROW() << "CumSum layer with name '" << layerName << "' doesn't support 'data' input tensor with rank: " << dataShape.size();
             }
             numOfDims = dataShape.size();
 
@@ -42,21 +42,21 @@ public:
             const auto& dataPrecision = dataTensor.getPrecision();
             if (dataPrecision != Precision::I8 && dataPrecision != Precision::U8 && dataPrecision != Precision::I16 && dataPrecision != Precision::I32 &&
                 dataPrecision != Precision::FP32 && dataPrecision != Precision::I64 && dataPrecision != Precision::U64 && dataPrecision != Precision::BF16)
-                THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' has unsupported 'data' input precision: " << dataPrecision.name();
+                IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'data' input precision: " << dataPrecision.name();
 
             if (layer->insData.size() == numOfInputs) {
                 const auto& axisTensor = layer->insData[AXIS].lock()->getTensorDesc();
                 const auto& axisTensorPrec = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();
                 if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
-                    THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' has unsupported 'axis' input precision: " << axisTensorPrec.name();
+                    IE_THROW() << "CumSum layer with name '" << layerName << "' has unsupported 'axis' input precision: " << axisTensorPrec.name();
 
                 const auto axisTensorRank = axisTensor.getDims().size();
                 if (axisTensorRank != 0)
-                    THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' doesn't support 'axis' input tensor with rank: " << axisTensorRank;
+                    IE_THROW() << "CumSum layer with name '" << layerName << "' doesn't support 'axis' input tensor with rank: " << axisTensorRank;
             }
 
             if (dataShape != layer->outData[0]->getTensorDesc().getDims())
-                THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' has different 'data' input and output dimensions";
+                IE_THROW() << "CumSum layer with name '" << layerName << "' has different 'data' input and output dimensions";
 
             shape = dataShape;
 
@@ -87,7 +87,7 @@ public:
 
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -251,11 +251,11 @@ private:
                 break;
             }
             default : {
-                THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "'  doesn't support 'axis' input with precision: " << axisPrecision.name();
+                IE_THROW() << "CumSum layer with name '" << layerName << "'  doesn't support 'axis' input with precision: " << axisPrecision.name();
             }
         }
         if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
-            THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "'  has axis with a value out of range: " << axisValueFromBlob;
+            IE_THROW() << "CumSum layer with name '" << layerName << "'  has axis with a value out of range: " << axisValueFromBlob;
         return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
     }
 

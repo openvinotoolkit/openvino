@@ -1,6 +1,7 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 namespace CommonTestUtils {
@@ -15,6 +16,8 @@ const char DEVICE_KEEMBAY[] = "VPUX";
 const char DEVICE_MULTI[] = "MULTI";
 const char DEVICE_TEMPLATE[] = "TEMPLATE";
 const char DEVICE_HETERO[] = "HETERO";
+
+const char REPORT_FILENAME[] = "report.xml";
 
 #ifdef _WIN32
     #ifdef __MINGW32__

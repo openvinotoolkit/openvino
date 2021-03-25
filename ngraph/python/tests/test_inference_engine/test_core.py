@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import ngraph as ng 
-from ngraph.impl import Function
+import ngraph as ng
+from ngraph.impl.op import Parameter
+from ngraph.impl import Function, Shape, Type
 from openvino.inference_engine import IECore, TensorDesc, Blob, IENetwork, ExecutableNetwork
 import os
 import pytest
@@ -198,3 +199,15 @@ def test_register_plugins():
     assert isinstance(exec_net,
                       ExecutableNetwork), "Cannot load the network to the registered plugin with name 'CUSTOM' " \
                                           "registred in the XML file"
+
+
+def test_create_IENetwork_from_nGraph():
+    element_type = Type.f32
+    param = Parameter(element_type, Shape([1, 3, 22, 22]))
+    relu = ng.relu(param)
+    func = Function([relu], [param], 'test')
+    cnnNetwork = IENetwork(func)
+    assert cnnNetwork != None
+    func2 = cnnNetwork.get_function()
+    assert func2 != None
+    assert len(func2.get_ops()) == 3

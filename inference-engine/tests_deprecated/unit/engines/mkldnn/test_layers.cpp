@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -174,10 +174,10 @@
 //    ASSERT_NE(nullptr, dynamic_cast<MKLDNNPlugin::Context*>(ctx.get()));
 //
 //    InferenceEngine::CNNLayer cnnLayer({});
-//    EXPECT_THROW(MKLDNNPlugin::LayerRegistry::CreateLayer(&cnnLayer, nullptr, dynamic_cast<MKLDNNPlugin::Context*>(ctx.get())) , InferenceEngine::details::InferenceEngineException);
+//    EXPECT_THROW(MKLDNNPlugin::LayerRegistry::CreateLayer(&cnnLayer, nullptr, dynamic_cast<MKLDNNPlugin::Context*>(ctx.get())) , InferenceEngine::Exception);
 //}
 //
 //TEST_F(MKLDNNLayersTests, canNotCreateLayerWithoutContext) {
 //    InferenceEngine::ConvolutionLayer convLayer({});
-//    EXPECT_THROW(MKLDNNPlugin::LayerRegistry::CreateLayer(&convLayer, nullptr, nullptr), InferenceEngine::details::InferenceEngineException);
+//    EXPECT_THROW(MKLDNNPlugin::LayerRegistry::CreateLayer(&convLayer, nullptr, nullptr), InferenceEngine::Exception);
 //}

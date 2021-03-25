@@ -22,6 +22,13 @@ void regclass_IENetwork(py::module m)
 {
     py::class_<InferenceEngine::CNNNetwork, std::shared_ptr<InferenceEngine::CNNNetwork>> cls(
             m, "IENetwork");
+    cls.def(py::init());
+
+    cls.def(py::init([](std::shared_ptr<ngraph::Function>& function) {
+        InferenceEngine::CNNNetwork cnnNetwork(function);
+        return std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
+    }));
+
     cls.def(py::init([](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer
         auto* pybind_capsule_ptr = capsule->ptr();
@@ -31,7 +38,7 @@ void regclass_IENetwork(py::module m)
 
         auto* function_sp = static_cast<std::shared_ptr<ngraph::Function>*>(capsule_ptr);
         if (function_sp == nullptr)
-            THROW_IE_EXCEPTION << "Cannot create CNNNetwork from capsule! Capsule doesn't contain "
+            IE_THROW() << "Cannot create CNNNetwork from capsule! Capsule doesn't contain "
                                   "nGraph function!";
 
         InferenceEngine::CNNNetwork cnnNetwork(*function_sp);
@@ -44,10 +51,36 @@ void regclass_IENetwork(py::module m)
                 self.reshape(input_shapes);
             });
 
-    /*    cls.def("add_outputs", [](InferenceEngine::CNNNetwork& self, py::list input) {
-            self.addOutput(input_shapes);
-        });*/
-    cls.def("serialize", &InferenceEngine::CNNNetwork::serialize, py::arg("path_to_xml"), py::arg("path_to_bin")="");
+    cls.def("add_outputs", [](InferenceEngine::CNNNetwork& self, py::handle& outputs) {
+        int i = 0;
+        py::list _outputs;
+        if (!py::isinstance<py::list>(outputs)) {
+            if (py::isinstance<py::str>(outputs)) {
+                _outputs.append(outputs.cast<py::str>());
+            } else if (py::isinstance<py::tuple>(outputs)) {
+                _outputs.append(outputs.cast<py::tuple>());
+            }
+        } else {
+           _outputs = outputs.cast<py::list>();
+        }
+        for (py::handle output : _outputs) {
+            if (py::isinstance<py::str>(_outputs[i])) {
+                self.addOutput(output.cast<std::string>(), 0);
+            } else if (py::isinstance<py::tuple>(output)) {
+                py::tuple output_tuple = output.cast<py::tuple>();
+                self.addOutput(output_tuple[0].cast<std::string>(), output_tuple[1].cast<int>());
+            } else {
+                IE_THROW() << "Incorrect type " <<  output.get_type() << "for layer to add at index " << i
+                << ". Expected string with layer name or tuple with two elements: layer name as "
+                   "first element and port id as second";
+            }
+            i++;
+        }
+    }, py::arg("outputs"));
+    cls.def("add_output", &InferenceEngine::CNNNetwork::addOutput,
+            py::arg("layer_name"), py::arg("output_index")=0);
+    cls.def("serialize", &InferenceEngine::CNNNetwork::serialize,
+            py::arg("path_to_xml"), py::arg("path_to_bin")="");
 
     cls.def("get_function",
             [](InferenceEngine::CNNNetwork& self) {

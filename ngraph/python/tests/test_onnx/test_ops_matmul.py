@@ -20,7 +20,6 @@ import pytest
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import import_onnx_model
-from tests import xfail_issue_35916, xfail_issue_35917, xfail_issue_35918, xfail_issue_35921
 
 
 def make_onnx_model_for_matmul_op(input_left, input_right):
@@ -104,7 +103,7 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
 @pytest.mark.parametrize(
     "data, description",
     [
-        pytest.param(([1, 2], [1, 3]), "vector and vector 1", marks=xfail_issue_35916),
+        pytest.param(([1, 2], [1, 3]), "vector and vector 1"),
         (([1, 2, 3], [[4], [5], [6]]), "vector and vector 2"),
         (([[1, 2, 3]], [1, 2, 3]), "vector and vector 3"),
         (([1, 2, 3], [[4, 5], [6, 7], [8, 9]]), "vector and matrix"),
@@ -115,7 +114,7 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
     ],
 )
 def test_op_matmul(data, description):
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
+    assert np.allclose(import_and_compute_matmul(*data), np.matmul(*data))
 
 
 def test_op_matmul_3d():
@@ -130,40 +129,39 @@ def test_op_matmul_3d():
 @pytest.mark.parametrize(
     "data, kwargs, description",
     [
-        pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors", marks=xfail_issue_35917),
-        pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar", marks=xfail_issue_35917),
-        pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector", marks=xfail_issue_35917),
-        pytest.param(([1, 2], [1, 3], [1, 4]), {"alpha": 7, "beta": 9},
-                     "vectors with alpha and beta", marks=xfail_issue_35918),
-        pytest.param(([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]), {"alpha": 7, "beta": 9},
-                     "longer vectors with alpha and beta", marks=xfail_issue_35918)
+        pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors"),
+        pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar"),
+        pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector"),
+        pytest.param(([1, 2], [1, 3], [1, 4]), {"alpha": 7.0, "beta": 9.0},
+                     "vectors with alpha and beta"),
+        pytest.param(([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]), {"alpha": 7.0, "beta": 9.0},
+                     "longer vectors with alpha and beta")
     ],
 )
 def test_gemm(data, kwargs, description):
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data))
+    assert np.allclose(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
 
 
 @pytest.mark.parametrize(
     "data, kwargs, description",
     [
         pytest.param(([1, 2], [1, 3], [1, 4]), {"trans_a": True, "trans_b": True},
-                     "vectors with trans_a/trans_b", marks=xfail_issue_35917),
+                     "vectors with trans_a/trans_b"),
         pytest.param(([[1, 2], [1, 2]], [[1, 3], [1, 3]], [4, 1]),
-                     {"trans_a": True, "trans_b": True, "alpha": 7, "beta": 9},
-                     "matrices and vector with trans_b and alpha/beta", marks=xfail_issue_35918),
-        pytest.param(([[1, 2]], [[1, 3]], 1), {"trans_b": True, "alpha": 7, "beta": 9},
-                     "matrices and scalar with trans_b and alpha/beta", marks=xfail_issue_35918),
-        pytest.param(([[1], [2]], [[1], [3]], 1), {"trans_a": True, "alpha": 7, "beta": 9},
-                     "matrices and scalar with trans_a and alpha/beta", marks=xfail_issue_35918),
+                     {"trans_a": True, "trans_b": True, "alpha": 7.0, "beta": 9.0},
+                     "matrices and vector with trans_b and alpha/beta"),
+        pytest.param(([[1, 2]], [[1, 3]], 1), {"trans_b": True, "alpha": 7.0, "beta": 9.0},
+                     "matrices and scalar with trans_b and alpha/beta"),
+        pytest.param(([[1], [2]], [[1], [3]], 1), {"trans_a": True, "alpha": 7.0, "beta": 9.0},
+                     "matrices and scalar with trans_a and alpha/beta"),
     ],
 )
 def test_gemm_transpositions(data, kwargs, description):
     assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
 
 
-@xfail_issue_35921
 def test_gemm_flatten():
-    # input_a.shape is (4,1,1)
-    data = ([[[1]], [[2]], [[3]], [[4]]], [1, 3, 5, 7], [1, 4])
-    kwargs = {"alpha": 7, "beta": 9}
+    # input_a.shape is (4,1)
+    data = ([[1], [2], [3], [4]], [1, 3, 5, 7], [1, 4])
+    kwargs = {"alpha": 7.0, "beta": 9.0, "trans_a": True}
     assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))

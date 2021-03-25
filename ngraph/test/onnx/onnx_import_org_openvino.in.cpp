@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cmath>
@@ -233,6 +221,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm_5d.prototxt"));
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    Shape shape{2, 8, 1, 2, 1};
+    int size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0);
+    std::vector<float> output = {-0.34163546562, 0.55278813838, 2.89442372322,  4.68327093124,
+                                 -1.02490639686, 1.65836453437, 5.78884744644,  9.36654186248,
+                                 -1.70817732810, 2.76394081115, 8.68327140808,  14.04981231689,
+                                 -2.39144825935, 3.86951708793, 11.57769489288, 18.73308372497,
+                                 -0.34163546562, 0.55278813838, 2.89442372322,  4.68327093124,
+                                 -1.02490639686, 1.65836453437, 5.78884744644,  9.36654186248,
+                                 -1.70817732810, 2.76394081115, 8.68327140808,  14.04981231689,
+                                 -2.39144825935, 3.86951708793, 11.57769489288, 18.73308372497};
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
 {
     const auto function = onnx_import::import_onnx_model(
@@ -408,13 +419,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
     // im_info
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
     // anchors
-    test_case.add_input<float>({
-        5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-    });
+    test_case.add_input<float>(
+        {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, 1.0f, 1.0f});
     // deltas
     test_case.add_input<float>(
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -432,26 +451,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
          1.0f, 1.0f, 1.0f});
     // scores
-    test_case.add_input<float>(
-        {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>({
+        5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f,
+    });
 
     test_case.add_expected_output<float>(
         Shape{6, 4}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
-    test_case.add_expected_output<float>(Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{6}, {8.0f, 5.0f, 4.0f, 1.0f, 1.0f, 1.0f});
 
     test_case.run();
 }
@@ -526,42 +535,43 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extra
     test_case.add_input<float>(rois);
     test_case.add_input<float>(pyramid_layer_0);
 
-    test_case.add_expected_output<float>(Shape{2, 2, 3, 3}, {1.416666746139526367,
-                                                             1.750000119209289551,
-                                                             2.083333492279052734,
-                                                             2.416666746139526367,
-                                                             2.75,
-                                                             3.083333492279052734,
-                                                             3.166666507720947266,
-                                                             3.5,
-                                                             3.833333492279052734,
-                                                             7.416666507720947266,
-                                                             7.75,
-                                                             8.083333015441894531,
-                                                             8.416666984558105469,
-                                                             8.75,
-                                                             9.083333969116210938,
-                                                             9.166666030883789062,
-                                                             9.5,
-                                                             9.833333969116210938,
-                                                             4.166666984558105469,
-                                                             4.5,
-                                                             4.833333492279052734,
-                                                             4.166666984558105469,
-                                                             4.5,
-                                                             4.833333492279052734,
-                                                             2.083333492279052734,
-                                                             2.25,
-                                                             2.416666746139526367,
-                                                             10.16666603088378906,
-                                                             10.5,
-                                                             10.83333206176757812,
-                                                             10.16666603088378906,
-                                                             10.5,
-                                                             10.83333206176757812,
-                                                             5.083333015441894531,
-                                                             5.25,
-                                                             5.416666507720947266});
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 3},
+                                         {1.416666746139526367,
+                                          1.750000119209289551,
+                                          2.083333492279052734,
+                                          2.416666746139526367,
+                                          2.75,
+                                          3.083333492279052734,
+                                          3.166666507720947266,
+                                          3.5,
+                                          3.833333492279052734,
+                                          7.416666507720947266,
+                                          7.75,
+                                          8.083333015441894531,
+                                          8.416666984558105469,
+                                          8.75,
+                                          9.083333969116210938,
+                                          9.166666030883789062,
+                                          9.5,
+                                          9.833333969116210938,
+                                          4.166666984558105469,
+                                          4.5,
+                                          4.833333492279052734,
+                                          4.166666984558105469,
+                                          4.5,
+                                          4.833333492279052734,
+                                          2.083333492279052734,
+                                          2.25,
+                                          2.416666746139526367,
+                                          10.16666603088378906,
+                                          10.5,
+                                          10.83333206176757812,
+                                          10.16666603088378906,
+                                          10.5,
+                                          10.83333206176757812,
+                                          5.083333015441894531,
+                                          5.25,
+                                          5.416666507720947266});
 
     test_case.add_expected_output<float>(Shape{2, 4}, {0, 1, 2, 3, 4, 5, 6, 7});
     test_case.run();
