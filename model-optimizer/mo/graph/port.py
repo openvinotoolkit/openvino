@@ -101,8 +101,7 @@ class Port:
             return None
         else:
             node_caller = self.node.in_node if self.type == 'in' else self.node.out_node
-            node = node_caller(self.idx, control_flow=self.control_flow)
-            return node.shape
+            return node_caller(self.idx, control_flow=self.control_flow).shape
 
     def _set_shape(self, shape):
         if self.node.graph.stage == 'front':

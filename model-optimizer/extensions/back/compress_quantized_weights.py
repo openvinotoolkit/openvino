@@ -124,8 +124,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         )
 
     @staticmethod
-    def quantize_data(fake_quantize: Node, dst_type: type,
-                      quantized_type: type, mode: str):
+    def quantize_data(fake_quantize: Node, dst_type: type, quantized_type: type, mode: str):
         graph = fake_quantize.graph
         name = fake_quantize.soft_get('name', fake_quantize.id)
         levels = fake_quantize.levels
@@ -224,11 +223,10 @@ class CompressQuantizeWeights(BackReplacementPattern):
         if np.issubdtype(dst_type, np.floating):
             dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
-        levels = fake_quantize.levels
         quantized_type, mode = None, None
-        for a in sorted(self.QUANTIZATION_MAP):
-            if a >= levels:
-                quantized_type, mode = self.QUANTIZATION_MAP[a]
+        for quantization_levels in sorted(self.QUANTIZATION_MAP):
+            if quantization_levels >= fake_quantize.levels:
+                quantized_type, mode = self.QUANTIZATION_MAP[quantization_levels]
                 break
 
         self.quantize_data(fake_quantize, dst_type, quantized_type, mode)

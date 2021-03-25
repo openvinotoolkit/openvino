@@ -67,7 +67,7 @@ class Cast(Op):
         Custom types are not supported by numpy but we still need to write it to the .bin file in a compact way.
         To do so we prepare bit representation of int4/uint4 values and store them in a numpy friendly data type.
         We pack int4/uint4 values into uint8 type (two int4/uint4 numbers fit in uint8).
-        If the number of elements in the blob is uneven we pad them with zero value to be able to fit the bit sequence
+        If the number of elements in the blob is odd we pad them with zero value to be able to fit the bit sequence
         into the uint8 array.
         Example: we need to represent 5 elements of int4 dtype
             we would pad them to 6 element with the last element as zero and we would pack them into 3 uint8 values
@@ -75,46 +75,51 @@ class Cast(Op):
         assert dst_type in [packed_U4, packed_I4]
 
         minimum_regular_dtype = np.uint8 if dst_type == packed_U4 else np.int8
+        # initial casing from the source type to the numpy-friendly type which could absorb all the values of dst_type
         casted_to_regular_type = Cast.helper_value_propagation(
             node.soft_get('name', node.id), value, minimum_regular_dtype)
 
-        data_shape = node.out_port(0).data.get_shape().copy()
+        # packing the values
+        data_shape = node.out_port(0).data.get_shape()
         assert data_shape is not None
         data_size = np.prod(data_shape)
 
-        num_values_fitting_into_uint8 = 2
+        num_bits = 4
+        assert num_bits < 8 and 8 % num_bits == 0, "Packing algorithm for the data types stored in 1, 2 or 4 bits"
+        num_values_fitting_into_uint8 = 8 // num_bits
         pad = (-data_size) % num_values_fitting_into_uint8
 
         flattened = casted_to_regular_type.flatten()
-        padded = np.array(np.concatenate((flattened, np.zeros([pad]))), dtype=minimum_regular_dtype)
+        padded = np.concatenate((flattened, np.zeros([pad], dtype=minimum_regular_dtype)))
         assert np.prod(padded.shape) % num_values_fitting_into_uint8 == 0
 
-        num_bits = 4
         bit_order_little = (padded[:, None] & (1 << np.arange(num_bits)) > 0).astype(np.uint8)
         bit_order_big = np.flip(bit_order_little, axis=1)
-        weights_rounded = bit_order_big.flatten()
-        packed = np.packbits(weights_rounded, bitorder='big')
-
-        node.out_port(0).data.set_value(packed)
+        bit_order_big_flattened = bit_order_big.flatten()
+        packed = np.packbits(bit_order_big_flattened, bitorder='big')
 
         node.out_node(0)['force_shape'] = data_shape.copy()
         node.out_node(0)['force_type'] = np_data_type_to_precision(dst_type)
-
-        node.out_port(0).data.set_shape(data_shape.copy())
-
+        node.out_port(0).data.set_value(packed)
 
     @staticmethod
     def infer(node: Node):
-        assert node.has_valid('dst_type'), 'Destination type of "Cast" operation should be extracted earlier'
-        dst_type = node.dst_type
-        copy_shape_infer(node)
-        if node.has_and_set('stop_value_propagation'):
-            return
-        if node.in_node(0).has_valid('value'):
-            value = node.in_node(0).value
+        node_name = node.soft_get('name', node.id)
+        dst_type = node.soft_get('dst_type', None)
 
-            if dst_type in [packed_U4, packed_I4]:  # custom types conversion
-                Cast.custom_type_casting_and_packing(node, value, dst_type)
-            else:
-                node.out_port(0).data.set_value(
-                    Cast.helper_value_propagation(node.soft_get('name', node.id), value, dst_type))
+        assert dst_type is not None, \
+            'Destination type of "Cast" operation should be extracted earlier, but it`s not for node: ' + node_name
+
+        input_shape = node.in_port(0).data.get_shape()
+        assert input_shape is not None
+        node.out_port(0).data.set_shape(input_shape)
+
+        value = node.in_port(0).data.get_value()
+        if value is None or node.has_and_set('stop_value_propagation'):
+            return
+
+        if dst_type in [packed_U4, packed_I4]:  # custom types conversion
+            Cast.custom_type_casting_and_packing(node, value, dst_type)
+        else:
+            node.out_port(0).data.set_value(
+                Cast.helper_value_propagation(node_name, value, dst_type))
