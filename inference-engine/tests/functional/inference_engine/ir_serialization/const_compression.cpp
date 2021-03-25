@@ -29,9 +29,10 @@ protected:
 
     std::uintmax_t file_size(std::ifstream &f) {
         // get length of file:
+        const auto pos_to_restore = f.tellg();
         f.seekg(0, f.end);
         std::uintmax_t length = f.tellg();
-        f.seekg(0, f.beg);
+        f.seekg(pos_to_restore, f.beg);
         return length;
     }
 };
@@ -51,12 +52,10 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI32) {
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI64) {
@@ -74,12 +73,10 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI64) {
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(int64_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int64_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP16) {
@@ -97,12 +94,10 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP16) {
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(ngraph::float16));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(ngraph::float16));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP32) {
@@ -120,12 +115,10 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP32) {
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(float));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(float));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
@@ -147,12 +140,10 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOccurences) {
@@ -178,12 +169,10 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOc
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
 }
 
 TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstants) {
@@ -201,12 +190,10 @@ TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstants) {
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I64) {
@@ -224,40 +211,30 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I8) {
     std::shared_ptr<ngraph::Function> ngraph_a;
     const int unique_const_count = 1;
 
-    ngraph::Shape shape{2, 2, 2};
+    ngraph::Shape shape{1, 1, 2};
     auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::i8, ngraph::Shape({2, 4, 4}),
+        {1, 2});
+    auto B = ngraph::op::Constant::create(ngraph::element::i8, ngraph::Shape({1, 2, 4}),
         {1, 0, 0, 0,
-         2, 0, 0, 0,
-         3, 0, 0, 0,
-         4, 0, 0, 0,
-         5, 0, 0, 0,
-         6, 0, 0, 0,
-         7, 0, 0, 0,
-         8, 0, 0, 0});
+         2, 0, 0, 0});
 
     ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    int shape_element_count = 1;
-    std::for_each(shape.begin(), shape.end(), [&](const int &n) {shape_element_count *= n;});
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * shape_element_count * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
 }
