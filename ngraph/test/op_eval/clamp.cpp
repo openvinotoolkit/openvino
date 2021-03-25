@@ -47,7 +47,7 @@ namespace
         return test_case.run();
     }
 }
-#if 0
+
 TEST(op_eval, clamp_float_dynamic)
 {
     auto type = element::f32;
@@ -72,7 +72,7 @@ TEST(op_eval, clamp_float_dynamic)
         0.6,
         {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    clamp_test<ctype>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
@@ -81,7 +81,7 @@ TEST(op_eval, clamp_float_dynamic)
         20.0,
         {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    clamp_test<ctype>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
@@ -90,7 +90,7 @@ TEST(op_eval, clamp_float_dynamic)
         pinf,
         {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    clamp_test<ctype>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
@@ -99,7 +99,6 @@ TEST(op_eval, clamp_float_dynamic)
         20.0,
         {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
-#endif
 
 TEST(op_eval, clamp_int8_dynamic)
 {
