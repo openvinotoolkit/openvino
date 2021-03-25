@@ -44,6 +44,8 @@ InferenceEngine::Blob::Ptr EltwiseLayerTest::GenerateInput(const InferenceEngine
         case ngraph::helpers::EltwiseTypes::DIVIDE:
             return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
                                                     FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 100, 101);
+        case ngraph::helpers::EltwiseTypes::ERF:
+            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 6, -3);
         default:
             return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
     }
