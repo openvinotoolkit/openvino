@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -355,42 +355,194 @@ inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
 }
 
 namespace {
-    template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
-    std::shared_ptr<ngraph::Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
-        using src_type = typename element_type_traits<PREC_FROM>::value_type;
-        using dst_type = typename element_type_traits<PREC_TO>::value_type;
+template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
+std::shared_ptr<ngraph::Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
+    using src_type = typename element_type_traits<PREC_FROM>::value_type;
+    using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
-        const auto * src_data = constant->get_data_ptr<src_type>();
-        const auto size = shape_size(constant->get_shape());
+    const auto * src_data = constant->get_data_ptr<src_type>();
+    const auto size = shape_size(constant->get_shape());
 
-        auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
-        auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
-        if (dst_data == nullptr)
-            throw ngraph_error("Can't get destination data pointer");
+    auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
+    auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+    if (dst_data == nullptr)
+        throw ngraph_error("Can't get destination data pointer");
 
-        for (size_t i = 0; i < size; ++i) {
-            dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
+    for (size_t i = 0; i < size; ++i) {
+        dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
+    }
+    return new_constant;
+}
+
+template <>
+std::shared_ptr<Node> change_constant_precision<element::Type_t::f16, element::Type_t::f32>(std::shared_ptr<opset4::Constant>& constant) {
+    using src_type = typename element_type_traits<element::Type_t::f16>::value_type;
+    using dst_type = typename element_type_traits<element::Type_t::f32>::value_type;
+
+    const auto * src_data = constant->get_data_ptr<src_type>();
+    const auto size = shape_size(constant->get_shape());
+
+    auto new_constant = std::make_shared<ngraph::opset4::Constant>(element::Type_t::f32, constant->get_shape());
+    auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+    if (dst_data == nullptr)
+        throw ngraph_error("Can't get destination data pointer");
+
+    ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+
+    return new_constant;
+}
+
+struct EnumClassHash {
+    template<class T>
+    std::size_t operator()(T t) const {
+        return static_cast<size_t>(t);
+    }
+};
+
+/**
+ * @brief Method converts low precision integer types
+ *
+ * @param src source value      !!! the type must be unsigned !!!
+ * @param dst destination value !!! the type must be unsigned !!!
+ * @param src_offset source offset (for custom data types)
+ * @param src_size source size (for custom data types)
+ * @param dst_offset destination offset
+ * @param dst_size destination size
+ * @param is_signed the type of source data
+ */
+template <class SRC, class DST>
+void convert_lp_value(const SRC& src, DST& dst, size_t src_offset, size_t src_size, size_t dst_offset, size_t dst_size, bool is_signed) {
+    constexpr SRC src_max = std::numeric_limits<SRC>::max();
+    constexpr DST dst_max = std::numeric_limits<DST>::max();
+    // Make a shift for the source value
+    // src [11101000] offset 2, size 4
+    // val [00011101]
+    SRC val = src >> src_offset;
+    // dst     [10001111 00000100] offset 5 size 9
+    // new_val [00000000 00000000]
+    DST new_val = 0;
+    // If source type is signed
+    if (is_signed) {
+        // Get the sign of value
+        // sign [00000000]
+        // invert value in order to use XOR
+        SRC sign = (~(val >> (src_size - 1))) & 0b1;
+        // Calculate diff in order to clean bits which don't exist in the source value
+        // diff 5
+        size_t diff = sizeof(SRC)*8 - src_size + 1;
+        // Clean unnecessary bits
+        // val [10100000]
+        val = val << diff;
+        // val [00000101]
+        val = (val >> diff);
+
+        // Negative number
+        if (!sign) {
+            // val [11110101]
+            val |= (src_max << (diff - 1));
+            // new_val [00000001 11111111]
+            new_val = (sign << (dst_size - 1)) ^ (dst_max >> (sizeof(DST) * 8 - dst_size));
+            // new_val [00000001 11110101]
+            new_val &= (dst_max << sizeof(SRC)*8) | val;
+        } else {
+            // new_val [00000000 00000101]
+            new_val = val;
         }
-        return new_constant;
+    } else {
+        // Calculate diff in order to clean bits which don't exist in the source value
+        // diff 4
+        size_t diff = sizeof(SRC)*8 - src_size;
+        // Clean unnecessary bits
+        // val [11010000]
+        val = val << diff;
+        // val [00001101]
+        val = val >> diff;
+        // new_val [00000000 00001101]
+        new_val = val;
     }
 
-    template <>
-    std::shared_ptr<Node> change_constant_precision<element::Type_t::f16, element::Type_t::f32>(std::shared_ptr<opset4::Constant>& constant) {
-        using src_type = typename element_type_traits<element::Type_t::f16>::value_type;
-        using dst_type = typename element_type_traits<element::Type_t::f32>::value_type;
+    // Make a mask in order to save other values if DST contains several values
+    // mask [11000000 00011111]
+    DST mask = 0;
+    if (dst_offset + dst_size < sizeof(DST) * 8)
+        mask = (dst_max << (dst_offset + dst_size));
+    if (dst_offset != 0)
+        mask |= (dst_max >> (sizeof(DST) * 8 - dst_offset));
 
-        const auto * src_data = constant->get_data_ptr<src_type>();
-        const auto size = shape_size(constant->get_shape());
+    // Add mask to our converted value
+    // signed:   new_val [11100000 10111111]
+    // unsigned: new_val [11000001 10111111]
+    new_val = mask | (new_val << dst_offset);
 
-        auto new_constant = std::make_shared<ngraph::opset4::Constant>(element::Type_t::f32, constant->get_shape());
-        auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
-        if (dst_data == nullptr)
-            throw ngraph_error("Can't get destination data pointer");
+    // Add our value to destination
+    // dst: [10111111 11100100]
+    dst |= ~mask;
+    // signed:   dst [10100000 10100100]
+    // unsigned: dst [10000001 10100100]
+    dst &= new_val;
+}
 
-        ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constant>& constant, element::Type to) {
+    // Supported integer precisions
+    static const std::unordered_set<element::Type_t, EnumClassHash> supported_integer_precisions = {
+        element::i4,
+        element::u4,
+        element::u1
+    };
+    // Get source element type and source data
+    auto src_type = constant->get_element_type();
+    const auto* src_data = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
 
-        return new_constant;
+    // We support conversion only if several elements can be represented in one instance of some C++ common data type without any exception,
+    // destination data type should be bigger than source and destination data type should be real
+    if (!supported_integer_precisions.count(src_type) || (src_type.size() * 8) % src_type.bitwidth()  ||
+        (to.size() * 8) % to.bitwidth() || to.is_real() || to.bitwidth() < src_type.bitwidth())
+        throw ngraph_error("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
+                           to.get_type_name() + " is not implemented!");
+
+    // Create a new constant operation and get destination data
+    auto new_constant = std::make_shared<ngraph::opset4::Constant>(to, constant->get_shape());
+    auto* dst_data = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(new_constant->get_data_ptr()));
+    // Check pointers
+    if (src_data == nullptr || dst_data == nullptr)
+        throw ngraph_error("Can't get data pointer");
+
+    // Convert values
+    const auto size = shape_size(constant->get_shape());
+    for (size_t i = 0; i < size; i++) {
+        // Calculate indexes
+        size_t dst_idx = i / ((to.size() * 8) / to.bitwidth());
+        size_t src_idx = i / ((src_type.size() * 8) / src_type.bitwidth());
+        // Calculate offsets inside the indexes
+        size_t dst_off = (to.size() * 8 - to.bitwidth()) - to.bitwidth() * (i % ((to.size() * 8) / to.bitwidth()));
+        size_t src_off = (src_type.size() * 8 - src_type.bitwidth()) - src_type.bitwidth() * (i % ((src_type.size() * 8) / src_type.bitwidth()));
+        // Source type at the current moment always less than 1 byte
+        // Select the right destination type
+        switch (to.size()) {
+        case 1:
+            convert_lp_value<uint8_t, uint8_t>(src_data[src_idx], dst_data[dst_idx], src_off, src_type.bitwidth(),
+                                               dst_off, to.bitwidth(), src_type.is_signed());
+            break;
+        case 2:
+            convert_lp_value<uint8_t, uint16_t>(src_data[src_idx], reinterpret_cast<uint16_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
+                                                dst_off, to.bitwidth(), src_type.is_signed());
+            break;
+        case 4:
+            convert_lp_value<uint8_t, uint32_t>(src_data[src_idx], reinterpret_cast<uint32_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
+                                                dst_off, to.bitwidth(), src_type.is_signed());
+            break;
+        case 8:
+            convert_lp_value<uint8_t, uint64_t>(src_data[src_idx], reinterpret_cast<uint64_t*>(dst_data)[dst_idx], src_off, src_type.bitwidth(),
+                                                dst_off, to.bitwidth(), src_type.is_signed());
+            break;
+        default:
+            throw ngraph_error("Unsupported element size!");
+        }
     }
+
+    return new_constant;
+}
+
 }   // namespace
 
 bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node> & node, element::Type to, const std::vector<Input<Node>> & consumers) {
@@ -417,8 +569,10 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node> & node, element::
             new_const = change_constant_precision<element::Type_t::boolean, element::Type_t::u8>(constant);
         } else if (from == element::boolean && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::boolean, element::Type_t::i32>(constant);
+        } else if (from == element::i4 || from == element::u4 || from == element::u1) {
+            new_const = convert_low_precisions_int(constant, to);
         } else {
-            throw ngraph_error("not supported");
+            throw ngraph_error("Precision conversion from " + from.get_type_name() + " to " + to.get_type_name() + " is not supported");
         }
         for (auto & output : consumers) {
             output.replace_source_output(new_const);
