@@ -42,6 +42,9 @@
 #include "ngraph/node_output.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
+#include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/variable_value.h"
+#include "ngraph/op/util/evaluation_context.h"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
@@ -57,6 +60,7 @@ namespace ngraph
     class AttributeVisitor;
     class Variant;
     class Node;
+    class EvaluationContext;
 
     class Function;
 
@@ -209,6 +213,11 @@ namespace ngraph
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const;
+        /// \brief Evaluates the op on input_values putting results in output_values
+        /// \returns true if successful
+        virtual bool evaluate(const HostTensorVector& output_values,
+                              const HostTensorVector& input_values,
+                              const EvaluationContext& evaluationContext) const;
         virtual bool evaluate_lower(const HostTensorVector& output_values) const;
         virtual bool evaluate_upper(const HostTensorVector& output_values) const;
 

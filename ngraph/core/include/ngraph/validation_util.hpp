@@ -224,7 +224,8 @@ namespace ngraph
     /// \param outputs Root set of values to try to compute
     NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                                    std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                                   const OutputVector& outputs);
+                                   const OutputVector& outputs,
+                                   const EvaluationContext& evaluation_context);
 
     /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
     /// estimation through it.

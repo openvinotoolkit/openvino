@@ -125,6 +125,13 @@ namespace ngraph
                                  "Variable is not initialized. Variable_id is unavailable");
                     return m_variable->get_info().variable_id;
                 }
+
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs,
+                              const EvaluationContext& evaluation_context) const override;
+
+                bool constant_fold(OutputVector& output_values,
+                                   const OutputVector& inputs_values) override;
             };
         }
     }

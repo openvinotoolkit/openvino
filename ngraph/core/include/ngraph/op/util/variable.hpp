@@ -18,7 +18,7 @@
 
 #include <utility>
 
-#include "ngraph/op/op.hpp"
+#include "ngraph/op/util/evaluation_context.h"
 
 namespace ngraph
 {
@@ -45,6 +45,8 @@ namespace ngraph
     private:
         VariableInfo m_info;
     };
+    using VariablePtr = std::shared_ptr<Variable>;
+    using VariableVector = std::vector<VariablePtr>;
 
     template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<Variable>>

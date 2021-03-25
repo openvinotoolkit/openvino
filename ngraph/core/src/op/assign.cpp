@@ -124,3 +124,30 @@ bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("variable_id", m_variable);
     return true;
 }
+
+bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs,
+                              const EvaluationContext& evaluation_context) const
+{
+    NGRAPH_OP_SCOPE(v6_Assign_evaluate);
+    const auto& variable_context = evaluation_context.get_variable_context();
+    const auto& var_value = variable_context.find(m_variable);
+    NODE_VALIDATION_CHECK(this,
+                          var_value == variable_context.end(),
+                          ".");
+
+    const auto& variable_value = var_value->second->get_value();
+    variable_value->set_unary(inputs[0]);
+    outputs[0]->set_unary(inputs[0]);
+
+    void *output = outputs[0]->get_data_ptr();
+    void *input = inputs[0]->get_data_ptr();
+    memcpy(output, input, outputs[0]->get_size_in_bytes());
+    memcpy(variable_value->get_data_ptr(), input, variable_value->get_size_in_bytes());
+    return true;
+}
+
+bool op::v6::Assign::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)
+{
+    return false;
+}

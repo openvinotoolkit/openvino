@@ -388,7 +388,8 @@ int64_t Function::get_result_index(const Output<Node>& value) const
 }
 
 bool Function::evaluate(const HostTensorVector& output_tensors,
-                        const HostTensorVector& input_tensors) const
+                        const HostTensorVector& input_tensors,
+                        const EvaluationContext& evaluation_context) const
 {
     std::map<RawNodeOutput, HostTensorPtr> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i)
@@ -403,7 +404,7 @@ bool Function::evaluate(const HostTensorVector& output_tensors,
         output_tensor_map[result] = output_tensors.at(i);
         outputs.push_back(result);
     }
-    evaluate_nodes(value_map, output_tensor_map, outputs);
+    evaluate_nodes(value_map, output_tensor_map, outputs, evaluation_context);
     return true;
 }
 
@@ -464,6 +465,20 @@ void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
                        m_parameters.end(),
                        [&param](std::shared_ptr<op::v0::Parameter>& r) { return r == param; }),
         m_parameters.end());
+}
+
+VariableVector Function::find_variables() const {
+    const auto& ops = get_ordered_ops();
+    VariableVector variables;
+    for (const auto& op : ops) {
+        // find all ops that can store variables
+        if (const auto& read_value = std::dynamic_pointer_cast<op::ReadValueBase>(op)) {
+            variables.push_back(read_value->get_variable());
+        } else if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(op)) {
+            variables.push_back(assign->get_variable());
+        }
+    }
+    return variables;
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;

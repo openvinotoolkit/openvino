@@ -25,9 +25,13 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/op/assign.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "ngraph/op/read_value.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/sink.hpp"
+#include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/evaluation_context.h"
 
 namespace ngraph
 {
@@ -147,7 +151,8 @@ namespace ngraph
         /// \param outputs Tensors for the outputs to compute. One for each result
         /// \param inputs Tensors for the inputs. One for each inputs.
         bool evaluate(const HostTensorVector& output_tensors,
-                      const HostTensorVector& input_tensors) const;
+                      const HostTensorVector& input_tensors,
+                      const EvaluationContext& evaluation_context = EvaluationContext()) const;
 
         /// \brief Return a list of function's sinks.
         const SinkVector& get_sinks() const { return m_sinks; }
@@ -197,6 +202,21 @@ namespace ngraph
         /// \param param Parameter node to delete
         void remove_parameter(const std::shared_ptr<op::Parameter>& param);
 
+        /// \brief Traverses the graph and returns all found variables
+        /// Return a list of found variables
+        VariableVector find_variables() const;
+
+        /// \brief Register new variables in ngraph::function
+        /// \param param New variables
+        void set_variables(const VariableVector& variables) {
+            m_variables = variables;
+        }
+
+        /// \brief Return all registred variables in ngraph::function
+        const VariableVector& get_variables() {
+            return m_variables;
+        }
+
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
@@ -211,11 +231,11 @@ namespace ngraph
         topological_sort_t m_topological_sorter;
 
         ResultVector m_results;
-
+        ParameterVector m_parameters;
         // List of the nodes with side effect in graph.
         // These nodes are not outputs of graph but should not be removed even if have no children.
         SinkVector m_sinks;
-        ParameterVector m_parameters;
+        VariableVector m_variables;
     };
 
     template <>
