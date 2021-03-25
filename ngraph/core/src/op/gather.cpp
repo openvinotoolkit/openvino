@@ -204,8 +204,8 @@ void op::v7::Gather::validate_and_infer_types()
 
     int64_t batch_dims = get_batch_dims();
     NODE_VALIDATION_CHECK(this,
-                          batch_dims >= axis,
-                          "The  batch_dims >= axis. But instead got: batch_dims = ",
+                          batch_dims <= axis,
+                          "The batch_dims <= axis. But instead got: batch_dims = ",
                           batch_dims,
                           ", axis = ",
                           axis);
@@ -217,19 +217,13 @@ void op::v7::Gather::validate_and_infer_types()
                               axis,
                               " data_rank = ",
                               data_rank.get_length());
-        NODE_VALIDATION_CHECK(this,
-                              batch_dims < data_rank.get_length(),
-                              "The  batch_dims must be < data_rank. But instead got: batch_dims = ",
-                              batch_dims,
-                              ", data_rank = ",
-                              data_rank.get_length());
     }
     if (indices_rank.is_static())
     {
         NODE_VALIDATION_CHECK(
             this,
             batch_dims < indices_rank.get_length(),
-            "The  batch_dims must be < indices_rank. But instead got: batch_dims = ",
+            "The batch_dims must be < indices_rank. But instead got: batch_dims = ",
             batch_dims,
             ", indices_rank = ",
             indices_rank.get_length());

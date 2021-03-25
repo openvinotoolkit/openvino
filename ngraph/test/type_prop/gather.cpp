@@ -279,7 +279,7 @@ TEST(type_prop, gather_7_axis_out_of_input_rank)
     {
         auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect element of A input";
+        FAIL() << "axis check failed";
     }
     catch (const NodeValidationFailure& error)
     {
@@ -314,6 +314,64 @@ TEST(type_prop, gather_7_dynamic_batch_dims_inconsistent)
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("data and indices must have equal or intersecting sizes until batch_dims"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_7_batch_dims_less_check)
+{
+    PartialShape data_shape{1, 20, 20};
+    PartialShape indices_shape{1, 3, 8};
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    int64_t axis = 1;
+    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    int64_t batch_dims = 2;
+
+    try
+    {
+        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "batch_dims check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string("batch_dims <= axis. But instead got: batch_dims ="));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_7_batch_dims_less_indices_rank_check)
+{
+    PartialShape data_shape{1, 20, 20, 22, 22};
+    PartialShape indices_shape{1, 3, 8};
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    int64_t axis = 4;
+    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    int64_t batch_dims = 3;
+
+    try
+    {
+        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "batch_dims check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string("batch_dims must be < indices_rank"));
     }
     catch (...)
     {
