@@ -205,7 +205,7 @@ vi <user_home_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
@@ -242,4 +242,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [Introduction to Inference Engine](inference_engine_intro.md)
+* [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md)

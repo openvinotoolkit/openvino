@@ -19,7 +19,7 @@ Your installation is complete when these are all completed:
    - [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
    - [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
    - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
-   > **IMPORTANT**: As part of this installation, make sure you click the option to add the application to your `PATH` environment variable.
+   > **IMPORTANT**: As part of this installation, make sure you click the option **[Add Python 3.x to PATH](https://docs.python.org/3/using/windows.html#installation-steps)** to add Python to your `PATH` environment variable.
 
 3. <a href="#set-the-environment-variables">Set Environment Variables</a>         
 
@@ -57,7 +57,7 @@ The following components are installed by default:
 | Component                                                                                          | Description                                                                                                                                                                                                                                   |
 |:---------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |[Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) |This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine.<br><strong>NOTE</strong>: Popular frameworks include such frameworks as Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.         |
-|[Inference Engine](../IE_DG/inference_engine_intro.md)               |This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                 |
+|[Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               |This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                 |
 |[OpenCV\*](https://docs.opencv.org/master/)                                                         |OpenCV* community version compiled for Intel® hardware                                                                                                                                                                                         |
 |[Inference Engine Samples](../IE_DG/Samples_Overview.md)                             |A set of simple console applications demonstrating how to use Intel's Deep Learning Inference Engine in your applications.  |
 | [Demos](@ref omz_demos)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
@@ -82,7 +82,6 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 **Hardware**
 
 * 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
-* Intel® Xeon® processor E family (formerly code named Sandy Bridge, Ivy Bridge, Haswell, and Broadwell)
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
@@ -133,12 +132,9 @@ The screen example below indicates you are missing two dependencies:
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 ```sh
-cd C:\Program Files (x86)\Intel\openvino_2021\bin\
+"C:\Program Files (x86)\Intel\openvino_2021\bin\setupvars.bat"
 ```
-
-```sh
-setupvars.bat
-```
+> **IMPORTANT**: Windows PowerShell* is not recommended to run the configuration commands, please use the Command Prompt instead.
 
 <strong>(Optional)</strong>: OpenVINO toolkit environment variables are removed when you close the Command Prompt window. As an option, you can permanently set the environment variables manually.
 
@@ -313,7 +309,7 @@ Use these steps to update your Windows `PATH` if a command you execute returns a
 
 5. If you need to add CMake to the `PATH`, browse to the directory in which you installed CMake. The default directory is `C:\Program Files\CMake`.
 
-6. If you need to add Python to the `PATH`, browse to the directory in which you installed Python. The default directory is `C:\Users\<USER_ID>\AppData\Local\Programs\Python\Python36\Python`.
+6. If you need to add Python to the `PATH`, browse to the directory in which you installed Python. The default directory is `C:\Users\<USER_ID>\AppData\Local\Programs\Python\Python36\Python`. Note that the `AppData` folder is hidden by default. To view hidden files and folders, see the [Windows 10 instructions](https://support.microsoft.com/en-us/windows/view-hidden-files-and-folders-in-windows-10-97fbc472-c603-9d90-91d0-1166d1d9f4b5). 
 
 7. Click **OK** repeatedly to close each screen.
 
@@ -349,7 +345,7 @@ To learn more about converting deep learning models, go to:
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
 - [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-- [Introduction to Inference Engine](../IE_DG/inference_engine_intro.md)
+- [Introduction to Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
