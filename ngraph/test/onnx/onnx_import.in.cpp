@@ -2780,7 +2780,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_erf_int32)
     const std::vector<std::vector<int32_t>> inputs{
         {-std::numeric_limits<int32_t>::max(), -1, 0, 1, std::numeric_limits<int32_t>::max()}};
 
-    const std::vector<int32_t> expected_output{-1, 0, 0, 0, 1};
+    const std::vector<int32_t> expected_output{-1, -1, 0, 1, 1};
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);

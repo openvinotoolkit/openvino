@@ -118,7 +118,7 @@ def is_connected_component(graph: Graph, node_names: list):
 
 
 def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None,
-                            include_control_flow=True):
+                            include_control_flow=True, allow_non_reachable_end_nodes=False):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. Input nodes for the sub-graph nodes are also
     added to the sub-graph. Constant inputs of the 'start_nodes' are also added to the sub-graph.
@@ -128,6 +128,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
     :param detect_extra_start_node: callable function to add additional nodes to the list of start nodes instead of
     traversing the graph further. The list of additional start nodes is returned of the function is not None.
     :param include_control_flow: flag to specify whether to follow the control flow edges or not
+    :param allow_non_reachable_end_nodes: do not fail if the end nodes are not reachable from the start nodes
     :return: list of nodes of the identified sub-graph or None if the sub-graph cannot be extracted.
     """
     sub_graph_nodes = list()
@@ -162,7 +163,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
     for start_node in start_nodes:
         graph.dfs(start_node, forward_visited)
     for end_node in end_nodes:
-        if end_node not in forward_visited:
+        if not allow_non_reachable_end_nodes and end_node not in forward_visited:
             raise Error('End node "{}" is not reachable from start nodes: {}. '.format(end_node, start_nodes) +
                         refer_to_faq_msg(74))
 
