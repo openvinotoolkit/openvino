@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,7 +148,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
             } else if (scalesBlob != nullptr) {
                 Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
                 if (biases == nullptr)
-                    THROW_IE_EXCEPTION << "Cannot make 'biases' shared blob";
+                    IE_THROW() << "Cannot make 'biases' shared blob";
                 biases->allocate();
                 auto biasesPtr = biases->buffer().as<float*>();
                 for (size_t i = 0; i < biases->size(); i++)
@@ -170,7 +170,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         } else if (layer->type == "DeformableConvolution") {
             auto * defConvLayer = dynamic_cast<DeformableConvolutionLayer*>(layer.get());
             if (defConvLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot convert deformable convolution layer.";
+                IE_THROW() << "Cannot convert deformable convolution layer.";
 
             Blob::Ptr weightsBlob = defConvLayer->blobs["weights"];
             if (weightsBlob != nullptr) {
@@ -193,7 +193,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         } else if (layer->type == "BinaryConvolution") {
             auto * binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(layer.get());
             if (binConvLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot convert binary convolution layer.";
+                IE_THROW() << "Cannot convert binary convolution layer.";
 
             Blob::Ptr weightsBlob = binConvLayer->blobs["weights"];
             if (weightsBlob != nullptr) {
@@ -221,7 +221,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     if (_cfg.batchLimit > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(_clonedNetwork)) {
-            THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
+            IE_THROW() << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
 
@@ -329,26 +329,26 @@ InferenceEngine::IInferRequest::Ptr MKLDNNExecNetwork::CreateInferRequest() {
 
 InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
     if (_graphs.size() == 0)
-        THROW_IE_EXCEPTION << "No graph was found";
+        IE_THROW() << "No graph was found";
 
     return GetGraph()._graph.dump();
 }
 
 Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
     if (_graphs.size() == 0)
-        THROW_IE_EXCEPTION << "No graph was found";
+        IE_THROW() << "No graph was found";
     Config engConfig = const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
 InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name) const {
     if (_graphs.size() == 0)
-        THROW_IE_EXCEPTION << "No graph was found";
+        IE_THROW() << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_SET_METRIC_RETURN(NETWORK_NAME,
@@ -374,7 +374,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
             streams ? streams : 1));
     } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 

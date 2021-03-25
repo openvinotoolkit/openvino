@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -179,7 +179,7 @@ namespace FuncTestUtils {
             for (auto &it : err_log) {
                 std::cout << "ERROR: " << it << std::endl;
             }
-            THROW_IE_EXCEPTION << "CNNNetworks have different layers!";
+            IE_THROW() << "CNNNetworks have different layers!";
         }
     }
 
@@ -194,7 +194,7 @@ namespace FuncTestUtils {
             success = success && old_info.find(it.first) != old_info.end();
         }
         if (!success)
-            THROW_IE_EXCEPTION << err_msg;
+            IE_THROW() << err_msg;
     }
 
     void
@@ -205,7 +205,7 @@ namespace FuncTestUtils {
         auto ti_old = std::dynamic_pointer_cast<InferenceEngine::TensorIterator>(old_layer);
 
         if (!ti_new || !ti_old) {
-            THROW_IE_EXCEPTION << "Cannot cast the layer to TensorIterator.";
+            IE_THROW() << "Cannot cast the layer to TensorIterator.";
         }
 
         auto get_port_map = [](
@@ -236,7 +236,7 @@ namespace FuncTestUtils {
                 std::map<std::pair<std::string, std::string>,
                         InferenceEngine::TensorIterator::PortMap> &old_ordered_port_maps) {
             if (new_ordered_port_maps.size() != old_ordered_port_maps.size()) {
-                THROW_IE_EXCEPTION << "PortMaps have different numbers of layers: " << new_ordered_port_maps.size() <<
+                IE_THROW() << "PortMaps have different numbers of layers: " << new_ordered_port_maps.size() <<
                                    " and " << old_ordered_port_maps.size();
             }
 
@@ -246,7 +246,7 @@ namespace FuncTestUtils {
             for (; iterator_new != new_ordered_port_maps.end() && iterator_old != old_ordered_port_maps.end();
                    iterator_new++, iterator_old++) {
                 if (iterator_new->first != iterator_old->first) {
-                    THROW_IE_EXCEPTION << R"(Names of "from" and "to" layers in the port maps do not match!)";
+                    IE_THROW() << R"(Names of "from" and "to" layers in the port maps do not match!)";
                 }
 
                 InferenceEngine::TensorIterator::PortMap &pm_new = iterator_new->second;
@@ -255,7 +255,7 @@ namespace FuncTestUtils {
                 if (pm_new.part_size != pm_old.part_size || pm_new.axis != pm_old.axis ||
                     pm_new.stride != pm_old.stride ||
                     pm_new.end != pm_old.end || pm_new.start != pm_old.start) {
-                    THROW_IE_EXCEPTION << "Parameters in the port maps do not match!";
+                    IE_THROW() << "Parameters in the port maps do not match!";
                 }
             }
         };
@@ -316,11 +316,11 @@ namespace FuncTestUtils {
     void compareCNNNetworks(const InferenceEngine::CNNNetwork &network, const InferenceEngine::CNNNetwork &refNetwork,
                             bool sameNetVersions) {
         if (network.getName() != refNetwork.getName())
-            THROW_IE_EXCEPTION << "CNNNetworks have different names! " << network.getName()
+            IE_THROW() << "CNNNetworks have different names! " << network.getName()
                                << " and " << refNetwork.getName();
 
         if (network.getBatchSize() != refNetwork.getBatchSize())
-            THROW_IE_EXCEPTION << "CNNNetworks have different batch size! " << std::to_string(network.getBatchSize())
+            IE_THROW() << "CNNNetworks have different batch size! " << std::to_string(network.getBatchSize())
                                << " and " << std::to_string(refNetwork.getBatchSize());
 
         compareLayerByLayer(network, refNetwork, sameNetVersions);
@@ -340,7 +340,7 @@ void compareLayerByLayer(const std::vector<InferenceEngine::CNNLayerPtr>& networ
     auto iterator = network.begin();
     auto refIterator = refNetwork.begin();
     if (network.size() != refNetwork.size())
-        THROW_IE_EXCEPTION << "CNNNetworks have different number of layers: " <<
+        IE_THROW() << "CNNNetworks have different number of layers: " <<
             network.size() << " vs " << refNetwork.size();
     for (; iterator != network.end() && refIterator != refNetwork.end(); iterator++, refIterator++) {
         InferenceEngine::CNNLayerPtr layer = *iterator;
@@ -373,7 +373,7 @@ void compareLayerByLayer(const InferenceEngine::CNNNetwork& network,
     size_t layerRefCount = convertedRefNetwork ? convertedRefNetwork->layerCount() : refNetwork.layerCount();
 
     if (layerCount != layerRefCount)
-        THROW_IE_EXCEPTION << "CNNNetworks have different number of layers: " << layerCount << " vs " << layerRefCount;
+        IE_THROW() << "CNNNetworks have different number of layers: " << layerCount << " vs " << layerRefCount;
     for (; iterator != end && refIterator != end; iterator++, refIterator++) {
         InferenceEngine::CNNLayerPtr layer = *iterator;
         InferenceEngine::CNNLayerPtr refLayer = *refIterator;
