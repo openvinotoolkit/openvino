@@ -785,7 +785,7 @@ MKLDNNEltwiseNode::initializers = {
             else if (approximationMode == "tanh")
                 algorithm = mkldnn::algorithm::eltwise_gelu_tanh;
             else
-                THROW_IE_EXCEPTION << "Gelu layer with name " << activationLayer->name << " doesn't support approximation mode " << approximationMode;
+                IE_THROW() << "Gelu layer with name " << activationLayer->name << " doesn't support approximation mode " << approximationMode;
         }},
         {"elu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
