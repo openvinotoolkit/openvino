@@ -209,14 +209,7 @@ def main():
     # Do it manually to have only one folder with IRs
     for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
         ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
-
-        for item in os.listdir(ir_src_path.parent):
-            src_item = os.path.join(ir_src_path.parent, item)
-            dst_item = os.path.join(ir_dst_path.parent, item)
-            if os.path.isdir(src_item):
-                shutil.copytree(src_item, dst_item)
-            else:
-                shutil.copy2(src_item, dst_item)
+        shutil.copytree(ir_src_path.parent, ir_dst_path.parent)
 
 
 if __name__ == "__main__":
