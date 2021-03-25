@@ -10,7 +10,7 @@ specified sizes.
 **Detailed description**: Operation takes coordinates of centres of boxes and add strides with offset `0.5` to them to 
 calculate coordinates of prior grids.
 
-Numbers of generated sells is `featmap_height` and `featmap_width` if *h* and *w* are zeroes, otherwise *h* and *w* 
+Numbers of generated cells is `featmap_height` and `featmap_width` if *h* and *w* are zeroes, otherwise *h* and *w* 
 respectively. Steps of generated grid are `image_height` / `layer_height` and `image_width` / `layer_width` if 
 *stride_h* and *stride_w* are zeroes, otherwise *stride_h* and *stride_w* respectively.
 
