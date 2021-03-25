@@ -22,6 +22,13 @@ void regclass_IENetwork(py::module m)
 {
     py::class_<InferenceEngine::CNNNetwork, std::shared_ptr<InferenceEngine::CNNNetwork>> cls(
             m, "IENetwork");
+    cls.def(py::init());
+
+    cls.def(py::init([](std::shared_ptr<ngraph::Function>& function) {
+        InferenceEngine::CNNNetwork cnnNetwork(function);
+        return std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
+    }));
+
     cls.def(py::init([](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer
         auto* pybind_capsule_ptr = capsule->ptr();
