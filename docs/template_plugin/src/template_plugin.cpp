@@ -92,7 +92,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         if (output_precision != InferenceEngine::Precision::FP32 &&
             output_precision != InferenceEngine::Precision::FP16 &&
             output_precision != InferenceEngine::Precision::U8) {
-            IE_THROW() << "Template device supports only U8, FP16 and FP32 output precision.";
+            IE_THROW(NotImplemented) << "Template device supports only U8, FP16 and FP32 output precision.";
         }
     }
 
@@ -103,14 +103,14 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
             input_precision != InferenceEngine::Precision::FP16 &&
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::U8) {
-            IE_THROW() << "Input image format " << input_precision << " is not supported yet.\n"
+            IE_THROW(NotImplemented) << "Input image format " << input_precision << " is not supported yet.\n"
                        << "Supported formats are: FP32, FP16, I16 and U8.";
         }
     }
 
     auto function = network.getFunction();
     if (function == nullptr) {
-        IE_THROW() << "TEMPLATE plugin can compile only IR v10 networks";
+        IE_THROW(NotImplemented) << "TEMPLATE plugin can compile only IR v10 networks";
     }
 
     return std::make_shared<ExecutableNetwork>(function, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
@@ -138,7 +138,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 
     auto function = network.getFunction();
     if (function == nullptr) {
-         IE_THROW() << "Template Plugin supports only ngraph cnn network representation";
+         IE_THROW(NotImplemented) << "Template Plugin supports only ngraph cnn network representation";
     }
 
     // 1. First of all we should store initial input operation set
@@ -281,7 +281,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         using uint = unsigned int;
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, std::make_tuple(uint{1}, uint{1}, uint{1}));
     } else  {
-        IE_THROW() << "Unsupported device metric: " << name;
+        IE_THROW(NotFound) << "Unsupported device metric: " << name;
     }
 }
 // ! [plugin:get_metric]
