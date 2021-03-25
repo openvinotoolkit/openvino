@@ -561,6 +561,9 @@ def get_specific_ops_with_const_inputs(first_node: Node, allowed_ops: list, forw
     node = first_node.out_port(0).get_destination().node if forward else first_node.in_port(0).get_source().node
     result = []  # (Node, port # with constant input, value)
     while node.soft_get('op') in allowed_ops:
+        num_in_ports = len(node.in_ports())
+        assert num_in_ports == 2, 'The node "{}" should have exactly 2 inputs, but it has only {}.' \
+                                  ''.format(node.soft_get('name', node.id), num_in_ports)
         for port in (0, 1):
             if node.in_port(port).get_source().node.has_valid('value'):  # this is a constant input to the node
                 result.append((node, port, node.in_port(port).get_source().node.value.copy()))
