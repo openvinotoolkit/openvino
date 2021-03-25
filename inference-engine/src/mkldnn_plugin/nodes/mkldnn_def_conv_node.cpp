@@ -751,39 +751,39 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
 
     auto * defConvLayer = dynamic_cast<DeformableConvolutionLayer*>(getCnnLayer().get());
     if (defConvLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert deformable convolution layer.";
+        IE_THROW() << "Cannot convert deformable convolution layer.";
 
     std::string errorPrefix = "DeformableConvolution layer with name '" + getName() + "' ";
 
     if (getParentEdges().size() != 3)
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of input edges";
+        IE_THROW() << errorPrefix << "has incorrect number of input edges";
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of output edges";
+        IE_THROW() << errorPrefix << "has incorrect number of output edges";
 
     if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
+        IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
     }
 
     if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
 
     if (getParentEdgeAt(2)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
     }
 
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
     }
 
     bool isMerged = (!getMergeWith().empty());
     bool isGrouped = defConvLayer->_group != 1;
     if (isMerged && isGrouped)
-        THROW_IE_EXCEPTION << errorPrefix << "cannot be initialized: group splitted mode are used together with direct group specification.";
+        IE_THROW() << errorPrefix << "cannot be initialized: group splitted mode are used together with direct group specification.";
 
     group = defConvLayer->_group;
     if (isMerged) {
@@ -856,7 +856,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNDeformableConvolutionNode::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcDims = config.inConfs[0].desc.getDims();
@@ -1062,7 +1062,7 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_block_desc = config.inConfs[0].desc.getBlockingDesc();

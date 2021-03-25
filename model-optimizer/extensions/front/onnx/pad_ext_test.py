@@ -57,6 +57,20 @@ class TestPad(BaseExtractorsTestingClass):
 
         self.compare()
 
+    def test_older_pad_opset_11(self):
+        node = self._create_node()
+        node.graph.graph['fw_opset_version'] = 11
+        PadFrontExtractor.extract(node)
+        self.res = node
+
+        self.expected = {
+            'pads': [[1, 3], [2, 4]],
+            'mode': 'constant',
+            'fill_value': 0
+        }
+
+        self.compare()
+
     def test_reflect(self):
         node = self._create_node(mode='reflect')
         PadFrontExtractor.extract(node)
