@@ -20,17 +20,38 @@
 //#include "../../include/frontend_manager/frontend_manager.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 
+namespace tensorflow { class GraphDef; }
+
 namespace ngraph
 {
     namespace frontend
     {
+        class PlaceTensorflow : public Place
+        {
+        public:
+
+            std::string name;
+            enum Kind { PORT_INPUT, PORT_OUTPUT, TENSOR, OP } kind;
+            size_t port;
+
+            PlaceTensorflow (const std::string& _name, Kind _kind = OP, size_t _port = 0) : name(_name), kind(_kind), port(_port) {}
+        };
+
         class NGRAPH_API InputModelTensorflow : public InputModel
         {
         public:
 
+            std::shared_ptr<tensorflow::GraphDef> graph_def;
             std::string path;
 
-            InputModelTensorflow (const std::string& _path) : path(_path) {}
+            // TODO: map from PlaceTensorflow, not from name string
+            std::map<std::string, ngraph::PartialShape> partialShapes;
+
+            InputModelTensorflow (const std::string& _path);
+
+            std::vector<Place::Ptr> getInputs () const override;
+
+            void setPartialShape (Place::Ptr place, const ngraph::PartialShape& pshape) override;
         };
 
         class NGRAPH_API FrontEndTensorflow : public FrontEnd

@@ -101,6 +101,15 @@ void NCHWtoNHWC(const std::string& op_name, bool is_nhwc,
         return Status::OK();
     }
 
+    Status TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape,
+                                      ngraph::PartialShape* ng_shape) {
+        std::vector<ngraph::Dimension> dims;
+        for (int i = 0; i < tf_shape.dim_size(); i++) {
+            dims.push_back(tf_shape.dim(i).size());
+        }
+        *ng_shape = ngraph::PartialShape(dims);
+        return Status::OK();
+    }
 
 }  // namespace ngraph_bridge
 }  // namespace tensorflow

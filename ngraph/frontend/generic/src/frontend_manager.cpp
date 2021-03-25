@@ -29,7 +29,7 @@ namespace ngraph
 
         #define FRONT_END_NOT_IMPLEMENTED(NAME) throw #NAME " is not implemented for this FrontEnd class";
 
-        std::vector<Place::Ptr> InputModel::InputModel::getInputs () const
+        std::vector<Place::Ptr> InputModel::getInputs () const
         {
             FRONT_END_NOT_IMPLEMENTED(getInputs);
         }

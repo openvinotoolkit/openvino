@@ -61,6 +61,7 @@ void regclass_pyngraph_InputModel(py::module m)
     im.def("extractSubgraph", &ngraph::frontend::InputModel::extractSubgraph);
     im.def("getPlaceByTensorName", &ngraph::frontend::InputModel::getPlaceByTensorName);
     im.def("setPartialShape", &ngraph::frontend::InputModel::setPartialShape);
+    im.def("getInputs", &ngraph::frontend::InputModel::getInputs);
 }
 
 void regclass_pyngraph_FEC(py::module m)
