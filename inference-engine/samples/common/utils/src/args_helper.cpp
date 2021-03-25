@@ -23,27 +23,33 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
         return;
     }
     if (S_ISDIR(sb.st_mode)) {
-        DIR *dp;
-        dp = opendir(arg.c_str());
+        struct CloseDir {
+            void operator()(DIR* d) const noexcept {
+                if (d) {
+                    closedir(d);
+                }
+            }
+        };
+        using Dir = std::unique_ptr<DIR, CloseDir>;
+        Dir dp(opendir(arg.c_str()));
         if (dp == nullptr) {
             slog::warn << "Directory " << arg << " cannot be opened!" << slog::endl;
             return;
         }
 
         struct dirent *ep;
-        while (nullptr != (ep = readdir(dp))) {
+        while (nullptr != (ep = readdir(dp.get()))) {
             std::string fileName = ep->d_name;
             if (fileName == "." || fileName == "..") continue;
             files.push_back(arg + "/" + ep->d_name);
         }
-        closedir(dp);
     } else {
         files.push_back(arg);
     }
 
     if (files.size() < 20) {
         slog::info << "Files were added: " << files.size() << slog::endl;
-        for (std::string filePath : files) {
+        for (const auto& filePath : files) {
             slog::info << "    " << filePath << slog::endl;
         }
     } else {
@@ -53,51 +59,47 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
 
 void parseInputFilesArguments(std::vector<std::string> &files) {
     std::vector<std::string> args = gflags::GetArgvs();
-    bool readArguments = false;
-    for (size_t i = 0; i < args.size(); i++) {
-        if (args.at(i) == "-i" || args.at(i) == "--images") {
-            readArguments = true;
-            continue;
-        }
-        if (!readArguments) {
-            continue;
-        }
-        if (args.at(i).c_str()[0] == '-') {
-            break;
-        }
-        readInputFilesArguments(files, args.at(i));
+    const auto is_image_arg = [](const std::string& s){ return s == "-i" || s == "--images";};
+    const auto is_arg = [](const std::string& s){return s.front() == '-';};
+    const auto img_start = std::find_if(begin(args), end(args), is_image_arg);
+    if (img_start == end(args)) {
+        return;
+    }
+    const auto img_begin = std::next(img_start);
+    const auto img_end = std::find_if(img_begin, end(args), is_arg);
+    for (auto img = img_begin; img != img_end; ++img) {
+        readInputFilesArguments(files, *img);
     }
 }
 
 namespace {
 
-void splitStringList(const std::string& str, std::vector<std::string>& out, char delim) {
-    out.clear();
-
+std::vector<std::string> splitStringList(const std::string& str, char delim) {
     if (str.empty())
-        return;
+        return {};
 
     std::istringstream istr(str);
 
+    std::vector<std::string> result;
     std::string elem;
     while (std::getline(istr, elem, delim)) {
         if (elem.empty()) {
             continue;
         }
-        out.emplace_back(std::move(elem));
+        result.emplace_back(std::move(elem));
     }
+
+    return result;
 }
 
 std::map<std::string, std::string> parseArgMap(std::string argMap) {
     argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
 
-    std::vector<std::string> pairs;
-    splitStringList(argMap, pairs, ',');
+    const auto pairs = splitStringList(argMap, ',');
 
     std::map<std::string, std::string> parsedMap;
     for (auto&& pair : pairs) {
-        std::vector<std::string> keyValue;
-        splitStringList(pair, keyValue, ':');
+        const auto keyValue = splitStringList(pair, ':');
         if (keyValue.size() != 2) {
             throw std::invalid_argument("Invalid key/value pair " + pair + ". Expected <layer_name>:<value>");
         }
