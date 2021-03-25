@@ -39,6 +39,7 @@
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/op/detection_output.hpp"
+#include "ngraph/op/dft.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/elu.hpp"
 #include "ngraph/op/embedding_segments_sum.hpp"

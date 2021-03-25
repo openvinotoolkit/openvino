@@ -113,6 +113,7 @@ set(SRC
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
+    type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
