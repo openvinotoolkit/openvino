@@ -24,7 +24,7 @@ The following components are installed by default:
 | Component                                                                                           | Description                                                                                                                                                                                                                                                  |
 | :-------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models, which were trained in popular frameworks, to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe*, TensorFlow*, MXNet\*, and ONNX\*. |
-| [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
+| [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications                                                                                                               |
 | [OpenCV\*](https://docs.opencv.org/master/)                                                         | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                      |
 | [Sample Applications](../IE_DG/Samples_Overview.md)                                                                                | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
 | [Demos](@ref omz_demos_README)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
@@ -75,7 +75,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 The following steps will be covered:
 
-1. <a href="#Install-Core">Install the Intel® Distribution of OpenVINO™ Toolkit </a>.
+1. <a href="#Install-Core">Install the Intel® Distribution of OpenVINO™ Toolkit</a>.
 2. <a href="#set-the-environment-variables">Set the OpenVINO environment variables and (optional) Update to <code>.bash_profile</code></a>.
 3. <a href="#configure-the-model-optimizer">Configure the Model Optimizer</a>.
 4. <a href="#get-started">Get Started with Code Samples and Demo Applications</a>.
@@ -127,7 +127,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
    ![](../img/openvino-install-macos-04.png)
    > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions. Click **Next** to save the installation options and show the Installation summary screen.
 
-10. On the **Installation summary** screen, press **Install** to begin the installation.
+10. On the **Installation summary** screen, click **Install** to begin the installation.
 
 11. When the first part of installation is complete, the final screen informs you that the core components have been installed
    and additional steps still required:
