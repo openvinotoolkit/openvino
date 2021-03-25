@@ -73,10 +73,11 @@ TEST_P(ExtractImagePatchesLayerCPUTest, CompareWithRefs) {
 namespace {
     const std::vector<ngraph::op::PadType> autoPads = {ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER};
     const std::vector<Precision> inPrecision = {Precision::FP32, Precision::I16, Precision::U8};
-    const std::vector<CPUSpecificParams> CPUParams = {{{}, {}, {"ref_any"}, "ref_any"},
-                                                      {{}, {}, {"jit_sse42"}, "jit_sse42"},
-                                                      {{}, {}, {"jit_avx2"}, "jit_avx2"},
-                                                      {{}, {}, {"jit_avx512"}, "jit_avx512"}};
+    const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
+    const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
+    const auto avx2 = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
+    const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
+    const std::vector<CPUSpecificParams> CPUParams = {ref, sse42, avx2, avx512};
 /* ============= 1D ============= */
 const auto Layer_params_1D = ::testing::Combine(
         ::testing::Values(std::vector<size_t> {1, 1, 1, 37}),   // InShapes
