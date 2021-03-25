@@ -382,7 +382,8 @@ namespace ngraph
                 static bool SortScorePairDescend(const std::pair<dataType, T>& pair1,
                                                  const std::pair<dataType, T>& pair2)
                 {
-                    if (pair1.first != pair2.first) {
+                    if (pair1.first != pair2.first)
+                    {
                         return pair1.first > pair2.first;
                     }
                     return pair1.second < pair2.second;
