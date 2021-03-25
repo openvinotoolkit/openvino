@@ -3,6 +3,7 @@
 //
 
 #include "test_common.hpp"
+#include "common_utils.hpp"
 
 #include <threading/ie_executor_manager.hpp>
 
@@ -69,10 +70,7 @@ TestsCommon::TestsCommon() {
 }
 
 std::string TestsCommon::GetTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto epoch = now.time_since_epoch();
-    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
-    return std::to_string(ns.count());
+    return CommonTestUtils::GetTimestamp();
 }
 
 std::string TestsCommon::GetTestName() const {

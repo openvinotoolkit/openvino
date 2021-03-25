@@ -9,6 +9,8 @@
 int main(int argc, char* argv[]) {
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     LayerTestsUtils::extendReport = false;
+    LayerTestsUtils::saveReportWithUniqueName = false;
+    LayerTestsUtils::outputFolder = {"."};
     bool print_custom_help = false;
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {
@@ -17,17 +19,34 @@ int main(int argc, char* argv[]) {
             LayerTestsUtils::extendReport = true;
         } else if (std::string(argv[i]) == "--help") {
             print_custom_help = true;
+        } else if (std::string(argv[i]).find("--output_folder") != std::string::npos) {
+            LayerTestsUtils::outputFolder = {std::string(argv[i]).substr(std::string("--output_folder").length() + 1)};
+        } else if (std::string(argv[i]).find("--report_unique_name") != std::string::npos) {
+            LayerTestsUtils::saveReportWithUniqueName = true;
         }
     }
+
     if (print_custom_help) {
         std::cout << "Custom command line argument:" << std::endl;
         std::cout << "  --disable_tests_skipping" << std::endl;
         std::cout << "       Ignore tests skipping rules and run all the test" << std::endl;
         std::cout << "       (except those which are skipped with DISABLED prefix)" << std::endl;
         std::cout << "  --extend_report" << std::endl;
-        std::cout << "       Extend operation coverage report without overwriting the device results" << std::endl;
+        std::cout << "       Extend operation coverage report without overwriting the device results. " <<
+                     "Mutually exclusive with --report_unique_name" << std::endl;
+        std::cout << "  --output_folder" << std::endl;
+        std::cout << "       Folder path to save the report. Example is --output_folder=/home/user/report_folder" << std::endl;
+        std::cout << "  --report_unique_name" << std::endl;
+        std::cout << "       Allow to save report with unique name (report_pid_timestamp.xml). " <<
+                     "Mutually exclusive with --extend_report." << std::endl;
         std::cout << std::endl;
     }
+
+    if (LayerTestsUtils::saveReportWithUniqueName && LayerTestsUtils::extendReport) {
+        std::cout << "Using mutually exclusive arguments: --extend_report and --report_unique_name" << std::endl;
+        return -1;
+    }
+
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);
     auto retcode = RUN_ALL_TESTS();

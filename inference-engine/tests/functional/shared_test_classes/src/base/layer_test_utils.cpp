@@ -4,6 +4,9 @@
 
 #include <fstream>
 #include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
 
 #include <transformations/serialize.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -11,6 +14,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <pugixml.hpp>
 #include <common_test_utils/file_utils.hpp>
+#include <thread>
 
 #include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -20,6 +24,8 @@ namespace LayerTestsUtils {
 
 bool isReported = false;
 bool extendReport = true;
+bool saveReportWithUniqueName = false;
+std::vector<std::string> outputFolder = {"."};
 
 Summary *Summary::p_instance = nullptr;
 SummaryDestroyer Summary::destroyer;
@@ -107,6 +113,23 @@ void TestEnvironment::saveReport() {
     if (isReported) {
         return;
     }
+    if (outputFolder.size() > 1) {
+        throw std::runtime_error("Num of output folders should be 1");
+    }
+
+    std::string filename = CommonTestUtils::REPORT_FILENAME;
+    if (saveReportWithUniqueName) {
+        auto processId = std::to_string(getpid());
+        filename += "_" + processId + "_" + std::string(CommonTestUtils::GetTimestamp());
+    }
+    filename += CommonTestUtils::REPORT_EXTENSION;
+
+    if (!CommonTestUtils::directoryExists(outputFolder.front())) {
+        CommonTestUtils::createDirectoryRecursive(outputFolder.front());
+    }
+
+    std::string outputFilePath = outputFolder.front() + std::string(CommonTestUtils::FileSeparator) + filename;
+
     std::vector<ngraph::OpSet> opsets;
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
@@ -127,7 +150,7 @@ void TestEnvironment::saveReport() {
     pugi::xml_document doc;
 
     std::ifstream file;
-    file.open(CommonTestUtils::REPORT_FILENAME);
+    file.open(outputFilePath);
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -141,7 +164,7 @@ void TestEnvironment::saveReport() {
 
     pugi::xml_node root;
     if (file) {
-        doc.load_file(CommonTestUtils::REPORT_FILENAME);
+        doc.load_file(outputFilePath.c_str());
         root = doc.child("report");
         //Ugly but shorter than to write predicate for find_atrribute() to update existing one
         root.remove_attribute("timestamp");
@@ -203,13 +226,14 @@ void TestEnvironment::saveReport() {
             }
         }
     }
-
-    bool result = doc.save_file(CommonTestUtils::REPORT_FILENAME);
+    bool result = doc.save_file(outputFilePath.c_str());
     if (!result) {
-        std::cout << "Failed to write report to " << CommonTestUtils::REPORT_FILENAME << "!" << std::endl;
+        std::string errMessage = "Failed to write report to " + outputFilePath;
+        throw std::runtime_error(errMessage);
     } else {
         isReported = true;
     }
+    file.close();
 }
 
 void TestEnvironment::TearDown() {

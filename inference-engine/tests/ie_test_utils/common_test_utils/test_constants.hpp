@@ -17,7 +17,8 @@ const char DEVICE_MULTI[] = "MULTI";
 const char DEVICE_TEMPLATE[] = "TEMPLATE";
 const char DEVICE_HETERO[] = "HETERO";
 
-const char REPORT_FILENAME[] = "report.xml";
+const char REPORT_FILENAME[] = "report";
+const char REPORT_EXTENSION[] = ".xml";
 
 #ifdef _WIN32
     #ifdef __MINGW32__
