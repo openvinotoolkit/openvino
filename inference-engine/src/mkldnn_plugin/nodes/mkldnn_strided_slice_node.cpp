@@ -22,7 +22,7 @@
 #include "caseless.hpp"
 
 
-#define THROW_ERROR THROW_IE_EXCEPTION << "StridedSlice layer with name '" << getName() << "' "
+#define THROW_ERROR IE_THROW() << "StridedSlice layer with name '" << getName() << "' "
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
