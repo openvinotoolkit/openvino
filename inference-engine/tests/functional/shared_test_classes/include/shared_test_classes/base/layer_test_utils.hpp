@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,8 @@
 namespace LayerTestsUtils {
 
 extern bool extendReport;
+extern bool saveReportWithUniqueName;
+extern std::vector<std::string> outputFolder;
 
 // filename length limitation due to Windows constraints (max 256 characters)
 constexpr std::size_t maxFileNameLength = 140;
