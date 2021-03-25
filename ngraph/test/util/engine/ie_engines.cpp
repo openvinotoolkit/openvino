@@ -315,20 +315,14 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
-// those definitions and template specializations are required for clang (both Linux and Mac)
 // Without this section the linker is not able to find destructors for missing TBlob specializations
 // which are instantiated in the unit tests that use TestCase and this engine
-#ifdef __clang__
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {
         free();
     }
 
-    template class TBlob<unsigned int>;
-    template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
-    template class TBlob<char>;
-#endif
 } // namespace InferenceEngine
