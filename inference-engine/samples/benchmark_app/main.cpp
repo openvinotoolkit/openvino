@@ -529,14 +529,8 @@ int main(int argc, char *argv[]) {
         next_step(ss.str());
 
         // warming up - out of scope
-        auto inferRequest = inferRequestsQueue.getIdleRequest();
-        if (!inferRequest) {
-            THROW_IE_EXCEPTION << "No idle Infer Requests!";
-        }
-        if (FLAGS_api == "sync") {
-            inferRequest->infer();
-        } else {
-            inferRequest->startAsync();
+        for (size_t i =0 ; i < inferRequestsQueue.requests.size(); i++) {
+            inferRequestsQueue.getIdleRequest()->startAsync();
         }
         inferRequestsQueue.waitAll();
         auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
@@ -558,7 +552,7 @@ int main(int argc, char *argv[]) {
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                (FLAGS_api == "async" && iteration % nireq != 0)) {
-            inferRequest = inferRequestsQueue.getIdleRequest();
+            auto inferRequest = inferRequestsQueue.getIdleRequest();
             if (!inferRequest) {
                 THROW_IE_EXCEPTION << "No idle Infer Requests!";
             }

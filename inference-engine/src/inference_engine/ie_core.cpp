@@ -46,6 +46,9 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     } else if (deviceName_.find("MULTI:") == 0) {
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
+    } else if (deviceName_.find("BATCH:") == 0) {
+        deviceName_ = "BATCH";
+        config_[CONFIG_KEY(AUTO_BATCH_NUM)] = deviceName.substr(6);
     } else {
         DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -131,7 +134,7 @@ std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDe
 }
 
 std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList) {
-    std::vector<std::string> deviceNames;
+    std::set<std::string> deviceNames;
     auto trim_request_info = [](std::string device_with_requests) {
         auto opening_bracket = device_with_requests.find_first_of('(');
         return device_with_requests.substr(0, opening_bracket);
@@ -143,13 +146,36 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
     // we skip the #requests info here
     while ((pos = devicesList.find(delimiter)) != std::string::npos) {
         auto d = devicesList.substr(0, pos);
-        deviceNames.push_back(trim_request_info(d));
+        if (d.find("BATCH") == 0) {
+            deviceNames.insert("BATCH");
+            auto p = d.find_first_of(":");
+            if (p != std::string::npos)
+                deviceNames.insert(DeviceIDParser::getBatchDevice(d.substr(p + 1)));
+        } else {
+            deviceNames.insert(trim_request_info(d));
+        }
         devicesList.erase(0, pos + 1);
     }
 
-    if (!devicesList.empty()) deviceNames.push_back(trim_request_info(devicesList));
+    if (!devicesList.empty()) {
+        if (devicesList.find("BATCH") == 0) {
+            deviceNames.insert("BATCH");
+            auto p = devicesList.find_first_of(":");
+            if (p != std::string::npos)
+                deviceNames.insert(DeviceIDParser::getBatchDevice(devicesList.substr(p + 1)));
+        } else {
+            deviceNames.insert(trim_request_info(devicesList));
+        }
+    }
+    return std::vector<std::string>(deviceNames.begin(), deviceNames.end());
+}
 
-    return deviceNames;
+std::string DeviceIDParser::getBatchDevice(std::string device) {
+        auto trim_request_info = [](std::string device_with_requests) {
+            auto opening_bracket = device_with_requests.find_first_of('(');
+            return device_with_requests.substr(0, opening_bracket);
+        };
+        return trim_request_info(device);
 }
 
 class Core::Impl : public ICore {
@@ -329,6 +355,14 @@ public:
             }
         }
 
+        // BATCH case
+        {
+            if (deviceName.find("BATCH:") == 0) {
+                THROW_IE_EXCEPTION
+                        << "You can get specific metrics with the GetMetric only for the BATCH itself (without devices). "
+                           "To get individual devices's metrics call GetMetric for each device separately";
+            }
+        }
         auto parsed = parseDeviceNameIntoConfig(deviceName);
 
         // we need to return a copy of Parameter object which is created on Core side,
@@ -564,6 +598,12 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
                 deviceNames = DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
             }
             deviceNames.push_back("MULTI");
+        }  else if (deviceName.find("BATCH") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = {DeviceIDParser::getBatchDevice(deviceName.substr(pos + 1))};
+            }
+            deviceNames.push_back("BATCH");
         } else {
             deviceNames.push_back(deviceName);
         }
