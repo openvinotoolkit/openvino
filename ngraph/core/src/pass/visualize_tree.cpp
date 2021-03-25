@@ -397,10 +397,6 @@ static std::string pretty_min_max_denormal_value(const vector<T>& values)
 template <typename T>
 static std::string pretty_value(const vector<T>& values, size_t max_elements)
 {
-    const std::string additional_ss = getenv_bool("NGRAPH_VISUALIZE_TREE_MIN_MAX_DENORMAL")
-                                          ? pretty_min_max_denormal_value(values)
-                                          : "";
-
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i)
     {
@@ -414,10 +410,6 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements)
         else
         {
             ss << "...";
-            if (!additional_ss.empty())
-            {
-                ss << std::endl << "(" << additional_ss << ")";
-            }
             break;
         }
 
@@ -425,6 +417,14 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements)
         if (i > 0)
             ss << ", ";
         ss << value;
+    }
+
+    const std::string additional_ss = getenv_bool("NGRAPH_VISUALIZE_TREE_MIN_MAX_DENORMAL")
+                                          ? pretty_min_max_denormal_value(values)
+                                          : "";
+    if (!additional_ss.empty())
+    {
+        ss << std::endl << "(" << additional_ss << ")";
     }
     return ss.str();
 }
