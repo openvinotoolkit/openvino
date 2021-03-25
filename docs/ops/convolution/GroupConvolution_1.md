@@ -73,7 +73,7 @@ Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76
 
 **Types**:
 
-* *T*: any floating point type.
+* *T*: any numeric type.
 
 **Example**:  
 1D GroupConvolution

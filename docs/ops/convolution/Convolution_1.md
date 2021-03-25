@@ -94,7 +94,7 @@ The receptive field in each layer is calculated using the formulas:
 
 **Types**:
 
-* *T*: any floating point type.
+* *T*: any numeric type.
 
 **Example**:
 

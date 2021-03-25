@@ -83,7 +83,7 @@
 
 **Types**:
 
-* *T1*: any floating point type.
+* *T1*: any numeric type.
 * *T2*: any integer type.
 
 **Example**

@@ -92,7 +92,7 @@ Computation algorithm for mode *xnor-popcount*:
   
 **Types**:
 
-* *T1*: floating point type with values `0` or `1`.
+* *T1*: any numeric type with values `0` or `1`.
 * *T2*: `u1` type with binary values `0` or `1`.
 * *T3*: *T1* type with full range of values.
 
