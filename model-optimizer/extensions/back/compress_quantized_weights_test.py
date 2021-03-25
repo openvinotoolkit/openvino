@@ -83,7 +83,7 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         self.assertEqual(len(fq_nodes), 1, error_message.format('before', len(fq_nodes)))
         fake_quantize = fq_nodes[0]
 
-        CompressQuantizeWeights.quantize_data(fake_quantize, original_type)
+        CompressQuantizeWeights.quantize_data(fake_quantize, original_type, np.int8, "signed")
         graph.clean_up()
 
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
@@ -124,7 +124,7 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         self.assertEqual(len(cast_nodes), 1, error_message.format('Convert', 'before', len(cast_nodes)))
         cast_nodes[0]['need_shape_inference'] = True
 
-        CompressQuantizeWeights.dequantize_data(fq_nodes[0], original_type)
+        CompressQuantizeWeights.dequantize_data(fq_nodes[0], original_type, np.int8)
         graph.clean_up()
 
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')

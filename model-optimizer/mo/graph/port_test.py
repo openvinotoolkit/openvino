@@ -17,7 +17,7 @@
 import unittest
 
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph, regular_op
+from mo.utils.unittest.graph import build_graph, regular_op, valued_const_with_data, result, connect
 
 nodes = {
     **regular_op('input', {'type': 'Parameter'}),
@@ -139,3 +139,29 @@ class TestPortMethods(unittest.TestCase):
         op1_node = Node(graph, 'Op1')
         op1_node.out_port(0).disconnect()
         self.assertTrue(op1_node.out_port(0).disconnected())
+
+
+class TestForceShape(unittest.TestCase):
+    def test_set_value_and_shape_with_force_shape_attribute_in_op(self):
+        import numpy as np
+        graph = build_graph({**valued_const_with_data('const', np.array([1, 2, 3])), **result()},
+                            [*connect('const', 'output')])
+
+        node = Node(graph, 'const')
+        node['force_shape'] = np.array([2, 5, 7], dtype=np.int64)
+        node.out_port(0).data.set_value(np.zeros(35))
+        self.assertTrue(np.array_equal(node.out_port(0).data.get_shape(), np.array([2, 5, 7], dtype=np.int64)),
+                        "node.out_port(0).data.get_shape()={} != [2, 5, 7]".format(node.out_port(0).data.get_shape()))
+
+    def test_set_value_and_shape_with_force_shape_attribute_in_data(self):
+        import numpy as np
+        graph = build_graph({**valued_const_with_data('const', np.array([1, 2, 3])), **result()},
+                            [*connect('const', 'output')])
+
+        node = Node(graph, 'const')
+        Node(graph, 'const_d')['force_shape'] = np.array([2, 5, 7], dtype=np.int64)
+        node.out_port(0).data.set_value(np.zeros(30))
+        self.assertTrue(np.array_equal(node.out_port(0).data.get_shape(), np.array([2, 5, 7], dtype=np.int64)),
+                        "node.out_port(0).data.get_shape()={} != [2, 5, 7]".format(
+                            node.out_port(0).data.get_shape()))
+
