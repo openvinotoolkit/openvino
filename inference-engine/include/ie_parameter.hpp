@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -274,11 +274,11 @@ private:
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
     struct Any {
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#ifdef __ANDROID__
         virtual ~Any();
 #else
         virtual ~Any() = default;
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
@@ -335,7 +335,7 @@ private:
     Any* ptr = nullptr;
 };
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#ifdef __ANDROID__
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
@@ -350,6 +350,6 @@ extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif
 
 }  // namespace InferenceEngine

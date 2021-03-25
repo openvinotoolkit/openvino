@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 include(cmake/Modules/git_tags.cmake)
 
@@ -87,7 +75,6 @@ if (APPLE)
 endif()
 
 option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" ON)
-option(NGRAPH_TEST_UTIL_ENABLE "Control the building of test utility" ON)
 option(NGRAPH_INTERPRETER_ENABLE "Control the building of the INTERPRETER backend" ON)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
 option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
@@ -105,13 +92,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" OFF)
 endif()
 
-if (NGRAPH_UNIT_TEST_ENABLE)
-    if (NOT NGRAPH_TEST_UTIL_ENABLE)
-        message(WARNING "Unit test needs test util: Turning NGRAPH_TEST_UTIL_ENABLE ON!")
-        set(NGRAPH_TEST_UTIL_ENABLE ON)
-    endif()
-endif()
-
 message(STATUS "NGRAPH_ADDRESS_SANITIZER_ENABLE:      ${NGRAPH_ADDRESS_SANITIZER_ENABLE}")
 message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
 message(STATUS "NGRAPH_DYNAMIC_COMPONENTS_ENABLE:     ${NGRAPH_DYNAMIC_COMPONENTS_ENABLE}")
@@ -120,7 +100,6 @@ message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABL
 message(STATUS "NGRAPH_LIB_VERSIONING_ENABLE:         ${NGRAPH_LIB_VERSIONING_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
 message(STATUS "NGRAPH_PYTHON_BUILD_ENABLE:           ${NGRAPH_PYTHON_BUILD_ENABLE}")
-message(STATUS "NGRAPH_TEST_UTIL_ENABLE:              ${NGRAPH_TEST_UTIL_ENABLE}")
 message(STATUS "NGRAPH_THREAD_SANITIZER_ENABLE:       ${NGRAPH_THREAD_SANITIZER_ENABLE}")
 message(STATUS "NGRAPH_TOOLS_ENABLE:                  ${NGRAPH_TOOLS_ENABLE}")
 message(STATUS "NGRAPH_UB_SANITIZER_ENABLE:           ${NGRAPH_UB_SANITIZER_ENABLE}")
@@ -337,7 +316,7 @@ endif()
 
 add_subdirectory(frontend)
 
-if (NGRAPH_TEST_UTIL_ENABLE)
+if(NGRAPH_UNIT_TEST_ENABLE)
     set(BEFORE_GTEST_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
     set(BUILD_SHARED_LIBS OFF)
     include(cmake/external_gtest.cmake)

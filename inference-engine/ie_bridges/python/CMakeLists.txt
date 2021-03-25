@@ -1,5 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+#
 
 # Defines the CMake commands/policies
 cmake_minimum_required (VERSION 3.13)

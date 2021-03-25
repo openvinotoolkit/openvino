@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,9 @@ public:
         FP64 = 13,         /**< 64bit floating point value */
         Q78 = 20,          /**< 16bit specific signed fixed point precision */
         I16 = 30,          /**< 16bit signed integer value */
+        U4 = 39,           /**< 4bit unsigned integer value */
         U8 = 40,           /**< 8bit unsigned integer value */
+        I4 = 49,           /**< 4bit signed integer value */
         I8 = 50,           /**< 8bit signed integer value */
         U16 = 60,          /**< 16bit unsigned integer value */
         I32 = 70,          /**< 32bit signed integer value */
@@ -116,10 +118,12 @@ public:
                 CASE(FP64, double);
                 CASE2(FP16, int16_t, uint16_t);
                 CASE2(BF16, int16_t, uint16_t);
+                CASE2(I4, int8_t, uint8_t);
                 CASE(I8, int8_t);
                 CASE(I16, int16_t);
                 CASE(I32, int32_t);
                 CASE(I64, int64_t);
+                CASE(U4, uint8_t);
                 CASE(U8, uint8_t);
                 CASE(U16, uint16_t);
                 CASE(U32, uint32_t);
@@ -224,8 +228,8 @@ public:
         static const std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
             PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
-            PRECISION_NAME(I8),   PRECISION_NAME(I16),   PRECISION_NAME(I32),  PRECISION_NAME(I64),
-            PRECISION_NAME(U8),   PRECISION_NAME(U16),   PRECISION_NAME(U32),  PRECISION_NAME(U64),
+            PRECISION_NAME(I4),   PRECISION_NAME(I8),   PRECISION_NAME(I16),    PRECISION_NAME(I32),  PRECISION_NAME(I64),
+            PRECISION_NAME(U4),   PRECISION_NAME(U8),   PRECISION_NAME(U16),    PRECISION_NAME(U32),  PRECISION_NAME(U64),
             PRECISION_NAME(FP32), PRECISION_NAME(FP64),  PRECISION_NAME(FP16),  PRECISION_NAME(MIXED),
             PRECISION_NAME(BIN),
 #undef PRECISION_NAME
@@ -264,7 +268,7 @@ public:
                (precisionInfo.value == Precision::I16) || (precisionInfo.value == Precision::I8) ||
                (precisionInfo.value == Precision::I32) || (precisionInfo.value == Precision::I64) ||
                (precisionInfo.value == Precision::BIN) || (precisionInfo.value == Precision::BF16) ||
-               (precisionInfo.value == Precision::CUSTOM);
+               (precisionInfo.value == Precision::CUSTOM) || (precisionInfo.value == Precision::I4);
     }
 
 protected:
@@ -309,10 +313,12 @@ protected:
             CASE(FP64);
             CASE(FP16);
             CASE(BF16);
+            CASE(I4);
             CASE(I8);
             CASE(I16);
             CASE(I32);
             CASE(I64);
+            CASE(U4);
             CASE(U8);
             CASE(U16);
             CASE(U32);
@@ -366,8 +372,16 @@ struct PrecisionTrait<Precision::U16> {
     using value_type = uint16_t;
 };
 template <>
+struct PrecisionTrait<Precision::U4> {
+    using value_type = uint8_t;
+};
+template <>
 struct PrecisionTrait<Precision::U8> {
     using value_type = uint8_t;
+};
+template <>
+struct PrecisionTrait<Precision::I4> {
+    using value_type = int8_t;
 };
 template <>
 struct PrecisionTrait<Precision::I8> {

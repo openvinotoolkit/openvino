@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,9 @@ std::map<IE::Precision, precision_e> precision_map = {{IE::Precision::UNSPECIFIE
                                                         {IE::Precision::FP64, precision_e::FP64},
                                                         {IE::Precision::Q78, precision_e::Q78},
                                                         {IE::Precision::I16, precision_e::I16},
+                                                        {IE::Precision::U4, precision_e::U4},
                                                         {IE::Precision::U8, precision_e::U8},
+                                                        {IE::Precision::I4, precision_e::I4},
                                                         {IE::Precision::I8, precision_e::I8},
                                                         {IE::Precision::U16, precision_e::U16},
                                                         {IE::Precision::I32, precision_e::I32},
@@ -1369,7 +1371,7 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **bl
             _blob->object = IE::make_shared_blob<uint8_t>(tensor);
         } else if (prec == IE::Precision::U16) {
             _blob->object = IE::make_shared_blob<uint16_t>(tensor);
-        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN) {
+        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || prec == IE::Precision::U4) {
             _blob->object = IE::make_shared_blob<int8_t>(tensor);
         } else if (prec == IE::Precision::I16 || prec == IE::Precision::FP16 || prec == IE::Precision::Q78) {
             _blob->object = IE::make_shared_blob<int16_t>(tensor);
@@ -1434,7 +1436,7 @@ IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t *tensorDe
         } else if (prec == IE::Precision::U16) {
             uint16_t *p = reinterpret_cast<uint16_t *>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
-        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN) {
+        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || prec == IE::Precision::U4) {
             int8_t *p = reinterpret_cast<int8_t *>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::I16 || prec == IE::Precision::FP16 || prec == IE::Precision::Q78) {

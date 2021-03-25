@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 //================================================================================================
 // ElementType
@@ -46,11 +34,13 @@ namespace ngraph
             f16,
             f32,
             f64,
+            i4,
             i8,
             i16,
             i32,
             i64,
             u1,
+            u4,
             u8,
             u16,
             u32,
@@ -134,11 +124,13 @@ namespace ngraph
         constexpr Type f16(Type_t::f16);
         constexpr Type f32(Type_t::f32);
         constexpr Type f64(Type_t::f64);
+        constexpr Type i4(Type_t::i4);
         constexpr Type i8(Type_t::i8);
         constexpr Type i16(Type_t::i16);
         constexpr Type i32(Type_t::i32);
         constexpr Type i64(Type_t::i64);
         constexpr Type u1(Type_t::u1);
+        constexpr Type u4(Type_t::u4);
         constexpr Type u8(Type_t::u8);
         constexpr Type u16(Type_t::u16);
         constexpr Type u32(Type_t::u32);

@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -27,7 +27,8 @@ set(ONNX_COMMON_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
                                                  $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph onnx_proto onnx ${Protobuf_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
+target_link_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx ${Protobuf_LIBRARIES})
 
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR} ${NGRAPH_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
 

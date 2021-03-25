@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <cmath>
 #include <cstdio>
@@ -179,6 +167,14 @@ op::Constant::Constant(const element::Type& type,
         {
             throw std::runtime_error("deserialize unsupported type dynamic");
         }
+        case element::Type_t::i4:
+        {
+            throw std::runtime_error("deserialize unsupported type i4");
+        }
+        case element::Type_t::u4:
+        {
+            throw std::runtime_error("deserialize unsupported type u4");
+        }
         case element::Type_t::u1:
         {
             throw std::runtime_error("deserialize unsupported type u1");
@@ -291,6 +287,8 @@ op::Constant::Constant(const element::Type& type,
             throw std::runtime_error("deserialize unsupported type undefined");
         case element::Type_t::dynamic:
             throw std::runtime_error("deserialize unsupported type dynamic");
+        case element::Type_t::i4: throw std::runtime_error("deserialize unsupported type i4");
+        case element::Type_t::u4: throw std::runtime_error("deserialize unsupported type u4");
         case element::Type_t::u1: throw std::runtime_error("deserialize unsupported type u1");
         }
         m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
@@ -351,6 +349,21 @@ string op::Constant::convert_value_to_string(size_t index) const
         break;
     case element::Type_t::f32: rc = to_cpp_string(get_data_ptr<float>()[index]); break;
     case element::Type_t::f64: rc = to_cpp_string(get_data_ptr<double>()[index]); break;
+    case element::Type_t::i4:
+    {
+        uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+        int8_t data = i4data;
+        if ((i4data >> 3) & 0b1)
+        {
+            // negative number
+            data = (i4data & 0x7) | 0xF0;
+        }
+        rc = to_string(data);
+        break;
+    }
+    case element::Type_t::u4:
+        rc = to_string((get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F);
+        break;
     case element::Type_t::i8: rc = to_string(get_data_ptr<int8_t>()[index]); break;
     case element::Type_t::i16: rc = to_string(get_data_ptr<int16_t>()[index]); break;
     case element::Type_t::i32: rc = to_string(get_data_ptr<int32_t>()[index]); break;
@@ -460,8 +473,10 @@ vector<string> op::Constant::get_value_strings() const
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::u1: throw runtime_error("unsupported type");
-    case element::Type_t::undefined: throw runtime_error("unsupported type");
+    case element::Type_t::u1:
+    case element::Type_t::i4:
+    case element::Type_t::u4:
+    case element::Type_t::undefined:
     case element::Type_t::dynamic: throw runtime_error("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -615,7 +630,9 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
         rc = test_bitwise_identical<uint64_t>(this);
         break;
     }
+    case element::Type_t::i4:
     case element::Type_t::u1:
+    case element::Type_t::u4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic: break;
     }

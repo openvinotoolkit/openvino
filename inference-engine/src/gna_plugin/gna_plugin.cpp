@@ -85,12 +85,10 @@ using namespace std;
 using namespace GNAPluginNS;
 using namespace InferenceEngine::details;
 
-#ifdef __clang__
 namespace InferenceEngine {
     template<>
-    InferenceEngine::TBlob<intel_compound_bias_t, std::enable_if<true, void> >::~TBlob() { free(); }
+    InferenceEngine::TBlob<gna_compound_bias_t, std::enable_if<true, void> >::~TBlob() { free(); }
 }
-#endif  // __clang__
 
 template <typename T, typename U>
 void GNAPlugin::copyInputData(T *dst,
