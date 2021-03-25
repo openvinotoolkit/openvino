@@ -39,7 +39,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                    ::testing::ValuesIn(configs)),
+                                    ::testing::ValuesIn(heteroConfigs)),
                             PreprocessTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, PreprocessTest,
@@ -75,7 +75,7 @@ namespace {
                                 ::testing::Bool(),
                                 ::testing::Bool(),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                ::testing::ValuesIn(heteroConfigs)),
+                                ::testing::ValuesIn(configs)),
                         PreprocessConversionTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Hetero_BehaviorTests, PreprocessConversionTest,
