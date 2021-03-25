@@ -31,9 +31,9 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
-        IE_THROW() << "Standard exception from compilation library: " << e.what();
+        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        IE_THROW() << "Generic exception is thrown";
+        IE_THROW(Unexpected) << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
@@ -79,9 +79,9 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     } catch (const InferenceEngine::Exception&) {
         throw;
     } catch (const std::exception & e) {
-        IE_THROW() << "Standard exception from compilation library: " << e.what();
+        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        IE_THROW() << "Generic exception is thrown";
+        IE_THROW(Unexpected) << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_import_stream]
