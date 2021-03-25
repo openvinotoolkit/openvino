@@ -50,19 +50,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     _clonedNetwork = cloneNetwork(network);
 
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
-        // Check if network is INT8 or Binary.
-        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
-        // BF16 + INT8 or BF16 + BIN.
-        bool isFloatModel = true;
-        CNNNetworkIterator iter(network);
-        while (iter != CNNNetworkIterator()) {
-            if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
-                isFloatModel = false;
-                break;
-            }
-            iter++;
-        }
-
         auto changePrecisionBF16 = [&](Precision current, Precision target) {
             InputsDataMap inputs = _clonedNetwork.getInputsInfo();
             OutputsDataMap outputs = _clonedNetwork.getOutputsInfo();
@@ -79,6 +66,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                     if (inputs.find((*iter)->outData[o]->getName()) == inputs.end()
                         && outputs.find((*iter)->outData[o]->getName()) == outputs.end()
                         && !CaselessEq<std::string>()((*iter)->type, "const")
+                        && !CaselessEq<std::string>()((*iter)->type, "FakeQuantize")
                         && (*iter)->outData[o]->getPrecision() == current) {
                         (*iter)->outData[o]->setPrecision(target);
                     }
@@ -87,7 +75,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
             }
         };
 
-        if (with_cpu_x86_avx512_core() && isFloatModel) {
+        if (with_cpu_x86_avx512_core()) {
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
             // Otherwise, only layers marked as BF16 in '_clonedNetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.

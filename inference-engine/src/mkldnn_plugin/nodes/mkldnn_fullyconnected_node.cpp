@@ -78,6 +78,10 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         }
     }
 
+    if (one_of(inputDataType , memory::data_type::u8, memory::data_type::s8) && outputDataType == memory::data_type::bf16) {
+        outputDataType = memory::data_type::f32;
+    }
+
     auto * fcLayer = dynamic_cast<FullyConnectedLayer*>(getCnnLayer().get());
     if (fcLayer == nullptr)
         IE_THROW() << "Cannot convert fully connected layer.";
@@ -307,6 +311,8 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngin
     mkldnn::memory::data_type bdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
     if (inDesc.getPrecision() == Precision::BF16) {
         bdt = mkldnn::memory::data_type::f32;
+        if (outDesc.getPrecision() == Precision::U8 || outDesc.getPrecision() == Precision::I8)
+            outDesc.setPrecision(Precision::BF16);
     } else if (inDesc.getPrecision() == Precision::U8 || inDesc.getPrecision() == Precision::I8) {
         wdt = memory::data_type::s8;
         bdt = baseInputsNumber == 3 ? MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[2].lock()->getPrecision()) : memory::data_type::f32;
