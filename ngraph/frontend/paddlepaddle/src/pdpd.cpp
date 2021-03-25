@@ -13,7 +13,7 @@
 
 #include "framework.pb.h"
 
-#include "pdpd.hpp"
+#include "../include/paddlepaddle_frontend/pdpd.hpp"
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset6.hpp>

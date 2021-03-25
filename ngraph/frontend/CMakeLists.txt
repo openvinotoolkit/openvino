@@ -15,7 +15,8 @@
 # ******************************************************************************
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
+    add_subdirectory(generic)
     add_subdirectory(onnx_import)
     add_subdirectory(tensorflow)
-    add_subdirectory(generic)
+    add_subdirectory(paddlepaddle)
 endif()

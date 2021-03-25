@@ -17,13 +17,13 @@
 #pragma once
 
 // TODO: include it by just frontend_manager.hpp without path
-#include "../../include/frontend_manager/frontend_manager.hpp"
+#include "frontend_manager/frontend_manager.hpp"
 
 namespace ngraph
 {
     namespace frontend
     {
-        class InputModelPDPD : public InputModel
+        class NGRAPH_API InputModelPDPD : public InputModel
         {
         public:
 
@@ -32,7 +32,7 @@ namespace ngraph
             InputModelPDPD (const std::string& _path) : path(_path) {}
         };
 
-        class FrontEndPDPD : public FrontEnd
+        class NGRAPH_API FrontEndPDPD : public FrontEnd
         {
         public:
 

@@ -18,14 +18,6 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURR
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-find_package(Protobuf REQUIRED IMPORTED)
-
-set(PROTOBUF_GENERATE_CPP_APPEND_PATH ON)
-file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/pdpd/*.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${proto_files})
-
-include_directories(${Protobuf_INCLUDE_DIRS})
-
 set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Create named folders for the sources within the .vcproj
@@ -39,7 +31,11 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(ngraph::frontend_manager ALIAS frontend_manager)
 
-target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../tensorflow/include ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(frontend_manager
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../tensorflow/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../paddlepaddle/include)
+
 MESSAGE("HERE4: " ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(COMMAND ie_add_vs_version_file)
@@ -49,9 +45,7 @@ endif()
 
 # TODO: Add other frontends to the list of dependencies temporary; in the produce version they should be discovered
 # TODO: in runtime.
-target_link_libraries(frontend_manager PRIVATE onnx_importer tensorflow_frontend ${Protobuf_LIBRARIES}  PUBLIC ngraph)
-
-message("tensorflow: " ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
+target_link_libraries(frontend_manager PRIVATE onnx_importer tensorflow_frontend paddlepaddle_frontend PUBLIC ngraph)
 
 set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
 target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
