@@ -90,7 +90,13 @@ void DetectionOutputLayerTest::GenerateInputs() {
     }
 }
 
-void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+void DetectionOutputLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+                                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+    ASSERT_EQ(expectedOutputs.size(), 1);
+    ASSERT_EQ(actualOutputs.size(), 1);
+
+    const auto& expected = expectedOutputs[0];
+    const auto& actual = actualOutputs[0];
     ASSERT_EQ(expected.size(), actual->byteSize());
 
     size_t expSize = 0;

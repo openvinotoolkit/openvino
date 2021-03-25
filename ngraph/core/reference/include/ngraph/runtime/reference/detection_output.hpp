@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ngraph/op/detection_output.hpp"
@@ -381,7 +382,10 @@ namespace ngraph
                 static bool SortScorePairDescend(const std::pair<dataType, T>& pair1,
                                                  const std::pair<dataType, T>& pair2)
                 {
-                    return pair1.first > pair2.first;
+                    if (pair1.first != pair2.first) {
+                        return pair1.first > pair2.first;
+                    }
+                    return pair1.second < pair2.second;
                 }
 
                 void GetMaxScoreIndex(const std::vector<dataType>& scores,
@@ -397,7 +401,7 @@ namespace ngraph
                         }
                     }
 
-                    std::stable_sort(
+                    std::sort(
                         scoreIndexVec.begin(), scoreIndexVec.end(), SortScorePairDescend<int>);
 
                     if (topK > -1 && topK < scoreIndexVec.size())
