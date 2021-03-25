@@ -3,6 +3,7 @@
 
 """ngraph exceptions hierarchy. All exceptions are descendants of NgraphError."""
 
+
 class NgraphError(Exception):
     """Base class for Ngraph exceptions."""
 

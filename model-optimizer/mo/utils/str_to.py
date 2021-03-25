@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
 class StrTo(object):
     @staticmethod
     def tuple(type_of_elements: type, string: str):
