@@ -169,7 +169,14 @@ def propagate_const_values(op: Node):
 
     op['shape'] = out_data_node.shape
     # Reshape data node value for correct shape
-    op['value'] = np.reshape(value, op.shape)
+    if op['element_type'] in ['u4', 'i4']:
+        # Packed data types are custom from numpy perspective.
+        # Shape from the IR is incompatible with numpy value we store.
+        op['value'] = value
+        op['force_type'] = op['element_type'].upper()
+        op['force_shape'] = op.shape.copy()
+    else:
+        op['value'] = np.reshape(value, op.shape)
 
 
 def groupconv_to_conv(op: Node):
