@@ -15,6 +15,8 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-44774
         ".*PreprocessTest.*",
         // CVS-51758
-        ".*PreprocessConversionTest.*",
+        ".*PreprocessConversionTest.*oPRC=U8.*",
+        ".*PreprocessConversionTest.*oLT=NHWC.*",
+        ".*PreprocessConversionTest.*iLT=NHWC.*",
     };
 }
