@@ -43,16 +43,10 @@ namespace GNAConfigParams {
 DECLARE_GNA_CONFIG_KEY(SCALE_FACTOR);
 
 /**
-* @brief By default gna api works in Int16 weights' precision, however this can be adjusted if necessary,
+* @brief By default gna api works with Int16 weights precision, however this can be adjusted if necessary,
 * currently supported values are I16, I8
 */
 DECLARE_GNA_CONFIG_KEY(PRECISION);
-
-/**
-* @brief By default gna api works in Int16 input' precision, however this can be adjusted if necessary,
-* by adding this parameter; currently supported values are I16, I8
-*/
-DECLARE_GNA_CONFIG_KEY(INPUT_PRECISION);
 
 /**
 * @brief if turned on, dump GNA firmware model into specified file

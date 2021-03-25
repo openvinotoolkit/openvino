@@ -145,17 +145,6 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                                     << value;
             }
             gnaPrecision = precision;
-        } else if (key == GNA_CONFIG_KEY(INPUT_PRECISION)) {
-            auto inputPrecision = Precision::FromStr(value);
-            if (inputPrecision == Precision::I8) {
-                gnaFlags.input_low_precision = true;
-            } else if (inputPrecision == Precision::I16) {
-                gnaFlags.input_low_precision = false;
-            } else {
-                log << "Unsupported input precision of GNA hardware, should be Int16 or Int8, but was: " << value;
-                THROW_GNA_EXCEPTION << "Unsupported input precision of GNA hardware, should be Int16 or Int8, but was: "
-                    << value;
-            }
         } else if (key == GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.uniformPwlDesign = true;
@@ -280,7 +269,6 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
-    keyConfigMap[GNA_CONFIG_KEY(INPUT_PRECISION)] = gnaFlags.input_low_precision ? Precision(Precision::I8).name() : Precision(Precision::I16).name();
     keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(gnaFlags.pwlMaxErrorPercent);

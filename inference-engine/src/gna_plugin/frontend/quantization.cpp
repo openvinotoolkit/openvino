@@ -407,37 +407,6 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runQuantize() const {
 template<>
 void QuantizationCallback<int8_t, int8_t>::runQuantize() const {
     uint32_t num_saturate = 0;
-
-    if (*ptr_weight_scale_factor == 1.0) {
-        // scale factor for weights is not calculated yet
-        float mean_weight = 0.0;
-        float mean_weight_squared = 0.0;
-        float max_weight = -1e20f;
-        float var_weight;
-        float mean_plus_2stdev;
-
-        for (uint32_t i = 0; i < num_rows; i++) {
-            for (uint32_t j = 0; j < num_columns; j++) {
-                float weight = ptr_float_weights[i * num_columns + j];
-                mean_weight += weight;
-                mean_weight_squared += weight * weight;
-                if (fabs(weight) > max_weight) {
-                    max_weight = fabs(weight);
-                }
-            }
-        }
-
-        mean_weight /= static_cast<float>(num_rows * num_columns);
-        mean_weight_squared /= static_cast<float>(num_rows * num_columns);
-        var_weight = mean_weight_squared - mean_weight * mean_weight;
-        mean_plus_2stdev = mean_weight + 2.0f * static_cast<float>(sqrtf(var_weight));
-
-        if (max_weight != 0.0f) {
-            *ptr_weight_scale_factor = static_cast<float>(MAX_VAL_1B_WEIGHT) / max_weight;
-        }
-        *ptr_output_scale_factor = input_scale_factor * *ptr_weight_scale_factor;
-    }
-
     for (uint32_t row = 0; row < num_rows; row++) {
         for (uint32_t col = 0; col < num_columns; col++) {
             float rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
