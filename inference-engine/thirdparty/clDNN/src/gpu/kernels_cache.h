@@ -13,13 +13,13 @@
 #include <unordered_set>
 #include <kernel_selector_common.h>
 
-#define CLDNN_OCL_BUILD_THREADING_SEQ 0
-#define CLDNN_OCL_BUILD_THREADING_TBB 1
-#define CLDNN_OCL_BUILD_THREADING_THREADPOOL 2
+#define CLDNN_THREADING_SEQ 0
+#define CLDNN_THREADING_TBB 1
+#define CLDNN_THREADING_THREADPOOL 2
 
-#if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
 #include <tbb/task_arena.h>
-#elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
+#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
 #include <queue>
 #include <future>
 #include <functional>
@@ -39,7 +39,7 @@ namespace cldnn {
 namespace gpu {
 
 class gpu_toolkit;
-#if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
+#if (CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
 class thread_pool {
 public:
     thread_pool(size_t num_threads) : _stop_pool(false) {
@@ -92,7 +92,7 @@ private:
         while (true) {
             std::unique_lock<std::mutex> lock(this->_q_m);
             _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
-            if ( (_stop_pool) && (this->_tasks.empty())) return;
+            if ((_stop_pool) && (this->_tasks.empty())) return;
             auto task = std::move(_tasks.front());
             this->_tasks.pop();
             lock.unlock();
@@ -155,9 +155,9 @@ private:
     std::map<const std::string, const kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
                                                            // be removed later from the cache).
     uint32_t _prog_id;
-#if (CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_TBB)
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
     std::unique_ptr<tbb::task_arena> arena;
-#elif(CLDNN_OCL_BUILD_THREADING == CLDNN_OCL_BUILD_THREADING_THREADPOOL)
+#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
     std::unique_ptr<thread_pool> pool;
 #endif
 

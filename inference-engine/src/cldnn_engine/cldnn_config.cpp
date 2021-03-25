@@ -223,7 +223,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 IE_THROW(NotFound) << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
             }
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS) == 0) {
-            int max_threads = (std::thread::hardware_concurrency() == 0) ? 1 : std::thread::hardware_concurrency();
+            int max_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
             try {
                 int val_i = std::stoi(val);
                 if (val_i <= 0 || val_i > max_threads) {
@@ -232,7 +232,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                     n_threads = val_i;
                 }
             } catch (const std::exception&) {
-                THROW_IE_EXCEPTION << "Wrong value for property key " << CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS << ": " << val
+                IE_THROW() << "Wrong value for property key " << CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS << ": " << val
                                    << "\nSpecify the number of threads use for build as an integer."
                                    << "\nOut of range value will be set as a default value, maximum concurrent threads.";
             }

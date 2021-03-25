@@ -4,6 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "configuration.h"
+#include <algorithm>
 
 namespace cldnn {
 namespace gpu {
@@ -23,6 +24,6 @@ configuration::configuration()
       queues_num(0),
       tuning_cache_path("cache.json"),
       kernels_cache_path(""),
-      n_threads((std::thread::hardware_concurrency() == 0) ? 1 : std::thread::hardware_concurrency()) {}
+      n_threads(std::max(static_cast<uint16_t>(std::thread::hardware_concurrency()), static_cast<uint16_t>(1))) {}
 }  // namespace gpu
 }  // namespace cldnn

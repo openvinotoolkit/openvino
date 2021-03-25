@@ -60,12 +60,12 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================
 # ======================================================================================================
-if("${THREADING}" MATCHES "SEQ")
-    add_definitions(-DCLDNN_OCL_BUILD_THREADING=CLDNN_OCL_BUILD_THREADING_SEQ)
+if("${CLDNN_THREADING}" MATCHES "SEQ")
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_SEQ)
 elseif("${CLDNN_THREADING}" MATCHES "TBB")
-    add_definitions(-DCLDNN_OCL_BUILD_THREADING=CLDNN_OCL_BUILD_THREADING_TBB)
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_TBB)
 else()
-    add_definitions(-DCLDNN_OCL_BUILD_THREADING=CLDNN_OCL_BUILD_THREADING_THREADPOOL)
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)
 endif()
 
 # Path which points to main directory of project.

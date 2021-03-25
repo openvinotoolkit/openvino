@@ -32,7 +32,7 @@ struct Config {
                sources_dumps_dir(""),
                device_id(""),
                kernels_cache_dir(""),
-               n_threads((std::thread::hardware_concurrency() == 0) ? 1 : std::thread::hardware_concurrency()) {
+               n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())) {
         adjustKeyMapValues();
     }
 
@@ -57,7 +57,7 @@ struct Config {
     std::string sources_dumps_dir;
     std::string device_id;
     std::string kernels_cache_dir;
-    int n_threads;
+    size_t n_threads;
 
     std::map<std::string, std::string> key_config_map;
 };
