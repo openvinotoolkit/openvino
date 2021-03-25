@@ -20,8 +20,8 @@ ie_coverage_genhtml(INFO_FILE "inference_engine"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_ir_v10_reader"
-                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/readers/ir_reader"
-                             "${DLDT_COVERAGE_BASE_DIRECTORY}/readers/reader_api")
+                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/readers/ir_reader/*"
+                             "${DLDT_COVERAGE_BASE_DIRECTORY}/readers/reader_api/*")
 ie_coverage_genhtml(INFO_FILE "inference_engine_ir_v10_reader"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
