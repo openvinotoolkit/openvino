@@ -189,6 +189,7 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
         alg = mkldnn::algorithm::pooling_max;
     } else {
         IE_THROW() << "Unsupported pooling type";
+    }
 
     auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
         return memory::dims(orig_dims.begin(), orig_dims.end());

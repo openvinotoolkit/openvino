@@ -40,7 +40,7 @@ constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
-inline std::string getExceptionDescWithoutStatus(const InferenceEngine::details::InferenceEngineException& ex) {
+inline std::string getExceptionDescWithoutStatus(const InferenceEngine::Exception& ex) {
     std::string desc = ex.what();
     if (ex.getStatus() != 0) {
         size_t pos = desc.find("]");

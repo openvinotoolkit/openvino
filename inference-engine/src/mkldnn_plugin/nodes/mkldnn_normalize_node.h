@@ -101,7 +101,7 @@ private:
         } else if (epsMode == NormEpsMode::MAX) {
             return std::max(modulo, eps);
         } else {
-            THROW_IE_EXCEPTION << errorPrefix << "has unsupported epsilon mode";
+            IE_THROW() << errorPrefix << "has unsupported epsilon mode";
         }
     }
 
