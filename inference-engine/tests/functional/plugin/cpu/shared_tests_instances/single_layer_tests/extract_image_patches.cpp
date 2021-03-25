@@ -25,14 +25,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::U64
 };
 
-const auto extractImagePatchesParamsSet = ::testing::Combine(
-        ::testing::ValuesIn(inDataShape),
-        ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(rates),
-        ::testing::ValuesIn(autoPads)
-);
-
 INSTANTIATE_TEST_CASE_P(smoke_layers_CPU, ExtractImagePatchesTest,
         ::testing::Combine(
             ::testing::ValuesIn(inDataShape),
