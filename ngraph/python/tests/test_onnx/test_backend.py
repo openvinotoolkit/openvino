@@ -72,10 +72,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_46765,
                    xfail_issue_47317,
                    xfail_issue_47323,
-                   xfail_issue_47330,
                    xfail_issue_47337,
                    xfail_issue_48052,
-                   xfail_issue_48100,
                    xfail_issue_49207,
                    xfail_issue_49750,
                    xfail_issue_49752,
@@ -211,10 +209,7 @@ tests_expected_to_fail = [
     (xfail_issue_47323,
      "OnnxBackendPyTorchOperatorModelTest.test_operator_add_broadcast_cpu",
      "OnnxBackendPyTorchOperatorModelTest.test_operator_addconstant_cpu",
-     "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_right_broadcast_cpu",),
-    (xfail_issue_47330,
-     "OnnxBackendNodeModelTest.test_mod_mixed_sign_float64_cpu",
-     "OnnxBackendNodeModelTest.test_min_float64_cpu"),
+     "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_right_broadcast_cpu"),
     (xfail_issue_38699,
      "OnnxBackendSimpleModelTest.test_gradient_of_add_and_mul_cpu",
      "OnnxBackendSimpleModelTest.test_gradient_of_add_cpu"),
@@ -430,8 +425,6 @@ tests_expected_to_fail = [
     (xfail_issue_33593,
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
-    (xfail_issue_48100,
-     "OnnxBackendNodeModelTest.test_eyelike_with_dtype_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:

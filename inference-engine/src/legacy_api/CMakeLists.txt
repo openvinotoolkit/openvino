@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -42,6 +42,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${IE_MAIN_SOURCE_DIR}/src/inference_engine # For CNNNetworkNGraphImpl
+    $<TARGET_PROPERTY:inference_engine_snippets,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -53,7 +54,7 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED 
+add_library(${TARGET_NAME} SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
@@ -62,7 +63,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
+target_link_libraries(${TARGET_NAME} PUBLIC inference_engine inference_engine_snippets
                                      PRIVATE pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 

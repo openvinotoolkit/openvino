@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,16 +18,6 @@ typedef struct {
 } SqueezeCaseParam;
 
 using SqueezeTestParam = std::tuple<InferenceEngine::Precision, bool, SqueezeCaseParam>;
-
-template <typename T>
-inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec) {
-    if (vec.empty()) return std::operator<<(out, "[]");
-    out << "[" << vec[0];
-    for (unsigned i = 1; i < vec.size(); i++) {
-        out << " " << vec[i];
-    }
-    return out << "]";
-}
 
 class GNASqueezeTest_ : public GNATest<>,
                        public testing::WithParamInterface<SqueezeTestParam> {

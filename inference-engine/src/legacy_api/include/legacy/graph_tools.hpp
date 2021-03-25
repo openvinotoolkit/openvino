@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -193,7 +193,7 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
         for (size_t i = 0; i < cnnLayer->insData.size(); i++) {
             auto& input = cnnLayer->insData[i];
             if (!input.lock()) {
-                THROW_IE_EXCEPTION << "Data " << i << " inserted into layer " << cnnLayer->name << " is nullptr";
+                IE_THROW() << "Data " << i << " inserted into layer " << cnnLayer->name << " is nullptr";
             } else {
                 auto creatorLayer = getCreatorLayer(input.lock()).lock();
                 if (creatorLayer) {
@@ -457,7 +457,7 @@ std::vector<CNNLayerPtr> CNNNetSortTopologicallyEx(const CNNNetwork& network, La
         false, ordering);
 
     if (!res) {
-        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        IE_THROW() << "Sorting not possible, due to existed loop.";
     }
 
     std::reverse(std::begin(stackOfVisited), std::end(stackOfVisited));
@@ -496,7 +496,7 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
         true);
 
     if (!res) {
-        THROW_IE_EXCEPTION << "Copying of network not possible, due to existed loop.";
+        IE_THROW() << "Copying of network not possible, due to existed loop.";
     }
 
     // internal utility to locate out data idx in layer
@@ -504,7 +504,7 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
         int dataIdx = -1;
         auto sourceLayer = getCreatorLayer(sourceData).lock();
         if (!sourceLayer) {
-            THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
+            IE_THROW() << "Data " << sourceData->getName() << " has no creator layer";
         }
         for (size_t j = 0; j < sourceLayer->outData.size(); j++) {
             if (sourceData.get() == sourceLayer->outData[j].get()) {
@@ -582,7 +582,7 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
                 auto sourceData = current->insData[i].lock();
                 auto sourceLayer = getCreatorLayer(sourceData).lock();
                 if (!sourceLayer) {
-                    THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
+                    IE_THROW() << "Data " << sourceData->getName() << " has no creator layer";
                 }
                 // find insData Entry in outData of sourceLayer
                 newLayer->insData[i] = oldToNewLayers[sourceLayer.get()]->outData[findOutDataIdx(sourceData)];
@@ -609,14 +609,14 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
     for (auto&& data : outmap) {
         ResponseDesc dsc;
         if (OK != net->addOutput(getCreatorLayer(data.second).lock()->name, findOutDataIdx(data.second), &dsc)) {
-            THROW_IE_EXCEPTION << dsc.msg;
+            IE_THROW() << dsc.msg;
         }
     }
 
     ResponseDesc dsc;
     // transfer batch size
     if (OK != net->setBatchSize(input.getBatchSize(), &dsc)) {
-        THROW_IE_EXCEPTION << dsc.msg;
+        IE_THROW() << dsc.msg;
     }
 
     return CNNNetwork(net);
@@ -702,7 +702,7 @@ inline std::vector<CNNLayerPtr> CNNSubnetSortTopologically(const CNNSubnet& subn
             },
             false);
     if (!res) {
-        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        IE_THROW() << "Sorting not possible, due to existed loop.";
     }
 
     std::reverse(stackOfVisited.begin(), stackOfVisited.end());

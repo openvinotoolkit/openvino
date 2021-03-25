@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0::Norma
     // params
     auto const_axis = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (!const_axis)
-        THROW_IE_EXCEPTION << "Unsupported axis node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        IE_THROW() << "Unsupported axis node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
     auto axis = const_axis->cast_vector<size_t>();
     bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
@@ -41,7 +41,7 @@ void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0::Norma
     auto bufSize = scale->get_output_tensor(0).size();
 
     if (bufSize != constLayout.bytes_count())
-        THROW_IE_EXCEPTION << "Invalid scales buffer in NormalizeL2 op " << op->get_friendly_name();
+        IE_THROW() << "Invalid scales buffer in NormalizeL2 op " << op->get_friendly_name();
 
     std::memcpy(&buf[0], scale->get_data_ptr(), bufSize);
     auto scalesName = layerName + "_cldnn_input_scales";

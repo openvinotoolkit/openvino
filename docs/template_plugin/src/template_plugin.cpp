@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         if (output_precision != InferenceEngine::Precision::FP32 &&
             output_precision != InferenceEngine::Precision::FP16 &&
             output_precision != InferenceEngine::Precision::U8) {
-            THROW_IE_EXCEPTION << "Template device supports only U8, FP16 and FP32 output precision.";
+            IE_THROW() << "Template device supports only U8, FP16 and FP32 output precision.";
         }
     }
 
@@ -100,14 +100,14 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
             input_precision != InferenceEngine::Precision::FP16 &&
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::U8) {
-            THROW_IE_EXCEPTION << "Input image format " << input_precision << " is not supported yet.\n"
+            IE_THROW() << "Input image format " << input_precision << " is not supported yet.\n"
                        << "Supported formats are: FP32, FP16, I16 and U8.";
         }
     }
 
     auto function = network.getFunction();
     if (function == nullptr) {
-        THROW_IE_EXCEPTION << "TEMPLATE plugin can compile only IR v10 networks";
+        IE_THROW() << "TEMPLATE plugin can compile only IR v10 networks";
     }
 
     return std::make_shared<ExecutableNetwork>(function, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
@@ -135,7 +135,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 
     auto function = network.getFunction();
     if (function == nullptr) {
-         THROW_IE_EXCEPTION << "Template Plugin supports only ngraph cnn network representation";
+         IE_THROW() << "Template Plugin supports only ngraph cnn network representation";
     }
 
     // 1. First of all we should store initial input operation set
@@ -215,7 +215,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 // ! [plugin:add_extension]
 void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
     // TODO: add extensions if plugin supports extensions
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    IE_THROW(NotImplemented);
 }
 // ! [plugin:add_extension]
 
@@ -239,6 +239,8 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(FULL_DEVICE_NAME),
+            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            METRIC_KEY(DEVICE_ARCHITECTURE),
             METRIC_KEY(OPTIMIZATION_CAPABILITIES),
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
@@ -261,6 +263,12 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         std::string name = "Template Device Full Name";
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
+    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
+        // TODO: return device architecture for device specified by DEVICE_ID config
+        std::string arch = "TEMPLATE";
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, arch);
     } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
         std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };
@@ -270,7 +278,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         using uint = unsigned int;
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, std::make_tuple(uint{1}, uint{1}, uint{1}));
     } else  {
-        THROW_IE_EXCEPTION << "Unsupported device metric: " << name;
+        IE_THROW() << "Unsupported device metric: " << name;
     }
 }
 // ! [plugin:get_metric]

@@ -15,6 +15,7 @@
 """
 
 from extensions.ops.activation_ops import Elu, LeakyReLU, ReLU
+from extensions.ops.gelu import GeLUOP
 from extensions.ops.prelu import PReLU
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
@@ -50,6 +51,8 @@ class LeakyReLUFrontExtractor(FrontExtractorOp):
                 ReLU.update_node_stat(node)
             else:
                 LeakyReLU.update_node_stat(node, {'negative_slope': negative_slope})
+        elif act_type == 'gelu':
+            GeLUOP.update_node_stat(node, {'approximation_mode': 'erf'})
         else:
             raise Error(
                 "Operation '{}' not supported. Please register it as custom op. " +

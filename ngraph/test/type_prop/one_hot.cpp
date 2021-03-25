@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -193,4 +181,37 @@ TEST(type_prop, one_hot_v1_off_value_not_scalar)
     {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
+}
+
+TEST(type_prop, one_hot_v1_out_types_1)
+{
+    auto indices = make_shared<op::Parameter>(element::i32, Shape{3, 2});
+    auto depth = op::Constant::create(element::i32, Shape{}, {2});
+    int64_t axis = -1;
+    auto on_value = op::Constant::create(element::f32, Shape{}, {-3.3});
+    auto off_value = op::Constant::create(element::f32, Shape{}, {-10.12});
+    auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(ont_hot->get_element_type(), element::f32);
+}
+
+TEST(type_prop, one_hot_v1_out_types_2)
+{
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 2});
+    auto depth = op::Constant::create(element::i32, Shape{}, {2});
+    int64_t axis = -1;
+    auto on_value = op::Constant::create(element::i32, Shape{}, {-1});
+    auto off_value = op::Constant::create(element::i32, Shape{}, {7});
+    auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(ont_hot->get_element_type(), element::i32);
+}
+
+TEST(type_prop, one_hot_v1_out_types_3)
+{
+    auto indices = make_shared<op::Parameter>(element::i32, Shape{3, 2});
+    auto depth = op::Constant::create(element::i32, Shape{}, {2});
+    int64_t axis = -1;
+    auto on_value = op::Constant::create(element::boolean, Shape{}, {true});
+    auto off_value = op::Constant::create(element::boolean, Shape{}, {false});
+    auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(ont_hot->get_element_type(), element::boolean);
 }

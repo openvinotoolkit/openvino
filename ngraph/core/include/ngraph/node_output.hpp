@@ -1,22 +1,11 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include <cstring>
+#include <map>
 #include <unordered_set>
 
 #include "ngraph/descriptor/tensor.hpp"
@@ -35,6 +24,8 @@ namespace ngraph
     class Output
     {
     };
+
+    class Variant;
 
     /// \brief A handle for one of a node's outputs.
     template <>
@@ -87,6 +78,12 @@ namespace ngraph
         const Shape& get_shape() const;
         /// \return The partial shape of the output referred to by this output handle.
         const PartialShape& get_partial_shape() const;
+
+        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+        /// \return The reference to runtime info map
+        RTMap& get_rt_info();
+        /// \return The constant reference to runtime info map
+        const RTMap& get_rt_info() const;
 
         /// \return A set containing handles for all inputs targeted by the output referenced by
         ///        this output handle.
@@ -164,6 +161,9 @@ namespace ngraph
         /// \return The partial shape of the output referred to by this output handle.
         const PartialShape& get_partial_shape() const;
 
+        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+        /// \return The constant reference to runtime info map
+        const RTMap& get_rt_info() const;
         /// \return A set containing handles for all inputs targeted by the output referenced by
         ///        this output handle.
         std::set<Input<Node>> get_target_inputs() const;

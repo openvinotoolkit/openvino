@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,8 +26,12 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::f16);
     case Precision::BF16:
         return ::ngraph::element::Type(::ngraph::element::Type_t::bf16);
+    case Precision::U4:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::u4);
     case Precision::U8:
         return ::ngraph::element::Type(::ngraph::element::Type_t::u8);
+    case Precision::I4:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::i4);
     case Precision::I8:
         return ::ngraph::element::Type(::ngraph::element::Type_t::i8);
     case Precision::U16:
@@ -50,7 +54,7 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     case Precision::MIXED:
     case Precision::CUSTOM:
     default:
-        THROW_IE_EXCEPTION << "Incorrect precision!";
+        IE_THROW() << "Incorrect precision!";
     }
 }
 
@@ -63,6 +67,8 @@ inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::bf16);
     } else if (precision == "f64" || precision == "FP64") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::f64);
+    } else if (precision == "i4" || precision == "I4") {
+        return ::ngraph::element::Type(::ngraph::element::Type_t::i4);
     } else if (precision == "i8" || precision == "I8") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::i8);
     } else if (precision == "i16" || precision == "I16") {
@@ -73,6 +79,8 @@ inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::i64);
     } else if (precision == "u1" || precision == "U1" || precision == "BIN" || precision == "bin") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::u1);
+    } else if (precision == "u4" || precision == "U4") {
+        return ::ngraph::element::Type(::ngraph::element::Type_t::u4);
     } else if (precision == "u8" || precision == "U8") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::u8);
     } else if (precision == "u16" || precision == "U16") {
@@ -86,7 +94,7 @@ inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
     } else if (precision == "undefined") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::undefined);
     } else {
-        THROW_IE_EXCEPTION << "Incorrect precision: " << precision;
+        IE_THROW() << "Incorrect precision: " << precision;
     }
 }
 
@@ -102,6 +110,8 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         return Precision(Precision::FP64);
     case ::ngraph::element::Type_t::bf16:
         return Precision(Precision::BF16);
+    case ::ngraph::element::Type_t::i4:
+        return Precision(Precision::I4);
     case ::ngraph::element::Type_t::i8:
         return Precision(Precision::I8);
     case ::ngraph::element::Type_t::i16:
@@ -110,6 +120,8 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         return Precision(Precision::I32);
     case ::ngraph::element::Type_t::i64:
         return Precision(Precision::I64);
+    case ::ngraph::element::Type_t::u4:
+        return Precision(Precision::U4);
     case ::ngraph::element::Type_t::u8:
         return Precision(Precision::U8);
     case ::ngraph::element::Type_t::u16:
@@ -123,7 +135,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     case ::ngraph::element::Type_t::boolean:
         return Precision(Precision::BOOL);
     default:
-        THROW_IE_EXCEPTION << "Incorrect precision " << precision.get_type_name() << "!";
+        IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!"; return{};
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,12 +122,12 @@ inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
     return fnPtr;
 }
 
-inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32) {
-    // That which we iterate over
-    const size_t N = 32; // Batch size
-    const size_t L = 10; // Sequence length
-    const size_t I = 8;  // Input size
-    const size_t H = 32; // Hidden size
+inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(
+        ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32,
+        size_t N = 32,   // Batch size
+        size_t L = 10,   // Sequence length
+        size_t I = 8,    // Input size
+        size_t H = 32) { // Hidden size
     auto SENT = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, L, I});
 
     auto H_init = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, H});

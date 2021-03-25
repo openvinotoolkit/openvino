@@ -1,5 +1,5 @@
 """
- Copyright (c) 2020 Intel Corporation
+ Copyright (c) 2020-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ class TopKExtender(Extender):
 
     @staticmethod
     def extend(op: Node):
-        if op.graph.graph['cmd_params'].framework in ('tf', 'caffe'):
+        if op.out_port(0).disconnected():
             op['remove_values_output'] = True
         if op.has_valid('index_element_type'):
             op['index_element_type'] = destination_type_to_np_data_type(op.index_element_type)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ public:
      * @brief Searches for a function symbol in the loaded module
      * @param symbolName Name of function to find
      * @return A pointer to the function if found
-     * @throws InferenceEngineException if the function is not found
+     * @throws Exception if the function is not found
      */
     void* get_symbol(const char* symbolName) const;
 };

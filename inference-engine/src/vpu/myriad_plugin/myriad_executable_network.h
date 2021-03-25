@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ public:
     ie::InferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
                                                          ie::OutputsDataMap networkOutputs) override {
         if (_device == nullptr || !_device->isBooted()) {
-            THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
+            IE_THROW() << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
         }
 
@@ -76,7 +76,7 @@ public:
     ie::IInferRequest::Ptr CreateInferRequest() override {
         ie::IInferRequest::Ptr asyncRequest;
         if (_device == nullptr || !_device->isBooted()) {
-            THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
+            IE_THROW() << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
         }
 
@@ -103,7 +103,7 @@ public:
         if (modelFile.is_open()) {
             Export(modelFile);
         } else {
-            THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export";
+            IE_THROW() << "The " << modelFileName << " file can not be opened for export";
         }
     }
 

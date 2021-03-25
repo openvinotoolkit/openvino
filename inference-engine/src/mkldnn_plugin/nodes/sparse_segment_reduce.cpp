@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ public:
         try {
             // check a number of input/output edges
             if (layer->insData.size() != 3 || layer->outData.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
             }
 
             // check operation by which it reduces
@@ -36,33 +36,33 @@ public:
             else if (reduce_mode == "SparseSegmentMean") reduction_op = ReducedOp::mean;
             else if (reduce_mode == "SparseSegmentSqrtN") reduction_op = ReducedOp::sqrtn;
             else
-                THROW_IE_EXCEPTION << layer->name << " Incorrect SparseSegmentReduce layer type!";
+                IE_THROW() << layer->name << " Incorrect SparseSegmentReduce layer type!";
 
             // check shapes of the second and third input tensors
             input_indices_dims = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getDims();
             if (input_indices_dims.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input indices. It must be a one-dimensional tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input indices. It must be a one-dimensional tensor.";
             }
             input_segment_ids_dims = layer->insData[INPUT_SEGMENT_IDS_PORT].lock()->getTensorDesc().getDims();
             if (input_segment_ids_dims.size() != 1) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for input segment IDs. It must be a one-dimensional tensor.";
+                IE_THROW() << layer->name << " Incorrect dimensions for input segment IDs. It must be a one-dimensional tensor.";
             }
             if (input_indices_dims[0] != input_segment_ids_dims[0]) {
-                THROW_IE_EXCEPTION << layer->name << " Shapes for input indices and segment IDs must match.";
+                IE_THROW() << layer->name << " Shapes for input indices and segment IDs must match.";
             }
 
             // check shapes of output tensor
             input_data_dims = layer->insData[INPUT_DATA_PORT].lock()->getTensorDesc().getDims();
             output_dims = layer->outData[OUTPUT_PORT]->getTensorDesc().getDims();
             if (output_dims.size() != input_data_dims.size()) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output.";
+                IE_THROW() << layer->name << " Incorrect dimensions for output.";
             }
             if (output_dims[0] != input_segment_ids_dims[0]) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output.";
+                IE_THROW() << layer->name << " Incorrect dimensions for output.";
             }
             for (size_t i = 1; i < output_dims.size(); i++) {
                 if (output_dims[i] != input_data_dims[i]) {
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output.";
+                    IE_THROW() << layer->name << " Incorrect dimensions for output.";
                 }
             }
 
@@ -71,7 +71,7 @@ public:
                 { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
                 DataConfigurator(ConfLayout::PLN, Precision::FP32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
         }
-        catch (InferenceEngine::details::InferenceEngineException &ex) {
+        catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

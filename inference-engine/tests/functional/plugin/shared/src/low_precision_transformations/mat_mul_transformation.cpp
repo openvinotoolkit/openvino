@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulT
 
 InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     if ((info.name() != "input1") && (info.name() != "input2")) {
-        THROW_IE_EXCEPTION << "unexpected layer name " << info.name();
+        IE_THROW() << "unexpected layer name " << info.name();
     }
 
     size_t low;
@@ -52,7 +52,7 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
         low = 5ul;
         high = 10ul;
     } else {
-        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+        IE_THROW() << "unexpected input name " << info.name();
     }
 
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);

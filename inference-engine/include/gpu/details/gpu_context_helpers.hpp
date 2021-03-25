@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,15 +34,15 @@ protected:
         const std::string& obj_T2 = "__") const {
         auto itrType = params.find(type_Key);
         if (itrType == params.end())
-            THROW_IE_EXCEPTION << "Parameter of type " << type_Key << " not found";
+            IE_THROW() << "Parameter of type " << type_Key << " not found";
 
         std::string param_val = itrType->second.as<std::string>();
         if (obj_T1 != param_val && obj_T2 != param_val)
-            THROW_IE_EXCEPTION << "Unexpected object type " << param_val;
+            IE_THROW() << "Unexpected object type " << param_val;
 
         auto itrHandle = params.find(handle_Key);
         if (itrHandle == params.end()) {
-            THROW_IE_EXCEPTION << "No parameter " << handle_Key << " found";
+            IE_THROW() << "No parameter " << handle_Key << " found";
         }
 
         Tmp handle = itrHandle->second;
@@ -57,7 +57,7 @@ protected:
     Result _ObjFromParamSimple(const ParamMap& params, const std::string& handle_Key) const {
         auto itrHandle = params.find(handle_Key);
         if (itrHandle == params.end()) {
-            THROW_IE_EXCEPTION << "No parameter " << handle_Key << " found";
+            IE_THROW() << "No parameter " << handle_Key << " found";
         }
 
         Result handle = itrHandle->second;
@@ -72,7 +72,7 @@ protected:
         std::string Key) const {
         auto itrType = params.find(Key);
         if (itrType == params.end())
-            THROW_IE_EXCEPTION << "Parameter key " << Key << " not found";
+            IE_THROW() << "Parameter key " << Key << " not found";
         return itrType->second.as<std::string>();
     }
 };

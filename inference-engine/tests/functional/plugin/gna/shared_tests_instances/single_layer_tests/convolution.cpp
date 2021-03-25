@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,30 @@
 
 #include "single_layer_tests/convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "../skip_tests_check.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+
+class GnaConvolutionLayerTest : public ConvolutionLayerTest, GnaLayerTestCheck {
+protected:
+    void Run() override {
+        GnaLayerTestCheck::SkipTestCheck();
+
+        if (!GnaLayerTestCheck::skipTest) {
+            ConvolutionLayerTest::Run();
+        }
+    }
+
+    void SetUp() {
+        ConvolutionLayerTest::SetUp();
+    }
+};
+
+TEST_P(GnaConvolutionLayerTest, CompareWithRefs) {
+    Run();
+}
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -27,7 +47,6 @@ const std::vector<std::vector<ptrdiff_t>> padEndsH1 = {{1, 0},
                                                        {1, 3}};
 const std::vector<std::vector<size_t >> dilationsH1 = {{1, 1},
                                                        {1, 3}};
-// TODO: Currently C != 1 is not supported for graphs with native NCHW layout (will be fixed in 40496)
 const std::vector<std::vector<size_t>> inputShapesH1 = {{1, 1, 1, 32},
                                                         {1, 32, 1, 160},
                                                         {1, 8, 1, 64}};
@@ -41,7 +60,6 @@ const std::vector<std::vector<ptrdiff_t>> padEndsW1 = {{0, 1},
                                                        {3, 1}};
 const std::vector<std::vector<size_t >> dilationsW1 = {{1, 1},
                                                        {3, 1}};
-// TODO: Currently C != 1 is not supported for graphs with native NCHW layout (will be fixed in 40496)
 const std::vector<std::vector<size_t>> inputShapesW1 = {{1, 1, 32, 1},
                                                         {1, 32, 160, 1},
                                                         {1, 8, 64, 1}};
@@ -68,6 +86,10 @@ const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 const std::vector<size_t> numOutCannels2D = { 1, 2, 5 };
 
 const std::vector<size_t> input2DNCHW = { 1, 2, 20, 15 };
+
+const std::vector<std::vector<size_t>> inputShapesMapTo1d = {{1, 1, 56, 5},
+                                                             {1, 32, 56, 5},
+                                                             {1, 2, 64, 5}};
 
 const auto conv2DParams_Kernels2D = ::testing::Combine(
     ::testing::ValuesIn(kernels2D),
@@ -111,6 +133,15 @@ const auto conv2DParams_AutoPadValid_Width1 = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::ValuesIn(dilationsW1),
+        ::testing::ValuesIn(numOutCannels),
+        ::testing::Values(ngraph::op::PadType::VALID)
+);
+const auto conv2DParams_AutoPadValid_MapTo1d = ::testing::Combine(
+        ::testing::Values(std::vector<size_t>{3, 5}),
+        ::testing::ValuesIn(stridesW1),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::Values(std::vector<size_t>{1, 1}),
         ::testing::ValuesIn(numOutCannels),
         ::testing::Values(ngraph::op::PadType::VALID)
 );
@@ -164,8 +195,19 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLaye
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-// TODO: Enable for GNA 2.1 library
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_Kernels2D, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLayerTest,
+                        ::testing::Combine(
+                                conv2DParams_AutoPadValid_MapTo1d,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputShapesMapTo1d),
+                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                        ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_Kernels2D,
         ::testing::ValuesIn(netPrecisions),
@@ -175,5 +217,5 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_Kernels2D, ConvolutionLayer
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(input2DNCHW),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-    ConvolutionLayerTest::getTestCaseName);
+    GnaConvolutionLayerTest::getTestCaseName);
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -232,7 +232,7 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     : input_prec(inpPrc), output_prec(outPrc) {
     if (Precision::BF16 == output_prec) {
         if (!mayiuse(avx512_core)) {
-            THROW_IE_EXCEPTION << "SoftmaxGeneric doesn't support BF16 precision on this target.";
+            IE_THROW() << "SoftmaxGeneric doesn't support BF16 precision on this target.";
         }
     }
 
@@ -308,7 +308,7 @@ void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, 
             auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(float_src_data, bf16_dst_data, B, C, H, W);
         } else {
-            THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
+            IE_THROW() << "Unsupported output precision: " << output_prec.name();
         }
     } else if (Precision::BF16 == input_prec) {
         auto bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
@@ -319,9 +319,9 @@ void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, 
             auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(bf16_dst_data, bf16_dst_data, B, C, H, W);
         } else {
-            THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
+            IE_THROW() << "Unsupported output precision: " << output_prec.name();
         }
     } else {
-        THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
+        IE_THROW() << "Unsupported input precision: " << input_prec.name();
     }
 }

@@ -1,5 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,11 +18,6 @@ target_link_libraries(${TARGET_NAME} PUBLIC
         funcTestUtils
         ieTestHelpers
         )
-
-if(UNIX)
-    find_package(Threads REQUIRED)
-    target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
-endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC gmock)
 

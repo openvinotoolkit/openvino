@@ -98,7 +98,7 @@ Standard MXNet\* symbols:
 | InstanceNorm | No |
 | L2Normalization | only 4D input is supported |
 | LRN | No |
-| LeakyReLU | No |
+| LeakyReLU | supported "act_type" = "prelu", "elu", "leaky", "gelu" |
 | Pad | No |
 | Pooling | No |
 | ROIPooling | No |
@@ -254,6 +254,89 @@ Standard TensorFlow\* operations:
 | Where | No |
 | ZerosLike | No |
 
+
+## TensorFlow 2 Keras\* Supported Operations
+
+Standard TensorFlow 2 Keras\* operations:
+
+| Operation Name in TensorFlow 2 Keras\* | Limitations|
+| :----------| :----------|
+| ActivityRegularization | No |
+| Add | No |
+| AdditiveAttention | No |
+| AlphaDropout | No |
+| Attention | No |
+| Average | No |
+| AveragePooling1D | No |
+| AveragePooling2D | No |
+| AveragePooling3D | No |
+| BatchNormalization | No |
+| Bidirectional | No |
+| Concatenate | No |
+| Conv1D | No |
+| Conv1DTranspose | Not supported if dilation is not equal to 1 |
+| Conv2D | No |
+| Conv2DTranspose | No |
+| Conv3D | No |
+| Conv3DTranspose | No |
+| Cropping1D | No |
+| Cropping2D | No |
+| Cropping3D | No |
+| Dense | No |
+| DenseFeatures | Not supported for categorical and crossed features |
+| DepthwiseConv2D | No |
+| Dot | No |
+| Dropout | No |
+| ELU | No |
+| Embedding | No |
+| Flatten | No |
+| GRU | No |
+| GRUCell | No |
+| GaussianDropout | No |
+| GaussianNoise | No |
+| GlobalAveragePooling1D | No |
+| GlobalAveragePooling2D | No |
+| GlobalAveragePooling3D | No |
+| GlobalMaxPool1D | No |
+| GlobalMaxPool2D | No |
+| GlobalMaxPool3D | No |
+| LSTM | No |
+| LSTMCell | No |
+| Lambda | No |
+| LayerNormalization | No |
+| LeakyReLU | No |
+| LocallyConnected1D | No |
+| LocallyConnected2D | No |
+| MaxPool1D | No |
+| MaxPool2D | No |
+| MaxPool3D | No |
+| Maximum | No |
+| Minimum | No |
+| Multiply | No |
+| PReLU | No |
+| Permute | No |
+| RNN | Not supported for some custom cells |
+| ReLU | No |
+| RepeatVector | No |
+| Reshape | No |
+| SeparableConv1D | No |
+| SeparableConv2D | No |
+| SimpleRNN | No |
+| SimpleRNNCell | No |
+| Softmax | No |
+| SpatialDropout1D | No |
+| SpatialDropout2D | No |
+| SpatialDropout3D | No |
+| StackedRNNCells | No |
+| Subtract | No |
+| ThresholdedReLU | No |
+| TimeDistributed | No |
+| UpSampling1D | No |
+| UpSampling2D | No |
+| UpSampling3D | No |
+| ZeroPadding1D | No |
+| ZeroPadding2D | No |
+| ZeroPadding3D | No |
 
 ## Kaldi\* Supported Layers
 

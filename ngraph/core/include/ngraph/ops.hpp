@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // All op headers
 
@@ -51,6 +39,7 @@
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/op/detection_output.hpp"
+#include "ngraph/op/dft.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/elu.hpp"
 #include "ngraph/op/embedding_segments_sum.hpp"
@@ -82,6 +71,7 @@
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/hswish.hpp"
+#include "ngraph/op/idft.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
@@ -137,6 +127,7 @@
 #include "ngraph/op/rnn_sequence.hpp"
 #include "ngraph/op/roi_align.hpp"
 #include "ngraph/op/roi_pooling.hpp"
+#include "ngraph/op/roll.hpp"
 #include "ngraph/op/round.hpp"
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/op/scatter_nd_update.hpp"

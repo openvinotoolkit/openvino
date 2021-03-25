@@ -19,9 +19,8 @@ from _pyngraph import PartialShape
 
 import ngraph as ng
 import ngraph.opset1 as ng_opset1
+import ngraph.opset5 as ng_opset5
 from ngraph.impl import Type
-
-from tests import skip_segfault
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -36,7 +35,7 @@ integral_np_types = [
 ]
 
 
-@pytest.mark.parametrize("dtype", np_types)
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_binary_convolution(dtype):
     strides = np.array([1, 1])
     pads_begin = np.array([0, 0])
@@ -718,14 +717,89 @@ def test_rnn_sequence():
     assert list(node_param.get_output_shape(1)) == expected_shape_h
 
 
-@skip_segfault
 def test_loop():
-    trip_count = 8
-    condition = True
+    from ngraph.utils.tensor_iterator_types import (
+        GraphBody,
+        TensorIteratorSliceInputDesc,
+        TensorIteratorMergedInputDesc,
+        TensorIteratorInvariantInputDesc,
+        TensorIteratorBodyOutputDesc,
+        TensorIteratorConcatOutputDesc,
+    )
 
-    node_default = ng.loop(trip_count, condition)
+    condition = ng.constant(True, dtype=np.bool)
+    trip_count = ng.constant(16, dtype=np.int32)
+    #  Body parameters
+    body_timestep = ng.parameter([], np.int32, "timestep")
+    body_data_in = ng.parameter([1, 2, 2], np.float32, "body_in")
+    body_prev_cma = ng.parameter([2, 2], np.float32, "body_prev_cma")
+    body_const_one = ng.parameter([], np.int32, "body_const_one")
 
-    assert node_default.get_type_name() == "Loop"
+    # CMA = cumulative moving average
+    prev_cum_sum = ng.multiply(ng.convert(body_timestep, "f32"), body_prev_cma)
+    curr_cum_sum = ng.add(prev_cum_sum, ng.squeeze(body_data_in, [0]))
+    elem_cnt = ng.add(body_const_one, body_timestep)
+    curr_cma = ng.divide(curr_cum_sum, ng.convert(elem_cnt, "f32"))
+    cma_hist = ng.unsqueeze(curr_cma, [0])
+
+    # TI inputs
+    data = ng.parameter([16, 2, 2], np.float32, "data")
+    # Iterations count
+    zero = ng.constant(0, dtype=np.int32)
+    one = ng.constant(1, dtype=np.int32)
+    initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
+    iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
+    ti_inputs = [iter_cnt, data, initial_cma, one]
+    body_const_condition = ng.constant(True, dtype=np.bool)
+
+    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
+                           [curr_cma, cma_hist, body_const_condition])
+    ti_slice_input_desc = [
+        # timestep
+        # input_idx, body_param_idx, start, stride, part_size, end, axis
+        TensorIteratorSliceInputDesc(2, 0, 0, 1, 1, -1, 0),
+        # data
+        TensorIteratorSliceInputDesc(3, 1, 0, 1, 1, -1, 0),
+    ]
+    ti_merged_input_desc = [
+        # body prev/curr_cma
+        TensorIteratorMergedInputDesc(4, 2, 0),
+    ]
+    ti_invariant_input_desc = [
+        # body const one
+        TensorIteratorInvariantInputDesc(5, 3),
+    ]
+
+    # TI outputs
+    ti_body_output_desc = [
+        # final average
+        TensorIteratorBodyOutputDesc(0, 0, -1),
+    ]
+    ti_concat_output_desc = [
+        # history of cma
+        TensorIteratorConcatOutputDesc(1, 1, 0, 1, 1, -1, 0),
+    ]
+
+    node = ng.loop(
+        trip_count,
+        condition,
+        ti_inputs,
+        graph_body,
+        ti_slice_input_desc,
+        ti_merged_input_desc,
+        ti_invariant_input_desc,
+        ti_body_output_desc,
+        ti_concat_output_desc,
+        2,
+        -1,
+    )
+
+    assert node.get_type_name() == "Loop"
+    assert node.get_output_size() == 2
+    # final average
+    assert list(node.get_output_shape(0)) == [2, 2]
+    # cma history
+    assert list(node.get_output_shape(1)) == [16, 2, 2]
 
 
 def test_roi_pooling():
@@ -1094,6 +1168,28 @@ def test_tensor_iterator():
     assert list(node.get_output_shape(0)) == [2, 2]
     # cma history
     assert list(node.get_output_shape(1)) == [16, 2, 2]
+
+
+def test_read_value_opset5():
+    init_value = ng_opset5.parameter([2, 2], name="init_value", dtype=np.int32)
+
+    node = ng_opset5.read_value(init_value, "var_id_667")
+
+    assert node.get_type_name() == "ReadValue"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [2, 2]
+    assert node.get_output_element_type(0) == Type.i32
+
+
+def test_assign_opset5():
+    input_data = ng_opset5.parameter([5, 7], name="input_data", dtype=np.int32)
+    rv = ng_opset5.read_value(input_data, "var_id_667")
+    node = ng_opset5.assign(rv, "var_id_667")
+
+    assert node.get_type_name() == "Assign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [5, 7]
+    assert node.get_output_element_type(0) == Type.i32
 
 
 def test_read_value():

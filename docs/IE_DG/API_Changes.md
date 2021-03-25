@@ -2,6 +2,28 @@
 
 The sections below contain detailed list of changes made to the Inference Engine API in recent releases.
 
+## 2021.4
+
+### Deprecated API
+
+ * InferenceEngine::Parameter(const std::shared_ptr<ngraph::Variant>&)
+ * InferenceEngine::Parameter(std::shared_ptr<ngraph::Variant>& var)
+ * std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const
+ * InferenceEngine::Parameter::operator std::shared_ptr<ngraph::Variant>() const
+
+## 2021.3
+
+### New API
+
+ * InferenceEngine::InferRequest::Cancel to cancel inference request execution
+ * InferenceEngine::Layout::HWC to support HWC layout for input or output blobs
+ * InferenceEngine::Precision::F64 data precision for f64 data type
+ * InferenceEngine::CNNNetwork::getOVNameForTensor to map frameworks tensor names to OpenVINO internal tensor names
+
+### Deprecated API
+
+ * InferenceEngine::IVariableState interface is deprecated, use InferenceEngine::VariableState wrapper
+
 ## 2021.2
 
 ### New API

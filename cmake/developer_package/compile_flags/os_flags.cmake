@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -183,7 +183,6 @@ endfunction()
 #
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)

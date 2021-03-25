@@ -102,10 +102,9 @@ function(build_ngraph)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
-    ie_cpack_add_component(ngraph)
+    ie_cpack_add_component(ngraph REQUIRED)
 
     set(SDL_cmake_included ON)
-    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
     set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
@@ -197,7 +196,7 @@ endif()
 
 # install files for demo
 
-ie_cpack_add_component(demo_scripts REQUIRED DEPENDS core)
+ie_cpack_add_component(demo_scripts DEPENDS core)
 
 if(UNIX)
     install(DIRECTORY scripts/demo/

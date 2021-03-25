@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,10 @@ public:
         try {
             logPrefix = "NMS layer with name '" + layer->name + "' ";
             if (layer->insData.size() < 2 || layer->insData.size() > 6)
-                THROW_IE_EXCEPTION << logPrefix << "has incorrect number of input edges: " << layer->insData.size();
+                IE_THROW() << logPrefix << "has incorrect number of input edges: " << layer->insData.size();
 
             if (layer->outData.size() < 1 || layer->outData.size() > 3)
-                THROW_IE_EXCEPTION << logPrefix << "has incorrect number of output edges: " << layer->outData.size();
+                IE_THROW() << logPrefix << "has incorrect number of output edges: " << layer->outData.size();
 
             // TODO: remove legacy attribute presentation after migration on opset1
             if (layer->CheckParamPresence("center_point_box")) {
@@ -39,7 +39,7 @@ public:
                 } else if (boxEncAttr == "center") {
                     boxEncodingType = boxEncoding::CENTER;
                 } else {
-                    THROW_IE_EXCEPTION << logPrefix << "has unsupported 'box_encoding' attribute: " << boxEncAttr;
+                    IE_THROW() << logPrefix << "has unsupported 'box_encoding' attribute: " << boxEncAttr;
                 }
             }
 
@@ -50,32 +50,32 @@ public:
 
             auto boxesDataPtr = layer->insData[NMS_BOXES].lock();
             if (boxesDataPtr == nullptr) {
-                THROW_IE_EXCEPTION << logPrefix << "has nullable 'boxes' input";
+                IE_THROW() << logPrefix << "has nullable 'boxes' input";
             }
             checkPrecision(boxesDataPtr, supportedFloatPrecision, "boxes", inType);
             const SizeVector &boxes_dims = boxesDataPtr->getTensorDesc().getDims();
             num_batches = boxes_dims[0];
             num_boxes = boxes_dims[1];
             if (boxes_dims.size() != 3)
-                THROW_IE_EXCEPTION << logPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
+                IE_THROW() << logPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
             if (boxes_dims[2] != 4)
-                THROW_IE_EXCEPTION << logPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+                IE_THROW() << logPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
 
 
             auto scoresDataPtr = layer->insData[NMS_SCORES].lock();
             if (scoresDataPtr == nullptr) {
-                THROW_IE_EXCEPTION << logPrefix << "has nullable 'scores' input";
+                IE_THROW() << logPrefix << "has nullable 'scores' input";
             }
             checkPrecision(scoresDataPtr, supportedFloatPrecision, "scores", inType);
             const SizeVector &scores_dims = scoresDataPtr->getTensorDesc().getDims();
             num_classes = scores_dims[1];
             if (scores_dims.size() != 3)
-                THROW_IE_EXCEPTION << logPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+                IE_THROW() << logPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 
             if (num_batches != scores_dims[0])
-                THROW_IE_EXCEPTION << logPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
+                IE_THROW() << logPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
             if (num_boxes != scores_dims[2])
-                THROW_IE_EXCEPTION << logPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
+                IE_THROW() << logPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
 
             numFiltBox.resize(num_batches);
             for (size_t i = 0; i < numFiltBox.size(); i++)
@@ -109,9 +109,9 @@ public:
                 checkPrecision(layer->outData[NMS_VALIDOUTPUTS], supportedIntOutputPrecision, "valid_outputs", outType);
                 const SizeVector &valid_outputs_dims = layer->outData[NMS_VALIDOUTPUTS]->getTensorDesc().getDims();
                 if (valid_outputs_dims.size() != 1)
-                    THROW_IE_EXCEPTION << logPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
+                    IE_THROW() << logPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
                 if (valid_outputs_dims[0] != 1)
-                    THROW_IE_EXCEPTION << logPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_dims[1];
+                    IE_THROW() << logPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_dims[1];
             }
 
             LayerConfig config;
@@ -121,7 +121,7 @@ public:
                 Precision inPrecision = i == NMS_MAXOUTPUTBOXESPERCLASS ? Precision::I32 : Precision::FP32;
                 auto validDataPtr = layer->insData[i].lock();
                 if (validDataPtr == nullptr) {
-                    THROW_IE_EXCEPTION << logPrefix << "has nullable " << i << "th input";
+                    IE_THROW() << logPrefix << "has nullable " << i << "th input";
                 }
                 const SizeVector& inDims = validDataPtr->getTensorDesc().getDims();
                 inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
@@ -138,7 +138,7 @@ public:
 
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -446,23 +446,23 @@ private:
     void checkPrecision(const DataPtr &dataPtr, const std::vector<Precision> precList, const std::string name, const std::string type) {
         const TensorDesc &tensorDesc = dataPtr->getTensorDesc();
         if (std::find(precList.begin(), precList.end(), tensorDesc.getPrecision()) == precList.end())
-            THROW_IE_EXCEPTION << logPrefix << " has unsupported '" << name << "' " << type << " precision: " << tensorDesc.getPrecision();
+            IE_THROW() << logPrefix << " has unsupported '" << name << "' " << type << " precision: " << tensorDesc.getPrecision();
     }
 
     void check1DInput(const DataWeakPtr &dataPtr, const std::vector<Precision> precList, const std::string name) {
         auto lockDataPtr = dataPtr.lock();
         if (lockDataPtr == nullptr) {
-            THROW_IE_EXCEPTION << logPrefix << "has nullable '" << name << "' input";
+            IE_THROW() << logPrefix << "has nullable '" << name << "' input";
         }
 
         checkPrecision(lockDataPtr, precList, name, inType);
 
         const SizeVector &dims = lockDataPtr->getTensorDesc().getDims();
         if (dims.size() != 0 && dims.size() != 1)
-            THROW_IE_EXCEPTION << logPrefix << "has unsupported '" << name << "' input rank: " << dims.size();
+            IE_THROW() << logPrefix << "has unsupported '" << name << "' input rank: " << dims.size();
         if (dims.size() == 1)
             if (dims[0] != 1)
-                THROW_IE_EXCEPTION << logPrefix << "has unsupported '" << name << "' input 1st dimension size: " << dims[0];
+                IE_THROW() << logPrefix << "has unsupported '" << name << "' input 1st dimension size: " << dims[0];
     }
 
     void checkOutput(const DataPtr &dataPtr, const std::vector<Precision> precList, const std::string name) {
@@ -470,9 +470,9 @@ private:
 
         const SizeVector &dims = dataPtr->getTensorDesc().getDims();
         if (dims.size() != 2)
-            THROW_IE_EXCEPTION << logPrefix << "has unsupported '" << name << "' output rank: " << dims.size();
+            IE_THROW() << logPrefix << "has unsupported '" << name << "' output rank: " << dims.size();
         if (dims[1] != 3)
-            THROW_IE_EXCEPTION << logPrefix << "has unsupported '" << name << "' output 2nd dimension size: " << dims[1];
+            IE_THROW() << logPrefix << "has unsupported '" << name << "' output 2nd dimension size: " << dims[1];
     }
 };
 

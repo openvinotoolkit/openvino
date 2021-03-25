@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,6 @@
 #include "ie_locked_memory.hpp"
 #include "ie_precision.hpp"
 #include "details/ie_blob_iterator.hpp"
-#include "details/ie_exception.hpp"
 #include "details/ie_pre_allocator.hpp"
 
 namespace InferenceEngine {
@@ -525,7 +524,7 @@ public:
         }
 
         if (data_size != 0 && ptr == nullptr) {
-            THROW_IE_EXCEPTION << "Using Blob on external nullptr memory";
+            IE_THROW() << "Using Blob on external nullptr memory";
         }
 
         _allocator = details::make_pre_allocator(ptr, data_size);
@@ -542,7 +541,7 @@ public:
      */
     TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc)
         : MemoryBlob(tensorDesc), _allocator(alloc) {
-        if (_allocator == nullptr) THROW_IE_EXCEPTION << "TBlob allocator was not initialized.";
+        if (_allocator == nullptr) IE_THROW() << "TBlob allocator was not initialized.";
     }
 
     /**
@@ -577,14 +576,7 @@ public:
     /**
      *@brief Virtual destructor.
      */
-
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
     virtual ~TBlob();
-#else
-    virtual ~TBlob() {
-        free();
-    }
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
 
     /**
      * @brief Gets the size of the given type.
@@ -807,7 +799,6 @@ protected:
     }
 };
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
@@ -820,7 +811,8 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
 
 /**
  * @brief Creates a blob with the given tensor descriptor.
@@ -832,7 +824,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned
 template <typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
-        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+        IE_THROW() << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc);
 }
@@ -850,7 +842,7 @@ template <typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc, Type* ptr,
                                                                    size_t size = 0) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
-        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+        IE_THROW() << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, ptr, size);
 }
@@ -867,7 +859,7 @@ template <typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
     const TensorDesc& tensorDesc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
-        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+        IE_THROW() << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, alloc);
 }

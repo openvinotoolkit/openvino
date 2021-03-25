@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,12 +41,12 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         if (!fq)
             return false;
 
-        auto new_fq = std::make_shared<ngraph::opset5::FakeQuantize>(data,
-                                                                     fq->input_value(1),
-                                                                     fq->input_value(2),
-                                                                     fq->input_value(3),
-                                                                     fq->input_value(4),
-                                                                     fq->get_levels());
+        auto new_fq = register_new_node<ngraph::opset5::FakeQuantize>(data,
+                                                                      fq->input_value(1),
+                                                                      fq->input_value(2),
+                                                                      fq->input_value(3),
+                                                                      fq->input_value(4),
+                                                                      fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
 
         copy_runtime_info({relu.get_node_shared_ptr(), fq}, new_fq);

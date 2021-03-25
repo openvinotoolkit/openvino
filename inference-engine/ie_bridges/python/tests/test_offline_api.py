@@ -15,7 +15,7 @@
 """
 
 from openvino.inference_engine import IECore, IENetwork
-from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation
+from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, ApplyPruningTransformation
 
 import ngraph as ng
 from ngraph.impl.op import Parameter
@@ -50,6 +50,15 @@ def test_moc_transformations():
 def test_low_latency_transformations():
     net = get_test_cnnnetwork()
     ApplyLowLatencyTransformation(net)
+
+    f = ng.function_from_cnn(net)
+    assert f != None
+    assert len(f.get_ops()) == 3
+
+
+def test_pruning_transformations():
+    net = get_test_cnnnetwork()
+    ApplyPruningTransformation(net)
 
     f = ng.function_from_cnn(net)
     assert f != None

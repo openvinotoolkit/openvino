@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -109,7 +98,7 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
     }
 }
 
@@ -192,7 +181,9 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
     // /
     // block_size])
     case SpaceToDepthMode::BLOCKS_FIRST:
-    default: { axes_order.insert(axes_order.begin() + spatial_dims + 1, 1);
+    default:
+    {
+        axes_order.insert(axes_order.begin() + spatial_dims + 1, 1);
     }
     }
     std::vector<char> transposed_data(shape_size(data_shape) * elem_size);

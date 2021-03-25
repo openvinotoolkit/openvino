@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1309,7 +1309,7 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
 : jit_emitter(host, host_isa, node, exec_prc) {
     auto *powerLayer = dynamic_cast<InferenceEngine::PowerLayer *>(node->getCnnLayer().get());
     if (powerLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert power layer.";
+        IE_THROW() << "Cannot convert power layer.";
 
     power = powerLayer->power;
     scale = powerLayer->scale;

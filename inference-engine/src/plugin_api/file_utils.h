@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,31 @@ template<> struct FileTraits<wchar_t> {
     static std::wstring PluginLibraryExt() { return { L"so" }; }
 };
 #endif
+
+/**
+ * @brief Interface function to get absolute path of file
+ * @ingroup ie_dev_api_file_utils
+ * @param filePath - path to file, can be relative to current working directory
+ * @return Absolute path of file
+ * @throw InferenceEngine::Exception if any error occurred
+ */
+INFERENCE_ENGINE_API_CPP(std::string) absoluteFilePath(const std::string& filePath);
+
+/**
+ * @brief Interface function to create directorty recursively by given path
+ * @ingroup ie_dev_api_file_utils
+ * @param dirPath - path to file, can be relative to current working directory
+ * @throw InferenceEngine::Exception if any error occurred
+ */
+INFERENCE_ENGINE_API_CPP(void) createDirectoryRecursive(const std::string& dirPath);
+
+/**
+ * @brief Interface function to check if directory exists for given path
+ * @ingroup ie_dev_api_file_utils
+ * @param path - path to directory
+ * @return true if directory exists, false otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) directoryExists(const std::string& path);
 
 /**
  * @brief Interface function to get the size of a file. The function supports UNICODE path

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <ostream>
 #include <ie_common.h>
-#include <details/ie_exception.hpp>
 
 // #define GNA_DEBUG
 #ifdef  GNA_DEBUG
@@ -71,7 +70,7 @@ inline GnaLog & gnawarn() {
 if (!(expr)) { \
     THROW_GNA_LAYER_EXCEPTION(layer) << ": " << #expr; \
 }
-#define THROW_GNA_EXCEPTION THROW_IE_EXCEPTION << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+#define THROW_GNA_EXCEPTION IE_THROW() << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
 #define THROW_GNA_LAYER_EXCEPTION(layer) THROW_GNA_EXCEPTION << LAYER_NAME(layer)
 #define LAYER_NAME(layer) (layer)->type << " layer : \"" << (layer)->name << "\" "
 

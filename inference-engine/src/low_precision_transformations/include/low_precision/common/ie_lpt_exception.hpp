@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +19,12 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API InferenceEngineException : std::exception {
+class TRANSFORMATIONS_API Exception : std::exception {
     std::shared_ptr<std::ostringstream> buffer;
     mutable std::string buffer_str;
 public:
     template <typename T>
-    InferenceEngineException& operator<< (const T& x) {
+    Exception& operator<< (const T& x) {
         *buffer << x;
         return *this;
     }
@@ -35,10 +35,10 @@ public:
     }
 };
 
-#define THROW_TRANSFORMATION_EXCEPTION throw ::ngraph::pass::low_precision::InferenceEngineException() << __FILE__ << ":" << __LINE__ << " "
+#define THROW_TRANSFORMATION_EXCEPTION throw ::ngraph::pass::low_precision::Exception() << __FILE__ << ":" << __LINE__ << " "
 
 
-class TRANSFORMATIONS_API InferenceEngineLptException : public InferenceEngineException {
+class TRANSFORMATIONS_API InferenceEngineLptException : public Exception {
 public:
     InferenceEngineLptException(const std::string& filename, const size_t line, const Node& node) {
         *this

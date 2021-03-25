@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadca
     if (op->get_broadcast_spec().m_type == ngraph::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (!axis_mapping_node)
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         auto axis_mapping = axis_mapping_node->get_axis_set_val();
         CreateCommonBroadcastOp(p, op, axis_mapping);
@@ -102,7 +102,7 @@ void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadca
     if (op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (!axis_mapping_node)
-            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         axis_mapping = axis_mapping_node->get_axis_set_val();
     }

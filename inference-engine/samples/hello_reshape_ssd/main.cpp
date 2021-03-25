@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
             throw std::logic_error("Incorrect output dimensions for SSD model");
         }
         if (output_info == nullptr) {
-            THROW_IE_EXCEPTION << "[SAMPLES] internal error - output information is empty";
+            IE_THROW() << "[SAMPLES] internal error - output information is empty";
         }
 
         output_info->setPrecision(Precision::FP32);

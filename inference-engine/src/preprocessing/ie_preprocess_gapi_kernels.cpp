@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1104,6 +1104,23 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         }
     }
     #endif  // HAVE_SSE
+
+#ifdef HAVE_NEON
+    if (std::is_same<T, uint8_t>::value) {
+        if (inSz.width >= 16 && outSz.width >= 8) {
+            neon::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                     reinterpret_cast<const uint8_t**>(src0),
+                                     reinterpret_cast<const uint8_t**>(src1),
+                                     reinterpret_cast<const short*>(alpha),
+                                     reinterpret_cast<const short*>(clone),
+                                     reinterpret_cast<const short*>(mapsx),
+                                     reinterpret_cast<const short*>(beta),
+                                     reinterpret_cast<uint8_t*>(tmp),
+                                     inSz, outSz, lpi);
+            return;
+        }
+    }
+#endif
 
     for (int l = 0; l < lpi; l++) {
         constexpr static const auto unity = Mapper::unity;

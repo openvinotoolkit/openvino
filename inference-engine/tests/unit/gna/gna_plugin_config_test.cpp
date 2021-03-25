@@ -1,5 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
@@ -35,7 +36,7 @@ protected:
     }
     void ExpectThrow(const std::string& key, const std::string& val) {
         EXPECT_THROW(config.UpdateFromMap({{key, val}}),
-                     details::InferenceEngineException);
+                     Exception);
     }
     void SetAndCheckFlag(const std::string& key, bool& val, bool reverse = false) {
         const bool yes = reverse ? false : true;

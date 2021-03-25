@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -275,7 +275,7 @@ protected:
             graph.Infer(srcs, outputBlobs);
             float threshold = p.math_function == "Erf" ? 0.0001f : 0.00001f;
             compare(*output, dst_ref, threshold);
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

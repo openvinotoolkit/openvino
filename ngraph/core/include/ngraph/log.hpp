@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -50,6 +38,7 @@ namespace ngraph
         }
         constexpr const char* get_ptr(size_t offset) const { return &m_string[offset]; }
         constexpr size_t size() const { return m_size; }
+
     private:
         const char* m_string;
         size_t m_size;
@@ -57,8 +46,9 @@ namespace ngraph
 
     constexpr const char* find_last(ConstString s, size_t offset, char ch)
     {
-        return offset == 0 ? s.get_ptr(0) : (s[offset] == ch ? s.get_ptr(offset + 1)
-                                                             : find_last(s, offset - 1, ch));
+        return offset == 0
+                   ? s.get_ptr(0)
+                   : (s[offset] == ch ? s.get_ptr(offset + 1) : find_last(s, offset - 1, ch));
     }
 
     constexpr const char* find_last(ConstString s, char ch)
@@ -89,6 +79,7 @@ namespace ngraph
         ~LogHelper();
 
         std::ostream& stream() { return m_stream; }
+
     private:
         std::function<void(const std::string&)> m_handler_func;
         std::stringstream m_stream;
@@ -113,6 +104,10 @@ namespace ngraph
 
     NGRAPH_API
     void default_logger_handler_func(const std::string& s);
+
+#ifndef PROJECT_ROOT_DIR
+#define PROJECT_ROOT_DIR ""
+#endif
 
 #define NGRAPH_ERR                                                                                 \
     ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                                           \

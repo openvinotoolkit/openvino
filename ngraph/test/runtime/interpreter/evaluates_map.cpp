@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "evaluates_map.hpp"
 
@@ -22,6 +10,7 @@
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
+#include <ngraph/runtime/reference/binary_convolution.hpp>
 #include <ngraph/runtime/reference/bucketize.hpp>
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
@@ -54,7 +43,6 @@
 #include <ngraph/runtime/reference/mvn.hpp>
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
 #include <ngraph/runtime/reference/normalize_l2.hpp>
-#include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
@@ -211,6 +199,55 @@ namespace
             op->get_dilations(),
             op->get_pads_begin(),
             op->get_pads_end());
+        return true;
+    }
+
+    namespace bin_conv_v1
+    {
+        template <element::Type_t t_in, element::Type_t t_f>
+        inline void evaluate(const shared_ptr<op::v1::BinaryConvolution>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
+        {
+            using T_IN = typename element_type_traits<t_in>::value_type;
+            using T_F = typename element_type_traits<t_f>::value_type;
+
+            const auto in_data_ptr = inputs[0]->get_data_ptr<T_IN>();
+            const auto filter_data_ptr = inputs[1]->get_data_ptr<T_F>();
+            auto out_data_ptr = outputs[0]->get_data_ptr<T_IN>();
+            const auto in_shape = inputs[0]->get_shape();
+            const auto filter_shape = inputs[1]->get_shape();
+            const auto out_shape = outputs[0]->get_shape();
+
+            runtime::reference::binary_convolution<T_IN, T_F>(in_data_ptr,
+                                                              filter_data_ptr,
+                                                              out_data_ptr,
+                                                              in_shape,
+                                                              filter_shape,
+                                                              out_shape,
+                                                              op->get_strides(),
+                                                              op->get_dilations(),
+                                                              op->get_pads_begin(),
+                                                              op->get_pads_end(),
+                                                              op->get_pad_value());
+        }
+    } // bin_conv_v1
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::BinaryConvolution>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        switch (inputs[1]->get_element_type())
+        {
+        case element::Type_t::u1:
+            bin_conv_v1::evaluate<ET, element::Type_t::u8>(op, outputs, inputs);
+            break;
+        default:
+            throw std::runtime_error(
+                "BinaryConvolution supports only u1 element type for filters input");
+            break;
+        }
         return true;
     }
 
@@ -1108,6 +1145,20 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
+                                    op::GeluApproximationMode::ERF,
+                                    shape_size(inputs[0]->get_shape()));
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::Gelu>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
+                                    outputs[0]->get_data_ptr<T>(),
+                                    op->get_approximation_mode(),
                                     shape_size(inputs[0]->get_shape()));
         return true;
     }
@@ -1429,46 +1480,6 @@ namespace
         }
         return true;
     }
-
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::OneHot>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        switch (inputs[0]->get_element_type())
-        {
-        case element::Type_t::i32:
-            runtime::reference::
-                one_hot<typename element_type_traits<element::Type_t::i32>::value_type, T>(
-                    inputs[0]->get_data_ptr<element::Type_t::i32>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    inputs[0]->get_shape(),
-                    outputs[0]->get_shape(),
-                    op->get_axis(),
-                    inputs[2]->get_data_ptr<T>()[0],
-                    inputs[3]->get_data_ptr<T>()[0]);
-            break;
-        case element::Type_t::i64:
-            runtime::reference::
-                one_hot<typename element_type_traits<element::Type_t::i64>::value_type, T>(
-                    inputs[0]->get_data_ptr<element::Type_t::i64>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    inputs[0]->get_shape(),
-                    outputs[0]->get_shape(),
-                    op->get_axis(),
-                    inputs[2]->get_data_ptr<T>()[0],
-                    inputs[3]->get_data_ptr<T>()[0]);
-            break;
-        default:
-            std::stringstream ss;
-            ss << "Unhandled input precision " << inputs[0]->get_element_type().get_type_name()
-               << " in v1::OneHot evaluate call";
-            throw ngraph_error(ss.str());
-        }
-        return true;
-    }
-
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::RNNCell>& op,
                   const HostTensorVector& outputs,

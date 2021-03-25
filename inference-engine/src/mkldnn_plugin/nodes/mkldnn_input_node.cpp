@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, cons
     if (layer && CaselessEq<std::string>()(layer->type, "const")) {
         constant = ConstantType::Const;
         if (layer->blobs.size() != 1 || getType() != Input || !layer->blobs.begin()->second)
-            THROW_IE_EXCEPTION << "Incorrect const input " << getName();
+            IE_THROW() << "Incorrect const input " << getName();
         constBlob = layer->blobs.begin()->second;
     } else {
         constBlob = nullptr;
@@ -31,14 +31,14 @@ MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, cons
 void MKLDNNInputNode::getSupportedDescriptors() {
     if (getType() == Input) {
         if (!getParentEdges().empty())
-            THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+            IE_THROW() << "Incorrect number of input edges for layer " << getName();
         if (getChildEdges().empty())
-            THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+            IE_THROW() << "Incorrect number of output edges for layer " << getName();
     } else if (getType() == Output) {
         if (getParentEdges().size() != 1)
-            THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+            IE_THROW() << "Incorrect number of input edges for layer " << getName();
         if (!getChildEdges().empty())
-            THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+            IE_THROW() << "Incorrect number of output edges for layer " << getName();
     }
 }
 
@@ -78,19 +78,19 @@ void MKLDNNInputNode::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-            THROW_IE_EXCEPTION << "Destination memory didn't allocate for node " << getName()
+            IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-            THROW_IE_EXCEPTION << "Destination memory didn't allocate for node " << getName()
+            IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
     }
 
     const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set for node " << getName() << ".";
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 }
 
 bool MKLDNNInputNode::created() const {
@@ -154,7 +154,7 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
                dstBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN) {
         size_t dstSize = dstBlob->size() / 8;
         if (constBlob->size() != dstSize) {
-            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+            IE_THROW() << "Incorrect blob sizes for node " << getName();
         }
 
         const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
@@ -166,7 +166,7 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
         cpu_convert(constBlob->cbuffer().as<const void *>(), dstBlob->buffer().as<void *>(),
                     constBlob->getTensorDesc().getPrecision(), dstBlob->getTensorDesc().getPrecision(), dstBlob->size());
     } else {
-        THROW_IE_EXCEPTION << "Input node with name: '" << getName() << "' has incompatible tensors";
+        IE_THROW() << "Input node with name: '" << getName() << "' has incompatible tensors";
     }
 }
 

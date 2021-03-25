@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
@@ -21,7 +9,6 @@ add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
-    add_subdirectory(util)
     return()
 endif()
 
@@ -64,6 +51,7 @@ set(SRC
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
+    int4.cpp
     intervals.cpp
     main.cpp
     matcher_pass.cpp
@@ -71,8 +59,10 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/floor_mod.cpp
+    op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
@@ -122,6 +112,7 @@ set(SRC
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
+    type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -147,6 +138,7 @@ set(SRC
     type_prop/hard_sigmoid.cpp
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
+    type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
@@ -154,6 +146,7 @@ set(SRC
     type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
+    type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
@@ -162,6 +155,7 @@ set(SRC
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
+    type_prop/power.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
@@ -175,6 +169,7 @@ set(SRC
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
     type_prop/roi_pooling.cpp
+    type_prop/roll.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
@@ -205,6 +200,7 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    uint4.cpp
     util.cpp
 )
 
@@ -267,6 +263,7 @@ set(MULTI_TEST_SRC
     backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution.in.cpp
+    backend/binary_convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -373,6 +370,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
@@ -405,12 +404,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation
-                                        openvino::itt
-                                        ngraph
                                         ngraph::builder
-                                        ngraph_backend
-                                        libgtest)
+                                        openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -445,11 +440,10 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_importer)
+    target_link_libraries(unit-test PRIVATE onnx_importer onnx_editor)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)

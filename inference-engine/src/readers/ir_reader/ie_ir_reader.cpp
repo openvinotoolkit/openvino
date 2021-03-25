@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load(model);
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION << res.description() << "at offset " << res.offset;
+        IE_THROW() << res.description() << "at offset " << res.offset;
     }
     pugi::xml_node root = xmlDoc.document_element();
 

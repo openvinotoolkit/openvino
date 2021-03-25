@@ -111,6 +111,7 @@ IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 onnx_dyn_shapes_ab_plus_c_inference
 onnx_dyn_shapes_dynamic_rank_input_inference
 onnx_dyn_shapes_model_conv_with_dynamic_batch
+onnx_dyn_shapes_model_conv_with_dynamic_bias
 onnx_dyn_shapes_expand_1_dyn_shape
 onnx_dyn_shapes_expand_2_dyn_shape
 onnx_dyn_shapes_expand_3_dyn_shape
@@ -202,6 +203,8 @@ onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 onnx_model_max_pool_dyn_rank_without_default_attrs
+onnx_model_lp_norm_default_dynamic
+onnx_instance_normalization_dynamic
 
 # (Constant W, R inputs are required) Ticket: 49207
 # Function references undeclared parameters
@@ -241,6 +244,9 @@ IE_CPU.nothing_to_reverse
 onnx_size_dyn_op
 onnx_model_gru_defaults_fwd_const_dynamic
 onnx_model_rnn_defaults_fwd_const_dynamic
+onnx_model_depth_to_space_dynamic_input
+onnx_model_space_to_depth_dynamic_input
+
 
 # Constant network
 # MKLDNNGraph::CreateGraph: No inputs for the topology
@@ -451,9 +457,6 @@ dynamic_reverse_shape
 # Error of validate layer: Tile_1082 with type: Tile. Layer is not instance of TileLayer class
 tile_3d_small_data_rank
 tile_3d_few_repeats
-
-# Error of validate layer: MatMul_683292 with type: Gemm. Gemm input shapes must have at least 2 dimensions
-matmul_2_2
 
 # Result mismatch
 sum_large_1d_to_scalar
@@ -768,6 +771,9 @@ pad_exterior_4d_1x2x2x2
 pad_negative_exterior_4d
 pad_2channel_2image_asym
 pad_symmetric
+
+
+IE_CPU/PadBackendTest.PadBackendTestForSpec
 
 # LRN operation should be converted to LRN_IE
 lrn_across_h
@@ -1571,11 +1577,8 @@ IE_GPU.onnx_model_gather_elements_int32_axis_0
 IE_GPU.onnx_model_gather_elements_int8_axis_1
 IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_f16
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_merge
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
-IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
+# not supported fp16 blob input
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 
 # incorrect result for Minimum if u16 type is used
 minimum_u16
@@ -1589,5 +1592,16 @@ evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
 
-# The test randomly fails in CI (MSVC2019 Debug)
-onnx_model_experimental_detectron_generate_proposals_single_image
+# Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
+bin_convolution_2D_1batch_1channel
+bin_convolution_2D_1batch_1channel_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_padding_pad_val_1
+bin_convolution_2D_1batch_1channel_stride
+bin_convolution_2D_1batch_1channel_dilation
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_1
+bin_convolution_2D_1batch_2channel
+bin_convolution_2D_2batch_1channel
+
+# RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
+onnx_upsample6_dynamic

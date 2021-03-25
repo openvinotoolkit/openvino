@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -277,6 +277,9 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
     ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
+
+    // [C, 1, 1] -> [1, C, 1, 1]
+    NetworkHelper::normalizeDequantizationShape(finalDequantization);
 
     auto onWeights = convolution->get_input_node_shared_ptr(1);
     if (is_type<opset1::Reshape>(onWeights)) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     auto supported_keys = _metrics->SupportedConfigKeys();
     if (std::find(supported_keys.begin(),
         supported_keys.end(), name) == supported_keys.end()) {
-        THROW_IE_EXCEPTION << "Unsupported config key : " << name;
+        IE_THROW() << "Unsupported config key : " << name;
     }
 
     Parameter result;
@@ -159,7 +159,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     std::ifstream blobFile(modelFileName, std::ios::binary);
 
     if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << ie::details::as_status << NETWORK_NOT_READ;
+        IE_THROW(NetworkNotRead);
     }
 
     return ImportNetwork(blobFile, config);
@@ -207,6 +207,10 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{optimizationCapabilities.cbegin(), optimizationCapabilities.cend()});
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->RangeForAsyncInferRequests(_config));
+    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->DeviceArchitecture(options));
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         const auto& device = getDeviceByName(getSpecifiedDeviceName());
         if (device != nullptr) {
@@ -215,5 +219,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    IE_THROW(NotImplemented);
 }

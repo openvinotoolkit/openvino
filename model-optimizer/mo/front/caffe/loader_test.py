@@ -158,5 +158,5 @@ class TestLoader(unittest.TestCase):
         text_format.Merge(proto_str_multi_input + proto_same_name_layers, proto)
         graph = Graph()
         caffe_pb_to_nx(graph, proto, None)
-        # 6 nodes because: 2 inputs + 2 convolutions
-        np.testing.assert_equal(len(graph.nodes()), 4)
+        # 6 nodes because: 2 inputs + 2 convolutions + 2 identity nodes used as fake outputs
+        np.testing.assert_equal(len(graph.nodes()), 6)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -276,12 +276,12 @@ protected:
     INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
         try {                                                                                                       \
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {                                     \
+        } catch (const InferenceEngine::Exception&) {                                                               \
             throw;                                                                                                  \
         } catch (const std::exception& ex) {                                                                        \
-            THROW_IE_EXCEPTION << ex.what();                                                                        \
+            IE_THROW() << ex.what();                                                                        \
         } catch (...) {                                                                                             \
-            THROW_IE_EXCEPTION_WITH_STATUS(UNEXPECTED);                                                             \
+            IE_THROW(Unexpected);                                                             \
         }                                                                                                           \
         plugin->SetVersion(version);                                                                                \
     }

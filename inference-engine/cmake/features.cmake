@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -124,10 +124,6 @@ if (ENABLE_GNA)
         message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
         set(GNA_LIBRARY_VERSION GNA1)
     endif()
-endif()
-
-if (ENABLE_SPEECH_DEMO)
-    add_definitions(-DENABLE_SPEECH_DEMO)
 endif()
 
 print_enabled_features()

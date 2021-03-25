@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ static inline std::string PadToString(ngraph::op::PadType pad) {
         case ngraph::op::PadType::SAME_UPPER: return "same_upper";
         case ngraph::op::PadType::SAME_LOWER: return "same_lower";
         case ngraph::op::PadType::VALID: return "valid";
-        default: THROW_IE_EXCEPTION << "Unsupported pad type in ExtractImagePatches primitive " << pad;
+        default: IE_THROW() << "Unsupported pad type in ExtractImagePatches primitive " << pad;
     }
 
     return "";

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,7 @@ namespace LayerTestsDefinitions {
     }
 
     void GRUSequenceTest::SetUp() {
+        using namespace ngraph::helpers;
         size_t seq_lenghts;
         size_t batch;
         size_t hidden_size;
@@ -66,8 +67,9 @@ namespace LayerTestsDefinitions {
         m_max_seq_len = seq_lenghts;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
-        if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
-            m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+        if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
+            m_mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM ||
+            m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) {
             auto seq_lengths = ngraph::builder::makeParams(ngraph::element::i64, {inputShapes[2]}).at(0);
             seq_lengths->set_friendly_name("seq_lengths");
             params.push_back(seq_lengths);
@@ -79,16 +81,19 @@ namespace LayerTestsDefinitions {
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_sequence->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(gru_sequence->output(1))};
         function = std::make_shared<ngraph::Function>(results, params, "gru_sequence");
-        if (m_mode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
+        bool is_pure_sequence = (m_mode == SequenceTestsMode::PURE_SEQ ||
+                                 m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
+                                 m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
+        if (!is_pure_sequence) {
             ngraph::pass::Manager manager;
             if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
             manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
             manager.run_passes(function);
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }

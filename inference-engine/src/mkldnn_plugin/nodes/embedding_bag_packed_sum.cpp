@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@ public:
             MKLDNNEmbeddingBagSum(layer, 2lu, 1lu, 2lu, 3lu) {
         auto indicesData = layer->insData[INDICES_IDX].lock();
         if (indicesData == nullptr)
-            THROW_IE_EXCEPTION << "'" << layer->name << "' layer has nullable indices data.";
+            IE_THROW() << "'" << layer->name << "' layer has nullable indices data.";
         if (indicesData->getTensorDesc().getDims().size() != 2)
-            THROW_IE_EXCEPTION << "'" << layer->name << "' layer has indices data with invalid shape.";
+            IE_THROW() << "'" << layer->name << "' layer has indices data with invalid shape.";
 
         _indices = std::vector<std::vector<size_t>>(
             indicesData->getTensorDesc().getDims()[0],
@@ -46,7 +46,7 @@ public:
 
     void getIndices(size_t embIndex, const size_t*& indices, size_t& size, size_t& weightsIdx, bool& withWeights) override {
         if (embIndex >= _indices.size())
-            THROW_IE_EXCEPTION << "Invalid embedding bag index.";
+            IE_THROW() << "Invalid embedding bag index.";
 
         withWeights = true;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
-#include "transformations/common_optimizations/mish_fusion.hpp"
 #include "transformations/common_optimizations/softplus_fusion.hpp"
 #include "transformations/common_optimizations/softplus_to_mish_fusion.hpp"
 #include "transformations/common_optimizations/swish_fusion.hpp"
@@ -27,9 +26,18 @@
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
+#include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/binarize_weights.hpp"
+#include "transformations/common_optimizations/conv_to_binary_conv.hpp"
+#include "transformations/common_optimizations/space_to_batch_fusion.hpp"
+#include "transformations/common_optimizations/batch_to_space_fusion.hpp"
+#include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -45,6 +53,7 @@
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
+#include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
@@ -96,12 +105,20 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
     common_fusions->add_matcher<ngraph::pass::ClampFusion>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
+    common_fusions->add_matcher<ngraph::pass::MVNFusion>();
+    common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
+    common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
+    manager.register_pass<ngraph::pass::BinarizeWeights>();
+    manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
     decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
@@ -143,6 +160,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::AddFakeQuantizeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::MulFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ public:
 
     void setConfig(const Config &cfg);
     void setProperty(const std::map<std::string, std::string> &properties);
-    Config getProperty();
+    Config getProperty() const;
 
     void getInputBlobs(InferenceEngine::BlobMap &in_map);
     void getOutputBlobs(InferenceEngine::BlobMap &out_map);

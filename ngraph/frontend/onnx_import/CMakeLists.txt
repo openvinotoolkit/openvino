@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
 
@@ -47,6 +35,8 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
+add_clang_format_target(onnx_importer_clang FOR_TARGETS onnx_importer)
+
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME onnx_importer
                            FILEDESCRIPTION "nGraph ONNX importer library")
@@ -59,16 +49,15 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder
-                                    PUBLIC ngraph)
+target_link_libraries(onnx_importer PRIVATE onnx_common ngraph::builder
+    PUBLIC ngraph)
 
 set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
-target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH}
-        ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
 
-target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src 
+                                                 ${NGRAPH_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
@@ -94,7 +83,6 @@ install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
         PATTERN "*.hpp"
         PATTERN "*.h"
 )
-
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")

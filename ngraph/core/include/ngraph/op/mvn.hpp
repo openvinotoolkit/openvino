@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -79,6 +67,7 @@ namespace ngraph
                 bool get_normalize_variance() const { return m_normalize_variance; }
                 AxisSet get_reduction_axes() const { return m_reduction_axes; }
                 void set_reduction_axes(AxisSet axes) { m_reduction_axes = axes; }
+
             private:
                 double m_eps = 1e-9;
                 bool m_across_channels;
@@ -137,6 +126,7 @@ namespace ngraph
                 float get_eps() const { return m_eps; }
                 bool get_normalize_variance() const { return m_normalize_variance; }
                 MVNEpsMode get_eps_mode() const { return m_eps_mode; }
+
             private:
                 bool m_normalize_variance = true;
                 float m_eps = (float)1e-6;

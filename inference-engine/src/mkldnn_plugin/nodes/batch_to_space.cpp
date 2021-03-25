@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,27 +21,27 @@ public:
         try {
             const auto batchToSpaceLayer = dynamic_cast<const BatchToSpaceLayer*>(layer);
             if (!batchToSpaceLayer)
-                THROW_IE_EXCEPTION << "'" << layer->name << "' layer is not instance of BatchToSpaceLayer class";
+                IE_THROW() << "'" << layer->name << "' layer is not instance of BatchToSpaceLayer class";
 
             if (batchToSpaceLayer->insData.size() != 4 || batchToSpaceLayer->outData.size() != 1)
-                THROW_IE_EXCEPTION << "'" << batchToSpaceLayer->name << "' layer has incorrect number of input or output edges!";
+                IE_THROW() << "'" << batchToSpaceLayer->name << "' layer has incorrect number of input or output edges!";
 
             auto inData = batchToSpaceLayer->insData[0].lock();
             if (inData == nullptr)
-                THROW_IE_EXCEPTION << "'" << batchToSpaceLayer->name << "' layer has nullable input data";
+                IE_THROW() << "'" << batchToSpaceLayer->name << "' layer has nullable input data";
 
             if (inData->getLayout() != NCHW && inData->getLayout() != NCDHW)
-                THROW_IE_EXCEPTION << "'" << batchToSpaceLayer->name << "' layer has unsupported layout: " << inData->getLayout();
+                IE_THROW() << "'" << batchToSpaceLayer->name << "' layer has unsupported layout: " << inData->getLayout();
 
             const auto precision = inData->getTensorDesc().getPrecision();
             const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
             if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
-                THROW_IE_EXCEPTION << "'" << batchToSpaceLayer->name << "' layer has unsupported precision: " << precision.name();
+                IE_THROW() << "'" << batchToSpaceLayer->name << "' layer has unsupported precision: " << precision.name();
 
             const SizeVector& in_dims = inData->getTensorDesc().getDims();
             const SizeVector& out_dims = layer->outData[0]->getTensorDesc().getDims();
             if (in_dims[1] != out_dims[1])
-                THROW_IE_EXCEPTION << "'" << batchToSpaceLayer->name << "' layer has different IN and OUT channels number";
+                IE_THROW() << "'" << batchToSpaceLayer->name << "' layer has different IN and OUT channels number";
 
             _block_shape = batchToSpaceLayer->_block_shape;
             _crops_begin = batchToSpaceLayer->_crops_begin;
@@ -53,7 +53,7 @@ public:
             for (int i = 0; i < batchToSpaceLayer->insData.size(); i++) {
                 auto inData = batchToSpaceLayer->insData[i].lock();
                 if (inData == nullptr)
-                    THROW_IE_EXCEPTION << "'" << batchToSpaceLayer->name << "' layer has nullable input data";
+                    IE_THROW() << "'" << batchToSpaceLayer->name << "' layer has nullable input data";
                 config.inConfs[i].desc = TensorDesc(precision,
                         inData->getTensorDesc().getDims(),
                         inData->getTensorDesc().getLayout());
@@ -66,7 +66,7 @@ public:
             config.outConfs.push_back(outConfig);
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

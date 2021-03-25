@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <cstddef>
 #include <memory>
@@ -76,7 +64,7 @@ namespace ngraph
                                          scale_pshape.is_dynamic() ||
                                              (scale_pshape.rank().is_static() &&
                                               scale_pshape.rank().get_length() == 1 &&
-                                              data_pshape[1].same_scheme(scale_pshape[0])),
+                                              data_pshape[1].compatible(scale_pshape[0])),
                                          "Scale input must be one dimensional vector of number of "
                                          "input data channels size.");
 
@@ -84,7 +72,7 @@ namespace ngraph
                                          bias_pshape.is_dynamic() ||
                                              (bias_pshape.rank().is_static() &&
                                               bias_pshape.rank().get_length() == 1 &&
-                                              data_pshape[1].same_scheme(bias_pshape[0])),
+                                              data_pshape[1].compatible(bias_pshape[0])),
                                          "Bias input must be one dimensional vector of number of "
                                          "input data channels size.");
                     }
@@ -96,18 +84,7 @@ namespace ngraph
                     auto mvn = std::make_shared<default_opset::MVN>(
                         data, reduction_axes, true, epsilon, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
-                    std::shared_ptr<ngraph::Node> data_shape_node;
-                    if (data_pshape.is_static())
-                    {
-                        data_shape_node = std::make_shared<default_opset::Constant>(
-                            element::i64,
-                            Shape{static_cast<size_t>(data_pshape.rank().get_length())},
-                            data_pshape.to_shape());
-                    }
-                    else
-                    {
-                        data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
-                    }
+                    const auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
 
                     // Broadcast preserving channel dimension
                     scale = std::make_shared<default_opset::Broadcast>(

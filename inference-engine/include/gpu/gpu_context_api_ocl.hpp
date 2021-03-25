@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,7 +177,7 @@ public:
 static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2D& nv12_image_plane_y, cl::Image2D& nv12_image_plane_uv) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid remote context passed";
+        IE_THROW() << "Invalid remote context passed";
     }
 
     size_t width = nv12_image_plane_y.getImageInfo<CL_IMAGE_WIDTH>();
@@ -235,7 +235,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, ClContext::Ptr 
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Buffer& buffer) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid remote context passed";
+        IE_THROW() << "Invalid remote context passed";
     }
 
     ParamMap params = {
@@ -255,7 +255,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl_mem buffer) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid remote context passed";
+        IE_THROW() << "Invalid remote context passed";
     }
 
     ParamMap params = {
@@ -275,7 +275,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Image2D& image) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid remote context passed";
+        IE_THROW() << "Invalid remote context passed";
     }
 
     ParamMap params = {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ public:
     }
 
     CNNNetwork GetExecGraphInfo() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     /**
@@ -93,29 +93,29 @@ public:
     }
 
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     void SetConfig(const std::map<std::string, Parameter>& config) override {
         if (config.empty()) {
-            THROW_IE_EXCEPTION << "The list of configuration values is empty";
+            IE_THROW() << "The list of configuration values is empty";
         }
-        THROW_IE_EXCEPTION << "The following config value cannot be changed dynamically for ExecutableNetwork: "
+        IE_THROW() << "The following config value cannot be changed dynamically for ExecutableNetwork: "
                            << config.begin()->first;
     }
 
     Parameter GetConfig(const std::string& name) const override {
         (void)name;
-        THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
+        IE_THROW() << "GetConfig for executable network is not supported by this device";
     }
 
     Parameter GetMetric(const std::string& name) const override {
         (void)name;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     RemoteContext::Ptr GetContext() const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
 protected:
@@ -127,7 +127,7 @@ protected:
      */
     virtual void ExportImpl(std::ostream& networkModel) {
         (void)networkModel;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds infromation about network inputs info

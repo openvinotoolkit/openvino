@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -137,7 +137,9 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
     # dynamic libraries
     inference_engine_transformations
-    inference_engine_lp_transformations)
+    inference_engine_lp_transformations
+    inference_engine_snippets
+    )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")

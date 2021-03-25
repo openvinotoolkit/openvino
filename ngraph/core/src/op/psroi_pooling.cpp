@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/psroi_pooling.hpp"
 #include "itt.hpp"
@@ -118,11 +106,11 @@ void op::PSROIPooling::validate_and_infer_types()
                                           0,
                                       "Number of input's channels must be a multiply of "
                                       "spatial_bins_x * spatial_bins_y");
-                NODE_VALIDATION_CHECK(
-                    this,
-                    m_output_dim == num_input_channels / (m_spatial_bins_x * m_spatial_bins_y),
-                    "output_dim must be equal to input channels divided by "
-                    "spatial_bins_x * spatial_bins_y");
+                NODE_VALIDATION_CHECK(this,
+                                      m_output_dim == num_input_channels /
+                                                          (m_spatial_bins_x * m_spatial_bins_y),
+                                      "output_dim must be equal to input channels divided by "
+                                      "spatial_bins_x * spatial_bins_y");
             }
         }
         std::vector<Dimension> output_shape{coords_pshape[0],

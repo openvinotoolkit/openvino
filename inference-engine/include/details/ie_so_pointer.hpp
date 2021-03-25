@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,10 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <functional>
 
 #include "ie_common.h"
 #include "ie_so_loader.h"
-#include "details/ie_exception.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -82,7 +82,7 @@ public:
      */
     explicit SOPointer(T* pointedObj): _so_loader(), _pointedObj(pointedObj) {
         if (_pointedObj == nullptr) {
-            THROW_IE_EXCEPTION << "Cannot create SOPointer<T, Loader> from nullptr";
+            IE_THROW() << "Cannot create SOPointer<T, Loader> from nullptr";
         }
     }
 
@@ -150,6 +150,22 @@ public:
     }
 
 protected:
+#define CATCH_IE_EXCEPTION(ExceptionType) catch (const InferenceEngine::ExceptionType& e) {throw e;}
+#define CATCH_IE_EXCEPTIONS                     \
+        CATCH_IE_EXCEPTION(GeneralError)        \
+        CATCH_IE_EXCEPTION(NotImplemented)      \
+        CATCH_IE_EXCEPTION(NetworkNotLoaded)    \
+        CATCH_IE_EXCEPTION(ParameterMismatch)   \
+        CATCH_IE_EXCEPTION(NotFound)            \
+        CATCH_IE_EXCEPTION(OutOfBounds)         \
+        CATCH_IE_EXCEPTION(Unexpected)          \
+        CATCH_IE_EXCEPTION(RequestBusy)         \
+        CATCH_IE_EXCEPTION(ResultNotReady)      \
+        CATCH_IE_EXCEPTION(NotAllocated)        \
+        CATCH_IE_EXCEPTION(InferNotStarted)     \
+        CATCH_IE_EXCEPTION(NetworkNotRead)      \
+        CATCH_IE_EXCEPTION(InferCancelled)
+
     /**
      * @brief Implements load of object from library if Release method is presented
      */
@@ -158,13 +174,7 @@ protected:
             void* create = nullptr;
             try {
                 create = _so_loader->get_symbol((SOCreatorTrait<T>::name + std::string("Shared")).c_str());
-            } catch (const details::InferenceEngineException& ex) {
-                if ((ex.hasStatus() ? ex.getStatus() : GENERAL_ERROR) == NOT_FOUND) {
-                    create = nullptr;
-                } else {
-                    throw;
-                }
-            }
+            } catch (const NotFound&) {}
             if (create == nullptr) {
                 create = _so_loader->get_symbol(SOCreatorTrait<T>::name);
                 using CreateF = StatusCode(T*&, ResponseDesc*);
@@ -172,7 +182,8 @@ protected:
                 ResponseDesc desc;
                 StatusCode sts = reinterpret_cast<CreateF*>(create)(object, &desc);
                 if (sts != OK) {
-                    THROW_IE_EXCEPTION << as_status << sts << desc.msg;
+                    IE_EXCEPTION_SWITCH(sts, ExceptionType,
+                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
                 }
                 IE_SUPPRESS_DEPRECATED_START
                 _pointedObj = std::shared_ptr<T>(object, [] (T* ptr){ptr->Release();});
@@ -181,12 +192,10 @@ protected:
                 using CreateF = void(std::shared_ptr<T>&);
                 reinterpret_cast<CreateF*>(create)(_pointedObj);
             }
-        } catch (const InferenceEngineException& ex) {
-            THROW_IE_EXCEPTION << as_status << (ex.hasStatus() ? ex.getStatus() : GENERAL_ERROR) << ex.what();
-        } catch (const std::exception& ex) {
-            THROW_IE_EXCEPTION << as_status << GENERAL_ERROR << ex.what();
+        } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
+            IE_THROW() << ex.what();
         } catch(...) {
-            THROW_IE_EXCEPTION << as_status << UNEXPECTED << "[ UNEXPECTED ] ";
+            IE_THROW(Unexpected);
         }
     }
 
@@ -197,14 +206,14 @@ protected:
         try {
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(_so_loader->get_symbol(SOCreatorTrait<T>::name))(_pointedObj);
-        } catch (const InferenceEngineException& ex) {
-            THROW_IE_EXCEPTION << as_status << (ex.hasStatus() ? ex.getStatus() : GENERAL_ERROR) << ex.what();
-        } catch (const std::exception& ex) {
-            THROW_IE_EXCEPTION << as_status << GENERAL_ERROR << ex.what();
+        } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
+            IE_THROW() << ex.what();
         } catch(...) {
-            THROW_IE_EXCEPTION << as_status << UNEXPECTED << "[ UNEXPECTED ] ";
+            IE_THROW(Unexpected);
         }
     }
+    #undef CATCH_IE_EXCEPTION
+    #undef CATCH_IE_EXCEPTIONS
 
     /**
      * @brief Gets a smart pointer to the DLL

@@ -212,6 +212,7 @@ def fill_blob_with_random(layer):
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
+    rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
     if layer.shape:
-        return np.random.uniform(rand_min, rand_max, layer.shape).astype(dtype)
-    return (dtype)(np.random.uniform(rand_min, rand_max))
+        return rs.uniform(rand_min, rand_max, layer.shape).astype(dtype)
+    return (dtype)(rs.uniform(rand_min, rand_max))

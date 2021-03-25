@@ -86,7 +86,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
             if isinstance(desc, list):
                 lines.append('\t{}: \t{}'.format(desc[0], desc[1](getattr(argv, op, 'NONE'))))
             else:
-                if op is 'k':
+                if op == 'k':
                     default_path = os.path.join(os.path.dirname(sys.argv[0]),
                                                 'extensions/front/caffe/CustomLayersMapping.xml')
                     if getattr(argv, op, 'NONE') == default_path:

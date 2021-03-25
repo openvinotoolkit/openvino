@@ -9,4 +9,6 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
 
     cdef void ApplyLowLatencyTransformation(IENetwork network)
 
+    cdef void ApplyPruningTransformation(IENetwork network)
+
     cdef void CheckAPI()

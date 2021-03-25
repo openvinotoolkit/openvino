@@ -1,21 +1,10 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset6.hpp"
 #include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -214,6 +203,19 @@ TYPED_TEST_P(BroadcastTests, broadcast_fully_dynamic_target_shape)
     bc_shape = make_shared<op::Parameter>(element::i64, Shape{1});
     bc = make_shared<TypeParam>(arg, bc_shape, bc_axes);
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_dynamic_values_of_target_shape)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{2});
+    const auto target = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(4));
+    const auto target_shape = std::make_shared<ngraph::opset6::ShapeOf>(target);
+    const auto axes_mapping = op::Constant::create(element::i64, Shape{1}, {1});
+
+    auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping);
+    ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_broadcast_shape_et_wrong)
@@ -626,6 +628,7 @@ REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_fail_axes_map_shape,
                            broadcast_axes_wrong_rank,
                            broadcast_fully_dynamic_target_shape,
+                           broadcast_dynamic_values_of_target_shape,
                            broadcast_broadcast_shape_et_wrong,
                            broadcast_axes_et_wrong,
                            broadcast_explicit_all_inputs_dynamic,

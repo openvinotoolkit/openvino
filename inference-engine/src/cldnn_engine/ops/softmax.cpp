@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ static cldnn::softmax::dimension_t GetSoftmaxAxis(int64_t axis, size_t rank) {
             return cldnn::softmax::normalize_x;
     case 4:
         return cldnn::softmax::normalize_x;
-    default: THROW_IE_EXCEPTION << "Invalid softmax axis " << axis;
+    default: IE_THROW() << "Invalid softmax axis " << axis;
     }
     return cldnn::softmax::normalize_fyx;
 }

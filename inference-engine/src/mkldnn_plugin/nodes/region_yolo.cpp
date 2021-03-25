@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,7 +263,7 @@ public:
     explicit RegionYoloImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 1 || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             input_prec = layer->insData.front().lock()->getPrecision();
             output_prec = layer->outData.front()->getPrecision();
@@ -310,7 +310,7 @@ public:
                 logistic_kernel->create_ker();
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN, input_prec)}, {DataConfigurator(ConfLayout::PLN, output_prec)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -433,7 +433,7 @@ private:
                     bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
                 }
             } else {
-                THROW_IE_EXCEPTION << "Unsupported precision configuration outPrc=" << output_prec.name();
+                IE_THROW() << "Unsupported precision configuration outPrc=" << output_prec.name();
             }
         }
     }

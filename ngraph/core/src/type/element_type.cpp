@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <cmath>
 #include <functional>
@@ -72,11 +60,13 @@ static const element_types_map_t& get_type_info_map()
         {element::Type_t::f16, TypeInfo(16, true, true, false, "float16", "f16")},
         {element::Type_t::f32, TypeInfo(32, true, true, false, "float", "f32")},
         {element::Type_t::f64, TypeInfo(64, true, true, false, "double", "f64")},
+        {element::Type_t::i4, TypeInfo(4, false, true, true, "int4_t", "i4")},
         {element::Type_t::i8, TypeInfo(8, false, true, true, "int8_t", "i8")},
         {element::Type_t::i16, TypeInfo(16, false, true, false, "int16_t", "i16")},
         {element::Type_t::i32, TypeInfo(32, false, true, true, "int32_t", "i32")},
         {element::Type_t::i64, TypeInfo(64, false, true, false, "int64_t", "i64")},
         {element::Type_t::u1, TypeInfo(1, false, false, false, "uint1_t", "u1")},
+        {element::Type_t::u4, TypeInfo(4, false, false, false, "uint4_t", "u4")},
         {element::Type_t::u8, TypeInfo(8, false, false, true, "uint8_t", "u8")},
         {element::Type_t::u16, TypeInfo(16, false, false, false, "uint16_t", "u16")},
         {element::Type_t::u32, TypeInfo(32, false, false, false, "uint32_t", "u32")},
@@ -93,11 +83,13 @@ std::vector<const element::Type*> element::Type::get_known_types()
                                             &element::f16,
                                             &element::f32,
                                             &element::f64,
+                                            &element::i4,
                                             &element::i8,
                                             &element::i16,
                                             &element::i32,
                                             &element::i64,
                                             &element::u1,
+                                            &element::u4,
                                             &element::u8,
                                             &element::u16,
                                             &element::u32,
@@ -294,11 +286,13 @@ size_t ngraph::compiler_byte_size(element::Type_t et)
         ET_CASE(f16);
         ET_CASE(f32);
         ET_CASE(f64);
+        ET_CASE(i4);
         ET_CASE(i8);
         ET_CASE(i16);
         ET_CASE(i32);
         ET_CASE(i64);
         ET_CASE(u1);
+        ET_CASE(u4);
         ET_CASE(u8);
         ET_CASE(u16);
         ET_CASE(u32);
@@ -326,11 +320,13 @@ namespace ngraph
                                         {"f16", element::Type_t::f16},
                                         {"f32", element::Type_t::f32},
                                         {"f64", element::Type_t::f64},
+                                        {"i4", element::Type_t::i4},
                                         {"i8", element::Type_t::i8},
                                         {"i16", element::Type_t::i16},
                                         {"i32", element::Type_t::i32},
                                         {"i64", element::Type_t::i64},
                                         {"u1", element::Type_t::u1},
+                                        {"u4", element::Type_t::u4},
                                         {"u8", element::Type_t::u8},
                                         {"u16", element::Type_t::u16},
                                         {"u32", element::Type_t::u32},

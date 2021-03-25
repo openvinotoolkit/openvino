@@ -10,6 +10,7 @@ ENV https_proxy ${https_proxy}
 ENV CI=true
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED 1
+ARG PROTOBUF_LITE=OFF
 
 # Install base dependencies
 RUN apt-get update && apt-get install -y locales && apt-get clean autoclean && apt-get autoremove -y
@@ -68,14 +69,13 @@ RUN cmake .. \
     -DNGRAPH_INTERPRETER_ENABLE=ON \
     -DNGRAPH_DEBUG_ENABLE=OFF \
     -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
-    -DCMAKE_INSTALL_PREFIX=/openvino/dist
+    -DCMAKE_INSTALL_PREFIX=/openvino/dist \
+    -DNGRAPH_USE_PROTOBUF_LITE=${PROTOBUF_LITE}
 RUN make -j $(nproc) install
 
 # Run tests via tox
 WORKDIR /openvino/ngraph/python
 ENV NGRAPH_CPP_BUILD_PATH=/openvino/dist/deployment_tools/ngraph
 ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
-ENV NGRAPH_ONNX_IMPORT_ENABLE=TRUE
 ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
-RUN git clone --recursive https://github.com/pybind/pybind11.git -b v2.5.0 --depth 1
 CMD tox

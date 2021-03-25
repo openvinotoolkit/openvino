@@ -1,6 +1,7 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <cmath>
@@ -11,7 +12,6 @@
 #include <ngraph/type/float16.hpp>
 
 #include <ie_blob.h>
-#include <blob_factory.hpp>
 #include <random>
 
 namespace CommonTestUtils {
@@ -48,13 +48,28 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
 }
 
 /**
+ * @brief Create vector of floats with length of vec_len, with values ranging from min to max,
+ * with initial seed equal to variable seed with default of 0
+ */
+template<typename T>
+inline std::vector<T>  fill_vector(std::vector<T> &res, double min, double max, int seed = 0) {
+    std::mt19937 gen(static_cast<T>(seed));
+
+    std::uniform_real_distribution<double> dist(min, max);
+    for (std::size_t i = 0; i < res.size(); i++)
+        res[i] = static_cast<T>(dist(gen));
+
+    return res;
+}
+
+/**
  * Fill blob with value data blob. Broadcast semantic is included.
  * Broadcasting with alignment through last dimension.
  *
  * @param blob tensor to fill in
  * @param values src tensor which should be broadcast
  */
-void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine::Blob::Ptr& values);
+void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, InferenceEngine::Blob::Ptr &values);
 
 /**
  * Wrapper on top of fill_data_with_broadcast with simplified signature
@@ -63,7 +78,7 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
  * @param axis Axis to apply values
  * @param values data to broadcast
  */
-void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std::vector<float> values);
+void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, size_t axis, std::vector<float> values);
 
 /**
  * Make a view blob with new shape. It will reinterpret original tensor data as a tensor with new shape.
@@ -75,7 +90,8 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std
  * @param new_shape new one shape for view blob
  * @return new one blob view
  */
-InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
+InferenceEngine::Blob::Ptr
+make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
 
 /**
  * Fill blob with single value for all elements
@@ -86,7 +102,7 @@ InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &b
  * @param blob tensor to fill in
  * @param val value to set into each element
  */
-void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val);
+void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
 
 
 /**
@@ -101,8 +117,8 @@ inline void fill_data_bbox(float *data, size_t size, int height, int width, floa
     float center_w = (width - 1.0f) / 2;
     for (size_t i = 0; i < size; i = i + 5) {
         data[i] = 0.0f;
-        data[i + 1] = center_w + width * 0.6f * sin(static_cast<float>(i+1) * omega);
-        data[i + 3] = center_w + width * 0.6f * sin(static_cast<float>(i+3) * omega);
+        data[i + 1] = center_w + width * 0.6f * sin(static_cast<float>(i + 1) * omega);
+        data[i + 3] = center_w + width * 0.6f * sin(static_cast<float>(i + 3) * omega);
         if (data[i + 3] < data[i + 1]) {
             std::swap(data[i + 1], data[i + 3]);
         }
@@ -111,8 +127,8 @@ inline void fill_data_bbox(float *data, size_t size, int height, int width, floa
         if (data[i + 3] > width - 1)
             data[i + 3] = static_cast<float>(width - 1);
 
-        data[i + 2] = center_h + height * 0.6f * sin(static_cast<float>(i+2) * omega);
-        data[i + 4] = center_h + height * 0.6f * sin(static_cast<float>(i+4) * omega);
+        data[i + 2] = center_h + height * 0.6f * sin(static_cast<float>(i + 2) * omega);
+        data[i + 4] = center_h + height * 0.6f * sin(static_cast<float>(i + 4) * omega);
         if (data[i + 4] < data[i + 2]) {
             std::swap(data[i + 2], data[i + 4]);
         }
@@ -123,13 +139,14 @@ inline void fill_data_bbox(float *data, size_t size, int height, int width, floa
     }
 }
 
-inline void fill_data_roi(float *data, size_t size, const uint32_t range, const int height, const int width, const float omega,
-                          const bool is_roi_max_mode, const int seed = 1) {
+inline void
+fill_data_roi(float *data, size_t size, const uint32_t range, const int height, const int width, const float omega,
+              const bool is_roi_max_mode, const int seed = 1) {
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
 
     const int max_y = (is_roi_max_mode) ? (height - 1) : 1;
-    const int max_x = (is_roi_max_mode) ? (width - 1)  : 1;
+    const int max_x = (is_roi_max_mode) ? (width - 1) : 1;
 
     float center_h = (max_y) / 2.0f;
     float center_w = (max_x) / 2.0f;
@@ -163,7 +180,9 @@ inline void fill_data_roi(float *data, size_t size, const uint32_t range, const 
 }
 
 template<class T>
-void inline fill_data_random(T* pointer, std::size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1, const int seed = 1) {
+void inline
+fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1,
+                 const int seed = 1) {
     testing::internal::Random random(seed);
     random.Generate(range);
 
@@ -187,7 +206,8 @@ void inline fill_data_random(T* pointer, std::size_t size, const uint32_t range 
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1, const int seed = 1) {
+void inline fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0,
+                             const int32_t k = 1, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
     fill_data_random(rawBlobDataPtr, blob->size(), range, start_from, k, seed);
@@ -207,7 +227,7 @@ void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t r
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr& blob,
+void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
                                         uint32_t range,
                                         int32_t start_from = 0,
                                         const int32_t k = 1,
@@ -240,7 +260,8 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr& blob,
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
+void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0,
+                                   const int32_t k = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
     if (start_from < 0 && !std::is_signed<dataType>::value) {
@@ -260,7 +281,9 @@ void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint3
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k, const int seed = 1) {
+void inline
+fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k,
+                       const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     std::default_random_engine random(seed);
     // 1/k is the resolution of the floating point numbers
@@ -292,7 +315,8 @@ void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr &blob,
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
     for (size_t i = 0; i < blob->size(); i++) {
         auto value = static_cast<float>(normal_d(random));
-        if (typeid(dataType) == typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
+        if (typeid(dataType) ==
+            typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
             rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
         } else {
             rawBlobDataPtr[i] = value;
@@ -300,14 +324,15 @@ void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr &blob,
     }
 }
 
-template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const float values[], const size_t size) {
+template<InferenceEngine::Precision::ePrecision PRC, typename T>
+void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const T values[], const size_t size) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
 
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
     for (size_t i = 0; i < std::min(size, blob->size()); i++) {
         auto value = values[i];
-        if (typeid(dataType) == typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
+        if (typeid(dataType) ==
+            typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
             rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
         } else {
             rawBlobDataPtr[i] = value;
@@ -352,11 +377,11 @@ inline ie_abs(const T &val) {
     return val;
 }
 
-inline ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
+inline ngraph::bfloat16 ie_abs(const ngraph::bfloat16 &val) {
     return ngraph::bfloat16::from_bits(val.to_bits() & 0x7FFF);
 }
 
-inline ngraph::float16 ie_abs(const ngraph::float16& val) {
+inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
     return ngraph::float16::from_bits(val.to_bits() ^ 0x8000);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -209,6 +209,13 @@ DECL_PASS(FuseFQIntoWeights);
 */
 DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
 
+/**
+* @brief convert FullyConnected, ScaleShift and Eltwise layers weights order from NCHW to NHWC.
+* Information for transposition is found from convolution/pooling input or output dimensions.
+* Convolution weights are transposed in finalizeConvolution1DPrimitive() method (gna_graph_compiler.cpp).
+* They are transposed for the both, NCHW and NHWC models since MO always stores them in NCHW layout.
+*/
+DECL_PASS(TransposeWeightsFromNCHWToNHWC);
 
 struct PassManagerSettings {
     Policy policy;

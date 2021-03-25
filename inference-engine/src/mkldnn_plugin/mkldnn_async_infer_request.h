@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,6 @@ public:
     MKLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
                             const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
                             const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
-
-    void Infer_ThreadUnsafe() override;
-
     ~MKLDNNAsyncInferRequest() override;
 };
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
     std::map<std::string, cldnn::device> device_map;
     std::mutex engine_mutex;
 
-    CLDNNRemoteCLContext::Ptr m_defaultContext;
+    mutable CLDNNRemoteCLContext::Ptr m_defaultContext;
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -209,7 +209,7 @@ IE::BlobMap RemoveLayerTests::fillConstDataDiffPrec (const std::vector<std::stri
                     break;
                 }
                 default:
-                    THROW_IE_EXCEPTION << "Not supported data type";
+                    IE_THROW() << "Not supported data type";
             }
             constData[outData->getName()] = blob;
         }
@@ -636,7 +636,7 @@ TEST_F(RemoveLayerTests, throwErrorOnFoldWithUnknownImplForNotShapeDefiningLayer
     }
 
     IE::ConstTransformer transformator(net.get());
-    ASSERT_THROW(transformator.foldConstSubgraphs(), IE::details::InferenceEngineException);
+    ASSERT_THROW(transformator.foldConstSubgraphs(), IE::Exception);
 }
 
 TEST_F(RemoveLayerTests, canFullTrim) {

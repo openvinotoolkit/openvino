@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,7 +205,7 @@ public:
      *
      * @param str input string with float value
      * @return float value if parsing was successful
-     * @throws InferenceEngineException in case of parsing error
+     * @throws Exception in case of parsing error
      */
     static float ie_parse_float(const std::string& str);
 

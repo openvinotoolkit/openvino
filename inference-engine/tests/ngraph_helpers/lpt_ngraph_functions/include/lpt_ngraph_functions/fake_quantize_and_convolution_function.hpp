@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,8 @@ public:
         const Transpose& transpose,
         const Reshape& reshape2,
         const DequantizationOperations& dequantizationAfter,
-        const std::string operation = "Convolution");
+        const std::string operation = "Convolution",
+        bool multiplyAfter = false);
 };
 
 }  // namespace subgraph
