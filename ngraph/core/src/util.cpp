@@ -155,22 +155,6 @@ size_t ngraph::hash_combine(const std::vector<size_t>& list)
     return seed;
 }
 
-size_t ngraph::hash_combine(const void* v, int64_t size)
-{
-    constexpr auto cel_size = sizeof(size_t);
-    size_t seed = static_cast<size_t>(size);
-    const auto data = static_cast<const size_t*>(v);
-    const auto d_end = std::next(data, size / cel_size);
-    for (auto d = data; d != d_end; ++d)
-    {
-        seed ^= *d + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    size_t last_bytes{0};
-    std::memcpy(&last_bytes, d_end, size % cel_size);
-    seed ^= last_bytes + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    return seed;
-}
-
 void* ngraph::ngraph_malloc(size_t size)
 {
     auto ptr = malloc(size);
