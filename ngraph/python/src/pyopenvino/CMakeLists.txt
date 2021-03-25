@@ -40,6 +40,8 @@ if(OpenVINO_MAIN_SOURCE_DIR)
 endif()
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+    add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
 
     install(TARGETS ${PROJECT_NAME}
