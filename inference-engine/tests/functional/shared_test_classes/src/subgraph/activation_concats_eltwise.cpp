@@ -1,5 +1,6 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
