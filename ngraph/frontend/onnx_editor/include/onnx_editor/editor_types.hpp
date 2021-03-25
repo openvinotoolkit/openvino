@@ -75,8 +75,8 @@ namespace ngraph
                 : m_input_name{std::move(input_name)}
             {
             }
-            Input(int input_index)
-                : m_input_index{std::move(input_index)}
+            Input(const int input_index)
+                : m_input_index{input_index}
             {
             }
             const std::string m_input_name = "";
@@ -97,8 +97,8 @@ namespace ngraph
                 : m_output_name{std::move(output_name)}
             {
             }
-            Output(int output_index)
-                : m_output_index{std::move(output_index)}
+            Output(const int output_index)
+                : m_output_index{output_index}
             {
             }
             const std::string m_output_name = "";
@@ -121,7 +121,7 @@ namespace ngraph
             {
             }
             Node(Output output)
-                : m_output_name{output.m_output_name}
+                : m_output_name{std::move(output.m_output_name)}
             {
             }
             const std::string m_node_name = "";

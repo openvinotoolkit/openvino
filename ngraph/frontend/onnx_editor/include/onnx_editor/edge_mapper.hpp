@@ -62,7 +62,7 @@ namespace ngraph
             ///
             /// \param input A input helper structure created based on a input name
             ///              or a input index.
-            InputEdge to_input_edge(Node node, Input input) const;
+            InputEdge to_input_edge(const Node& node, const Input& input) const;
 
             /// \brief Returns the OutputEdge based on a node (node name or output name)
             ///        and an output (output name or output index).
@@ -79,7 +79,7 @@ namespace ngraph
             ///
             /// \param output A output helper structure created based on a output name
             ///               or a output index.
-            OutputEdge to_output_edge(Node node, Output output) const;
+            OutputEdge to_output_edge(const Node& node, const Output& output) const;
 
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,

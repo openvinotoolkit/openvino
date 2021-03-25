@@ -114,8 +114,8 @@ namespace ngraph
             /// \brief Create edge mapper object which allow to use node names, input/output indexes
             ///        istead of node indexes in order to select InputEdge/OutputEdge.
             ///
-            /// \param out_file_path EdgeMapper object which simply using methods which operate over
-            ///                      InputEdge and OutputEdge.
+            /// \return EdgeMapper object which simply using methods which operate over
+            ///         InputEdge and OutputEdge.
             EdgeMapper create_edge_mapper() const;
 
         private:

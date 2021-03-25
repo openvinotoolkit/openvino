@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <algorithm>
 #include <onnx/onnx_pb.h>
 
 #include "ngraph/except.hpp"
@@ -61,13 +62,12 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
     }
     if (!node_name.empty())
     {
+        const auto matched_nodes_range = m_node_name_to_index.equal_range(node_name);
         std::vector<int> result;
-        auto matched_nodes_range = m_node_name_to_index.equal_range(node_name);
-        for (auto& index_iter = matched_nodes_range.first; index_iter != matched_nodes_range.second;
-             ++index_iter)
-        {
-            result.push_back(index_iter->second);
-        }
+        std::transform(matched_nodes_range.first,
+                       matched_nodes_range.second,
+                       std::back_inserter(result),
+                       [](const std::pair<std::string, int>& iter) { return iter.second; });
         if (!result.empty())
         {
             return result;
@@ -110,7 +110,7 @@ std::string onnx_editor::EdgeMapper::get_node_input_name(int node_index, int inp
     return input_name;
 }
 
-InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
+InputEdge onnx_editor::EdgeMapper::to_input_edge(const Node& node, const Input& in) const
 {
     // identification can be both based on node name and output name
     const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
@@ -166,7 +166,7 @@ InputEdge onnx_editor::EdgeMapper::to_input_edge(Node node, Input in) const
     }
 }
 
-OutputEdge onnx_editor::EdgeMapper::to_output_edge(Node node, Output out) const
+OutputEdge onnx_editor::EdgeMapper::to_output_edge(const Node& node, const Output& out) const
 {
     // identification can be both based on node name and output name
     const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
