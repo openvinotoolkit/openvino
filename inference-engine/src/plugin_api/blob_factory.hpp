@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,10 +110,12 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
         USE_FACTORY(FP64);
         USE_FACTORY(FP16);
         USE_FACTORY(Q78);
+        USE_FACTORY(I4);
         USE_FACTORY(I8);
         USE_FACTORY(I16);
         USE_FACTORY(I32);
         USE_FACTORY(I64);
+        USE_FACTORY(U4);
         USE_FACTORY(U8);
         USE_FACTORY(U16);
         USE_FACTORY(U32);

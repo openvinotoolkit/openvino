@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
+            // TODO: Issue: 51764
+            ".*PreprocessConversionTest.*",
             // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
             R"(.*(ConvertLayerTest).*targetPRC=FP16.*)",
             // TODO: Issue: 41462
