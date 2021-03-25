@@ -589,6 +589,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
         # New version of FrontEnd is activated
         print("I'm HERE")
         inputModel = graph.graph['input_model']
+        print(input_user_shapes)
         if isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
             for input_name in input_user_shapes:
                 node = decodeNameWithPort(graph, input_name)
@@ -600,7 +601,12 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                 _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
             else:
                 _input_shapes.append({'node': node, 'shape': shape})
-        # TODO: Implement the remaining cases
+        else:
+            # np.ndarray is a shape. User provided only --input_shape key
+            assert isinstance(input_user_shapes, np.ndarray)
+            model_inputs = inputModel.getInputs()
+            assert len(model_inputs) == 1
+            _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})
         return _input_shapes, dict()
 
 

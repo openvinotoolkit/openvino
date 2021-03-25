@@ -21,6 +21,7 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
+#include <sstream>
 
 // TODO: remove explicit proto dependency from this common header
 #include "graph.pb.h"
@@ -149,7 +150,11 @@ Status GetNodeAttr (TFNodeDecoder& attrs, const char* attr_name, T* result)
     return Status::OK();
 }
 
+#if 0
 #define NGRAPH_VLOG(I) std::cerr
+#else
+#define NGRAPH_VLOG(I) std::ostringstream()
+#endif
 
 
     class Builder {

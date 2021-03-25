@@ -26,13 +26,7 @@
 #include "ngraph_builder.h"
 #include "ngraph_conversions.h"
 #include "default_opset.h"
-#if 0
-#include "api.h"
-#include "logging/ngraph_log.h"
-#include "ngraph_bridge/ngraph_mark_for_clustering.h"
-#include "ngraph_bridge/ngraph_utils.h"
-#include "ngraph_bridge/pass/transpose_sinking.h"
-#endif
+
 
 using namespace std;
 namespace ng = ngraph;
@@ -324,14 +318,9 @@ static Status GetStaticInputVector(
         std::vector<T>* vector) {
     ng::Output<ng::Node> ng_input;
     GetInputNode(ng_op_map, op, input_index, ng_input);
-    std::cerr << "y\n";
     if(auto constant = std::dynamic_pointer_cast<ngraph::opset5::Constant>(ng_input.get_node_shared_ptr()))
     {
-        std::cerr << "y\n";
-        std::cerr << constant->get_output_partial_shape(0) << " " << constant->get_data_ptr() << "\n";
-        std::cerr << *reinterpret_cast<const int*>(constant->get_data_ptr()) << "\n";
         *vector = constant->cast_vector<T>();
-        std::cerr << "z\n";
         return Status::OK();
     }
 
@@ -2552,16 +2541,12 @@ static Status TranslateStridedSliceOp(
                  << "  ellipsis mask: " << ellipsis_mask;
 
   std::vector<int64_t> begin_vec;
-    std::cerr << "x\n";
   TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &begin_vec));
   std::vector<int64_t> end_vec;
-    std::cerr << "x\n";
   TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 2, static_input_map, &end_vec));
   std::vector<int64_t> stride_vec;
-    std::cerr << "x\n";
   TF_RETURN_IF_ERROR(
       GetStaticInputVector(ng_op_map, op, 3, static_input_map, &stride_vec));
-    std::cerr << "x\n";
 
   auto begin = ConstructNgNode<opset::Constant>(
       op->name(), ng::element::i64, ng::Shape{begin_vec.size()}, begin_vec);
@@ -2570,7 +2555,6 @@ static Status TranslateStridedSliceOp(
   auto strides = ConstructNgNode<opset::Constant>(
       op->name(), ng::element::i64, ng::Shape{stride_vec.size()}, stride_vec);
 
-    std::cerr << "x\n";
   auto mask_to_vec = [](int32_t mask) {
     auto length = sizeof(mask) * CHAR_BIT;
     std::vector<int64_t> vec(length, 0);
@@ -2958,7 +2942,6 @@ public:
     {
         std::string input_name = node_def->input(index);
         if(input_name.find(':') != std::string::npos) {
-            std::cerr << "input_name: " << input_name << "\n";
             NGRAPH_TF_FE_NOT_IMPLEMENTED;
         }
         // TODO: don't search linearly every time!!!
@@ -2986,7 +2969,6 @@ public:
     virtual bool IsSource () const override
     {
         // TODO: populate with other source operation types
-        std::cerr << "IsSource for " << node_def->op() << "\n";
         return node_def->op() == "Placeholder";
     }
 
@@ -3084,7 +3066,6 @@ Status Builder::TranslateGraph(
   int index = 0;
 
   for (auto parm : tf_params) {
-      std::cerr << "processing " << parm->name() << "\n";
     DataType dtype;
     // TODO: replace dtype by T when converting Arg
     if (GetNodeAttr(parm->attrs(), "dtype", &dtype) != Status::OK()) {
@@ -3098,8 +3079,6 @@ Status Builder::TranslateGraph(
 
     ng::element::Type ng_et;
     TF_RETURN_IF_ERROR(TFDataTypeToNGraphElementType(dtype, &ng_et));
-
-    std::cerr << "\nX\n";
 
     ng::PartialShape ng_shape;
     auto overridenInputShape = inputs.find(parm->name());
