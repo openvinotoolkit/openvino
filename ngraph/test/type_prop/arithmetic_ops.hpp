@@ -221,7 +221,3 @@ REGISTER_TYPED_TEST_CASE_P(ArithmeticOperator,
                            dynamic_shape_3D,
                            dynamic_shape_5D,
                            full_dynamic_shape);
-
-using Types = ::testing::Types<op::v1::Power, op::FloorMod, op::v1::Multiply, op::v1::Divide, op::v1::Minimum>;
-
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, ArithmeticOperator, Types);
