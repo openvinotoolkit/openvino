@@ -8,7 +8,7 @@ import sys
 
 import cv2
 import numpy as np
-from openvino.inference_engine import IECore
+from openvino.inference_engine import IECore, StatusCode
 
 
 def parse_args() -> argparse.Namespace:
@@ -112,24 +112,38 @@ def main():
         with open(args.labels, 'r') as f:
             labels = [line.split(',')[0].strip() for line in f]
 
-    for i in range(num_of_input):
-        infer_status = exec_net.requests[i].wait()
-        log.info(f'Infer request {i} returned {infer_status}')
-        res = exec_net.requests[i].output_blobs[out_blob].buffer
+    output_queue = list(range(num_of_input))
 
-        log.info(f'Image path: {args.input[i]}')
-        log.info(f'Top {args.number_top} results: ')
-        log.info('---------------------')
-        log.info('probability | classid')
-        log.info('---------------------')
+    while True:
+        for i in output_queue:
+            # immediately returns the inference status without blocking or interrupting
+            infer_status = exec_net.requests[i].wait(0)
 
-        probs = res[0]
-        top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
+            if infer_status == StatusCode.RESULT_NOT_READY:
+                continue
 
-        for class_id in top_n_idexes:
-            label = labels[class_id] if args.labels else class_id
-            log.info(f'{probs[class_id]:.9f} | {label}')
-        log.info('')
+            log.info(f'Infer request {i} returned {infer_status}')
+
+            res = exec_net.requests[i].output_blobs[out_blob].buffer
+
+            log.info(f'Image path: {args.input[i]}')
+            log.info(f'Top {args.number_top} results: ')
+            log.info('---------------------')
+            log.info('probability | classid')
+            log.info('---------------------')
+
+            probs = res[0]
+            top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
+
+            for class_id in top_n_idexes:
+                label = labels[class_id] if args.labels else class_id
+                log.info(f'{probs[class_id]:.9f} | {label}')
+            log.info('')
+
+            output_queue.remove(i)
+
+        if len(output_queue) == 0:
+            break
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
