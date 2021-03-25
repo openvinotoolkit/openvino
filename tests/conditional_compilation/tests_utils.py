@@ -21,7 +21,5 @@ def read_test_info(path: Path = Path(getsourcefile(lambda: 0)).parent / TEST_INF
 
 def write_test_info(path: Path = Path(getsourcefile(lambda: 0)).parent / TEST_INFO_NAME,
                     data: dict = None):
-    if data is None:
-        data = {}
     with open(path, "w") as json_file:
         json.dump(data, json_file, indent=4)
