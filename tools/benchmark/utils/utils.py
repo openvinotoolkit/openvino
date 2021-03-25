@@ -43,7 +43,7 @@ def next_step(additional_info='', step_id=0):
         raise Exception('Step ID {} is out of total steps number '.format(next_step.step_id, str(len(step_names))))
 
     step_info_template = '[Step {}/{}] {}'
-    step_name = step_names[next_step.step_id] + (' ({})'.format(additional_info) if additional_info else '')
+    step_name = step_names[next_step.step_id] + (f' ({additional_info})' if additional_info else '')
     step_info_template = step_info_template.format(next_step.step_id, len(step_names), step_name)
     print(step_info_template)
 
@@ -120,7 +120,7 @@ def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
         niter = int((niter + nireq - 1) / nireq) * nireq
         if number_iterations != niter:
             logger.warning('Number of iterations was aligned by request number '
-                           'from {} to {} using number of requests {}'.format(number_iterations, niter, nireq))
+                           'from {number_iterations} to {niter} using number of requests {nireq}')
 
     return niter
 
@@ -147,7 +147,7 @@ def get_duration_in_secs(target_device):
 
     if duration == 0:
         duration = DEVICE_DURATION_IN_SECS[UNKNOWN_DEVICE_TYPE]
-        logger.warning('Default duration {} seconds is used for unknown device {}'.format(duration, target_device))
+        logger.warning(f'Default duration {duration} seconds is used for unknown device {target_device}')
 
     return duration
 
@@ -188,18 +188,18 @@ def parse_nstreams_value_per_device(devices, values_string):
 
 
 def process_help_inference_string(benchmark_app):
-    output_string = 'Start inference {}hronously'.format(benchmark_app.api_type)
+    output_string = f'Start inference {benchmark_app.api_type}hronously'
     if benchmark_app.api_type == 'async':
-        output_string += ', {} inference requests'.format(benchmark_app.nireq)
+        output_string += f', {benchmark_app.nireq} inference requests'
 
         device_ss = ''
         if CPU_DEVICE_NAME in benchmark_app.device:
             device_ss += str(benchmark_app.ie.get_config(CPU_DEVICE_NAME, 'CPU_THROUGHPUT_STREAMS'))
-            device_ss += ' streams for {}'.format(CPU_DEVICE_NAME)
+            device_ss += f' streams for {CPU_DEVICE_NAME}'
         if GPU_DEVICE_NAME in benchmark_app.device:
             device_ss += ', ' if device_ss else ''
             device_ss += str(benchmark_app.ie.get_config(GPU_DEVICE_NAME, 'GPU_THROUGHPUT_STREAMS'))
-            device_ss += ' streams for {}'.format(GPU_DEVICE_NAME)
+            device_ss += f' streams for {GPU_DEVICE_NAME}'
 
         if device_ss:
             output_string += ' using ' + device_ss
@@ -207,10 +207,10 @@ def process_help_inference_string(benchmark_app):
     limits = ''
 
     if benchmark_app.niter and not benchmark_app.duration_seconds:
-        limits += '{} iterations'.format(benchmark_app.niter)
+        limits += f'{benchmark_app.niter} iterations'
 
     if benchmark_app.duration_seconds:
-        limits += '{} ms duration'.format(get_duration_in_milliseconds(benchmark_app.duration_seconds))
+        limits += f'{get_duration_in_milliseconds(benchmark_app.duration_seconds)} ms duration'
     if limits:
         output_string += ', limits: ' + limits
 
@@ -221,7 +221,7 @@ def dump_exec_graph(exe_network, exec_graph_path):
     try:
         exec_graph_info = exe_network.get_exec_graph_info()
         exec_graph_info.serialize(exec_graph_path)
-        logger.info('Executable graph is stored to {}'.format(exec_graph_path))
+        logger.info(f'Executable graph is stored to {exec_graph_path}')
         del exec_graph_info
     except Exception as e:
         logger.exception(e)
@@ -232,7 +232,7 @@ def print_perf_counters(perf_counts_list):
         perf_counts = perf_counts_list[ni]
         total_time = 0
         total_time_cpu = 0
-        logger.info("Performance counts for {}-th infer request".format(ni))
+        logger.info(f"Performance counts for {ni}-th infer request")
         for layer, stats in sorted(perf_counts.items(), key=lambda x: x[1]['execution_index']):
             max_layer_name = 30
             print("{:<30}{:<15}{:<30}{:<20}{:<20}{:<20}".format(
@@ -244,8 +244,8 @@ def print_perf_counters(perf_counts_list):
                 'execType: ' + str(stats['exec_type'])))
             total_time += stats['real_time']
             total_time_cpu += stats['cpu_time']
-        print('Total time:     {} microseconds'.format(total_time))
-        print('Total CPU time: {} microseconds\n'.format(total_time_cpu))
+        print(f'Total time:     {total_time} microseconds')
+        print(f'Total CPU time: {total_time_cpu} microseconds\n')
 
 def get_command_line_arguments(argv):
     parameters = []
@@ -283,7 +283,7 @@ def parse_input_parameters(parameter_string, input_info):
                     return_value  = { k:value for k in input_info.keys() }
                     break
         else:
-            raise Exception("Can't parse input parameter: {}".format(parameter_string))
+            raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
 
 class InputInfo:
@@ -306,7 +306,7 @@ class InputInfo:
 
     def getDimentionByLayout(self, character):
         if character not in self.layout:
-            raise Exception("Error: Can't get {} from layout {}".format(character, self.layout))
+            raise Exception(f"Error: Can't get {character} from layout {self.layout}")
         return self.shape[self.layout.index(character)]
 
     @property
