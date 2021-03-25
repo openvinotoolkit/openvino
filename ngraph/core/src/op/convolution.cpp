@@ -314,8 +314,10 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
         filters_et,
         ").");
 
-    NODE_VALIDATION_CHECK(
-        this, result_et.is_real(), "Element type of inputs must be float point. Got: ", result_et);
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element type of inputs must be numeric. Got: ",
+                          result_et);
 
     Rank result_ps_rank;
     NODE_VALIDATION_CHECK(this,

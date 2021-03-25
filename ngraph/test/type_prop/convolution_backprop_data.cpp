@@ -722,7 +722,7 @@ TEST(type_prop, convolution_backprop_data_invalid_et_inputs)
 
     try
     {
-        const element::Type_t input_et = element::i32;
+        const element::Type_t input_et = element::boolean;
 
         auto data = make_shared<op::Parameter>(input_et, data_pshape);
         auto filters = make_shared<op::Parameter>(input_et, filters_pshape);
@@ -732,11 +732,11 @@ TEST(type_prop, convolution_backprop_data_invalid_et_inputs)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Element type of inputs must be float point");
+        EXPECT_HAS_SUBSTRING(error.what(), "Element type of inputs must be numeric");
     }
     catch (...)
     {
-        FAIL() << "Float element types of data batch and filters validation check failed for "
+        FAIL() << "Numeric element types of data batch and filters validation check failed for "
                   "unexpected reason.";
     }
 
