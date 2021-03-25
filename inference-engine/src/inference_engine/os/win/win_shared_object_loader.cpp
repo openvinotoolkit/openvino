@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -210,7 +210,7 @@ class SharedObjectLoader::Impl {
 
         if (!shared_object) {
             char cwd[1024];
-            THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
+            IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
                                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
@@ -226,7 +226,7 @@ class SharedObjectLoader::Impl {
 
         if (!shared_object) {
             char cwd[1024];
-            THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
+            IE_THROW() << "Cannot load library '" << pluginName << "': " << GetLastError()
                 << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
@@ -243,11 +243,11 @@ class SharedObjectLoader::Impl {
      */
     void* get_symbol(const char* symbolName) const {
         if (!shared_object) {
-            THROW_IE_EXCEPTION << "Cannot get '" << symbolName << "' content from unknown library!";
+            IE_THROW() << "Cannot get '" << symbolName << "' content from unknown library!";
         }
         auto procAddr = reinterpret_cast<void*>(GetProcAddress(shared_object, symbolName));
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION_WITH_STATUS(NotFound)
+            IE_THROW(NotFound)
                 << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
 
         return procAddr;

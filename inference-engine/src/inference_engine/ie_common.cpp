@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,7 @@ Parameter::~Parameter() {
     clear();
 }
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#ifdef __ANDROID__
 Parameter::Any::~Any() {}
 
 template struct Parameter::RealData<int>;
@@ -118,6 +118,7 @@ template struct Parameter::RealData<std::vector<unsigned long>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 template struct Parameter::RealData<Blob::Ptr>;
+#endif
 
 //
 // ie_blob.h
@@ -140,6 +141,7 @@ template class TBlob<long>;
 template class TBlob<long long>;
 template class TBlob<unsigned long>;
 template class TBlob<unsigned long long>;
-#endif  // defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+template class TBlob<bool>;
+template class TBlob<char>;
 
 }  // namespace InferenceEngine

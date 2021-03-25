@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,7 +147,7 @@ ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph:
             return seluParam;
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+            IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
 
@@ -179,7 +178,7 @@ void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constan
             blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+            IE_THROW() << "Unsupported activation type for Params test type";
     }
 }
 
