@@ -1,8 +1,9 @@
 [
     {
         "custom_attributes": {
-            "start_nodes": ["StatefulPartitionedCall/Preprocessor/unstack"],
-            "end_nodes": ["StatefulPartitionedCall/Preprocessor/stack"]
+            "start_nodes": ["StatefulPartitionedCall/map/TensorArrayUnstack/TensorListFromTensor"],
+            "end_nodes": ["StatefulPartitionedCall/map/TensorArrayV2Stack/TensorListStack",
+                          "StatefulPartitionedCall/map/TensorArrayV2Stack_1/TensorListStack"]
         },
         "id": "ObjectDetectionAPIPreprocessor2Replacement",
         "match_kind": "general"

@@ -128,7 +128,7 @@ class DependencyGraph(Graph):
         if nodes_to_dump is None:
             nodes_to_dump = self.nodes()
         string = '\ndigraph {\n'
-        string += 'node [color=lightblue2, style=filled];\n'
+        string += 'node [color=lightblue2, style=filled, shape=box];\n'
 
         for node in nodes_to_dump:
             attrs = ""
