@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,7 +229,7 @@ class ModelSelector {
     /// @breif - tile last batch
     ModelSelector &onN_infers(int nTimesCopyInputImages) {
         if (config._paths_to_images.size() != config.batchSize) {
-            THROW_IE_EXCEPTION << "number of input images:"
+            IE_THROW() << "number of input images:"
                                << config._paths_to_images.size() << " not equal to batch size: " << config.batchSize;
         }
         auto first_image =  config._paths_to_images.end();
@@ -347,7 +347,7 @@ class ModelSelector {
         config.batchSize = nBatchSize;
         // assumption made that inputs already gets provided to matcher
         if (config._paths_to_images.empty() && needInput()) {
-            THROW_IE_EXCEPTION << "withBatch token should follow after setting up inputs";
+            IE_THROW() << "withBatch token should follow after setting up inputs";
         }
         if (config._paths_to_images.size() < nBatchSize) {
             tile(nBatchSize - config._paths_to_images.size());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,14 +93,14 @@ public:
 }  // namespace InferenceEngine
 
 TEST_F(SoPointerTests, UnknownPlugin) {
-    ASSERT_THROW(SOPointer<InferenceEngine::details::UnknownPlugin>("UnknownPlugin"), InferenceEngineException);
+    ASSERT_THROW(SOPointer<InferenceEngine::details::UnknownPlugin>("UnknownPlugin"), Exception);
 }
 
 TEST_F(SoPointerTests, UnknownPluginExceptionStr) {
     try {
         SOPointer<InferenceEngine::details::UnknownPlugin>("UnknownPlugin");
     }
-    catch (InferenceEngineException &e) {
+    catch (Exception &e) {
         ASSERT_STR_CONTAINS(e.what(), "Cannot load library 'UnknownPlugin':");
         ASSERT_STR_DOES_NOT_CONTAIN(e.what(), "path:");
         ASSERT_STR_DOES_NOT_CONTAIN(e.what(), "from CWD:");

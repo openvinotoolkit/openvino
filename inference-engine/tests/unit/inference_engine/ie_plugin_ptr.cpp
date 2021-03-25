@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
 }
 
 TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
-    EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), InferenceEngineException);
+    EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), Exception);
 }
 
 InferenceEnginePluginPtr PluginTest::getPtr() {
