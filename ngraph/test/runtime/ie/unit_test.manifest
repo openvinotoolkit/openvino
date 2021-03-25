@@ -1084,6 +1084,14 @@ rnn_cell_zero_bias_default_attrs
 # Activation function hardsigmoid is not supported
 gru_cell_hardsigmoid_activation_function
 
+# Roll is not implemented yet for CPU, GPU 
+roll_2d_input
+roll_2d_input_negative_shift
+roll_repeated_axes
+roll_3d_input
+roll_3d_input_negative_shift
+roll_negative_axes
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
@@ -1172,14 +1180,6 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
-
-# Roll is not implemented yet for CPU, GPU 
-IE_CPU.roll_2d_input
-IE_CPU.roll_2d_input_negative_shift
-IE_CPU.roll_repeated_axes
-IE_CPU.roll_3d_input
-IE_CPU.roll_3d_input_negative_shift
-IE_CPU.roll_negative_axes
 
 #-------------------------------------------------------------------------------
 #
@@ -1584,14 +1584,6 @@ IE_GPU.onnx_model_gather_elements_float_negative_axis
 IE_GPU.onnx_model_gather_elements_int32_axis_0
 IE_GPU.onnx_model_gather_elements_int8_axis_1
 IE_GPU.onnx_model_gather_elements_float_3D_axis_2
-
-# Roll is not implemented yet for CPU, GPU 
-IE_GPU.roll_2d_input
-IE_GPU.roll_2d_input_negative_shift
-IE_GPU.roll_repeated_axes
-IE_GPU.roll_3d_input
-IE_GPU.roll_3d_input_negative_shift
-IE_GPU.roll_negative_axes
 
 # not supported fp16 blob input
 IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
