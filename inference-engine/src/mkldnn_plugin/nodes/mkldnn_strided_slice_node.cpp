@@ -238,11 +238,11 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        THROW_ERROR << "has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        THROW_ERROR << "has not allocated input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        THROW_ERROR << "has unidentified preferable primitive descriptor.";
 
     auto srcBlockingDesc = getParentEdgeAt(DATA_ID)->getDesc().getBlockingDesc();
     auto dstBlockingDesc = getChildEdgeAt(0)->getDesc().getBlockingDesc();
