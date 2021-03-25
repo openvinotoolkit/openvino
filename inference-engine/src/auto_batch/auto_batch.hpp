@@ -90,10 +90,10 @@ public:
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config, InferenceEngine::ResponseDesc *resp) override;
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
+    void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
     ~AutoBatchExecutableNetwork() override;
@@ -114,7 +114,7 @@ public:
                                    const InferenceEngine::OutputsDataMap& networkOutputs,
                                    AutoBatchExecutableNetwork::WorkerInferRequest* workerRequestPtr,
                                    int batch_id, int num_batch, bool _needPerfCounters = false);
-    void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& map) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
@@ -146,15 +146,14 @@ public:
     AutoBatchInferencePlugin();
     ~AutoBatchInferencePlugin() override = default;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                        const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
-    Parameter GetConfig(const std::string& name,
-                        const std::map<std::string, Parameter> & options) const override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork&       network,
-                      const std::map<std::string, std::string>& config,
-                      InferenceEngine::QueryNetworkResult&      res) const override;
+    InferenceEngine::Parameter GetConfig(const std::string& name,
+                        const std::map<std::string, InferenceEngine::Parameter> & options) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork&       network,
+                      const std::map<std::string, std::string>& config) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 

@@ -13,9 +13,9 @@
 #include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
-#include <legacy/ie_util_internal.hpp>
 #include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <ie_plugin_config.hpp>
 #include "auto_batch.hpp"
 
@@ -124,8 +124,8 @@ void AutoBatchInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
     // todo call Set for REMOTE BLOB
 }
 
-void AutoBatchInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& map) const {
-    map = _perfMap;
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchInferRequest::GetPerformanceCounts() const {
+    return _perfMap;
 }
 
 void AutoBatchInferRequest::InferImpl() {
@@ -216,63 +216,63 @@ InferenceEngine::InferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInf
             batch_id, _device.batchForDevice, _needPerfCounters);
 }
 
-void AutoBatchExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncRequest) {
+InferenceEngine::IInferRequest::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     auto asyncTreadSafeImpl = std::make_shared<AutoBatchAsyncInferRequest>(std::static_pointer_cast<AutoBatchInferRequest>(syncRequestImpl),
                                                                              _needPerfCounters,
                                                                              std::static_pointer_cast<AutoBatchExecutableNetwork>(shared_from_this()),
                                                                              _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<AutoBatchAsyncInferRequest>(asyncTreadSafeImpl), [](IInferRequest *p) { p->Release(); });
+    IInferRequest::Ptr asyncRequest;
+    asyncRequest.reset(new InferRequestBase(asyncTreadSafeImpl), [](IInferRequest* p) { p->Release(); });
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    return asyncRequest;
 }
 
-void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config,
-        InferenceEngine::ResponseDesc * /* resp */) {
+void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
     // TODO
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-void AutoBatchExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result,
-        InferenceEngine::ResponseDesc * /* resp */) const {
+InferenceEngine::Parameter AutoBatchExecutableNetwork::GetConfig(const std::string &name) const {
     auto res = _config.find(name);
     if (res != _config.end()) {
-        result =  res->second;
+        return res->second;
     } else {
         THROW_IE_EXCEPTION << NOT_FOUND_str << name <<" not found in the ExecutableNetwork config";
     }
 }
 
-void AutoBatchExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
-        if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-            unsigned int res = 0u;
-            try {
-                res = _network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-            } catch (const details::InferenceEngineException &iie) {
-                THROW_IE_EXCEPTION
-                        << "Every device used with the Auto-Batching should "
-                        << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                        << "Failed to query the metric for the "
-                        << _network.GetMetric(METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>()
-                        << " with error:" << iie.what();
-            }
-            result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res * _device.batchForDevice);
-        } else if (name == METRIC_KEY(NETWORK_NAME)) {
-            result = IE_SET_METRIC(NETWORK_NAME, _network.GetMetric(
-                    METRIC_KEY(NETWORK_NAME)).as<std::string>());
-        } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-            result = IE_SET_METRIC(SUPPORTED_METRICS, {
-                METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
-                METRIC_KEY(SUPPORTED_METRICS),
-                METRIC_KEY(NETWORK_NAME),
-                METRIC_KEY(SUPPORTED_CONFIG_KEYS)
-            });
-        } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-            std::vector<std::string> configKeys = { CONFIG_KEY(AUTO_BATCH_NUM) };
-            result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
-        } else {
-            THROW_IE_EXCEPTION << "Unsupported Network metric: " << name;
+InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::string &name) const {
+    if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+        unsigned int res = 0u;
+        try {
+            res = _network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+        } catch (const details::InferenceEngineException &iie) {
+            THROW_IE_EXCEPTION
+                    << "Every device used with the Auto-Batching should "
+                    << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+                    << "Failed to query the metric for the "
+                    << _network.GetMetric(METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>()
+                    << " with error:" << iie.what();
         }
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res * _device.batchForDevice);
+    } else if (name == METRIC_KEY(NETWORK_NAME)) {
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _network.GetMetric(
+                METRIC_KEY(NETWORK_NAME)).as<std::string>());
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {
+            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
+            METRIC_KEY(SUPPORTED_METRICS),
+            METRIC_KEY(NETWORK_NAME),
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS)
+        });
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        std::vector<std::string> configKeys = { CONFIG_KEY(AUTO_BATCH_NUM) };
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported Network metric: " << name;
+    }
 }
 
 // ------------------------------AutoBatchInferencePlugin----------------------------
@@ -395,7 +395,7 @@ InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(const std::string
     }
 }
 
-ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(const ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&network,
                                                                               const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with MULTI device via InferencEngine::Core object";
@@ -416,7 +416,7 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
     ExecutableNetwork executableNetworkForDevice;
     auto & deviceName = metaDevice.deviceName;
     auto & deviceConfig = metaDevice.config;
-    CNNNetwork clonedNetwork(cloneNetwork(network));
+    CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
     const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
     ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
 
@@ -444,9 +444,8 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
                                                           enablePerfCounters);
 }
 
-void AutoBatchInferencePlugin::QueryNetwork(const ICNNNetwork&                        network,
-                                              const std::map<std::string, std::string>& config,
-                                              QueryNetworkResult&                       queryResult) const {
+InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                                              const std::map<std::string, std::string>& config) const {
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 }  // namespace AutoBatchPlugin

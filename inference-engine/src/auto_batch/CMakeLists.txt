@@ -21,6 +21,5 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR auto_batch.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
-
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_legacy)
 set_ie_threading_interface_for(${TARGET_NAME})
