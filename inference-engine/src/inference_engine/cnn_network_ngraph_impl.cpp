@@ -260,6 +260,10 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
     // guaranteed to be the same.
     auto params = _ngraph_function->get_parameters();
+    sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+        return lhs->get_friendly_name() < rhs->get_friendly_name();
+    });
+
     for (const auto& param : params) {
         if (param->get_partial_shape().rank().is_dynamic())
             continue;

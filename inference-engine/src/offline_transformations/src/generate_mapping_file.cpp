@@ -39,20 +39,24 @@ bool ngraph::pass::GenerateMappingFile::run_on_function(std::shared_ptr<ngraph::
     };
 
     for (auto && node : f->get_ordered_ops()) {
-        uint64_t port_index{node->inputs().size()};
+        uint64_t ie_port_index{node->inputs().size()};
+        uint64_t ng_port_index{0};
         for (auto && output : node->outputs()) {
+            const auto & node_name = node->get_friendly_name();
+            add_mapping(node_name, node_name + ":" + std::to_string(ng_port_index), node_name, std::to_string(ie_port_index));
+
             const auto & t = output.get_tensor_ptr();
             for (const auto & port_name : t->get_names()) {
-                const auto & node_name = node->get_friendly_name();
-                add_mapping(node_name, port_name, node_name, std::to_string(port_index));
+                add_mapping(node_name, port_name, node_name, std::to_string(ie_port_index));
 
                 if (m_extract_name) {
                     for (auto &name : t->get_names()) {
-                        add_mapping(extract_name(name), port_name, node_name, std::to_string(port_index));
+                        add_mapping(extract_name(name), port_name, node_name, std::to_string(ie_port_index));
                     }
                 }
             }
-            ++port_index;
+            ++ie_port_index;
+            ++ng_port_index;
         }
     }
 
