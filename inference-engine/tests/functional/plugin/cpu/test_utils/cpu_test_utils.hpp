@@ -11,6 +11,12 @@
 #include <exec_graph_info.hpp>
 #include "ie_system_conf.h"
 
+#if defined(__x86_64__) || defined(_M_X64)
+#define DNNL_X64 1
+#else
+#define DNNL_X64 0
+#endif
+
 namespace CPUTestUtils {
     typedef enum {
         undef,
@@ -38,7 +44,7 @@ namespace CPUTestUtils {
     } cpu_memory_format_t;
 
     using CPUSpecificParams =  std::tuple<
-        std::vector<cpu_memory_format_t>, // input memomry format
+        std::vector<cpu_memory_format_t>, // input memory format
         std::vector<cpu_memory_format_t>, // output memory format
         std::vector<std::string>,         // priority
         std::string                       // selected primitive type
@@ -57,6 +63,9 @@ public:
     static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
                                std::vector<cpu_memory_format_t> outFmts,
                                std::vector<std::string> priority);
+
+    static unsigned getPerCoreCacheSize(int level);
+    static int getCacheSize(int level, bool perCore);
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,

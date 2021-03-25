@@ -5,6 +5,16 @@
 #include "cpu_test_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 
+#ifdef _WIN32
+# ifndef _WINSOCKAPI_
+#  define _WINSOCKAPI_
+# endif
+# ifndef _WINSOCK2API_
+#  define _WINSOCK2API_
+#endif
+#endif
+#include "xbyak_util.h"
+
 namespace CPUTestUtils {
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
@@ -272,4 +282,52 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificPar
 
     return resCPUParams;
 }
+
+static Xbyak::util::Cpu& getCpuInfo() {
+    static Xbyak::util::Cpu cpu;
+    return cpu;
+}
+
+unsigned CPUTestsBase::getPerCoreCacheSize(int level) {
+    auto guess = [](int level) {
+        switch (level) {
+            case 1: return 32U * 1024;
+            case 2: return 512U * 1024;
+            case 3: return 1024U * 1024;
+            default: return 0U;
+        }
+    };
+
+#if DNNL_X64
+    if (getCpuInfo().getDataCacheLevels() == 0) return guess(level);
+
+    if (level > 0 && (unsigned)level <= getCpuInfo().getDataCacheLevels()) {
+        unsigned l = level - 1;
+        return getCpuInfo().getDataCacheSize(l) / getCpuInfo().getCoresSharingDataCache(l);
+    } else {
+        return 0;
+    }
+#else
+    return guess(level);
+#endif
+}
+
+int CPUTestsBase::getCacheSize(int level, bool perCore) {
+    if (perCore) {
+        return getPerCoreCacheSize(level);
+    } else {
+        if (getCpuInfo().getDataCacheLevels() == 0) {
+            // this function can return stub values in case of unknown CPU type
+            return getPerCoreCacheSize(level);
+        }
+
+        if (level > 0 && (unsigned) level <= getCpuInfo().getDataCacheLevels()) {
+            unsigned l = level - 1;
+            return getCpuInfo().getDataCacheSize(l);
+        } else {
+            return 0;
+        }
+    }
+}
+
 } // namespace CPUTestUtils
