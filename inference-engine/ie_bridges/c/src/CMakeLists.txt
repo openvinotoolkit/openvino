@@ -37,5 +37,5 @@ install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
-        DESTINATION ${IE_CPACK_IE_DIR}/include/
+        DESTINATION ${IE_CPACK_IE_DIR}/include
         COMPONENT core_c)
