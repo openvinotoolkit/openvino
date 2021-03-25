@@ -467,14 +467,19 @@ void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
         m_parameters.end());
 }
 
-VariableVector Function::find_variables() const {
+VariableVector Function::find_variables() const
+{
     const auto& ops = get_ordered_ops();
     set<VariablePtr> variables;
-    for (const auto& op : ops) {
+    for (const auto& op : ops)
+    {
         // find all ops that can store variables
-        if (const auto& read_value = std::dynamic_pointer_cast<op::ReadValueBase>(op)) {
+        if (const auto& read_value = std::dynamic_pointer_cast<op::ReadValueBase>(op))
+        {
             variables.insert(read_value->get_variable());
-        } else if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(op)) {
+        }
+        else if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(op))
+        {
             variables.insert(assign->get_variable());
         }
     }

@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/read_value.hpp"
-#include "ngraph/ops.hpp"
 #include "itt.hpp"
+#include "ngraph/ops.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -117,15 +117,16 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     const auto& var_value = variable_context.find(m_variable);
 
     bool use_context = var_value != variable_context.end() && !var_value->second->get_reset();
-    const auto& input_tensor = use_context? var_value->second->get_value(): inputs[0];
+    const auto& input_tensor = use_context ? var_value->second->get_value() : inputs[0];
     outputs[0]->set_unary(input_tensor);
-    void *output = outputs[0]->get_data_ptr();
-    void *input = input_tensor->get_data_ptr();
+    void* output = outputs[0]->get_data_ptr();
+    void* input = input_tensor->get_data_ptr();
     memcpy(output, input, outputs[0]->get_size_in_bytes());
     return true;
 }
 
-bool op::v6::ReadValue::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)
+bool op::v6::ReadValue::constant_fold(OutputVector& output_values,
+                                      const OutputVector& inputs_values)
 {
     return false;
 }

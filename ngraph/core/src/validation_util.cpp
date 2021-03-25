@@ -1167,8 +1167,8 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
 {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
     evaluator.set_univeral_handler(
-        [&output_tensor_map, &evaluation_context](Node* node,
-                             const HostTensorVector& input_tensors) -> HostTensorVector {
+        [&output_tensor_map, &evaluation_context](
+            Node* node, const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;
             for (const auto& v : node->outputs())
             {

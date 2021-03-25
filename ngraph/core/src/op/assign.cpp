@@ -145,8 +145,8 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     value->set_unary(inputs[0]);
     outputs[0]->set_unary(inputs[0]);
 
-    void *output = outputs[0]->get_data_ptr();
-    void *input = inputs[0]->get_data_ptr();
+    void* output = outputs[0]->get_data_ptr();
+    void* input = inputs[0]->get_data_ptr();
     memcpy(output, input, outputs[0]->get_size_in_bytes());
     memcpy(value->get_data_ptr(), input, value->get_size_in_bytes());
     return true;

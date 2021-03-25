@@ -30,8 +30,8 @@
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/sink.hpp"
-#include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/evaluation_context.h"
+#include "ngraph/op/util/variable.hpp"
 
 namespace ngraph
 {
@@ -208,14 +208,10 @@ namespace ngraph
 
         /// \brief Register new variables in ngraph::function
         /// \param param New variables
-        void set_variables(const VariableVector& variables) {
-            m_variables = variables;
-        }
+        void set_variables(const VariableVector& variables) { m_variables = variables; }
 
         /// \brief Return all registred variables in ngraph::function
-        const VariableVector& get_variables() {
-            return m_variables;
-        }
+        const VariableVector& get_variables() { return m_variables; }
 
     private:
         Function(const Function&) = delete;
