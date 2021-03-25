@@ -735,7 +735,7 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     }
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) {
+std::ostream& operator<<(std::ostream & os, const ngraph::helpers::EltwiseTypes type) {
     switch (type) {
         case ngraph::helpers::EltwiseTypes::SUBTRACT:
             os << "Sub";
@@ -760,6 +760,9 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
             break;
         case ngraph::helpers::EltwiseTypes::MOD:
             os << "Mod";
+            break;
+        case ngraph::helpers::EltwiseTypes::ERF:
+            os << "Erf";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
