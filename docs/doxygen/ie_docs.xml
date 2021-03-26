@@ -137,6 +137,11 @@ limitations under the License.
                 <tab type="user" title="Equal-1" url="@ref openvino_docs_ops_comparison_Equal_1"/>
                 <tab type="user" title="Erf-1" url="@ref openvino_docs_ops_arithmetic_Erf_1"/>
                 <tab type="user" title="Exp-1" url="@ref openvino_docs_ops_activation_Exp_1"/>
+                <tab type="user" title="ExperimentalDetectronDetectionOutput-6" url="@ref openvino_docs_ops_detection_ExperimentalDetectronDetectionOutput_6"/>
+                <tab type="user" title="ExperimentalDetectronGenerateProposalsSingleImage-6" url="@ref openvino_docs_ops_detection_ExperimentalDetectronGenerateProposalsSingleImage_6"/>
+                <tab type="user" title="ExperimentalDetectronPriorGridGenerator-6" url="@ref openvino_docs_ops_detection_ExperimentalDetectronPriorGridGenerator_6"/>
+                <tab type="user" title="ExperimentalDetectronROIFeatureExtractor-6" url="@ref openvino_docs_ops_detection_ExperimentalDetectronROIFeatureExtractor_6"/>
+                <tab type="user" title="ExperimentalDetectronTopKROIs-6" url="@ref openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6"/>
                 <tab type="user" title="ExtractImagePatches-3" url="@ref openvino_docs_ops_movement_ExtractImagePatches_3"/>
                 <tab type="user" title="FakeQuantize-1" url="@ref openvino_docs_ops_quantization_FakeQuantize_1"/>
                 <tab type="user" title="FloorMod-1" url="@ref openvino_docs_ops_arithmetic_FloorMod_1"/>
