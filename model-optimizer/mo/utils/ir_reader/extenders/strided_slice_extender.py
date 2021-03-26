@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.strided_slice import StridedSlice
@@ -25,8 +26,12 @@ class StridedSlice_extender(Extender):
 
     @staticmethod
     def extend(op: Node):
+        input_shape = op.in_port(0).data.get_shape()
         for attr in StridedSlice.get_mask_names():
-            Extender.attr_to_list(op, attr)
+            if op[attr] != '':
+                Extender.attr_to_list(op, attr)
+            else:
+                op[attr] = np.zeros_like(input_shape)
 
         op.begin_mask = int64_array([1 - i for i in op.begin_mask])
         op.end_mask = int64_array([1 - i for i in op.end_mask])
