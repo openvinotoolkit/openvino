@@ -16,7 +16,7 @@ def metric_to_string(metric) -> str:
 
 
 def main():
-    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO)
+    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
 
     ie = IECore()
 
