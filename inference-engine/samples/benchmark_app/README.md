@@ -84,7 +84,7 @@ Options:
     -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -api "<sync/async>"         tional. Enable Sync/Async API. Default value is "async".
+    -api "<sync/async>"         Optional. Enable Sync/Async API. Default value is "async".
     -niter "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
     -nireq "<integer>"          Optional. Number of infer requests. Default value is determined automatically for a device.
     -b "<integer>"              Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
