@@ -186,7 +186,7 @@ namespace ngraph
                     return outer_axes;
                 }
 
-                inline bool is_power_of_two(int64_t x) { return (x != 0) and ((x & (x - 1)) == 0); }
+                inline bool is_power_of_two(int64_t x) { return (x != 0) && ((x & (x - 1)) == 0); }
 
                 int64_t compute_buffer_size(const std::vector<int64_t>& fft_lengths)
                 {
