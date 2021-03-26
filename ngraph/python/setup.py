@@ -210,7 +210,7 @@ class InstallCMakeLibs(install_lib):
 
         libs = []
         for ngraph_lib in NGRAPH_LIBS:
-            libs.extend(list(glob.iglob("{0}/**/*{1}*{2}".format("/home/jiwaszki/openvino_dist/deployment_tools/", # root_dir,
+            libs.extend(list(glob.iglob("{0}/**/*{1}*{2}".format(root_dir,
                              ngraph_lib, lib_ext), recursive=True)))
         if not libs:
             raise Exception("NGraph libs not found.")
