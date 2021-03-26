@@ -747,33 +747,24 @@ dyn_convolution_backprop_data
 dyn_convolution_backprop_filter
 
 # Pad Pad_524448 with not constant pad_value is not allowed
-pad_exterior_1d
 pad_negative_exterior_1d
 pad_negative_exterior_1d_check_limits
-pad_edge_1d
 pad_edge_1d_top_neg
 pad_edge_1d_top_neg_bigger_than_tensor
 pad_edge_1d_bottom_neg
 pad_edge_1d_bottom_neg_bigger_than_tensor
-pad_edge_2d
 pad_edge_2d_with_neg
-pad_reflect_1d
 pad_reflect_1d_top_neg
 pad_reflect_1d_top_neg_bigger_than_tensor
 pad_reflect_1d_bottom_neg
 pad_reflect_1d_bottom_neg_bigger_than_tensor
 pad_reflect_1d_multi_reflect
-pad_reflect_2d
 pad_reflect_2d_with_neg
 pad_negative_exterior_2d
 pad_negative_exterior_2d_all_negative
 pad_exterior_4d_1x2x2x2
 pad_negative_exterior_4d
 pad_2channel_2image_asym
-pad_symmetric
-
-
-IE_CPU/PadBackendTest.PadBackendTestForSpec
 
 # LRN operation should be converted to LRN_IE
 lrn_across_h
