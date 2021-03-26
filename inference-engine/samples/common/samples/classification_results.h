@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ private:
     void topResults(unsigned int n, InferenceEngine::TBlob<T>& input, std::vector<unsigned>& output) {
         InferenceEngine::SizeVector dims = input.getTensorDesc().getDims();
         size_t input_rank = dims.size();
-        if (!input_rank || !dims[0]) THROW_IE_EXCEPTION << "Input blob has incorrect dimensions!";
+        if (!input_rank || !dims[0]) IE_THROW() << "Input blob has incorrect dimensions!";
         size_t batchSize = dims[0];
         std::vector<unsigned> indexes(input.size() / batchSize);
 
@@ -109,7 +109,7 @@ private:
             TBLOB_TOP_RESULT(U64);
             TBLOB_TOP_RESULT(I64);
         default:
-            THROW_IE_EXCEPTION << "cannot locate blob for precision: " << input.getTensorDesc().getPrecision();
+            IE_THROW() << "cannot locate blob for precision: " << input.getTensorDesc().getPrecision();
         }
 
         #undef TBLOB_TOP_RESULT

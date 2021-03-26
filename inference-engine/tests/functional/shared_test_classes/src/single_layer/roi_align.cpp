@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +94,7 @@ void ROIAlignLayerTest::SetUp() {
     fillIdxTensor(roiIdxVector, inputShape[0]);
     ngraph::Shape idxShape = { coordsShape[0] };
 
-    auto coords = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, coordsShape, proposalVector.data());
+    auto coords = std::make_shared<ngraph::opset1::Constant>(ngPrc, coordsShape, proposalVector.data());
     auto roisIdx = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
     std::shared_ptr<ngraph::Node> roiAlign =

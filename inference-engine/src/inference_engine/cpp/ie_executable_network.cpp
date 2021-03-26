@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ ExecutableNetwork::ExecutableNetwork(IExecutableNetwork::Ptr actual_, details::S
     : actual(actual_), plg(plg) {
     //  plg can be null, but not the actual
     if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
     }
 }
 
@@ -33,10 +33,10 @@ ConstInputsDataMap ExecutableNetwork::GetInputsInfo() const {
 
 void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
     }
     if (newActual == nullptr) {
-        THROW_IE_EXCEPTION << "ExecutableNetwork wrapper used for reset was not initialized.";
+        IE_THROW() << "ExecutableNetwork wrapper used for reset was not initialized.";
     }
     this->actual.swap(newActual);
 }
@@ -44,7 +44,7 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
 InferRequest ExecutableNetwork::CreateInferRequest() {
     IInferRequest::Ptr req;
     CALL_STATUS_FNC(CreateInferRequest, req);
-    if (req.get() == nullptr) THROW_IE_EXCEPTION << "Internal error: pointer to infer request is null";
+    if (req.get() == nullptr) IE_THROW() << "Internal error: pointer to infer request is null";
     return InferRequest(req, plg);
 }
 
@@ -76,7 +76,7 @@ CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
 
 
 std::vector<VariableState> ExecutableNetwork::QueryState() {
-    if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
+    if (actual == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
     IVariableState::Ptr pState = nullptr;
     auto res = OK;
     std::vector<VariableState> controller;
@@ -86,7 +86,7 @@ std::vector<VariableState> ExecutableNetwork::QueryState() {
         res = actual->QueryState(pState, idx, &resp);
         IE_SUPPRESS_DEPRECATED_END
         if (res != OK && res != OUT_OF_BOUNDS) {
-            THROW_IE_EXCEPTION << resp.msg;
+            IE_THROW() << resp.msg;
         }
         if (res != OUT_OF_BOUNDS) {
             controller.push_back(VariableState(pState, plg));

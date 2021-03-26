@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Multiply with different input and output shape
     {
-        ngraph::Shape{128, 1},
+        ngraph::Shape{128, 3},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
