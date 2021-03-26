@@ -1477,7 +1477,7 @@ JitConstants FusedOpsCodeGenerator::MakeLoadJitConstants(const FusedOpsConfigura
 
 JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfiguration& conf,
                                                        const std::string in_var, const Datatype in_type,
-                                                       std::string& out_var, Datatype& out_type, bool is_second) const {
+                                                       std::string& out_var) const {
     JitConstants jit = {};
 
     std::string op_decls = "";
@@ -1486,12 +1486,8 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     std::string shuffle_var = conf.shuffle_var_name;
     bool is_shuffled = false;
 
-    if (is_second) {
-        out_var = "dst_out_2";
-    } else {
-        out_var = GetOutputVarName(in_var);
-    }
-    out_type = desc.output_tensor.GetDType();
+    out_var = GetOutputVarName(in_var, desc.op_id);
+    auto out_type = desc.output_tensor.GetDType();
 
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE &&
         (desc.GetType() == KernelType::SCALE || desc.GetType() == KernelType::QUANTIZE)) {
@@ -1526,7 +1522,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     auto get_input = [&](size_t index) -> std::string {
         auto in_name = index == 0 ? in_var : GetInputVarName(index - 1, is_shuffled, shuffle_var);
-        auto tensor_type = index == 0 ? in_type : desc.tensors[index - 1].GetDType();
+        auto tensor_type = (index == 0 || desc.tensors.empty()) ? in_type : desc.tensors[index - 1].GetDType();
         auto acc_t = get_acc_t();
 
         if (tensor_type != acc_t)
@@ -1564,18 +1560,23 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             default:
                 throw std::runtime_error("[clDNN] Eltwise mode is not supported in fused ops codegen");
             }
-
-            auto tmp_var = out_var + "_tmp";
-            if (is_second) {
-                if (conf.suffix.find("_SCALAR") != std::string::npos) {
-                    op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + "dst[i]" + op + "dst_i__out" + ";";
-                } else {
-                    op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + "dst" + op + "dst_out" + ";";
-                }
+            std::string var_input0 = "";
+            std::string var_input1 = "";
+            auto& fused_deps = desc.fused_deps_op_id;
+            if (fused_deps.empty()) {
+                var_input0 = get_input(0);
+                var_input1 = get_input(1);
+            } else if (fused_deps.size() == 1) {
+                var_input0 = get_input(0);
+                var_input1 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[0]), vec_size);
             } else {
-                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + get_input(0) + op + get_input(1) + ";";
+                var_input0 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[0]), vec_size);
+                var_input1 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[1]), vec_size);
             }
+            auto tmp_var = out_var + "_tmp";
+            op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + var_input0 + op + var_input1 + ";";
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
+            std::cout << conf.suffix << " :: " << op_decls << std::endl;
             break;
         }
         case KernelType::QUANTIZE: {
@@ -1797,12 +1798,12 @@ std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id, bool is_shuf
     return GetTypeStr() + std::to_string(desc.op_id) + "_data" + std::to_string(input_id);
 }
 
-std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var) const {
+std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var, size_t op_id) const {
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
     std::replace(input_var.begin(), input_var.end(), ' ', '_');
     std::replace(input_var.begin(), input_var.end(), '.', '_');
-    return input_var + "_out";
+    return input_var + "_out_" + std::to_string(op_id);
 }
 
 std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) const {
