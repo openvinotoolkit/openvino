@@ -44,16 +44,9 @@ protected:
         ngraph::op::PadType pad_type;
         InferenceEngine::Precision netPrecision;
         std::tie(inputShape, kernel, strides, rates, pad_type, netPrecision, inPrc, outPrc, inLayout, targetDevice) = basicParamsSet;
+        selectedType = std::string("unknown_") + netPrecision.name();
 
-        if (inPrc == Precision::FP32) {
-            selectedType = std::string("unknown_") + Precision(Precision::FP32).name();
-        } else if (inPrc == Precision::I16) {
-            selectedType = std::string("unknown_") + Precision(Precision::I32).name();
-        } else if (inPrc == Precision::U8) {
-            selectedType = std::string("unknown_") + Precision(Precision::I8).name();
-        }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
         auto inputNode = std::make_shared<ngraph::opset6::Parameter>(ngPrc, ngraph::Shape(inputShape));
         ngraph::ParameterVector params = {inputNode};
 
@@ -72,12 +65,13 @@ TEST_P(ExtractImagePatchesLayerCPUTest, CompareWithRefs) {
 
 namespace {
     const std::vector<ngraph::op::PadType> autoPads = {ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER};
-    const std::vector<Precision> inPrecision = {Precision::FP32, Precision::I16, Precision::U8};
+    const std::vector<Precision> netPrecision = {Precision::FP32, Precision::I8};
     const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
     const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
     const auto avx2 = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
     const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
     const std::vector<CPUSpecificParams> CPUParams = {ref, sse42, avx2, avx512};
+
 /* ============= 1D ============= */
 const auto Layer_params_1D = ::testing::Combine(
         ::testing::Values(std::vector<size_t> {1, 1, 1, 37}),   // InShapes
@@ -85,8 +79,8 @@ const auto Layer_params_1D = ::testing::Combine(
         ::testing::Values(std::vector<size_t> {1, 2}),          // Strides
         ::testing::Values(std::vector<size_t> {1, 3}),          // Rates
         ::testing::ValuesIn(autoPads),
-        ::testing::Values(InferenceEngine::Precision::FP32),
-        ::testing::ValuesIn(inPrecision),
+        ::testing::ValuesIn(netPrecision),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
@@ -102,8 +96,8 @@ const auto Layer_params_2D = ::testing::Combine(
         ::testing::Values(std::vector<size_t> {2, 2}),          // Strides
         ::testing::Values(std::vector<size_t> {3, 3}),          // Rates
         ::testing::ValuesIn(autoPads),
-        ::testing::Values(InferenceEngine::Precision::FP32),
-        ::testing::ValuesIn(inPrecision),
+        ::testing::ValuesIn(netPrecision),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
@@ -119,8 +113,8 @@ const auto Layer_params_3D = ::testing::Combine(
         ::testing::Values(std::vector<size_t> {1, 2}),          // Strides
         ::testing::Values(std::vector<size_t> {2, 2}),          // Rates
         ::testing::ValuesIn(autoPads),
-        ::testing::Values(InferenceEngine::Precision::FP32),
-        ::testing::ValuesIn(inPrecision),
+        ::testing::ValuesIn(netPrecision),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
@@ -136,8 +130,8 @@ const auto Layer_params_4D = ::testing::Combine(
         ::testing::Values(std::vector<size_t> {1, 3}),          // Strides
         ::testing::Values(std::vector<size_t> {2, 1}),          // Rates
         ::testing::ValuesIn(autoPads),
-        ::testing::Values(InferenceEngine::Precision::FP32),
-        ::testing::ValuesIn(inPrecision),
+        ::testing::ValuesIn(netPrecision),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
