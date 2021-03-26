@@ -312,9 +312,9 @@ def read_multi_input_file(input_file: str, net_inputs: dict):
     dump = {}
     for net_input in net_inputs:
         if net_input not in files:
-            raise Exception(f'Can not find input data for input {net_input} in multi-input file {input_file}.\n'
-                            'Input data was provided for layers: {',' .join(files)}\n'
-                            'Network inputs: {',' .join(net_inputs.keys())}')
+            raise Exception(f"Can not find input data for input {net_input} in multi-input file {input_file}.\n"
+                            f"Input data was provided for layers: {', '.join(files)}\n"
+                            f"Network inputs: {', '.join(net_inputs.keys())}")
         if 'blob' in npz[net_input].item(0):
             just_blob = npz[net_input].item(0)['blob']
             network_shape = net_inputs[net_input].input_data.shape
@@ -439,9 +439,9 @@ def print_all_over_the_net_metrics(global_accuracy: (str, float), global_times: 
                                    ref_global_times: list = None):
     if global_times is not None and ref_global_times is not None and len(global_times) and len(ref_global_times):
         log.info('-' * 70, extra={'no_lvl': True})
-        log.info(f'{"Overall performance, microseconds":>35}:'
-                                '{global_times[len(global_times) // 2].microseconds:>16,.5E}'
-                                '{ref_global_times[len(ref_global_times) // 2].microseconds:>16,.5E}', 
+        log.info(f'{"Overall performance, microseconds":>35}: '
+                                f'{global_times[len(global_times) // 2].microseconds:>16,.5E} '
+                                f'{ref_global_times[len(ref_global_times) // 2].microseconds:>16,.5E}', 
                                                                                 extra={'no_lvl': True})
         log.info('-' * 70, extra={'no_lvl': True})
     for metric, value in global_accuracy:

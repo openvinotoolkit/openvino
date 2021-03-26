@@ -82,7 +82,7 @@ def _configure_network_inputs_and_outputs(ie_network: IENetwork, input_output_pr
         elif key in output_info:
             output_info[key].precision = value
         else:
-            raise Exception("Element '{}' does not exist in network".format(key))
+            raise Exception(f"Element '{key}' does not exist in network")
 
 def _parse_arg_map(arg_map: str):
     arg_map = arg_map.replace(" ", "")
@@ -99,19 +99,15 @@ def print_inputs_and_outputs_info(ie_network: IENetwork):
     input_info = ie_network.input_info
     for key in input_info.keys():
         tensor_desc = input_info[key].tensor_desc
-        logger.info("Network input '{}' precision {}, dimensions ({}): {}".format(key,
-                                                                                  tensor_desc.precision,
-                                                                                  tensor_desc.layout,
-                                                                                  " ".join(str(x) for x in
-                                                                                           tensor_desc.dims)))
+        logger.info(f"Network input '{key}' precision {tensor_desc.precision}, "
+                                                    f"dimensions ({tensor_desc.layout}): "
+                                                    f"{' '.join(str(x) for x in tensor_desc.dims)}")
     output_info = ie_network.outputs
     for key in output_info.keys():
         info = output_info[key]
-        logger.info("Network output '{}' precision {}, dimensions ({}): {}".format(key,
-                                                                                  info.precision,
-                                                                                  info.layout,
-                                                                                  " ".join(str(x) for x in
-                                                                                           info.shape)))
+        logger.info(f"Network output '{key}' precision {info.precision}, "
+                                        f"dimensions ({info.layout}): "
+                                        f"{' '.join(str(x) for x in info.shape)}")
 
 def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
     niter = number_iterations
@@ -120,7 +116,7 @@ def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
         niter = int((niter + nireq - 1) / nireq) * nireq
         if number_iterations != niter:
             logger.warning('Number of iterations was aligned by request number '
-                           'from {number_iterations} to {niter} using number of requests {nireq}')
+                           f'from {number_iterations} to {niter} using number of requests {nireq}')
 
     return niter
 
@@ -235,13 +231,12 @@ def print_perf_counters(perf_counts_list):
         logger.info(f"Performance counts for {ni}-th infer request")
         for layer, stats in sorted(perf_counts.items(), key=lambda x: x[1]['execution_index']):
             max_layer_name = 30
-            print("{:<30}{:<15}{:<30}{:<20}{:<20}{:<20}".format(
-                layer[:max_layer_name - 4] + '...' if (len(layer) >= max_layer_name) else layer,
-                stats['status'],
-                'layerType: ' + str(stats['layer_type']),
-                'realTime: ' + str(stats['real_time']),
-                'cpu: ' + str(stats['cpu_time']),
-                'execType: ' + str(stats['exec_type'])))
+            print(f"{layer[:max_layer_name - 4] + '...' if (len(layer) >= max_layer_name) else layer:<30} "
+                                                                f"{stats['status']:<15} "
+                                                                f"{'layerType: ' + str(stats['layer_type']):<30} "
+                                                                f"{'realTime: ' + str(stats['real_time']):<20} "
+                                                                f"{'cpu: ' + str(stats['cpu_time']):<20} "
+                                                                f"{'execType: ' + str(stats['exec_type']):<20}")
             total_time += stats['real_time']
             total_time_cpu += stats['cpu_time']
         print(f'Total time:     {total_time} microseconds')

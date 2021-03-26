@@ -139,7 +139,7 @@ def run(args):
                     config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
                 elif 'CPU_BIND_THREAD' not in config[device].keys():
                     if MULTI_DEVICE_NAME in device_name and GPU_DEVICE_NAME in device_name:
-                        logger.warning(f"Turn off threads pinning for {device}" +
+                        logger.warning(f"Turn off threads pinning for {device} " +
                                        "device since multi-scenario with GPU device is used.")
                         config[device]['CPU_BIND_THREAD'] = 'NO'
                     else:

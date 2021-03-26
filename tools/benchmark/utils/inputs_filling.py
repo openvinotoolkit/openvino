@@ -42,30 +42,30 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
     else:
         binary_to_be_used = binaries_count * batch_size * len(requests)
         if binary_to_be_used > 0 and len(binary_files) == 0:
-            logger.warning(f"No supported binary inputs found!"
-                                        "Please check your file extensions: {','.join(BINARY_EXTENSIONS)}")
+            logger.warning(f"No supported binary inputs found! "
+                                        f"Please check your file extensions: {','.join(BINARY_EXTENSIONS)}")
         elif binary_to_be_used > len(binary_files):
             logger.warning(
-                f"Some binary input files will be duplicated:"
-                                        "{binary_to_be_used} files are required,"
-                                        "but only {len(binary_files)} were provided")
+                f"Some binary input files will be duplicated: "
+                                        f"{binary_to_be_used} files are required, "
+                                        f"but only {len(binary_files)} were provided")
         elif binary_to_be_used < len(binary_files):
             logger.warning(
-                f"Some binary input files will be ignored: only {binary_to_be_used}"
-                                        "files are required from {len(binary_files)}")
+                f"Some binary input files will be ignored: only {binary_to_be_used} "
+                                        f"files are required from {len(binary_files)}")
 
         images_to_be_used = images_count * batch_size * len(requests)
         if images_to_be_used > 0 and len(image_files) == 0:
-            logger.warning(f"No supported image inputs found! Please check your"
-                                        "file extensions: {','.join(IMAGE_EXTENSIONS)}")
+            logger.warning(f"No supported image inputs found! Please check your "
+                                        f"file extensions: {','.join(IMAGE_EXTENSIONS)}")
         elif images_to_be_used > len(image_files):
             logger.warning(
-                f"Some image input files will be duplicated: {images_to_be_used}"
-                            "files are required, but only {len(image_files)} were provided")
+                f"Some image input files will be duplicated: {images_to_be_used} "
+                            f"files are required, but only {len(image_files)} were provided")
         elif images_to_be_used < len(image_files):
             logger.warning(
-                f"Some image input files will be ignored: only {images_to_be_used}"
-                                                    "files are required from {len(image_files)}")
+                f"Some image input files will be ignored: only {images_to_be_used} "
+                                                    f"files are required from {len(image_files)}")
 
     requests_input_data = []
     for request_id in range(0, len(requests)):
@@ -97,7 +97,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
 
             # fill with random data
             logger.info(f"Fill input '{key}' with random values "
-                                    "({'image' if info.is_image else 'some binary data'} is expected)")
+                                    f"({'image' if info.is_image else 'some binary data'} is expected)")
             input_data[key] = fill_blob_with_random(info)
 
         requests_input_data.append(input_data)
