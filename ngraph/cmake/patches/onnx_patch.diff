@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 6ee230b7..737e4cf5 100644
+index 5254f7ee..22772bd4 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -376,18 +376,44 @@ if (MSVC)
+@@ -347,18 +347,44 @@ if (MSVC)
    else()
      set(EXTRA_FLAGS "")
    endif()
@@ -26,7 +26,7 @@ index 6ee230b7..737e4cf5 100644
 +
    else()
 -    set(ONNX_API_DEFINE "-DONNX_API=")
-+    # static libs don't need symbols visibility decorators
++    # Windows static libs don't need symbols visibility decorators
 +    target_compile_definitions(onnx_proto PUBLIC "-DONNX_API=")
    endif()
  else()
@@ -42,7 +42,7 @@ index 6ee230b7..737e4cf5 100644
 +      C_VISIBILITY_PRESET default
 +      VISIBILITY_INLINES_HIDDEN OFF)
 +
-+  else() # hide for static lib case
++  else() # hide symbols for static lib case
 +    target_compile_definitions(onnx_proto PUBLIC "-DONNX_API=__attribute__\(\(__visibility__\(\"hidden\"\)\)\)")
 +    set_target_properties(onnx_proto PROPERTIES
 +      CXX_VISIBILITY_PRESET hidden
@@ -55,7 +55,7 @@ index 6ee230b7..737e4cf5 100644
  
  if(ONNX_USE_LITE_PROTO)
    if(TARGET protobuf::libprotobuf-lite)
-@@ -409,7 +435,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+@@ -380,7 +406,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
    # So, create a object library
    add_library(onnx OBJECT ${ONNX_SRCS})
  else()
@@ -66,10 +66,10 @@ index 6ee230b7..737e4cf5 100644
  
  target_include_directories(onnx PUBLIC
 diff --git a/onnx/onnx_pb.h b/onnx/onnx_pb.h
-index 1073e272..4a0bb2cf 100644
+index 7dc68dea..b94f7af2 100644
 --- a/onnx/onnx_pb.h
 +++ b/onnx/onnx_pb.h
-@@ -6,48 +6,6 @@
+@@ -4,48 +4,6 @@
  #ifndef ONNX_ONNX_PB_H
  #define ONNX_ONNX_PB_H
  
