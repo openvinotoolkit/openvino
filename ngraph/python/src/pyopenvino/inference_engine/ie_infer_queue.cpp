@@ -74,20 +74,17 @@ public:
         return statuses;
     }
 
-    void setCallbacks(py::function f_callback)
+    void setCustomCallbacks(py::function f_callback)
     {
         for (size_t handle = 0; handle < _requests.size(); handle++)
         {
             _requests[handle].SetCompletionCallback([this, f_callback, handle /* ... */]() {
+                // Acquire GIL and execute Python function, release GIL afterwards
                 py::gil_scoped_acquire acquire;
-                f_callback(_user_ids[handle], handle /* request_id, result */);
+                f_callback(_user_ids[handle], handle);
                 py::gil_scoped_release release;
 
                 // lock queue and add idle handle to queue
-                // TODO: always set completion callback with this
-                //       on creation of queue constructor (?)
-                //       just in case no callback is given
-                //       then for sure they want be push to queue
                 {
                     std::lock_guard<std::mutex> lock(_mutex);
                     _idle_handles.push(handle);
@@ -98,7 +95,7 @@ public:
     }
 
     std::vector<InferenceEngine::InferRequest> _requests;
-    std::vector<py::object> _user_ids;
+    std::vector<py::object> _user_ids; // user ID can be any Python object
 
 private:
     std::queue<size_t> _idle_handles;
@@ -125,9 +122,9 @@ void regclass_InferQueue(py::module m)
     }));
 
     cls.def("infer", [](InferQueue& self, py::object user_id, const py::dict inputs) {
-        py::gil_scoped_release release; // this makes func run async in python
-        // getIdleRequestId function has an intention to block InferQueue (C++) until there is at
-        // least one idle (free to use) InferRequest
+        py::gil_scoped_release release;
+        // getIdleRequestId function has an intention to block InferQueue (C++)
+        // until there is at least one idle (free to use) InferRequest
         auto handle = self.getIdleRequestId();
         // Set new inputs label/id from user
         self._user_ids[handle] = user_id;
@@ -148,7 +145,7 @@ void regclass_InferQueue(py::module m)
     });
 
     cls.def("set_infer_callback",
-            [](InferQueue& self, py::function f_callback) { self.setCallbacks(f_callback); });
+            [](InferQueue& self, py::function f_callback) { self.setCustomCallbacks(f_callback); });
 
     cls.def("__len__", [](InferQueue& self) { return self._requests.size(); });
 
