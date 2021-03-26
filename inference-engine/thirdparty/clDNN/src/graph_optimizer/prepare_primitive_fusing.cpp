@@ -803,7 +803,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                 return;
 
             // This fusing can be extended to support peer node in any layout
-            bool merge_allowed = fused_node->get_users().size() == 1;
+            // bool merge_allowed = fused_node->get_users().size() == 1;
+            bool merge_allowed = true;
 
             for (auto& parent : fused_node->get_dependencies())
                 if (parent->id() == peer_node->id())

@@ -340,7 +340,7 @@ public:
     JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
     JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
                                     const std::string in_var, const Datatype in_type,
-                                    std::string& out_var, Datatype& out_type) const;
+                                    std::string& out_var, Datatype& out_type, bool is_second = false) const;
 
     bool CanPreloadData(const FusedOpsConfiguration& conf) const;
 

@@ -121,9 +121,13 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
                 std::string out_var;
-                Datatype out_type;
+                Datatype out_type = in_type;
                 jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
-                jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_var, out_type));
+                // jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_var, out_type));
+                if (i == 0)
+                    jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_var, out_type, i == 1));
+                else if (i == 1)
+                    jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, c.input_var_name, in_type, out_var, out_type, i == 1));
                 in_name = out_var;
                 in_type = out_type;
 
