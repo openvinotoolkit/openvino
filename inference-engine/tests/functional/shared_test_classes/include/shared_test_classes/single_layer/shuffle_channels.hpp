@@ -10,16 +10,18 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         int, // axis
         int  // group
-> shuffleChannelsSpecificParams;
+> ShuffleChannelsSpecificParams;
 
 typedef std::tuple<
-        shuffleChannelsSpecificParams,
+        ShuffleChannelsSpecificParams,
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision
@@ -27,12 +29,12 @@ typedef std::tuple<
         InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
         LayerTestsUtils::TargetDevice   // Device name
-> shuffleChannelsLayerTestParamsSet;
+> ShuffleChannelsLayerTestParams;
 
-class ShuffleChannelsLayerTest : public testing::WithParamInterface<shuffleChannelsLayerTestParamsSet>,
+class ShuffleChannelsLayerTest : public testing::WithParamInterface<ShuffleChannelsLayerTestParams>,
                                  virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerTestParams> obj);
 
 protected:
     void SetUp() override;
