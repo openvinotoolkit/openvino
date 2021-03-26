@@ -345,7 +345,7 @@ namespace ngraph
                     {
                         std::swap(in_base, out_base);
 
-                        auto twiddles = generate_twiddles(num_blocks * 2, inverse);
+                        auto twiddles = generate_twiddles(num_blocks * 2, fft_kind);
                         const int64_t block_size = length / num_blocks;
                         const int64_t next_iteration_block_size = block_size / 2;
                         for (int64_t block = 0; block < num_blocks; block++) {
@@ -393,7 +393,7 @@ namespace ngraph
                 void fft1d(int64_t length,
                            int64_t fft_offset,
                            int64_t stride,
-                           const complex_type* data,
+                           complex_type* data,
                            complex_type* buffer,
                            FFTKind fft_kind)
                 {
