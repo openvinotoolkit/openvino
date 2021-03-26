@@ -1,30 +1,120 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5254f7ee..e7a0ce2b 100644
+index 6ee230b7..737e4cf5 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -380,7 +380,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+@@ -376,18 +376,44 @@ if (MSVC)
+   else()
+     set(EXTRA_FLAGS "")
+   endif()
+-  if (BUILD_SHARED_LIBS OR ONNX_BUILD_MAIN_LIB)
+-    set(ONNX_API_DEFINE "-DONNX_API=__declspec(dllexport)")
++endif()
++
++# onnx_proto symbols visibility
++if(MSVC)
++  if(ONNX_BUILD_MAIN_LIB)
++  # ONNX_BUILD_MAIN_LIB can be be set if onnx_proto is static,
++  # but it is linked into a shared library that wants
++  # to export the ONNX APIs and classes.
++  target_compile_definitions(onnx_proto PUBLIC "ONNX_API_DEFINE=__declspec(dllexport)")
++
++  elseif(BUILD_SHARED_LIBS)
++    # users of onnx_proto import symbols
++    target_compile_definitions(onnx_proto INTERFACE "ONNX_API_DEFINE=__declspec(dllimport)")
++    # onnx_proto exports symbols
++    target_compile_definitions(onnx_proto PRIVATE "ONNX_API_DEFINE=__declspec(dllexport)")
++
+   else()
+-    set(ONNX_API_DEFINE "-DONNX_API=")
++    # static libs don't need symbols visibility decorators
++    target_compile_definitions(onnx_proto PUBLIC "-DONNX_API=")
+   endif()
+ else()
+-  # On non-Windows, hide all symbols we don't need
+-  set(ONNX_API_DEFINE "-DONNX_API=__attribute__\(\(__visibility__\(\"default\"\)\)\)")
+-  set_target_properties(onnx_proto PROPERTIES CXX_VISIBILITY_PRESET hidden)
+-  set_target_properties(onnx_proto PROPERTIES VISIBILITY_INLINES_HIDDEN 1)
++  # On non-Windows, set default visibility if built as shared or exporting symbols forced
++  if(ONNX_BUILD_MAIN_LIB OR BUILD_SHARED_LIBS)
++    target_compile_definitions(onnx_proto PUBLIC "-DONNX_API=__attribute__\(\(__visibility__\(\"default\"\)\)\)")
++    set_target_properties(onnx_proto PROPERTIES
++      CXX_VISIBILITY_PRESET default
++      C_VISIBILITY_PRESET default
++      VISIBILITY_INLINES_HIDDEN OFF)
++
++  else() # hide for static lib case
++    target_compile_definitions(onnx_proto PUBLIC "-DONNX_API=__attribute__\(\(__visibility__\(\"hidden\"\)\)\)")
++    set_target_properties(onnx_proto PROPERTIES
++      CXX_VISIBILITY_PRESET hidden
++      C_VISIBILITY_PRESET hidden
++      VISIBILITY_INLINES_HIDDEN ON)
++
++  endif()
+ endif()
+-target_compile_definitions(onnx_proto PRIVATE ${ONNX_API_DEFINE})
+ 
+ if(ONNX_USE_LITE_PROTO)
+   if(TARGET protobuf::libprotobuf-lite)
+@@ -409,7 +435,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
    # So, create a object library
    add_library(onnx OBJECT ${ONNX_SRCS})
  else()
 -  add_library(onnx ${ONNX_SRCS})
-+  # onnx target doesn't export symbols
++  # onnx target doesn't export symbols and should be built as static lib
 +  add_library(onnx STATIC ${ONNX_SRCS})
  endif()
  
  target_include_directories(onnx PUBLIC
 diff --git a/onnx/onnx_pb.h b/onnx/onnx_pb.h
-index 7dc68dea..c932b806 100644
+index 1073e272..4a0bb2cf 100644
 --- a/onnx/onnx_pb.h
 +++ b/onnx/onnx_pb.h
-@@ -40,9 +40,10 @@
- //
- // This solution is similar to
- // https://github.com/pytorch/pytorch/blob/master/caffe2/core/common.h
--#if defined(ONNX_BUILD_SHARED_LIBS) || defined(ONNX_BUILD_MAIN_LIB)
-+#if defined(ONNX_BUILD_MAIN_LIB)
- #define ONNX_API ONNX_EXPORT
- #else
-+// OV as user of ONNX imports symbols
- #define ONNX_API ONNX_IMPORT
- #endif
+@@ -6,48 +6,6 @@
+ #ifndef ONNX_ONNX_PB_H
+ #define ONNX_ONNX_PB_H
  
+-// Defines ONNX_EXPORT and ONNX_IMPORT. On Windows, this corresponds to
+-// different declarations (dllexport and dllimport). On Linux/Mac, it just
+-// resolves to the same "default visibility" setting.
+-#if defined(_MSC_VER)
+-#if defined(ONNX_BUILD_SHARED_LIBS) || defined(ONNX_BUILD_MAIN_LIB)
+-#define ONNX_EXPORT __declspec(dllexport)
+-#define ONNX_IMPORT __declspec(dllimport)
+-#else
+-#define ONNX_EXPORT
+-#define ONNX_IMPORT
+-#endif
+-#else
+-#if defined(__GNUC__)
+-#define ONNX_EXPORT __attribute__((__visibility__("default")))
+-#else
+-#define ONNX_EXPORT
+-#endif
+-#define ONNX_IMPORT ONNX_EXPORT
+-#endif
+-
+-// ONNX_API is a macro that, depends on whether you are building the
+-// main ONNX library or not, resolves to either ONNX_EXPORT or
+-// ONNX_IMPORT.
+-//
+-// This is used in e.g. ONNX's protobuf files: when building the main library,
+-// it is defined as ONNX_EXPORT to fix a Windows global-variable-in-dll
+-// issue, and for anyone dependent on ONNX it will be defined as
+-// ONNX_IMPORT. ONNX_BUILD_MAIN_LIB can also be set when being built
+-// statically if ONNX is being linked into a shared library that wants
+-// to export the ONNX APIs and classes.
+-//
+-// More details on Windows dllimport / dllexport can be found at
+-// https://msdn.microsoft.com/en-us/library/3y1sfaz2.aspx
+-//
+-// This solution is similar to
+-// https://github.com/pytorch/pytorch/blob/master/caffe2/core/common.h
+-#if defined(ONNX_BUILD_SHARED_LIBS) || defined(ONNX_BUILD_MAIN_LIB)
+-#define ONNX_API ONNX_EXPORT
+-#else
+-#define ONNX_API ONNX_IMPORT
+-#endif
+-
+ #ifdef ONNX_ML
+ #include "onnx/onnx-ml.pb.h"
+ #else
