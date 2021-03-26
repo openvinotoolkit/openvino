@@ -119,7 +119,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph, match: dict):
         # Here we will found all parts of TI: condition, inputs/outputs, back edges, body and create TensorIterator Op
-        # and make all checks needed for TensorIteator work
+        # and make all checks needed for TensorIterator work
         cond_data = match['condition'].out_node(0) if not match['condition'].out_port(0).disconnected() else None
         time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) >= 1 else None
         name = match['condition'].name
@@ -342,6 +342,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
             ext_out['external_port_id'] = internal_id_count
             internal_id_count += 1
 
+        # create TensorIterator layer with pre-computed components
         ti_op = TensorIterator(graph, {
             'name': name + '/TensorIterator',
             'body': body,

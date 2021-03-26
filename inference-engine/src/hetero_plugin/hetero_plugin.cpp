@@ -102,11 +102,6 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
         if (metaDevices.end() == itPlugin) {
             metaDevices[deviceName] = getDeviceConfig(deviceName);
         }
-        std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        if (std::find(std::begin(supportedConfigKeys), std::end(supportedConfigKeys), CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN))
-            != std::end(supportedConfigKeys)) {
-            metaDevices[deviceName].emplace(CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN), "");
-        }
     }
     return metaDevices;
 }
@@ -169,8 +164,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
             "TARGET_FALLBACK",
-            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-            CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN)});
+            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)});
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
     } else {
