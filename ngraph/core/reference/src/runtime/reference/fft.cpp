@@ -348,11 +348,13 @@ namespace ngraph
                         auto twiddles = generate_twiddles(num_blocks * 2, fft_kind);
                         const int64_t block_size = length / num_blocks;
                         const int64_t next_iteration_block_size = block_size / 2;
-                        for (int64_t block = 0; block < num_blocks; block++) {
+                        for (int64_t block = 0; block < num_blocks; block++)
+                        {
                             const int64_t in_offset = in_base + block * block_size;
                             const int64_t out_offset = out_base + block * next_iteration_block_size;
 
-                            for (int64_t pair = 0; pair < block_size / 2; pair++) {
+                            for (int64_t pair = 0; pair < block_size / 2; pair++)
+                            {
                                 const complex_type even = buffer[in_offset + pair];
                                 const complex_type odd = buffer[in_offset + block_size / 2 + pair];
                                 const complex_type twiddled_odd = twiddles[block] * odd;
@@ -362,7 +364,8 @@ namespace ngraph
                         }
                     }
 
-                    for (int64_t k = 0; k < length; k++) {
+                    for (int64_t k = 0; k < length; k++)
+                    {
                         complex_type value = buffer[out_base + k];
                         if (fft_kind == FFTKind::Inverse)
                         {
@@ -485,7 +488,8 @@ namespace ngraph
                                          input_fft_strides);
 
                     bool input_is_zero = blob_is_zero(data.data(), fft_size);
-                    if (!input_is_zero) {
+                    if (!input_is_zero)
+                    {
                         for (int64_t axis_idx = 0; axis_idx < fft_rank; ++axis_idx)
                         {
                             int64_t current_fft_stride = fft_strides[axis_idx];
@@ -501,7 +505,8 @@ namespace ngraph
                                 outer_fft_size *= fft_lengths[i];
                             }
 
-                            for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size; ++outer_fft_idx)
+                            for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size;
+                                 ++outer_fft_idx)
                             {
                                 fft1d(current_fft_length,
                                       outer_fft_idx,
