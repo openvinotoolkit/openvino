@@ -316,19 +316,34 @@ namespace ngraph
                     return input_is_zero;
                 }
 
+                std::vector<complex_type> generate_twiddles(int64_t length, FFTKind fft_kind)
+                {
+                    std::vector<complex_type> twiddles(length / 2);
+                    for (int64_t k = 0; k < length / 2; ++k)
+                    {
+                        twiddles[k] = twiddle(k, length, fft_kind);
+                    }
+                    return twiddles;
+                }
+
                 void optimized_fft1d(int64_t current_fft_length,
                                      int64_t fft_offset,
                                      int64_t current_fft_stride,
-                                     const complex_type* data,
+                                     complex_type* data,
                                      complex_type* buffer,
                                      FFTKind fft_kind)
                 {
+                    bool input_is_zero = gather_to_buffer(data, length, fft_offset, stride, buffer);
+                    if (input_is_zero)
+                    {
+                        return;
+                    }
                 }
 
                 void naive_fft1d(int64_t length,
                                  int64_t fft_offset,
                                  int64_t stride,
-                                 const complex_type* data,
+                                 complex_type* data,
                                  complex_type* buffer,
                                  FFTKind fft_kind)
                 {
@@ -344,8 +359,11 @@ namespace ngraph
                         {
                             value += buffer[n] * twiddle(n * k, length, fft_kind);
                         }
-                        data[fft_offset + k * stride] =
-                            (fft_kind == FFTKind::Inverse) ? value / complex_type(length, 0.0f) : value;
+                        if (fft_kind == FFTKind::Inverse)
+                        {
+                            value /= complex_type(length, 0.0f);
+                        }
+                        data[fft_offset + k * stride] = value;
                     }
                 }
 
