@@ -346,7 +346,7 @@ namespace ngraph
                 const auto reversed_input_shape = reverse_shape(input_data_shape);
                 const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
                 const auto input_strides = compute_strides(reversed_input_shape);
-                const auto input_fft_strides = get_lengths(input_strides, fft_axes)
+                const auto input_fft_strides = get_lengths(input_strides, fft_axes);
 
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
