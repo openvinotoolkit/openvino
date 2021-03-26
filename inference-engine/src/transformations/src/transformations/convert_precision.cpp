@@ -438,16 +438,15 @@ void convert_lp_value(const SRC& src, DST& dst, size_t src_offset, size_t src_si
     val = val >> diff;
 
     // Get the sign of value
-    // sign [00000000]
-    // invert value in order to use XOR
-    SRC sign = (~(val >> (src_size - 1))) & 0b1;
+    // sign [00000001]
+    SRC sign = (val >> (src_size - 1)) & 0b1;
 
     // If source type is signed and negative
-    if (is_signed && !sign) {
+    if (is_signed && sign) {
         // val [11111101]
-        val |= (src_max << (diff - 1));
+        val |= src_max << diff;
         // new_val [00000001 11111111]
-        new_val = (sign << (dst_size - 1)) ^ (dst_max >> (sizeof(DST) * 8 - dst_size));
+        new_val = dst_max >> (sizeof(DST) * 8 - dst_size);
         // new_val [00000001 11111101]
         new_val &= (dst_max << sizeof(SRC)*8) | val;
     } else {
