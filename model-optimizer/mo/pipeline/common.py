@@ -40,12 +40,11 @@ def determined_sort(outputs: list):
     stack = list(outputs)
     visited = set()
     while len(stack) != 0:
-        node = stack[0]
+        node = stack.pop(0)
         node_id = node.id
-        stack.pop(0)
         visited.add(node_id)
         has_child = False
-        in_names = [n.id if isinstance(node.in_nodes(), list) else node.in_node(n).id for n in node.in_nodes()]
+        in_names = [n for n, d in node.get_inputs()]
         for in_node_name in in_names:
             if in_node_name not in visited:
                 stack.insert(0, node)
