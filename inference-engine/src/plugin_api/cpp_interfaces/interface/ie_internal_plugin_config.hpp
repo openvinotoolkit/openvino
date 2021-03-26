@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,13 +37,6 @@ DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
  * @ingroup ie_dev_api_plugin_api
  */
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
-
-/**
- * @brief This key should be used to notify aggregating plugin
- *        that it is used inside other aggregating plugin
- * @ingroup ie_dev_api_plugin_api
- */
-DECLARE_CONFIG_KEY(AGGREGATED_PLUGIN);
 
 }  // namespace PluginConfigInternalParams
 

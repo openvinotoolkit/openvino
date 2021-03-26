@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ protected:
         else if (act.alg == "relu")
             res = [=] (const float x) { return (x > 0) ? x : alpha*x; };
         else
-            THROW_IE_EXCEPTION << "Unknown activation type " << act.alg;
+            IE_THROW() << "Unknown activation type " << act.alg;
         return res;
     }
 

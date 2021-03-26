@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,7 +22,7 @@ add_library(ngraph::onnx_editor ALIAS ${TARGET_NAME})
 
 # TODO Add handling ie_faster_build
 
-target_link_libraries(${TARGET_NAME} PRIVATE onnx_common onnx onnx_proto ${Protobuf_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PRIVATE onnx_common
                                      PUBLIC ngraph)
 
 set(ONNX_EDITOR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
