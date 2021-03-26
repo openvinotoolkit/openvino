@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/runtime/reference/fft.hpp"
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -21,7 +22,6 @@
 #include <functional>
 #include <utility>
 #include <vector>
-#include "ngraph/runtime/reference/fft.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace ngraph;
@@ -86,8 +86,8 @@ namespace ngraph
                 {
                     size_t num_of_fft_axes = signal_size_data_shape[0];
 
-                    std::vector<int64_t> result(
-                        signal_size_data, signal_size_data + num_of_fft_axes);
+                    std::vector<int64_t> result(signal_size_data,
+                                                signal_size_data + num_of_fft_axes);
                     int64_t i = 0;
                     for (int64_t& s : result)
                     {
@@ -117,10 +117,8 @@ namespace ngraph
 
                     const auto axes =
                         canonicalize_axes(axes_data, axes_data_shape, complex_data_rank);
-                    const auto sizes = canonicalize_signal_size(signal_size_data,
-                                                                signal_size_data_shape,
-                                                                input_data_shape,
-                                                                axes);
+                    const auto sizes = canonicalize_signal_size(
+                        signal_size_data, signal_size_data_shape, input_data_shape, axes);
 
                     size_t num_of_fft_axes = axes.sizes();
                     using AxisAndSize = std::pair<int64_t, int64_t>;
@@ -132,7 +130,7 @@ namespace ngraph
                     }
                     std::sort(axes_and_sizes.begin(),
                               axes_and_sizes.end(),
-                              [](const AxisAndSize& p, const AxisAndSize& q){
+                              [](const AxisAndSize& p, const AxisAndSize& q) {
                                   return p.first > q.first;
                               });
                     for (const auto& p : axes_and_sizes)
@@ -188,10 +186,7 @@ namespace ngraph
                     return outer_axes;
                 }
 
-                inline bool is_power_of_two(int64_t x)
-                {
-                    return (x != 0) and ((x & (x - 1)) == 0);
-                }
+                inline bool is_power_of_two(int64_t x) { return (x != 0) and ((x & (x - 1)) == 0); }
 
                 int64_t compute_buffer_size(const std::vector<int64_t>& fft_lengths)
                 {
@@ -204,19 +199,6 @@ namespace ngraph
                     }
 
                     return buffer_size;
-                }
-
-                bool axes_are_simple(const std::vector<int64_t>& axes)
-                {
-                    int64_t num_of_axes = static_cast<int64_t>(axes.size());
-                    for (int64_t i = 0; i < num_of_axes; ++i)
-                    {
-                        if (axes[i] != i)
-                        {
-                            return false;
-                        }
-                    }
-                    return true;
                 }
 
                 std::vector<int64_t> coords_from_index(int64_t index,
@@ -266,11 +248,8 @@ namespace ngraph
                     for (int64_t idx = 0; idx < fft_size; ++idx)
                     {
                         auto coords = coords_from_index(idx, fft_strides);
-                        complex_type value = get_value_from_input(input_data,
-                                                                  src_index,
-                                                                  coords,
-                                                                  input_fft_lengths,
-                                                                  input_fft_strides);
+                        complex_type value = get_value_from_input(
+                            input_data, src_index, coords, input_fft_lengths, input_fft_strides);
                         result[idx] = value;
                     }
                 }
@@ -352,7 +331,7 @@ namespace ngraph
 
                 std::vector<complex_type> data(fft_size);
 
-                const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank)
+                const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank);
 
                 const int64_t outer_rank = outer_axes.size();
                 const auto outer_lengths = get_lengths(reversed_output_shape, outer_axes);
@@ -369,8 +348,6 @@ namespace ngraph
                 const auto input_strides = compute_strides(reversed_input_shape);
                 const auto input_fft_strides = get_lengths(input_strides, fft_axes)
 
-                bool simple_axes = axes_are_simple(fft_axes);
-
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
                     const auto outer_coords = coords_from_index(outer_idx, outer_strides);
@@ -383,8 +360,7 @@ namespace ngraph
                                          input_fft_strides);
 
                     bool input_is_zero = blob_is_zero(data.data(), fft_size);
-                    if (!input_is_zero)
-                    {}
+                    if (!input_is_zero) {}
 
                     copy_data_to_output(complex_output_ptr,
                                         data,
