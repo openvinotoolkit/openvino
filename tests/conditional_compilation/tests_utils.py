@@ -10,16 +10,16 @@ from inspect import getsourcefile
 from pathlib import Path
 
 
-TEST_INFO_NAME = "cc_tests.json"
+SESSION_INFO_FILE = "cc_tests.json"
 
 
-def read_session_info(path: Path = Path(getsourcefile(lambda: 0)).parent / TEST_INFO_NAME):
+def read_session_info(path: Path = Path(getsourcefile(lambda: 0)).parent / SESSION_INFO_FILE):
     with open(path, 'r') as json_file:
         cc_tests_ids = json.load(json_file)
     return cc_tests_ids
 
 
-def write_session_info(path: Path = Path(getsourcefile(lambda: 0)).parent / TEST_INFO_NAME,
+def write_session_info(path: Path = Path(getsourcefile(lambda: 0)).parent / SESSION_INFO_FILE,
                        data: dict = None):
     with open(path, "w") as json_file:
         json.dump(data, json_file, indent=4)
