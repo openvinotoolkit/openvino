@@ -120,7 +120,7 @@ namespace ngraph
                     const auto sizes = canonicalize_signal_size(
                         signal_size_data, signal_size_data_shape, input_data_shape, axes);
 
-                    size_t num_of_fft_axes = axes.sizes();
+                    size_t num_of_fft_axes = axes.size();
                     using AxisAndSize = std::pair<int64_t, int64_t>;
                     std::vector<AxisAndSize> axes_and_sizes(num_of_fft_axes);
 
@@ -171,7 +171,7 @@ namespace ngraph
                     int64_t fft_axes_as_bitset = 0;
                     for (int64_t axis : inner_axes)
                     {
-                        fft_axes_as_bitset |= static_cast<int64_t>(1) << inner_axes;
+                        fft_axes_as_bitset |= static_cast<int64_t>(1) << axis;
                     }
 
                     for (size_t j = 0, i = 0; i < complex_data_rank; ++i)
