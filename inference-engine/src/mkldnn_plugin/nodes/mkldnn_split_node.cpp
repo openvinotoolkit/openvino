@@ -4,6 +4,7 @@
 
 #include "mkldnn_split_node.h"
 #include "common/cpu_memcpy.h"
+#include "common/tensor_desc_creator.h"
 #include <legacy/ie_layers.h>
 #include <vector>
 #include <mkldnn_types.h>
