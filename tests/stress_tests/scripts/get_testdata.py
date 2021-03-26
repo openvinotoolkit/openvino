@@ -17,6 +17,7 @@ import subprocess
 import sys
 import json
 from inspect import getsourcefile
+from distutils.dir_util import copy_tree
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -209,7 +210,7 @@ def main():
     # Do it manually to have only one folder with IRs
     for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
         ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
-        shutil.copytree(ir_src_path.parent, ir_dst_path.parent)
+        copy_tree(str(ir_src_path.parent), str(ir_dst_path.parent))
 
 
 if __name__ == "__main__":
