@@ -913,6 +913,11 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
                                                  fused_node.get_output_layout().data_padding);
 
+    // TODO: Create fused dependencies using fused_map
+    if (peer_node.id() == "eltwise2") {
+        local_desc.fused_deps.push_back("eltwise1");
+    }
+
     // Add new dependencies to the fused_node
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
         auto& dep = peer_node.get_dependency(i);
