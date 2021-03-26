@@ -401,6 +401,12 @@ struct EnumClassHash {
 
 /**
  * @brief Method converts low precision integer types
+ * The method uses the next logic for conversion:
+ *  * For unsigned types we just copy all bits to destination type (which is bigger):
+ *    int4 [1011] -> int8 [00001011]
+ *  * For signed types we copy all bits (except sign bit) to destination type and after
+ *    that for negative values we set to 1 all higher bits:
+ *    int4 [1011] -> int8 [11110011]
  *
  * @param src source value      !!! the type must be unsigned !!!
  * @param dst destination value !!! the type must be unsigned !!!

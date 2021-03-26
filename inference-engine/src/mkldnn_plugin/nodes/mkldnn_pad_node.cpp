@@ -174,9 +174,10 @@ void MKLDNNPadNode::createPrimitive() {
         }
     }
 
-    size_t nGluingLastDims = params.dstStrides[std::max(endIdx - 1, 0)];
-    params.nDimsForWork = std::max(endIdx - std::max(beginIdx, 0), 1);
-    params.workAmount = params.dstDims[0];
+    params.lastDstDim = params.dstStrides[std::max(endIdx - 1, 0)];
+    params.nDimsForWork = endIdx - std::max(beginIdx, 0);
+    params.nThreads = params.nDimsForWork > 0 ? 0 : 1;
+    params.workAmount = params.nDimsForWork > 0 ? params.dstDims[0] : 1lu;
     for (int i = 1; i <= beginIdx; ++i) {
         params.workAmount *= params.dstDims[i];
         params.dstDims[0] *= params.dstDims[i];
@@ -194,9 +195,8 @@ void MKLDNNPadNode::createPrimitive() {
         padsBegin.erase(padsBegin.begin() + 1, padsBegin.begin() + beginIdx);
         padsEnd.erase(padsEnd.begin() + 1, padsEnd.begin() + beginIdx);
     }
-    params.workAmount = params.workAmount * params.dstStrides[0] / nGluingLastDims;
 
-    params.lastDstDim = nGluingLastDims;
+    params.workAmount = params.workAmount * params.dstStrides[0] / params.lastDstDim;
     params.shift = params.dstStrides[params.nDimsForWork];
     if (padMode != CONSTANT || (padMode == CONSTANT && padValue == 0)) {
         params.lastDstDim *= params.sizeData;
@@ -266,11 +266,15 @@ void MKLDNNPadNode::padConstant() {
 
 template<typename T>
 void MKLDNNPadNode::padConstantCommon() {
-    T* srcData = reinterpret_cast<T*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const T* srcData = reinterpret_cast<const T*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     T* dstData = reinterpret_cast<T*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    T value = static_cast<T>(padValue);
+    const T value = static_cast<T>(padValue);
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    const size_t beginShift = padsBegin[params.nDimsForWork] * params.shift;
+    const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
+    const size_t endShift = padsEnd[params.nDimsForWork] * params.shift;
+
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         SizeVector indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
@@ -296,11 +300,9 @@ void MKLDNNPadNode::padConstantCommon() {
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx)
                 srcIdx += (indexes[idx] - padsBegin[idx]) * params.srcStrides[idx];
 
-            std::fill_n(&dstData[dstIdx], padsBegin[params.nDimsForWork] * params.shift, value);
-            cpu_memcpy(&dstData[dstIdx + padsBegin[params.nDimsForWork] * params.shift], &srcData[srcIdx],
-                       params.srcDims[params.nDimsForWork] * params.shift * params.sizeData);
-            std::fill_n(&dstData[dstIdx + params.srcODims[params.nDimsForWork] * params.shift],
-                        padsEnd[params.nDimsForWork] * params.shift, value);
+            std::fill_n(&dstData[dstIdx], beginShift, value);
+            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize * params.sizeData);
+            std::fill_n(&dstData[dstIdx + beginShift + copySize], endShift, value);
 
             parallel_step(params.nDimsForWork, params.dstDims, indexes);
         }
@@ -308,10 +310,14 @@ void MKLDNNPadNode::padConstantCommon() {
 }
 
 void MKLDNNPadNode::padConstantZero() {
-    uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    const size_t beginShift = padsBegin[params.nDimsForWork] * params.shift;
+    const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
+    const size_t endShift = padsEnd[params.nDimsForWork] * params.shift;
+
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         SizeVector indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
@@ -338,10 +344,9 @@ void MKLDNNPadNode::padConstantZero() {
                 srcIdx += (indexes[idx] - padsBegin[idx]) * params.srcStrides[idx];
             srcIdx *= params.sizeData;
 
-            memset(&dstData[dstIdx], 0, padsBegin[params.nDimsForWork] * params.shift);
-            cpu_memcpy(&dstData[dstIdx + padsBegin[params.nDimsForWork] * params.shift], &srcData[srcIdx],
-                       params.srcDims[params.nDimsForWork] * params.shift);
-            memset(&dstData[dstIdx + params.srcODims[params.nDimsForWork] * params.shift], 0, padsEnd[params.nDimsForWork] * params.shift);
+            memset(&dstData[dstIdx], 0, beginShift);
+            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize);
+            memset(&dstData[dstIdx + beginShift + copySize], 0, endShift);
 
             parallel_step(params.nDimsForWork, params.dstDims, indexes);
         }
@@ -349,10 +354,13 @@ void MKLDNNPadNode::padConstantZero() {
 }
 
 void MKLDNNPadNode::padEdge() {
-    uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    const size_t beginShift = padsBegin[params.nDimsForWork] * params.shift;
+    const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
+
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         SizeVector indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
@@ -373,11 +381,10 @@ void MKLDNNPadNode::padEdge() {
             for (size_t i = 0; i < padsBegin[params.nDimsForWork]; ++i)
                 cpu_memcpy(&dstData[dstIdx + i * params.shift], &srcData[srcIdx], params.shift);
 
-            cpu_memcpy(&dstData[dstIdx + padsBegin[params.nDimsForWork] * params.shift], &srcData[srcIdx],
-                       params.srcDims[params.nDimsForWork] * params.shift);
+            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize);
 
             for (size_t i = 0; i < padsEnd[params.nDimsForWork]; ++i)
-                cpu_memcpy(&dstData[dstIdx + params.srcODims[params.nDimsForWork] * params.shift + i * params.shift],
+                cpu_memcpy(&dstData[dstIdx + beginShift + copySize + i * params.shift],
                            &srcData[srcIdx + (params.srcDims[params.nDimsForWork] - 1) * params.shift], params.shift);
 
             parallel_step(params.nDimsForWork, params.dstDims, indexes);
@@ -386,12 +393,11 @@ void MKLDNNPadNode::padEdge() {
 }
 
 void MKLDNNPadNode::padReflectOrSymmetric(const bool isSymmetric) {
-    uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-
     size_t shift = isSymmetric ? 1 : 0;
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         SizeVector indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
