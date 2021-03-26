@@ -34,6 +34,8 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     if (execNetwork->_graphs.size() == 0)
         IE_THROW() << "No graph was found";
     graph = &(execNetwork->GetGraph()._graph);
+
+    // Allocate all input blobs
     for (const auto& it : _networkInputs) {
         MKLDNNInferRequest::GetBlob(it.first);
     }
@@ -221,60 +223,64 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             return data;
         }
 
-        if (_inputs.find(name) != _inputs.end()) {
-            data = _inputs[name];
-            checkBlob(data, name, true);
-            return data;
-        }
+        if (_inputs.find(name) == _inputs.end()) {
+            InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
 
-        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
-        if (_networkInputs.find(name) != _networkInputs.end()) {
-            InferenceEngine::Layout l = _networkInputs[name]->getLayout();
-            InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
-            InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
+            if (_networkInputs.find(name) != _networkInputs.end()) {
+                InferenceEngine::Layout l = _networkInputs[name]->getLayout();
+                InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
+                InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
 
-            desc = InferenceEngine::TensorDesc(p, dims, l);
-        }
+                desc = InferenceEngine::TensorDesc(p, dims, l);
+            }
 
-        _inputs[name] = make_blob_with_precision(desc);
-        _inputs[name]->allocate();
-        if (blobs[name]->getTensorDesc() == desc &&
+            _inputs[name] = make_blob_with_precision(desc);
+            _inputs[name]->allocate();
+            if (blobs[name]->getTensorDesc() == desc &&
                 graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
-            externalPtr[name] = _inputs[name]->buffer();
+                externalPtr[name] = _inputs[name]->buffer();
+            }
         }
         data = _inputs[name];
         checkBlob(data, name, true);
-        return data;
     }
+
     blobs.clear();
     graph->getOutputBlobs(blobs);
     if (blobs.find(name) != blobs.end()) {
-        if (_outputs.find(name) != _outputs.end()) {
-            data = _outputs[name];
-            checkBlob(data, name, false);
-            return data;
-        }
-
-        InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
+        if (_outputs.find(name) == _outputs.end()) {
+            if (!data) {
+                InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
         desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
 
-        // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
-        // in situation if we push output blobs as inputs for next network (in Hetero plugin)
-        // it may be that output tensor desc will be different from real input tensor desc for next network
-        // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
-        auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
-        desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+                // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
+                // in situation if we push output blobs as inputs for next network (in Hetero plugin)
+                // it may be that output tensor desc will be different from real input tensor desc for next network
+                // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
+                auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
+                desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
 
-        _outputs[name] = make_blob_with_precision(desc);
-        _outputs[name]->allocate();
-        if (blobs[name]->getTensorDesc() == desc && !graph->getProperty().batchLimit) {
-            externalPtr[name] = _outputs[name]->buffer();
+                data = make_blob_with_precision(desc);
+                data->allocate();
+            } else {
+                if (blobs[name]->getTensorDesc() != data->getTensorDesc()) {
+                    IE_THROW() << "Network input and output use the same name: " << name << " but expect different tensors.";
+                }
+            }
+
+            _outputs[name] = data;
+            if (!externalPtr.count(name) && data->getTensorDesc() == blobs[name]->getTensorDesc() && !graph->getProperty().batchLimit) {
+                externalPtr[name] = data->buffer();
+            }
         }
         data = _outputs[name];
         checkBlob(data, name, false);
         return data;
     }
-    IE_THROW() << "Cannot find blob with name: " << name;
+    if (!data) {
+        IE_THROW() << "Cannot find blob with name: " << name;
+    }
+    return data;
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
@@ -295,7 +301,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
     InferenceEngine::InputInfo::Ptr foundInput;
     InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+    findInputAndOutputBlobByName(name, foundInput, foundOutput);
+
+    if (foundInput) {
         if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set input blob with precision: "
                                << data->getTensorDesc().getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
@@ -346,7 +354,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             }
             _inputs[name] = data;
         }
-    } else {
+    }
+    if (foundOutput) {
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented)
                                << "cannot set compound blob: supported only for input pre-processing";
