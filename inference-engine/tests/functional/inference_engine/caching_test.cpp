@@ -1114,6 +1114,61 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
     }
 }
 
+TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
+            .WillRepeatedly(Invoke([&](const std::string &, const std::map<std::string, Parameter> &options) {
+                auto id = options.at("DEVICE_ID").as<std::string>();
+                if (std::stoi(id) < 10) {
+                    return "mock_first_architecture";
+                } else {
+                    return "mock_another_architecture";
+                }
+            }));
+    deviceToLoad = CommonTestUtils::DEVICE_HETERO;
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Hetero plugin
+    }
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, CommonTestUtils::DEVICE_HETERO);
+            m_testFunction(ie);
+        });
+    }
+
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(0);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+    {
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetworkImpl(_, _)).Times(0);
+        EXPECT_CALL(*net, ExportImpl(_)).Times(1);
+        testLoad([&](Core &ie) {
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.51"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            m_testFunction(ie);
+        });
+    }
+}
+
 INSTANTIATE_TEST_CASE_P(CachingTest, CachingTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(loadVariants),

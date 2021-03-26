@@ -176,11 +176,11 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         auto deviceIt = options.find("TARGET_FALLBACK");
         std::string targetFallback;
         if (deviceIt != options.end()) {
-            targetFallback = DeviceArchitecture(deviceIt->second.as<std::string>());
+            targetFallback = deviceIt->second.as<std::string>();
         } else {
             targetFallback = GetConfig("TARGET_FALLBACK", {}).as<std::string>();
         }
-        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, targetFallback);
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, DeviceArchitecture(targetFallback));
     } else {
         IE_THROW() << "Unsupported Plugin metric: " << name;
     }

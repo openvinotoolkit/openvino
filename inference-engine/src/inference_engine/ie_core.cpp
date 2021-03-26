@@ -467,6 +467,10 @@ public:
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+        if (forceDisableCache) {
+            // remove this config key from parsed as plugins can throw unsupported exception
+            parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
+        }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         bool loadedFromCache = false;
         ExecutableNetwork res;
