@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -182,8 +182,10 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         return nullptr;
     }
 
+    const auto data = fq::getData(eltwise);
+    const size_t outputIdx = NetworkHelper::getParentOutputIndex(data, eltwise);
     std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
-        fq::getData(eltwise),
+        data->output(outputIdx),
         inputLowConst_f32,
         inputHightConst_f32,
         fold<opset1::Convert>(fakeQuantize->input_value(3), deqPrecision),

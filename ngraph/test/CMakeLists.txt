@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
@@ -21,7 +9,6 @@ add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
-    add_subdirectory(util)
     return()
 endif()
 
@@ -125,6 +112,7 @@ set(SRC
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
+    type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -416,13 +404,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation
-                                        openvino::itt
-                                        openvino::pp
-                                        ngraph
                                         ngraph::builder
-                                        ngraph_backend
-                                        libgtest)
+                                        openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -457,7 +440,6 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

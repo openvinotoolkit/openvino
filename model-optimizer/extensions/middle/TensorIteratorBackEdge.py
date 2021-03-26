@@ -47,7 +47,11 @@ class BackEdgesMatching(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['is_cyclic']]
 
     def run_after(self):
-        return [DynamicDecoderConditionMatcher]
+        # since the pattern of this transformation contains TensorIteratorCondition,
+        # condition matchers must be applied first
+        from extensions.middle.TensorIteratorCondition import DynamicDecoderConditionMatcher, LoopConditionMatcher, \
+            SimpleConditionMatcher
+        return [DynamicDecoderConditionMatcher, SimpleConditionMatcher, LoopConditionMatcher]
 
     def run_before(self):
         from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
