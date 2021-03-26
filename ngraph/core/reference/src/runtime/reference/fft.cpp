@@ -361,6 +361,16 @@ namespace ngraph
                             }
                         }
                     }
+
+                    const int64 ub = contract_output ? length / 2 + 1 : length;
+                    for (int64_t k = 0; k < length; k++) {
+                        complex_type value = buffer[out_base + k];
+                        if (fft_kind == FFTKind::Inverse)
+                        {
+                            value /= complex_type(length, 0.0f);
+                        }
+                        data[start + k * stride] = value;
+                    }
                 }
 
                 void naive_fft1d(int64_t length,
