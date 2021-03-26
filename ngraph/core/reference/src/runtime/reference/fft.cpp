@@ -19,6 +19,7 @@
 #include <complex>
 #include <cstring>
 #include <functional>
+#include <utility>
 #include <vector>
 #include "ngraph/runtime/reference/fft.hpp"
 #include "ngraph/shape.hpp"
@@ -34,6 +35,8 @@ namespace ngraph
         {
             namespace
             {
+                using complex_type = std::complex<float>;
+
                 std::vector<int64_t> compute_strides(const std::vector<int64_t>& v)
                 {
                     std::vector<int64_t> strides(v.size() + 1);
@@ -45,6 +48,268 @@ namespace ngraph
                     }
                     strides.back() = stride;
                     return strides;
+                }
+
+                std::vector<int64_t> reverse_shape(const Shape& shape)
+                {
+                    size_t complex_data_rank = shape.size() - 1;
+
+                    std::vector<int64_t> reversed_shape(complex_data_rank);
+                    for (size_t i = 0; i < complex_data_rank; ++i)
+                    {
+                        reversed_shape[i] = static_cast<int64_t>(shape[complex_data_rank - i - 1]);
+                    }
+                    return reversed_shape;
+                }
+
+                std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
+                                                       const Shape& axes_data_shape,
+                                                       int64_t complex_data_rank)
+                {
+                    size_t num_of_fft_axes = axes_data_shape[0];
+
+                    std::vector<int64_t> result(axes_data, axes_data + num_of_fft_axes);
+                    for (int64_t& axis : result)
+                    {
+                        if (axis < 0)
+                        {
+                            axis += complex_data_rank;
+                        }
+                    }
+                    return result;
+                }
+
+                std::vector<int64_t> canonicalize_signal_size(const int64_t* signal_size_data,
+                                                              const Shape& signal_size_data_shape,
+                                                              const Shape& input_data_shape,
+                                                              const std::vector<int64_t>& axes)
+                {
+                    size_t num_of_fft_axes = signal_size_data_shape[0];
+
+                    std::vector<int64_t> result(
+                        signal_size_data, signal_size_data + num_of_fft_axes);
+                    int64_t i = 0;
+                    for (int64_t& s : result)
+                    {
+                        if (s == -1)
+                        {
+                            s = static_cast<int64_t>(input_data_shape[axes[i]]);
+                        }
+                        ++i;
+                    }
+                    return result;
+                }
+
+                struct AxesSignalSizeInfo
+                {
+                    std::vector<int64_t> axes;
+                    std::vector<int64_t> signal_size;
+                };
+
+                AxesSignalSizeInfo get_axes_and_signal_size(const int64_t* axes_data,
+                                                            const Shape& axes_data_shape,
+                                                            const int64_t* signal_size_data,
+                                                            const Shape& signal_size_data_shape,
+                                                            const Shape& input_data_shape)
+                {
+                    AxesSignalSizeInfo result;
+                    int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
+
+                    const auto axes =
+                        canonicalize_axes(axes_data, axes_data_shape, complex_data_rank);
+                    const auto sizes = canonicalize_signal_size(signal_size_data,
+                                                                signal_size_data_shape,
+                                                                input_data_shape,
+                                                                axes);
+
+                    size_t num_of_fft_axes = axes.sizes();
+                    using AxisAndSize = std::pair<int64_t, int64_t>;
+                    std::vector<AxisAndSize> axes_and_sizes(num_of_fft_axes);
+
+                    for (size_t i = 0; i < num_of_fft_axes; ++i)
+                    {
+                        axes_and_sizes[i] = std::make_pair(axes[i], sizes[i]);
+                    }
+                    std::sort(axes_and_sizes.begin(),
+                              axes_and_sizes.end(),
+                              [](const AxisAndSize& p, const AxisAndSize& q){
+                                  return p.first > q.first;
+                              });
+                    for (const auto& p : axes_and_sizes)
+                    {
+                        result.axes.push_back(p.first);
+                        result.signal_size.push_back(p.second);
+                    }
+                    return result;
+                }
+
+                void reverse_fft_axes(std::vector<int64_t>& axes, int64_t complex_data_rank)
+                {
+                    for (int64_t& axis : axes)
+                    {
+                        axis = complex_data_rank - 1 - axis;
+                    }
+                }
+
+                std::vector<int64_t> get_lengths(const std::vector<int64_t>& shape,
+                                                 const std::vector<int64_t>& axes)
+                {
+                    std::vector<int64_t> lengths;
+                    for (int64_t axis : axes)
+                    {
+                        lengths.push_back(shape[axis]);
+                    }
+                    return lengths;
+                }
+
+                std::vector<int64_t> get_outer_axes(const std::vector<int64_t>& inner_axes,
+                                                    int64_t complex_data_rank)
+                {
+                    int64_t num_of_inner_axes = static_cast<int64_t>(inner_axes.size());
+                    int64_t num_of_outer_axes = complex_data_rank - num_of_inner_axes;
+
+                    std::vector<int64_t> outer_axes(num_of_inner_axes);
+
+                    int64_t fft_axes_as_bitset = 0;
+                    for (int64_t axis : inner_axes)
+                    {
+                        fft_axes_as_bitset |= static_cast<int64_t>(1) << inner_axes;
+                    }
+
+                    for (size_t j = 0, i = 0; i < complex_data_rank; ++i)
+                    {
+                        if ((fft_axes_as_bitset & (static_cast<int64_t>(1) << i)) == 0)
+                        {
+                            outer_axes[j] = i;
+                            ++j;
+                        }
+                    }
+
+                    return outer_axes;
+                }
+
+                inline bool is_power_of_two(int64_t x)
+                {
+                    return (x != 0) and ((x & (x - 1)) == 0);
+                }
+
+                int64_t compute_buffer_size(const std::vector<int64_t>& fft_lengths)
+                {
+                    int64_t buffer_size = 0;
+
+                    for (int64_t length : fft_lengths)
+                    {
+                        int64_t current_size = is_power_of_two(length) ? (2 * length) : length;
+                        buffer_size = std::max(buffer_size, current_size);
+                    }
+
+                    return buffer_size;
+                }
+
+                bool axes_are_simple(const std::vector<int64_t>& axes)
+                {
+                    int64_t num_of_axes = static_cast<int64_t>(axes.size());
+                    for (int64_t i = 0; i < num_of_axes; ++i)
+                    {
+                        if (axes[i] != i)
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+                std::vector<int64_t> coords_from_index(int64_t index,
+                                                       const std::vector<int64_t>& strides)
+                {
+                    int64_t num_of_axes = static_cast<int64_t>(strides.size()) - 1;
+                    std::vector<int64_t> coords(num_of_axes);
+                    int64_t curr = i;
+                    for (int64_t j = num_of_axes - 1; j >= 1; --j)
+                    {
+                        coords[j] = curr / strides[j];
+                        curr %= strides[j];
+                    }
+                    coords[0] = curr;
+                    return coords;
+                }
+
+                complex_type get_value_from_input(const complex_type* input_data,
+                                                  int64_t src_index,
+                                                  const std::vector<int64_t>& coords,
+                                                  const std::vector<int64_t>& input_fft_lengths,
+                                                  const std::vector<int64_t>& input_fft_strides)
+                {
+                    int64_t offset = 0;
+                    int64_t num_of_fft_axes = static_cast<int64_t>(coords.size());
+                    for (int64_t i = 0; i < num_of_fft_axes; ++i)
+                    {
+                        int64_t coord = coords[i];
+                        if (coord >= input_fft_lengths[i])
+                        {
+                            return complex_type{0.0f, 0.0f};
+                        }
+                        offset += coord * input_fft_strides[i];
+                    }
+
+                    return input_data[src_index + offset];
+                }
+
+                void copy_data_from_input(complex_type* result,
+                                          const complex_type* input_data,
+                                          int64_t src_index,
+                                          int64_t fft_size,
+                                          const std::vector<int64_t>& fft_strides,
+                                          const std::vector<int64_t>& input_fft_lengths,
+                                          const std::vector<int64_t>& input_fft_strides)
+                {
+                    for (int64_t idx = 0; idx < fft_size; ++idx)
+                    {
+                        auto coords = coords_from_index(idx, fft_strides);
+                        complex_type value = get_value_from_input(input_data,
+                                                                  src_index,
+                                                                  coords,
+                                                                  input_fft_lengths,
+                                                                  input_fft_strides);
+                        result[idx] = value;
+                    }
+                }
+
+                bool blob_is_zero(const complex_type* data, int64_t blob_size)
+                {
+                    for (int64_t i = 0; i < blob_size; ++i)
+                    {
+                        if (data[i] != complex_type{0.0f, 0.0f})
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+                void copy_data_to_output(complex_type* output,
+                                         const complex_type* data,
+                                         int64_t dst_index,
+                                         int64_t fft_size,
+                                         const std::vector<int64_t>& fft_strides,
+                                         const std::vector<int64_t>& output_fft_strides)
+                {
+                    int64_t num_of_fft_axes = static_cast<int64_t>(fft_strides.size());
+
+                    for (int64_t idx = 0; idx < fft_size; ++idx)
+                    {
+                        auto coords = coords_from_index(idx, fft_strides);
+                        complex_type value = data[idx];
+
+                        int64_t offset = 0;
+                        for (int64_t i = 0; i < num_of_fft_axes; ++i)
+                        {
+                            int64_t coord = coords[i];
+                            offset += coord * output_fft_strides[i];
+                        }
+
+                        output[dst_index + offset] = value;
+                    }
                 }
             }
 
@@ -58,65 +323,75 @@ namespace ngraph
                      const Shape& output_shape,
                      FFTKind fft_kind)
             {
-                using complex_type = std::complex<float>;
-
                 const complex_type* complex_input_data_ptr =
                     reinterpret_cast<const complex_type*>(input_data);
                 complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(fft_result);
 
-                size_t complex_data_rank = input_data_shape.size() - 1;
+                const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
 
-                std::vector<int64_t> reversed_shape(complex_data_rank);
-                for (size_t i = 0; i < complex_data_rank; ++i)
-                {
-                    reversed_shape[i] =
-                        static_cast<int64_t>(output_shape[complex_data_rank - i - 1]);
-                }
+                const auto reversed_output_shape = reverse_shape(output_shape);
+                const auto strides = compute_strides(reversed_output_shape);
+                auto fft_axes_and_sizes = get_axes_and_signal_size(axes_data,
+                                                                   axes_data_shape,
+                                                                   signal_size_data,
+                                                                   signal_size_data_shape,
+                                                                   input_data_shape);
+                auto& fft_axes = fft_axes_and_sizes.axes;
+                auto& signal_size = fft_axes_and_sizes.signal_size;
+                reverse_fft_axes(fft_axes, complex_data_rank);
 
-                auto strides = compute_strides(reversed_shape);
-
-                size_t num_of_fft_axes = axes_data_shape[0];
-
-                std::vector<int64_t> sorted_axes(num_of_fft_axes);
-                memcpy(sorted_axes.data(), axes_data, num_of_fft_axes * sizeof(int64_t));
-                std::sort(sorted_axes.begin(), sorted_axes.end(), std::greater<int64_t>());
-
-                std::vector<int64_t> fft_axes(num_of_fft_axes);
-                std::vector<int64_t> fft_lengths(num_of_fft_axes);
-                std::vector<int64_t> fft_strides(num_of_fft_axes);
-
-                int64_t fft_size = 1;
-
-                for (size_t i = 0; i < num_of_fft_axes; ++i)
-                {
-                    int64_t a = sorted_axes[i];
-                    int64_t fft_axis = complex_data_rank - 1 - a;
-                    fft_axes[i] = fft_axis;
-                    fft_lengths[i] = reversed_shape[fft_axis];
-                    fft_strides[i] = strides[fft_axis];
-                    fft_size *= fft_lengths[i];
-                }
+                const int64_t fft_rank = fft_axes.size();
+                const auto fft_lengths = get_lengths(reversed_output_shape, fft_axes);
+                const auto fft_strides = compute_strides(fft_lengths);
+                const int64_t fft_size = fft_strides[fft_rank];
 
                 if (fft_size <= 0)
                 {
                     return;
                 }
 
-                int64_t fft_axes_as_bitset = 0;
-                for (int64_t axis : fft_axes)
-                {
-                    fft_axes_as_bitset |= static_cast<int64_t>(1) << axis;
-                }
+                std::vector<complex_type> data(fft_size);
 
-                int64_t outer_rank = static_cast<int64_t>(complex_data_rank - num_of_fft_axes);
-                std::vector<int64_t> outer_axes(outer_rank);
-                for (size_t j = 0, i = 0; i < complex_data_rank; ++i)
+                const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank)
+
+                const int64_t outer_rank = outer_axes.size();
+                const auto outer_lengths = get_lengths(reversed_output_shape, outer_axes);
+                const auto outer_strides = compute_strides(outer_lengths);
+                const int64_t outer_size = outer_strides[outer_rank];
+
+                int64_t buffer_size = compute_buffer_size(fft_lengths);
+                std::vector<complex_type> buffer(buffer_size);
+
+                const auto output_strides = compute_strides(reversed_output_shape);
+                const auto output_fft_strides = get_lengths(output_strides, fft_axes);
+                const auto reversed_input_shape = reverse_shape(input_data_shape);
+                const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
+                const auto input_strides = compute_strides(reversed_input_shape);
+                const auto input_fft_strides = get_lengths(input_strides, fft_axes)
+
+                bool simple_axes = axes_are_simple(fft_axes);
+
+                for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
-                    if (fft_axes_as_bitset & (static_cast<int64_t>(1) << i))
-                    {
-                        outer_axes[j] = i;
-                        ++j;
-                    }
+                    const auto outer_coords = coords_from_index(outer_idx, outer_strides);
+                    copy_data_from_input(data,
+                                         complex_input_data_ptr,
+                                         outer_idx,
+                                         fft_size,
+                                         fft_strides,
+                                         input_fft_lengths,
+                                         input_fft_strides);
+
+                    bool input_is_zero = blob_is_zero(data.data(), fft_size);
+                    if (!input_is_zero)
+                    {}
+
+                    copy_data_to_output(complex_output_ptr,
+                                        data,
+                                        outer_idx,
+                                        fft_size,
+                                        fft_strides,
+                                        output_fft_strides);
                 }
             }
 
