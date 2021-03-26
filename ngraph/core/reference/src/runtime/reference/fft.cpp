@@ -368,7 +368,7 @@ namespace ngraph
                         {
                             value /= complex_type(length, 0.0f);
                         }
-                        data[start + k * stride] = value;
+                        data[fft_offset + k * stride] = value;
                     }
                 }
 
