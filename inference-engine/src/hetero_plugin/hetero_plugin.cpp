@@ -174,10 +174,12 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
         auto deviceIt = options.find("TARGET_FALLBACK");
-        if (deviceIt == options.end()) {
-            IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+        std::string targetFallback;
+        if (deviceIt != options.end()) {
+            targetFallback = DeviceArchitecture(deviceIt->second.as<std::string>());
+        } else {
+            targetFallback = GetConfig("TARGET_FALLBACK", {}).as<std::string>();
         }
-        std::string targetFallback = DeviceArchitecture(deviceIt->second.as<std::string>());
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, targetFallback);
     } else {
         IE_THROW() << "Unsupported Plugin metric: " << name;
@@ -188,10 +190,6 @@ std::string Engine::DeviceArchitecture(const std::string& targetFallback) const 
     std::string resArch;
     for (const auto& device : fallbackDevices) {
         InferenceEngine::DeviceIDParser parser(device);
-        std::map<std::string, Parameter> options;
-        if (!parser.getDeviceID().empty()) {
-            options.insert({CONFIG_KEY(DEVICE_ID), parser.getDeviceID()});
-        }
 
         std::vector<std::string> supportedMetricKeys = GetCore()->GetMetric(
                 parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
