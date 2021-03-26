@@ -313,6 +313,7 @@ namespace ngraph
                         buffer[k] = value;
                         input_is_zero = input_is_zero && (value == complex_type(0.0f, 0.0f));
                     }
+                    return input_is_zero;
                 }
 
                 void optimized_fft1d(int64_t current_fft_length,
@@ -332,9 +333,9 @@ namespace ngraph
                                  FFTKind fft_kind)
                 {
                     bool input_is_zero = gather_to_buffer(data,
-                                                          current_fft_length,
+                                                          length,
                                                           fft_offset,
-                                                          current_fft_stride,
+                                                          stride,
                                                           buffer);
                     if (input_is_zero)
                     {
@@ -352,30 +353,20 @@ namespace ngraph
                     }
                 }
 
-                void fft1d(int64_t current_fft_length,
+                void fft1d(int64_t length,
                            int64_t fft_offset,
-                           int64_t current_fft_stride,
+                           int64_t stride,
                            const complex_type* data,
                            complex_type* buffer,
                            FFTKind fft_kind)
                 {
-                    if (is_power_of_two(current_fft_length))
+                    if (is_power_of_two(length))
                     {
-                        optimized_fft1d(current_fft_length,
-                                        fft_offset,
-                                        current_fft_stride,
-                                        data.data(),
-                                        buffer.data(),
-                                        fft_kind);
+                        optimized_fft1d(length, fft_offset, stride, data, buffer, fft_kind);
                     }
                     else
                     {
-                        naive_fft1d(current_fft_length,
-                                    fft_offset,
-                                    current_fft_stride,
-                                    data.data(),
-                                    buffer.data(),
-                                    fft_kind);
+                        naive_fft1d(length, fft_offset, stride, data, buffer, fft_kind);
                     }
                 }
             }
@@ -451,8 +442,8 @@ namespace ngraph
                     if (!input_is_zero) {
                         for (int64_t axis_idx = 0; axis_idx < fft_rank; ++axis_idx)
                         {
-                            int64_t current_fft_stride = fft_strides[idx];
-                            int64_t current_fft_length = fft_lengths[idx];
+                            int64_t current_fft_stride = fft_strides[axis_idx];
+                            int64_t current_fft_length = fft_lengths[axis_idx];
 
                             int64_t outer_fft_size = 1;
                             for (int64_t i = 0; i < fft_rank; ++i)
@@ -464,7 +455,7 @@ namespace ngraph
                                 outer_fft_size *= fft_lengths[i];
                             }
 
-                            for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size; ++i)
+                            for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size; ++outer_fft_idx)
                             {
                                 fft1d(current_fft_length,
                                       outer_fft_idx,
