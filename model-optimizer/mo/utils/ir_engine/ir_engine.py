@@ -310,6 +310,8 @@ class IREngine(object):
             'I8': (1, np.int8),
             'U8': (1, np.uint8),
             'U1': (1, np.uint8),
+            'U4': (1, np.uint8),
+            'I4': (1, np.uint8),
             'BOOL': (1, np.bool),
             'BIN': (1, np.uint8),
         }
