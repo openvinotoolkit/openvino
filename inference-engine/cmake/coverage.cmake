@@ -19,9 +19,10 @@ ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine"
 ie_coverage_genhtml(INFO_FILE "inference_engine"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_ir_reader"
-                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/readers/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_ir_reader"
+ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_ir_v10_reader"
+                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/readers/ir_reader/*"
+                             "${DLDT_COVERAGE_BASE_DIRECTORY}/readers/reader_api/*")
+ie_coverage_genhtml(INFO_FILE "inference_engine_ir_v10_reader"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_legacy"
@@ -49,15 +50,20 @@ ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_transformations"
 ie_coverage_genhtml(INFO_FILE "inference_engine_transformations"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
+ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_snippets"
+                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/snippets/*")
+ie_coverage_genhtml(INFO_FILE "inference_engine_snippets"
+                    PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
+
 ie_coverage_extract(INPUT "dldt" OUTPUT "low_precision_transformations"
                     PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/low_precision_transformations/*")
 ie_coverage_genhtml(INFO_FILE "low_precision_transformations"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "dldt" OUTPUT "template_plugin"
-    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/template_plugin/*")
+                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/template_plugin/*")
 ie_coverage_genhtml(INFO_FILE "template_plugin"
-    PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
+                    PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
 if(ENABLE_MKL_DNN)
     ie_coverage_extract(INPUT "dldt" OUTPUT "mkldnn_plugin"
