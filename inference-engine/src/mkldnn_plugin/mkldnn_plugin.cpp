@@ -120,7 +120,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
 
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
@@ -148,6 +148,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             {ngraph::element::f64,     ngraph::element::f32},
             {ngraph::element::f16,     ngraph::element::f32},
             {ngraph::element::boolean, ngraph::element::u8},
+            {ngraph::element::i4, ngraph::element::i8},
+            {ngraph::element::u4, ngraph::element::u8},
     };
 
     for (auto &precision : convert_precision_list) {
