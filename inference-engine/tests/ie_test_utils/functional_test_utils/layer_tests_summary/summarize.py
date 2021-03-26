@@ -1,6 +1,5 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 import xml.etree.ElementTree as ET
 from jinja2 import Environment, FileSystemLoader
