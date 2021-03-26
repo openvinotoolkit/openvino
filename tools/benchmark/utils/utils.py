@@ -231,11 +231,11 @@ def print_perf_counters(perf_counts_list):
         logger.info(f"Performance counts for {ni}-th infer request")
         for layer, stats in sorted(perf_counts.items(), key=lambda x: x[1]['execution_index']):
             max_layer_name = 30
-            print(f"{layer[:max_layer_name - 4] + '...' if (len(layer) >= max_layer_name) else layer:<30} "
-                                                                f"{stats['status']:<15} "
-                                                                f"{'layerType: ' + str(stats['layer_type']):<30} "
-                                                                f"{'realTime: ' + str(stats['real_time']):<20} "
-                                                                f"{'cpu: ' + str(stats['cpu_time']):<20} "
+            print(f"{layer[:max_layer_name - 4] + '...' if (len(layer) >= max_layer_name) else layer:<30}"
+                                                                f"{stats['status']:<15}"
+                                                                f"{'layerType: ' + str(stats['layer_type']):<30}"
+                                                                f"{'realTime: ' + str(stats['real_time']):<20}"
+                                                                f"{'cpu: ' + str(stats['cpu_time']):<20}"
                                                                 f"{'execType: ' + str(stats['exec_type']):<20}")
             total_time += stats['real_time']
             total_time_cpu += stats['cpu_time']

@@ -19,7 +19,7 @@ try:
     import numpy as np
 except Exception as e:
     log.error(f"Can not import numpy python package.\nPlease install required python packages by running:\n"
-              "pip3 install -r requirements.txt\n\n Original error message: {e}")
+              f"pip3 install -r requirements.txt\n\n Original error message: {e}")
     sys.exit(1)
 
 verbosity = False
