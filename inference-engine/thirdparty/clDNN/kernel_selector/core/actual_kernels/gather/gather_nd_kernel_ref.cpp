@@ -55,11 +55,11 @@ static inline std::string GetOrderString(std::vector<std::string>& order) {
 static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     std::vector<std::string> default_order;
     if (size <= 4) {
-        default_order = {"b", "f", "y", "x"};
+        default_order = { "b", "f", "y", "x" };
     } else if (size == 5) {
-        default_order = {"b", "f", "z", "y", "x"};
+        default_order = { "b", "f", "z", "y", "x" };
     } else if (size == 6) {
-        default_order = {"b", "f", "w", "z", "y", "x"};
+        default_order = { "b", "f", "w", "z", "y", "x" };
     }
 
     return default_order;
@@ -88,6 +88,7 @@ CommonDispatchData GatherNDKernelRef::SetDefault(const gather_nd_params& params,
     case DataLayout::bfwzyx:
         dispatchData.gws = { indices_dims[5] * indices_dims[4], indices_dims[3] * indices_dims[2], indices_dims[1] * indices_dims[0] };
         break;
+
     default:
         throw std::invalid_argument("Unsupported data layout for scatter elements update primitive");
         break;
@@ -199,7 +200,7 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const option
     auto cldnn_jit = GetJitConstants(newParams);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
 

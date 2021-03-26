@@ -54,7 +54,7 @@ inline void DoTest(const engine& engine,
 }
 
 TEST(gather_nd_gpu_fp16, d23322_i231312_ir6_batch2) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 6;
     const int batch_dims = 2;
@@ -96,7 +96,7 @@ TEST(gather_nd_gpu_fp16, d23322_i231312_ir6_batch2) {
 }
 
 TEST(gather_nd_gpu_fp16, d231322_i231321_ir6_batch5) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 6;
     const int batch_dims = 5;
@@ -138,7 +138,7 @@ TEST(gather_nd_gpu_fp16, d231322_i231321_ir6_batch5) {
 }
 
 TEST(gather_nd_gpu_fp16, d23322_i23321_ir5_batch4) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 5;
     const int batch_dims = 4;
@@ -180,7 +180,7 @@ TEST(gather_nd_gpu_fp16, d23322_i23321_ir5_batch4) {
 }
 
 TEST(gather_nd_gpu_fp16, d23223_i2321_ir4_batch3) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 3;
@@ -222,7 +222,7 @@ TEST(gather_nd_gpu_fp16, d23223_i2321_ir4_batch3) {
 }
 
 TEST(gather_nd_gpu_fp16, d2342_i2312_ir4_batch2) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 2;
@@ -264,7 +264,7 @@ TEST(gather_nd_gpu_fp16, d2342_i2312_ir4_batch2) {
 }
 
 TEST(gather_nd_gpu_fp16, d234_i2311_ir4_batch2) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 2;
@@ -307,7 +307,7 @@ TEST(gather_nd_gpu_fp16, d234_i2311_ir4_batch2) {
 }
 
 TEST(gather_nd_gpu_fp16, d234_i21_ir2_batch1) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 1;
@@ -340,7 +340,7 @@ TEST(gather_nd_gpu_fp16, d234_i21_ir2_batch1) {
 }
 
 TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch1) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 1;
@@ -367,7 +367,7 @@ TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch1) {
 }
 
 TEST(gather_nd_gpu_fp16, d3223_i321113_ir6_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 6;
     const int batch_dims = 0;
@@ -412,7 +412,7 @@ TEST(gather_nd_gpu_fp16, d3223_i321113_ir6_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d3221_i32312_ir3_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 3;
     const int batch_dims = 0;
@@ -457,7 +457,7 @@ TEST(gather_nd_gpu_fp16, d3221_i32312_ir3_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d3231_i32312_ir3_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 3;
     const int batch_dims = 0;
@@ -502,7 +502,7 @@ TEST(gather_nd_gpu_fp16, d3231_i32312_ir3_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d3112_i3221_ir4_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 0;
@@ -542,7 +542,7 @@ TEST(gather_nd_gpu_fp16, d3112_i3221_ir4_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d311211_i322111_ir4_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 0;
@@ -582,7 +582,7 @@ TEST(gather_nd_gpu_fp16, d311211_i322111_ir4_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d3332_i3223_ir4_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 0;
@@ -629,7 +629,7 @@ TEST(gather_nd_gpu_fp16, d3332_i3223_ir4_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d3323_i322_ir3_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 3;
     const int batch_dims = 0;
@@ -676,7 +676,7 @@ TEST(gather_nd_gpu_fp16, d3323_i322_ir3_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 0;
@@ -701,7 +701,7 @@ TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch0) {
 }
 
 TEST(gather_nd_gpu_fp16, d22_i32_ir2_batch0) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 0;

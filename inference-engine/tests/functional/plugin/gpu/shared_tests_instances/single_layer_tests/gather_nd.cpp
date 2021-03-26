@@ -48,7 +48,7 @@ const auto gatherNDArgsSubset2 = ::testing::Combine(
         { {15, 12, 20, 15, 2}, {15, 12, 18, 7, 17} })),         // Data shape
     ::testing::ValuesIn(std::vector<std::vector<size_t>>(
         { {15, 12, 2}, {15, 12, 5, 9, 1, 3} })),                // Indices shape
-    ::testing::ValuesIn(std::vector<int>({ 1, 2 }))          // Batch dims
+    ::testing::ValuesIn(std::vector<int>({ 1, 2 }))             // Batch dims
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_GatherND_set2, GatherNDLayerTest,

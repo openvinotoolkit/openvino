@@ -27,43 +27,14 @@ primitive_type_id gather_nd::type_id() {
     return &instance;
 }
 
-static std::vector<tensor::value_type> getOrderedShape(const cldnn::tensor& ts, const cldnn::format& format) {
-    std::vector<tensor::value_type> output_sizes;
-
-    output_sizes.push_back(ts.raw[0]);
-    output_sizes.push_back(ts.raw[1]);
-
-    switch (format) {
-    case cldnn::format::bfyx:
-        output_sizes.push_back(ts.raw[3]);
-        output_sizes.push_back(ts.raw[2]);
-        break;
-    case cldnn::format::bfzyx:
-        output_sizes.push_back(ts.raw[4]);
-        output_sizes.push_back(ts.raw[3]);
-        output_sizes.push_back(ts.raw[2]);
-        break;
-    case cldnn::format::bfwzyx:
-        output_sizes.push_back(ts.raw[5]);
-        output_sizes.push_back(ts.raw[4]);
-        output_sizes.push_back(ts.raw[3]);
-        output_sizes.push_back(ts.raw[2]);
-        break;
-    default:
-        break;
-    }
-
-    return output_sizes;
-}
-
 layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
     auto op = node.get_primitive();
 
-    auto input_layout_orgin = node.input(0).get_output_layout();
-    auto indices_layout_orgin = node.input(1).get_output_layout();
+    auto input_layout_origin = node.input(0).get_output_layout();
+    auto indices_layout_origin = node.input(1).get_output_layout();
 
-    auto input_layout = getOrderedShape(input_layout_orgin.size, input_layout_orgin.format);
-    auto indices_layout = getOrderedShape(indices_layout_orgin.size, indices_layout_orgin.format);
+    auto input_layout = input_layout_origin.size.sizes(input_layout_origin.format);
+    auto indices_layout = indices_layout_origin.size.sizes(indices_layout_origin.format);
 
     const size_t input_dims = input_layout.size();
 
@@ -106,15 +77,15 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
         output_format = cldnn::format::bfzyx;
     }
 
-    auto output_sizes_tensor = tensor(getOrderedShape(tensor(final_output_sizes), output_format));
+    auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
     auto padding = op->output_padding;
 
 
     if (node.has_fused_primitives()) {
-        input_layout_orgin.data_type = node.get_fused_output_layout().data_type;
+        input_layout_origin.data_type = node.get_fused_output_layout().data_type;
     }
 
-    return layout(input_layout_orgin.data_type, output_format, output_sizes_tensor, padding);
+    return layout(input_layout_origin.data_type, output_format, output_sizes_tensor, padding);
 }
 
 std::string gather_nd_inst::to_string(gather_nd_node const& node) {

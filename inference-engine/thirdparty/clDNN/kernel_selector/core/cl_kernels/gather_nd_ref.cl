@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include "include/include_all.cl"
+#include "include/fetch.cl"
 
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 #define GET_OUTPUT_INDEX(out_order) OUTPUT_GET_INDEX(out_order)
@@ -22,7 +21,7 @@
     #define IN_ORDER in_b,in_f,in_y,in_x
 #elif INPUT0_DIMS == 5
     #define IN_ORDER in_b,in_f,in_z,in_y,in_x
-#elif INPUT0_DIMS == 6
+#else
     #define IN_ORDER in_b,in_f,in_w,in_z,in_y,in_x
 #endif
 
@@ -30,7 +29,7 @@
     #define IDX_ORDER idx_b,idx_f,idx_y,idx_x
 #elif INPUT1_DIMS == 5
     #define IDX_ORDER idx_b,idx_f,idx_z,idx_y,idx_x
-#elif INPUT1_DIMS == 6
+#else
     #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
 #endif
 
@@ -38,7 +37,7 @@
     #define OUT_ORDER out_b,out_f,out_y,out_x
 #elif OUTPUT_DIMS == 5
     #define OUT_ORDER out_b,out_f,out_z,out_y,out_x
-#elif OUTPUT_DIMS == 6
+#else
     #define OUT_ORDER out_b,out_f,out_w,out_z,out_y,out_x
 #endif
 
@@ -57,36 +56,38 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
 
-    //Calculate indice index
+    // Calculate indice index
     const uint F_NUM = (INDICES_RANK == 2) ? 1 : INPUT1_FEATURE_NUM;
+    const uint idx_f = dim2 % F_NUM;
+    const uint idx_b = dim2 / F_NUM;
+
     #if INPUT1_DIMS == 4
         const uint idx_x = dim0;
         const uint idx_y = dim1;
-        const uint idx_f = dim2 % F_NUM;
-        const uint idx_b = dim2 / F_NUM;
-        const uint idx_arr[INPUT1_DIMS*2] = {idx_b, idx_f, idx_y, idx_x, 0, 0, 0, 0};
-        const uint idx_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
         const uint idx_z = 0;
         const uint idx_w = 0;
+
+        const uint idx_arr[INPUT1_DIMS*2] = {idx_b, idx_f, idx_y, idx_x, 0, 0, 0, 0};
+        const uint idx_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
     #elif INPUT1_DIMS == 5
         const uint X_NUM = (INDICES_RANK == 5) ? 1 : INPUT1_SIZE_X;
+
         const uint idx_x = dim0 % X_NUM;
         const uint idx_y = dim0 / X_NUM;
         const uint idx_z = dim1;
-        const uint idx_f = dim2 % F_NUM;
-        const uint idx_b = dim2 / F_NUM;
+        const uint idx_w = 0;
+
         const uint idx_arr[INPUT1_DIMS*2] = {idx_b, idx_f, idx_z, idx_y, idx_x, 0, 0, 0, 0, 0};
         const uint idx_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-        const uint idx_w = 0;
-    #elif INPUT1_DIMS == 6
+    #else
         const uint X_NUM = (INDICES_RANK == 6) ? 1 : INPUT1_SIZE_X;
         const uint Z_NUM = (INDICES_RANK == 4) ? 1 : INPUT1_SIZE_Z;
+
         const uint idx_x = dim0 % X_NUM;
         const uint idx_y = dim0 / X_NUM;
         const uint idx_z = dim1 % Z_NUM;
         const uint idx_w = dim1 / Z_NUM;
-        const uint idx_f = dim2 % F_NUM;
-        const uint idx_b = dim2 / F_NUM;
+
         const uint idx_arr[INPUT1_DIMS*2] = {idx_b, idx_f, idx_w, idx_z, idx_y, idx_x, 0, 0, 0, 0, 0, 0};
         const uint idx_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_W, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
     #endif
@@ -110,22 +111,18 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
     #if INPUT0_DIMS == 4
         const uint in_x = indices_val[3];
         const uint in_y = indices_val[2];
-        const uint in_f = indices_val[1];
-        const uint in_b = indices_val[0];
     #elif INPUT0_DIMS == 5
         const uint in_x = indices_val[4];
         const uint in_y = indices_val[3];
         const uint in_z = indices_val[2];
-        const uint in_f = indices_val[1];
-        const uint in_b = indices_val[0];
-    #elif INPUT0_DIMS == 6
+    #else
         const uint in_x = indices_val[5];
         const uint in_y = indices_val[4];
         const uint in_z = indices_val[3];
         const uint in_w = indices_val[2];
-        const uint in_f = indices_val[1];
-        const uint in_b = indices_val[0];
     #endif
+    const uint in_f = indices_val[1];
+    const uint in_b = indices_val[0];
 
     const uint data_idx = GET_UPDATES_INDEX(INPUT0, IN_ORDER);
 
@@ -148,22 +145,18 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
         #if OUTPUT_DIMS == 4
             const uint out_x = idx_arr[BATCH_DIMS+2];
             const uint out_y = idx_arr[BATCH_DIMS+1];
-            const uint out_f = idx_arr[BATCH_DIMS+0];
-            const uint out_b = output_batch_size;
         #elif OUTPUT_DIMS == 5
             const uint out_x = idx_arr[BATCH_DIMS+3];
             const uint out_y = idx_arr[BATCH_DIMS+2];
             const uint out_z = idx_arr[BATCH_DIMS+1];
-            const uint out_f = idx_arr[BATCH_DIMS+0];
-            const uint out_b = output_batch_size;
-        #elif OUTPUT_DIMS == 6
+        #else
             const uint out_x = idx_arr[BATCH_DIMS+4];
             const uint out_y = idx_arr[BATCH_DIMS+3];
             const uint out_z = idx_arr[BATCH_DIMS+2];
             const uint out_w = idx_arr[BATCH_DIMS+1];
-            const uint out_f = idx_arr[BATCH_DIMS+0];
-            const uint out_b = output_batch_size;
         #endif
+        const uint out_f = idx_arr[BATCH_DIMS+0];
+        const uint out_b = output_batch_size;
     #endif
 
     const uint output_idx = GET_OUTPUT_INDEX(OUT_ORDER);
@@ -173,19 +166,17 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
         #if OUTPUT_DIMS == 4
             const uint y_pitch = OUTPUT_SIZE_X;
             const uint f_pitch = y_pitch * OUTPUT_SIZE_Y;
-            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
         #elif OUTPUT_DIMS == 5
             const uint y_pitch = OUTPUT_SIZE_X;
             const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
             const uint f_pitch = z_pitch * OUTPUT_SIZE_Z;
-            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
-        #elif OUTPUT_DIMS == 6
+        #else
             const uint y_pitch = OUTPUT_SIZE_X;
             const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
             const uint w_pitch = z_pitch * OUTPUT_SIZE_Z;
             const uint f_pitch = w_pitch * OUTPUT_SIZE_W;
-            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
         #endif
+        const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
     #endif
 
     for (int i = 0; i < WI_SLICE_SIZE; i++) {
@@ -193,42 +184,38 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
         INPUT0_TYPE val = data[data_idx + i];
 
         #if HAS_FUSED_OPS
+            const uint b_remain = dst_idx % b_pitch;
+            const uint f_remain = b_remain % f_pitch;
             #if OUTPUT_DIMS == 4
-                const uint b_remain = dst_idx % b_pitch;
-                const uint f_remain = b_remain % f_pitch;
                 const uint y_remain = f_remain % y_pitch;
 
-                const uint b = dst_idx / b_pitch;
-                const uint f = b_remain / f_pitch;
                 const uint y = f_remain / y_pitch;
-                const uint x = y_remain;
             #elif OUTPUT_DIMS == 5
-                const uint b_remain = dst_idx % b_pitch;
-                const uint f_remain = b_remain % f_pitch;
                 const uint z_remain = f_remain % z_pitch;
                 const uint y_remain = z_remain % y_pitch;
 
-                const uint b = dst_idx / b_pitch;
-                const uint f = b_remain / f_pitch;
                 const uint z = f_remain / z_pitch;
                 const uint y = z_remain / y_pitch;
-                const uint x = y_remain;
-            #elif OUTPUT_DIMS == 6
-                const uint b_remain = dst_idx % b_pitch;
-                const uint f_remain = b_remain % f_pitch;
+            #else
                 const uint w_remain = f_remain % w_pitch;
                 const uint z_remain = w_remain % z_pitch;
                 const uint y_remain = z_remain % y_pitch;
 
-                const uint b = dst_idx / b_pitch;
-                const uint f = b_remain / f_pitch;
                 const uint w = f_remain / w_pitch;
                 const uint z = w_remain / z_pitch;
                 const uint y = z_remain / y_pitch;
-                const uint x = y_remain;
+            #endif
+            const uint b = dst_idx / b_pitch;
+            const uint f = b_remain / f_pitch;
+            const uint x = y_remain;
+
+            #if FUSED_OPS_CAN_USE_PRELOAD
+                FUSED_OPS_PRELOAD;
+                FUSED_OPS_CALC;
+            #else
+                FUSED_OPS;
             #endif
 
-            FUSED_OPS;
             output[dst_idx] = FUSED_OPS_RESULT;
         #else
             output[dst_idx] = ACTIVATION(val, ACTIVATION_PARAMS);

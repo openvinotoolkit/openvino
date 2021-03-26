@@ -7839,52 +7839,36 @@ struct gather_nd_test_params {
 };
 
 #define CASE_GATHER_ND_FP16_4D_1 data_types::f16, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 1, 1, 1}, format::bfyx, {3, 7, 9, 8}, 6, 2, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_4D_2 data_types::f16, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 2, 1, 1}, format::bfyx, {3, 8, 1, 9}, 6, 2, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_4D_3 data_types::f16, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 4, 2, 1}, format::bfyx, {3, 4, 9, 8}, 6, 3, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_4D_4 data_types::f16, format::bfyx, {6, 7, 9, 8}, format::bfyx, {6, 1, 1, 1}, format::bfyx, {6, 8, 1, 9}, 6, 2, 1, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_4D_5 data_types::f16, format::bfyx, {5, 4, 9, 8}, format::bfyx, {5, 4, 2, 1}, format::bfyx, {20, 1, 1, 1}, 4, 3, 2, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_4D_6 data_types::f16, format::bfyx, {5, 4, 7, 2}, format::bfyx, {5, 4, 1, 2}, format::bfyx, {40, 1, 1, 1}, 6, 4, 3, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_4D_2 data_types::f16, format::bfyx, {6, 7, 9, 8}, format::bfyx, {6, 1, 1, 1}, format::bfyx, {6, 8, 1, 9}, 6, 2, 1, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_4D_3 data_types::f16, format::bfyx, {5, 4, 7, 2}, format::bfyx, {5, 4, 1, 2}, format::bfyx, {40, 1, 1, 1}, 6, 4, 3, data_types::f16, format::bfyx
 
 #define CASE_GATHER_ND_FP16_5D_1 data_types::f16, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfzyx, {5, 6, 7, 8, 5}, 5, 2, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_2 data_types::f16, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 4, 1, 2}, format::bfzyx, {5, 4, 7, 8, 5}, 5, 3, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_3 data_types::f16, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {5, 4, 7, 8}, 5, 3, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_4 data_types::f16, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfyx, {5, 5, 7, 8}, 5, 2, 1, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_5 data_types::f16, format::bfzyx, {5, 4, 7, 8, 5}, format::bfyx, {5, 4, 1, 2}, format::bfyx, {20, 7, 1, 1}, 4, 3, 2, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_6 data_types::f16, format::bfzyx, {5, 4, 7, 8, 5}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {20, 1, 1, 1}, 4, 3, 2, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_7 data_types::f16, format::bfzyx, {5, 4, 7, 8, 3}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {60, 7, 1, 1}, 4, 4, 3, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_8 data_types::f16, format::bfzyx, {5, 4, 7, 2, 3}, format::bfzyx, {5, 4, 1, 2, 3}, format::bfyx, {120, 1, 1, 1}, 4, 5, 4, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_5D_9 data_types::f16, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 1, 1, 3}, format::bfzyx, {20, 3, 7, 4, 1}, 4, 5, 2, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_5D_2 data_types::f16, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfyx, {5, 5, 7, 8}, 5, 2, 1, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_5D_3 data_types::f16, format::bfzyx, {5, 4, 7, 8, 5}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {20, 1, 1, 1}, 4, 3, 2, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_5D_4 data_types::f16, format::bfzyx, {5, 4, 7, 8, 3}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {60, 7, 1, 1}, 4, 4, 3, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_5D_5 data_types::f16, format::bfzyx, {5, 4, 7, 2, 3}, format::bfzyx, {5, 4, 1, 2, 3}, format::bfyx, {120, 1, 1, 1}, 4, 5, 4, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_5D_6 data_types::f16, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 1, 1, 3}, format::bfzyx, {20, 3, 7, 4, 1}, 4, 5, 2, data_types::f16, format::bfyx
 
-#define CASE_GATHER_ND_FP16_6D_1 data_types::f16, format::bfwzyx, {5, 6, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfwzyx, {5, 6, 6, 7, 8, 5}, 5, 2, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_6D_2 data_types::f16, format::bfwzyx, {5, 6, 6, 7, 8, 5}, format::bfyx, {5, 3, 1, 2}, format::bfyx, {5, 3, 6, 7}, 5, 3, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_6D_3 data_types::f16, format::bfwzyx, {5, 4, 6, 7, 8, 5}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {20, 2, 6, 7}, 5, 4, 2, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_6D_4 data_types::f16, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {40, 6, 1, 1}, 5, 4, 3, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_6D_5 data_types::f16, format::bfwzyx, {5, 4, 6, 7, 2, 2}, format::bfzyx, {5, 4, 1, 2, 2}, format::bfyx, {80, 6, 1, 1}, 5, 5, 4, data_types::f16, format::bfyx
-#define CASE_GATHER_ND_FP16_6D_6 data_types::f16, format::bfwzyx, {5, 4, 6, 3, 2, 2}, format::bfwzyx, {5, 4, 1, 3, 2, 2}, format::bfyx, {240, 1, 1, 1}, 5, 6, 5, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_6D_1 data_types::f16, format::bfwzyx, {5, 4, 6, 7, 8, 5}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {20, 2, 6, 7}, 5, 4, 2, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_6D_2 data_types::f16, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {40, 6, 1, 1}, 5, 4, 3, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_6D_3 data_types::f16, format::bfwzyx, {5, 4, 6, 7, 2, 2}, format::bfzyx, {5, 4, 1, 2, 2}, format::bfyx, {80, 6, 1, 1}, 5, 5, 4, data_types::f16, format::bfyx
+#define CASE_GATHER_ND_FP16_6D_4 data_types::f16, format::bfwzyx, {5, 4, 6, 3, 2, 2}, format::bfwzyx, {5, 4, 1, 3, 2, 2}, format::bfyx, {240, 1, 1, 1}, 5, 6, 5, data_types::f16, format::bfyx
 
 #define CASE_GATHER_ND_FP32_4D_1 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 1, 1, 1}, format::bfyx, {3, 7, 9, 8}, 6, 2, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_4D_2 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 2, 1, 1}, format::bfyx, {3, 8, 1, 9}, 6, 2, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_4D_3 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 4, 2, 1}, format::bfyx, {3, 4, 9, 8}, 6, 3, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_4D_4 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {6, 1, 1, 1}, format::bfyx, {6, 8, 1, 9}, 6, 2, 1, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_4D_5 data_types::f32, format::bfyx, {5, 4, 9, 8}, format::bfyx, {5, 4, 2, 1}, format::bfyx, {20, 1, 1, 1}, 4, 3, 2, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_4D_6 data_types::f32, format::bfyx, {5, 4, 7, 2}, format::bfyx, {5, 4, 1, 2}, format::bfyx, {40, 1, 1, 1}, 6, 4, 3, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_4D_2 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {6, 1, 1, 1}, format::bfyx, {6, 8, 1, 9}, 6, 2, 1, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_4D_3 data_types::f32, format::bfyx, {5, 4, 7, 2}, format::bfyx, {5, 4, 1, 2}, format::bfyx, {40, 1, 1, 1}, 6, 4, 3, data_types::f32, format::bfyx
 
 #define CASE_GATHER_ND_FP32_5D_1 data_types::f32, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfzyx, {5, 6, 7, 8, 5}, 5, 2, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_2 data_types::f32, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 4, 1, 2}, format::bfzyx, {5, 4, 7, 8, 5}, 5, 3, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_3 data_types::f32, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {5, 4, 7, 8}, 5, 3, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_4 data_types::f32, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfyx, {5, 5, 7, 8}, 5, 2, 1, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_5 data_types::f32, format::bfzyx, {5, 4, 7, 8, 5}, format::bfyx, {5, 4, 1, 2}, format::bfyx, {20, 7, 1, 1}, 4, 3, 2, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_6 data_types::f32, format::bfzyx, {5, 4, 7, 8, 5}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {20, 1, 1, 1}, 4, 3, 2, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_7 data_types::f32, format::bfzyx, {5, 4, 7, 8, 3}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {60, 7, 1, 1}, 4, 4, 3, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_8 data_types::f32, format::bfzyx, {5, 4, 7, 2, 3}, format::bfzyx, {5, 4, 1, 2, 3}, format::bfyx, {120, 1, 1, 1}, 4, 5, 4, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_5D_9 data_types::f32, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 1, 1, 3}, format::bfzyx, {20, 3, 7, 4, 1}, 4, 5, 2, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_5D_2 data_types::f32, format::bfzyx, {5, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfyx, {5, 5, 7, 8}, 5, 2, 1, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_5D_3 data_types::f32, format::bfzyx, {5, 4, 7, 8, 5}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {20, 1, 1, 1}, 4, 3, 2, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_5D_4 data_types::f32, format::bfzyx, {5, 4, 7, 8, 3}, format::bfyx, {5, 4, 1, 3}, format::bfyx, {60, 7, 1, 1}, 4, 4, 3, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_5D_5 data_types::f32, format::bfzyx, {5, 4, 7, 2, 3}, format::bfzyx, {5, 4, 1, 2, 3}, format::bfyx, {120, 1, 1, 1}, 4, 5, 4, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_5D_6 data_types::f32, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 1, 1, 3}, format::bfzyx, {20, 3, 7, 4, 1}, 4, 5, 2, data_types::f32, format::bfyx
 
-#define CASE_GATHER_ND_FP32_6D_1 data_types::f32, format::bfwzyx, {5, 6, 6, 7, 8, 5}, format::bfyx, {5, 1, 1, 1}, format::bfwzyx, {5, 6, 6, 7, 8, 5}, 5, 2, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_6D_2 data_types::f32, format::bfwzyx, {5, 6, 6, 7, 8, 5}, format::bfyx, {5, 3, 1, 2}, format::bfyx, {5, 3, 6, 7}, 5, 3, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_6D_3 data_types::f32, format::bfwzyx, {5, 4, 6, 7, 8, 5}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {20, 2, 6, 7}, 5, 4, 2, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_6D_4 data_types::f32, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {40, 6, 1, 1}, 5, 4, 3, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_6D_5 data_types::f32, format::bfwzyx, {5, 4, 6, 7, 2, 2}, format::bfzyx, {5, 4, 1, 2, 2}, format::bfyx, {80, 6, 1, 1}, 5, 5, 4, data_types::f32, format::bfyx
-#define CASE_GATHER_ND_FP32_6D_6 data_types::f32, format::bfwzyx, {5, 4, 6, 3, 2, 2}, format::bfwzyx, {5, 4, 1, 3, 2, 2}, format::bfyx, {240, 1, 1, 1}, 5, 6, 5, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_6D_1 data_types::f32, format::bfwzyx, {5, 4, 6, 7, 8, 5}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {20, 2, 6, 7}, 5, 4, 2, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_6D_2 data_types::f32, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfyx, {5, 4, 2, 2}, format::bfyx, {40, 6, 1, 1}, 5, 4, 3, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_6D_3 data_types::f32, format::bfwzyx, {5, 4, 6, 7, 2, 2}, format::bfzyx, {5, 4, 1, 2, 2}, format::bfyx, {80, 6, 1, 1}, 5, 5, 4, data_types::f32, format::bfyx
+#define CASE_GATHER_ND_FP32_6D_4 data_types::f32, format::bfwzyx, {5, 4, 6, 3, 2, 2}, format::bfwzyx, {5, 4, 1, 3, 2, 2}, format::bfyx, {240, 1, 1, 1}, 5, 6, 5, data_types::f32, format::bfyx
 
 
 
@@ -7938,9 +7922,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_quantize,
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_1, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_2, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_3, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_4, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_5, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_6, 2, 3 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_1, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_2, 2, 3 },
@@ -7948,23 +7929,15 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_quantize,
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_4, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_5, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_6, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_7, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_8, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_9, 2, 3 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_1, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_2, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_3, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_4, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_5, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_6, 2, 3 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_1, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_2, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_3, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_4, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_5, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_6, 2, 3 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_1, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_2, 2, 3 },
@@ -7972,16 +7945,11 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_quantize,
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_4, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_5, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_6, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_7, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_8, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_9, 2, 3 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_1, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_2, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_3, 2, 3 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_4, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_5, 2, 3 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_6, 2, 3 },
 }), );
 
 class gather_nd_activation_scale_eltwise : public GatherNDPrimitiveFusingTest {};
@@ -7990,7 +7958,7 @@ TEST_P(gather_nd_activation_scale_eltwise, basic) {
 
     create_topologies(input_layout("input", get_input_layout(p)),
         data("gather_nd_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         gather_nd("gather_nd_prim", "input", "gather_nd_indices", p.indices_rank, p.batch_dims),
         activation("activation", "gather_nd_prim", activation_func::abs),
@@ -7999,7 +7967,7 @@ TEST_P(gather_nd_activation_scale_eltwise, basic) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 1e-5f;
     execute(p);
 }
 
@@ -8008,9 +7976,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_activation_scale_eltwise,
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_1, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_2, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_3, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_4, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_5, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_4D_6, 2, 5 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_1, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_2, 2, 5 },
@@ -8018,23 +7983,15 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_activation_scale_eltwise,
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_4, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_5, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_6, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_7, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_8, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_5D_9, 2, 5 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_1, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_2, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_3, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_4, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_5, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP16_6D_6, 2, 5 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_1, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_2, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_3, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_4, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_5, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_4D_6, 2, 5 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_1, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_2, 2, 5 },
@@ -8042,15 +7999,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_nd_activation_scale_eltwise,
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_4, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_5, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_6, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_7, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_8, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_5D_9, 2, 5 },
 
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_1, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_2, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_3, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_4, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_5, 2, 5 },
-        gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_6, 2, 5 },
 }), );
 
