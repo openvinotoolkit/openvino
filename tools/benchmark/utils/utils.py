@@ -40,7 +40,7 @@ def next_step(additional_info='', step_id=0):
         next_step.step_id += 1
 
     if next_step.step_id not in step_names.keys():
-        raise Exception('Step ID {} is out of total steps number '.format(next_step.step_id, str(len(step_names))))
+        raise Exception(f'Step ID {next_step.step_id} is out of total steps number {str(len(step_names))}')
 
     step_info_template = '[Step {}/{}] {}'
     step_name = step_names[next_step.step_id] + (f' ({additional_info})' if additional_info else '')

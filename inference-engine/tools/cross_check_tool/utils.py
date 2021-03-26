@@ -439,7 +439,10 @@ def print_all_over_the_net_metrics(global_accuracy: (str, float), global_times: 
                                    ref_global_times: list = None):
     if global_times is not None and ref_global_times is not None and len(global_times) and len(ref_global_times):
         log.info('-' * 70, extra={'no_lvl': True})
-        log.info(f'{"Overall performance, microseconds":>35}: {global_times[len(global_times) // 2].microseconds:>16,.5E} {ref_global_times[len(ref_global_times) // 2].microseconds:>16,.5E}', extra={'no_lvl': True})
+        log.info(f'{"Overall performance, microseconds":>35}:'
+                                '{global_times[len(global_times) // 2].microseconds:>16,.5E}'
+                                '{ref_global_times[len(ref_global_times) // 2].microseconds:>16,.5E}', 
+                                                                                extra={'no_lvl': True})
         log.info('-' * 70, extra={'no_lvl': True})
     for metric, value in global_accuracy:
         log.info(f"Overall {metric.lower()} = {value}")
