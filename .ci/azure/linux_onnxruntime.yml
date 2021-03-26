@@ -1,5 +1,5 @@
 jobs:
-- job: onnx_runtime
+- job: onnxruntime
   timeoutInMinutes: 90
 
   pool:
@@ -12,14 +12,14 @@ jobs:
     WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
-    ONNX_RUNTIME_REPO_DIR: $(REPO_DIR)/../onnxruntime
+    ONNXRUNTIME_REPO_DIR: $(REPO_DIR)/../onnxruntime
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     BUILD_DIR: $(WORK_DIR)/build
-    ONNX_RUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnx_runtime
-    ONNX_RUNTIME_BUILD_DIR: $(ONNX_RUNTIME_REPO_DIR)/build
+    ONNXRUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnxruntime
+    ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
   steps:
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
@@ -55,8 +55,8 @@ jobs:
     path: openvino
 
   - script: |
-      branch=`tr -s '\n ' < $(ONNX_RUNTIME_UTILS)/version`
-      git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git $(ONNX_RUNTIME_REPO_DIR)
+      branch=`tr -s '\n ' < $(ONNXRUNTIME_UTILS)/version`
+      git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Clone onnxruntime'
 
   - script: |
@@ -113,43 +113,43 @@ jobs:
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
       echo "2021.2" > $(INSTALL_DIR)/deployment_tools/inference_engine/version.txt
-      ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNX_RUNTIME_BUILD_DIR)
-    workingDirectory: $(ONNX_RUNTIME_REPO_DIR)
+      ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
+    workingDirectory: $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Build ONNX Runtime'
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
-      skip_tests=`tr -s '\n ' ':' < $(ONNX_RUNTIME_UTILS)/skip_tests`
+      skip_tests=`tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests`
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
-    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
+    workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_test_all'
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
       ./onnxruntime_shared_lib_test
-    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
+    workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_shared_lib_test'
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
       ./onnxruntime_global_thread_pools_test
-    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
+    workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_global_thread_pools_test'
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
       ./onnxruntime_api_tests_without_env
-    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
+    workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_api_tests_without_env'
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
-      ./onnx_test_runner "$(ONNX_RUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
-    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
+      ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
+    workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-converted tests'
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
-      ./onnx_test_runner "$(ONNX_RUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
-    workingDirectory: $(ONNX_RUNTIME_BUILD_DIR)/RelWithDebInfo
+      ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
+    workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-operator tests'
