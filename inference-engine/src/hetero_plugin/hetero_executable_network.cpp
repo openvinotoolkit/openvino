@@ -368,7 +368,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     OutputsDataMap externalOutputsData = network.getOutputsInfo();
     networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
-    std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
         networks[id]._device = subgraph._affinity;
@@ -386,11 +385,15 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                 itClonedInput->second->setLayout(externalInput.second->getLayout());
             }
         }
-        isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
-                                            std::end(subgraph._parameters),
-                                            [&] (const std::shared_ptr<ngraph::op::v0::Parameter>& p) {
-                                                return contains(graphInputNodes, p.get());
-                                            });
+        // update output info
+        auto clonedOutputs = networks[id]._clonedNetwork.getOutputsInfo();
+        for (auto&& externalOutput : externalOutputsData) {
+            auto itClonedOutput = clonedOutputs.find(externalOutput.first);
+            if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
+                itClonedOutput->second->setPrecision(externalOutput.second->getPrecision());
+                itClonedOutput->second->setLayout(externalOutput.second->getLayout());
+            }
+        }
         ++id;
     }
     if (dumpDotFile) {
