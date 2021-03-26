@@ -325,18 +325,14 @@ namespace ngraph
                 {
                 }
 
-                void naive_fft1d(int64_t current_fft_length,
+                void naive_fft1d(int64_t length,
                                  int64_t fft_offset,
-                                 int64_t current_fft_stride,
+                                 int64_t stride,
                                  const complex_type* data,
                                  complex_type* buffer,
                                  FFTKind fft_kind)
                 {
-                    bool input_is_zero = gather_to_buffer(data,
-                                                          length,
-                                                          fft_offset,
-                                                          stride,
-                                                          buffer);
+                    bool input_is_zero = gather_to_buffer(data, length, fft_offset, stride, buffer);
                     if (input_is_zero)
                     {
                         return;
