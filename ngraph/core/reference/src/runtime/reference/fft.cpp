@@ -166,7 +166,7 @@ namespace ngraph
                     int64_t num_of_inner_axes = static_cast<int64_t>(inner_axes.size());
                     int64_t num_of_outer_axes = complex_data_rank - num_of_inner_axes;
 
-                    std::vector<int64_t> outer_axes(num_of_inner_axes);
+                    std::vector<int64_t> outer_axes(num_of_outer_axes);
 
                     int64_t fft_axes_as_bitset = 0;
                     for (int64_t axis : inner_axes)
@@ -206,7 +206,7 @@ namespace ngraph
                 {
                     int64_t num_of_axes = static_cast<int64_t>(strides.size()) - 1;
                     std::vector<int64_t> coords(num_of_axes);
-                    int64_t curr = i;
+                    int64_t curr = index;
                     for (int64_t j = num_of_axes - 1; j >= 1; --j)
                     {
                         coords[j] = curr / strides[j];
@@ -316,7 +316,7 @@ namespace ngraph
                                                                    signal_size_data_shape,
                                                                    input_data_shape);
                 auto& fft_axes = fft_axes_and_sizes.axes;
-                auto& signal_size = fft_axes_and_sizes.signal_size;
+                // auto& signal_size = fft_axes_and_sizes.signal_size;
                 reverse_fft_axes(fft_axes, complex_data_rank);
 
                 const int64_t fft_rank = fft_axes.size();
@@ -351,7 +351,7 @@ namespace ngraph
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
                     const auto outer_coords = coords_from_index(outer_idx, outer_strides);
-                    copy_data_from_input(data,
+                    copy_data_from_input(data.data(),
                                          complex_input_data_ptr,
                                          outer_idx,
                                          fft_size,
@@ -363,7 +363,7 @@ namespace ngraph
                     if (!input_is_zero) {}
 
                     copy_data_to_output(complex_output_ptr,
-                                        data,
+                                        data.data(),
                                         outer_idx,
                                         fft_size,
                                         fft_strides,
