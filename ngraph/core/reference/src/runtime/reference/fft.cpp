@@ -296,19 +296,22 @@ namespace ngraph
                 complex_type twiddle(int64_t k, int64_t length, FFTKind fft_kind)
                 {
                     float angle = -2.0f * pi * static_cast<float>(k) / static_cast<float>(length);
-                    float result = std::polar(1.0f, angle);
+                    complex_type result = std::polar(1.0f, angle);
                     return (fft_kind == FFTKind::Inverse) ? std::conj(result) : result;
                 }
 
-                void gather_to_buffer(const complex_type* data,
+                bool gather_to_buffer(const complex_type* data,
                                       int64_t length,
                                       int64_t start,
                                       int64_t stride,
                                       complex_type* buffer)
                 {
+                    bool input_is_zero = true;
                     for (int64_t k = 0; k < length; ++k)
                     {
-                        buffer[k] = data[start + k * stride];
+                        complex_type value = data[start + k * stride];
+                        buffer[k] = value;
+                        input_is_zero = input_is_zero && (value == complex_type(0.0f, 0.0f));
                     }
                 }
 
@@ -328,7 +331,15 @@ namespace ngraph
                                  complex_type* buffer,
                                  FFTKind fft_kind)
                 {
-                    gather_to_buffer(data, length, fft_offset, stride, buffer);
+                    bool input_is_zero = gather_to_buffer(data,
+                                                          current_fft_length,
+                                                          fft_offset,
+                                                          current_fft_stride,
+                                                          buffer);
+                    if (input_is_zero)
+                    {
+                        return;
+                    }
                     for (int64_t k = 0; k < length; ++k)
                     {
                         complex_type value = complex_type(0.0f, 0.0f);
@@ -336,7 +347,8 @@ namespace ngraph
                         {
                             value += buffer[n] * twiddle(n * k, length, fft_kind);
                         }
-                        data[fft_offset + k * stride] = value;
+                        data[fft_offset + k * stride] =
+                            (fft_kind == FFTKind::Inverse) ? value / complex_type(length, 0.0f) : value;
                     }
                 }
 
