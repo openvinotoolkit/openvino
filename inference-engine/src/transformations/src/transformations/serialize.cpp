@@ -62,6 +62,9 @@ size_t hash_combine(const void* v, int64_t size) {
     size_t seed = static_cast<size_t>(size);
     const auto data = static_cast<const size_t*>(v);
     const auto d_end = std::next(data, size / cel_size);
+    // The constant value used as a magic number has been
+    // traditionally used e.g. in boost library's hash_combine.
+    // It happens to be derived from the golden ratio.
     for (auto d = data; d != d_end; ++d) {
         seed ^= *d + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
