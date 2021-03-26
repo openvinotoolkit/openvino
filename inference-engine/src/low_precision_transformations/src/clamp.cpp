@@ -77,7 +77,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
             max += shift;
         }
 
-        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_node_shared_ptr(0), min, max);
+        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_source_output(0), min, max);
     }
     replace_node(newClamp, replacement);
 
