@@ -21,11 +21,6 @@ static std::vector<std::string> splitStringByDelimiter(std::string str, const st
 }
 
 int main(int argc, char* argv[]) {
-    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
-    LayerTestsUtils::extendReport = false;
-    LayerTestsUtils::saveReportWithUniqueName = false;
-    LayerTestsUtils::outputFolder = {"."};
-
     // Workaround for Gtest + Gflag
     std::vector<char*> argv_gflags_vec;
     int argc_gflags = 0;
@@ -53,12 +48,12 @@ int main(int argc, char* argv[]) {
         FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     }
     if (FLAGS_extend_report) {
-        LayerTestsUtils::extendReport = true;
+        LayerTestsUtils::Summary::setExtendReport(true);
     }
     if (FLAGS_report_unique_name) {
-        LayerTestsUtils::saveReportWithUniqueName = true;
+        LayerTestsUtils::Summary::setSaveReportWithUniqueName(true);
     }
-    LayerTestsUtils::outputFolder = {FLAGS_output_folder};
+    LayerTestsUtils::Summary::setOutputFolder(FLAGS_output_folder);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ConformanceTests::targetDevice = FLAGS_device.c_str();
