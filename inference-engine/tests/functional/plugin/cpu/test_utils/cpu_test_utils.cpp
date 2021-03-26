@@ -12,20 +12,6 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == _fmt) return #_fmt; \
 } while (0)
     CASE(undef);
-    CASE(a);
-    CASE(ab);
-    CASE(abcd);
-    CASE(acdb);
-    CASE(aBcd8b);
-    CASE(aBcd16b);
-    CASE(abcde);
-    CASE(acdeb);
-    CASE(aBcde8b);
-    CASE(aBcde16b);
-    CASE(abc);
-    CASE(bac);
-    CASE(abdc);
-    CASE(abdec);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -165,23 +151,28 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
                 }
             }
 
-            const auto actualOutputMemoryFormat = getExecValueOutputsLayout(node);
-            const auto shape = node->get_output_shape(0);
-            if (!should_be_skipped(shape, outFmts[0])) {
-                /* actual output formats are represented as a single string, for example 'fmt1' or 'fmt1, fmt2, fmt3'
-                 * convert expected formats to the same representation */
-                auto outFmtsToSingleString = [] (const std::vector<cpu_memory_format_t>& fmts) -> std::string {
-                    std::string outFmtsStr;
-                    for (const auto fmt : fmts) {
-                        outFmtsStr += cpu_fmt2str(fmt);
-                        outFmtsStr += ",";
-                    }
-                    outFmtsStr.pop_back(); // remove last comma
+            /* actual output formats are represented as a single string, for example 'fmt1' or 'fmt1, fmt2, fmt3'
+             * convert it to the list of formats */
+            auto getActualOutputMemoryFormats = [] (const std::string& fmtStr) -> std::vector<std::string> {
+                std::vector<std::string> result;
+                std::stringstream ss(fmtStr);
+                std::string str;
+                while (std::getline(ss, str, ',')) {
+                    result.push_back(str);
+                }
+                return result;
+            };
 
-                    return outFmtsStr;
-                };
+            auto actualOutputMemoryFormats = getActualOutputMemoryFormats(getExecValueOutputsLayout(node));
 
-                ASSERT_EQ(outFmtsToSingleString(outFmts), actualOutputMemoryFormat);
+            for (size_t i = 0; i < outFmts.size(); i++) {
+                const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
+                const auto shape = node->get_output_shape(i);
+
+                if (should_be_skipped(shape, outFmts[i]))
+                    continue;
+
+                ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);

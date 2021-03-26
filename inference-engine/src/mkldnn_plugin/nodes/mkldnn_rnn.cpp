@@ -160,20 +160,6 @@ void MKLDNNRNN::fillCellDesc() {
 
     auto runtimePrecision = outs[0]->getPrecision();
 
-    // set recurent input data type
-    if (ins.size() > 1)
-        ins[1].lock()->setPrecision(runtimePrecision);
-    if (outs.size() > 1)
-        outs[1]->setPrecision(runtimePrecision);
-
-    // set cell datatype
-    if (cell_type == mkldnn::algorithm::vanilla_lstm) {
-        if (ins.size() == 3)
-            ins[2].lock()->setPrecision(Precision::FP32);
-        if (outs.size() == 3)
-            outs[2]->setPrecision(Precision::FP32);
-    }
-
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
     in_states_d.resize(S);
@@ -293,22 +279,7 @@ void MKLDNNRNN::fillSeqDesc() {
     in_states_d.resize(S);
     out_states_d.resize(S);
 
-    // auto cnnLayer = getCnnLayer();
     auto runtimePrecision = outs[0]->getPrecision();
-
-    // set recurent input data type
-    if (ins.size() > 1)
-        ins[1].lock()->setPrecision(runtimePrecision);
-    if (outs.size() > 1)
-        outs[1]->setPrecision(runtimePrecision);
-
-    // set cell datatype
-    if (cell_type == mkldnn::algorithm::vanilla_lstm) {
-        if (ins.size() == 3)
-            ins[2].lock()->setPrecision(Precision::FP32);
-        if (outs.size() == 3)
-            outs[2]->setPrecision(Precision::FP32);
-    }
 
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
