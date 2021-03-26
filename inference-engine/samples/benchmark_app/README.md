@@ -103,7 +103,7 @@ Options:
                                 Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
                                 estimations the number of streams should be set to 1.
     -nthreads "<integer>"       Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-    -enforcebf16="<true/false>" Optional. Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
+    -enforcebf16="<true/false>" Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
                                         'true'  - enable  bfloat16 regardless of platform support
                                         'false' - disable bfloat16 regardless of platform support.
     -pin "YES"/"NO"/"NUMA"      Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
