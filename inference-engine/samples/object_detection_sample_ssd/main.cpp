@@ -18,7 +18,6 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include <vpu/vpu_tools_common.hpp>
 #include <vpu/vpu_plugin_config.hpp>
 
 #include "object_detection_sample_ssd.h"

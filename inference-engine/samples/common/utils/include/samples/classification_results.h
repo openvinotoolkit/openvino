@@ -6,6 +6,8 @@
  * @brief a header file with output classification results
  * @file classification_results.hpp
  */
+#pragma once
+
 #include <string>
 #include <vector>
 #include <iostream>

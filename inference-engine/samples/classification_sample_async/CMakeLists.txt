@@ -5,4 +5,4 @@
 ie_add_sample(NAME classification_sample_async
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
               HEADERS classification_sample_async.h
-              DEPENDENCIES format_reader)
+              DEPENDENCIES format_reader ie_samples_utils)

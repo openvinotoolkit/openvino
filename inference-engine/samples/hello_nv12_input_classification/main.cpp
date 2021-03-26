@@ -18,7 +18,7 @@
 
 #include <sys/stat.h>
 #ifdef _WIN32
-#include <os/windows/w_dirent.h>
+#include <samples/os/windows/w_dirent.h>
 #else
 #include <dirent.h>
 #endif
