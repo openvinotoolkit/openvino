@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,7 +136,7 @@ RangeType MyriadMetrics::RangeForAsyncInferRequests(
             }
         }
         catch(...) {
-            THROW_IE_EXCEPTION << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
+            IE_THROW() << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
         }
     }
 
