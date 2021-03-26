@@ -37,11 +37,6 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
         info = app_input_info[key]
         if info.is_image:
             input_image_sizes[key] = (info.width, info.height)
-        logger.info("Network input '{}' precision {}, dimensions ({}): {}".format(key,
-                                                                                  info.precision,
-                                                                                  info.layout,
-                                                                                  " ".join(str(x) for x in
-                                                                                           info.shape)))
 
     images_count = len(input_image_sizes.keys())
     binaries_count = len(app_input_info) - images_count
