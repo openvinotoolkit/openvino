@@ -102,7 +102,6 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
         if (metaDevices.end() == itPlugin) {
             metaDevices[deviceName] = getDeviceConfig(deviceName);
         }
-        metaDevices[deviceName].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
     }
     return metaDevices;
 }
