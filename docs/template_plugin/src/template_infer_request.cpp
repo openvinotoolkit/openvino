@@ -69,43 +69,48 @@ void TemplateInferRequest::allocateDeviceBuffers() {
 }
 
 template<typename BlobDataMap, typename GetNetworkPrecisionF>
-static void AllocateImpl(const BlobDataMap& blobDataMap,
-                         BlobMap& blobMap,
-                         BlobMap& networkBlobMap,
+static void AllocateImpl(const BlobDataMap& userDataMap,
+                         BlobMap& userBlobMap,
+                         BlobMap& deviceBlobMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision) {
-    for (auto&& blobData : blobDataMap) {
-        auto& dims = blobData.second->getTensorDesc().getDims();
-        auto& precision = blobData.second->getTensorDesc().getPrecision();
-        auto layout = blobData.second->getTensorDesc().getLayout();
-        Blob::Ptr blob;
-        switch (precision) {
-        case Precision::U8: {
-            blob = InferenceEngine::make_shared_blob<std::uint8_t>({precision, dims, layout});
-        } break;
-        case Precision::FP32 : {
-            blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
-        } break;
-        default: IE_THROW() << "Template Plugin: Unsupported Input/Output Presision";
-        }
-        blob->allocate();
-        blobMap[blobData.first] = blob;
+    for (auto&& userData : userDataMap) {
+        auto& dims = userData.second->getTensorDesc().getDims();
+        const auto devicePrecision = Precision::FP32;
+        const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
+        auto userPrecision = userData.second->getTensorDesc().getPrecision();
+        auto userLayout = userData.second->getTensorDesc().getLayout();
 
-        auto networkPresion = GetNetworkPrecision(blobData.first);
-        Blob::Ptr networkBlob;
-        switch (networkPresion) {
-        case ngraph::element::Type_t::f32 : {
-            if (precision == Precision::FP32) {
-                networkBlob = blob;
-            } else {
-                networkBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, dims, layout});
-            }
-        } break;
-        default: IE_THROW() << "Template Plugin: Unsupported network Input/Output Presision";
+        Blob::Ptr userBlob;
+        switch (userPrecision) {
+            case Precision::U8: {
+                userBlob = InferenceEngine::make_shared_blob<std::uint8_t>({userPrecision, dims, userLayout});
+            } break;
+            case Precision::FP32 : {
+                userBlob = InferenceEngine::make_shared_blob<float>({userPrecision, dims, userLayout});
+            } break;
+            default: IE_THROW() << "Template Plugin: Unsupported Input/Output Precision";
         }
-        if (blob != networkBlob) {
-            networkBlob->allocate();
+        userBlob->allocate();
+        userBlobMap[userData.first] = userBlob;
+
+        auto networkPrecision = GetNetworkPrecision(userData.first);
+        Blob::Ptr deviceBlob;
+        switch (networkPrecision) {
+            case ngraph::element::Type_t::f32 : {
+                if (userPrecision == devicePrecision && userLayout == deviceLayout) {
+                    deviceBlob = userBlob;
+                } else {
+                    deviceBlob = InferenceEngine::make_shared_blob<float>({devicePrecision, dims, deviceLayout});
+                }
+            } break;
+            default: IE_THROW() << "Template Plugin: Unsupported network Input/Output Presision";
         }
-        networkBlobMap[blobData.first] = networkBlob;
+        // preprocessing converts user input blob to desired device input blob automatically
+        // NOTE: this is not supported for output user blobs yet
+        if (userBlob != deviceBlob) {
+            deviceBlob->allocate();
+        }
+        deviceBlobMap[userData.first] = deviceBlob;
     }
 }
 

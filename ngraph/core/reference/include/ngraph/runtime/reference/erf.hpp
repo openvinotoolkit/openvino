@@ -6,6 +6,10 @@
 
 #include <cmath>
 #include <cstddef>
+#include <type_traits>
+
+#include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
 
 namespace ngraph
 {
@@ -14,11 +18,22 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void erf(const T* arg, T* out, size_t count)
+            typename std::enable_if<!std::is_integral<T>::value>::type
+                erf(const T* arg, T* out, size_t count)
             {
                 for (size_t i = 0; i < count; i++)
                 {
                     out[i] = std::erf(arg[i]);
+                }
+            }
+
+            template <typename T>
+            typename std::enable_if<std::is_integral<T>::value>::type
+                erf(const T* arg, T* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = std::round(std::erf(arg[i]));
                 }
             }
         }
