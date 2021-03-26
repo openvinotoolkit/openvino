@@ -121,6 +121,8 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingClamp,
         fusingPRelu,
         fusingSwish,
+        fusingHSwish,
+        fusingMish,
         // other patterns
         fusingReluScaleShift,
         fusingFakeQuantizePerTensorRelu,
