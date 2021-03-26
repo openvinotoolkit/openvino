@@ -129,7 +129,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
 }
 
 NGRAPH_RTTI_DEFINITION(op::v7::Gather, "Gather", 7);
-constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
+static constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
 
 op::v7::Gather::Gather(const Output<Node>& data,
                        const Output<Node>& indices,
