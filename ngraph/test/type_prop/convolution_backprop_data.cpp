@@ -321,6 +321,55 @@ TEST(type_prop, convolution_backprop_data_partial_auto_padding_lower)
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 0}));
 }
 
+TEST(type_prop, convolution_backprop_data_auto_pad_explicit_with_output_padding)
+{
+    const PartialShape data_pshape{1, 16, 2, 2};
+    const PartialShape filters_pshape{16, 6, 3, 3};
+
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const CoordinateDiff padding_begin{1, 1};
+    const CoordinateDiff padding_end{1, 1};
+    const CoordinateDiff output_padding{1, 1};
+    const op::PadType auto_pad = op::PadType::EXPLICIT;
+
+    const element::Type_t inputs_et = element::f16;
+    auto data = make_shared<op::Parameter>(inputs_et, data_pshape);
+    auto filters = make_shared<op::Parameter>(inputs_et, filters_pshape);
+    auto conv_backprop = make_shared<op::v1::ConvolutionBackpropData>(
+        data, filters, strides, padding_begin, padding_end, dilations, auto_pad, output_padding);
+    
+    ASSERT_TRUE(conv_backprop->get_output_partial_shape(0).same_scheme(PartialShape{1, 6, 4, 4}));
+    ASSERT_EQ(conv_backprop->get_pads_begin(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(conv_backprop->get_pads_end(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(conv_backprop->get_output_padding(), (CoordinateDiff{1, 1}));
+}
+
+TEST(type_prop, convolution_backprop_data_auto_pad_same_with_output_padding_and_output_shape)
+{
+    const PartialShape data_pshape{1, 16, 2, 2};
+    const PartialShape filters_pshape{16, 6, 3, 3};
+
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const CoordinateDiff padding_begin{1, 1};
+    const CoordinateDiff padding_end{1, 1};
+    const CoordinateDiff output_padding{1, 1};
+    const op::PadType auto_pad = op::PadType::SAME_LOWER;
+
+    const element::Type_t inputs_et = element::f16;
+    auto data = make_shared<op::Parameter>(inputs_et, data_pshape);
+    auto filters = make_shared<op::Parameter>(inputs_et, filters_pshape);
+    auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
+    auto conv_backprop = make_shared<op::v1::ConvolutionBackpropData>(
+        data, filters, output_shape, strides, padding_begin, padding_end, dilations, auto_pad, output_padding);
+    
+    ASSERT_TRUE(conv_backprop->get_output_partial_shape(0).same_scheme(PartialShape{1, 6, 3, 3}));
+    ASSERT_EQ(conv_backprop->get_pads_begin(), (CoordinateDiff{1, 1}));
+    ASSERT_EQ(conv_backprop->get_pads_end(), (CoordinateDiff{2, 2}));
+    ASSERT_EQ(conv_backprop->get_output_padding(), (CoordinateDiff{1, 1}));
+}
+
 TEST(type_prop, convolution_backprop_data_output_shape_as_const)
 {
     const PartialShape data_pshape{1, 16, 5, 5};
