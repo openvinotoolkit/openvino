@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <cmath>
-
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/op/pad.hpp" // for op::PadMode
+#include "ngraph/coordinate_diff.hpp"
+#include "ngraph/op/util/attr_types.hpp" // for op::PadMode
+#include "ngraph/shape.hpp"
 
 namespace ngraph
 {
@@ -27,5 +24,5 @@ namespace ngraph
                      const CoordinateDiff& padding_above,
                      const op::PadMode pad_mode);
         }
-    }
-}
+    } // namespace runtime
+} // namespace ngraph
