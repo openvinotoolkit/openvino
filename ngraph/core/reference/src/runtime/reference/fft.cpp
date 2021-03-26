@@ -290,6 +290,82 @@ namespace ngraph
                         output[dst_index + offset] = value;
                     }
                 }
+
+                static constexpr float pi = 3.141592653589793238462643f;
+
+                complex_type twiddle(int64_t k, int64_t length, FFTKind fft_kind)
+                {
+                    float angle = -2.0f * pi * static_cast<float>(k) / static_cast<float>(length);
+                    float result = std::polar(1.0f, angle);
+                    return (fft_kind == FFTKind::Inverse) ? std::conj(result) : result;
+                }
+
+                void gather_to_buffer(const complex_type* data,
+                                      int64_t length,
+                                      int64_t start,
+                                      int64_t stride,
+                                      complex_type* buffer)
+                {
+                    for (int64_t k = 0; k < length; ++k)
+                    {
+                        buffer[k] = data[start + k * stride];
+                    }
+                }
+
+                void optimized_fft1d(int64_t current_fft_length,
+                                     int64_t fft_offset,
+                                     int64_t current_fft_stride,
+                                     const complex_type* data,
+                                     complex_type* buffer,
+                                     FFTKind fft_kind)
+                {
+                }
+
+                void naive_fft1d(int64_t current_fft_length,
+                                 int64_t fft_offset,
+                                 int64_t current_fft_stride,
+                                 const complex_type* data,
+                                 complex_type* buffer,
+                                 FFTKind fft_kind)
+                {
+                    gather_to_buffer(data, length, fft_offset, stride, buffer);
+                    for (int64_t k = 0; k < length; ++k)
+                    {
+                        complex_type value = complex_type(0.0f, 0.0f);
+                        for (int64_t n = 0; n < length; ++n)
+                        {
+                            value += buffer[n] * twiddle(n * k, length, fft_kind);
+                        }
+                        data[fft_offset + k * stride] = value;
+                    }
+                }
+
+                void fft1d(int64_t current_fft_length,
+                           int64_t fft_offset,
+                           int64_t current_fft_stride,
+                           const complex_type* data,
+                           complex_type* buffer,
+                           FFTKind fft_kind)
+                {
+                    if (is_power_of_two(current_fft_length))
+                    {
+                        optimized_fft1d(current_fft_length,
+                                        fft_offset,
+                                        current_fft_stride,
+                                        data.data(),
+                                        buffer.data(),
+                                        fft_kind);
+                    }
+                    else
+                    {
+                        naive_fft1d(current_fft_length,
+                                    fft_offset,
+                                    current_fft_stride,
+                                    data.data(),
+                                    buffer.data(),
+                                    fft_kind);
+                    }
+                }
             }
 
             void fft(const float* input_data,
@@ -360,7 +436,33 @@ namespace ngraph
                                          input_fft_strides);
 
                     bool input_is_zero = blob_is_zero(data.data(), fft_size);
-                    if (!input_is_zero) {}
+                    if (!input_is_zero) {
+                        for (int64_t axis_idx = 0; axis_idx < fft_rank; ++axis_idx)
+                        {
+                            int64_t current_fft_stride = fft_strides[idx];
+                            int64_t current_fft_length = fft_lengths[idx];
+
+                            int64_t outer_fft_size = 1;
+                            for (int64_t i = 0; i < fft_rank; ++i)
+                            {
+                                if (i == axis_idx)
+                                {
+                                    continue;
+                                }
+                                outer_fft_size *= fft_lengths[i];
+                            }
+
+                            for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size; ++i)
+                            {
+                                fft1d(current_fft_length,
+                                      outer_fft_idx,
+                                      current_fft_stride,
+                                      data.data(),
+                                      buffer.data(),
+                                      fft_kind);
+                            }
+                        }
+                    }
 
                     copy_data_to_output(complex_output_ptr,
                                         data.data(),
