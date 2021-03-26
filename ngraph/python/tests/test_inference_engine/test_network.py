@@ -6,7 +6,7 @@ from openvino.inference_engine import IECore, IENetwork, DataPtr, \
 
 import os
 import pytest
-
+from ..conftest import model_path
 
 test_net_xml, test_net_bin = model_path()
 
