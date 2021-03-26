@@ -29,6 +29,7 @@ macro (ie_option_enum variable description value)
     list(APPEND IE_OPTIONS ${variable})
 
     set(${variable} ${value} CACHE STRING "${description}")
+    set_property(CACHE ${variable} PROPERTY STRINGS ${IE_OPTION_ENUM_ALLOWED_VALUES})
 endmacro()
 
 function (print_enabled_features)
