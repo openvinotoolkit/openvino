@@ -105,7 +105,7 @@ ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion() {
                           transpose_constant_values, shape_reshape_after)) {
             return false;
         }
-        
+
         int64_t axis = 1ul;
         int64_t group = shape_reshape_before[1];
 
