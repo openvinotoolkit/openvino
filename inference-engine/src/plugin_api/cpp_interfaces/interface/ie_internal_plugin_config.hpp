@@ -45,6 +45,13 @@ DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
  */
 DECLARE_CONFIG_KEY(AGGREGATED_PLUGIN);
 
+/**
+ * @brief This key should be used to force disable export while loading network even if global cache dir is defined
+ *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

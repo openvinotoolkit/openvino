@@ -25,6 +25,7 @@
 #include "file_utils.h"
 #include "ie_network_reader.hpp"
 #include "xml_parse_utils.h"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
@@ -222,13 +223,14 @@ class Core::Impl : public ICore {
                                       const std::map<std::string, std::string>& parsedConfig,
                                       const RemoteContext::Ptr& context,
                                       const std::string& blobID,
-                                      const std::string& modelPath = std::string()) {
+                                      const std::string& modelPath = std::string(),
+                                      bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::LoadNetworkImpl");
         ExecutableNetwork execNetwork;
         execNetwork = context ? plugin.LoadNetwork(network, context, parsedConfig) :
                                 plugin.LoadNetwork(network, parsedConfig);
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
-        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+        if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
@@ -456,19 +458,20 @@ public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+        bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         bool loadedFromCache = false;
         ExecutableNetwork res;
         std::string hash;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
-        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+        if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
         }
 
         if (!loadedFromCache) {
-            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, hash);
+            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
         }
         return res;
     }

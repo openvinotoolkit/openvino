@@ -107,6 +107,7 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
             != std::end(supportedConfigKeys)) {
             metaDevices[deviceName].emplace(CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN), "");
         }
+        metaDevices[deviceName].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
     }
     return metaDevices;
 }
@@ -164,7 +165,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(FULL_DEVICE_NAME),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(IMPORT_EXPORT_SUPPORT)});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
@@ -173,6 +175,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
             CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN)});
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
+    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else {
         IE_THROW() << "Unsupported Plugin metric: " << name;
     }
