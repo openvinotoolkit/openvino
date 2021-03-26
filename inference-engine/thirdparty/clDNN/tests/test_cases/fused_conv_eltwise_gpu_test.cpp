@@ -31,7 +31,22 @@ using namespace testing;
 TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_with_ref_b_fs_yx_fsv16_f32)
 {
     //Test pattern of Conv_208/WithoutBiases in yolov5s-gpu-rg.xml
+#ifdef DUMP_CL_KERNEL_BUILD_LOG
+    engine_configuration configuration =
+        engine_configuration(
+            false,          // profiling
+            false,          // decorate_kernel_names
+            false,          // dump_custom_program
+            "",             // options
+            "",             // single_kernel
+            true,           // primitives_parallelisation
+            "",             // engine_log
+            "C:\\Users\\ahnyoung\\sources\\error_dump"             // sources_dumps_dir
+            );
+    cldnn::engine engine(configuration);
+#else
     const auto& engine = get_test_engine();
+#endif
 
     auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 128, 40, 40 } /*memory order*/ }); //memory order
     auto weights = memory::allocate(engine, { data_types::f32, format::os_is_yx_isv16_osv16, { 128, 128, 1, 1 } });
@@ -72,7 +87,9 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_with_ref_b_fs_yx_fsv16_f32)
 
 
     build_options opt_act;
-    // opt_act.set_option(build_option::graph_dumps_dir("/home/yblee/conv_fusing"));
+#ifdef BUILD_OPTION_GRAPH_COMPILE
+    opt_act.set_option(build_option::graph_dumps_dir("/home/yblee/conv_fusing"));
+#endif
     opt_act.set_option(build_option::optimize_data(true));
     network network_act(engine, topology_act, opt_act);
     network_act.set_input_data("input", input);
