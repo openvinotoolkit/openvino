@@ -24,7 +24,7 @@ FetchContent_Declare(
     GIT_REPOSITORY ${ONNX_GIT_REPO_URL}
     GIT_TAG ${ONNX_GIT_BRANCH}
     # apply patch to fix problems with symbols visibility for MSVC
-    PATCH_COMMAND git reset --hard HEAD && git apply --verbose ${ONNX_PATCH_FILE}
+    PATCH_COMMAND git reset --hard HEAD && git apply --ignore-space-change --ignore-whitespace --verbose ${ONNX_PATCH_FILE}
 )
 
 macro(onnx_set_target_properties)
