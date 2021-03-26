@@ -70,6 +70,19 @@ protected:
              {num_directions, hidden_size, hidden_size},
              {num_directions, hidden_size}},
         };
+
+        configuration.insert(enforceBF16.begin(), enforceBF16.end());
+
+        if (enforceBF16[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+            inPrc  = netPrecision;
+            outPrc = Precision::BF16;
+        } else {
+            inPrc = outPrc = netPrecision;
+        }
+
+        selectedType += "_";
+        selectedType += outPrc.name();
+
         m_max_seq_len = seq_lenghts;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
@@ -92,7 +105,7 @@ protected:
                                                      m_mode);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(1))};
-        function = std::make_shared<ngraph::Function>(results, params, "rnn_sequence");
+        function = makeNgraphFunction(ngPrc, params, rnn_sequence, "rnn_sequence");
         if (m_mode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
             ngraph::pass::Manager manager;
             if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
@@ -134,14 +147,16 @@ TEST_P(RNNSequenceCPUTest, CompareWithRefs) {
 namespace {
 /* CPU PARAMS */
 std::vector<std::map<std::string, std::string>> bf16EnforceFlags
-    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
+    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+       {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+};
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    return {CPUSpecificParams{{ntc, nc}, {ntc, nc}, {"ref_any"}, "ref_any_FP32"}};
+    return {CPUSpecificParams{{ntc, nc}, {ntc, nc}, {"ref_any"}, "ref_any"}};
 }
 
 std::vector<CPUSpecificParams> filterCPUInfoForDeviceBatchSizeOne() {
-    return {CPUSpecificParams{{tnc, nc}, {tnc, nc}, {"ref_any"}, "ref_any_FP32"}};
+    return {CPUSpecificParams{{tnc, nc}, {tnc, nc}, {"ref_any"}, "ref_any"}};
 }
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
@@ -149,7 +164,8 @@ std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTe
 std::vector<size_t> seq_lengths_zero_clip{2};
 std::vector<size_t> batch{10};
 std::vector<size_t> batch_size_one{1};
-std::vector<size_t> hidden_size{1, 10};
+std::vector<size_t> hidden_size{10};
+// std::vector<size_t> hidden_size{1, 10};
 std::vector<size_t> input_size{10};
 std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
 // oneDNN supports only zero clip
@@ -157,7 +173,7 @@ std::vector<float> clip{0.f};
 
 std::vector<ngraph::op::RecurrentSequenceDirection> direction{ngraph::op::RecurrentSequenceDirection::FORWARD};
 
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
 INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCPU,
                         RNNSequenceCPUTest,

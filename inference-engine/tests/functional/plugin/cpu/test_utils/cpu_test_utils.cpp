@@ -80,24 +80,32 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
 }
 
 std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
+    if (fmts.empty())
+        return {};
+
     std::string str;
+
     for (auto &fmt : fmts) {
-        ((str += "cpu:") += cpu_fmt2str(fmt)) += ",";
+        (str += cpu_fmt2str(fmt)) += ",";
     }
-    if (!str.empty()) {
-        str.pop_back();
-    }
+    str.pop_back();
+    str += "(cpu)";
+
     return str;
 }
 
 std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
+    if (priority.empty())
+        return {};
+
     std::string str;
+
     for (auto &impl : priority) {
-        ((str += "cpu:") += impl) += ",";
+        (str += impl) += ",";
     }
-    if (!str.empty()) {
-        str.pop_back();
-    }
+    str.pop_back();
+    str += "(cpu)";
+
     return str;
 }
 
@@ -242,8 +250,11 @@ std::shared_ptr<ngraph::Function>
 CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
                                  const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
+   ngraph::ResultVector results;
 
-   ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(newLastNode)};
+   for (int i = 0; i < newLastNode->get_output_size(); i++)
+        results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
+
    return std::make_shared<ngraph::Function>(results, params, name);
 }
 

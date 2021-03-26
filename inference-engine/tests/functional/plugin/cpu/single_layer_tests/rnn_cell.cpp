@@ -36,6 +36,7 @@ public:
                     result << "_" << item.first << "=" << item.second;
             }
         }
+
         return result.str();
     }
 
@@ -61,6 +62,19 @@ protected:
 
         std::vector<std::vector<size_t>> inputShapes = {{batch, input_size}, {batch, hidden_size},
                                                         {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
+
+        configuration.insert(enforceBF16.begin(), enforceBF16.end());
+
+        if (enforceBF16[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+            inPrc  = netPrecision;
+            outPrc = Precision::BF16;
+        } else {
+            inPrc = outPrc = netPrecision;
+        }
+
+        selectedType += "_";
+        selectedType += outPrc.name();
+
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
@@ -68,7 +82,7 @@ protected:
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
             WRB, hidden_size, activations, {}, {}, clip);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell)};
-        function = std::make_shared<ngraph::Function>(results, params, "rnn_cell");
+        function = makeNgraphFunction(ngPrc, params, rnn_cell, "rnn_cell");
     }
 };
 
@@ -85,7 +99,7 @@ std::vector<std::map<std::string, std::string>> bf16EnforceFlags
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    return {CPUSpecificParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any_FP32"}};
+    return {CPUSpecificParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
 }
 
 std::vector<bool> should_decompose{false};
@@ -95,7 +109,7 @@ std::vector<size_t> input_size{1, 30};
 std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
 // oneDNN supports only zero clip
 std::vector<float> clip = {0.f};
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
 INSTANTIATE_TEST_CASE_P(smoke_RNNCellCPU,
                         RNNCellCPUTest,

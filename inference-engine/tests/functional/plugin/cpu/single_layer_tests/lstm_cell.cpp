@@ -61,11 +61,22 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, netPrecision, targetDevice) = basicParamsSet;
 
-        configuration.insert(enforceBF16.begin(), enforceBF16.end());
-
         std::vector<std::vector<size_t>> inputShapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size}, {4 * hidden_size, hidden_size}, {4 * hidden_size}},
         };
+
+        configuration.insert(enforceBF16.begin(), enforceBF16.end());
+
+        if (enforceBF16[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+            inPrc  = netPrecision;
+            outPrc = Precision::BF16;
+        } else {
+            inPrc = outPrc = netPrecision;
+        }
+
+        selectedType += "_";
+        selectedType += outPrc.name();
+
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
         std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
@@ -73,16 +84,8 @@ protected:
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hidden_size, activations, {}, {}, clip);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
-        function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");
-        if (should_decompose) {
-            ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::LSTMCellDecomposition>();
-            m.run_passes(function);
-        }
 
-        if (selectedType.empty()) {
-            selectedType = getPrimitiveType();
-        }
+        function = makeNgraphFunction(ngPrc, params, lstm_cell, "lstm_cell");
     }
 };
 
@@ -96,10 +99,11 @@ TEST_P(LSTMCellLayerCPUTest, CompareWithRefs) {
 namespace {
 /* CPU PARAMS */
 std::vector<std::map<std::string, std::string>> bf16EnforceFlags
-    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
+    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}},
+      {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}};
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    return {CPUSpecificParams{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any_FP32"}};
+     return {CPUSpecificParams{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
 }
 
 std::vector<bool> should_decompose{false};

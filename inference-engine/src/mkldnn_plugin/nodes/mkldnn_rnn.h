@@ -66,11 +66,14 @@ private:
     const ptrdiff_t L = 1;   /**< What is it??. Constant for mkldnn impl */
     const ptrdiff_t D = 1;   /**< Num of direction. 1 or 2 */
 
-    MKLDNNMemoryDesc in_data_d;
-    MKLDNNMemoryDesc out_data_d;
+    std::vector<MKLDNNMemoryDesc> in_data_d;
+    std::vector<MKLDNNMemoryDesc> out_data_d;
 
-    std::vector<MKLDNNMemoryDesc> in_states_d;
-    std::vector<MKLDNNMemoryDesc> out_states_d;
+    enum RNNInOutKind {
+        Layer       = 0,
+        HiddenState = 1,
+        CellState   = 2
+    };
 
     MKLDNNMemoryDesc w_data_d;
     MKLDNNMemoryDesc w_state_d;
@@ -80,14 +83,14 @@ private:
     std::vector<mkldnn::reorder> exec_before;
     std::vector<mkldnn::reorder> exec_after;
 
-    std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec {
-        // layer precision, weights precision
-        {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP32},
-        {InferenceEngine::Precision::BF16, InferenceEngine::Precision::BF16},
-        {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP16},
-        {InferenceEngine::Precision::U8,   InferenceEngine::Precision::I8},
-    };
+    static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
+}; // class MKLDNNRNN
+
+const std::map<InferenceEngine::Precision, InferenceEngine::Precision> MKLDNNRNN::weightsByLayerPrec {
+    // layer precision, weights precision
+    {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP32},
+    {InferenceEngine::Precision::BF16, InferenceEngine::Precision::BF16},
+    {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP16},
+    {InferenceEngine::Precision::U8,   InferenceEngine::Precision::I8},
 };
-
 }  // namespace MKLDNNPlugin
-

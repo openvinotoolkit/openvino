@@ -69,18 +69,26 @@ protected:
              {(linear_before_reset ? 4 : 3) * hidden_size}},
         };
 
+        configuration.insert(enforceBF16.begin(), enforceBF16.end());
+
+        if (enforceBF16[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+            inPrc  = netPrecision;
+            outPrc = Precision::BF16;
+        } else {
+            inPrc = outPrc = netPrecision;
+        }
+
+        selectedType += "_";
+        selectedType += outPrc.name();
+
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
         auto gru_cell = ngraph::builder::makeGRU(
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hidden_size, activations, {}, {}, clip, linear_before_reset);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0))};
-        function = std::make_shared<ngraph::Function>(results, params, "gru_cell");
-        if (should_decompose) {
-            ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::GRUCellDecomposition>();
-            m.run_passes(function);
-        }
+
+        function = makeNgraphFunction(ngPrc, params, gru_cell, "gru_cell");
     }
 };
 
@@ -94,10 +102,12 @@ TEST_P(GRUCellCPUTest, CompareWithRefs) {
 namespace {
 /* CPU PARAMS */
 std::vector<std::map<std::string, std::string>> bf16EnforceFlags
-    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
+    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+       {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+};
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    return {CPUSpecificParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any_FP32"}};
+    return {CPUSpecificParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
 }
 
 std::vector<bool> should_decompose{false};
@@ -109,7 +119,7 @@ std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh"}};
 // oneDNN supports only zero clip
 std::vector<float> clip = {0.f};
 std::vector<bool> linear_before_reset = {true, false};
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
 INSTANTIATE_TEST_CASE_P(smoke_GRUCellCPU,
                         GRUCellCPUTest,
