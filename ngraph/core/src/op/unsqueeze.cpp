@@ -45,6 +45,9 @@ void op::v0::Unsqueeze::validate_and_infer_types()
     // Get value of axes from Constant
     const auto axes_values = axes_constant->cast_vector<int64_t>();
     const auto expanded_rank = data_rank_value + axes_values.size();
+
+    NODE_VALIDATION_CHECK(this, !axes_values.empty(), "'axes' input is mandatory");
+
     auto normalized_axes = normalize_axes(this->description(), axes_values, expanded_rank);
     set<int64_t> axes(begin(normalized_axes), end(normalized_axes));
 

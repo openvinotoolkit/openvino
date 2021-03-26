@@ -168,6 +168,8 @@ namespace ngraph
             {
                 OutputVector slice(const Node& node)
                 {
+                    using ngraph::op::is_null;
+
                     OutputVector inputs{node.get_ng_inputs()};
                     const auto data = inputs.at(0);
                     const auto data_rank = data.get_partial_shape().rank();

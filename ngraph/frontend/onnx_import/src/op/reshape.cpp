@@ -27,7 +27,7 @@ namespace ngraph
                     const auto data = ng_inputs.at(0);
 
                     Output<ngraph::Node> pattern;
-
+                    bool special_zero = true;
                     // Since opset 5 the target shape is provided as input
                     if (ng_inputs.size() == 2)
                     {
@@ -39,8 +39,7 @@ namespace ngraph
                             node.get_attribute_value<std::vector<int64_t>>("shape", {});
 
                         // Added in onnx reshape version 14
-                        const auto special_zero =
-                            !node.get_attribute_value<bool>("allowzero", false);
+                        special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);
 
                         pattern = default_opset::Constant::create(
                             element::i64, Shape{output_shape.size()}, output_shape);
