@@ -9,7 +9,9 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <low_precision/manager.hpp>
 
-#include "low_precision/markup_port_precisions.hpp"
+#include "low_precision/markup_precisions.hpp"
+#include "low_precision/markup_avg_pool_precisions.hpp"
+#include "low_precision/propagate_precisions.hpp"
 
 //#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -56,7 +58,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
 
 ngraph::pass::low_precision::LowPrecision::LowPrecision(
-    const std::vector<OperationRestriction>& restrictions,
+    const std::vector<OperationPrecisionRestriction>& restrictions,
     const LayerTransformation::Params params) : restrictions(restrictions), params(params){
     //
 }
@@ -64,10 +66,21 @@ ngraph::pass::low_precision::LowPrecision::LowPrecision(
 bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     TransformationContext context(f);
 
-    // TODO: use the same manager
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::low_precision::MarkupPortPrecisions>(restrictions);
-    manager.run_passes(f);
+    // TODO: just to DEBUG: use the same manager
+    ngraph::pass::Manager manager1;
+    manager1.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(restrictions);
+    manager1.run_passes(f);
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming.1").run_on_function(f);
+
+    ngraph::pass::Manager manager2;
+    manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+    manager2.run_passes(f);
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming.2").run_on_function(f);
+
+    ngraph::pass::Manager manager3;
+    manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+    manager3.run_passes(f);
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming.3").run_on_function(f);
 
     const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
     ngraph::pass::Manager prerequisites;

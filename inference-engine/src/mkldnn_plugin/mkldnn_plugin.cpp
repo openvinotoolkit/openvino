@@ -290,29 +290,24 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     manager.run_passes(nGraphFunc);
 
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.common").run_on_function(nGraphFunc);
+
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
         OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
         ngraph::pass::Manager manager;
 
-        // discussion:
-
-        auto key = OperationRestriction::create<ngraph::opset1::Convolution>({
-            {0, {ngraph::element::u8}},
-            {1, {ngraph::element::i8}}
-        });
-
         // variant #1: simple: transformation(supportedPrecisionsOnActivation)
-        auto supportedPrecisionsOnActivation = std::vector<OperationRestriction>({
+        auto supportedPrecisionsOnActivation = std::vector<OperationPrecisionRestriction>({
             // disabling, add precision pattern
             // {getKey<ngraph::opset1::MaxPool>({}), {}},
             // limitation by U8
-            OperationRestriction::create<ngraph::opset1::Convolution>({
+            OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             }),
-            OperationRestriction::create<ngraph::opset1::GroupConvolution>({
+            OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             }),
@@ -345,6 +340,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         //});
 
         manager.run_passes(nGraphFunc);
+        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
     }
 
     bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);

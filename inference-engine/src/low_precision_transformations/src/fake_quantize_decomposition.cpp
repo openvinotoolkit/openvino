@@ -6,13 +6,30 @@
 
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
+
+FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params) : LayerTransformation(params) {
+   auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (!op || m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeDecompositionTransformation");
+    this->register_matcher(m, callback);
+}
 
 void FakeQuantizeDecompositionTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
     addSingleNodePattern<opset1::FakeQuantize>(pass, context);
@@ -122,9 +139,32 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
-    const DataPrecision dataPrecision = getDataPrecision(layer, quantizationDetails, false);
+
+    DataPrecision dataPrecision;
+
+    auto& rt = layer->output(0).get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+    if (it != rt.end()) {
+        auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
+        const PrecisionsAttribute& precisions = attribute->get();
+        if (precisions.size() == 1ul) {
+            //const bool ngraph::element::Type precision = *precisions.begin();
+            const auto precision = *precisions.begin();
+            PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
+            const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
+            dataPrecision = DataPrecision(
+                precision,
+                DataPrecision::getMinValue(precision, quantizationDetails.levels),
+                DataPrecision::getMaxValue(precision, quantizationDetails.levels),
+                foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+        }
+    }
+
     if (dataPrecision.precision == element::undefined) {
-        return false;
+        dataPrecision = getDataPrecision(layer, quantizationDetails, false);
+        if (dataPrecision.precision == element::undefined) {
+            return false;
+        }
     }
 
     // Split FakeQuantize to two parts: Quantize and Dequantize

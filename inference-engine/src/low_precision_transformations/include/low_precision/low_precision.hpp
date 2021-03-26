@@ -10,7 +10,7 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/markup_port_precisions.hpp"
+#include "low_precision/markup_precisions.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -32,12 +32,12 @@ class ngraph::pass::low_precision::LowPrecision: public ngraph::pass::FunctionPa
 public:
     NGRAPH_RTTI_DECLARATION;
     LowPrecision(
-        const std::vector<OperationRestriction>& restrictions = {},
+        const std::vector<OperationPrecisionRestriction>& restrictions = {},
         const LayerTransformation::Params = LayerTransformation::Params());
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 protected:
-    std::vector<OperationRestriction> restrictions;
+    std::vector<OperationPrecisionRestriction> restrictions;
     // remove
     LayerTransformation::Params params;
 };
