@@ -298,14 +298,21 @@ class Core::Impl : public ICore {
         std::map<std::string, Parameter> getMetricConfig;
         auto compileConfig = origConfig;
 
-        // 0. remove DEVICE_ID key
+        // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
+        auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt != compileConfig.end()) {
+            getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
+            compileConfig.erase(targetFallbackIt);
+        }
+
+        // 1. remove DEVICE_ID key
         auto deviceIt = compileConfig.find(CONFIG_KEY(DEVICE_ID));
         if (deviceIt != compileConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
             compileConfig.erase(deviceIt);
         }
 
-        // 1. replace it with DEVICE_ARCHITECTURE value
+        // 2. replace it with DEVICE_ARCHITECTURE value
         std::vector<std::string> supportedMetricKeys =
             plugin.GetMetric(METRIC_KEY(SUPPORTED_METRICS), getMetricConfig);
         auto archIt = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
