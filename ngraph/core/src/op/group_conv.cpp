@@ -17,8 +17,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------

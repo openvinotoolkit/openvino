@@ -8,8 +8,6 @@
 #include "ngraph/op/quantize.hpp"
 #include "ngraph/shape_util.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace runtime
@@ -108,5 +106,3 @@ namespace ngraph
         }
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

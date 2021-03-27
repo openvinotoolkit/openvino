@@ -5,8 +5,6 @@
 #include "ngraph/builder/split.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace ngraph;
 
 OutputVector builder::opset1::split(const Output<Node>& value,
