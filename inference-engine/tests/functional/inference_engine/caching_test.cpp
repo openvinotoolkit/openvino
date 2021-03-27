@@ -272,16 +272,16 @@ private:
                 WillByDefault(Invoke([&](std::istream &istr, RemoteContext::Ptr,
                                          const std::map<std::string, std::string> &) {
             auto mock = std::make_shared<MockIExecutableNetwork>();
-            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber());
-            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber());
+            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
             return ExecutableNetwork(mock);
         }));
 
         ON_CALL(plugin, ImportNetworkImpl(_, _)).
                 WillByDefault(Invoke([&](std::istream &istr, const std::map<std::string, std::string> &) {
             auto mock = std::make_shared<MockIExecutableNetwork>();
-            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber());
-            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber());
+            EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+            EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
             return ExecutableNetwork(mock);
         }));
 
@@ -314,8 +314,10 @@ private:
             return res;
         }));
 
-        EXPECT_CALL(*net, GetInputsInfo()).Times(AnyNumber());
-        EXPECT_CALL(*net, GetOutputsInfo()).Times(AnyNumber());
+        EXPECT_CALL(*net, GetInputsInfo()).Times(AnyNumber())
+                .WillRepeatedly(Return(ConstInputsDataMap{}));
+        EXPECT_CALL(*net, GetOutputsInfo()).Times(AnyNumber())
+                .WillRepeatedly(Return(ConstOutputsDataMap{}));
     }
 };
 
@@ -360,8 +362,8 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         s >> a;
         EXPECT_EQ(customNumber, a);
         auto mock = std::make_shared<MockIExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber());
-        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber());
+        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
         return ExecutableNetwork(mock);
     }));
 
@@ -371,8 +373,8 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         s >> a;
         EXPECT_EQ(customNumber, a);
         auto mock = std::make_shared<MockIExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber());
-        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber());
+        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
         return ExecutableNetwork(mock);
     }));
 
@@ -934,7 +936,8 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
 }
 
 TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
-    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
+            .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
             .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
@@ -1035,8 +1038,8 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
         s >> a;
         EXPECT_EQ(customNumber, a);
         auto mock = std::make_shared<MockIExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber());
-        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber());
+        EXPECT_CALL(*mock, GetInputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
+        EXPECT_CALL(*mock, GetOutputsInfo(_, _)).Times(AnyNumber()).WillRepeatedly(Return(OK));
         return ExecutableNetwork(mock);
     }));
 
