@@ -63,6 +63,7 @@ public:
 private:
     void InitCNNImpl(const InferenceEngine::CNNNetwork&    network);
     void InitNgraph(const InferenceEngine::CNNNetwork&     network);
+    bool ImportExportSupported(const std::string& deviceName) const;
 
     struct NetworkDesc {
         std::string                                 _device;
