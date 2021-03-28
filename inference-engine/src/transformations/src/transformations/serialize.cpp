@@ -423,6 +423,7 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     auto elem_type = o.get_element_type();
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
+    case ::ngraph::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ngraph::element::Type_t::f16:
         return "FP16";

@@ -330,6 +330,7 @@ int main(int argc, char *argv[]) {
 
             auto startTime = Time::now();
             CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+            cnnNetwork.serialize("model_exported_from_benchmark_app.xml");
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)

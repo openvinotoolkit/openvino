@@ -19,6 +19,7 @@
 #include "core/model.hpp"
 #include "ngraph/log.hpp"
 #include "ops_bridge.hpp"
+#include "onnx_import/onnx_node.hpp"
 
 namespace ngraph
 {
@@ -66,6 +67,9 @@ namespace ngraph
         const Operator& Model::get_operator(const std::string& name,
                                             const std::string& domain) const
         {
+            static Operator wildcard = &frontend::framework_node_factory;
+            return wildcard;
+
             const auto dm = m_opset.find(domain);
             if (dm == std::end(m_opset))
             {

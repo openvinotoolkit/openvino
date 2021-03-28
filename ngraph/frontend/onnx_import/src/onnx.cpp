@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <memory>
+#include <onnx_import/onnx_node.hpp>
 
 #include "core/graph.hpp"
 #include "core/model.hpp"
@@ -32,26 +33,37 @@ namespace ngraph
         namespace detail
         {
             std::shared_ptr<Function>
-                convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
+                convert_to_ng_function(std::shared_ptr<const ONNX_NAMESPACE::ModelProto> model_proto)
             {
-                Model model{model_proto};
-                Graph graph{model_proto.graph(), model};
+                auto model = std::make_shared<Model>(*model_proto);
+                auto graph = std::make_shared<Graph>(model_proto->graph(), *model);
                 auto function = std::make_shared<Function>(
-                    graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
+                    graph->get_ng_outputs(), graph->get_ng_parameters(), graph->get_name());
+
+                for(auto node: function->get_ops())
+                {
+                    if(auto raw_node = std::dynamic_pointer_cast<frontend::ONNXNode>(node))
+                    {
+                        raw_node->set_onnx_graph(graph);
+                        raw_node->set_onnx_model(model);
+                        raw_node->set_onnx_model_proto(model_proto);
+                    }
+                }
+
                 for (std::size_t i{0}; i < function->get_output_size(); ++i)
                 {
                     function->get_output_op(i)->set_friendly_name(
-                        graph.get_outputs().at(i).get_name());
+                        graph->get_outputs().at(i).get_name());
                 }
                 return function;
             }
 
-            std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
+            std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                         const std::string& model_path)
             {
-                transform::expand_onnx_functions(model_proto);
-                transform::fixup_legacy_operators(model_proto);
-                transform::update_external_data_paths(model_proto, model_path);
+                transform::expand_onnx_functions(*model_proto);
+                transform::fixup_legacy_operators(*model_proto);
+                transform::update_external_data_paths(*model_proto, model_path);
 
                 return detail::convert_to_ng_function(model_proto);
             }
@@ -60,7 +72,7 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            ONNX_NAMESPACE::ModelProto model_proto{parse_from_istream(stream)};
+            auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_istream(stream));
 
             return detail::import_onnx_model(model_proto, model_path);
         }
@@ -80,7 +92,8 @@ namespace ngraph
 
         std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
         {
-            return detail::import_onnx_model(model_editor.model(), model_editor.model_path());
+            //throw false; // TODO: Migrate ONNX Model Editor to shared_ptr's to keep model
+            return detail::import_onnx_model(std::make_shared<ONNX_NAMESPACE::ModelProto>(model_editor.model()), model_editor.model_path());
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,
