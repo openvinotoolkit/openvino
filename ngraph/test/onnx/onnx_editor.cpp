@@ -769,7 +769,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name)
 }
 
 // OUTPUT EDGES TEST
-NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output_name)
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name)
 {
     ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
@@ -784,6 +784,17 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output
         edge_mapper.find_output_edge(EditorNode{EditorOutput{"split1"}}, EditorOutput{"split2"});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_tensor_name, "split2");
+
+    // simplified overload
+    const OutputEdge edge3 =
+        edge_mapper.find_output_edge("mul2");
+    EXPECT_EQ(edge3.m_node_idx, 4);
+    EXPECT_EQ(edge3.m_tensor_name, "mul2");
+
+    const OutputEdge edge4 =
+        edge_mapper.find_output_edge("split2");
+    EXPECT_EQ(edge4.m_node_idx, 5);
+    EXPECT_EQ(edge4.m_tensor_name, "split2");
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output_index)

@@ -70,6 +70,14 @@ namespace ngraph
             ///               or a output index.
             OutputEdge find_output_edge(const Node& node, const Output& output) const;
 
+            /// \brief Returns an OutputEdge based on a output name.
+            ///
+            /// \note  The output name guarantees the uniqueness of the edge.
+            ///
+            /// \param output_name A node output name.
+            ///
+            OutputEdge find_output_edge(const std::string& output_name) const;
+
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,
                                                const std::string& output_name) const;

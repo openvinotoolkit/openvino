@@ -206,3 +206,8 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const Node& node, const Out
         throw ngraph_error("Not enough information to determine output edge");
     }
 }
+
+OutputEdge onnx_editor::EdgeMapper::find_output_edge(const std::string& output_name) const
+{
+    return find_output_edge(Node{Output{output_name}}, Output{output_name});
+}
