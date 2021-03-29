@@ -100,7 +100,8 @@ def test_info(request, pytestconfig):
 def save_session_info(pytestconfig, artifacts):
     """Fixture function for saving additional attributes to configuration file."""
     yield
-    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
+    workspace = artifacts.parent.parent
+    write_session_info(path=workspace / SESSION_INFO_FILE, data=pytestconfig.session_info)
 
 
 @pytest.fixture(scope="session")
