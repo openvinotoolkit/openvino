@@ -17,7 +17,7 @@
 import unittest
 import time
 
-from telemetry.utils.sender import TelemetrySender
+from openvino.telemetry.utils.sender import TelemetrySender
 
 
 class FakeTelemetryBackend:

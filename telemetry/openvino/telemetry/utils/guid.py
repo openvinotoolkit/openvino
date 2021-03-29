@@ -17,7 +17,7 @@
 import os
 from platform import system
 
-import telemetry.utils.isip as isip
+import openvino.telemetry.utils.isip as isip
 
 
 def save_uid_to_file(file_name: str, uid: str):

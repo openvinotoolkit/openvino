@@ -16,7 +16,7 @@
 
 import abc
 
-from telemetry.utils.message import Message
+from openvino.telemetry.utils.message import Message
 
 
 class BackendRegistry:

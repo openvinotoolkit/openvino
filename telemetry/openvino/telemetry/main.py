@@ -13,10 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import telemetry.utils.isip as isip
+import openvino.telemetry.utils.isip as isip
 
-from telemetry.backend.backend import BackendRegistry
-from telemetry.utils.sender import TelemetrySender
+from openvino.telemetry.backend.backend import BackendRegistry
+from openvino.telemetry.utils.sender import TelemetrySender
 
 
 class SingletonMetaClass(type):

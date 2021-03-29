@@ -29,7 +29,7 @@ from setuptools import setup, find_packages
 from setuptools.command.install import install
 from setuptools.command.build_py import build_py
 
-package_name = 'telemetry'
+package_name = 'openvino-telemetry'
 
 class InstallCmd(install):
     def run(self):
@@ -55,15 +55,16 @@ class BuildCmd(build_py):
             if not filename.endswith('_test.py')
         ]
 
-packages = find_packages('telemetry')
-packages = [package_name + '.' + p for p in packages]
+packages = find_packages('.')
+#packages = [p for p in packages]
+print(packages)
 
 setup(name='openvino-telemetry',
       version='0.0.0',
       author='Intel Corporation',
       author_email='openvino_pushbot@intel.com',
       url='https://github.com/openvinotoolkit/openvino',
-      packages=packages + ['telemetry'],
+      packages=packages,
       py_modules=[],
       #package_dir = {'': ''},
       cmdclass={
