@@ -1,6 +1,7 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include <sstream>
 #include <ngraph/validation_util.hpp>
 #include <ops_cache.hpp>

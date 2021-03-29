@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cmath>
@@ -1839,7 +1827,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations_con
                                              0.f,
                                              0.f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations)
@@ -1887,7 +1875,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations)
                                              0.f,
                                              0.f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len_const)
@@ -1983,7 +1971,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len)
                                              -0.18203181f,
                                              0.9996245f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse_mixed_seq_len_const)
