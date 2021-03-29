@@ -89,15 +89,18 @@ namespace ngraph
                     const size_t filter_channel_size = shape_size(filter_channel_shape);
 
                     for (int i_z = -p.pads_begin[0];
-                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z + p.output_padding[0]);
+                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z +
+                                 p.output_padding[0]);
                          i_z += p.strides[0])
                     {
                         for (int i_y = -p.pads_begin[1];
-                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y + p.output_padding[1]);
+                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y +
+                                     p.output_padding[1]);
                              i_y += p.strides[1])
                         {
                             for (int i_x = -p.pads_begin[2];
-                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x + p.output_padding[2]);
+                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x +
+                                         p.output_padding[2]);
                                  i_x += p.strides[2])
                             {
                                 auto input_channel = batch;

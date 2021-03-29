@@ -28,13 +28,14 @@ namespace ngraph
                                        Shape& output_shape,
                                        std::vector<T>& input_zeros)
                 {
-                    std::vector<int> input_3d= {1, 1, 1};
+                    std::vector<int> input_3d = {1, 1, 1};
                     std::vector<int> strides_3d = {1, 1, 1};
                     std::vector<int> new_input_3d = {1, 1, 1};
 
                     for (int i = 0; i < strides.size(); ++i)
                     {
-                        output_shape[i + 2] = input_shape[i + 2] + (strides[i] - 1) * (input_shape[i + 2] - 1);
+                        output_shape[i + 2] =
+                            input_shape[i + 2] + (strides[i] - 1) * (input_shape[i + 2] - 1);
                         input_3d[input_3d.size() - 1 - i] = input_shape[i + 2];
                         strides_3d[strides_3d.size() - 1 - i] = strides[i];
                         new_input_3d[new_input_3d.size() - 1 - i] = output_shape[i + 2];
@@ -46,7 +47,8 @@ namespace ngraph
                         {
                             for (int i_x = 0; i_x < input_3d[2]; ++i_x)
                             {
-                                input_zeros.push_back(in[i_x + i_y * input_3d[2] + i_z * input_3d[2] * input_3d[1]]);
+                                input_zeros.push_back(
+                                    in[i_x + i_y * input_3d[2] + i_z * input_3d[2] * input_3d[1]]);
 
                                 if (i_x < input_3d[2] - 1)
                                 {
@@ -59,7 +61,8 @@ namespace ngraph
 
                             if (i_y < input_3d[1] - 1)
                             {
-                                for (int y_dim = 0; y_dim < new_input_3d[1] * (strides_3d[1] - 1); y_dim++)
+                                for (int y_dim = 0; y_dim < new_input_3d[1] * (strides_3d[1] - 1);
+                                     y_dim++)
                                 {
                                     input_zeros.push_back(0);
                                 }
@@ -68,7 +71,9 @@ namespace ngraph
 
                         if (i_z < input_3d[0] - 1)
                         {
-                            for (int y_dim = 0; y_dim < new_input_3d[0] * new_input_3d[1] * (strides_3d[0] - 1); y_dim++)
+                            for (int y_dim = 0;
+                                 y_dim < new_input_3d[0] * new_input_3d[1] * (strides_3d[0] - 1);
+                                 y_dim++)
                             {
                                 input_zeros.push_back(0);
                             }
@@ -143,7 +148,8 @@ namespace ngraph
                     auto filter = f;
                     for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                     {
-                        convolution_ref::convolve_3D_channels(params, batch, batch_shape, filter, filter_shape, out);
+                        convolution_ref::convolve_3D_channels(
+                            params, batch, batch_shape, filter, filter_shape, out);
                         filter += filter_size;
                     }
                     batch += batch_size;
@@ -193,9 +199,10 @@ namespace ngraph
                 // swap filter batch and channels
                 std::iter_swap(conv_filter_shape.begin(), conv_filter_shape.begin() + 1);
 
-                // extend stride and filter inputs with zero padding for stride and filter_dilation > 1,
-                // after that set them to 1.
-                size_t stride_dim = std::accumulate(stride.begin(), stride.end(), 1, std::multiplies<size_t>());
+                // extend stride and filter inputs with zero padding for stride and filter_dilation
+                // > 1, after that set them to 1.
+                size_t stride_dim =
+                    std::accumulate(stride.begin(), stride.end(), 1, std::multiplies<size_t>());
                 if (stride_dim >= 2)
                 {
                     extend_with_zeros(stride, in_shape, delta_in, conv_input_shape, extended_input);
@@ -203,25 +210,30 @@ namespace ngraph
                     conv_input_data = &extended_input[0];
                 }
 
-                size_t dilation_dim = std::accumulate(filter_dilation.begin(), filter_dilation.end(), 1, std::multiplies<size_t>());
+                size_t dilation_dim = std::accumulate(
+                    filter_dilation.begin(), filter_dilation.end(), 1, std::multiplies<size_t>());
                 if (dilation_dim >= 2)
                 {
-                    extend_with_zeros<T>(filter_dilation, filter_shape, reinterpret_cast<const T* &>(reversed), conv_filter_shape, extended_filter);
+                    extend_with_zeros<T>(filter_dilation,
+                                         filter_shape,
+                                         reinterpret_cast<const T*&>(reversed),
+                                         conv_filter_shape,
+                                         extended_filter);
                     std::fill(conv_filter_dilation.begin(), conv_filter_dilation.end(), 1);
                     conv_filter_data = &extended_filter[0];
                 }
 
                 convolution_backprop_impl(conv_input_data,
-                            conv_filter_data,
-                            delta_out,
-                            conv_input_shape,
-                            conv_filter_shape,
-                            out_shape,
-                            conv_stride,
-                            conv_filter_dilation,
-                            forward_in_pad_bellow,
-                            forward_in_pad_above,
-                            output_padding);
+                                          conv_filter_data,
+                                          delta_out,
+                                          conv_input_shape,
+                                          conv_filter_shape,
+                                          out_shape,
+                                          conv_stride,
+                                          conv_filter_dilation,
+                                          forward_in_pad_bellow,
+                                          forward_in_pad_above,
+                                          output_padding);
             }
 
             // DEPRECATED, can't be removed currently due to kmb-plugin dependency
