@@ -79,66 +79,12 @@ namespace ngraph
                     return result;
                 }
 
-                std::vector<int64_t> canonicalize_signal_size(const int64_t* signal_size_data,
-                                                              const Shape& signal_size_data_shape,
-                                                              const Shape& input_data_shape,
-                                                              const std::vector<int64_t>& axes)
+                std::vector<int64_t> get_axes(const int64_t* axes_data,
+                                              const Shape& axes_data_shape)
                 {
-                    size_t num_of_fft_axes = signal_size_data_shape[0];
-
-                    std::vector<int64_t> result(signal_size_data,
-                                                signal_size_data + num_of_fft_axes);
-                    int64_t i = 0;
-                    for (int64_t& s : result)
-                    {
-                        if (s == -1)
-                        {
-                            s = static_cast<int64_t>(input_data_shape[axes[i]]);
-                        }
-                        ++i;
-                    }
-                    return result;
-                }
-
-                struct AxesSignalSizeInfo
-                {
-                    std::vector<int64_t> axes;
-                    std::vector<int64_t> signal_size;
-                };
-
-                AxesSignalSizeInfo get_axes_and_signal_size(const int64_t* axes_data,
-                                                            const Shape& axes_data_shape,
-                                                            const int64_t* signal_size_data,
-                                                            const Shape& signal_size_data_shape,
-                                                            const Shape& input_data_shape)
-                {
-                    AxesSignalSizeInfo result;
-                    int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
-
-                    const auto axes =
-                        canonicalize_axes(axes_data, axes_data_shape, complex_data_rank);
-                    const auto sizes = canonicalize_signal_size(
-                        signal_size_data, signal_size_data_shape, input_data_shape, axes);
-
-                    size_t num_of_fft_axes = axes.size();
-                    using AxisAndSize = std::pair<int64_t, int64_t>;
-                    std::vector<AxisAndSize> axes_and_sizes(num_of_fft_axes);
-
-                    for (size_t i = 0; i < num_of_fft_axes; ++i)
-                    {
-                        axes_and_sizes[i] = std::make_pair(axes[i], sizes[i]);
-                    }
-                    std::sort(axes_and_sizes.begin(),
-                              axes_and_sizes.end(),
-                              [](const AxisAndSize& p, const AxisAndSize& q) {
-                                  return p.first > q.first;
-                              });
-                    for (const auto& p : axes_and_sizes)
-                    {
-                        result.axes.push_back(p.first);
-                        result.signal_size.push_back(p.second);
-                    }
-                    return result;
+                    auto axes = canonicalize_axes(axes_data, axes_data_shape, complex_data_rank);
+                    std::sort(axes_and_sizes.begin(), axes_and_sizes.end());
+                    return axes;
                 }
 
                 void reverse_fft_axes(std::vector<int64_t>& axes, int64_t complex_data_rank)
@@ -174,7 +120,7 @@ namespace ngraph
                         fft_axes_as_bitset |= static_cast<int64_t>(1) << axis;
                     }
 
-                    for (size_t j = 0, i = 0; i < complex_data_rank; ++i)
+                    for (int64_t j = 0, i = 0; i < complex_data_rank; ++i)
                     {
                         if ((fft_axes_as_bitset & (static_cast<int64_t>(1) << i)) == 0)
                         {
@@ -424,8 +370,6 @@ namespace ngraph
                      const Shape& input_data_shape,
                      const int64_t* axes_data,
                      const Shape& axes_data_shape,
-                     const int64_t* signal_size_data,
-                     const Shape& signal_size_data_shape,
                      float* fft_result,
                      const Shape& output_shape,
                      FFTKind fft_kind)
@@ -437,14 +381,7 @@ namespace ngraph
                 const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
 
                 const auto reversed_output_shape = reverse_shape(output_shape);
-                const auto strides = compute_strides(reversed_output_shape);
-                auto fft_axes_and_sizes = get_axes_and_signal_size(axes_data,
-                                                                   axes_data_shape,
-                                                                   signal_size_data,
-                                                                   signal_size_data_shape,
-                                                                   input_data_shape);
-                auto& fft_axes = fft_axes_and_sizes.axes;
-                // auto& signal_size = fft_axes_and_sizes.signal_size;
+                auto fft_axes = get_axes(axes_data, axes_data_shape);
                 reverse_fft_axes(fft_axes, complex_data_rank);
 
                 const int64_t fft_rank = fft_axes.size();

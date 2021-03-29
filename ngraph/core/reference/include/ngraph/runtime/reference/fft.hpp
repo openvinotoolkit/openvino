@@ -46,8 +46,6 @@ namespace ngraph
                      const Shape& input_data_shape,
                      const int64_t* axes_data,
                      const Shape& axes_data_shape,
-                     const int64_t* signal_size_data,
-                     const Shape& signal_size_data_shape,
                      float* fft_result,
                      const Shape& output_shape,
                      FFTKind fft_kind);
