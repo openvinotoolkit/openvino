@@ -483,17 +483,7 @@ void MKLDNNRNN::createPrimitive() {
     verifyWeights();
     verifyBiases();
 
-    {
-        /**
-         * IE format:
-         *   W - [gates, out_state_size, in_data_size + in_state_size]
-         *   B - [gates, out_state_size]
-         *
-         * MKLDNN format:
-         *   W - [1, 1, in_date_size,  gates, out_state_size]
-         *   R - [1, 1, in_state_size, gates, out_state_size]
-         *   B - [gates, out_state_size]
-         *
+    {   /*
          *   Gate order
          *   ====== LSTM ======
          *   Caffe - IFOC, ONNX   - IOFC
@@ -554,6 +544,14 @@ void MKLDNNRNN::createPrimitive() {
     prim.reset(new mkldnn::primitive(pd));
 }
 
+/*
+ * IE format:
+ *   B - [gates, out_state_size]
+ *
+ * MKLDNN format:
+ *   B - [gates, out_state_size]
+ *
+ */
 template <typename Prec>
 void MKLDNNRNN::fillBiases(const int *gate_map) {
     if (!w_bias_d)
@@ -572,6 +570,15 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
     }
 }
 
+/*
+ * IE format:
+ *   W - [gates, out_state_size, in_data_size + in_state_size]
+ *
+ * MKLDNN format:
+ *   W - [1, 1, in_date_size,  gates, out_state_size]
+ *   R - [1, 1, in_state_size, gates, out_state_size]
+ *
+ */
 template <typename Prec>
 void MKLDNNRNN::fillWeights(const int *gate_map) {
     // create weight blobs (data and state part)

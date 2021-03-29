@@ -21,18 +21,18 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<GRUCellCpuSpecificParams> &obj) {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::GRUCellParams basicParamsSet;
-        std::map<std::string, std::string> enforceBF16;
+        std::map<std::string, std::string> additionalConfig;
 
-        std::tie(basicParamsSet, cpuParams, enforceBF16) = obj.param;
+        std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::GRUCellTest::getTestCaseName(
             testing::TestParamInfo<LayerTestsDefinitions::GRUCellParams>(basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
-        if (!enforceBF16.empty()) {
+        if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : enforceBF16) {
+            for (auto &item : additionalConfig) {
                 if (item.second == PluginConfigParams::YES)
                     result << "_" << item.first << "=" << item.second;
             }
@@ -44,7 +44,7 @@ protected:
     void SetUp() {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::GRUCellParams basicParamsSet;
-        std::map<std::string, std::string> enforceBF16;
+        std::map<std::string, std::string> additionalConfig;
 
         bool should_decompose;
         size_t batch;
@@ -57,7 +57,7 @@ protected:
         bool linear_before_reset;
         InferenceEngine::Precision netPrecision;
 
-        std::tie(basicParamsSet, cpuParams, enforceBF16) = this->GetParam();
+        std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, linear_before_reset, netPrecision, targetDevice) = basicParamsSet;
 
@@ -69,9 +69,9 @@ protected:
              {(linear_before_reset ? 4 : 3) * hidden_size}},
         };
 
-        configuration.insert(enforceBF16.begin(), enforceBF16.end());
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (enforceBF16[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
             inPrc  = netPrecision;
             outPrc = Precision::BF16;
         } else {
@@ -101,10 +101,9 @@ TEST_P(GRUCellCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> bf16EnforceFlags
+std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
-       {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
-};
+       {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
 std::vector<CPUSpecificParams> cpuParams = {{{nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
 
@@ -131,7 +130,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GRUCellCPU,
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                            ::testing::ValuesIn(cpuParams),
-                                           ::testing::ValuesIn(bf16EnforceFlags)),
+                                           ::testing::ValuesIn(additionalConfig)),
                         GRUCellCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
