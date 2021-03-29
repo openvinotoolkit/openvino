@@ -29,7 +29,6 @@ from setuptools import setup, find_packages
 from setuptools.command.install import install
 from setuptools.command.build_py import build_py
 
-package_name = 'openvino-telemetry'
 
 class InstallCmd(install):
     def run(self):
@@ -55,9 +54,7 @@ class BuildCmd(build_py):
             if not filename.endswith('_test.py')
         ]
 
-packages = find_packages('.')
-#packages = [p for p in packages]
-print(packages)
+packages = ['openvino.telemetry', 'openvino.telemetry.backend', 'openvino.telemetry.utils']
 
 setup(name='openvino-telemetry',
       version='0.0.0',
