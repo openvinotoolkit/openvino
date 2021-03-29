@@ -172,10 +172,11 @@ void op::v7::Gather::validate_and_infer_types()
         const auto axis_is_scalar = axis_rank.get_length() == 0;
         const auto axis_has_one_elem =
             axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
-        NODE_VALIDATION_CHECK(this,
-                              axis_is_scalar || axis_has_one_elem,
-                              "Axes input must be scalar or have 1 element. But instead got axis_shape = ",
-                              axis_pshape);
+        NODE_VALIDATION_CHECK(
+            this,
+            axis_is_scalar || axis_has_one_elem,
+            "Axes input must be scalar or have 1 element. But instead got axis_shape = ",
+            axis_pshape);
     }
 
     const auto& axes_constant = get_constant_from_source(input_value(2));
