@@ -30,6 +30,7 @@ extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
+extensions/back/LinearToLinearONNXReplacer.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
@@ -389,6 +390,7 @@ extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
 extensions/front/tf/efficient_det_support_api_v2.0.json
+extensions/front/tf/efficient_det_support_api_v2.4.json
 extensions/front/tf/elementwise_ext.py
 extensions/front/tf/embedding_segments_sum.py
 extensions/front/tf/expand_dims_ext.py
@@ -403,6 +405,7 @@ extensions/front/tf/faster_rcnn_support_api_v1.14.json
 extensions/front/tf/faster_rcnn_support_api_v1.15.json
 extensions/front/tf/faster_rcnn_support_api_v1.7.json
 extensions/front/tf/faster_rcnn_support_api_v2.0.json
+extensions/front/tf/faster_rcnn_support_api_v2.4.json
 extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
@@ -429,6 +432,7 @@ extensions/front/tf/mask_rcnn_support_api_v1.14.json
 extensions/front/tf/mask_rcnn_support_api_v1.15.json
 extensions/front/tf/mask_rcnn_support_api_v1.7.json
 extensions/front/tf/mask_rcnn_support_api_v2.0.json
+extensions/front/tf/mask_rcnn_support_api_v2.4.json
 extensions/front/tf/matmul_ext.py
 extensions/front/tf/mvn.py
 extensions/front/tf/mvn_unrolled.py
@@ -436,6 +440,7 @@ extensions/front/tf/nearest_neighbor_upsampling.py
 extensions/front/tf/next_iteration_ext.py
 extensions/front/tf/non_max_suppression_ext.py
 extensions/front/tf/non_max_suppression_normalize.py
+extensions/front/tf/NonConstBeginStridedSliceReplacement.py
 extensions/front/tf/noop.py
 extensions/front/tf/ObjectDetectionAPI.py
 extensions/front/tf/one_hot_ext.py
@@ -477,6 +482,7 @@ extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
 extensions/front/tf/ssd_support_api_v1.15.json
 extensions/front/tf/ssd_support_api_v2.0.json
+extensions/front/tf/ssd_support_api_v2.4.json
 extensions/front/tf/ssd_toolbox_detection_output.json
 extensions/front/tf/ssd_toolbox_multihead_detection_output.json
 extensions/front/tf/ssd_v2_support.json
@@ -979,6 +985,7 @@ mo/utils/find_inputs.py
 mo/utils/get_ov_update_message.py
 mo/utils/graph.py
 mo/utils/guess_framework.py
+mo/utils/ie_version.py
 mo/utils/import_extensions.py
 mo/utils/ir_engine/__init__.py
 mo/utils/ir_engine/compare_graphs.py

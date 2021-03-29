@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,6 +91,13 @@ DECLARE_GNA_CONFIG_KEY(COMPACT_MODE);
 * Uniform distribution usually gives poor approximation with same number of segments
 */
 DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
+
+/**
+* @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
+* will use to find PWL functions.
+* By default (in case of NO value set), 1.0 value is used.
+*/
+DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);
 
 /**
 * @brief By default, the GNA plugin uses one worker thread for inference computations.

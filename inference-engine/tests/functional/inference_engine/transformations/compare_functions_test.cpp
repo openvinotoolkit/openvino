@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,16 +6,17 @@
 
 #include <gmock/gmock-matchers.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
 #include <memory>
 #include <queue>
+#include <string>
+#include "common_test_utils/test_common.hpp"
 
-#include <ngraph/pass/manager.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <transformations/utils/utils.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -207,9 +208,141 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
                                                ngraph::ParameterVector{X, Y, Z});
     }
 
-    auto res = compare_functions(f, f_ref);
-    EXPECT_FALSE(res.first);
-    EXPECT_EQ(res.second, "LSTMCell/4 != Relu/0");
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    auto res = fc(f, f_ref);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("LSTMCell/4 != Relu/0"));
+}
+
+TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenSubGraphsInputs) {
+    const auto createFunc = [](element::Type e_type) {
+        using namespace opset6;
+
+        auto X = std::make_shared<Parameter>(e_type, Shape{1, 2});
+        auto Y = std::make_shared<Parameter>(e_type, Shape{1, 2});
+
+        auto Xi = std::make_shared<Parameter>(e_type, Shape{1, 2});
+        auto Yi = std::make_shared<Parameter>(e_type, Shape{1, 2});
+
+        // Body
+        auto add = std::make_shared<Add>(Xi, Yi);
+        auto result = std::make_shared<Result>(add);
+
+        auto ti_body = std::make_shared<Function>(OutputVector{result}, ParameterVector{Xi, Yi});
+
+        auto ti = std::make_shared<TensorIterator>();
+        ti->set_body(ti_body);
+        ti->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
+        ti->set_sliced_input(Yi, Y, 0, 1, 1, -1, 1);
+
+        auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
+
+        return std::make_shared<Function>(
+            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+    };
+    const auto f1 = createFunc(element::f32);
+    const auto f2 = createFunc(element::f16);
+
+    using FnCmp = FunctionsComparator;
+
+    const auto result = FnCmp::with_default().compare(f1, f2);
+
+    EXPECT_FALSE(result.valid);
+    EXPECT_THAT(result.message, HasSubstr("different SubGraph InputDescription"));
+}
+
+TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenInputAndParameter) {
+    const auto createFunc = [](element::Type e_type) {
+        using namespace opset6;
+
+        auto X = std::make_shared<Parameter>(element::f64, Shape{1, 2});  // <<
+        auto Y = std::make_shared<Parameter>(e_type, Shape{1, 2});
+
+        auto Xi = std::make_shared<Parameter>(e_type, Shape{1, 2});
+        auto Yi = std::make_shared<Parameter>(e_type, Shape{1, 2});
+
+        // Body
+        auto add = std::make_shared<Add>(Xi, Yi);
+        auto result = std::make_shared<Result>(add);
+
+        auto ti_body = std::make_shared<Function>(OutputVector{result}, ParameterVector{Xi, Yi});
+
+        auto ti = std::make_shared<TensorIterator>();
+        ti->set_body(ti_body);
+        ti->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
+        ti->set_sliced_input(Yi, Y, 0, 1, 1, -1, 1);
+
+        auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
+
+        return std::make_shared<Function>(
+            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+    };
+    const auto f1 = createFunc(element::f32);
+
+    using FnCmp = FunctionsComparator;
+
+    const auto result = FnCmp::with_default().compare(f1, f1);
+
+    EXPECT_FALSE(result.valid);
+    EXPECT_THAT(result.message, HasSubstr("inputs and parameters mismatch"));
+}
+
+TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweentResultAndOutput) {
+    const auto createFunc = [](element::Type result_element_type, const Shape& result_shape) {
+        using namespace opset6;
+
+        auto X = std::make_shared<Parameter>(element::f32, Shape{1, 2});
+        auto Y = std::make_shared<Parameter>(element::f32, Shape{1, 2});
+
+        auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 2});
+        auto Yi = std::make_shared<Parameter>(element::f32, Shape{1, 2});
+
+        // Body
+        auto add = std::make_shared<Add>(Xi, Yi);
+        auto result = std::make_shared<Result>(add);
+
+        auto ti_body = std::make_shared<Function>(OutputVector{result}, ParameterVector{Xi, Yi});
+
+        auto ti = std::make_shared<TensorIterator>();
+        ti->set_body(ti_body);
+        ti->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
+        ti->set_sliced_input(Yi, Y, 0, 1, 1, -1, 1);
+
+        auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
+
+        auto fn = std::make_shared<Function>(
+            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+
+        /// <<
+        auto&& result_out = result->output(0);
+        Node* result_out_node = result_out.get_node();
+        result_out_node->set_output_type(0, result_element_type, result_shape);
+        /// <<
+
+        return fn;
+    };
+    { // check element type difference
+        const auto f1 = createFunc(element::u16, Shape{10, 20});
+        const auto f2 = createFunc(element::u64, Shape{10, 20});
+
+        using FnCmp = FunctionsComparator;
+
+        const auto result = FnCmp::with_default().compare(f1, f2);
+
+        EXPECT_FALSE(result.valid);
+        EXPECT_THAT(result.message, HasSubstr("outputs and results mismatch"));
+    }
+    { // check Shape difference
+        const auto f1 = createFunc(element::u16, Shape{11, 20});
+        const auto f2 = createFunc(element::u16, Shape{12, 20});
+
+        using FnCmp = FunctionsComparator;
+
+        const auto result = FnCmp::with_default().compare(f1, f2);
+
+        EXPECT_FALSE(result.valid);
+        EXPECT_THAT(result.message, HasSubstr("outputs and results mismatch"));
+    }
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentElementType) {

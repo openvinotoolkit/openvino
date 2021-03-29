@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -70,7 +58,7 @@ public:
 
         bool operator == (const kernel_code& c2) const {
             return kernel_strings->get_hash() == c2.kernel_strings->get_hash();
-        };
+        }
     };
 
     struct hash_kernel_code {
@@ -100,6 +88,7 @@ private:
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
     size_t get_max_kernels_per_batch() const;
+
 public:
     explicit kernels_cache(gpu_toolkit& context, uint32_t prog_id);
     kernel_id set_kernel_source(const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,9 +39,7 @@ public:
         auto asyncRequestImpl = this->CreateAsyncInferRequestImpl(_networkInputs, _networkOutputs);
         asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
-        asyncRequest.reset(new InferRequestBase(asyncRequestImpl), [](IInferRequest* p) {
-            p->Release();
-        });
+        asyncRequest.reset(new InferRequestBase(asyncRequestImpl));
         asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
         return asyncRequest;
     }

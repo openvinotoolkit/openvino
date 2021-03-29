@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 
 # test.BACKEND_NAME is a configuration variable determining which
@@ -45,8 +33,6 @@ xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "Scan")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33540 = xfail_test(reason="RuntimeError: GRUCell operation has a form that is not supported "
-                                      "GRUCell_<number> should be converted to GRUCellIE operation")
 xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations:"
                                       "IsNaN and isInf")
 xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -60,10 +46,6 @@ xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
-xfail_issue_34310 = xfail_test(reason="RuntimeError: Error of validate layer: LSTMSequence_<number> with "
-                                      "type: LSTMSequence. Layer is not instance of RNNLayer class")
-xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
-                               "supported.RNNCell_<number> should be converted to RNNCellIE operation")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
                                       "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -73,12 +55,6 @@ xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
                                       "Value -1,0 cannot be casted to int.")
-xfail_issue_35916 = xfail_test(reason="RuntimeError: Unsupported input dims count for layer Z")
-xfail_issue_35917 = xfail_test(reason="RuntimeError: Unsupported input dims count for "
-                                      "layer MatMul")
-xfail_issue_35918 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
-                                      "Mismatched attribute type in 'test_node : alpha'")
-xfail_issue_35921 = xfail_test(reason="ValueError - shapes mismatch in gemm")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
@@ -97,14 +73,11 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
                                       "with index 0 contains dynamic shapes: {<value>}. Try to use "
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
-xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Gradient")
 xfail_issue_38701 = xfail_test(reason="RuntimeError: unsupported element type: STRING")
 xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimension which is not allowed")
-xfail_issue_38707 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "SoftmaxCrossEntropyLoss")
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: roi has zero dimension which is not allowed")
@@ -143,8 +116,6 @@ xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adam")
 xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Adagrad")
-xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "NegativeLogLikelihoodLoss")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
@@ -166,15 +137,8 @@ xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not suppor
 xfail_issue_47317 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Add): 2>': "
                                       "Check shape_size(axes_shape) == input_rank' failed")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
-xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[name]` doesn't support "
-                                      "FP64 precision.")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_49113 = xfail_test(reason="NLL Loss error: While validating ONNX node '<Node(Slice):")
-xfail_issue_48098 = xfail_test(reason="ngraph.exceptions.UserInputError: ('Expected %s parameters, "
-                                      "received %s.', <value1>, <value2>)")
-xfail_issue_48100 = xfail_test(reason="RuntimeError: cpu_convert can't convert from: "
-                                      "FP64 precision to: FP32")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -183,8 +147,6 @@ xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
 xfail_issue_40686 = xfail_test(reason="NANs as results")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
-xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
-                                      "with dynamic shape")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
@@ -202,7 +164,13 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
+xfail_issue_49207 = xfail_test(reason="Function references undeclared parameters")
 xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are not equal: ACTUAL: 4 "
                                       "DESIRED: 3")
 xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items are not equal: "
                                       "ACTUAL: dtype('float64') DESIRED: dtype('float32')")
+xfail_issue_49750 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v4::Interpolate")
+xfail_issue_49752 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::Pad")
+xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::StridedSlice")
+xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
+xfail_issue_49913 = xfail_test(reason="CPU supports Gelu with tanh mode only")

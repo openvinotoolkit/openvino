@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import pytest
 from sys import platform
@@ -39,6 +42,12 @@ def test_load_network(device):
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, device)
+    assert isinstance(exec_net, ExecutableNetwork)
+
+
+def test_load_network_from_file(device):
+    ie = IECore()
+    exec_net = ie.load_network(test_net_xml, device)
     assert isinstance(exec_net, ExecutableNetwork)
 
 

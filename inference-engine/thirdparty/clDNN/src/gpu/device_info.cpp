@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "device_info.h"
 #include "include/to_string_utils.h"
@@ -43,8 +33,7 @@ namespace cldnn {
 namespace gpu {
 
 namespace {
-int driver_dev_id()
-{
+int driver_dev_id() {
     const std::vector<int> unused_ids = {
         0x4905, 0x4906, 0x4907, 0x4908
     };
@@ -61,9 +50,9 @@ int driver_dev_id()
         devinfo_data.cbSize = sizeof(devinfo_data);
 
         for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
-            const size_t buf_size = 512;
-            char buf[buf_size];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, buf_size, NULL)) {
+            const size_t kBufSize = 512;
+            char buf[kBufSize];
+            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
                 continue;
             }
 
@@ -84,16 +73,13 @@ int driver_dev_id()
     {
         std::string dev_base{ "/sys/devices/pci0000:00/0000:00:02.0/" };
         std::ifstream ifs(dev_base + "vendor");
-        if (ifs.good())
-        {
+        if (ifs.good()) {
             int ven_id;
             ifs >> std::hex >> ven_id;
             ifs.close();
-            if (ven_id == 0x8086)
-            {
+            if (ven_id == 0x8086) {
                 ifs.open(dev_base + "device");
-                if (ifs.good())
-                {
+                if (ifs.good()) {
                     int res = 0;
                     ifs >> std::hex >> res;
                     result.push_back(res);

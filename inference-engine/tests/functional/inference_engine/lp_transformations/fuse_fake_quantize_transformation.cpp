@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,6 +140,28 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             element::f32,
             element::f32,
             { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Multiply with different input and output shape
+    {
+        Shape{128, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
     // 1) Multiply + 2) Add
@@ -293,6 +315,28 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             { {ngraph::element::f16}, {}, {} },
             element::f16,
             element::f16,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // multiply by zero
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            element::f32,
+            element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },

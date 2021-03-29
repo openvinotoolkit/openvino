@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,17 +27,17 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
 
     SoftMaxLayer* smLayer = dynamic_cast<SoftMaxLayer*>(getCnnLayer().get());
     if (smLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert softmax layer.";
+        IE_THROW() << "Cannot convert softmax layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     axis = smLayer->axis;
 
     if (axis >= getParentEdgeAt(0)->getDims().ndims()) {
-        THROW_IE_EXCEPTION << "Incorrect axis!";
+        IE_THROW() << "Incorrect axis!";
     }
 
     if (getParentEdgeAt(0)->getDims().ndims() == 3) {
@@ -68,7 +68,7 @@ void MKLDNNSoftMaxNode::createPrimitive() {
 
     const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set for node " << getName() << ".";
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     auto prim_desc = softmax_forward::primitive_desc(*selected_desc_ptr, getEngine());
     primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
@@ -98,7 +98,7 @@ bool MKLDNNSoftMaxNode::created() const {
 void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
@@ -106,7 +106,7 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (!isUninitTensorDesc(config.inConfs[0].desc) &&
                     !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
-        THROW_IE_EXCEPTION << "Layer " << getName() << " has incorrect selected config!";
+        IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
     if (!isUninitTensorDesc(config.inConfs[0].desc)) {
         config.outConfs[0].desc = config.inConfs[0].desc;

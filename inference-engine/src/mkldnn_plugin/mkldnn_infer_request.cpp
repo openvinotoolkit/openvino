@@ -11,6 +11,7 @@
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_split_node.h>
 #include <ie_compound_blob.h>
+#include <ie_common.h>
 #include "mkldnn_exec_network.h"
 #include "mkldnn_itt.h"
 #include "nodes/common/cpu_convert.h"
@@ -28,8 +29,8 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
     if (execNetwork->_graphs.size() == 0)
-        THROW_IE_EXCEPTION << "No graph was found";
-    graph = execNetwork->_graphs.begin()->get();
+        IE_THROW() << "No graph was found";
+    graph = &(execNetwork->GetGraph()._graph);
     for (const auto& it : _networkInputs) {
         MKLDNNInferRequest::GetBlob(it.first);
     }
@@ -71,7 +72,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, I
     bool needConvert = inPrec != inputBlob->getTensorDesc().getPrecision();
 
     if (inputBlob->cbuffer().as<const void *>() == nullptr) {
-        THROW_IE_EXCEPTION << "Input blob has no allocated memory";
+        IE_THROW() << "Input blob has no allocated memory";
     }
 
     InferenceEngine::Blob::Ptr iconv;
@@ -80,13 +81,13 @@ void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, I
                                          inputBlob->getTensorDesc().getLayout()));
         iconv->allocate();
         if (inputBlob->size() != iconv->size())
-            THROW_IE_EXCEPTION << "Can't copy tensor: input and converted tensors have different number of elements: " << inputBlob->size() << " and "
+            IE_THROW() << "Can't copy tensor: input and converted tensors have different number of elements: " << inputBlob->size() << " and "
                                << iconv->size();
 
         void *srcData = inputBlob->cbuffer().as<void *>();
         void *dstData = iconv->buffer().as<void *>();
         if (dstData == nullptr) {
-            THROW_IE_EXCEPTION << "Converted input blob has no allocated memory";
+            IE_THROW() << "Converted input blob has no allocated memory";
         }
         cpu_convert(srcData, dstData, inputBlob->getTensorDesc().getPrecision(), iconv->getTensorDesc().getPrecision(), iconv->size());
     }
@@ -97,18 +98,24 @@ void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, I
 void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
     for (auto input : _inputs) {
         if (!_networkInputs[input.first]) {
-            THROW_IE_EXCEPTION << "Input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name " << input.first;
+            IE_THROW() << "Input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name " << input.first;
         }
         auto inPrec = input.second->getTensorDesc().getPrecision();
 
         switch (inPrec) {
             // these precisions are supported by mkldnn, so we push the blob directly
-            case InferenceEngine::Precision::U8:
             case InferenceEngine::Precision::I8:
             case InferenceEngine::Precision::I32:
             case InferenceEngine::Precision::BF16:
-            case InferenceEngine::Precision::FP32:
+            case InferenceEngine::Precision::FP32: {
+                break;
+            }
+            // these precisions are supported by mkldnn, so we push the blob directly
+            // BUT if a mean image exists, we convert the blob and send FP32
+            case InferenceEngine::Precision::U8:
             case InferenceEngine::Precision::BOOL: {
+                if (graph->hasMeanImageFor(input.first))
+                    inPrec = InferenceEngine::Precision::FP32;
                 break;
             }
             // these precisions are unsupported by mkldnn, so we convert the blob and send I32
@@ -119,16 +126,15 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
                 inPrec = InferenceEngine::Precision::I32;
                 break;
             }
-            case InferenceEngine::Precision::FP16: {
-                inPrec = InferenceEngine::Precision::FP32;
-                break;
-            }
             default:
-                THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
+                IE_THROW() << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
         }
 
-        if (graph->hasMeanImageFor(input.first))
-            inPrec = InferenceEngine::Precision::FP32;
+        // User can initialize input via setBlob API using tensorDesc with default (ANY) layout.
+        // Currently IE doesn't specify behavior in such scenario, so we assume real layout is equal to the network input.
+        if (input.second->getTensorDesc().getLayout() == InferenceEngine::ANY) {
+            input.second->getTensorDesc().setLayout(_networkInputs[input.first]->getLayout());
+        }
 
         pushInput(input.first, input.second, inPrec);
     }
@@ -176,8 +182,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
 void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     using namespace openvino::itt;
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, profilingTask);
-
-    graph = execNetwork->_graphs.local().get();
+    auto graphLock = execNetwork->GetGraph();
+    graph = &(graphLock._graph);
 
     ThrowIfCanceled();
 
@@ -206,7 +212,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts() const {
     if (!graph || !graph->IsReady())
-        THROW_IE_EXCEPTION << "Graph is not ready!";
+        IE_THROW() << "Graph is not ready!";
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
     graph->GetPerfData(perfMap);
     return perfMap;
@@ -216,7 +222,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "GetBlob");
 
     if (!graph || !graph->IsReady())
-        THROW_IE_EXCEPTION << "Graph is not ready!";
+        IE_THROW() << "Graph is not ready!";
 
     InferenceEngine::Blob::Ptr data;
 
@@ -237,21 +243,25 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             return data;
         }
 
+        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+        InferenceEngine::Precision originPrecision = blobs[name]->getTensorDesc().getPrecision();
         if (_networkInputs.find(name) != _networkInputs.end()) {
-            InferenceEngine::TensorDesc desc = _networkInputs[name]->getTensorDesc();
-            InferenceEngine::Precision originPrecision = blobs[name]->getTensorDesc().getPrecision();
-            _inputs[name] = make_blob_with_precision(desc);
-            _inputs[name]->allocate();
-            if (desc.getPrecision() == originPrecision &&
-                    graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
-                externalPtr[name] = _inputs[name]->buffer();
-            }
-            data = _inputs[name];
-            checkBlob(data, name, true);
-            return data;
-        } else {
-            THROW_IE_EXCEPTION << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network inputs";
+            InferenceEngine::Layout l = _networkInputs[name]->getLayout();
+            InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
+            InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
+
+            desc = InferenceEngine::TensorDesc(p, dims, l);
         }
+
+        _inputs[name] = make_blob_with_precision(desc);
+        _inputs[name]->allocate();
+        if (desc.getPrecision() == originPrecision &&
+                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+            externalPtr[name] = _inputs[name]->buffer();
+        }
+        data = _inputs[name];
+        checkBlob(data, name, true);
+        return data;
     }
     blobs.clear();
     graph->getOutputBlobs(blobs);
@@ -262,36 +272,40 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             return data;
         }
 
-        if (_networkOutputs.find(name) != _networkOutputs.end()) {
-            InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-            _outputs[name] = make_blob_with_precision(desc);
-            _outputs[name]->allocate();
-            if (desc.getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit) {
-                externalPtr[name] = _outputs[name]->buffer();
-            }
-            data = _outputs[name];
-            checkBlob(data, name, false);
-            return data;
-        } else {
-            THROW_IE_EXCEPTION << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network outputs";
+        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+
+        // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
+        // in situation if we push output blobs as inputs for next network (in Hetero plugin)
+        // it may be that output tensor desc will be different from real input tensor desc for next network
+        // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
+        auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
+        desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+
+        _outputs[name] = make_blob_with_precision(desc);
+        _outputs[name]->allocate();
+        if (desc.getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit) {
+            externalPtr[name] = _outputs[name]->buffer();
         }
+        data = _outputs[name];
+        checkBlob(data, name, false);
+        return data;
     }
-    THROW_IE_EXCEPTION << "Cannot find blob with name: " << name;
+    IE_THROW() << "Cannot find blob with name: " << name;
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "SetBlob");
     if (name.empty()) {
-        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+        IE_THROW(NotFound) << "Failed to set blob with empty name";
     }
 
     if (!data)
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+        IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
     const bool compoundBlobPassed = data->is<InferenceEngine::CompoundBlob>();
     if (!compoundBlobPassed && data->buffer() == nullptr)
-        THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
+        IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     if (data->size() == 0) {
-        THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
+        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
 
     InferenceEngine::InputInfo::Ptr foundInput;
@@ -299,13 +313,13 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
     size_t dataSize = data->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob with precision: "
+            IE_THROW(ParameterMismatch) << "Failed to set input blob with precision: "
                                << data->getTensorDesc().getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
         }
 
         const bool preProcRequired = preProcessingRequired(foundInput, data);
         if (compoundBlobPassed && !preProcRequired) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            IE_THROW(NotImplemented)
                                << "cannot set compound blob: supported only for input pre-processing";
         }
 
@@ -322,17 +336,17 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                 : 1;
             if (dataSize != inputSize) {
-                THROW_IE_EXCEPTION << "Input blob size is not equal network input size ("
+                IE_THROW() << "Input blob size is not equal network input size ("
                                    << dataSize << "!=" << inputSize << ").";
             }
 
             if (foundInput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob. Dimensions mismatch.";
+                IE_THROW(ParameterMismatch) << "Failed to set input blob. Dimensions mismatch.";
             }
 
             if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
                 foundInput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob. Blocking descriptor mismatch.";
+                IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
             if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
@@ -345,26 +359,26 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
         }
     } else {
         if (compoundBlobPassed) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+            IE_THROW(NotImplemented)
                                << "cannot set compound blob: supported only for input pre-processing";
         }
         if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set output blob with precision: "
+            IE_THROW(ParameterMismatch) << "Failed to set output blob with precision: "
                                << data->getTensorDesc().getPrecision() << ", if CNNNetwork output blob precision is: " << foundOutput->getPrecision();
         }
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
             ? InferenceEngine::details::product(foundOutput->getDims())
             : 1;
         if (dataSize != outputSize) {
-            THROW_IE_EXCEPTION << "Output blob size is not equal network output size ("
+            IE_THROW() << "Output blob size is not equal network output size ("
                                << dataSize << "!=" << outputSize << ").";
         }
         if (foundOutput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set output Blob. Dimensions mismatch.";
+            IE_THROW(ParameterMismatch) << "Failed to set output Blob. Dimensions mismatch.";
         }
         if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY &&
             foundOutput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set output blob. Blocking descriptor mismatch.";
+                IE_THROW(ParameterMismatch) << "Failed to set output blob. Blocking descriptor mismatch.";
         }
         if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
                 !graph->getProperty().batchLimit) {
@@ -448,17 +462,17 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
                 changeEdgePtr(output->getParentEdgeAt(0), it.second);
             continue;
         }
-        THROW_IE_EXCEPTION << "Cannot find input/output blob: " << it.first;
+        IE_THROW() << "Cannot find input/output blob: " << it.first;
     }
 }
 
 
 void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
     if (!graph->getProperty().enableDynamicBatch)
-        THROW_IE_EXCEPTION << "Dynamic batch is not enabled.";
+        IE_THROW() << "Dynamic batch is not enabled.";
 
     if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
-        THROW_IE_EXCEPTION << "Invalid dynamic batch size " << new_batch <<
+        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
             " for this request.";
     }
 

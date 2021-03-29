@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,6 +78,13 @@ public:
 
     static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 
+    static int getConstantInputIndex(std::shared_ptr<Node> node);
+
+    static std::vector<size_t> updateReshapeValues(
+        const Shape& elementwiseConstantShape,
+        const Shape& elementwiseShape,
+        const std::vector<size_t>& reshapeValues);
+
     // Optimizes the series of multiplies after a given output port
     static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
@@ -129,6 +136,8 @@ public:
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
+
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
     // 3. remove Subtract if Constant on the second branch is zero
@@ -155,8 +164,6 @@ public:
     static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
     static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
-
-    static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
 
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 

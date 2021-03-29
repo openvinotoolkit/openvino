@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "kernels_cache.h"
@@ -107,7 +95,7 @@ static void saveBinaryToFile(std::string path, const std::vector<unsigned char> 
 #endif
     std::ofstream out_file(filename, std::ios::out | std::ios::binary);
     if (out_file.is_open()) {
-        out_file.write((char*)&buffer[0], buffer.size());
+        out_file.write(reinterpret_cast<const char*>(&buffer[0]), buffer.size());
     }
 }
 
@@ -288,7 +276,7 @@ kernels_cache::kernel_id kernels_cache::set_kernel_source(
     const auto kernel_num = _kernels.size() + _kernels_code.size();
     kernels_cache::kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
 
-    auto res = _kernels_code.emplace( kernel_string, id, dump_custom_program, one_time_kernel );
+    auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program, one_time_kernel);
 
     assert(_kernels.find(id) == _kernels.end());
     if (res.second) {
@@ -412,9 +400,7 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
         }
 
         if (!err_log.empty()) {
-            static const size_t max_msg_length = 128;
-            std::string short_err_log(err_log, 0, std::min(err_log.length(), max_msg_length));
-            throw std::runtime_error("Program build failed:\n" + std::move(short_err_log));
+            throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
         }
 
         return kmap;
