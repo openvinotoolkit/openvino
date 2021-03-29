@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -285,7 +285,7 @@ public:
     explicit ONNXCustomProposalImpl(const CNNLayer *layer) {
         try {
             if (layer->insData.size() != 4 || layer->outData.size() != 2)
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             min_size_ = layer->GetParamAsFloat("min_size");
             nms_thresh_ = layer->GetParamAsFloat("nms_threshold");
@@ -315,7 +315,7 @@ public:
                        ResponseDesc *resp) noexcept override {
         try {
             if (inputs.size() != 4 || outputs.size() != 2) {
-                THROW_IE_EXCEPTION << "Incorrect number of input or output edges!";
+                IE_THROW() << "Incorrect number of input or output edges!";
             }
 
             size_t anchor_dims_size = 1;
@@ -328,14 +328,14 @@ public:
                 deltas_dims_size *= inputs[INPUT_DELTAS]->getTensorDesc().getDims()[i];
             }
             if (anchor_dims_size != deltas_dims_size)
-                THROW_IE_EXCEPTION << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
+                IE_THROW() << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
 
             size_t score_dims_size = 1;
             for (size_t i = 0; i < inputs[INPUT_SCORES]->getTensorDesc().getDims().size(); i++) {
                 score_dims_size *= inputs[INPUT_SCORES]->getTensorDesc().getDims()[i];
             }
             if (deltas_dims_size != (4 * score_dims_size))
-                THROW_IE_EXCEPTION << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";
+                IE_THROW() << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";
 
             // Prepare memory
             const float* p_deltas_item = inputs[INPUT_DELTAS]->buffer();

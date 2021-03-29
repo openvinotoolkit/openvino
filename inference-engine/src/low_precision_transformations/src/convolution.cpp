@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,7 +165,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
         if (is_type<opset1::Convert>(convolution->get_input_node_ptr(0))) {
             auto newConvolution = convolution->clone_with_new_inputs({
-                convolution->get_input_node_ptr(0)->get_input_node_shared_ptr(0),
+                convolution->get_input_node_ptr(0)->get_input_source_output(0),
                 convolution->get_input_node_shared_ptr(1) });
             replace_node(convolution, newConvolution);
             convolution = newConvolution;
@@ -253,7 +253,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             std::shared_ptr<Node> childNode = reshapeFromWeights == nullptr ? convolution : reshapeFromWeights;
 
             auto newConvolution = convolution->clone_with_new_inputs({
-                convolution->get_input_node_shared_ptr(0),
+                convolution->get_input_source_output(0),
                 childNode.get() == convolution.get() ?
                     convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0) :
                     childNode->copy_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
