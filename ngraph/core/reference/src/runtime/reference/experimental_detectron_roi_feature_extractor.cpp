@@ -161,8 +161,8 @@ namespace
                             continue;
                         }
 
-                        y = std::max(y, 0);
-                        x = std::max(x, 0);
+                        y = std::max(y, static_cast<T>(0));
+                        x = std::max(x, static_cast<T>(0));
 
                         int64_t y_low = static_cast<int64_t>(y);
                         int64_t x_low = static_cast<int64_t>(x);
