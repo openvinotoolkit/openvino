@@ -101,15 +101,15 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
                                  const EvaluationContext& evaluation_context) const
 {
     NGRAPH_OP_SCOPE(v6_ReadValue_evaluate);
-    const auto& variable_context = evaluation_context.get_variable_context()->get_context();
+    const auto& variable_context = evaluation_context.get_variable_context()->get_variable_values();
     const auto& var_value = variable_context.find(m_variable);
 
     bool use_context = var_value != variable_context.end() && !var_value->second->get_reset();
     const auto& input_tensor = use_context ? var_value->second->get_value() : inputs[0];
     outputs[0]->set_unary(input_tensor);
-    void* output = outputs[0]->get_data_ptr();
+
     void* input = input_tensor->get_data_ptr();
-    memcpy(output, input, outputs[0]->get_size_in_bytes());
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
     return true;
 }
 

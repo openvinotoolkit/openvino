@@ -5,8 +5,7 @@
 #pragma once
 
 #include <utility>
-
-#include "ngraph/op/util/evaluation_context.h"
+#include <ngraph/node.hpp>
 
 namespace ngraph
 {

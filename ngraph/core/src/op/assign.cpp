@@ -118,25 +118,26 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const EvaluationContext& evaluation_context) const
 {
     NGRAPH_OP_SCOPE(v6_Assign_evaluate);
-    const auto& variable_context = evaluation_context.get_variable_context()->get_context();
-    const auto& var_value = variable_context.find(m_variable);
+    const auto& variable_context = evaluation_context.get_variable_context();
+    const auto& variable_values = variable_context->get_variable_values();
+    const auto& var_value = variable_values.find(m_variable);
 
-    // todo: exception?
-    NODE_VALIDATION_CHECK(this,
-                          var_value != variable_context.end(),
-                          "No context found for ",
-                          m_variable->get_info().variable_id,
-                          " variable.");
+    // automatically allocate memory if not provided by user
+    if (var_value == variable_values.end()) {
+        auto host_tensor = std::make_shared<ngraph::HostTensor>(m_variable->get_info().data_type,
+                                                                m_variable->get_info().data_shape);
+        auto value = make_shared<VariableValue>(host_tensor);
+        variable_context->add_variable_value(m_variable, value);
+    }
 
     var_value->second->set_reset(false);
     const auto& value = var_value->second->get_value();
     value->set_unary(inputs[0]);
     outputs[0]->set_unary(inputs[0]);
 
-    void* output = outputs[0]->get_data_ptr();
     void* input = inputs[0]->get_data_ptr();
-    memcpy(output, input, outputs[0]->get_size_in_bytes());
-    memcpy(value->get_data_ptr(), input, value->get_size_in_bytes());
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
+    value->write(input, value->get_size_in_bytes());
     return true;
 }
 

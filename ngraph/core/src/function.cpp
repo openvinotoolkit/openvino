@@ -11,6 +11,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/op/util/memory.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -86,6 +87,47 @@ Function::Function(const OutputVector& results,
 {
 }
 
+Function::Function(const ResultVector& results,
+                   const SinkVector& sinks,
+                   const ParameterVector& parameters,
+                   const VariableVector& variables,
+                   const std::string& name)
+        : m_results(results)
+        , m_sinks(sinks)
+        , m_parameters(parameters)
+        , m_variables(variables)
+        , m_name(name)
+        , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
+        , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+{
+    check_all_parameters_registered();
+}
+
+Function::Function(const OutputVector& results,
+                   const SinkVector& sinks,
+                   const ParameterVector& parameters,
+                   const VariableVector& variables,
+                   const std::string& name)
+        : Function(as_result_vector(results), sinks, parameters, variables, name)
+{
+}
+
+Function::Function(const OutputVector& results,
+                   const ParameterVector& parameters,
+                   const VariableVector& variables,
+                   const std::string& name)
+        : Function(as_result_vector(results), {}, parameters, variables, name)
+{
+}
+
+Function::Function(const ResultVector & results,
+                   const ParameterVector& parameters,
+                   const VariableVector& variables,
+                   const std::string& name)
+        : Function(results, {}, parameters, variables, name)
+{
+}
+
 void Function::check_all_parameters_registered() const
 {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
@@ -114,12 +156,19 @@ void Function::validate_nodes_and_infer_types() const
     };
     std::map<Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
+    std::stringstream unregistered_variables;
     for (auto& node : get_ordered_ops())
     {
         node->revalidate_and_infer_types();
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
+        else if (const auto& memory_layer = std::dynamic_pointer_cast<Memory>(node)) {
+            if (std::find(m_variables.begin(), m_variables.end(), memory_layer->get_variable()) == m_variables.end()) {
+                unregistered_variables << memory_layer->get_variable_id() << std::endl;
+            }
+        }
+
         if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(node))
         {
             pair_checker[assign->get_variable().get()].cnt_assign++;
@@ -132,6 +181,9 @@ void Function::validate_nodes_and_infer_types() const
     if (!unregistered_parameters.str().empty())
         throw ngraph_error("Function references undeclared parameters: " +
                            unregistered_parameters.str());
+    if (!unregistered_variables.str().empty())
+        throw ngraph_error("Function references undeclared Variables: " +
+                           unregistered_variables.str());
 
     bool only_pairs = std::all_of(
         pair_checker.begin(), pair_checker.end(), [](const std::pair<Variable*, Counter>& val) {
@@ -461,23 +513,16 @@ void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
         m_parameters.end());
 }
 
-VariableVector Function::find_variables() const
-{
-    const auto& ops = get_ordered_ops();
-    unordered_set<VariablePtr> variables;
-    for (const auto& op : ops)
-    {
-        // find all ops that can store variables
-        if (const auto& read_value = std::dynamic_pointer_cast<op::ReadValueBase>(op))
-        {
-            variables.insert(read_value->get_variable());
-        }
-        else if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(op))
-        {
-            variables.insert(assign->get_variable());
-        }
-    }
-    return VariableVector(variables.begin(), variables.end());
+
+void Function::add_variables(const VariableVector &variables) {
+    m_variables.insert(m_variables.end(), variables.begin(), variables.end());
+}
+
+void Function::remove_variable(const VariablePtr &variable) {
+    m_variables.erase(std::remove_if(m_variables.begin(),
+                                 m_variables.end(),
+                                 [&variable](VariablePtr& v) { return v == variable; }),
+                  m_variables.end());
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;

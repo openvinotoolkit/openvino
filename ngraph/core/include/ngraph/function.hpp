@@ -18,7 +18,7 @@
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/sink.hpp"
-#include "ngraph/op/util/evaluation_context.h"
+#include "ngraph/op/util/evaluation_context.hpp"
 #include "ngraph/op/util/variable.hpp"
 
 namespace ngraph
@@ -53,6 +53,28 @@ namespace ngraph
         Function(const OutputVector& results,
                  const SinkVector& sinks,
                  const ParameterVector& parameters,
+                 const std::string& name = "");
+
+        Function(const ResultVector& results,
+                 const SinkVector& sinks,
+                 const ParameterVector& parameters,
+                 const VariableVector& variables,
+                 const std::string& name = "");
+
+        Function(const OutputVector& results,
+                 const SinkVector& sinks,
+                 const ParameterVector& parameters,
+                 const VariableVector& variables,
+                 const std::string& name = "");
+
+        Function(const ResultVector& results,
+                 const ParameterVector& parameters,
+                 const VariableVector& variables,
+                 const std::string& name = "");
+
+        Function(const OutputVector& results,
+                 const ParameterVector& parameters,
+                 const VariableVector& variables,
                  const std::string& name = "");
 
         virtual ~Function() {}
@@ -196,15 +218,18 @@ namespace ngraph
         /// \param param Parameter node to delete
         void remove_parameter(const std::shared_ptr<op::Parameter>& param);
 
-        /// \brief Traverses the graph and returns all found variables
-        /// Return a list of found variables
-        VariableVector find_variables() const;
 
-        /// \brief Register new variables in ngraph::function
-        /// \param param New variables
-        void set_variables(const VariableVector& variables) { m_variables = variables; }
+        /// \brief Add new variables to the list. Method doesn't validate graph, it should be done
+        /// manually after all changes.
+        /// \param variables new variables to add
+        void add_variables(const VariableVector& variables);
 
-        /// \brief Return all registred variables in ngraph::function
+        /// \brief Delete variable from the list of variables.
+        /// Method doesn't delete nodes that used this variable from the graph.
+        /// \param variable Variable to delete
+        void remove_variable(const VariablePtr & variable);
+
+        /// \brief Return a list of function's variables.
         const VariableVector& get_variables() { return m_variables; }
 
     private:

@@ -36,7 +36,7 @@ TEST(op_eval, assign_readvalue_copy_test)
     auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
     auto read_value = make_shared<ReadValue>(p, variable);
     auto assign = make_shared<Assign>(read_value, variable);
-    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p});
+    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p}, VariableVector{variable});
 
     std::vector<int64_t> inputs{-5, 0, 5};
     std::vector<int64_t> expected_result{-5, 0, 5};
@@ -69,7 +69,7 @@ TEST(op_eval, assign_readvalue_add)
     auto read_value = make_shared<ReadValue>(c, variable);
     auto add = make_shared<Add>(p, read_value);
     auto assign = make_shared<Assign>(add, variable);
-    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p});
+    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p}, VariableVector{variable});
 
     std::vector<int64_t> inputs{-5, 0, 5};
 
@@ -102,7 +102,7 @@ TEST(op_eval, assign_readvalue_add_reset)
     auto read_value = make_shared<ReadValue>(c, variable);
     auto add = make_shared<Add>(p, read_value);
     auto assign = make_shared<Assign>(add, variable);
-    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p});
+    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p}, VariableVector{variable});
 
     std::vector<int64_t> inputs{-5, 0, 5};
 
@@ -148,7 +148,7 @@ TEST(op_eval, assign_readvalue_add_modify)
     auto read_value = make_shared<ReadValue>(c, variable);
     auto add = make_shared<Add>(p, read_value);
     auto assign = make_shared<Assign>(add, variable);
-    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p});
+    auto fun = make_shared<Function>(OutputVector{assign}, ParameterVector{p}, VariableVector{variable});
 
     std::vector<int64_t> inputs{-5, 0, 5};
 
@@ -172,11 +172,11 @@ TEST(op_eval, assign_readvalue_add_modify)
             EXPECT_EQ(result_data[i], expected_result[i]);
     }
 
-    const auto& variables = fun->find_variables();
+    const auto& variables = fun->get_variables();
     EXPECT_EQ(variables.size(), 1);
 
-    const auto& var_value = eval_context.get_variable_context()->get_context().find(variables[0]);
-    EXPECT_NE(var_value, eval_context.get_variable_context()->get_context().end());
+    const auto& var_value = eval_context.get_variable_context()->get_variable_values().find(variables[0]);
+    EXPECT_NE(var_value, eval_context.get_variable_context()->get_variable_values().end());
 
     var_value->second->set_value(make_host_tensor<element::Type_t::i64>(Shape{3}, {2, 2, 2}));
 

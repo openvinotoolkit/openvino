@@ -17,7 +17,7 @@
 #pragma once
 
 #include "ngraph/op/util/variable.hpp"
-#include "ngraph/op/util/variable_value.h"
+#include "ngraph/op/util/variable_value.hpp"
 
 namespace ngraph
 {
@@ -31,28 +31,30 @@ namespace ngraph
     class VariableContext {
     public:
         void reset_variable_context() {
-            for (const auto& el : m_variable_context) {
+            for (const auto& el : m_variable_values) {
                 el.second->set_reset(true);
             }
         }
 
-        void add_variable_context(const VariableMap& variable_context_to_add) {
-            m_variable_context.insert(variable_context_to_add.begin(), variable_context_to_add.end());
+        void set_variable_values(const VariableMap& variable_values) {
+            m_variable_values = variable_values;
         }
 
         void add_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value) {
-            m_variable_context[variable] = variable_value;
+            m_variable_values[variable] = variable_value;
         }
 
-        const VariableMap& get_context() const {
-            return m_variable_context;
+        void remove_variable_value(const VariablePtr& variable) {
+            m_variable_values.erase(variable);
+        }
+
+        const VariableMap& get_variable_values() const {
+            return m_variable_values;
         }
     public:
-        VariableMap m_variable_context;
+        VariableMap m_variable_values;
     };
-    // Base class (interface) e.g. Context, methods reset, set, add, get
-    // class EvaluationContext : public Context
-    // class VariableContext : public Context
+
     class NGRAPH_API EvaluationContext
     {
     public:
