@@ -25,13 +25,6 @@ namespace ngraph
     {
         namespace reference
         {
-            size_t get_left_block_size(size_t shape_size, size_t shift)
-            {
-                if (shift < 0)
-                    return shift;
-                return shape_size - shift;
-            }
-
             size_t shift_pos(size_t pos_in_spanned_data,
                              size_t dim_shift,
                              size_t spanned_shape_size,
@@ -71,8 +64,7 @@ namespace ngraph
                 size_t start = 0;
                 while (start < shape_size(arg_shape))
                 {
-                    size_t left_block_size =
-                        get_left_block_size(last_dim, shift_vector[shift_vector.size() - 1]);
+                    size_t left_block_size = last_dim - shift_vector[shift_vector.size() - 1];
                     size_t p1 = start;
                     size_t p2 = start + left_block_size;
                     size_t spanned_shape_size = 1;
