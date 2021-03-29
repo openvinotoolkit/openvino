@@ -658,11 +658,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::SwapInputMatMul>();
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<ngraph::pass::SwapInputMatMul>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -1338,7 +1338,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             details::product(++std::begin(exportOutputDims), std::end(exportOutputDims));
 
         auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
-        if (transpose_output_info != std::end(transpose_outputs_info)) {
+        if (transpose_output_info != std::end(transpose_outputs_info) && transpose_output_info->second[0].transpose) {
             size_t transposed_data_size = 0;
             for (const auto &part_transposition_info : transpose_output_info->second) {
                 transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
