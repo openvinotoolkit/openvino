@@ -19,7 +19,7 @@ import yaml
 from inspect import getsourcefile
 from pathlib import Path
 
-from config_reader import write_session_info, SESSION_INFO_FILE
+from tests_utils import write_session_info, SESSION_INFO_FILE
 
 # add ../lib to imports
 sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
