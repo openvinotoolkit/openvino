@@ -154,12 +154,14 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork &network, const Configs
     return qr;
 }
 
-Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter> & /*options*/) const {
+Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(FULL_DEVICE_NAME),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(DEVICE_ARCHITECTURE),
+            METRIC_KEY(IMPORT_EXPORT_SUPPORT)});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
@@ -167,9 +169,36 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
             CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)});
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
+    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
+        auto deviceIt = options.find("TARGET_FALLBACK");
+        std::string targetFallback;
+        if (deviceIt != options.end()) {
+            targetFallback = deviceIt->second.as<std::string>();
+        } else {
+            targetFallback = GetConfig("TARGET_FALLBACK", {}).as<std::string>();
+        }
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, DeviceArchitecture(targetFallback));
     } else {
         IE_THROW() << "Unsupported Plugin metric: " << name;
     }
+}
+std::string Engine::DeviceArchitecture(const std::string& targetFallback) const {
+    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
+    std::string resArch;
+    for (const auto& device : fallbackDevices) {
+        InferenceEngine::DeviceIDParser parser(device);
+
+        std::vector<std::string> supportedMetricKeys = GetCore()->GetMetric(
+                parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
+        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
+                            METRIC_KEY(DEVICE_ARCHITECTURE));
+        auto arch = (it != supportedMetricKeys.end()) ?
+                GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>() : parser.getDeviceName();
+        resArch += " " + arch;
+    }
+    return resArch;
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter> & /*options*/) const {
