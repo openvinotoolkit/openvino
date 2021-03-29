@@ -11,15 +11,17 @@ collected statistics.
 # pylint: disable=redefined-outer-name
 
 import statistics
-from pathlib import Path
 import tempfile
 import subprocess
 import logging
 import argparse
 import sys
 import os
-from pprint import pprint
 import yaml
+
+from pathlib import Path
+from pprint import pprint
+import numpy as np
 
 
 def run_cmd(args: list, log=None, verbose=True):
@@ -59,6 +61,14 @@ def aggregate_stats(stats: dict):
             for step_name, duration_list in stats.items()}
 
 
+def calculate_iqr(stats: list):
+    """IQR is calculated as the difference between the 3th and the 1th quantile of the data"""
+    q1 = np.quantile(stats, 0.25)
+    q3 = np.quantile(stats, 0.75)
+    iqr = q3 - q1
+    return iqr, q1, q3
+
+
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [str(args["executable"].resolve(strict=True)),
@@ -94,6 +104,13 @@ def run_timetest(args: dict, log=None):
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
                      for step_name, duration in raw_data.items())
+
+    # Remove outliers
+    for step_name, time_results in stats.items():
+        iqr, q1, q3 = calculate_iqr(time_results)
+        cut_off = iqr * 1.5
+        upd_time_results = [x for x in time_results if x > q1 - cut_off or x < q3 + cut_off]
+        stats.update({step_name: upd_time_results})
 
     # Aggregate results
     aggregated_stats = aggregate_stats(stats)
