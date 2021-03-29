@@ -34,7 +34,6 @@ class MemoryOffsetBatchUpdate(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         batch = graph.get_op_nodes(op="Parameter")[0].shape[0]
-        memoryoffset_nodes = graph.get_op_nodes(op='MemoryOffset')
-        for memoryoffset_node in memoryoffset_nodes:
+        for memoryoffset_node in graph.get_op_nodes(op='MemoryOffset'):
             if memoryoffset_node.has_valid('element_size'):
                 memoryoffset_node.element_size[0] = batch

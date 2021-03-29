@@ -15,81 +15,74 @@
 """
 import numpy as np
 
-from mo.middle.replacement import MiddleReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph, Port
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.broadcast import Broadcast
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.crop import Crop
 from mo.ops.shape import Shape
 
 
-def create_const_with_batch_from_input(input_out_port: Port, second_dim, value=0, precision=np.float):
-    # create const with batch taken from Parameter
-    graph = input_out_port.node.graph
-    input_name = input_out_port.node.name
+def create_const_with_batch_from_input(producer_port: Port, second_dim, value=0, precision=np.float32):
+    """
+    Create const with batch taken from input_out_port and second dimension equals second_dim
+    :param producer_port: take batch from this port
+    :param second_dim: second dimension for created constant
+    :param value: value to initialize constant
+    :param precision: precision for constant
+    :return created constant node
+    """
+    graph = producer_port.node.graph
+    input_name = producer_port.node.soft_get('name', producer_port.node.id)
 
-    shape_of_input = {}
-    if not input_out_port.disconnected():
-        for dest in input_out_port.get_destinations():
-            if dest.node.soft_get('op') == "ShapeOf":
-                shape_of_input = dest.node
-                break
+    shape_of_input = None
+    for dest in producer_port.get_destinations():
+        if dest.node.soft_get('op') == "ShapeOf":
+            shape_of_input = dest.node
+            break
 
-    if shape_of_input == {}:
-        shape_of_input = Shape(graph, {'name': 'shape/' + input_name}).create_node()
-        shape_of_input.in_port(0).connect(input_out_port)
+    if shape_of_input is None:
+        shape_of_input = Shape(graph, {'name': input_name + '/Shape'}).create_node()
+        shape_of_input.in_port(0).connect(producer_port)
 
-    get_batch = {}
-    if not shape_of_input.out_port(0).disconnected():
-        for dest in shape_of_input.out_port(0).get_destinations():
-            if dest.node.soft_get('op') == "Crop" and \
-                    dest.node.in_port(1).get_source().node.soft_get('value', []) == int64_array([1]):
-                get_batch = dest.node
-                break
+    get_batch = None
+    for dest in shape_of_input.out_port(0).get_destinations():
+        if dest.node.soft_get('op') == "Crop" and \
+                dest.node.in_port(1).get_source().node.soft_get('value', []) == int64_array([1]):
+            get_batch = dest.node
+            break
 
-    if get_batch == {}:
-        dim_for_get_batch = Const(graph, {'name': 'dim/crop_batch/'+shape_of_input.name,
-                                          'value': int64_array([1]), 'shape': int64_array([1])}).create_node()
-        get_batch = Crop(graph, {'name': 'crop_batch/' + shape_of_input.name,
-                                 'axis': int64_array([0]), 'offset': int64_array([0])
-                                 }).create_node()
-        get_batch.in_port(0).connect(shape_of_input.out_port(0))
-        get_batch.in_port(1).connect(dim_for_get_batch.out_port(0))
+    if get_batch is None:
+        get_batch = create_op_node_with_second_input(graph, Crop, int64_array([1]),
+                                                     {'name': shape_of_input.name + '/Crop',
+                                                      'axis': int64_array([0]), 'offset': int64_array([0])},
+                                                     shape_of_input)
 
-    mem_shape = {}
-    if not get_batch.out_port(0).disconnected():
-        for dest in get_batch.out_port(0).get_destinations():
-            if dest.node.soft_get('op') == "Concat" and \
-                    dest.node.in_port(1).get_source().node.soft_get('value', []) == int64_array([second_dim]):
-                mem_shape = dest.node
-                break
+    mem_shape = None
+    for dest in get_batch.out_port(0).get_destinations():
+        if dest.node.soft_get('op') == "Concat" and \
+                dest.node.in_port(1).get_source().node.soft_get('value', []) == int64_array([second_dim]):
+            mem_shape = dest.node
+            break
 
-    if mem_shape == {}:
-        mem_shape_2nd_dim = Const(graph, {'name': 'gifo_r_weights_shape/'+input_name,
-                                          'value': int64_array([second_dim]),
-                                          'shape': int64_array([1])}).create_node()
-        mem_shape = Concat(graph, {'name': 'gather_memory_shape/' + input_name,
-                                   'axis': 0, 'in_ports_count': 2}).create_node()
-        mem_shape.in_port(0).connect(get_batch.out_port(0))
-        mem_shape.in_port(1).connect(mem_shape_2nd_dim.out_port(0))
+    if mem_shape is None:
+        mem_shape = create_op_node_with_second_input(graph, Concat, int64_array([second_dim]),
+                                                     {'name': get_batch.name + '/Concat', 'axis': 0,
+                                                      'in_ports_count': 2}, get_batch)
 
-    init_value_prev_lstm_output = {}
-    if not mem_shape.out_port(0).disconnected():
-        for dest in mem_shape.out_port(0).get_destinations():
-            if dest.node.soft_get('op') == "Broadcast" and \
-                    dest.node.in_port(1).get_source().node.soft_get('value', []) == np.array([value], dtype=precision):
-                init_value_prev_lstm_output = dest.node
-                break
+    init_value_prev_lstm_output = None
+    for dest in mem_shape.out_port(0).get_destinations():
+        if dest.node.soft_get('op') == "Broadcast" and \
+                dest.node.in_port(1).get_source().node.soft_get('value', []) == np.array([value], dtype=precision):
+            init_value_prev_lstm_output = dest.node
+            break
 
-    if init_value_prev_lstm_output == {}:
-        fill_value = Const(graph, {'name': 'fill_value/'+input_name,
-                                   'value': np.array([value], dtype=precision),
-                                   'shape': int64_array([1])}).create_node()
-        init_value_prev_lstm_output = Broadcast(graph, {'name': 'init_value/'+input_name,
-                                                        }).create_node()
-        init_value_prev_lstm_output.in_port(0).connect(fill_value.out_port(0))
+    if init_value_prev_lstm_output is None:
+        init_value_prev_lstm_output = create_op_with_const_inputs(graph, Broadcast,
+                                                                  {0: np.array([value], dtype=precision)},
+                                                                  {'name': mem_shape.name + '/Broadcast'})
         init_value_prev_lstm_output.in_port(1).connect(mem_shape.out_port(0))
 
     return init_value_prev_lstm_output
@@ -121,17 +114,17 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
                                                                           params[0].soft_get('name', params[0].id)))
 
         # make constants for initialization of ReadValue reshapable
-        reads = graph.get_op_nodes(op='ReadValue')
-        for read in reads:
-            if read.in_port(0).get_source().node.soft_get('op') == "Const":
-                const = read.in_port(0).get_source().node
-                const_shape = const.out_port(0).data.get_shape()
+        for read in graph.get_op_nodes(op='ReadValue'):
+            input_node = read.in_port(0).get_source().node
+            if input_node.soft_get('op') == "Const":
+                const_shape = input_node.out_port(0).data.get_shape()
                 # extra check to be sure that we don't break shapes compatibility in graph
                 # in Kaldi models we have only 2 dimensions
                 # and batch should be set the same as we will get from Parameter
+                # otherwise just skip such node
                 if len(const_shape) != 2 or const_shape[0] != batch:
                     continue
                 new_const = create_const_with_batch_from_input(params[0].out_port(0),
                                                                const_shape[1],
-                                                               value=const.value[0], precision=const.data_type)
-                const.out_port(0).get_connection().set_source(new_const.out_port(0))
+                                                               value=input_node.value[0], precision=input_node.data_type)
+                input_node.out_port(0).get_connection().set_source(new_const.out_port(0))
