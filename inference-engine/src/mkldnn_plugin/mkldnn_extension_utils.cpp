@@ -134,6 +134,16 @@ PartialBlkDesc PartialBlkDesc::makeCBlocked(const InferenceEngine::SizeVector &d
     return res;
 }
 
+
+PartialBlkDesc PartialBlkDesc::makeTailC(const InferenceEngine::SizeVector &dims) {
+    PartialBlkDesc res = makePlain(dims);
+    if (dims.size() > 2) {
+        auto itr = res.outer_order.begin() + 1;
+        std::rotate(itr, itr + 1, res.outer_order.end());
+    }
+    return res;
+}
+
 PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &desc) {
     if (desc.getLayout() == InferenceEngine::ANY)
         IE_THROW() << "Cannot extract partial blocked descriptor for `ANY` layout";
