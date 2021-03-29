@@ -37,6 +37,7 @@ if [ -f /etc/lsb-release ]; then
             libssl-dev \
             ca-certificates \
             git \
+            git-lfs \
             libboost-regex-dev \
             $x86_64_specific_packages \
             libgtk2.0-dev \
@@ -77,6 +78,7 @@ elif [ -f /etc/redhat-release ]; then
             libssl-dev \
             ca-certificates \
             git \
+            git-lfs \
             boost-devel \
             libtool \
             gcc \
