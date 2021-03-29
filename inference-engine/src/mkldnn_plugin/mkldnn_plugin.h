@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace MKLDNNPlugin {
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
-    ~Engine() override;
+    ~Engine();
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,

@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <algorithm>
 #include <cstddef>
 #include <functional>
@@ -53,10 +42,11 @@ void op::Squeeze::pre_validate_and_infer_types()
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
 
     auto axes_constant = get_constant_from_source(axes_node);
-    bool axes_is_empty_constant =
-        (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
+    bool axes_is_empty_constant = (axes_constant && axes_constant->get_data_ptr() != nullptr)
+                                      ? axes_constant->cast_vector<int64_t>().empty()
+                                      : false;
 
-    if (data_has_dynamic_rank || !axes_constant ||
+    if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
         (data_has_dynamic_shape && axes_is_empty_constant))
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());

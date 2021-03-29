@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Infer() override;
+    void GenerateInputs() override;
 
 private:
     ngraph::helpers::SequenceTestsMode m_mode;

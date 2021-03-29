@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,7 +130,7 @@ void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &ou
             mkldnn::stream loc_stream(output.eng, stream::flags::default_order);
             pReorder->execute(loc_stream, *srcMemoryPtr, *output.prim);
         } else {
-            THROW_IE_EXCEPTION << "Could not make mkldnn reorder.";
+            IE_THROW() << "Could not make mkldnn reorder.";
         }
     }
 }
@@ -317,7 +317,7 @@ size_t MKLDNNMemoryDesc::GetElementSize() const {
         case memory::data_type::bin :
             return 1;
         default:
-            THROW_IE_EXCEPTION << "Unknown data type";
+            IE_THROW() << "Unknown data type";
     }
 }
 
@@ -546,7 +546,7 @@ bool MKLDNNMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
         return false;
 
     if (desc.data.format_kind != dnnl_blocked || refDesc.data.format_kind != dnnl_blocked)
-        THROW_IE_EXCEPTION << "MKLDNNMemoryDesc::isSame is not implemented for non blocked memory format";
+        IE_THROW() << "MKLDNNMemoryDesc::isSame is not implemented for non blocked memory format";
 
     auto actualBlkDesc = desc.data.format_desc.blocking;
     auto refBlkDesc = refDesc.data.format_desc.blocking;
@@ -674,7 +674,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
                 Layout::ANY};
 
     if (desc.data.format_kind != dnnl_blocked)
-        THROW_IE_EXCEPTION << "Conversion is not possible";
+        IE_THROW() << "Conversion is not possible";
 
     const auto &blk_desc = desc.data.format_desc.blocking;
 
@@ -812,7 +812,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
     // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to permute blocked dims
     //       and may be we can achieve correct "descending strides" form which allow conversion.
     if (!is_descending_strides)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     std::vector<size_t> outer_order(outer_ndims, outer_ndims + 1); // outer_order[i] is index of stride for i-th dimension
     for (size_t i = 0; i < outer_ndims; i++) {
@@ -822,7 +822,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             std::find(outer_order.begin(), outer_order.end(), outer_ndims + 1) == outer_order.end();
 
     if (!outer_is_correct_permutation_of_n)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     bool inner_block_are_dense = one_of(ie_strides.back(), 0, 1);  // stride 1 - is dense case, 0 - broad casted
     for (int i = outer_ndims; i < ie_strides.size() - 1; i++) {
@@ -830,13 +830,13 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
     }
 
     if (!inner_block_are_dense)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     bool inner_pad_offsets_is_zero = std::all_of(ie_offsetsToData.begin() + outer_ndims, ie_offsetsToData.end(),
                                                  [](size_t pad) { return  pad == 0; });
 
     if (!inner_pad_offsets_is_zero)
-        THROW_IE_EXCEPTION << "Unsupported case for conversion";
+        IE_THROW() << "Unsupported case for conversion";
 
     // Fill general memory desc fields
     desc.data.format_kind = dnnl_blocked;

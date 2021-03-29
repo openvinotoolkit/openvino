@@ -1,24 +1,13 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.middle.passes.fusing.helpers import forward_bfs, backward_bfs, get_next_operation
-from mo.utils.unittest.graph import build_graph
+from mo.middle.passes.fusing.helpers import forward_bfs, backward_bfs, get_next_operation, common_bfs
+from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, connect, const, result, \
+    valued_const_with_data, connect_data
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -255,6 +244,67 @@ class BFSTests(unittest.TestCase):
 
         res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'ScaleShift', 'Mul', 'Parameter'], ['Conv2D'])
         self.assertTrue(len(res) == 0, 'Sholdn\'t find any nodes due to cycle in graph')
+
+    def test_backward_bfs_check_op_instead_of_type(self):
+        # Placeholder->ScaleShift->Mul1->Add1---->Concat
+        #             `----------->Add2->Mul2--'
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'add_2'),
+                             ('scaleshift_1_w', 'scaleshift_1'),
+                             ('scaleshift_1', 'scaleshift_1_data'),
+                             ('scaleshift_1_data', 'mul_1'),
+                             ('mul_1', 'mul_1_data'),
+                             ('mul_1_data', 'add_1'),
+                             ('add_1', 'add_1_data'),
+                             ('add_2', 'add_2_data'),
+                             ('add_2_data', 'mul_2'),
+                             ('mul_2', 'mul_2_data'),
+                             ('add_1_data', 'concat_1'),
+                             ('mul_2_data', 'concat_1'),
+                             ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
+                             ])
+
+        res = common_bfs(Node(graph, 'concat_1'), ['Mul', 'Add'], ['Parameter'], is_backward=True, attr_to_check='op')
+        self.assertTrue(len(res) == 0, 'Smth went wrong with bfs')
+
+        res = common_bfs(Node(graph, 'concat_1'), ['Mul'], ['Add'], is_backward=True, attr_to_check='op')
+        self.assertTrue(len(res) == 2 and all([res[x].id in ['add_1', 'add_2'] for x in range(len(res))]),
+                        'Add operations was not found by bfs')
+
+        res = common_bfs(Node(graph, 'concat_1'), ['ScaleShift'], ['Add'], is_backward=True, attr_to_check='op')
+        self.assertTrue(len(res) == 0, 'BFS shouldn\'t find any operations')
+
+        res = common_bfs(Node(graph, 'concat_1'), [], ['Add'], allowed_all=True, is_backward=True, attr_to_check='op')
+        self.assertTrue(len(res) == 2 and all([res[x].id in ['add_1', 'add_2'] for x in range(len(res))]),
+                        'Add operations was not found by bfs')
+
+        res = common_bfs(Node(graph, 'concat_1'), ['ScaleShift'], ['ScaleShift'], is_backward=True, attr_to_check='op')
+        self.assertTrue(len(res) == 0, 'No one node should be found! But bfs found {} nodes'.format(len(res)))
+
+    def test_backward_bfs_multi_consumer_data_nodes(self):
+        # Placeholder-> Mul -> Result
+        # Const      -/    \- Result2
+
+        graph = build_graph({**regular_op_with_shaped_data('parameter', [1], {'op': 'Parameter'}),
+                             **valued_const_with_data('const', int64_array([5])),
+                             **regular_op_with_shaped_data('mul', [1], {'op': 'Mul'}),
+                             **result('result'),
+                             **result('result2'),
+                             },
+                            [*connect('parameter', '0:mul'),
+                             *connect('const', '1:mul'),
+                             *connect('mul:0', 'result'),
+                             *connect_data('mul', 'result2'),
+                             ])
+
+        res = common_bfs(Node(graph, 'result'), ['Mul'], ['Parameter'], is_backward=True, attr_to_check='op',
+                         follow_multi_consumer_data_nodes=True)
+        self.assertTrue(len(res) == 1, 'The multi-consumer data node "mul_d" was not followed')
+
+        res = common_bfs(Node(graph, 'result'), ['Mul'], ['Parameter'], is_backward=True, attr_to_check='op')
+        self.assertTrue(len(res) == 0, 'The multi-consumer data node "mul_d" was followed')
 
 
 # Unit tests for get_next_operation

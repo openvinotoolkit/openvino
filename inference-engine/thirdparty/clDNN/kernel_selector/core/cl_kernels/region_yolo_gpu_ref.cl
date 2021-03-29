@@ -1,105 +1,80 @@
-// Copyright (c) 2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/fetch.cl"
 
-#define IW INPUT0_SIZES[0]
-#define IH INPUT0_SIZES[1]
-#define IC INPUT0_SIZES[2]
-#define IB INPUT0_SIZES[3]
-
-inline UNIT_TYPE FUNC(logistic_activate)(UNIT_TYPE x) {
+inline INPUT0_TYPE FUNC(logistic_activate)(INPUT0_TYPE x) {
     return 1. / (1. + exp(-x));
 }
 
-inline int FUNC(entry_index)(int width, int height, int coords, int classes,
-                       int outputs, int batch, int location,
-                       int entry) {
-    int n = location / (width * height);
-    int loc = location % (width * height);
-    return batch * outputs + n * width * height * (coords + classes + 1) +
-        entry * width * height + loc;
-}
-
+inline int FUNC(output_index)(int batch, int region_num, int x, int y, int xy, int feature_offset) {
 #if DO_SOFTMAX
-inline void FUNC(softmax_generic)(const __global UNIT_TYPE* src_data, __global UNIT_TYPE* dst_data,
-                            int B, int C, int W, int H, int i)
-{
-    for (int b = 0; b < B; b++) {
-        UNIT_TYPE max = src_data[b*C*H*W + i];
-        for (int c = 0; c < C; c++) {
-            UNIT_TYPE val = src_data[b*C*H*W + c*H*W + i];
-            if (val > max) max = val;
-        }
-
-        UNIT_TYPE expSum = 0;
-        for (int c = 0; c < C; c++) {
-            dst_data[b*C*H*W + c*H*W + i] = exp(src_data[b*C*H*W + c*H*W + i] - max);
-            expSum += dst_data[b*C*H*W + c*H*W + i];
-        }
-
-        for (int c = 0; c < C; c++) {
-            dst_data[b*C*H*W + c*H*W + i] = dst_data[b*C*H*W + c*H*W + i] / expSum;
-        }
-    }
-}
-#endif
-
-KERNEL (region_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
-{
-    int x = get_global_id(0);
-
-#if DO_SOFTMAX
-    #define ACTUAL_NUM (NUM)
-    #define CONF_CLASSES (1)
+    return OUTPUT_GET_INDEX(batch, feature_offset * INPUT0_SIZE_X * INPUT0_SIZE_Y + xy, 1, 1);
 #else
-    #define ACTUAL_NUM (MASK_SIZE)
-    #define CONF_CLASSES (CLASSES+1)
+    return OUTPUT_GET_INDEX(batch, feature_offset, y, x);
 #endif
-    #define INPUTS_COUNT (IH * IW * ACTUAL_NUM * (CLASSES + COORDS + 1))
+}
 
-    for (int b = 0; b < IB; b++) {
-        for (int n = 0; n < ACTUAL_NUM; n++) {
-            // coords: x/y
-            int index = FUNC_CALL(entry_index)(IW, IH, COORDS, CLASSES, INPUTS_COUNT, b, n * IW * IH, 0);
-            int i = index + 2 * x;
-            output[i] = FUNC_CALL(logistic_activate)(input[i]);
-            output[i+1] = FUNC_CALL(logistic_activate)(input[i+1]);
+KERNEL (region_yolo_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+{
+    int xy = get_global_id(0);
+    int region_num = get_global_id(1);
+    int batch = get_global_id(2);
+    int x_index = xy % INPUT0_SIZE_X;
+    int y_index = (xy / INPUT0_SIZE_X) % (INPUT0_SIZE_Y);
 
-            // coords: w/h: directly copy?
-            index = FUNC_CALL(entry_index)(IW, IH, COORDS, CLASSES, INPUTS_COUNT, b, n * IW * IH, 2);
-            i = index + 2 * x;
-            output[i] = input[i];
-            output[i+1] = input[i+1];
+    /// [x, y, width, height, objectness score, class score]
+    /// x,y
+    int region_offset = region_num * (COORDS + CLASSES + 1);
+    int in_i = INPUT0_GET_INDEX(batch, 0 + region_offset, y_index, x_index);
+    int out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 0 + region_offset);
+    output[out_i] = FUNC_CALL(logistic_activate)(input[in_i]);
 
-            // confidence
-            index = FUNC_CALL(entry_index)(IW, IH, COORDS, CLASSES, INPUTS_COUNT, b, n * IW * IH, COORDS);
-            for (int j = 0; j < CONF_CLASSES; j++)
-            {
-                i = index + x + j*IH*IW;
-                output[i] = FUNC_CALL(logistic_activate)(input[i]);
-            }
-        }
+    in_i = INPUT0_GET_INDEX(batch, 1 + region_offset, y_index, x_index);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 1 + region_offset);
+    output[out_i] = FUNC_CALL(logistic_activate)(input[in_i]);
+
+    /// width,height
+    in_i = INPUT0_GET_INDEX(batch, 2 + region_offset, y_index, x_index);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 2 + region_offset);
+    output[out_i] = input[in_i];
+
+    in_i = INPUT0_GET_INDEX(batch, 3 + region_offset, y_index, x_index);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 3 + region_offset);
+    output[out_i] = input[in_i];
+
+    /// objectness score
+    in_i = INPUT0_GET_INDEX(batch, COORDS + region_offset, y_index, x_index);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + region_offset);
+    output[out_i] = FUNC_CALL(logistic_activate)(input[in_i]);
+
+    /// class score(confidence)
+#if DO_SOFTMAX
+    in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + region_offset, y_index, x_index);
+    INPUT0_TYPE max_value = input[in_i];
+    for (int j = 1; j < CLASSES; j++) {
+        in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + j + region_offset, y_index, x_index);
+        max_value = max(max_value, input[in_i]);
     }
 
-#if DO_SOFTMAX
-    // the probability of classes
-    int index = FUNC_CALL(entry_index)(IW, IH, COORDS, CLASSES, INPUTS_COUNT, 0, 0, COORDS + 1);
-    int batch_offset = INPUTS_COUNT / NUM;
-    for (int b = 0; b < IB * NUM; b++)
-        FUNC_CALL(softmax_generic)(input + index + b * batch_offset, output + index + b * batch_offset,
-                                   1, CLASSES, IH, IW, x);
+    OUTPUT_TYPE expSum = 0;
+    for (int j = 0; j < CLASSES; j++) {
+        in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + j + region_offset, y_index, x_index);
+        out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + 1 + j + region_offset);
+        output[out_i] = exp(input[in_i] - max_value);
+        expSum += output[out_i];
+    }
+
+    for (int j = 0; j < CLASSES; j++) {
+        out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + 1 + j + region_offset);
+        output[out_i] /= expSum;
+    }
+#else
+    for (int j = 0; j < CLASSES; j++)
+    {
+        in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + j + region_offset, y_index, x_index);
+        output[in_i] = FUNC_CALL(logistic_activate)(input[in_i]);
+    }
 #endif
 }

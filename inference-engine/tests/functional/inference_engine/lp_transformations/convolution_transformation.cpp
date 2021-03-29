@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,7 +143,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
     // with zero point
@@ -183,7 +183,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
     // without zero point
@@ -203,7 +203,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
     // without zero point
@@ -223,7 +223,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
     // without zero point, not update precisions
@@ -243,7 +243,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
     // with zero point, per-channel quantization with the same values
@@ -263,7 +263,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
     // with zero point, per-channel quantization with different values
@@ -379,7 +379,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
         }
     },
 };

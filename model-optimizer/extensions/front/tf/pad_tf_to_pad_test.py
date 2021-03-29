@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
@@ -40,7 +27,6 @@ nodes_attributes = {
     **const('squeeze_1_axis', int64_array([0])),
     'squeeze_2': {'type': 'Squeeze', 'kind': 'op', 'op': 'Squeeze'},
     **const('squeeze_2_axis', int64_array([0])),
-    'convert_like': {'type': 'ConvertLike', 'kind': 'op', 'op': 'ConvertLike'},
 
     **const('pad_fill', np.array(0.0)),
 }
@@ -87,9 +73,7 @@ class PadTFToPadTest(unittest.TestCase):
                             {}, nodes_with_edges_only=True)
         graph.get_op_nodes(op='TFPad')[0].add_input_port(2)
 
-        graph_ref = build_graph(nodes_attributes, common_edges + [('pad_fill', 'convert_like', {'in': 0, 'out': 0}),
-                                                                  ('placeholder', 'convert_like', {'in': 1, 'out': 0}),
-                                                                  ('convert_like', 'pad', {'in': 3, 'out': 0})],
+        graph_ref = build_graph(nodes_attributes, common_edges + [('pad_fill', 'pad', {'in': 3, 'out': 0})],
                                 {}, nodes_with_edges_only=True)
         self._run_test(graph, graph_ref)
 

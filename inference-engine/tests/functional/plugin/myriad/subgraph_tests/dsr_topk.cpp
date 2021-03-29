@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,8 @@ const auto combinations = testing::Combine(
             ngraph::element::i32),
     testing::Values(
             TopKTestCase{{{12345}, {80000}}, 75, 0},
-            TopKTestCase{{{1234}, {4663}}, 70, 0}),
+            TopKTestCase{{{1234}, {4663}}, 70, 0},
+            TopKTestCase{{{1234}, {4663}}, 70, -1}),
     testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 

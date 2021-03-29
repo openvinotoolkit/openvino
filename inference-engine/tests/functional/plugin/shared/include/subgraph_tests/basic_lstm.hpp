@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
         }
     }
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     // Run and compare
     Infer();
     const auto& actualOutputs = GetOutputs();

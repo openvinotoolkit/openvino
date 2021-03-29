@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@ namespace TemplateExtension {
 
 class Operation : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Template", 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    NGRAPH_RTTI_DECLARATION;
 
     Operation() = default;
     Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add);
