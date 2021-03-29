@@ -61,13 +61,13 @@ namespace ngraph
         ///            OutputEdge(5, "out2")
         using OutputEdge = Edge<EdgeType::OUTPUT>;
 
-        /// \brief Defines single node input by the name or the index.
-        ///        For a node number test_node, with 3 inputs:
+        /// \brief Specifies a single node input by the name or index.
+        ///        For a node test_node, with 3 inputs:
         ///
         ///            ----(in_A)---->  +-----------+
         ///            ----(in_B)---->  | test_node |  ----(out)---->
         ///            ----(in_C)---->  +-----------+
-        ///        You can indicate in_B as Input("in_B") and Input(1)
+        ///        You can indicate in_B as Input("in_B") or Input(1)
         struct Input
         {
             Input() = delete;
@@ -83,13 +83,13 @@ namespace ngraph
             const int m_input_index = -1;
         };
 
-        /// \brief Defines single node output by the name or the index.
-        ///        For a node number test_node, with 2 outputs:
+        /// \brief Specifies a single node output by the name or index.
+        ///        For a node test_node, with 2 outputs:
         ///
         ///                             +-----------+  ---(out1)--->
         ///            ----(in_A)---->  | test_node |
         ///                             +-----------+  ---(out2)--->
-        ///        You can indicate out2 as Output("out2") and Output(1)
+        ///        You can indicate out2 as Output("out2") or Output(1)
         struct Output
         {
             Output() = delete;
@@ -105,14 +105,14 @@ namespace ngraph
             const int m_output_index = -1;
         };
 
-        /// \brief Defines single node by output name which is determinitic
+        /// \brief Specifies a single node by output name which is determinitic
         ///        and node name which can be ambiguous.
-        ///        For a node number test_node, with 2 outputs:
+        ///        For a node test_node, with 2 outputs:
         ///
         ///                             +-----------+  ---(out1)--->
         ///            ----(in_A)---->  | test_node |
         ///                             +-----------+  ---(out2)--->
-        ///        You can indicate test_node by the name as Node("test_node")
+        ///        You can indicate test_node by name as Node("test_node")
         ///        or by assigned output as Node(Output("out1")) or Node(Output("out2"))
         struct Node
         {

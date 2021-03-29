@@ -111,10 +111,10 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
-            /// \brief Create edge mapper object which allow to use node names, input/output indexes
-            ///        istead of node indexes in order to select InputEdge/OutputEdge.
+            /// \brief Create an EdgeMapper object which allows the use of node names
+            ///        instead of node indexes when specifying input and output edges.
             ///
-            /// \return EdgeMapper object which simply using methods which operate over
+            /// \return EdgeMapper object which simplifies using methods which operate over
             ///         InputEdge and OutputEdge.
             EdgeMapper create_edge_mapper() const;
 

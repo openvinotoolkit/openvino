@@ -24,7 +24,7 @@
 
 namespace ONNX_NAMESPACE
 {
-    // forward declaration to avoid the necessity of include paths setting in components
+    // Forward declaration to avoid the necessity of including paths in components
     // that don't directly depend on the ONNX library
     class GraphProto;
 } // namespace ONNX_NAMESPACE
@@ -33,13 +33,13 @@ namespace ngraph
 {
     namespace onnx_editor
     {
-        /// \brief A class allows to determine InputEdge and OutputEdge by user-friendly onnx names.
+        /// \brief A class which allows specifying InputEdge and OutputEdge by user-friendly ONNX names.
         class EdgeMapper
         {
         public:
             EdgeMapper() = delete;
 
-            /// \brief Creates an edge mapper based on graph_proto state.
+            /// \brief Creates an edge mapper based on a GraphProto object.
             ///
             /// \note If state of graph_proto will be changed, the information
             ///       from edge mapper is outdated.
@@ -50,26 +50,26 @@ namespace ngraph
             /// \brief Returns the InputEdge based on a node (node name or output name)
             ///        and an input (input name or input index).
             ///
-            /// \note  The node name can be ambiguous (many nodes can have the same name).
-            ///        In such a case the algorthim try to match the given node name
-            ///        with the input name (given input index is not enough).
-            ///        If after such operation a found edge is unique, it is returned.
-            ///        If InputEdge cannot be determined based on given params the ngraph_error
-            ///        exception is thrown.
+            /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
+            ///        In such a case the algorthim tries to match the given node name
+            ///        with the input name (providing an input index is not enough).
+            ///        If a unique edge is found, it will be returned.
+            ///        If InputEdge cannot be determined based on parameter values an ngraph_error
+            ///        exception will be thrown.
             ///
             /// \param node A node helper structure created based on a node name
             ///             or a node output name.
             ///
-            /// \param input A input helper structure created based on a input name
+            /// \param input An input helper structure created based on a input name
             ///              or a input index.
             InputEdge to_input_edge(const Node& node, const Input& input) const;
 
-            /// \brief Returns the OutputEdge based on a node (node name or output name)
+            /// \brief Returns an OutputEdge based on a node (node name or output name)
             ///        and an output (output name or output index).
             ///
-            /// \note  The node name can be ambiguous (many nodes can have the same name).
-            ///        In such a case the algorthim try to match the given node name
-            ///        with the output name (given output index is not enough).
+            /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
+            ///        In such a case the algorthim will try to match the given node name
+            ///        with the output name (providing an output index is not enough).
             ///        If after such operation a found edge is unique, it is returned.
             ///        If OutputEdge cannot be determined based on given params the ngraph_error
             ///        exception is thrown.
