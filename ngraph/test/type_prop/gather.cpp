@@ -236,12 +236,51 @@ TEST(type_prop, gather_7_axis_not_set)
 {
     PartialShape data_shape{1, 1, 200, 400};
     PartialShape indices_shape{2, 2};
-    PartialShape out_shape = PartialShape::dynamic();
+    // default batch_dims = 0
+    PartialShape out_shape = PartialShape::dynamic(5);  // out_rank = data_rank + indices_rank - 1 - batch_dims
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
     auto A = make_shared<op::Parameter>(element::f32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A);
+
+    ASSERT_EQ(G->get_element_type(), element::f32);
+    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+}
+
+TEST(type_prop, gather_7_axis_not_set_positive_batch_dims)
+{
+    PartialShape data_shape{2, 1, 200, 400};
+    PartialShape indices_shape{2, 2};
+    int64_t batch_dims = 1;
+    PartialShape out_shape = PartialShape({2,
+                                           Dimension::dynamic(),
+                                           Dimension::dynamic(),
+                                           Dimension::dynamic()});
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
+
+    ASSERT_EQ(G->get_element_type(), element::f32);
+    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+}
+
+TEST(type_prop, gather_7_axis_not_set_negative_batch)
+{
+    PartialShape data_shape{1, 1, 200, 400};
+    PartialShape indices_shape{2, 2};
+    int64_t batch_dims = -1;
+    // negative batch_dims together with unknown axis could mean any value
+    // within the intervals [0, data_rank] && [0, indices_rank] so out_rank will be dynamic with the range
+    // out_rank = data_rank + indices_rank - 1 - interval(0, max(data_rank, indices_rank))
+    PartialShape out_shape = PartialShape::dynamic(Dimension(2, 5));
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
     ASSERT_EQ(G->get_element_type(), element::f32);
     ASSERT_EQ(G->get_output_partial_shape(0), out_shape);

@@ -79,6 +79,7 @@ namespace ngraph
 
                 int64_t get_batch_dims() const;
                 int64_t get_axis() const;
+                bool is_axis_set() const;
 
             private:
                 int64_t m_batch_dims = 0;
