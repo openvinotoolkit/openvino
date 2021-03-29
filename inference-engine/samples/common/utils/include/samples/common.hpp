@@ -1129,3 +1129,13 @@ inline void showAvailableDevices() {
     }
     std::cout << std::endl;
 }
+
+/**
+* @brief Parse text config file. The file must have the following format (with space a delimeter):
+* CONFIG_NAME1 CONFIG_VALUE1
+* CONFIG_NAME2 CONFIG_VALUE2
+*
+* @param configName - filename for a file with config options
+* @param comment - lines starting with symbol `comment` are skipped
+*/
+std::map<std::string, std::string> parseConfig(const std::string &configName, char comment = '#');
