@@ -17,30 +17,34 @@
 
 class QuantizationAligmentAttribute {
 public:
-    class SharedValue {
+    class SharedPart {
     public:
-        SharedValue(const float intervalLow, const float intervalHigh, const size_t levels) :
-            intervalLow(intervalLow),
-            intervalHigh(intervalHigh),
-            levels(levels) {}
+        class SharedValue {
+        public:
+            SharedValue(const float intervalLow, const float intervalHigh) : intervalLow(intervalLow), intervalHigh(intervalHigh) {}
+            float intervalLow;
+            float intervalHigh;
+        };
 
-        float intervalLow;
-        float intervalHigh;
-        size_t levels;
+        SharedPart(std::shared_ptr<SharedValue> value) : value(value) {}
+        SharedPart(const float intervalLow, const float intervalHigh) : value(std::make_shared<SharedValue>(intervalLow, intervalHigh)) {}
+        std::shared_ptr<SharedValue> value;
     };
 
-    QuantizationAligmentAttribute(const float intervalLow, const float intervalHigh, const size_t levels) :
-        sharedValue(std::make_shared<SharedValue>(intervalLow, intervalHigh, levels)) {}
-    QuantizationAligmentAttribute(std::shared_ptr<SharedValue> sharedValue) : sharedValue(sharedValue) {}
+    QuantizationAligmentAttribute() {}
+    QuantizationAligmentAttribute(const float intervalLow, const float intervalHigh) :
+        sharedPart(std::make_shared<SharedPart>(intervalLow, intervalHigh)) {}
+    QuantizationAligmentAttribute(std::shared_ptr<QuantizationAligmentAttribute::SharedPart::SharedValue> value) :
+        sharedPart(std::make_shared<SharedPart>(value)) {}
+    QuantizationAligmentAttribute(std::shared_ptr<SharedPart> sharedPart) : sharedPart(sharedPart) {}
 
     template <class Operation>
-    static QuantizationAligmentAttribute create(const bool value) {
-        // TODO: do we need operation version here?
+    static QuantizationAligmentAttribute create(const float intervalLow, const float intervalHigh) {
         auto operationName = Operation::get_type_info_static().name;
-        return PrecisionPreservedAttribute(value, operationName);
+        return QuantizationAligmentAttribute(intervalLow, intervalHigh);
     }
 
-    std::shared_ptr<SharedValue> sharedValue;
+    std::shared_ptr<SharedPart> sharedPart;
 };
 
 extern template class TRANSFORMATIONS_API ngraph::VariantImpl<QuantizationAligmentAttribute>;

@@ -4,6 +4,7 @@
 
 #include "low_precision/align_concat_quantization_parameters.hpp"
 
+#include <algorithm>
 #include <assert.h>
 #include <memory>
 #include <unordered_set>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include "low_precision/rt_info/quantization_aligment_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 using namespace ngraph;
@@ -24,18 +26,21 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
         }
 
         // create new
-        if (ngraph::is_type<opset1::AvgPool>(node)) {
+        if (ngraph::is_type<opset1::FakeQuantize>(node)) {
+            // TODO: FakeQuantize validation
+            const std::vector<float> lowIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(3))->cast_vector<float>();
+            const float lowInterval = *std::min_element(lowIntervals.begin(), lowIntervals.end());
+
+            const auto& highIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(4))->cast_vector<float>();
+            const float highInterval = *std::max_element(highIntervals.begin(), highIntervals.end());
+
             auto& rtInfo = node->get_rt_info();
-            const auto attribute = std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttribute>>(
-                PrecisionPreservedAttribute::create<opset1::FakeQuantize>(true));
-            rtInfo[ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name] = attribute;
+            const auto attribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAligmentAttribute>>(
+                QuantizationAligmentAttribute::create<opset1::FakeQuantize>(lowInterval, highInterval));
+            rtInfo[ngraph::VariantWrapper<QuantizationAligmentAttribute>::type_info.name] = attribute;
             continue;
         }
 
-        // complete this branch
-        //if (!MarkupPrecisions::isPrecisionPreserved(node)) {
-        //    continue;
-        //}
         {
             auto& rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
@@ -49,7 +54,7 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
         }
 
         // TODO: limitation: one operation type is used
-        std::shared_ptr<ngraph::VariantWrapper<PrecisionPreservedAttribute>> firstExistingAttribute;
+        std::shared_ptr<ngraph::VariantWrapper<QuantizationAligmentAttribute>> firstExistingAttribute;
 
         // get nodes
         std::vector<std::shared_ptr<ngraph::Node>> inputNodes;
@@ -57,16 +62,13 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
             auto inputNode = input.get_source_output().get_node_shared_ptr();
 
             auto& rtInfo = inputNode->get_rt_info();
-            auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
+            auto it = rtInfo.find(ngraph::VariantWrapper<QuantizationAligmentAttribute>::type_info.name);
             if (it != rtInfo.end()) {
-                auto tmpAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
+                auto tmpAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAligmentAttribute>>(it->second);
                 assert(tmpAttribute != nullptr);
-                if (!tmpAttribute->get().sharedValue->operationName.empty()) {
-                    if (firstExistingAttribute == nullptr) {
-                        firstExistingAttribute = tmpAttribute;
-                    } else {
-                        NGRAPH_CHECK(firstExistingAttribute->get().sharedValue->operationName == tmpAttribute->get().sharedValue->operationName, "Only one operation is supported");
-                    }
+
+                if (firstExistingAttribute == nullptr) {
+                    firstExistingAttribute = tmpAttribute;
                 }
             }
 
@@ -75,17 +77,9 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
 
         // merge: share between other operations - implicit backward propagation
         if (firstExistingAttribute != nullptr) {
-            const bool wasFound = firstExistingAttribute->get().sharedValue->operationName == node->get_type_info().name;
-            if (wasFound) {
-                firstExistingAttribute->get().sharedValue->value = !firstExistingAttribute->get().sharedValue->value;
-            }
-
             auto newAttribute = firstExistingAttribute->merge(inputNodes);
-
-            if (!wasFound) {
-                auto& rtInfo = node->get_rt_info();
-                rtInfo[ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name] = newAttribute;
-            }
+            auto& rtInfo = node->get_rt_info();
+            rtInfo[ngraph::VariantWrapper<QuantizationAligmentAttribute>::type_info.name] = newAttribute;
         }
     }
     return true;

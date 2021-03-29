@@ -21,53 +21,50 @@ template class ngraph::VariantImpl<QuantizationAligmentAttribute>;
 constexpr VariantTypeInfo VariantWrapper<QuantizationAligmentAttribute>::type_info;
 
 std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAligmentAttribute>::merge(const ngraph::NodeVector& nodes) {
-    //std::unordered_map<std::string, std::vector<std::shared_ptr<QuantizationAligmentAttribute::SharedValue>>> sharedValuesByOperation;
+    std::shared_ptr<QuantizationAligmentAttribute::SharedPart> resultSharedPart;
+    std::shared_ptr<QuantizationAligmentAttribute::SharedPart::SharedValue> resultValue;
 
-    //for (const std::shared_ptr<ngraph::Node>& node : nodes) {
-    //    auto& rt = node->get_rt_info();
-    //    auto rtIt = rt.find(VariantWrapper<QuantizationAligmentAttribute>::type_info.name);
-    //    if (rtIt == rt.end()) {
-    //        continue;
-    //    }
+    // update
+    for (const std::shared_ptr<ngraph::Node>& node : nodes) {
+        auto& rt = node->get_rt_info();
+        auto rtIt = rt.find(VariantWrapper<QuantizationAligmentAttribute>::type_info.name);
+        if (rtIt == rt.end()) {
+            continue;
+        }
 
-    //    auto& attribute = std::dynamic_pointer_cast<VariantWrapper<QuantizationAligmentAttribute>>(rtIt->second);
-    //    QuantizationAligmentAttribute expectedOperation = attribute->get();
-    //    std::shared_ptr<QuantizationAligmentAttribute::SharedValue>& sharedValue = expectedOperation.sharedValue;
+        auto& attribute = std::dynamic_pointer_cast<VariantWrapper<QuantizationAligmentAttribute>>(rtIt->second);
+        QuantizationAligmentAttribute expectedOperation = attribute->get();
+        std::shared_ptr<QuantizationAligmentAttribute::SharedPart>& sharedPart = expectedOperation.sharedPart;
 
-    //    auto collectedIt = sharedValuesByOperation.find(sharedValue->operationName);
-    //    if (collectedIt == sharedValuesByOperation.end()) {
-    //        sharedValuesByOperation.emplace(
-    //            sharedValue->operationName,
-    //            std::vector<std::shared_ptr<QuantizationAligmentAttribute::SharedValue>>({ sharedValue }));
-    //    } else {
-    //        collectedIt->second.push_back(sharedValue);
-    //    }
-    //}
+        if (resultValue == nullptr) {
+            resultSharedPart = sharedPart;
+            resultValue = sharedPart->value;
+        } else {
+            if (resultValue->intervalLow > sharedPart->value->intervalLow) {
+                resultValue->intervalLow = sharedPart->value->intervalLow;
+            }
 
-    //NGRAPH_CHECK(sharedValuesByOperation.size() <= 1ul, "Multi-operation is not supported");
+            if (resultValue->intervalHigh < sharedPart->value->intervalHigh) {
+                resultValue->intervalHigh = sharedPart->value->intervalHigh;
+            }
+        }
+    }
 
-    //auto newAttribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAligmentAttribute>>(this->m_value.sharedValue);
+    // assign
+    for (const std::shared_ptr<ngraph::Node>& node : nodes) {
+        auto& rt = node->get_rt_info();
+        auto rtIt = rt.find(VariantWrapper<QuantizationAligmentAttribute>::type_info.name);
+        if (rtIt == rt.end()) {
+            continue;
+        }
 
-    //if (sharedValuesByOperation.empty()) {
-    //    return nullptr;
-    //}
+        auto& attributeWrapper = std::dynamic_pointer_cast<VariantWrapper<QuantizationAligmentAttribute>>(rtIt->second);
+        QuantizationAligmentAttribute attribute = attributeWrapper->get();
+        attribute.sharedPart->value = resultValue;
+    }
 
-    //auto it = sharedValuesByOperation.begin();
-    //auto& sharedValues = it->second;
-    //const bool value = std::any_of(
-    //    sharedValues.begin(),
-    //    sharedValues.end(),
-    //    [](const std::shared_ptr<QuantizationAligmentAttribute::SharedValue>& sharedValue) { return sharedValue->value; });
-    //sharedValues[0]->value = value;
-
-    //// TODO: not completed
-    ////for (size_t index = 1ul; index < sharedValues.size(); ++index) {
-    ////    sharedValues[index] = sharedValues[0];
-    ////}
-
-    //return newAttribute;
-
-    return nullptr;
+    auto newAttribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAligmentAttribute>>(resultSharedPart);
+    return newAttribute;
 }
 
 std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAligmentAttribute>::init(const std::shared_ptr<ngraph::Node>& node) {
@@ -77,7 +74,6 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAligmentAttribute>::
 std::string VariantWrapper<QuantizationAligmentAttribute>::get_string() {
     auto value = this->m_value;
     return
-        std::string("intervalLow: ") + std::to_string(value.sharedValue->intervalLow) +
-        std::string("intervalHigh: ") + std::to_string(value.sharedValue->intervalHigh) +
-        std::string("levels: ") + std::to_string(value.sharedValue->levels);
+        std::string("intervalLow: ") + std::to_string(value.sharedPart->value->intervalLow) +
+        std::string(", intervalHigh: ") + std::to_string(value.sharedPart->value->intervalHigh);
 }
