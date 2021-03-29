@@ -4,27 +4,28 @@
 
 **Category**: *Activation function*
 
-**Short description**: ReLU element-wise activation function. ([Reference](http://caffe.berkeleyvision.org/tutorial/layers/relu.html))
+**Short description**: Rectified linear unit element-wise activation function.
 
 **Detailed description**: [Reference](https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#rectified-linear-units)
 
+*ReLU* performs element-wise activation function on a given input tensor based on the following mathematical formula:
+\f[
+  ReLU(x) = (x)^{+} = \max(0, x)
+\f]
+
 **Attributes**: *ReLU* operation has no attributes.
-
-**Mathematical Formulation**
-
-For each element from the input tensor calculates corresponding
- element in the output tensor with the following formula:
- \f[
- Y_{i}^{( l )} = max(0, Y_{i}^{( l - 1 )})
- \f]
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor *x* of any supported numeric type. Required.
+*   **1**: A tensor of type `T` and arbitrary shape. **Required**.
 
 **Outputs**:
 
-*   **1**: Result of ReLU function applied to the input tensor *x*. Tensor with shape and type matching the input tensor. Required.
+*   **1**: Result of element-wise *ReLU* function applied to the input tensor. A tensor of type `T` and same shape as input tensor.
+
+**Types**
+
+* *T*: arbitrary supported numeric type.
 
 **Example**
 
