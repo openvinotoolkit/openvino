@@ -70,12 +70,6 @@
         <td class="table-secondary" >{{general_pass_rate[d]}}%</td>
         {% endfor %}
     </tr>
-        <tr>
-        <th class="table-secondary" scope="row">Operation test number (without Parameter-0, Constant-0 and Result-0 ops):</th>
-        {% for d in devices -%}
-        <td class="table-secondary" >{{general_test_count[d]}}</td>
-        {% endfor %}
-    </tr>
     </tbody>
     <tbody>
     {% for op in ordered_ops -%}

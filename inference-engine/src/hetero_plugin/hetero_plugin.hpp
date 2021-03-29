@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,5 +44,6 @@ public:
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;
+    std::string DeviceArchitecture(const std::string& targetFallback) const;
 };
 }  // namespace HeteroPlugin
