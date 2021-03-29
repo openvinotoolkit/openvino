@@ -10,7 +10,7 @@
 #include <mkldnn_extension_utils.h>
 #include <ie_parallel.hpp>
 
-#define THROW_ERROR THROW_IE_EXCEPTION << "Split layer with name '" << getName() <<"' "
+#define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -42,7 +42,7 @@ static TensorDesc makePerChannelTensorDesc(const Precision& precision, const Siz
 
 static TensorDesc makeChannelBlockedTensorDesc(const Precision& precision, const SizeVector& srcDims, size_t blockSize) {
     if (srcDims.size() < 2) {
-        THROW_IE_EXCEPTION << "Can't create blocked tensor descriptor!";
+        IE_THROW() << "Can't create blocked tensor descriptor!";
     }
 
     constexpr size_t channelsPos = 1lu;
@@ -460,7 +460,7 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
 void MKLDNNSplitNode::prepareOptimizedParams() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        THROW_IE_EXCEPTION << "CPU Split node with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "CPU Split node with name '" << getName() << "' doesn't have primitive descriptors.";
     const auto& inpTensorDesc = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc;
     const auto outputPortsCount = outDims.size();
 

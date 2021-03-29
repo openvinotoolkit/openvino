@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1327,12 +1327,12 @@ void MKLDNNReduceNode::getSupportedDescriptors() {
         return;
 
     if (getParentEdges().size() != 2)
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << " gets incorrect number of input edges!";
+        IE_THROW() << "Reduce layer with name " << getName() << " gets incorrect number of input edges!";
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << " gets incorrect number of output edges!";
+        IE_THROW() << "Reduce layer with name " << getName() << " gets incorrect number of output edges!";
 
     if (getParentEdgeAt(REDUCE_INDEXES)->getDims().ndims() != 1) {
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << " gets incorrect index vector dimension! Index vector should be 1 dimension.";
+        IE_THROW() << "Reduce layer with name " << getName() << " gets incorrect index vector dimension! Index vector should be 1 dimension.";
     }
 
     auto *layer = getCnnLayer().get();
@@ -1340,13 +1340,13 @@ void MKLDNNReduceNode::getSupportedDescriptors() {
 
     if (keep_dims) {
         if (getParentEdgeAt(REDUCE_DATA)->getDims().ndims() != getChildEdgeAt(0)->getDims().ndims())
-            THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "gets incorrect number of input/output dimensions!";
+            IE_THROW() << "Reduce layer with name " << getName() << "gets incorrect number of input/output dimensions!";
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d = getParentEdgeAt(REDUCE_DATA)->getDims().ndims() == 1 && getChildEdgeAt(0)->getDims().ndims() == 1;
         if (getParentEdgeAt(REDUCE_DATA)->getDims().ndims() <= getChildEdgeAt(0)->getDims().ndims() && !is_emulated_0d_as_1d)
-            THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "gets incorrect number of input/output dimensions!";
+            IE_THROW() << "Reduce layer with name " << getName() << "gets incorrect number of input/output dimensions!";
     }
 
     Type reduce_mode = getType();
@@ -1363,7 +1363,7 @@ void MKLDNNReduceNode::getSupportedDescriptors() {
     else if (reduce_mode == ReduceSum) reduceMode = Reduce::Sum;
     else if (reduce_mode == ReduceSumSquare) reduceMode = Reduce::SumSquare;
     else
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << " gets unsupported Reduce layer type!";
+        IE_THROW() << "Reduce layer with name " << getName() << " gets unsupported Reduce layer type!";
 }
 
 void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
@@ -1462,11 +1462,11 @@ void MKLDNNReduceNode::createPrimitive() {
     auto &srcDataMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
     auto &srcIndexesMemPtr = getParentEdgeAt(REDUCE_INDEXES)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "didn't allocate destination memory.";
+        IE_THROW() << "Reduce layer with name " << getName() << "didn't allocate destination memory.";
     if (!srcDataMemPtr || !srcDataMemPtr->GetPrimitivePtr() || !srcIndexesMemPtr || !srcIndexesMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "didn't allocate input memory.";
+        IE_THROW() << "Reduce layer with name " << getName() << "didn't allocate input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "didn't set preferable primitive descriptor.";
+        IE_THROW() << "Reduce layer with name " << getName() << "didn't set preferable primitive descriptor.";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     planar_layout = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDesc().isPlainFormat();
@@ -1549,7 +1549,7 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
             auto out_ptr = reinterpret_cast<float *>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
-            THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "only supports plain layout on machine w/o sse42.";
+            IE_THROW() << "Reduce layer with name " << getName() << "only supports plain layout on machine w/o sse42.";
         }
     }
 }
@@ -1869,7 +1869,7 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
             }
             break;
         default:
-            THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "gets unsupported reduce mode.";
+            IE_THROW() << "Reduce layer with name " << getName() << "gets unsupported reduce mode.";
     }
 }
 
@@ -1882,7 +1882,7 @@ inline void MKLDNNReduceNode::calc_process_dst_dims(const int32_t *idx_data) {
         if (axis < 0)
             axis += src_dims.size();
         if (static_cast<size_t>(axis) > src_dims.size())
-            THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "exceeds data tensor dimension on index to reduce";
+            IE_THROW() << "Reduce layer with name " << getName() << "exceeds data tensor dimension on index to reduce";
         axes.insert(static_cast<size_t>(axis));
     }
     for (size_t i = 0; i < src_dims.size(); i++) {
@@ -1904,7 +1904,7 @@ inline void MKLDNNReduceNode::calc_process_dst_dims(const int32_t *idx_data) {
     }
     for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
         if (out_dims[i] != dst_dims[i])
-            THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "gets incorrect number of output dimensions!";
+            IE_THROW() << "Reduce layer with name " << getName() << "gets incorrect number of output dimensions!";
     }
 }
 
@@ -1949,7 +1949,7 @@ inline void MKLDNNReduceNode::reduce_ref(const float *in_ptr, float *out_ptr) {
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + y * y; });
             break;
     default:
-        THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "gets unsupported reduce mode.";
+        IE_THROW() << "Reduce layer with name " << getName() << "gets unsupported reduce mode.";
     }
 }
 
@@ -2035,7 +2035,7 @@ inline void MKLDNNReduceNode::reduce_ref_map(float *out_ptr, size_t work_amount_
             });
             break;
         default:
-            THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "gets unsupported reduce mode.";
+            IE_THROW() << "Reduce layer with name " << getName() << "gets unsupported reduce mode.";
     }
 }
 

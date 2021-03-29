@@ -1,19 +1,8 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
+#include <cmath>
 #include <fstream>
 
 #include "ngraph/env_util.hpp"
@@ -260,7 +249,6 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             {
                 m_node_modifiers(*arg, attributes);
             }
-            m_ss << "    " << clone_name << " -> " << node->get_name();
             m_ss << "    " << clone_name << "[";
             for (auto attr : attributes)
             {
@@ -268,7 +256,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             }
             m_ss << "]\n";
 
-            m_ss << label_edge(arg, node, arg_index, jump_distance) << "\n";
+            m_ss << "    " << clone_name << " -> " << node->get_name()
+                 << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
         }
         else if (jump_distance > max_jump_distance)
@@ -349,17 +338,64 @@ static std::string pretty_partial_shape(const PartialShape& shape)
 }
 
 template <typename T>
+static std::string pretty_min_max_denormal_value(const vector<T>& values)
+{
+    std::stringstream ss;
+
+    T min_value = values[0];
+    T max_value = values[0];
+    size_t denormal_counts = 0ul;
+    std::stringstream denormal_ss;
+    for (size_t i = 0; i < values.size(); ++i)
+    {
+        const auto& value = values[i];
+        if (min_value > value)
+        {
+            min_value = value;
+        }
+        if (max_value < value)
+        {
+            max_value = value;
+        }
+
+        const auto abs_value = std::abs(static_cast<double>(value));
+        if (((abs_value > 0.) && (abs_value < 1.e-32)) || (abs_value > 1.e+32))
+        {
+            if (denormal_counts < 3)
+            {
+                denormal_ss << (denormal_counts > 0 ? ", " : "") << i << ": " << value;
+            }
+            else if (denormal_counts == 3)
+            {
+                denormal_ss << "...";
+            }
+            denormal_counts++;
+        }
+    }
+
+    ss << "min: " << min_value << ", max: " << max_value;
+    if (denormal_counts != 0)
+    {
+        ss << ", denormals: " << denormal_counts << " [" << denormal_ss.str() << "]";
+    }
+
+    return ss.str();
+}
+
+template <typename T>
 static std::string pretty_value(const vector<T>& values, size_t max_elements)
 {
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i)
     {
-        if (i != 0 && i % 8 == 0)
+        if (i < max_elements)
         {
-            ss << std::endl;
+            if (i != 0 && i % 8 == 0)
+            {
+                ss << std::endl;
+            }
         }
-
-        if (i >= max_elements)
+        else
         {
             ss << "...";
             break;
@@ -369,6 +405,14 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements)
         if (i > 0)
             ss << ", ";
         ss << value;
+    }
+
+    const std::string additional_ss = getenv_bool("NGRAPH_VISUALIZE_TREE_MIN_MAX_DENORMAL")
+                                          ? pretty_min_max_denormal_value(values)
+                                          : "";
+    if (!additional_ss.empty())
+    {
+        ss << std::endl << "(" << additional_ss << ")";
     }
     return ss.str();
 }
@@ -389,6 +433,8 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     case element::Type_t::undefined: ss << "[ undefined value ]"; break;
     case element::Type_t::dynamic: ss << "[ dynamic value ]"; break;
     case element::Type_t::u1: ss << "[ u1 value ]"; break;
+    case element::Type_t::u4: ss << "[ u4 value ]"; break;
+    case element::Type_t::i4: ss << "[ i4 value ]"; break;
     case element::Type_t::bf16:
     case element::Type_t::f16:
     case element::Type_t::f32:

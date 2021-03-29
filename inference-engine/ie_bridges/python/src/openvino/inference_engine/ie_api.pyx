@@ -1,20 +1,9 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 #distutils: language=c++
 #cython: embedsignature=True
-"""
- Copyright (C) 2018-2021 Intel Corporation
 
- Licensed under the Apache License, Version 2.0 (the 'License');
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an 'AS IS' BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -161,7 +150,7 @@ cdef class Blob:
                 self._ptr = C.make_shared_blob[uint16_t](c_tensor_desc)
             elif  precision == "U8" or precision == "BOOL":
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc)
-            elif  precision == "I8" or precision == "BIN":
+            elif  precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc)
             elif  precision == "I32":
                 self._ptr = C.make_shared_blob[int32_t](c_tensor_desc)
@@ -205,7 +194,7 @@ cdef class Blob:
             elif  precision == "U8" or precision == "BOOL":
                 U8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc, &U8_array_memview[0], U8_array_memview.shape[0])
-            elif  precision == "I8" or precision == "BIN":
+            elif  precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 I8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc, &I8_array_memview[0], I8_array_memview.shape[0])
             elif  precision == "I32":
