@@ -956,13 +956,13 @@ namespace
     {
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
 
-        std::vector<float> fft_result(shape_size(result.output_shape), 0.0f);
-        runtime::reference::fft(result.input_data.data(),
-                                result.input_data_shape,
-                                result.axes_data.data(),
-                                result.axes_data_shape,
+        std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
+        runtime::reference::fft(info.input_data.data(),
+                                info.input_data_shape,
+                                info.axes_data.data(),
+                                info.axes_data_shape,
                                 fft_result.data(),
-                                result.output_shape,
+                                info.output_shape,
                                 runtime::reference::FFTKind::Forward);
 
         const auto output_type = op->get_input_element_type(0);
@@ -977,13 +977,13 @@ namespace
     {
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
 
-        std::vector<float> fft_result(shape_size(result.output_shape), 0.0f);
-        runtime::reference::fft(result.input_data.data(),
-                                result.input_data_shape,
-                                result.axes_data.data(),
-                                result.axes_data_shape,
+        std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
+        runtime::reference::fft(info.input_data.data(),
+                                info.input_data_shape,
+                                info.axes_data.data(),
+                                info.axes_data_shape,
                                 fft_result.data(),
-                                result.output_shape,
+                                info.output_shape,
                                 runtime::reference::FFTKind::Inverse);
 
         const auto output_type = op->get_input_element_type(0);
