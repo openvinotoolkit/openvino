@@ -95,7 +95,7 @@ TEST(type_prop, clamp_invalid_attributes)
     {
         auto clamp = make_shared<op::Clamp>(data, 1.0, 1.0);
         // Attribute 'max' not greater than 'min'
-        FAIL() << "Attribute 'min' greater than 'max' not detected";
+        FAIL() << "Attribute 'min' equal to 'max' not detected";
     }
     catch (const NodeValidationFailure& error)
     {

@@ -24,7 +24,6 @@ class ClampLayerTest : public testing::WithParamInterface<clampParamsTuple>,
                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<clampParamsTuple> obj);
-    //InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 protected:
     void SetUp() override;
 };
