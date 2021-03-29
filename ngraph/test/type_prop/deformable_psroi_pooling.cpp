@@ -119,7 +119,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_group_size)
         auto def_psroi_pool = make_shared<op::v1::DeformablePSROIPooling>(
             input_data, input_coords, output_dim, spatial_scale, group_size);
 
-        FAIL() << "Ivalid group_size not detected";
+        FAIL() << "Invalid group_size not detected";
     }
     catch (const NodeValidationFailure& error)
     {
@@ -151,12 +151,12 @@ TEST(type_prop, deformable_psroi_pooling_invalid_data_input_rank)
         input_data, input_coords, input_offsets, output_dim, spatial_scale, group_size, "bilinear_deformable", spatial_bins, spatial_bins, 0.1, part_size);
 
         // Should have thrown, so fail if it didn't
-        FAIL() << "Ivalid first input rank not detected";
+        FAIL() << "Invalid first input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("First input rank must equal to 4 (input rank: 3)"));
+                             std::string("First input rank must be compatible with 4 (input rank: 3)"));
     }
     catch (...)
     {
@@ -179,13 +179,13 @@ TEST(type_prop, deformable_psroi_pooling_invalid_box_coordinates_rank)
         auto def_psroi_pool = make_shared<op::v1::DeformablePSROIPooling>(
             input_data, input_coords, output_dim, spatial_scale, group_size);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Ivalid second input rank not detected";
+        FAIL() << "Invalid second input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
-            std::string("Second input rank must equal to 2 (input rank: 3)"));
+            std::string("Second input rank must be compatible with 2 (input rank: 3)"));
     }
     catch (...)
     {
@@ -212,12 +212,12 @@ TEST(type_prop, deformable_psroi_pooling_invalid_offstes_rank)
         input_data, input_coords, input_offsets, output_dim, spatial_scale, group_size, "bilinear_deformable", spatial_bins, spatial_bins, 0.1, part_size);
 
        // Should have thrown, so fail if it didn't
-        FAIL() << "Ivalid third input rank not detected";
+        FAIL() << "Invalid third input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Third input rank must equal to 4 (input rank: 5)"));
+                             std::string("Third input rank must be compatible with 4 (input rank: 5)"));
     }
     catch (...)
     {

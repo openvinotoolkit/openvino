@@ -80,25 +80,23 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
     const auto& box_coords_pshape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          input_pshape.rank().is_dynamic() || input_pshape.rank().get_length() == 4,
-                          "First input rank must equal to 4 (input rank: ",
-                          input_pshape.rank().get_length(),
+                          input_pshape.rank().compatible(4),
+                          "First input rank must be compatible with 4 (input rank: ",
+                          input_pshape.rank(),
                           ")");
     NODE_VALIDATION_CHECK(this,
-                          box_coords_pshape.rank().is_dynamic() ||
-                              box_coords_pshape.rank().get_length() == 2,
-                          "Second input rank must equal to 2 (input rank: ",
-                          box_coords_pshape.rank().get_length(),
+                          box_coords_pshape.rank().compatible(2),
+                          "Second input rank must be compatible with 2 (input rank: ",
+                          box_coords_pshape.rank(),
                           ")");
 
     if (get_input_size() == 3) // offsets input is provided
     {
         const auto& offsets_pshape = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
-                              offsets_pshape.rank().is_dynamic() ||
-                                  offsets_pshape.rank().get_length() == 4,
-                              "Third input rank must equal to 4 (input rank: ",
-                              offsets_pshape.rank().get_length(),
+                              offsets_pshape.rank().compatible(4),
+                              "Third input rank must be compatible with 4 (input rank: ",
+                              offsets_pshape.rank(),
                               ")");
     }
 
