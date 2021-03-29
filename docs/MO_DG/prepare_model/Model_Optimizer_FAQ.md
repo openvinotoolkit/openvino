@@ -200,7 +200,7 @@ You might have specified negative values with `--mean_file_offsets`. Only positi
 
 `--scale` sets a scaling factor for all channels. `--scale_values` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the Using Framework-Agnostic Conversion Parameters: for <a href="ConvertFromCaffe.html#using-framework-agnostic-conv-param">Converting a Caffe* Model</a>, <a href="ConvertFromTensorFlow.html#using-framework-agnostic-conv-param">Converting a TensorFlow* Model</a>, <a href="ConvertFromMXNet.html#using-framework-agnostic-conv-param">Converting an MXNet* Model</a>.
 
-#### 20. What does the message "Cannot find prototxt file: for Caffe please specify --input_proto - a protobuf file that stores topology and --input_model that stores pretrained weights" mean? <a name="question-20"></a>
+#### 20. What does the message "Cannot find prototxt file: for Caffe please specify --input_proto - a protobuf file that stores topology and --input_model that stores pre-trained weights" mean? <a name="question-20"></a>
 
 Model Optimizer cannot find a `.prototxt` file for a specified model. By default, it must be located in the same directory as the input model with the same name (except extension). If any of these conditions is not satisfied, use `--input_proto` to specify the path to the `.prototxt` file.
 

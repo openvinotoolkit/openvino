@@ -125,7 +125,7 @@ You can use the following model optimizer command to convert a Kaldi
 nnet1 or nnet2 neural network to Intel IR format:
 
 ```sh
-$ python3 mo.py --framework kaldi --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
+$ python3 mo.py --framework kaldi --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Assuming that the model optimizer (`mo.py`), Kaldi-trained neural

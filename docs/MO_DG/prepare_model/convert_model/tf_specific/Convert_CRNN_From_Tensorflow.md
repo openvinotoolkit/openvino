@@ -18,7 +18,7 @@ have another implementation of CRNN model, you can convert it to IR in similar w
 git checkout 64f1f1867bffaacfeacc7a80eebf5834a5726122
 ```
 
-**Step 2.** Train the model using framework or use the pretrained checkpoint provided in this repository.
+**Step 2.** Train the model using framework or use the pre-trained checkpoint provided in this repository.
 
 **Step 3.** Create an inference graph:
     1. Go to the `CRNN_Tensorflow` directory with the cloned repository:

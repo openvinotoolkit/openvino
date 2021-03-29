@@ -1,9 +1,9 @@
 # Offline Speech Recognition Demo {#openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo}
 
-This demo provides a command-line interface for automatic speech recognition using OpenVINO&trade;.  
+This demo provides a command-line interface for automatic speech recognition using OpenVINO&trade;.
 Components used by this executable:
 
-* `lspeech_s5_ext` model     - Example pretrained LibriSpeech DNN
+* `lspeech_s5_ext` model     - Example pre-trained LibriSpeech DNN
 * `speech_library.dll` (`.so`) - Open source speech recognition library that uses OpenVINO&trade; Inference Engine, Intel&reg; Speech Feature Extraction and Intel&reg; Speech Decoder libraries
 
 ## How It Works

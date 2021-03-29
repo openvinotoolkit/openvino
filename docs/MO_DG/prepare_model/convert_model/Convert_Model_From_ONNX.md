@@ -28,13 +28,13 @@
 Listed models are built with the operation set version 8 except the GPT-2 model (which uses version 10). Models that are upgraded to higher operation set versions may not be supported.
 
 ## Supported Pytorch* Models via ONNX Conversion
-Starting from the 2019R4 release, the OpenVINO™ toolkit officially supports public Pytorch* models (from `torchvision` 0.2.1 and `pretrainedmodels` 0.7.4 packages) via ONNX conversion.
+Starting from the 2019R4 release, the OpenVINO™ toolkit officially supports public Pytorch* models (from `torchvision` 0.2.1 and `pre-trainedmodels` 0.7.4 packages) via ONNX conversion.
 The list of supported topologies is presented below:
 
 |Package Name|Supported Models|
 |:----|:----|
 | [Torchvision Models](https://pytorch.org/vision/stable/models.html) | alexnet, densenet121, densenet161, densenet169, densenet201, resnet101, resnet152, resnet18, resnet34, resnet50, vgg11, vgg13, vgg16, vgg19 |
-| [Pretrained Models](https://github.com/Cadene/pretrained-models.pytorch) | alexnet, fbresnet152, resnet101, resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11 |
+| [Pre-trained Models](https://github.com/Cadene/pretrained-models.pytorch) | alexnet, fbresnet152, resnet101, resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11 |
 | [ESPNet Models](https://github.com/sacmehta/ESPNet/tree/master/pretrained) | |
 | [MobileNetV3](https://github.com/d-li14/mobilenetv3.pytorch) | |
 
@@ -71,9 +71,9 @@ The Model Optimizer process assumes you have an ONNX model that was directly dow
 To convert an ONNX\* model:
 
 1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` file:
+2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` file and an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model <INPUT_MODEL>.onnx
+python3 mo.py --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 There are no ONNX\* specific parameters, so only [framework-agnostic parameters](Converting_Model_General.md) are available to convert your model.

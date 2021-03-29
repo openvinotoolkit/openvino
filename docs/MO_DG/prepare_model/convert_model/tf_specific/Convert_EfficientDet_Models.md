@@ -27,7 +27,7 @@ python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 ```
 4. Download and extract the model checkpoint [efficientdet-d4.tar.gz](https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz)
-referenced in the "Pretrained EfficientDet Checkpoints" section of the model repository:<br>
+referenced in the "Pre-trained EfficientDet Checkpoints" section of the model repository:<br>
 ```sh
 wget https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz
 tar zxvf efficientdet-d4.tar.gz

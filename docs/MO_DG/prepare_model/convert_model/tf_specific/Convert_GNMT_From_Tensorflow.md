@@ -155,7 +155,7 @@ git checkout b278487980832417ad8ac701c672b5c3dc7fa553
 **Step 2**. Get a trained model. You have two options:
 
 * Train the model with the GNMT `wmt16_gnmt_4_layer.json` or `wmt16_gnmt_8_layer.json` configuration file using the NMT framework.
-* *Do not use the pretrained checkpoints provided in the NMT repository, as they are outdated and can be incompatible with the current repository version.*
+* *Do not use the pre-trained checkpoints provided in the NMT repository, as they are outdated and can be incompatible with the current repository version.*
 
 This tutorial assumes the use of the trained GNMT model from `wmt16_gnmt_4_layer.json` config, German to English translation.
 

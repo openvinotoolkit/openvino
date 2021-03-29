@@ -10,7 +10,9 @@
 
 The OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The OpenVINO toolkit includes the Intel® Deep Learning Deployment Toolkit (Intel® DLDT).
 
-The OpenVINO™ toolkit for Raspbian* OS includes the Inference Engine and the MYRIAD plugins. You can use it with the Intel® Neural Compute Stick 2 plugged into one of USB ports.
+The OpenVINO™ toolkit for Raspbian* OS includes the Inference Engine and the MYRIAD plugins. You can use it with the Intel® Neural Compute Stick 2 plugged into one of USB ports. This device is required for using the Intel® Distribution of OpenVINO™ toolkit.
+
+> **NOTE**: There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see [build instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS)).
 
 Because OpenVINO for Raspbian* OS doesn't include Model Optimizer, the ideal scenario is to use another machine to convert your model with Model Optimizer, then do your application development on the Raspberry Pi* for a convenient build/test cycle on the target platform.
 
@@ -151,11 +153,7 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
    python3 -m pip install -r requirements.in
    python3 downloader.py --name face-detection-adas-0001 
    ```
-4. Run the sample specifying the model and a path to the input image:
-   ```sh
-   ./armv7l/Release/object_detection_sample_ssd -m face-detection-adas-0001.xml -d CPU -i <path_to_image>
-   ```
-   If you have an Intel® Neural Compute Stick connected, direct the inference to it using this command:
+4. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian* OS:
    ```sh
    ./armv7l/Release/object_detection_sample_ssd -m face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
    ```
