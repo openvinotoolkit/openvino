@@ -53,4 +53,30 @@ namespace {
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ParameterResultSubgraphTest::getTestCaseName);
 } // namespace
+
+class ParameterResultSameBlobTest : public ParameterResultSubgraphTest {
+protected:
+    void Infer() override {
+        constexpr size_t inferIterations = 10lu;
+
+        for (size_t i = 0; i < inferIterations; ++i) {
+            ParameterResultSubgraphTest::Infer();
+            ParameterResultSubgraphTest::Validate();
+        }
+    }
+    void Validate() override {
+        //Do nothing. We call Validate() in the Infer() method
+    }
+};
+
+TEST_P(ParameterResultSameBlobTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    Run();
+}
+namespace {
+    INSTANTIATE_TEST_CASE_P(smoke_Check_Same_Blob, ParameterResultSameBlobTest,
+                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                            ParameterResultSubgraphTest::getTestCaseName);
+} // namespace
 } // namespace CPULayerTestsDefinitions
