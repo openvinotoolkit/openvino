@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-m', '--model', required=True, type=str,
                       help='Required. Path to a file with network weights.')
-    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an image file.')
+    args.add_argument('-i', '--input', required=True, type=str, nargs='+', help='Required. Path to an image file.')
     args.add_argument('-d', '--device', default='CPU', type=str,
                       help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
                       'is acceptable. The sample will look for a suitable plugin for device specified. '
@@ -161,6 +161,9 @@ def main():
     net.input_info[input_blob].precision = 'U8'
     net.outputs[out_blob].precision = 'FP32'
 
+    # Set a batch size to a equal number of input images
+    net.batch_size = len(args.input)
+
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     exec_net = ie.load_network(network=net, device_name=args.device)
@@ -170,20 +173,21 @@ def main():
 # instance which stores infer requests. So you already created Infer requests in the previous step.
 
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
-    original_image = cv2.imread(args.input, cv2.IMREAD_GRAYSCALE)
-    image = original_image.copy()
-    _, _, h, w = net.input_info[input_blob].input_data.shape
+    n, c, h, w = net.input_info[input_blob].input_data.shape
+    input_data = np.ndarray(shape=(n, c, h, w))
 
-    if image.shape[:-1] != (h, w):
-        log.warning(f'Image {args.input} is resized from {image.shape[:]} to {(h, w)}')
-        image = cv2.resize(image, (w, h))
+    for i in range(n):
+        image = cv2.imread(args.input[i], cv2.IMREAD_GRAYSCALE)
 
-    # Add N dimension to transform to NCHW
-    image = np.expand_dims(image, axis=0)
+        if image.shape[:-1] != (h, w):
+            log.warning(f'Image {args.input[i]} is resized from {image.shape[:]} to {(h, w)}')
+            image = cv2.resize(image, (w, h))
+
+        input_data[i] = image
 
 # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    res = exec_net.infer(inputs={input_blob: image})
+    res = exec_net.infer(inputs={input_blob: input_data})
 
 # ---------------------------Step 8. Process output--------------------------------------------------------------------
     # Generate a label list
@@ -193,18 +197,19 @@ def main():
 
     res = res[out_blob]
 
-    log.info(f'Top {args.number_top} results: ')
-    log.info('---------------------')
-    log.info('probability | classid')
-    log.info('---------------------')
+    for i in range(n):
+        log.info(f'Top {args.number_top} results: ')
+        log.info('---------------------')
+        log.info('probability | classid')
+        log.info('---------------------')
 
-    probs = res[0]
-    top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
+        probs = res[i]
+        top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 
-    for class_id in top_n_idexes:
-        label = labels[class_id] if args.labels else class_id
-        log.info(f'{probs[class_id]:.9f} | {label}')
-    log.info('')
+        for class_id in top_n_idexes:
+            label = labels[class_id] if args.labels else class_id
+            log.info(f'{probs[class_id]:.9f} | {label}')
+        log.info('')
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
