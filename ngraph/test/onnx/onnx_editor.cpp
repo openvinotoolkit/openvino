@@ -683,12 +683,12 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_n
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
     const auto edge_mapper = editor.create_edge_mapper();
 
-    const InputEdge edge = edge_mapper.to_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_2"}},
+    const InputEdge edge = edge_mapper.find_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_2"}},
                                                      EditorInput{"conv1/7x7_s2_1"});
     EXPECT_EQ(edge.m_node_idx, 1);
     EXPECT_EQ(edge.m_tensor_name, "conv1/7x7_s2_1");
 
-    const InputEdge edge2 = edge_mapper.to_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_1"}},
+    const InputEdge edge2 = edge_mapper.find_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_1"}},
                                                       EditorInput{"data_0"});
     EXPECT_EQ(edge2.m_node_idx, 0);
     EXPECT_EQ(edge2.m_tensor_name, "data_0");
@@ -701,17 +701,17 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_i
     const auto edge_mapper = editor.create_edge_mapper();
 
     const InputEdge edge =
-        edge_mapper.to_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_2"}}, EditorInput{0});
+        edge_mapper.find_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_2"}}, EditorInput{0});
     EXPECT_EQ(edge.m_node_idx, 1);
     EXPECT_EQ(edge.m_tensor_name, "conv1/7x7_s2_1");
 
     const InputEdge edge2 =
-        edge_mapper.to_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_1"}}, EditorInput{1});
+        edge_mapper.find_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_1"}}, EditorInput{1});
     EXPECT_EQ(edge2.m_node_idx, 0);
     EXPECT_EQ(edge2.m_tensor_name, "conv1/7x7_s2_w_0");
 
     const InputEdge edge3 =
-        edge_mapper.to_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_1"}}, EditorInput{2});
+        edge_mapper.find_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_1"}}, EditorInput{2});
     EXPECT_EQ(edge3.m_node_idx, 0);
     EXPECT_EQ(edge3.m_tensor_name, "conv1/7x7_s2_b_0");
 }
@@ -723,12 +723,12 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_nam
     const auto edge_mapper = editor.create_edge_mapper();
 
     const InputEdge edge =
-        edge_mapper.to_input_edge(EditorNode{"relu1"}, EditorInput{"conv1/7x7_s2_1"});
+        edge_mapper.find_input_edge(EditorNode{"relu1"}, EditorInput{"conv1/7x7_s2_1"});
     EXPECT_EQ(edge.m_node_idx, 1);
     EXPECT_EQ(edge.m_tensor_name, "conv1/7x7_s2_1");
 
     const InputEdge edge2 =
-        edge_mapper.to_input_edge(EditorNode{"conv1"}, EditorInput{"conv1/7x7_s2_w_0"});
+        edge_mapper.find_input_edge(EditorNode{"conv1"}, EditorInput{"conv1/7x7_s2_w_0"});
     EXPECT_EQ(edge2.m_node_idx, 0);
     EXPECT_EQ(edge2.m_tensor_name, "conv1/7x7_s2_w_0");
 }
@@ -739,11 +739,11 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_ind
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
     const auto edge_mapper = editor.create_edge_mapper();
 
-    const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"relu1_name"}, EditorInput{0});
+    const InputEdge edge = edge_mapper.find_input_edge(EditorNode{"relu1_name"}, EditorInput{0});
     EXPECT_EQ(edge.m_node_idx, 0);
     EXPECT_EQ(edge.m_tensor_name, "in1");
 
-    const InputEdge edge2 = edge_mapper.to_input_edge(EditorNode{"split_name"}, EditorInput{0});
+    const InputEdge edge2 = edge_mapper.find_input_edge(EditorNode{"split_name"}, EditorInput{0});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_tensor_name, "add2");
 }
@@ -756,12 +756,12 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_input_
     const auto edge_mapper = editor.create_edge_mapper();
 
     const OutputEdge edge =
-        edge_mapper.to_output_edge(EditorNode{EditorOutput{"mul2"}}, EditorOutput{"mul2"});
+        edge_mapper.find_output_edge(EditorNode{EditorOutput{"mul2"}}, EditorOutput{"mul2"});
     EXPECT_EQ(edge.m_node_idx, 4);
     EXPECT_EQ(edge.m_tensor_name, "mul2");
 
     const OutputEdge edge2 =
-        edge_mapper.to_output_edge(EditorNode{EditorOutput{"split1"}}, EditorOutput{"split2"});
+        edge_mapper.find_output_edge(EditorNode{EditorOutput{"split1"}}, EditorOutput{"split2"});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_tensor_name, "split2");
 }
@@ -773,17 +773,17 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output
     const auto edge_mapper = editor.create_edge_mapper();
 
     const OutputEdge edge =
-        edge_mapper.to_output_edge(EditorNode{EditorOutput{"add2"}}, EditorOutput{0});
+        edge_mapper.find_output_edge(EditorNode{EditorOutput{"add2"}}, EditorOutput{0});
     EXPECT_EQ(edge.m_node_idx, 3);
     EXPECT_EQ(edge.m_tensor_name, "add2");
 
     const OutputEdge edge2 =
-        edge_mapper.to_output_edge(EditorNode{EditorOutput{"split1"}}, EditorOutput{1});
+        edge_mapper.find_output_edge(EditorNode{EditorOutput{"split1"}}, EditorOutput{1});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_tensor_name, "split2");
 
     const OutputEdge edge3 =
-        edge_mapper.to_output_edge(EditorNode{EditorOutput{"split2"}}, EditorOutput{0});
+        edge_mapper.find_output_edge(EditorNode{EditorOutput{"split2"}}, EditorOutput{0});
     EXPECT_EQ(edge3.m_node_idx, 5);
     EXPECT_EQ(edge3.m_tensor_name, "split1");
 }
@@ -795,12 +795,12 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_n
     const auto edge_mapper = editor.create_edge_mapper();
 
     const OutputEdge edge =
-        edge_mapper.to_output_edge(EditorNode{"relu1_name"}, EditorOutput{"relu1"});
+        edge_mapper.find_output_edge(EditorNode{"relu1_name"}, EditorOutput{"relu1"});
     EXPECT_EQ(edge.m_node_idx, 0);
     EXPECT_EQ(edge.m_tensor_name, "relu1");
 
     const OutputEdge edge2 =
-        edge_mapper.to_output_edge(EditorNode{"split_name"}, EditorOutput{"split2"});
+        edge_mapper.find_output_edge(EditorNode{"split_name"}, EditorOutput{"split2"});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_tensor_name, "split2");
 }
@@ -811,11 +811,11 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_i
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
     const auto edge_mapper = editor.create_edge_mapper();
 
-    const OutputEdge edge = edge_mapper.to_output_edge(EditorNode{"relu1_name"}, EditorOutput{0});
+    const OutputEdge edge = edge_mapper.find_output_edge(EditorNode{"relu1_name"}, EditorOutput{0});
     EXPECT_EQ(edge.m_node_idx, 0);
     EXPECT_EQ(edge.m_tensor_name, "relu1");
 
-    const OutputEdge edge2 = edge_mapper.to_output_edge(EditorNode{"split_name"}, EditorOutput{1});
+    const OutputEdge edge2 = edge_mapper.find_output_edge(EditorNode{"split_name"}, EditorOutput{1});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_tensor_name, "split2");
 }
@@ -827,15 +827,15 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_const_network)
     const auto edge_mapper = editor.create_edge_mapper();
 
     const InputEdge edge =
-        edge_mapper.to_input_edge(EditorNode{EditorOutput{"relu4"}}, EditorInput{0});
+        edge_mapper.find_input_edge(EditorNode{EditorOutput{"relu4"}}, EditorInput{0});
     EXPECT_EQ(edge.m_node_idx, 3);
     EXPECT_EQ(edge.m_tensor_name, "in2");
 
-    const OutputEdge edge2 = edge_mapper.to_output_edge(EditorNode{"relu4_name"}, EditorOutput{0});
+    const OutputEdge edge2 = edge_mapper.find_output_edge(EditorNode{"relu4_name"}, EditorOutput{0});
     EXPECT_EQ(edge2.m_node_idx, 3);
     EXPECT_EQ(edge2.m_tensor_name, "relu4");
 
-    const OutputEdge edge3 = edge_mapper.to_output_edge(EditorNode{"add1_name"}, EditorOutput{0});
+    const OutputEdge edge3 = edge_mapper.find_output_edge(EditorNode{"add1_name"}, EditorOutput{0});
     EXPECT_EQ(edge3.m_node_idx, 4);
     EXPECT_EQ(edge3.m_tensor_name, "add1");
 }
@@ -850,7 +850,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling)
     try
     {
         const InputEdge edge =
-            edge_mapper.to_input_edge(EditorNode{EditorOutput{"not_existed"}}, EditorInput{0});
+            edge_mapper.find_input_edge(EditorNode{EditorOutput{"not_existed"}}, EditorInput{0});
     }
     catch (const std::exception& e)
     {
@@ -863,7 +863,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling)
     // node with given name not found
     try
     {
-        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"not_existed"}, EditorInput{0});
+        const InputEdge edge = edge_mapper.find_input_edge(EditorNode{"not_existed"}, EditorInput{0});
     }
     catch (const std::exception& e)
     {
@@ -876,7 +876,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling)
     // input index out of scope
     try
     {
-        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"relu4_name"}, EditorInput{1});
+        const InputEdge edge = edge_mapper.find_input_edge(EditorNode{"relu4_name"}, EditorInput{1});
     }
     catch (const std::exception& e)
     {
@@ -889,7 +889,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling)
     try
     {
         const OutputEdge edge =
-            edge_mapper.to_output_edge(EditorNode{"relu4_name"}, EditorOutput{1});
+            edge_mapper.find_output_edge(EditorNode{"relu4_name"}, EditorOutput{1});
     }
     catch (const std::exception& e)
     {
@@ -906,11 +906,11 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_but
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
     const auto edge_mapper = editor.create_edge_mapper();
 
-    const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in2"});
+    const InputEdge edge = edge_mapper.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in2"});
     EXPECT_EQ(edge.m_node_idx, 1);
     EXPECT_EQ(edge.m_tensor_name, "in2");
 
-    const InputEdge edge2 = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"add1"});
+    const InputEdge edge2 = edge_mapper.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"add1"});
     EXPECT_EQ(edge2.m_node_idx, 3);
     EXPECT_EQ(edge2.m_tensor_name, "add1");
 }
@@ -923,7 +923,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and
 
     try
     {
-        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in3"});
+        const InputEdge edge = edge_mapper.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in3"});
     }
     catch (const std::exception& e)
     {
@@ -934,7 +934,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and
 
     try
     {
-        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"relu1"});
+        const InputEdge edge = edge_mapper.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"relu1"});
     }
     catch (const std::exception& e)
     {
@@ -952,7 +952,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and
 
     try
     {
-        const InputEdge edge = edge_mapper.to_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{0});
+        const InputEdge edge = edge_mapper.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{0});
     }
     catch (const std::exception& e)
     {
@@ -968,11 +968,11 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_bu
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
     const auto edge_mapper = editor.create_edge_mapper();
 
-    const OutputEdge edge = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"add1"});
+    const OutputEdge edge = edge_mapper.find_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"add1"});
     EXPECT_EQ(edge.m_node_idx, 1);
     EXPECT_EQ(edge.m_tensor_name, "add1");
 
-    const OutputEdge edge2 = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"add2"});
+    const OutputEdge edge2 = edge_mapper.find_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"add2"});
     EXPECT_EQ(edge2.m_node_idx, 3);
     EXPECT_EQ(edge2.m_tensor_name, "add2");
 }
@@ -985,7 +985,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_an
 
     try
     {
-        const OutputEdge edge = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"split2"});
+        const OutputEdge edge = edge_mapper.find_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"split2"});
     }
     catch (const std::exception& e)
     {
@@ -1003,7 +1003,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_an
 
     try
     {
-        const OutputEdge edge = edge_mapper.to_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{0});
+        const OutputEdge edge = edge_mapper.find_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{0});
     }
     catch (const std::exception& e)
     {
@@ -1019,11 +1019,11 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
     const auto mapper = editor.create_edge_mapper();
 
-    editor.cut_graph_fragment({/*{InputEdge{1, "in2"}*/ mapper.to_input_edge(
+    editor.cut_graph_fragment({/*{InputEdge{1, "in2"}*/ mapper.find_input_edge(
                                    EditorNode(EditorOutput("add1")), EditorInput(1)),
-                               /*InputEdge{2, "in3"}*/ mapper.to_input_edge(
+                               /*InputEdge{2, "in3"}*/ mapper.find_input_edge(
                                    EditorNode(EditorOutput("conv1")), EditorInput(0))},
-                              {/*{OutputEdge{4, "mul2"}*/ mapper.to_output_edge(
+                              {/*{OutputEdge{4, "mul2"}*/ mapper.find_output_edge(
                                   EditorNode(EditorOutput("mul2")), EditorOutput(0))});
 
     const auto ref_model =
