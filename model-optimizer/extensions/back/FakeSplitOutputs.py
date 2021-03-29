@@ -14,12 +14,14 @@
  limitations under the License.
 """
 from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.back.replacement import BackReplacementPattern
 from mo.ops.result import Result
+from extensions.back.SpecialNodesFinalization import RemoveConstToResult
 
 
-class AddFakeOutputsToSplit(MiddleReplacementPattern):
+class AddFakeOutputsToSplit(BackReplacementPattern):
     """
         Adding fake outputs for Split nodes in case when it has less output ports than split parts:
         This pass:
@@ -30,8 +32,8 @@ class AddFakeOutputsToSplit(MiddleReplacementPattern):
 
     enabled = True
 
-    def run_after(self):
-        return [TensorIteratorMerge]
+    def run_befor(self):
+        return [RemoveConstToResult]
 
     @staticmethod
     def pattern():
@@ -43,7 +45,6 @@ class AddFakeOutputsToSplit(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['op']
-
         if node.has_valid('out_ports_count') and len(node.out_edges()) < node.out_ports_count:
             for p in range(node.out_ports_count):
                 if p not in node.out_ports():

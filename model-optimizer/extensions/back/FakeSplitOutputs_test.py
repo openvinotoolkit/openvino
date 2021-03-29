@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit, AddFakeOutputsToVariadicSplit
+from extensions.back.FakeSplitOutputs import AddFakeOutputsToSplit, AddFakeOutputsToVariadicSplit
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node
 from mo.middle.passes.eliminate import graph_clean_up
