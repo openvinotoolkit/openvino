@@ -48,7 +48,11 @@ python -m pip install --user virtualenv
 python -m venv openvino_env --system-site-packages
 ```
 
-Activate virtual environment:<br>
+> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
+`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
+
+### Step 2. Activate Virtual Environment
+
 On Linux and macOS:
 ```sh
 source openvino_env/bin/activate
@@ -58,14 +62,14 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 2. Set Up and Update pip to the Highest Version
+### Step 3. Set Up and Update pip to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 3. Install the Package
+### Step 4. Install the Package
 
 Run the command below: <br>
 
@@ -73,7 +77,7 @@ Run the command below: <br>
    pip install openvino
    ```
 
-### Step 4. Verify that the Package is Installed
+### Step 5. Verify that the Package is Installed
 
 Run the command below:
 ```sh
