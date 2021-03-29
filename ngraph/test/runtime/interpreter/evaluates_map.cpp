@@ -2144,14 +2144,14 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::roll<T>(inputs[0]->get_data_ptr<const T>(),
-                                    inputs[1]->get_data_ptr<const int64_t>(),
-                                    inputs[2]->get_data_ptr<const int64_t>(),
-                                    outputs[0]->get_data_ptr<T>(),
-                                    inputs[0]->get_shape(),
-                                    inputs[1]->get_shape(),
-                                    inputs[2]->get_shape());
+        runtime::reference::roll(inputs[0]->get_data_ptr<const char>(),
+                                 inputs[1]->get_data_ptr<const int64_t>(),
+                                 inputs[2]->get_data_ptr<const int64_t>(),
+                                 outputs[0]->get_data_ptr<char>(),
+                                 inputs[0]->get_shape(),
+                                 inputs[1]->get_shape(),
+                                 inputs[2]->get_shape(),
+                                 inputs[0]->get_element_type().size());
         return true;
     }
 

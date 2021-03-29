@@ -25,14 +25,31 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
-            void roll(const T* arg,
+            size_t get_left_block_size(size_t shape_size, size_t shift)
+            {
+                if (shift < 0)
+                    return shift;
+                return shape_size - shift;
+            }
+
+            size_t shift_pos(size_t pos_in_spanned_data,
+                             size_t dim_shift,
+                             size_t spanned_shape_size,
+                             size_t dim_size)
+            {
+                size_t pos = pos_in_spanned_data / spanned_shape_size % dim_size;
+                size_t shift = (pos + dim_shift) % dim_size - pos;
+                return pos_in_spanned_data + shift * spanned_shape_size;
+            }
+
+            void roll(const char* arg,
                       const int64_t* shift,
                       const int64_t* axes,
-                      T* out,
+                      char* out,
                       const Shape& arg_shape,
                       const Shape& shift_shape,
-                      const Shape& axes_shape)
+                      const Shape& axes_shape,
+                      size_t elem_size)
             {
                 std::vector<int64_t> axes_vector = std::vector<int64_t>(axes, axes + axes_shape[0]);
                 for (auto& axis : axes_vector)
@@ -41,19 +58,43 @@ namespace ngraph
                         axis += arg_shape.size();
                 }
 
-                CoordinateTransform arg_transform{arg_shape};
-                for (const Coordinate& arg_coord : arg_transform)
+                std::vector<int64_t> shift_vector = std::vector<int64_t>(arg_shape.size(), 0);
+                for (size_t i = 0; i < axes_vector.size(); i++)
                 {
-                    Coordinate new_coord = arg_coord;
-                    for (size_t i = 0; i < shift_shape[0]; ++i)
+                    int64_t shift_sum = shift_vector[axes_vector[i]] + shift[i];
+                    int64_t dim_size = arg_shape[axes_vector[i]];
+                    // the modulo which supports negative values
+                    shift_vector[axes_vector[i]] = (shift_sum % dim_size + dim_size) % dim_size;
+                }
+
+                size_t last_dim = arg_shape[arg_shape.size() - 1];
+                size_t start = 0;
+                while (start < shape_size(arg_shape))
+                {
+                    size_t left_block_size =
+                        get_left_block_size(last_dim, shift_vector[shift_vector.size() - 1]);
+                    size_t p1 = start;
+                    size_t p2 = start + left_block_size;
+                    size_t spanned_shape_size = 1;
+                    for (int dim = arg_shape.size() - 1; dim >= 0; dim--)
                     {
-                        int64_t axis = axes_vector[i];
-                        int64_t new_coord_value = (int64_t)new_coord[axis] + shift[i];
-                        int64_t dim_size = arg_shape[axis];
-                        // the modulo which supports negative values
-                        new_coord[axis] = (new_coord_value % dim_size + dim_size) % dim_size;
+                        p1 = shift_pos(p1, shift_vector[dim], spanned_shape_size, arg_shape[dim]);
+                        p2 = shift_pos(p2, shift_vector[dim], spanned_shape_size, arg_shape[dim]);
+                        spanned_shape_size *= arg_shape[dim];
                     }
-                    out[arg_transform.index(new_coord)] = arg[arg_transform.index(arg_coord)];
+
+                    if (left_block_size > 0)
+                        memcpy(out + p1 * elem_size,
+                               arg + start * elem_size,
+                               left_block_size * elem_size);
+
+                    size_t right_block_size = last_dim - left_block_size;
+                    if (right_block_size > 0)
+                        memcpy(out + p2 * elem_size,
+                               arg + (start + left_block_size) * elem_size,
+                               right_block_size * elem_size);
+
+                    start += last_dim;
                 }
             }
         }
