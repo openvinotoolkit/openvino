@@ -141,15 +141,6 @@ op::v7::Gather::Gather(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-op::v7::Gather::Gather(const Output<Node>& data,
-                       const Output<Node>& indices,
-                       const Output<Node>& axis)
-    : Op({data, indices, axis})
-    , m_batch_dims(0)
-{
-    constructor_validate_and_infer_types();
-}
-
 bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v7_Gather_visit_attributes);
@@ -183,13 +174,18 @@ void op::v7::Gather::validate_and_infer_types()
             axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
         NODE_VALIDATION_CHECK(this,
                               axis_is_scalar || axis_has_one_elem,
-                              "Axes input must be scalar or have 1 element (shape: ",
-                              axis_pshape,
-                              ").");
+                              "Axes input must be scalar or have 1 element. But instead got axis_shape = ",
+                              axis_pshape);
     }
-    int64_t axis = get_axis();
-    NODE_VALIDATION_CHECK(this, axis != AXIS_NOT_SET_VALUE, "The axis is not specified");
 
+    const auto& axes_constant = get_constant_from_source(input_value(2));
+    if (!axes_constant || axes_constant->cast_vector<int64_t>().empty())
+    {
+        set_output_type(0, data_type, PartialShape::dynamic());
+        return;
+    }
+
+    int64_t axis = get_axis();
     int64_t batch_dims = get_batch_dims();
     NODE_VALIDATION_CHECK(this,
                           batch_dims <= axis,
@@ -263,11 +259,8 @@ void op::v7::Gather::validate_and_infer_types()
 
 int64_t op::v7::Gather::get_axis() const
 {
-    int64_t axis = AXIS_NOT_SET_VALUE;
-    if (const auto& const_op = get_constant_from_source(input_value(2)))
-    {
-        axis = const_op->cast_vector<int64_t>()[0];
-    }
+    const auto& const_op = get_constant_from_source(input_value(2));
+    int64_t axis = const_op->cast_vector<int64_t>()[0];
     if (axis < 0)
     {
         const auto& data_rank = get_input_partial_shape(0).rank();

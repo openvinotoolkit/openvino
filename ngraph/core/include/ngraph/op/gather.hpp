@@ -69,25 +69,16 @@ namespace ngraph
                 Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis,
-                       const int64_t batch_dims);
-
-                /// \param data The tensor from which slices are gathered
-                /// \param indices Tensor with indexes to gather
-                /// \param axis The tensor is a dimension index to gather data from
-                Gather(const Output<Node>& data,
-                       const Output<Node>& indices,
-                       const Output<Node>& axis);
+                       const int64_t batch_dims = 0);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                int64_t get_axis() const;
-
                 void validate_and_infer_types() override;
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 int64_t get_batch_dims() const;
-
+                int64_t get_axis() const;
             private:
                 int64_t m_batch_dims = 0;
             };

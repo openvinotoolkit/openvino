@@ -232,6 +232,21 @@ TEST(type_prop, gather_7_dynamic_data_indices_rank)
     ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
+TEST(type_prop, gather_7_axis_not_set)
+{
+    PartialShape data_shape{1, 1, 200, 400};
+    PartialShape indices_shape{2, 2};
+    PartialShape out_shape = PartialShape::dynamic();
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto G = make_shared<op::v7::Gather>(D, I, A);
+
+    ASSERT_EQ(G->get_element_type(), element::f32);
+    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+}
+
 // --------------------- Negative tests ------------------------------
 
 TEST(type_prop, gather_7_incorrect_axis_shape)
@@ -249,7 +264,7 @@ TEST(type_prop, gather_7_incorrect_axis_shape)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Axes input must be scalar or have 1 element (shape:"));
+                             std::string("Axes input must be scalar or have 1 element"));
     }
     catch (...)
     {
