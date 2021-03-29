@@ -418,6 +418,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
     for (auto&& network : networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
+        metaDevices[network._device].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
             network._device, metaDevices[network._device]);
     }
@@ -481,9 +482,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         InferenceEngine::ExecutableNetwork executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        try {
+        if (ImportExportSupported(deviceName)) {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch (const InferenceEngine::NotImplemented& ex) {
+        } else {
             // read XML content
             std::string xmlString;
             std::uint64_t dataSize = 0;
@@ -609,9 +610,9 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : networks) {
-        try {
+        if (ImportExportSupported(subnetwork._device)) {
             subnetwork._network.Export(heteroModel);
-        } catch (const InferenceEngine::NotImplemented& ex) {
+        } else {
             auto subnet = subnetwork._clonedNetwork;
             if (!subnet.getFunction()) {
                 IE_THROW() << "Hetero plugin supports only ngraph function representation";
@@ -797,4 +798,14 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
 
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
+}
+
+bool HeteroExecutableNetwork::ImportExportSupported(const std::string& deviceName) const {
+    std::vector<std::string> supportedMetricKeys = _heteroPlugin->GetCore()->GetMetric(
+            deviceName, METRIC_KEY(SUPPORTED_METRICS));
+    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
+                        METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+    bool supported = (it != supportedMetricKeys.end()) &&
+                     _heteroPlugin->GetCore()->GetMetric(deviceName, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+    return supported;
 }
