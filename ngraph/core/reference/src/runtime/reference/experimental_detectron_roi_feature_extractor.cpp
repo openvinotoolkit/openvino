@@ -161,14 +161,8 @@ namespace
                             continue;
                         }
 
-                        if (y <= 0)
-                        {
-                            y = 0;
-                        }
-                        if (x <= 0)
-                        {
-                            x = 0;
-                        }
+                        y = std::max(y, 0);
+                        x = std::max(x, 0);
 
                         int64_t y_low = static_cast<int64_t>(y);
                         int64_t x_low = static_cast<int64_t>(x);
@@ -178,7 +172,7 @@ namespace
                         if (y_low >= height - 1)
                         {
                             y_high = y_low = height - 1;
-                            y = (T)y_low;
+                            y = static_cast<T>(y_low);
                         }
                         else
                         {

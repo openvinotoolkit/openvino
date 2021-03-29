@@ -138,15 +138,17 @@ namespace
         float ymax2 = decoded_bbox[idx2 * 4 + 3];
         float xmax2 = decoded_bbox[idx2 * 4 + 2];
 
-        if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1)
+        const bool bbox_not_covered =
+            xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1;
+        if (bbox_not_covered)
         {
             return 0.0f;
         }
 
-        float intersect_xmin = (std::max)(xmin1, xmin2);
-        float intersect_ymin = (std::max)(ymin1, ymin2);
-        float intersect_xmax = (std::min)(xmax1, xmax2);
-        float intersect_ymax = (std::min)(ymax1, ymax2);
+        float intersect_xmin = std::max(xmin1, xmin2);
+        float intersect_ymin = std::max(ymin1, ymin2);
+        float intersect_xmax = std::min(xmax1, xmax2);
+        float intersect_ymax = std::min(ymax1, ymax2);
 
         float intersect_width = intersect_xmax - intersect_xmin + coordinates_offset;
         float intersect_height = intersect_ymax - intersect_ymin + coordinates_offset;
@@ -262,11 +264,11 @@ namespace ngraph
 
                 refine_boxes(boxes,
                              input_deltas,
-                             &deltas_weights[0],
+                             deltas_weights.data(),
                              input_scores,
-                             &refined_boxes[0],
-                             &refined_boxes_areas[0],
-                             &refined_scores[0],
+                             refined_boxes.data(),
+                             refined_boxes_areas.data(),
+                             refined_scores.data(),
                              rois_num,
                              classes_num,
                              img_H,
@@ -280,7 +282,7 @@ namespace ngraph
                 std::vector<int64_t> detections_per_class(classes_num, 0);
                 int64_t total_detections_num = 0;
 
-                for (int class_idx = 1; class_idx < classes_num; ++class_idx)
+                for (size_t class_idx = 1; class_idx < classes_num; ++class_idx)
                 {
                     nms_cf(&refined_scores[rois_num * class_idx],
                            &refined_boxes[rois_num * 4 * class_idx],
