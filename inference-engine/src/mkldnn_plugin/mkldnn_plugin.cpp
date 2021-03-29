@@ -484,8 +484,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     std::cout << "WORST CASE: " << worst_case << std::endl;
 
     NetworkPerfStats res;
-    res.maxMemTolerance = (total_convs || total_gemms || total_deconvs)
-            ? worst_case : NetworkPerfStats::memThresholdAssumeLimited /*conservatively behave as before, default num streams*/;
+    res.maxMemTolerance = worst_case;
     res.all_convs_are_compute = total_convs && (total_convs == compute_convs);
     return res;
 }
@@ -546,23 +545,30 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 const auto num_cores = getNumberOfCPUCores();
                 const auto num_streams_default_not_ht = num_cores / 2;
                 const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+
                 // this is first heuristic in series (carefully separating int8, bf16 and float32):
                 //      memory bandwidth limited
                 //      compute limited
                 //      Hybrid specific
                 //      etc
                 int num_streams;
-                if (NetworkToleranceForLowCache.maxMemTolerance >= NetworkPerfStats::memThresholdNotLimited) {
+                if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
+                    num_streams = default_num_streams;
+                    std::cout << "case 0" <<std::endl;
+                } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdNotLimited) {
                     num_streams = num_cores;
-                } else if (NetworkToleranceForLowCache.maxMemTolerance >=  NetworkPerfStats::memThresholdAssumeLimited) {
+                    std::cout << "case 1" <<std::endl;
+                } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
                     num_streams = std::max(default_num_streams, num_streams_default_not_ht);
+                    std::cout << "case 2" <<std::endl;
                 } else {
                     num_streams = std::min(default_num_streams, num_streams_default_not_ht);
+                    std::cout << "case 3" <<std::endl;
                 }
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
 
                 std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  "
-                << (NetworkToleranceForLowCache.maxMemTolerance < NetworkPerfStats::memThresholdAssumeLimited ? "YES" : "NO")
+                << (NetworkToleranceForLowCache.maxMemTolerance <= NetworkPerfStats::memThresholdAssumeLimited ? "YES" : "NO")
                  << ", NUM_STREAMS " << num_streams << std::endl;
 //            }
 //        }

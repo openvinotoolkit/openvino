@@ -13,6 +13,8 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <cfloat>
+
 
 namespace MKLDNNPlugin {
 
@@ -48,6 +50,7 @@ private:
 
         static constexpr float memThresholdNotLimited = 1.0f;
         static constexpr float memThresholdAssumeLimited = 0.5f;
+        static constexpr float memThresholdUnknown = FLT_MAX;
     };
     static NetworkPerfStats NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network);
 };
