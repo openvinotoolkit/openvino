@@ -139,7 +139,7 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
 
 
 def main():
-    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO)
+    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
 
 # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------

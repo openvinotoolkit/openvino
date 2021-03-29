@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main():
-    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO)
+    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
 
 # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
