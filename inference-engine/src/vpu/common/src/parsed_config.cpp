@@ -72,7 +72,6 @@ IE_SUPPRESS_DEPRECATED_START
         //
 
         ie::MYRIAD_HW_WHITE_LIST,
-        ie::MYRIAD_HW_BLACK_LIST,
 
         ie::MYRIAD_NONE_LAYERS,
         ie::MYRIAD_IGNORE_UNKNOWN_LAYERS,
@@ -185,7 +184,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.irWithVpuScalesDir,                       config, ie::MYRIAD_IR_WITH_SCALES_DIRECTORY);
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
     setOption(_compileConfig.hwWhiteList,                              config, ie::MYRIAD_HW_WHITE_LIST, parseStringSet);
-    setOption(_compileConfig.hwBlackList,                              config, ie::MYRIAD_HW_BLACK_LIST, parseStringSet);
 
     // Priority is set to VPU configuration file over plug-in config.
     setOption(_compileConfig.customLayers,                             config, ie::MYRIAD_CUSTOM_LAYERS);

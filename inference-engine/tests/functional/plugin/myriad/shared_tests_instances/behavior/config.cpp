@@ -60,6 +60,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, CONFIG_VALUE(NO)}},
 
+        {{InferenceEngine::MYRIAD_HW_BLACK_LIST, "deconv"}},
+        {{InferenceEngine::MYRIAD_HW_BLACK_LIST, "conv,pool"}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
@@ -84,6 +87,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_INFER},
             {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, CONFIG_VALUE(YES)},
+            {InferenceEngine::MYRIAD_HW_BLACK_LIST, "deconv"},
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10"},
@@ -152,6 +156,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_POWER_MANAGEMENT, {InferenceEngine::MYRIAD_POWER_FULL}},
         {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, {true}},
         {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, {false}},
+        {InferenceEngine::MYRIAD_HW_BLACK_LIST, {std::string()}},
     };
     return defaultEntries;
 }
@@ -201,6 +206,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "deconv", InferenceEngine::Parameter{"deconv"}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "conv,pool",   InferenceEngine::Parameter{"conv,pool"}),
     };
     return customEntries;
 }
@@ -234,6 +242,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_COPY_OPTIMIZATION,
         InferenceEngine::MYRIAD_POWER_MANAGEMENT,
         InferenceEngine::MYRIAD_HW_EXTRA_SPLIT,
+        InferenceEngine::MYRIAD_HW_BLACK_LIST,
     };
     return privateOptions;
 }

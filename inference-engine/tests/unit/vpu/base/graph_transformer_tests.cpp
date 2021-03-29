@@ -12,6 +12,7 @@
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_black_list.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -359,6 +360,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<PowerConfigOption>();
     configuration.registerOption<HwAccelerationOption>();
     configuration.registerOption<HwExtraSplitOption>();
+    configuration.registerOption<HwBlackListOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

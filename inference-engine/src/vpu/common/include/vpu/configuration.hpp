@@ -40,19 +40,6 @@ struct CompilationConfig {
     //
 
     InferenceEngine::details::caseless_set<std::string> hwWhiteList;
-    InferenceEngine::details::caseless_set<std::string> hwBlackList;
-
-    bool hwDisabled(const std::string& layerName) const {
-        if (!hwWhiteList.empty()) {
-            return hwWhiteList.count(layerName) == 0;
-        }
-
-        if (!hwBlackList.empty()) {
-            return hwBlackList.count(layerName) != 0;
-        }
-
-        return false;
-    }
 
     InferenceEngine::details::caseless_set<std::string> noneLayers;
 

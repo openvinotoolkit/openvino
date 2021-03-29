@@ -11,6 +11,7 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 
+#include <vpu/utils/hw_disabled.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
 
 namespace vpu {
@@ -45,7 +46,7 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
         tryHW = false;
     }
 
-    if (env.config.compileConfig().hwDisabled(layer->name)) {
+    if (HwDisabled(env.config, layer->name)) {
         tryHW = false;
     }
 

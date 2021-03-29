@@ -13,6 +13,7 @@
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_black_list.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -56,6 +57,8 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<PowerConfigOption>();
     _configuration.registerOption<HwAccelerationOption>();
     _configuration.registerOption<HwExtraSplitOption>();
+    _configuration.registerOption<HwBlackListOption>();
+
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     _configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));

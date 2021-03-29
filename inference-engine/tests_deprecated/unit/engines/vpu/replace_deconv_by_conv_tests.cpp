@@ -91,7 +91,7 @@ TEST_F(VPU_ReplaceDeconvByConvTest, deconvReplacedByConvIfKernelSizeFitsHWUnit) 
 }
 
 TEST_F(VPU_ReplaceDeconvByConvTest, deconvCannotBeReplacedByConvIfDisabledInConfig) {
-    config.compileConfig().hwBlackList.insert("deconv");
+    config.set(ie::MYRIAD_HW_BLACK_LIST, "deconv");
     InitCompileEnv();
     InitDeconvStage(16, 15);
 
