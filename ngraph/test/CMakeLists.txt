@@ -29,7 +29,6 @@ endif()
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
-    attributes.cpp
     bfloat16.cpp
     build_graph.cpp
     builder_autobroadcast.cpp
@@ -200,6 +199,56 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    visitors/partial_shape.cpp
+    visitors/user_op.cpp
+    visitors/value_map.cpp
+    visitors/op/broadcast.cpp
+    visitors/op/bucketize.cpp
+    visitors/op/constant.cpp
+    visitors/op/cum_sum.cpp
+    visitors/op/detection_output.cpp
+    visitors/op/elu.cpp
+    visitors/op/extractimagepatches.cpp
+    visitors/op/fake_quantize.cpp
+    visitors/op/grn.cpp
+    visitors/op/group_conv.cpp
+    visitors/op/interpolate.cpp
+    visitors/op/logical_xor.cpp
+    visitors/op/lrn.cpp
+    visitors/op/lstm_cell.cpp
+    visitors/op/lstm_sequence.cpp
+    visitors/op/matmul.cpp
+    visitors/op/max_pool.cpp
+    visitors/op/mod.cpp
+    visitors/op/mvn.cpp
+    visitors/op/non_max_suppression.cpp
+    visitors/op/normalize_l2.cpp
+    visitors/op/one_hot.cpp
+    visitors/op/pad.cpp
+    visitors/op/prior_box.cpp
+    visitors/op/proposal.cpp
+    visitors/op/psroi_pooling.cpp
+    visitors/op/reduce_logical_and.cpp
+    visitors/op/reduce_logical_or.cpp
+    visitors/op/reduce_max.cpp
+    visitors/op/reduce_mean.cpp
+    visitors/op/reduce_min.cpp
+    visitors/op/reduce_prod.cpp
+    visitors/op/reduce_sum.cpp
+    visitors/op/region_yolo.cpp
+    visitors/op/reorg_yolo.cpp
+    visitors/op/reshape.cpp
+    visitors/op/reverse.cpp
+    visitors/op/reverse_sequence.cpp
+    visitors/op/rnn_cell.cpp
+    visitors/op/roi_pooling.cpp
+    visitors/op/shuffle_channels.cpp
+    visitors/op/softmax.cpp
+    visitors/op/space_to_depth.cpp
+    visitors/op/split.cpp
+    visitors/op/squared_difference.cpp
+    visitors/op/strided_slice.cpp
+    visitors/op/topk.cpp
     uint4.cpp
     util.cpp
 )

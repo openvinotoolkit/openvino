@@ -19,8 +19,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::U8,
 };
 
-const std::vector<std::vector<int64_t>> padsBegin2D = {{0, 0}, {1, 1}, {2, 0}, {0, 3}};
-const std::vector<std::vector<int64_t>> padsEnd2D   = {{0, 0}, {1, 1}, {0, 1}, {3, 2}};
 const std::vector<float> argPadValue = {0.f, 1.f, -1.f, 2.5f};
 
 const std::vector<ngraph::helpers::PadMode> padMode = {
@@ -28,6 +26,52 @@ const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::REFLECT,
         ngraph::helpers::PadMode::SYMMETRIC
 };
+
+const std::vector<std::vector<int64_t>> padsBegin1D = {{0}, {1}, {2}};
+const std::vector<std::vector<int64_t>> padsEnd1D   = {{0}, {1}, {2}};
+
+const auto pad1DConstparams = testing::Combine(
+        testing::ValuesIn(padsBegin1D),
+        testing::ValuesIn(padsEnd1D),
+        testing::ValuesIn(argPadValue),
+        testing::Values(ngraph::helpers::PadMode::CONSTANT),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(std::vector<size_t>{5}),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_Pad1DConst,
+        PadLayerTest,
+        pad1DConstparams,
+        PadLayerTest::getTestCaseName
+);
+
+const auto pad1Dparams = testing::Combine(
+        testing::ValuesIn(padsBegin1D),
+        testing::ValuesIn(padsEnd1D),
+        testing::Values(0),
+        testing::ValuesIn(padMode),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(std::vector<size_t>{5}),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_Pad1D,
+        PadLayerTest,
+        pad1Dparams,
+        PadLayerTest::getTestCaseName
+);
+
+const std::vector<std::vector<int64_t>> padsBegin2D = {{0, 0}, {1, 1}, {2, 0}, {0, 3}};
+const std::vector<std::vector<int64_t>> padsEnd2D   = {{0, 0}, {1, 1}, {0, 1}, {3, 2}};
 
 const auto pad2DConstparams = testing::Combine(
         testing::ValuesIn(padsBegin2D),
