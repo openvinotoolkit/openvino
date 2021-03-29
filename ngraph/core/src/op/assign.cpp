@@ -123,7 +123,8 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     const auto& var_value = variable_values.find(m_variable);
 
     // automatically allocate memory if not provided by user
-    if (var_value == variable_values.end()) {
+    if (var_value == variable_values.end())
+    {
         auto host_tensor = std::make_shared<ngraph::HostTensor>(m_variable->get_info().data_type,
                                                                 m_variable->get_info().data_shape);
         auto value = make_shared<VariableValue>(host_tensor);

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <utility>
 #include <ngraph/node.hpp>
+#include <utility>
 
 namespace ngraph
 {

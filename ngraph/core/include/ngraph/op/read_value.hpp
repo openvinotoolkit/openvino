@@ -5,8 +5,8 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/memory.hpp"
+#include "ngraph/op/util/variable.hpp"
 
 namespace ngraph
 {

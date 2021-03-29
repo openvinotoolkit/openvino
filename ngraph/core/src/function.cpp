@@ -92,13 +92,13 @@ Function::Function(const ResultVector& results,
                    const ParameterVector& parameters,
                    const VariableVector& variables,
                    const std::string& name)
-        : m_results(results)
-        , m_sinks(sinks)
-        , m_parameters(parameters)
-        , m_variables(variables)
-        , m_name(name)
-        , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
-        , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    : m_results(results)
+    , m_sinks(sinks)
+    , m_parameters(parameters)
+    , m_variables(variables)
+    , m_name(name)
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
+    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
     check_all_parameters_registered();
 }
@@ -108,7 +108,7 @@ Function::Function(const OutputVector& results,
                    const ParameterVector& parameters,
                    const VariableVector& variables,
                    const std::string& name)
-        : Function(as_result_vector(results), sinks, parameters, variables, name)
+    : Function(as_result_vector(results), sinks, parameters, variables, name)
 {
 }
 
@@ -116,15 +116,15 @@ Function::Function(const OutputVector& results,
                    const ParameterVector& parameters,
                    const VariableVector& variables,
                    const std::string& name)
-        : Function(as_result_vector(results), {}, parameters, variables, name)
+    : Function(as_result_vector(results), {}, parameters, variables, name)
 {
 }
 
-Function::Function(const ResultVector & results,
+Function::Function(const ResultVector& results,
                    const ParameterVector& parameters,
                    const VariableVector& variables,
                    const std::string& name)
-        : Function(results, {}, parameters, variables, name)
+    : Function(results, {}, parameters, variables, name)
 {
 }
 
@@ -163,8 +163,11 @@ void Function::validate_nodes_and_infer_types() const
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
-        else if (const auto& memory_layer = std::dynamic_pointer_cast<Memory>(node)) {
-            if (std::find(m_variables.begin(), m_variables.end(), memory_layer->get_variable()) == m_variables.end()) {
+        else if (const auto& memory_layer = std::dynamic_pointer_cast<Memory>(node))
+        {
+            if (std::find(m_variables.begin(), m_variables.end(), memory_layer->get_variable()) ==
+                m_variables.end())
+            {
                 unregistered_variables << memory_layer->get_variable_id() << std::endl;
             }
         }
@@ -513,16 +516,17 @@ void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
         m_parameters.end());
 }
 
-
-void Function::add_variables(const VariableVector &variables) {
+void Function::add_variables(const VariableVector& variables)
+{
     m_variables.insert(m_variables.end(), variables.begin(), variables.end());
 }
 
-void Function::remove_variable(const VariablePtr &variable) {
+void Function::remove_variable(const VariablePtr& variable)
+{
     m_variables.erase(std::remove_if(m_variables.begin(),
-                                 m_variables.end(),
-                                 [&variable](VariablePtr& v) { return v == variable; }),
-                  m_variables.end());
+                                     m_variables.end(),
+                                     [&variable](VariablePtr& v) { return v == variable; }),
+                      m_variables.end());
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;

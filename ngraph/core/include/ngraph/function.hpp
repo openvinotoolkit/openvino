@@ -218,7 +218,6 @@ namespace ngraph
         /// \param param Parameter node to delete
         void remove_parameter(const std::shared_ptr<op::Parameter>& param);
 
-
         /// \brief Add new variables to the list. Method doesn't validate graph, it should be done
         /// manually after all changes.
         /// \param variables new variables to add
@@ -227,7 +226,7 @@ namespace ngraph
         /// \brief Delete variable from the list of variables.
         /// Method doesn't delete nodes that used this variable from the graph.
         /// \param variable Variable to delete
-        void remove_variable(const VariablePtr & variable);
+        void remove_variable(const VariablePtr& variable);
 
         /// \brief Return a list of function's variables.
         const VariableVector& get_variables() { return m_variables; }
