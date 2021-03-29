@@ -27,7 +27,7 @@ namespace ngraph
             std::vector<Graph> result;
             for (const auto& graph : m_attribute_proto->graphs())
             {
-                result.emplace_back(graph, model);
+                result.emplace_back(graph, model, false);   // TODO: decode_only is false -- not supported here, should be properly propagated
             }
             return result;
         }

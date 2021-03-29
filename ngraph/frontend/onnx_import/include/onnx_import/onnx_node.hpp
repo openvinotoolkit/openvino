@@ -60,10 +60,12 @@ public:
     }
 
     void set_onnx_graph (std::shared_ptr<onnx_import::Graph> _graph) { graph = _graph; }
-
     void set_onnx_model (std::shared_ptr<onnx_import::Model> _model) { model = _model; }
-
     void set_onnx_model_proto (std::shared_ptr<const ONNX_NAMESPACE::ModelProto> _model_proto) { model_proto = _model_proto; }
+
+    std::shared_ptr<onnx_import::Graph> get_onnx_graph () const { return graph; }
+    //void get_onnx_model (std::shared_ptr<onnx_import::Model> _model) { model = _model; }
+    //void get_onnx_model_proto (std::shared_ptr<const ONNX_NAMESPACE::ModelProto> _model_proto) { model_proto = _model_proto; }
 
     const onnx_import::Node& get_onnx_node () const { return node; }
 

@@ -35,7 +35,7 @@ namespace ngraph
         class Graph
         {
         public:
-            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model);
+            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, bool decode_only);
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -46,12 +46,16 @@ namespace ngraph
             const std::string& get_name() const { return m_graph_proto->name(); }
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
+            void update_node_input_cache (const std::string& name, Output<ngraph::Node>&& output);
             const OpsetImports& get_opset_imports() const;
+
+            void set_decode_only (bool decode_only) { m_decode_only = decode_only; }
 
         protected:
             Graph(const ONNX_NAMESPACE::GraphProto& proto,
                   Model& model,
-                  std::unique_ptr<GraphCache>&& cache);
+                  std::unique_ptr<GraphCache>&& cache,
+                  bool decode_only);
 
             void set_friendly_names(const Node& onnx_node,
                                     const OutputVector& ng_node_vector) const;
@@ -75,6 +79,7 @@ namespace ngraph
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
             Model* m_model;
+            bool m_decode_only = false;
         };
 
         /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.

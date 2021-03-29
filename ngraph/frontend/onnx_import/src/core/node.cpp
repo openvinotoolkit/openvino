@@ -51,6 +51,10 @@ namespace ngraph
 
             const std::string& description() const;
             const std::vector<std::reference_wrapper<const std::string>>& get_output_names() const;
+            std::vector<std::string> get_input_names() const
+            {
+                return std::vector<std::string>(m_node_proto->input().begin(), m_node_proto->input().end());
+            }
             const std::string& output(int index) const;
             std::size_t get_outputs_size() const;
 
@@ -210,6 +214,11 @@ namespace ngraph
         const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_names() const
         {
             return m_pimpl->get_output_names();
+        }
+
+        std::vector<std::string> Node::get_input_names() const
+        {
+            return m_pimpl->get_input_names();
         }
 
         const std::string& Node::output(int index) const { return m_pimpl->output(index); }

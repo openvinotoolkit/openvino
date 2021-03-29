@@ -18,6 +18,7 @@
 #include <functional>
 #include <numeric>
 #include <sstream>
+#include <ngraph/pass/graph_rewrite.hpp>
 
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
@@ -28,6 +29,7 @@
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 #include "utils/provenance_tag.hpp"
+#include "onnx_import/onnx_node.hpp"
 
 namespace ngraph
 {
@@ -64,8 +66,8 @@ namespace ngraph
             }
         } // namespace detail
 
-        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model)
-            : Graph(graph_proto, model, std::unique_ptr<GraphCache>(new GraphCache()))
+        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model, bool decode_only)
+            : Graph(graph_proto, model, std::unique_ptr<GraphCache>(new GraphCache()), decode_only)
         {
             // Remove dangling Parameters
             for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();)
@@ -90,10 +92,12 @@ namespace ngraph
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,
                      Model& model,
-                     std::unique_ptr<GraphCache>&& cache)
+                     std::unique_ptr<GraphCache>&& cache,
+                     bool decode_only)
             : m_graph_proto{&graph_proto}
             , m_model{&model}
             , m_cache{std::move(cache)}
+            , m_decode_only(decode_only)
         {
             std::map<std::string, Tensor> initializers;
             // Process all initializers in the graph
@@ -208,6 +212,10 @@ namespace ngraph
         }
 
         const GraphCache& Graph::get_graph_cache() const { return *m_cache.get(); }
+        void Graph::update_node_input_cache (const std::string& name, Output<ngraph::Node>&& output)
+        {
+            m_cache->emplace_node(name, std::move(output));
+        }
         bool Graph::is_node_in_cache(const std::string& name) const
         {
             return m_cache->contains(name);
@@ -234,8 +242,19 @@ namespace ngraph
 
         OutputVector Graph::make_ng_nodes(const Node& onnx_node) const
         {
-            const auto ng_node_factory =
-                m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
+            //if m_decode_only
+            Operator ng_node_factory;
+
+            //const auto& name = onnx_node.op_type();
+            if(m_decode_only /*&& !(name == "Add")*/)
+            {
+                ng_node_factory = frontend::framework_node_factory;
+            }
+            else
+            {
+                ng_node_factory = m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
+            }
+
             OutputVector ng_node_vector;
             try
             {
@@ -351,7 +370,8 @@ namespace ngraph
             : Graph(
                   proto,
                   model,
-                  std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))
+                  std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())),
+                false)  // TODO: Subgraph is not supported
         {
             // find all nodes on edge parent graph-subgraph
             // (it means input of node from parent graph, output from subgraph)
