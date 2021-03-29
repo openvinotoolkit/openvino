@@ -90,6 +90,7 @@ set(SRC
     provenance.cpp
     replace_node.cpp
     shape.cpp
+    span.cpp
     specialize_function.cpp
     tensor.cpp
     type_prop/assign.cpp
