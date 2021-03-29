@@ -20,6 +20,7 @@ extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/FakeOutputResolver.py
+extensions/back/FakeSplitOutputs.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
@@ -561,7 +562,6 @@ extensions/middle/DeleteNotExecutable.py
 extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputReshape.py
-extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
 extensions/middle/FusedBatchNormTraining.py
 extensions/middle/FuseReshapesSequence.py
