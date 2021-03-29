@@ -10,7 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/expected_operation_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -44,12 +44,12 @@ void AvgPoolTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 
 bool getUpdatePrecision(const std::shared_ptr<Node>& node) {
     auto& rtInfo = node->get_rt_info();
-    auto it = rtInfo.find(ngraph::VariantWrapper<ExpectedOperationAttribute>::type_info.name);
+    auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
     if (it == rtInfo.end()) {
         return false;
     }
 
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<ExpectedOperationAttribute>>(it->second);
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
     return !attribute->get().sharedValue->value;
 }
 

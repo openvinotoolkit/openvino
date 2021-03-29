@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/markup_avg_pool_precisions.hpp"
+#include "low_precision/align_concat_quantization_parameters.hpp"
 
 #include <assert.h>
 #include <memory>
@@ -17,7 +17,7 @@ using namespace ngraph;
 
 // TODO: we can generalize
 // TODO: matcher pass (matcher pass + graph traversal) or function pass (graph traversal)?
-bool ngraph::pass::low_precision::MarkupAvgPoolPrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_function(std::shared_ptr<ngraph::Function> f) {
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
             continue;

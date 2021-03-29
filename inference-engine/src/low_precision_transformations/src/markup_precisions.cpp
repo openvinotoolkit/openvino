@@ -14,7 +14,7 @@
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/expected_operation_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 using namespace ngraph;
 
@@ -60,8 +60,8 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
 
         auto& rt = node->get_rt_info();
         rt.emplace(
-            ngraph::VariantWrapper<ExpectedOperationAttribute>::type_info.name,
-            std::make_shared<::ngraph::VariantWrapper<ExpectedOperationAttribute>>(isPrecisionPreserved(node)));
+            ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name,
+            std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttribute>>(isPrecisionPreserved(node)));
 
         const auto& typeInfo = node->get_type_info();
         auto it = restrictionsByOperation.find(typeInfo.name);

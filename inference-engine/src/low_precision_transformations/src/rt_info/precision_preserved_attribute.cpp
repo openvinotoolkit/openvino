@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/rt_info/expected_operation_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 #include <memory>
 #include <string>
@@ -16,29 +16,29 @@
 
 using namespace ngraph;
 
-template class ngraph::VariantImpl<ExpectedOperationAttribute>;
+template class ngraph::VariantImpl<PrecisionPreservedAttribute>;
 
-constexpr VariantTypeInfo VariantWrapper<ExpectedOperationAttribute>::type_info;
+constexpr VariantTypeInfo VariantWrapper<PrecisionPreservedAttribute>::type_info;
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<ExpectedOperationAttribute>::merge(const ngraph::NodeVector& nodes) {
-    std::unordered_map<std::string, std::vector<std::shared_ptr<ExpectedOperationAttribute::SharedValue>>> sharedValuesByOperation;
+std::shared_ptr<ngraph::Variant> VariantWrapper<PrecisionPreservedAttribute>::merge(const ngraph::NodeVector& nodes) {
+    std::unordered_map<std::string, std::vector<std::shared_ptr<PrecisionPreservedAttribute::SharedValue>>> sharedValuesByOperation;
 
     for (const std::shared_ptr<ngraph::Node>& node : nodes) {
         auto& rt = node->get_rt_info();
-        auto rtIt = rt.find(VariantWrapper<ExpectedOperationAttribute>::type_info.name);
+        auto rtIt = rt.find(VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
         if (rtIt == rt.end()) {
             continue;
         }
 
-        auto& attribute = std::dynamic_pointer_cast<VariantWrapper<ExpectedOperationAttribute>>(rtIt->second);
-        ExpectedOperationAttribute expectedOperation = attribute->get();
-        std::shared_ptr<ExpectedOperationAttribute::SharedValue>& sharedValue = expectedOperation.sharedValue;
+        auto& attribute = std::dynamic_pointer_cast<VariantWrapper<PrecisionPreservedAttribute>>(rtIt->second);
+        PrecisionPreservedAttribute expectedOperation = attribute->get();
+        std::shared_ptr<PrecisionPreservedAttribute::SharedValue>& sharedValue = expectedOperation.sharedValue;
 
         auto collectedIt = sharedValuesByOperation.find(sharedValue->operationName);
         if (collectedIt == sharedValuesByOperation.end()) {
             sharedValuesByOperation.emplace(
                 sharedValue->operationName,
-                std::vector<std::shared_ptr<ExpectedOperationAttribute::SharedValue>>({ sharedValue }));
+                std::vector<std::shared_ptr<PrecisionPreservedAttribute::SharedValue>>({ sharedValue }));
         } else {
             collectedIt->second.push_back(sharedValue);
         }
@@ -46,7 +46,7 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<ExpectedOperationAttribute>::mer
 
     NGRAPH_CHECK(sharedValuesByOperation.size() <= 1ul, "Multi-operation is not supported");
 
-    auto newAttribute = std::make_shared<::ngraph::VariantWrapper<ExpectedOperationAttribute>>(this->m_value.sharedValue);
+    auto newAttribute = std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttribute>>(this->m_value.sharedValue);
 
     if (sharedValuesByOperation.empty()) {
         return nullptr;
@@ -57,7 +57,7 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<ExpectedOperationAttribute>::mer
     const bool value = std::any_of(
         sharedValues.begin(),
         sharedValues.end(),
-        [](const std::shared_ptr<ExpectedOperationAttribute::SharedValue>& sharedValue) { return sharedValue->value; });
+        [](const std::shared_ptr<PrecisionPreservedAttribute::SharedValue>& sharedValue) { return sharedValue->value; });
     sharedValues[0]->value = value;
 
     // TODO: not completed
@@ -68,11 +68,11 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<ExpectedOperationAttribute>::mer
     return newAttribute;
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<ExpectedOperationAttribute>::init(const std::shared_ptr<ngraph::Node>& node) {
+std::shared_ptr<ngraph::Variant> VariantWrapper<PrecisionPreservedAttribute>::init(const std::shared_ptr<ngraph::Node>& node) {
     return nullptr;
 }
 
-std::string VariantWrapper<ExpectedOperationAttribute>::get_string() {
+std::string VariantWrapper<PrecisionPreservedAttribute>::get_string() {
     auto value = this->m_value;
     return
         std::string("value: ") + (value.sharedValue->value ? "true" : "false") +

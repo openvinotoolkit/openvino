@@ -15,37 +15,34 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-class ExpectedOperationAttribute {
+class PrecisionPreservedAttribute {
 public:
     class SharedValue {
     public:
-        // SharedValue() : value(false) /*, empty(true) */ {}
-        SharedValue(const bool value) : value(value) /*, empty(true) */ {}
-        SharedValue(const bool value, const std::string& operationName) : value(value), operationName(operationName) /*, empty(false)*/ {}
+        SharedValue(const bool value) : value(value) {}
+        SharedValue(const bool value, const std::string& operationName) : value(value), operationName(operationName) {}
         std::string operationName;
         bool value;
-        //bool empty;
     };
 
-    // ExpectedOperationAttribute() {}
-    ExpectedOperationAttribute(const bool value, const std::string& operationName) : sharedValue(std::make_shared<SharedValue>(value, operationName)) {}
-    ExpectedOperationAttribute(const bool value) : sharedValue(std::make_shared<SharedValue>(value)) {}
-    ExpectedOperationAttribute(std::shared_ptr<SharedValue> sharedValue) : sharedValue(sharedValue) {}
+    PrecisionPreservedAttribute(const bool value, const std::string& operationName) : sharedValue(std::make_shared<SharedValue>(value, operationName)) {}
+    PrecisionPreservedAttribute(const bool value) : sharedValue(std::make_shared<SharedValue>(value)) {}
+    PrecisionPreservedAttribute(std::shared_ptr<SharedValue> sharedValue) : sharedValue(sharedValue) {}
 
     template <class Operation>
-    static ExpectedOperationAttribute create(const bool value) {
+    static PrecisionPreservedAttribute create(const bool value) {
         // TODO: do we need operation version here?
         auto operationName = Operation::get_type_info_static().name;
-        return ExpectedOperationAttribute(value, operationName);
+        return PrecisionPreservedAttribute(value, operationName);
     }
 
     std::shared_ptr<SharedValue> sharedValue;
 };
 
-extern template class TRANSFORMATIONS_API ngraph::VariantImpl<ExpectedOperationAttribute>;
+extern template class TRANSFORMATIONS_API ngraph::VariantImpl<PrecisionPreservedAttribute>;
 
 template<>
-class TRANSFORMATIONS_API ngraph::VariantWrapper<ExpectedOperationAttribute> : public ngraph::VariantImpl<ExpectedOperationAttribute> {
+class TRANSFORMATIONS_API ngraph::VariantWrapper<PrecisionPreservedAttribute> : public ngraph::VariantImpl<PrecisionPreservedAttribute> {
 public:
     static constexpr ngraph::VariantTypeInfo type_info{ "PRECISION_PRESERVED", 0 };
 
@@ -60,7 +57,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
-    ExpectedOperationAttribute get() { return this->m_value; };
+    PrecisionPreservedAttribute get() { return this->m_value; };
 
     std::string get_string() override;
 };

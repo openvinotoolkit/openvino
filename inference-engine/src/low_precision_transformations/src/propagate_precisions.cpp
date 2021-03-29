@@ -14,7 +14,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/expected_operation_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 using namespace ngraph;
 
@@ -92,12 +92,12 @@ void handle(std::shared_ptr<ngraph::Node>& node) {
 
 bool isPrecisionPreserved(std::shared_ptr<Node> node) {
     auto& rtInfo = node->get_rt_info();
-    auto it = rtInfo.find(ngraph::VariantWrapper<ExpectedOperationAttribute>::type_info.name);
+    auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
     if (it == rtInfo.end()) {
         return false;
     }
 
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<ExpectedOperationAttribute>>(it->second);
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
     return attribute->get().sharedValue->value;
 }
 bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
