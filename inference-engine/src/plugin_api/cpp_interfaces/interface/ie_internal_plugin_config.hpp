@@ -39,11 +39,11 @@ DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
- * @brief This key should be used to notify aggregating plugin
- *        that it is used inside other aggregating plugin
+ * @brief This key should be used to force disable export while loading network even if global cache dir is defined
+ *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
  * @ingroup ie_dev_api_plugin_api
  */
-DECLARE_CONFIG_KEY(AGGREGATED_PLUGIN);
+DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
 
 }  // namespace PluginConfigInternalParams
 
