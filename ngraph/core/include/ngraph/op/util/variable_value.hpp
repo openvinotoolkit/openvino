@@ -26,33 +26,25 @@ namespace ngraph
     public:
         VariableValue() = default;
 
-        explicit VariableValue(HostTensorPtr value) :
-                m_value(std::move(value))
+        explicit VariableValue(HostTensorPtr value)
+            : m_value(std::move(value))
         {
         }
 
-        VariableValue(HostTensorPtr value, bool reset_state) :
-            m_reset(reset_state),
-            m_value(std::move(value))
+        VariableValue(HostTensorPtr value, bool reset_state)
+            : m_reset(reset_state)
+            , m_value(std::move(value))
         {
-
         }
 
-        void set_reset(bool reset) {
-            m_reset = reset;
-        }
+        void set_reset(bool reset) { m_reset = reset; }
 
-        bool get_reset() const {
-            return m_reset;
-        }
+        bool get_reset() const { return m_reset; }
 
-        const HostTensorPtr& get_value() const {
-            return m_value;
-        }
+        const HostTensorPtr& get_value() const { return m_value; }
 
-        void set_value(const HostTensorPtr& value) {
-            m_value = value;
-        }
+        void set_value(const HostTensorPtr& value) { m_value = value; }
+
     private:
         bool m_reset = true;
         HostTensorPtr m_value;

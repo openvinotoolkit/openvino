@@ -28,29 +28,34 @@ namespace ngraph
     using VariableValuePtr = std::shared_ptr<VariableValue>;
     using VariableMap = std::unordered_map<VariablePtr, VariableValuePtr>;
 
-    class VariableContext {
+    class VariableContext
+    {
     public:
-        void reset_variable_context() {
-            for (const auto& el : m_variable_values) {
+        void reset_variable_context()
+        {
+            for (const auto& el : m_variable_values)
+            {
                 el.second->set_reset(true);
             }
         }
 
-        void set_variable_values(const VariableMap& variable_values) {
+        void set_variable_values(const VariableMap& variable_values)
+        {
             m_variable_values = variable_values;
         }
 
-        void add_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value) {
+        void add_variable_value(const VariablePtr& variable, const VariableValuePtr& variable_value)
+        {
             m_variable_values[variable] = variable_value;
         }
 
-        void remove_variable_value(const VariablePtr& variable) {
+        void remove_variable_value(const VariablePtr& variable)
+        {
             m_variable_values.erase(variable);
         }
 
-        const VariableMap& get_variable_values() const {
-            return m_variable_values;
-        }
+        const VariableMap& get_variable_values() const { return m_variable_values; }
+
     public:
         VariableMap m_variable_values;
     };
@@ -60,13 +65,16 @@ namespace ngraph
     public:
         EvaluationContext() = default;
 
-        void set_variable_context(const std::shared_ptr<VariableContext>& variable_context) {
+        void set_variable_context(const std::shared_ptr<VariableContext>& variable_context)
+        {
             m_variable_context = variable_context;
         };
 
-        const std::shared_ptr<VariableContext>& get_variable_context() const {
+        const std::shared_ptr<VariableContext>& get_variable_context() const
+        {
             return m_variable_context;
         }
+
     private:
         std::shared_ptr<VariableContext> m_variable_context;
     };
