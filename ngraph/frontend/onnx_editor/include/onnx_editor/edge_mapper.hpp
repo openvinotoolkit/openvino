@@ -33,7 +33,8 @@ namespace ngraph
 {
     namespace onnx_editor
     {
-        /// \brief A class which allows specifying InputEdge and OutputEdge by user-friendly ONNX names.
+        /// \brief A class which allows specifying InputEdge and OutputEdge by user-friendly ONNX
+        /// names.
         class EdgeMapper
         {
         public:
