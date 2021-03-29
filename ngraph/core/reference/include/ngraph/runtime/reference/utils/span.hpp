@@ -83,13 +83,41 @@ namespace ngraph
                 constexpr Element& operator[](std::size_t idx) const { return *(m_data + idx); }
                 Element& at(std::size_t idx) const { return *(m_data + idx); }
                 Span subspan(std::size_t offset,
-                             std::size_t size = std::numeric_limits<std::size_t>::max())
+                             std::size_t size = std::numeric_limits<std::size_t>::max()) const
                 {
                     if (offset > m_size)
                     {
                         return {};
                     }
                     return {m_data + offset, std::min(size, m_size - offset)};
+                }
+
+                Span& drop_front(std::size_t number_of_elements)
+                {
+                    if (number_of_elements < m_size)
+                    {
+                        m_data += number_of_elements;
+                        m_size -= number_of_elements;
+                    }
+                    else
+                    {
+                        m_size = 0;
+                    }
+                    return *this;
+                }
+
+                Span& drop_back(std::size_t number_of_elements)
+                {
+                    if (number_of_elements < m_size)
+                    {
+                        m_size -= number_of_elements;
+                    }
+                    else
+                    {
+                        m_size = 0;
+                    }
+
+                    return *this;
                 }
 
             private:
