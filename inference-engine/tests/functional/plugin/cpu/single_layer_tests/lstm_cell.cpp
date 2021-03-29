@@ -21,18 +21,18 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMCellCpuSpecificParams>& obj) {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::LSTMCellParams basicParamsSet;
-        std::map<std::string, std::string> enforceBF16;
+        std::map<std::string, std::string> additionalConfig;
 
-        std::tie(basicParamsSet, cpuParams, enforceBF16) = obj.param;
+        std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
         std::ostringstream result;
 
         result << LayerTestsDefinitions::LSTMCellTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::LSTMCellParams>(
                 basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
-        if (!enforceBF16.empty()) {
+        if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto& item : enforceBF16) {
+            for (auto& item : additionalConfig) {
                 if (item.second == PluginConfigParams::YES)
                     result << "_" << item.first << "=" << item.second;
             }
@@ -44,7 +44,7 @@ protected:
     void SetUp() {
         LayerTestsDefinitions::LSTMCellParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> enforceBF16;
+        std::map<std::string, std::string> additionalConfig;
 
         bool should_decompose;
         size_t batch;
@@ -57,7 +57,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         threshold = 0.05;
 
-        std::tie(basicParamsSet, cpuParams, enforceBF16) = this->GetParam();
+        std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, netPrecision, targetDevice) = basicParamsSet;
 
@@ -65,9 +65,9 @@ protected:
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size}, {4 * hidden_size, hidden_size}, {4 * hidden_size}},
         };
 
-        configuration.insert(enforceBF16.begin(), enforceBF16.end());
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (enforceBF16[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
             inPrc  = netPrecision;
             outPrc = Precision::BF16;
         } else {
@@ -98,13 +98,11 @@ TEST_P(LSTMCellLayerCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> bf16EnforceFlags
+std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}},
-      {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}};
+       {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}};
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-     return {CPUSpecificParams{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
-}
+std::vector<CPUSpecificParams> cpuParams = {{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
 
 std::vector<bool> should_decompose{false};
 std::vector<size_t> batch{5};
@@ -126,8 +124,8 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCPU,
                                                               ::testing::ValuesIn(clip),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(filterCPUInfoForDevice()),
-                                           ::testing::ValuesIn(bf16EnforceFlags)),
+                                           ::testing::ValuesIn(cpuParams),
+                                           ::testing::ValuesIn(additionalConfig)),
                         LSTMCellLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

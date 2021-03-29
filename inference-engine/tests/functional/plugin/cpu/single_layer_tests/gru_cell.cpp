@@ -106,9 +106,7 @@ std::vector<std::map<std::string, std::string>> bf16EnforceFlags
        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
 };
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    return {CPUSpecificParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
-}
+std::vector<CPUSpecificParams> cpuParams = {{{nc, nc}, {nc}, {"ref_any"}, "ref_any"}};
 
 std::vector<bool> should_decompose{false};
 std::vector<size_t> batch{1, 5};
@@ -132,7 +130,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GRUCellCPU,
                                                               ::testing::ValuesIn(linear_before_reset),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(filterCPUInfoForDevice()),
+                                           ::testing::ValuesIn(cpuParams),
                                            ::testing::ValuesIn(bf16EnforceFlags)),
                         GRUCellCPUTest::getTestCaseName);
 } // namespace

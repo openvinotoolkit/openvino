@@ -75,6 +75,14 @@ bool haveCellState(algorithm alg) {
     return alg == algorithm::vanilla_lstm;
 }
 
+const std::map<InferenceEngine::Precision, InferenceEngine::Precision> MKLDNNRNN::weightsByLayerPrec {
+    // layer precision, weights precision
+    {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP32},
+    {InferenceEngine::Precision::BF16, InferenceEngine::Precision::BF16},
+    {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP16},
+    {InferenceEngine::Precision::U8,   InferenceEngine::Precision::I8},
+};
+
 MKLDNNRNN::MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(layer, eng, cache) {
     is_cell = one_of(layer->type, "LSTMCell", "GRUCell", "RNNCell");
@@ -476,7 +484,7 @@ void MKLDNNRNN::createPrimitive() {
     verifyBiases();
 
     {
-        /* Copy Weight data
+        /**
          * IE format:
          *   W - [gates, out_state_size, in_data_size + in_state_size]
          *   B - [gates, out_state_size]

@@ -22,18 +22,18 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceCpuSpecificParams> &obj) {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::LSTMSequenceParams basicParamsSet;
-        std::map<std::string, std::string> enforceBF16;
+        std::map<std::string, std::string> additionalConfig;
 
-        std::tie(basicParamsSet, cpuParams, enforceBF16) = obj.param;
+        std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
         std::ostringstream result;
 
         result << LayerTestsDefinitions::LSTMSequenceTest::getTestCaseName(
             testing::TestParamInfo<LayerTestsDefinitions::LSTMSequenceParams>(basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
-        if (!enforceBF16.empty()) {
+        if (!additionalConfig.empty()) {
             result << "_PluginConf";
-            for (auto &item : enforceBF16) {
+            for (auto &item : additionalConfig) {
                 if (item.second == PluginConfigParams::YES)
                     result << "_" << item.first << "=" << item.second;
             }
@@ -45,7 +45,7 @@ protected:
     void SetUp() {
         LayerTestsDefinitions::LSTMSequenceParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::map<std::string, std::string> enforceBF16;
+        std::map<std::string, std::string> additionalConfig;
 
         size_t seq_lenghts;
         size_t batch;
@@ -58,7 +58,7 @@ protected:
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
 
-        std::tie(basicParamsSet, cpuParams, enforceBF16) = this->GetParam();
+        std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(m_mode, seq_lenghts, batch, hidden_size, input_size, activations, clip, direction, netPrecision, targetDevice) = basicParamsSet;
 
@@ -74,9 +74,9 @@ protected:
              {num_directions, 4 * hidden_size}},
         };
 
-        configuration.insert(enforceBF16.begin(), enforceBF16.end());
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (enforceBF16[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
             inPrc  = netPrecision;
             outPrc = Precision::BF16;
         } else {
@@ -151,16 +151,12 @@ TEST_P(LSTMSequenceCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> bf16EnforceFlags
-    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
+std::vector<std::map<std::string, std::string>> additionalConfig
+    = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+       {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    return {CPUSpecificParams{{ntc, nc, nc}, {ntc, nc, nc}, {"ref_any"}, "ref_any"}};
-}
-
-std::vector<CPUSpecificParams> filterCPUInfoForDeviceBatchSizeOne() {
-    return {CPUSpecificParams{{tnc, nc, nc}, {tnc, nc, nc}, {"ref_any"}, "ref_any"}};
-}
+std::vector<CPUSpecificParams> cpuParams = {{{ntc, nc, nc}, {ntc, nc, nc}, {"ref_any"}, "ref_any"}};
+std::vector<CPUSpecificParams> cpuParamsBatchSizeOne = {{{{tnc, nc, nc}, {tnc, nc, nc}, {"ref_any"}, "ref_any"}}};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 std::vector<size_t> seq_lengths_zero_clip{2};
@@ -187,8 +183,8 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPU,
                                                               ::testing::ValuesIn(direction),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(filterCPUInfoForDevice()),
-                                           ::testing::ValuesIn(bf16EnforceFlags)),
+                                           ::testing::ValuesIn(cpuParams),
+                                           ::testing::ValuesIn(additionalConfig)),
                         LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPUbatchSizeOne,
@@ -203,8 +199,8 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPUbatchSizeOne,
                                                               ::testing::ValuesIn(direction),
                                                               ::testing::ValuesIn(netPrecisions),
                                                               ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(filterCPUInfoForDeviceBatchSizeOne()),
-                                           ::testing::ValuesIn(bf16EnforceFlags)),
+                                           ::testing::ValuesIn(cpuParamsBatchSizeOne),
+                                           ::testing::ValuesIn(additionalConfig)),
                         LSTMSequenceCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

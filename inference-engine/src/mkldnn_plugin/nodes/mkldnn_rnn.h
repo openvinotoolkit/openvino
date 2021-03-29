@@ -85,12 +85,4 @@ private:
 
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
 }; // class MKLDNNRNN
-
-const std::map<InferenceEngine::Precision, InferenceEngine::Precision> MKLDNNRNN::weightsByLayerPrec {
-    // layer precision, weights precision
-    {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP32},
-    {InferenceEngine::Precision::BF16, InferenceEngine::Precision::BF16},
-    {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP16},
-    {InferenceEngine::Precision::U8,   InferenceEngine::Precision::I8},
-};
 }  // namespace MKLDNNPlugin
