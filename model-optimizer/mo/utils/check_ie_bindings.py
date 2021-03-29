@@ -16,12 +16,11 @@
  limitations under the License.
 """
 
+import argparse
 import os
+import platform
 import re
 import sys
-import argparse
-import platform
-
 
 try:
     import mo
@@ -32,7 +31,10 @@ except ModuleNotFoundError:
     execution_type = "install_prerequisites.{}".format("bat" if platform.system() == "Windows" else "sh")
 
 import mo.utils.version as v
-import telemetry.telemetry as tm
+try:
+    import telemetry.telemetry as tm
+except ImportError:
+    import mo.utils.telemetry_stub as tm
 from mo.utils.error import classify_error_type
 
 

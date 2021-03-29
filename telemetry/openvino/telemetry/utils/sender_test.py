@@ -37,7 +37,7 @@ class TelemetrySenderStress(unittest.TestCase):
         """
         tm = TelemetrySender()
         fake_backend = FakeTelemetryBackend()
-        for _ in range(1000000):
+        for _ in range(100000):
             tm.send(fake_backend, None)
 
     def test_check_shutdown(self):

@@ -1030,6 +1030,7 @@ mo/utils/shape.py
 mo/utils/simple_proto_parser.py
 mo/utils/str_to.py
 mo/utils/summarize_graph.py
+mo/utils/telemetry_stub.py
 mo/utils/tensorboard_util.py
 mo/utils/unsupported_ops.py
 mo/utils/utils.py

@@ -26,7 +26,11 @@ from collections import OrderedDict
 
 import numpy as np
 
-import telemetry.telemetry as tm
+try:
+    import telemetry.telemetry as tm
+except ImportError:
+    import mo.utils.telemetry_stub as tm
+
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
