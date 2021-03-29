@@ -116,6 +116,18 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
+static constexpr char inputs_precision_message[] =
+                                             "Optional. Specifies precision for all input layers of the network.";
+
+static constexpr char outputs_precision_message[] =
+                                             "Optional. Specifies precision for all output layers of the network.";
+
+static constexpr char iop_message[] =
+                                             "Optional. Specifies precision for input and output layers by name.\n"
+"                                             Example: -iop \"input:FP16, output:FP16\".\n"
+"                                             Notice that quotes are required.\n"
+"                                             Overwrites precision from ip and op options for specified layers.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -206,6 +218,18 @@ DEFINE_string(layout, "", layout_message);
 /// @brief Define flag for quantization bits (default 16)
 DEFINE_int32(qb, 16, gna_qb_message);
 
+/// @brief Specify precision for all input layers of the network
+DEFINE_string(ip, "", inputs_precision_message);
+
+/// @brief Specify precision for all ouput layers of the network
+DEFINE_string(op, "", outputs_precision_message);
+
+/// @brief Specify precision for input and output layers by name.\n"
+///        Example: -iop \"input:FP16, output:FP16\".\n"
+///        Notice that quotes are required.\n"
+///        Overwrites layout from ip and op options for specified layers.";
+DEFINE_string(iop, "", iop_message);
+
 /// @brief Define parameter for cache model dir <br>
 DEFINE_string(cache_dir, "", cache_dir_message);
 
@@ -253,4 +277,7 @@ static void showUsage() {
     std::cout << "    -load_config              " << load_config_message << std::endl;
 #endif
     std::cout << "    -qb                       " << gna_qb_message << std::endl;
+    std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
+    std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
+    std::cout << "    -iop                        \"<value>\"    "   << iop_message                << std::endl;
 }
