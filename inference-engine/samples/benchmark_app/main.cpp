@@ -18,7 +18,7 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include <onnx_import/onnx.hpp>
+#include <frontend_manager/frontend_manager.hpp>
 
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
@@ -331,11 +331,26 @@ int main(int argc, char *argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
+
+            //////////////////////////////////////////////////////////////
+
             //CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
-            auto func = ngraph::onnx_import::import_onnx_model(FLAGS_m, true);
-            ngraph::onnx_import::convert_onnx_nodes(func);
-            CNNNetwork cnnNetwork(func);
-            cnnNetwork.serialize("model_exported_from_benchmark_app.xml");
+
+            ngraph::frontend::FrontEndManager manager;
+            auto FE = manager.loadByFramework("onnx");
+            auto inputModel = FE->loadFromFile(FLAGS_m);
+            //inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
+#if 0
+            auto ngFunc = FE->convert(inputModel);
+#else
+            auto ngFunc = FE->decode(inputModel);
+            FE->convert(ngFunc);
+#endif
+            CNNNetwork cnnNetwork(ngFunc);
+            cnnNetwork.serialize("benchmark_app_loaded_network.xml");
+
+            /////////////////////////////////////////////////////////////
+
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)

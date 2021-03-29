@@ -25,6 +25,7 @@ from extensions.front.output_cut import OutputCut
 from mo.utils.class_registration import apply_replacements_list
 from ngraph import FrontEndManager
 from ngraph import function_to_cnn
+from ngraph import PartialShape
 import logging as log
 
 
@@ -43,6 +44,7 @@ def moc_pipeline(argv: argparse.Namespace):
     log.info('New MOC pipeline')
     fem = argv.feManager if 'feManager' in argv else FrontEndManager()
     log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
+    log.info('Initializing new FE for framework {}'.format(argv.framework))
     fe = fem.loadByFramework(argv.framework)
     print(fe)
     inputModel = fe.loadFromFile(argv.input_model)
@@ -63,11 +65,10 @@ def moc_pipeline(argv: argparse.Namespace):
 
     apply_replacements_list(graph, transforms)
     user_shapes = graph.graph['user_shapes']
-    print(user_shapes)
-    if user_shapes:
-        inputModel.extractSubgraph([us['node'] for us in user_shapes], [])
-#        for shape in user_shapes:
-#            inputModel.setPartialShape(shape['node'], ng.PartialShape([ng.Dimension(5,5), ng.Dimension(3), ng.Dimension(-1), ng.Dimension(-1)]))
+    if len(user_shapes) > 0:
+        assert len(inputModel.getInputs()) == 1
+        assert len(user_shapes) == 1
+        inputModel.setPartialShape(user_shapes[0]['node'], PartialShape(user_shapes[0]['shape']))
     nGraphModel = fe.convert(inputModel)
     network = function_to_cnn(nGraphModel)
     graph.graph['network'] = network

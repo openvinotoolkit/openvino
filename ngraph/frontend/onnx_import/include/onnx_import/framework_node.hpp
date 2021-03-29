@@ -27,6 +27,10 @@ class NGRAPH_API FrameworkNode : public ngraph::Node
 public:
 
     using Node::Node;
+
+    // TODO: get_meta_attribute<T>(name) for op_type, domain, name etc.; all properties that are not in FW list of op attributes
+
+    // TODO: get_attribute<T>(name) for real op attributes, the set is individual for each op type
 };
 
 } // namespace frontend

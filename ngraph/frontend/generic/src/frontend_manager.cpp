@@ -17,7 +17,9 @@
 #include <ngraph/except.hpp>
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/editor/editor.hpp"
+#include "tensorflow_frontend/tensorflow.hpp"
 #include "frontend_manager/frontend_manager.hpp"
+#include "paddlepaddle_frontend/frontend.hpp"
 
 
 namespace ngraph
@@ -27,7 +29,7 @@ namespace ngraph
 
         #define FRONT_END_NOT_IMPLEMENTED(NAME) throw #NAME " is not implemented for this FrontEnd class";
 
-        std::vector<Place::Ptr> InputModel::InputModel::getInputs () const
+        std::vector<Place::Ptr> InputModel::getInputs () const
         {
             FRONT_END_NOT_IMPLEMENTED(getInputs);
         }
@@ -82,7 +84,7 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(freeNameForOperation);
         }
 
-        void InputModel::setNameForDimension (Place::Ptr place, const std::string& dimName)
+        void InputModel::setNameForDimension (Place::Ptr place, size_t shapeDimIndex, const std::string& dimName)
         {
             FRONT_END_NOT_IMPLEMENTED(setNameForDimension);
         }
@@ -97,7 +99,7 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(cutAndAddNewOutput);
         }
 
-        void InputModel::addOutput (Place::Ptr place)
+        Place::Ptr InputModel::addOutput (Place::Ptr place)
         {
             FRONT_END_NOT_IMPLEMENTED(addOutput);
         }
@@ -153,11 +155,6 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(setTensorPartialValue);
         }
 
-        void InputModel::setTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization)
-        {
-            FRONT_END_NOT_IMPLEMENTED(setTensorDimSpecialization);
-        }
-
         std::vector<std::string> Place::getNames () const
         {
             FRONT_END_NOT_IMPLEMENTED(getNames);
@@ -196,6 +193,31 @@ namespace ngraph
         std::vector<Place::Ptr> Place::getConsumingPorts () const
         {
             FRONT_END_NOT_IMPLEMENTED(getConsumingPorts);
+        }
+
+        bool Place::isInput () const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isInput);
+        }
+
+        bool Place::isOutput () const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isOutput);
+        }
+
+        bool Place::isEqual (Ptr another) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isEqual);
+        }
+
+        bool Place::isEqualData (Ptr another) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(isEqualData);
+        }
+
+        Place::Ptr Place::getSourceTensor (int inputPortIndex) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(getSourceTensor);
         }
 
         class PlaceInputEdgeONNX : public Place
@@ -350,6 +372,17 @@ namespace ngraph
             {
                 return import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor);
             }
+
+            virtual std::shared_ptr<ngraph::Function> decode (InputModel::Ptr model) const override
+            {
+                return import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor, true);
+            }
+
+            virtual std::shared_ptr<ngraph::Function> convert (std::shared_ptr<ngraph::Function> f) const override
+            {
+                onnx_import::convert_onnx_nodes(f);
+                return f;
+            }
         };
 
         InputModel::Ptr FrontEnd::loadFromFile (const std::string& paths) const
@@ -387,19 +420,19 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(convert);
         }
 
+        std::shared_ptr<ngraph::Function> FrontEnd::convert (std::shared_ptr<ngraph::Function>) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(convert);
+        }
+
         std::shared_ptr<ngraph::Function> FrontEnd::convertPartially (InputModel::Ptr model) const
         {
             FRONT_END_NOT_IMPLEMENTED(convertPartially);
         }
 
-        std::shared_ptr<ngraph::Function> FrontEnd::convertDecodingOnly (InputModel::Ptr model) const
+        std::shared_ptr<ngraph::Function> FrontEnd::decode (InputModel::Ptr model) const
         {
             FRONT_END_NOT_IMPLEMENTED(convertDecodingOnly);
-        }
-
-        std::shared_ptr<ngraph::Function> FrontEnd::convertNoDecoding (InputModel::Ptr model) const
-        {
-            FRONT_END_NOT_IMPLEMENTED(convertNoDecoding);
         }
 
         void FrontEnd::normalize (std::shared_ptr<ngraph::Function> function) const
@@ -409,18 +442,24 @@ namespace ngraph
 
         FrontEnd::Ptr FrontEndManager::loadByFramework (const std::string& framework, FrontEndCapabilities fec)
         {
-            NGRAPH_CHECK(framework == "onnx");
-            return std::make_shared<FrontEndONNX>();
+            if (framework == "onnx")
+                return std::make_shared<FrontEndONNX>();
+            else if (framework == "pdpd")
+                return std::make_shared<FrontEndPDPD>();
+            else if (framework == "tf")
+                return std::make_shared<FrontEndTensorflow>();
+            else
+                throw "Framework " + framework + " is unknown for FrontEnd manager; cannot load it.";
         }
 
         FrontEnd::Ptr FrontEndManager::loadByModel (const std::string& path, FrontEndCapabilities fec)
         {
-            return loadByFramework("onnx");
+            FRONT_END_NOT_IMPLEMENTED(loadByModel);
         }
 
         std::vector<std::string> FrontEndManager::availableFrontEnds () const
         {
-            return {"onnx"};
+            return {"onnx", "pdpd", "tf"};
         }
     } // namespace frontend
 

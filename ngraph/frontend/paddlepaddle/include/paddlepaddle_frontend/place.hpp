@@ -14,20 +14,17 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <onnx_import/onnx_node.hpp>
+#pragma once
 
-namespace ngraph
+#include <frontend_manager/frontend_manager.hpp>
+
+namespace ngraph {
+namespace frontend {
+
+class PlacePDPD : public Place
 {
-namespace frontend
-{
-
-NGRAPH_RTTI_DEFINITION(ONNXNode, "__ONNXNode", 1);
-
-std::shared_ptr<Node> ONNXNode::clone_with_new_inputs(const OutputVector& inputs) const
-{
-    return std::make_shared<ONNXNode>(inputs, node);
-}
-
+    // TODO
+};
 
 } // namespace frontend
 } // namespace ngraph

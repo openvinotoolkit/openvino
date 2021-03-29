@@ -600,7 +600,12 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                 _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
             else:
                 _input_shapes.append({'node': node, 'shape': shape})
-        # TODO: Implement the remaining cases
+        elif isinstance(input_user_shapes, np.ndarray):
+            model_inputs = inputModel.getInputs()
+            assert len(model_inputs) == 1
+            _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})
+        else:
+            assert input_user_shapes is None
         return _input_shapes, dict()
 
 

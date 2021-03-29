@@ -14,20 +14,29 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <onnx_import/onnx_node.hpp>
+#pragma once
 
-namespace ngraph
+#include <frontend_manager/frontend_manager.hpp>
+
+#include "place.hpp"
+
+namespace ngraph {
+namespace frontend {
+
+class FrontEndPDPD;
+
+class NGRAPH_API InputModelPDPD : public InputModel
 {
-namespace frontend
-{
+    // TODO: replace it by already deserialized proto hidden under some Impl class
+    // TODO: avoid using explicit format-dependent data stuctures here, hide it under some Impl class
+    std::string path;
 
-NGRAPH_RTTI_DEFINITION(ONNXNode, "__ONNXNode", 1);
+    friend class FrontEndPDPD;
 
-std::shared_ptr<Node> ONNXNode::clone_with_new_inputs(const OutputVector& inputs) const
-{
-    return std::make_shared<ONNXNode>(inputs, node);
-}
+public:
 
+    InputModelPDPD (const std::string& _path) : path(_path) {}
+};
 
 } // namespace frontend
 } // namespace ngraph

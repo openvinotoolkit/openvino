@@ -14,8 +14,8 @@
 # limitations under the License.
 # ******************************************************************************
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc)
+file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -28,10 +28,14 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 # Create shared library
-add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
+add_library(frontend_manager SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(ngraph::frontend_manager ALIAS frontend_manager)
 
-target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_import/include)
+target_include_directories(frontend_manager
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../tensorflow/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../paddlepaddle/include)
+
 MESSAGE("HERE4: " ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(COMMAND ie_add_vs_version_file)
@@ -41,15 +45,15 @@ endif()
 
 # TODO: Add other frontends to the list of dependencies temporary; in the produce version they should be discovered
 # TODO: in runtime.
-target_link_libraries(frontend_manager PRIVATE onnx_importer PUBLIC ngraph)
+target_link_libraries(frontend_manager PRIVATE onnx_importer tensorflow_frontend paddlepaddle_frontend PUBLIC ngraph)
 
 set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
-target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_IMPORT_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}> ${ONNX_IMPORT_INCLUDE_DIR})
+target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
+                                                       $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}> ${ONNX_IMPORT_INCLUDE_DIR} ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
 target_include_directories(frontend_manager SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${ONNX_IMPORT_INCLUDE_PATH} ${ONNX_IMPORT_INCLUDE_DIR}
-        ${FRONTEND_INCLUDE_DIR} )
+        ${FRONTEND_INCLUDE_DIR} ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
 
-target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${ONNX_IMPORT_INCLUDE_DIR})
+target_include_directories(frontend_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${ONNX_IMPORT_INCLUDE_DIR}  ${TENSORFLOW_FRONTEND_INCLUDE_DIR})
 
 # TODO: Consider to remove the following block (inherited from onnx_import just in case).
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
@@ -63,7 +67,7 @@ install(TARGETS frontend_manager EXPORT ngraphTargets
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-install(DIRECTORY ${FRONTEND_IMPORT_INCLUDE_DIR}/frontend_manager
+install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
     COMPONENT ngraph
     FILES_MATCHING

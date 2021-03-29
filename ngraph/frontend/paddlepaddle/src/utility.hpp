@@ -14,18 +14,17 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <onnx_import/onnx_node.hpp>
+#pragma once
 
-namespace ngraph
-{
-namespace frontend
-{
+#include <frontend_manager/frontend_manager.hpp>
 
-NGRAPH_RTTI_DEFINITION(ONNXNode, "__ONNXNode", 1);
+#include <paddlepaddle_frontend/place.hpp>
 
-std::shared_ptr<Node> ONNXNode::clone_with_new_inputs(const OutputVector& inputs) const
-{
-    return std::make_shared<ONNXNode>(inputs, node);
+namespace ngraph {
+namespace frontend {
+
+inline void MY_ASSERT(bool ex, const std::string& msg = "Unspecified error.") {
+    if (!ex) throw std::runtime_error(msg);
 }
 
 

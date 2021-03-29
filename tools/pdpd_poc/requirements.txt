@@ -1,0 +1,4 @@
+numpy
+protobuf>=3.6.1
+paddlepaddle==2.0.0rc1
+paddlehub==2.0.0rc0

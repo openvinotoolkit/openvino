@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,20 +14,21 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <onnx_import/onnx_node.hpp>
+#pragma once
 
-namespace ngraph
-{
-namespace frontend
-{
+#include <ngraph/pass/pass.hpp>
+#include <ngraph/util.hpp>
 
-NGRAPH_RTTI_DEFINITION(ONNXNode, "__ONNXNode", 1);
+namespace ngraph {
+namespace pass {
 
-std::shared_ptr<Node> ONNXNode::clone_with_new_inputs(const OutputVector& inputs) const
-{
-    return std::make_shared<ONNXNode>(inputs, node);
-}
+class NGRAPH_API TransposeSinking : public ngraph::pass::FunctionPass {
+ public:
+  TransposeSinking() {
+    set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
+  }
+  bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
+};
 
-
-} // namespace frontend
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ngraph
