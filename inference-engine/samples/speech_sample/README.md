@@ -50,7 +50,7 @@ will be removed in GNA hardware version 3 and higher.
 Several execution modes are supported via the `-d` flag.  If the device
 is set to `CPU` mode, then all calculation will be performed  on CPU device
 using CPU Plugin.  If the device is set to `GNA_AUTO`, then the GNA hardware is
-used if available and the driver is installed.  Otherwise, the GNA device is 
+used if available and the driver is installed.  Otherwise, the GNA device is
 emulated in fast-but-not-bit-exact mode.  If the device is set to `GNA_HW`,
 then the GNA hardware is used if available and the driver is installed.
 Otherwise, an error will occur.  If the device is set to `GNA_SW`, the
@@ -111,7 +111,7 @@ Options:
                             If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.
     -oname "<outputs>"      Optional. Layer names for output blobs. The names are separated with ",". Allows to change the order of output layers for -o flag.
                             Example: Output1:port,Output2:port.
-    -iname "<inputs>"       Optional. Layer names for input blobs. The names are separated with ",". Allows to change the order of input layers for -i flag. 
+    -iname "<inputs>"       Optional. Layer names for input blobs. The names are separated with ",". Allows to change the order of input layers for -i flag.
                             Example: Input1,Input2
 
 ```
@@ -131,8 +131,8 @@ $ python3 mo.py --framework kaldi --input_model wsj_dnn5b_smbr.nnet --counts wsj
 Assuming that the model optimizer (`mo.py`), Kaldi-trained neural
 network, `wsj_dnn5b_smbr.nnet`, and Kaldi class counts file,
 `wsj_dnn5b_smbr.counts`, are in the working directory this produces
-the Intel IR network consisting of `wsj_dnn5b_smbr.xml` and
-`wsj_dnn5b_smbr.bin`.
+the Intel IR network consisting of `wsj_dnn5b.xml` and
+`wsj_dnn5b.bin`.
 
 The following pre-trained models are available:
 
@@ -140,7 +140,7 @@ The following pre-trained models are available:
 * rm\_lstm4f
 * rm\_cnn4a\_smbr
 
-All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
+All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/).
 
 
 ### Speech Inference
@@ -150,12 +150,12 @@ inference on Intel^&reg; Processors with the GNA co-processor (or
 emulation library):
 
 ```sh
-$ ./speech_sample -d GNA_AUTO -bs 2 -i wsj_dnn5b_smbr_dev93_10.ark -m wsj_dnn5b_smbr_fp32.xml -o scores.ark -r wsj_dnn5b_smbr_dev93_scores_10.ark
+$ ./speech_sample -d GNA_AUTO -bs 2 -i dev93_10.ark -m wsj_dnn5b.xml -o scores.ark -r dev93_scores_10.ark
 ```
 
 Here, the floating point Kaldi-generated reference neural network
-scores (`wsj_dnn5b_smbr_dev93_scores_10.ark`) corresponding to the input
-feature file (`wsj_dnn5b_smbr_dev93_10.ark`) are assumed to be available
+scores (`dev93_scores_10.ark`) corresponding to the input
+feature file (`dev93_10.ark`) are assumed to be available
 for comparison.
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
@@ -196,7 +196,7 @@ nnet-forward --use-gpu=no final.feature_transform "ark,s,cs:copy-feats scp:feats
 ```
 2. Score the feature set using the `speech_sample`:
 ```
-./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b_smbr_fp32.xml -o scores.ark
+./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
 ```
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (`HCLG.fst`), vocabulary (`words.txt`), and TID/PID mapping (`final.mdl`):
 ```

@@ -57,7 +57,7 @@ For documentation about common configuration keys, refer to `ie_plugin_config.hp
 
 @snippet snippets/InferenceEngine_QueryAPI2.cpp part2
 
-A returned value looks as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
+A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
 > **NOTE**: All metrics have specific type, which is specified during metric instantiation. The list of common device-agnostic metrics can be found in `ie_plugin_config.hpp`. Device specific metrics (for example, for `HDDL`, `MYRIAD` devices) can be found in corresponding plugin folders.
 

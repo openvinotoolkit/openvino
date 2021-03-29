@@ -4,8 +4,7 @@
 
 The OpenVINO™ toolkit is a comprehensive toolkit that you can use to develop and deploy vision-oriented solutions on
 Intel® platforms. Vision-oriented means the solutions use images or videos to perform specific tasks.
-A few of the solutions use cases include autonomous navigation, digital surveillance cameras, robotics,
-and mixed-reality headsets.
+A few of the solutions use cases include autonomous navigation, digital surveillance cameras, robotics, and mixed-reality headsets.
 
 The OpenVINO™ toolkit:
 
@@ -22,22 +21,20 @@ The OpenVINO™ toolkit includes the following components:
     TensorFlow*, MXNet*, Kaldi*, ONNX* models.
     - [Deep Learning Inference Engine](inference_engine_intro.md) — A unified API to allow high performance inference on many hardware types
     including Intel® CPU, Intel® Processor Graphics, Intel® FPGA, Intel® Neural Compute Stick 2.
-    - [nGraph](../nGraph_DG/nGraph_dg.md) — graph representation and manipulation engine which is used to represent a model inside Inference Engine and allows the run-time model construction without using Model Optimizer.
+    - [nGraph](../nGraph_DG/nGraph_dg.md) — graph representation and manipulation engine which is used to represent a model inside Inference Engine and allows runtime model construction without using Model Optimizer.
 * [OpenCV](https://docs.opencv.org/) — OpenCV* community version compiled for Intel® hardware.
 Includes PVL libraries for computer vision.
 * Drivers and runtimes for OpenCL™ version 2.1
-* [Intel® Media SDK](https://software.intel.com/en-us/media-sdk)
-* [OpenVX*](https://software.intel.com/en-us/cvsdk-ovx-guide) — Intel's implementation of OpenVX*
-optimized for running on Intel® hardware (CPU, GPU, IPU).
-* [Demos and samples](Samples_Overview.md).
+* [Intel® Media SDK](https://software.intel.com/en-us/media-sdk) — Intel's comprehensive API for video processing
+* [OpenVX*](https://software.intel.com/en-us/cvsdk-ovx-guide) — Intel's implementation of OpenVX* optimized for running on Intel® hardware (CPU, GPU, IPU)
+* [Demos and samples](Samples_Overview.md) — Sample applications and source code that demonstrate Inference Engine capabilities
 
 
-This Guide provides overview of the Inference Engine describing the typical workflow for performing
-inference of a pre-trained and optimized deep learning model and a set of sample applications.
+This Guide provides an overview of the Inference Engine describing the typical workflow for performing inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
 > **NOTES:**
-> - Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
-> - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+> - Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in runtime using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
+> - [Intel® System Studio](https://software.intel.com/content/www/us/en/develop/tools/oneapi/commercial-base-iot.html) (click "Intel® System Studio Users" tab) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 
 ## Table of Contents

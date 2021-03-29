@@ -167,10 +167,10 @@ The script:
 <details>
     <summary><strong>Click for an example of running the Benchmark demo script</strong></summary>
 
-To run the script that performs inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs:
+To run the script that performs inference (runs on CPU by default):
 
 ```bat
-.\demo_squeezenet_download_convert_run.bat -d HDDL
+.\demo_benchmark_app.bat
 ```
 When the verification script completes, you see the performance counters, resulting latency, and throughput values displayed on the screen.
 </details>

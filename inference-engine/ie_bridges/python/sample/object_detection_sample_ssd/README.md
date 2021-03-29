@@ -10,10 +10,9 @@ Due to properties of SSD networks, this sample works correctly only on a batch o
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters and loads specified network and input images (or a
-folder with images) to the Inference Engine plugin.
+On startup, the sample application reads command-line parameters and loads specified network and input images (or a folder with images) to the Inference Engine plugin.
 
-Then, the sample creates an inference request object and executes inference on it.
+Then the sample creates an inference request object and executes inference on it.
 
 When inference is done, the application outputs data to the standard output stream and creates an output image with bounding boxes drawn atop the initial image.
 
@@ -58,7 +57,7 @@ Running the application with the empty list of options yields the usage message 
 To run the sample, you can use RMNet_SSD or other object-detection models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-> 
+>
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 You can do inference of an image using the [person detection SSD model](@ref omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013) from the Open Model Zoo on CPU using the following command:

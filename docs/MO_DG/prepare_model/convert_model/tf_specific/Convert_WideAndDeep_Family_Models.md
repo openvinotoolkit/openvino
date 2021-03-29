@@ -15,9 +15,12 @@ through Tensorflow* tf.feature_column API. Table below presents what feature typ
 **Step 1**. Clone the GitHub repository with TensorFlow models and move to the directory with an example of Wide and Deep model:
 
 ```sh
-git clone https://github.com/tensorflow/models.git
-cd official/r1/wide_deep
+git clone --branch r1.13.0 https://github.com/tensorflow/models.git
+cd official/wide_deep
 ```
+
+The Wide and Deep model is no longer in the master branch of the repository but is still available in the r1.13.0 branch.
+
 
 **Step 2**. Train the model
 

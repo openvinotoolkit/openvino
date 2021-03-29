@@ -1,12 +1,12 @@
 Heterogeneous Plugin {#openvino_docs_IE_DG_supported_plugins_HETERO}
 =======
 
-## Introducing Heterogeneous Plugin
+## Introducing the Heterogeneous Plugin
 
 The heterogeneous plugin enables computing for inference on one network on several devices.
-Purposes to execute networks in heterogeneous mode
-* To utilize accelerators power and calculate heaviest parts of network on accelerator and execute not supported layers on fallback devices like CPU
-* To utilize all available hardware more efficiently during one inference
+The purposes of executing networks in heterogeneous mode:
+* Utilize the power of accelerators to calculate heaviest parts of the network and execute unsupported layers on fallback devices like the CPU 
+* Utilize all available hardware more efficiently during one inference
 
 The execution through heterogeneous plugin can be divided to two independent steps:
 * Setting of affinity to layers
@@ -14,14 +14,13 @@ The execution through heterogeneous plugin can be divided to two independent ste
 
 These steps are decoupled. The setting of affinity can be done automatically using fallback policy or in manual mode.
 
-The fallback automatic policy means greedy behavior and assigns all layers which can be executed on certain device on that device follow priorities.
-Automatic policy does not take into account such plugin peculiarities as inability to infer some layers without other special layers placed before of after that layers. It is plugin responsibility to solve such cases. If device plugin does not support subgraph topology constructed by Hetero plugin affinity should be set manually.
+The fallback automatic policy causes "greedy" behavior and assigns all layers that can be executed on certain device according to the priorities you specify (for example, `HETERO:GPU,CPU`).
+Automatic policy does not take into account plugin peculiarities such as the inability to infer some layers without other special layers placed before or after that layer. The plugin is responsible for solving such cases. If the device plugin does not support the subgraph topology constructed by the Hetero plugin, then you should set affinity manually.
 
 Some of the topologies are not friendly to heterogeneous execution on some devices or cannot be executed in such mode at all.
-Example of such networks might be networks having activation layers which are not supported on primary device.
-If transmitting of data from one part of network to another part in heterogeneous mode takes relatively much time,
-then it is not much sense to execute them in heterogeneous mode on these devices.
-In this case you can define heaviest part manually and set affinity thus way to avoid sending of data back and forth many times during one inference.
+Examples of such networks are networks having activation layers which are not supported on primary device.
+If transmitting data from one part of a network to another part in heterogeneous mode takes more time than in normal mode, it may not make sense to execute them in heterogeneous mode.
+In this case, you can define heaviest part manually and set the affinity to avoid sending data back and forth many times during one inference.
 
 ## Annotation of Layers per Device and Default Fallback Policy
 Default fallback policy decides which layer goes to which device automatically according to the support in dedicated plugins (FPGA, GPU, CPU, MYRIAD).

@@ -32,9 +32,8 @@ You can find more details on these operations in [ReadValue specification](../op
 
 ## Examples of representation of a network with states
 
-To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer or create an nGraph function 
-(details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). 
-Let's represent the following graph in both forms:
+To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer or create an nGraph function (details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). Let's represent the following graph in both forms:
+
 ![state_network_example]
 
 ### Example of IR with state
@@ -171,8 +170,7 @@ sink from `ngraph::Function` after deleting the node from graph with the `delete
 
 ## OpenVINO state API
 
- Inference Engine has the `InferRequest::QueryState` method  to get the list of states from a network and `IVariableState` interface to operate with states. Below you can find brief description of methods and the workable example of how to use this interface.  
- is below and next section contains small workable example how this interface can be used.
+ Inference Engine has the `InferRequest::QueryState` method  to get the list of states from a network and `IVariableState` interface to operate with states. Below you can find brief description of methods and the workable example of how to use this interface.
  
  * `std::string GetName() const`
    returns name(variable_id) of according Variable
@@ -210,13 +208,12 @@ LowLatency transformation changes the structure of the network containing [Tenso
 
 ### Steps to apply LowLatency transformation
 
-1. Get CNNNetwork. Any way is acceptable:
+1. Get CNNNetwork. Either way is acceptable:
 
-	* [from IR or ONNX model](Integrate_with_customer_application_new_API.md#integration-steps)
+	* [from IR or ONNX model](./Integrate_with_customer_application_new_API.md)
 	* [from nGraph Function](../nGraph_DG/build_function.md)
 
-2. [Reshape](ShapeInference) CNNNetwork network if necessary 
-**Necessary case:** the sequence_lengths dimention of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension exactly to 1.
+2. [Reshape](ShapeInference.md) the CNNNetwork network if necessary.**Necessary case:** where the sequence_lengths dimension of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension to exactly 1.
 ```cpp
 
 // Network before reshape: Parameter (name: X, shape: [2 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 2, axis = 0) -> ...

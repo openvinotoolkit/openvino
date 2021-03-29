@@ -49,7 +49,7 @@ Options:
                         implementations.
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
-                        GPU, FPGA, HDDL or MYRIAD is acceptable. The sample
+                        GPU, HDDL or MYRIAD is acceptable. The sample
                         will look for a suitable plugin for device specified.
                         Default value is CPU
   --labels LABELS       Optional. Labels mapping file
@@ -62,12 +62,12 @@ Running the application with the empty list of options yields the usage message 
 To run the sample, you can use AlexNet and GoogLeNet or other image classification models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-> 
+>
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a trained AlexNet network on FPGA with fallback to CPU using the following command:
+You can do inference of an image using a trained AlexNet network on GPU with fallback to CPU using the following command:
 ```
-    python3 classification_sample_async.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU
+    python3 classification_sample_async.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet.xml -nt 5 -d HETERO:GPU,CPU
 ```
 
 ## Sample Output

@@ -65,7 +65,7 @@ A lot of investigation was made in the field of deep learning with the idea of u
 
 8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is a reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
 
-Current Inference Engine solution for low-precision inference uses Intel MKL-DNN and supports inference of the following layers in 8-bit integer computation mode:
+The current Inference Engine solution for low-precision inference uses Intel MKL-DNN and supports inference of the following layers in 8-bit integer computation mode:
 * Convolution
 * FullyConnected
 * ReLU
@@ -88,7 +88,7 @@ For 8-bit integer computations, a model must be quantized. If the model is not q
 8-bit inference pipeline includes two stages (also refer to the figure below):
 1. *Offline stage*, or *model quantization*. During this stage, `FakeQuantize` layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `Quantization Levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `Quantization Levels` attribute value has to be 255 or 256.
 
-2. *Run-time stage*. This stage is an internal procedure of the [CPU Plugin](supported_plugins/CPU.md). During this stage, the quantized model is loaded to the plugin. The plugin updates each `FakeQuantize` layer on activations and weights to have `FakeQuantize` output tensor values in low precision range. 
+2. *Runtime stage*. This stage is an internal procedure of the [CPU Plugin](supported_plugins/CPU.md). During this stage, the quantized model is loaded to the plugin. The plugin updates each `FakeQuantize` layer on activations and weights to have `FakeQuantize` output tensor values in low precision range. 
 ![int8_flow]
 
 ### Offline Stage: Model Quantization
@@ -97,7 +97,7 @@ To infer a layer in low precision and get maximum performance, the input tensor 
 
 When you pass the calibrated IR to the [CPU plugin](supported_plugins/CPU.md), the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference, the model is inferred in precision that this plugin supports.
 
-### Run-Time Stage: Quantization
+### Runtime Stage: Quantization
 
 This is the second stage of the 8-bit integer inference. After you load the quantized model IR to a plugin, the pluing uses the `Low Precision Transformation` component to update the model to infer it in low precision:
 * Updates `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in next `FakeQuantize` or `ScaleShift` layers.

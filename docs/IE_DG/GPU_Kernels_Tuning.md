@@ -10,11 +10,10 @@ tuning for new kind of models, hardwares or drivers.
 
 ## Tuned data
 
-GPU tuning data is saved in JSON format.
-File's content is composed of 2 types of attributes and 1 type of value:
-1. Execution units number - this attribute splits the content into different EU sections.
-2. Hash - hashed tuned kernel data.
-Key: Array with kernel name and kernel's mode index.
+GPU tuning data is saved in JSON format. The file is composed of 2 types of attributes and 1 type of value:
+* Execution units number (attribute): splits the content into different EU sections
+* Hash (attribute): hashed tuned kernel data
+* Key (value): Array with kernel name and kernel's mode index
 
 ## Usage
 

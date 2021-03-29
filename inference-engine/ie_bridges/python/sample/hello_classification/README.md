@@ -15,11 +15,11 @@ output image and outputs data to the standard output stream.
 
 Run the application with the `-h` option yields the usage message:
 ```
-python3 classification_sample.py -h
+python3 hello_classification.py -h
 ```
 The command yields the following usage message:
 ```
-usage: classification_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
+usage: hello_classification.py [-h] -m MODEL -i INPUT [INPUT ...]
                                 [-l CPU_EXTENSION]
                                 [-d DEVICE] [--labels LABELS] [-nt NUMBER_TOP]
 
@@ -49,13 +49,13 @@ Running the application with the empty list of options yields the usage message 
 To run the sample, you can use AlexNet and GoogLeNet or other image classification models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-> 
+>
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 For example, to perform inference of an AlexNet model (previously converted to the Inference Engine format) on CPU, use the following command:
 
 ```
-    python3 classification_sample.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml
+    python3 hello_classification.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml
 ```
 
 ## Sample Output
@@ -64,7 +64,7 @@ By default the application outputs top-10 inference results.
 Add the `-nt` option to the previous command to modify the number of top output results.
 For example, to get the top-5 results on GPU, run the following command:
 ```
-    python3 classification_sample.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d GPU
+    python3 hello_classification.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d GPU
 ```
 
 ## See Also

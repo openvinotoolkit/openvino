@@ -45,7 +45,7 @@ Certain layers can be merged into Convolution, ReLU, and Eltwise layers accordin
 
 > **NOTE**: Application of these rules depends on tensor sizes and resources available.
 
-Layers can be joined when the two conditions below are met:
+Layers can be joined only when the two conditions below are met:
 - Layers are located on topologically independent branches. 
 - Layers can be executed simultaneously on the same hardware units.
 
