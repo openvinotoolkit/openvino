@@ -119,7 +119,8 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const Node& node, const Input
     {
         node_index = node_indexes[0];
     }
-    else if (!in.m_input_name.empty()) // input indexes are not deterministic
+    else if (!in.m_input_name
+                  .empty()) // input indexes are not deterministic if a node name is ambiguous
     {
         // many nodes with the same name
         // check if some of found index matches input name
@@ -175,7 +176,8 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const Node& node, const Out
     {
         node_index = node_indexes[0];
     }
-    else if (!out.m_output_name.empty()) // output indexes are not deterministic
+    else if (!out.m_output_name
+                  .empty()) // output indexes are not deterministic if a node name is ambiguous
     {
         // many nodes with the same name
         // check if some of found index matches output name

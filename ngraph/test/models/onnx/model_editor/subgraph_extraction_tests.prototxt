@@ -32,6 +32,7 @@ graph {
     input: "conv1"
     output: "mul2"
     op_type: "Mul"
+    name: ""
   }
   node {
     input: "add2"

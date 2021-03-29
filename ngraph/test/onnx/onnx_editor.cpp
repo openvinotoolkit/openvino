@@ -748,8 +748,28 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_ind
     EXPECT_EQ(edge2.m_tensor_name, "add2");
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+    const auto edge_mapper = editor.create_edge_mapper();
+
+    try
+    {
+        const InputEdge edge =
+        edge_mapper.find_input_edge(EditorNode{""}, EditorInput{"conv1/7x7_s2_1"});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find("Node with name: not_given and output_name: not_given was not found") !=
+            std::string::npos);
+    }
+}
+
 // OUTPUT EDGES TEST
-NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_input_name)
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output_name)
 {
     ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
