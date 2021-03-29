@@ -134,6 +134,18 @@ if (THREADING STREQUAL "OMP")
     
 endif ()
 
+## pre-production package for hybrid support (windows/macos/linux only)
+if (NOT ANDROID AND NOT(LINUX AND AARCH64))
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    else()
+        message(WARNING "THIRDPARTY_SERVER_PATH is not set (env or cmake cmd-line define). Pre-production TBB (with Hybrid support) cannot be loaded!")
+    endif()
+    message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
+endif()
+
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT TBB_DIR)
@@ -141,10 +153,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     if (WIN32 AND X86_64)
         #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                ARCHIVE_WIN "tbb2020_20200415_tbbbind_2_4_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+                SHA256 "5cff401fdaa3708e3345de6993c37b1d61557cf4a591889b2d74dd79366bed72")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -153,9 +165,9 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                ARCHIVE_LIN "tbb2020_20200415_tbbbind_2_4_lin_strip_v2.tgz"
                 TARGET_PATH "${TEMP}/tbb"
-                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+                SHA256 "954c9ba201a717cceff5e2d83fd6a48c84be6e1f84f26825ec305e7dcdf433ef")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
