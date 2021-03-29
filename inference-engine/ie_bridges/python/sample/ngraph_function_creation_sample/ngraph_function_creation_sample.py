@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 import logging as log
+import struct as st
 import sys
 from functools import reduce
 
@@ -28,6 +29,27 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-nt', '--number_top', default=10, type=int, help='Optional. Number of top results.')
 
     return parser.parse_args()
+
+
+def read_image(image_path: str) -> np.ndarray:
+    # Read image as grayscale
+    image = cv2.imread(image_path,  cv2.IMREAD_GRAYSCALE)
+
+    # Try to open image as ubyte
+    if image is None:
+        with open(image_path, 'rb') as f:
+            st.unpack('>4B', f.read(4))    # need to skip  4 bytes
+            nimg = st.unpack('>I', f.read(4))[0]  # number of images
+            nrow = st.unpack('>I', f.read(4))[0]  # number of rows
+            ncolumn = st.unpack('>I', f.read(4))[0]  # number of column
+            nbytes = nimg * nrow * ncolumn * 1  # each pixel data is 1 byte
+
+            if nimg != 1:
+                raise Exception('Sample supports ubyte files with 1 image inside')
+
+            image = np.asarray(st.unpack('>' + 'B' * nbytes, f.read(nbytes))).reshape((nrow, ncolumn))
+
+    return image
 
 
 def shape_and_length(shape: list) -> (list, int):
@@ -177,7 +199,7 @@ def main():
     input_data = np.ndarray(shape=(n, c, h, w))
 
     for i in range(n):
-        image = cv2.imread(args.input[i], cv2.IMREAD_GRAYSCALE)
+        image = read_image(args.input[i])
 
         if image.shape[:-1] != (h, w):
             log.warning(f'Image {args.input[i]} is resized from {image.shape[:]} to {(h, w)}')
