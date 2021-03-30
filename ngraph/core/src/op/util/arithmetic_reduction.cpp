@@ -14,7 +14,6 @@ NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReduction, "ArithmeticReduction", 0);
 
 op::util::ArithmeticReduction::ArithmeticReduction() {}
 
-
 op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg,
                                                    const Output<Node>& reduction_axes)
     : Op({arg, reduction_axes})
