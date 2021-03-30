@@ -913,7 +913,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
     std::shared_ptr<opset1::FakeQuantize> fq,
     element::Type precision,
     float min,
-    float max) {
+    float max,
+    const bool replace) {
     auto newMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
     auto newMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
@@ -927,7 +928,9 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
             fq->get_auto_broadcast());
 
     NetworkHelper::setOutDataPrecision(newFQ, precision);
-    replace_node(fq, newFQ);
+    if (replace) {
+        replace_node(fq, newFQ);
+    }
 
     newFQ->set_friendly_name(fq->get_friendly_name());
     return newFQ;
@@ -939,9 +942,12 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     const ngraph::element::Type originalPrecision,
     const ngraph::Shape dataNodeOutputShape,
     element::Type precision,
-    const ngraph::element::Type deqPrecision) {
-    // TODO: we create input here! we really need it here?
-    const std::shared_ptr<opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
+    const ngraph::element::Type deqPrecision,
+    std::shared_ptr<ngraph::Node> input) {
+    if (input == nullptr) {
+        // TODO: we create input here! we really need it here?
+        input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
+    }
     std::shared_ptr<ngraph::Node> parent = input;
 
     std::shared_ptr<DequantizationConvert> convert;
@@ -949,7 +955,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
         convert = nullptr;
     } else {
         convert = std::make_shared<DequantizationConvert>(
-            input,
+            parent,
             deqPrecision);
         parent = convert;
     }

@@ -445,10 +445,12 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                     if (nvtio)
                     {
                         auto& rt = input.get_rt_info();
+                        bool first = true;
                         for (const auto& item : rt)
                         {
                             auto attributeValue = item.second->get_string();
-                            label << " " << item.first + "(" + attributeValue + ") ";
+                            label << (first ? "" : "\\n") << item.first + "(" + attributeValue + ") ";
+                            first = false;
                         }
                     }
                 }
@@ -462,12 +464,15 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                 if (nvtos)
                     label << pretty_partial_shape(output.get_partial_shape());
 
-                if (nvtio) {
+                if (nvtio)
+                {
                     auto& rt = output.get_rt_info();
+                    bool first = true;
                     for (const auto& item : rt)
                     {
                         auto attributeValue = item.second->get_string();
-                        label << " " << item.first + "(" + attributeValue + ") ";
+                        label << (first ? "" : "\\n") << item.first + "(" + attributeValue + ") ";
+                        first = false;
                     }
                 }
             }
@@ -510,10 +515,12 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
         if (!rt.empty())
         {
             rc += "\\nrt info: ";
+            bool first = true;
             for (const auto& item : rt)
             {
                 auto attributeValue = item.second->get_string();
-                rc += item.first + "(" + attributeValue + ") ";
+                rc += (first ? "" : "\\n") + item.first + "(" + attributeValue + ") ";
+                first = false;
             }
         }
     }

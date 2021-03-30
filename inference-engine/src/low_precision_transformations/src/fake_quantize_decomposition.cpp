@@ -10,6 +10,7 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
+#include "low_precision/rt_info/quantization_aligment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -35,7 +36,7 @@ void FakeQuantizeDecompositionTransformation::registerMatcherIn(GraphRewrite& pa
     addSingleNodePattern<opset1::FakeQuantize>(pass, context);
 }
 
-bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
     if (!NetworkHelper::isQuantizeSupported(layer)) {
         return false;
@@ -141,62 +142,115 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
 
     DataPrecision dataPrecision;
-
-    auto& rt = layer->output(0).get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
-    if (it != rt.end()) {
-        auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
-        const PrecisionsAttribute& precisions = attribute->get();
-        if (precisions.size() == 1ul) {
-            //const bool ngraph::element::Type precision = *precisions.begin();
-            const auto precision = *precisions.begin();
-            PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
-            const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
-            dataPrecision = DataPrecision(
-                precision,
-                DataPrecision::getMinValue(precision, quantizationDetails.levels),
-                DataPrecision::getMaxValue(precision, quantizationDetails.levels),
-                foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+    {
+        auto& rt = layer->output(0).get_rt_info();
+        auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+        if (it != rt.end()) {
+            auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
+            const PrecisionsAttribute precisions = attribute->get();
+            if (precisions.size() == 1ul) {
+                //const bool ngraph::element::Type precision = *precisions.begin();
+                const auto precision = *precisions.begin();
+                PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
+                const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
+                dataPrecision = DataPrecision(
+                    precision,
+                    DataPrecision::getMinValue(precision, quantizationDetails.levels),
+                    DataPrecision::getMaxValue(precision, quantizationDetails.levels),
+                    foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+            }
         }
     }
 
-    if (dataPrecision.precision == element::undefined) {
-        dataPrecision = getDataPrecision(layer, quantizationDetails, false);
+    std::shared_ptr<QuantizationAligmentAttribute::SharedPart::SharedValue> alignValue;
+    {
+        //QUANTIZATION_ALIGMENT
+        auto& rt = layer->get_rt_info();
+        auto it = rt.find(ngraph::VariantWrapper<QuantizationAligmentAttribute>::type_info.name);
+        if (it != rt.end()) {
+            auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAligmentAttribute>>(it->second);
+            const QuantizationAligmentAttribute attribute = attributeWrapper->get();
+            alignValue = attribute.sharedPart->value;
+        }
+    }
+
+    if (alignValue != nullptr) {
+        const float maxOutputInterval = alignValue->intervalHigh - alignValue->intervalLow;
+        // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
+        const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
+        const float dequantizationMul = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
+
+        // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
+        const float quantizationSub = alignValue->intervalLow - dataPrecision.min * dequantizationMul;
+        const float dequantizationSub = std::round(-quantizationSub * quantizationMul);
+
+
+        const float updatedOutputLowValue = (quantizationDetails.outputLowValues[0] - quantizationSub) * quantizationMul;
+        const float updatedOutputHighValue = (quantizationDetails.outputHighValues[0] - quantizationSub) * quantizationMul;
+
+        // 2. update FakeQuantize - one time action
+        std::shared_ptr<opset1::FakeQuantize> newFakeQuantizeLayer = ngraph::pass::low_precision::NetworkHelper::updateFakeQuantize(
+            layer,
+            updatePrecisions ? dataPrecision.precision : layer->get_output_element_type(0),
+            roundf(updatedOutputLowValue),
+            roundf(updatedOutputHighValue),
+            false);
+
+        const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
+        newFakeQuantizeLayer->set_levels(levels);
+
+        auto dequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
+            dequantizationMul,
+            dequantizationSub,
+            layer->get_output_element_type(0),
+            layer->get_output_shape(0),
+            updatePrecisions ? dataPrecision.precision : layer->get_output_element_type(0),
+            deqPrecision,
+            newFakeQuantizeLayer);
+
+        replace_node(layer, dequantization.multiply);
+    } else {
         if (dataPrecision.precision == element::undefined) {
-            return false;
+            dataPrecision = getDataPrecision(layer, quantizationDetails, false);
+            if (dataPrecision.precision == element::undefined) {
+                return false;
+            }
         }
-    }
 
-    // Split FakeQuantize to two parts: Quantize and Dequantize
-    auto QDQ = NetworkHelper::decomposeFakeQuantize(
-        as_type_ptr<opset1::FakeQuantize>(layer),
-        dataPrecision.precision,
-        dataPrecision.min,
-        dataPrecision.max,
-        dataPrecision.hasZeroPoint,
-        updatePrecisions);
+        // Split FakeQuantize to two parts: Quantize and Dequantize
+        auto QDQ = NetworkHelper::decomposeFakeQuantize(
+            as_type_ptr<opset1::FakeQuantize>(layer),
+            dataPrecision.precision,
+            dataPrecision.min,
+            dataPrecision.max,
+            dataPrecision.hasZeroPoint,
+            updatePrecisions);
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    {
-        const std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(std::get<1>(QDQ));
-        const std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
-        const std::vector<float> dequantizationScales = multiplyConst->cast_vector<float>();
+        {
+            const std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(std::get<1>(QDQ));
+            const std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
+            const std::vector<float> dequantizationScales = multiplyConst->cast_vector<float>();
 
-        const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(multiply->get_input_node_shared_ptr(0));
-        std::vector<float> dequantizationShifts;
-        if (subtract != nullptr) {
-            const std::shared_ptr<opset1::Constant> subtractConst = as_type_ptr<opset1::Constant>(subtract->get_input_node_shared_ptr(1));
-            dequantizationShifts = subtractConst->cast_vector<float>();
-        } else {
-            dequantizationShifts = std::vector<float>(dequantizationScales.size());
+            const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(multiply->get_input_node_shared_ptr(0));
+            std::vector<float> dequantizationShifts;
+            if (subtract != nullptr) {
+                const std::shared_ptr<opset1::Constant> subtractConst = as_type_ptr<opset1::Constant>(subtract->get_input_node_shared_ptr(1));
+                dequantizationShifts = subtractConst->cast_vector<float>();
+            }
+            else {
+                dequantizationShifts = std::vector<float>(dequantizationScales.size());
+            }
+
+            printDequantizationValues(dequantizationScales, dequantizationShifts);
         }
-
-        printDequantizationValues(dequantizationScales, dequantizationShifts);
-    }
 #endif
 
-    std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
-    updateOutput(context, dequantize, layer);
+        std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
+        updateOutput(context, dequantize, layer);
+    }
+
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(context.function);
 
     return true;
 }

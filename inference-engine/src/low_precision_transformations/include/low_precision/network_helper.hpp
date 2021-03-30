@@ -105,7 +105,8 @@ public:
         std::shared_ptr<opset1::FakeQuantize> fq,
         element::Type precision,
         float min,
-        float max);
+        float max,
+        const bool replace = true);
 
     static FakeQuantizeDequantization makeDequantization(
         const float dequantizationMul,
@@ -113,7 +114,8 @@ public:
         const ngraph::element::Type originalPrecision,
         const ngraph::Shape dataNodeOutputShape,
         element::Type precision,
-        const element::Type deqPrecision = element::f32);
+        const element::Type deqPrecision = element::f32,
+        std::shared_ptr<ngraph::Node> input = nullptr);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,

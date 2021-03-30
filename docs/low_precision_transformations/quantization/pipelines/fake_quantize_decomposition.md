@@ -1,14 +1,15 @@
 # OpenVINO™ Low Precision Transformations: FakeQuantizeDecompositionTransformation pipelines
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Pipeline #1](#pipeline-1)
+2. [Pipeline #1: FakeQuantize decomposition](#pipeline-1-fakequantize-decomposition)
+2. [Pipeline #2: Concat](#pipeline-2-concat)
 
 ## Introduction
 `FakeQuantizeDecompositionTransformation` decomposes `FakeQuantize` operation on quantize (`FakeQuantize` with low precision output) and dequantization operations (`Convert`, `Subtract` and `Multiply`). `FakeQuantize` result output precision depends on:
 1. Next operation supported input precision. Customizable parameter `precisionsOnActivations` is used for identifying supported input precision.
 2. Operation output intervals.
 
-## Pipeline #1
+## Pipeline #1: FakeQuantize decomposition
 Features:
 1. `FakeQuantize` on activations operation output intervals are signed, default precision should be `signed int8` which is not supported by `Convolution` bellow.
 2. Quantize and dequantize operations on activations are presented by one `Fakequantize` operation. 
@@ -16,18 +17,53 @@ Features:
 4.  There is no `FakeQuantize` between `AvgPool` and `Convolution`.
 5. `Convolution` weights are quantized.
 
+> TODO: if `Convolution` is not quantized then [[input] port] requirements are not set. <= WIP  
+> TODO: if operation is not precision preserved then `PRECISION_PRESERVED` attribute can be skipped. <= WIP: right now: created everywhere
+
 ### Original model
-![Original model](img/pipeline1.actual.svg)
+![Original model](img/pipeline1/actual.svg)
 
 ### Markup precisions
-![Markup precisions result](img/pipeline1.transforming1.svg)
+![Markup precisions result](img/pipeline1/step1_markup_precisions.svg)
 
 ### Markup AvgPool precisions (CPU/GPU specific)
-![Markup AvgPool precisions (CPU/GPU specific) result](img/pipeline1.transforming2.svg)
+![Markup AvgPool precisions (CPU/GPU specific) result](img/pipeline1/step2_markup_avg_pool_precisions.svg)
 
 ### Propagate precisions
-![Propagate precisions result](img/pipeline1.transforming3.svg)
+![Propagate precisions result](img/pipeline1/step3_propagate_precisions.svg)
 
 ### Transformations
-![Transformations result](img/pipeline1.transformed.svg)
+![Transformations result](img/pipeline1/transformed.svg)
 
+## Pipeline #2: Concat
+Features:
+1. `FakeQuantize` on activations operations output intervals are signed, default precision should be `signed int8` which is not supported by `Convolution` bellow.
+2. `FakeQuantize` on activations operations have different output intervals which will be aligned.
+3. Quantize and dequantize operations on activations are presented by one `Fakequantize` operation. 
+4. Quantize and dequantize operations on weights are presented by one `Fakequantize` operation.
+5.  There is no `FakeQuantize` between `AvgPool` and `Convolution`.
+6. `Convolution` weights are quantized.
+
+> TODO: `Convolution` operation defines `ConcatTransformation` behavior for each plugin and the behavior is not configurable.
+
+> TODO: if `Convolution` is not quantized then `FakeQuantize` are not aligned <= WIP: `MarkupPrecisions` tranformation checks each operation quantization and add empty [input [port]] requirements if operation is not quantized.  
+> TODO: if `ConvolutionTransformation` is skipped ([input [port]] requirements are empty) then `FakeQuantize` are not aligned <= WIP  
+> TODO: if `Convolution` operation doesn't exist then `FakeQuantize` are not aligned <= WIP
+
+### Original model
+![Original model](img/pipeline2/actual.svg)
+
+### Markup precisions
+![Markup precisions result](img/pipeline2/step1_markup_precisions.svg)
+
+### Markup AvgPool precisions (CPU/GPU specific)
+![Markup AvgPool precisions (CPU/GPU specific) result](img/pipeline2/step2_markup_avg_pool_precisions.svg)
+
+### Propagate precisions
+![Propagate precisions result](img/pipeline2/step3_propagate_precisions.svg)
+
+### Align concatization quantization
+![Align concatization quantization result](img/pipeline2/step4_align_concat_quantization.svg)
+
+### Transformations
+![Transformations result](img/pipeline2/transformed.svg)

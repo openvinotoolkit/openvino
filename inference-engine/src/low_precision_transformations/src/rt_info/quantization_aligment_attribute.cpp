@@ -74,6 +74,6 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAligmentAttribute>::
 std::string VariantWrapper<QuantizationAligmentAttribute>::get_string() {
     auto value = this->m_value;
     return
-        std::string("intervalLow: ") + std::to_string(value.sharedPart->value->intervalLow) +
-        std::string(", intervalHigh: ") + std::to_string(value.sharedPart->value->intervalHigh);
+        std::string("low: ") + std::to_string(value.sharedPart->value->intervalLow) +
+        std::string(", high: ") + std::to_string(value.sharedPart->value->intervalHigh);
 }
