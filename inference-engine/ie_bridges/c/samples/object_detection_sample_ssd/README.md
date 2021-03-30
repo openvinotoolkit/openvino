@@ -22,10 +22,9 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 |:---                              |:---
 | Validated Models                 | Person detection SSD (object detection network)
 | Model Format                     | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)
-| Validated images                 | The sample uses OpenCV* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (.bmp, .png)
+| Validated images                 | The sample uses OpenCV* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (.bmp, .png, .jpg)
 | Supported devices                | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../../samples/object_detection_sample_ssd/README.md), [Python](../../../python/sample/object_detection_sample_ssd/README.md) |
-
 
 ## How It Works
 
@@ -42,8 +41,9 @@ To build the sample, please use instructions available at [Build the Sample Appl
 ## Running
 
 To run the sample, you need specify a model and image:
- - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
- - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+
+- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 Running the application with the <code>-h</code> option yields the following usage message:
 
@@ -57,41 +57,43 @@ object_detection_sample_ssd_c [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -i "<path>"             Required. Path to one or more .bmp images.
     -m "<path>"             Required. Path to an .xml file with a trained model.
+    -i "<path>"             Required. Path to one or more images or folder with images.
       -l "<absolute_path>"  Required for CPU plugin custom layers. Absolute path to a shared library with the kernels implementations.
           Or
-      -c "<absolute_path>"  Required for GPU, MYRIAD, HDDL custom kernels. Absolute path to the .xml file with the kernels descriptions.
-    -d "<device>"           Optional. Specify the target device to infer. Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
+      -c "<absolute_path>"  Required for GPU, MYRIAD, HDDL custom kernels. Absolute path to the .xml config file 
+                            with the kernels descriptions.
+    -d "<device>"           Optional. Specify the target device to infer. Default value is CPU. 
+                            Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
     -g                      Path to the configuration file. Default value: "config".
 ```
 
-Running the application with the empty list of options yields the usage message given above and an error message.
-
 > **NOTES**:
 >
-> * By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 >
-> * Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> * The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
+
 - with one image and [person-detection-retail-0013](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013.html) model
 
 ```sh
-./object_detection_sample_ssd_c -i <path_to_image>/inputImage.bmp -m <path_to_model>person-detection-retail-0013.xml -d CPU
+./object_detection_sample_ssd_c -i <path_to_image>/inputImage.bmp -m <path_to_model>/person-detection-retail-0013.xml -d CPU
 ```
+
 - with some images and [person-detection-retail-0013](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013.html) model
 
 ```sh
-./object_detection_sample_ssd_c -i <path_to_image>/inputImage1.bmp <path_to_image>/inputImage2.bmp ... -m <path_to_model>person-detection-retail-0013.xml -d CPU
+./object_detection_sample_ssd_c -i <path_to_image>/inputImage1.bmp <path_to_image>/inputImage2.bmp ... -m <path_to_model>/person-detection-retail-0013.xml -d CPU
 ```
 
 - with [person-detection-retail-0002](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0002_description_person_detection_retail_0002.html) model
 
 ```sh
-./object_detection_sample_ssd_c -i <path_to_image>/inputImage.jpg -m <path_to_model>person-detection-retail-0002.xml -d CPU
+./object_detection_sample_ssd_c -i <path_to_folder_with_images> -m <path_to_model>/person-detection-retail-0002.xml -d CPU
 ```
 
 ## Sample Output
@@ -99,13 +101,48 @@ For example, to do inference on a CPU with the OpenVINO&trade; toolkit person de
 The application outputs several images (`out_0.bmp`, `out_1.bmp`, ... ) with detected objects enclosed in rectangles. It outputs the list of
 classes of the detected objects along with the respective confidence values and the coordinates of the rectangles to the standard output stream.
 
-[//]: # (TODO: insert output)
+```sh
+object_detection_sample_ssd_c -m person-detection-retail-0013.xml -i image_1.png image_2.jpg 
+
+[ INFO ] InferenceEngine: 
+<version><number>
+[ INFO ] Parsing input parameters
+[ INFO ] Files were added: 2
+[ INFO ]     image_1.png
+[ INFO ]     image_2.jpg
+[ INFO ] Loading Inference Engine
+[ INFO ] Device info: 
+         CPU
+         MKLDNNPlugin version ......... <version><number>
+         Build ......... <version><number>
+[ INFO ] Loading network:
+         person-detection-retail-0013.xml
+[ INFO ] Preparing input blobs
+[ WARNING ] Image is resized from (1699, 960) to (544, 320)
+[ WARNING ] Image is resized from (614, 346) to (544, 320)
+[ INFO ] Batch size is 2
+[ INFO ] Preparing output blobs
+[ INFO ] Loading model to the device
+[ INFO ] Create infer request
+[ INFO ] Start inference
+[ INFO ] Processing output blobs
+[0, 1] element, prob = 0.999090    (370, 201)-(634, 762) batch id : 0 WILL BE PRINTED!
+[1, 1] element, prob = 0.997386    (836, 192)-(999, 663) batch id : 0 WILL BE PRINTED!
+[2, 1] element, prob = 0.314753    (192, 2)-(265, 172) batch id : 0
+...
+[ INFO ] Image out_0.bmp created!
+[ INFO ] Image out_1.bmp created!
+[ INFO ] Execution successful
+
+This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+```
 
 ## See Also
-* [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-* [Model Downloader](@ref omz_tools_downloader_README)
-* [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+
+- [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [ie_infer_request_infer_async]:https://docs.openvinotoolkit.org/latest/ie_c_api/group__InferRequest.html#gad2351010e292b6faec959a3d5a8fb60e
 [ie_infer_request_wait]:https://docs.openvinotoolkit.org/latest/ie_c_api/group__InferRequest.html#ga0c05e63e63c8d9cdd92900e82b0137c9

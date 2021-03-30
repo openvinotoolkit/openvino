@@ -145,15 +145,6 @@ void readInputFilesArgument(const char *arg) {
         }
         file_paths[file_num++] = file_path;
     }
-
-    if (file_num) {
-        printf("%sFiles were added: %d\n", info, file_num);
-        for (i = 0; i < file_num; ++i) {
-            printf("%s    %s\n", info, file_paths[i]);
-        }
-    } else {
-        printf("%sFiles were added: %d. Too many to display each of them.\n", info, file_num);
-    }
 }
 
 /**
@@ -174,6 +165,15 @@ void parseInputFilesArguments(int argc, char **argv) {
             break;
         }
         readInputFilesArgument(argv[i]);
+    }
+
+    if (file_num) {
+        printf("%sFiles were added: %d\n", info, file_num);
+        for (i = 0; i < file_num; ++i) {
+            printf("%s    %s\n", info, file_paths[i]);
+        }
+    } else {
+        printf("%sFiles were added: %d. Too many to display each of them.\n", info, file_num);
     }
 }
 
@@ -716,6 +716,7 @@ int main(int argc, char **argv) {
     // -----------------------------------------------------------------------------------------------------
 
     printf("%sExecution successful\n", info);
+    printf("\nThis sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n");
 
     for (i = 0; i < image_num; ++i) {
         free(classes[i]);

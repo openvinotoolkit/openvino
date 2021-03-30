@@ -91,6 +91,7 @@ void print_classify_res(struct classify_res *cls, size_t n, const char *img_path
     for (i = 0; i < n; ++i) {
         printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
     }
+    printf("\nThis sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n");
 }
 
 /**

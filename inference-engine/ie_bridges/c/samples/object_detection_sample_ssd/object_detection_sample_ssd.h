@@ -13,7 +13,7 @@ static const char *help_message = "Print a usage message.";
 static const char* model_message = "Required. Path to an .xml file with a trained model.";
 
 /// @brief message for images argument
-static const char *image_message = "Required. Path to one or more .bmp images.";
+static const char *image_message = "Required. Path to one or more images or folder with images.";
 
 /// @brief message for assigning cnn calculation to device
 static const char *target_device_message = "Optional. Specify the target device to infer. " \
@@ -34,7 +34,7 @@ static const char *config_message = "Path to the configuration file. Default val
 * \brief This function show a help message
 */
 static void showUsage() {
-    printf("\nobject_detection_sample_ssd [OPTION]\n");
+    printf("\nobject_detection_sample_ssd_c [OPTION]\n");
     printf("Options:\n\n");
     printf("    -h                      %s\n", help_message);
     printf("    -m \"<path>\"             %s\n", model_message);

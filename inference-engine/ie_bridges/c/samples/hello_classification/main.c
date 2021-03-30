@@ -92,6 +92,7 @@ void print_classify_res(struct classify_res *cls, size_t n, const char *img_path
     for (i = 0; i < n; ++i) {
         printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
     }
+    printf("\nThis sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n");
 }
 
 int main(int argc, char **argv) {
@@ -110,6 +111,8 @@ int main(int argc, char **argv) {
     ie_infer_request_t *infer_request = NULL;
     char *input_name = NULL, *output_name = NULL;
     ie_blob_t *imgBlob = NULL, *output_blob = NULL;
+    size_t network_input_size;
+    size_t network_output_size;
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 1. Initialize inference engine core -------------------------------------
@@ -123,6 +126,18 @@ int main(int argc, char **argv) {
     status = ie_core_read_network(core, input_model, NULL, &network);
     if (status != OK)
         goto err;
+    // check the network topology
+    status = ie_network_get_inputs_number(network, &network_input_size);
+    if (status != OK || network_input_size != 1){
+        printf("Sample supports topologies with 1 input only\n");
+        goto err;
+    }
+
+    status = ie_network_get_outputs_number(network, &network_output_size);
+    if (status != OK || network_output_size != 1){
+        printf("Sample supports topologies with 1 output only\n");
+        goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 3. Configure input & output ---------------------------------------------
