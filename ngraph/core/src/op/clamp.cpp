@@ -31,6 +31,20 @@ namespace clamp
         bool rc = true;
         switch (arg->get_element_type())
         {
+            TYPE_CASE(i8)
+            (arg,
+             out,
+             double_to_int<int8_t>(min, ceil_func),
+             double_to_int<int8_t>(max, floor_func),
+             count);
+            break;
+            TYPE_CASE(i16)
+            (arg,
+             out,
+             double_to_int<int16_t>(min, ceil_func),
+             double_to_int<int16_t>(max, floor_func),
+             count);
+            break;
             TYPE_CASE(i32)
             (arg,
              out,
@@ -43,6 +57,20 @@ namespace clamp
              out,
              double_to_int<int64_t>(min, ceil_func),
              double_to_int<int64_t>(max, floor_func),
+             count);
+            break;
+            TYPE_CASE(u8)
+            (arg,
+             out,
+             double_to_int<uint8_t>(min, ceil_func),
+             double_to_int<uint8_t>(max, floor_func),
+             count);
+            break;
+            TYPE_CASE(u16)
+            (arg,
+             out,
+             double_to_int<uint16_t>(min, ceil_func),
+             double_to_int<uint16_t>(max, floor_func),
              count);
             break;
             TYPE_CASE(u32)
@@ -60,6 +88,9 @@ namespace clamp
              count);
             break;
             TYPE_CASE(f16)(arg, out, static_cast<float16>(min), static_cast<float16>(max), count);
+            break;
+            TYPE_CASE(bf16)
+            (arg, out, static_cast<bfloat16>(min), static_cast<bfloat16>(max), count);
             break;
             TYPE_CASE(f32)(arg, out, static_cast<float>(min), static_cast<float>(max), count);
             break;
@@ -96,9 +127,19 @@ op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
 
 void op::Clamp::validate_and_infer_types()
 {
-    NODE_VALIDATION_CHECK(
-        this, m_min < m_max, "The 'min' parameter needs to be less than 'max' for Clamp");
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    NGRAPH_OP_SCOPE(v0_Clamp_validate_and_infer_types);
+    const element::Type& input_et = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_integral_number() || input_et.is_real(),
+                          "Input element type must be numeric. Got: ",
+                          input_et);
+    NODE_VALIDATION_CHECK(this,
+                          m_min < m_max,
+                          "Attribute 'min' must be less than 'max'. Got: ",
+                          m_min,
+                          " and ",
+                          m_max);
+    set_output_type(0, input_et, get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const
