@@ -232,15 +232,6 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
     // Replicate All Nodes in topological order
     for (const auto& op : orderedOps) {
-//        CNNLayerPtr _layer = layer;
-//        if (layer->type == "Memory" && layer->GetParamAsString("index") == "1") {
-//            auto memoryId = layer->GetParamAsString("id");
-//            Precision portPrecision = layer->outData[0]->getTensorDesc().getPrecision();
-//            _layer.reset(new CNNLayer({layer->name + "/id=" + memoryId, "MemoryInput", portPrecision}));
-//            _layer->params = layer->params;
-//            _layer->outData = layer->outData;
-//        }
-
         const MKLDNNNodePtr node(MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache));
         graphNodes.push_back(node);
 

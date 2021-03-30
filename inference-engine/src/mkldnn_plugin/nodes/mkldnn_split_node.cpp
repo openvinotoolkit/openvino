@@ -167,7 +167,6 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             config.inConfs[2].constant = true;
             config.inConfs[2].desc.setDims(splitLengthsDims);
             config.inConfs[2].desc.setPrecision(splitLengthsPrecision);
-//            config.inConfs.push_back({{splitLengthsPrecision, splitLengthsDims}, -1, true});
         }
         config.outConfs.resize(outDims.size());
 
