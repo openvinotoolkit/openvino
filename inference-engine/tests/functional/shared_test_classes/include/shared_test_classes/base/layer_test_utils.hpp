@@ -25,103 +25,15 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
+#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/layer_test_utils/environment.hpp"
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 namespace LayerTestsUtils {
 
-extern bool extendReport;
-
-// filename length limitation due to Windows constraints (max 256 characters)
 constexpr std::size_t maxFileNameLength = 140;
-
-class Summary;
-
-class SummaryDestroyer {
-private:
-    Summary *p_instance;
-public:
-    ~SummaryDestroyer();
-
-    void initialize(Summary *p);
-};
-
-class TestEnvironment;
-
-class LayerTestsCommon;
-
-struct PassRate {
-    enum Statuses {
-        PASSED,
-        FAILED,
-        SKIPPED,
-        CRASHED
-    };
-    unsigned long passed = 0;
-    unsigned long failed = 0;
-    unsigned long skipped = 0;
-    unsigned long crashed = 0;
-
-    PassRate() = default;
-
-    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c) {
-        passed = p;
-        failed = f;
-        skipped = s;
-        crashed = c;
-    }
-
-    float getPassrate() const {
-        if (passed + failed + crashed == 0) {
-            return 0.f;
-        } else {
-            return passed * 100.f / (passed + failed + skipped + crashed);
-        }
-    }
-};
-
-class Summary {
-private:
-    static Summary *p_instance;
-    static SummaryDestroyer destroyer;
-    std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
-    std::string deviceName;
-
-protected:
-    Summary() = default;
-
-    Summary(const Summary &);
-
-    Summary &operator=(Summary &);
-
-    ~Summary() = default;
-
-    void updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status);
-
-    std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
-
-    std::map<std::string, PassRate> getOpStatisticFromReport();
-
-    std::string getDeviceName() const { return deviceName; }
-
-    void setDeviceName(std::string device) { deviceName = device; }
-
-    friend class SummaryDestroyer;
-
-    friend class TestEnvironment;
-
-    friend class LayerTestsCommon;
-
-public:
-    static Summary &getInstance();
-};
-
-class TestEnvironment : public ::testing::Environment {
-public:
-    void TearDown() override;
-    static void saveReport();
-};
 
 using TargetDevice = std::string;
 

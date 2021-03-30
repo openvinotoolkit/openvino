@@ -133,7 +133,9 @@ Options:
                         graph information serialized.
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
-
+  -ip "U8"/"FP16"/"FP32"    Optional. Specifies precision for all input layers of the network.
+  -op "U8"/"FP16"/"FP32"    Optional. Specifies precision for all output layers of the network.
+  -iop                      Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

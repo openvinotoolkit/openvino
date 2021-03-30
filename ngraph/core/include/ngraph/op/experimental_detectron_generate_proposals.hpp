@@ -16,9 +16,8 @@ namespace ngraph
     {
         namespace v6
         {
-            /// \brief An operation ExperimentalDetectronGenerateProposalsSingleImage, according to
-            /// the repository https://github.com/openvinotoolkit/training_extensions
-            /// (see pytorch_toolkit/instance_segmentation/segmentoly/rcnn/proposal.py).
+            /// \brief An operation ExperimentalDetectronGenerateProposalsSingleImage
+            /// computes ROIs and their scores based on input data.
             class NGRAPH_API ExperimentalDetectronGenerateProposalsSingleImage : public Op
             {
             public:

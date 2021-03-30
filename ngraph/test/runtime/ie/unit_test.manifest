@@ -106,7 +106,6 @@ ceiling_int64
 matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
 onnx_dyn_shapes_slice_10_3d_input_12_axes
-IE_CPU.fused_clamp_int64
 IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 onnx_dyn_shapes_ab_plus_c_inference
 onnx_dyn_shapes_dynamic_rank_input_inference
@@ -134,9 +133,6 @@ onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 onnx_top_k_opset_10
 onnx_model_scatterND_param_i64_indices
-
-# [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
-IE_CPU.fused_clamp_uint64
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
@@ -172,12 +168,6 @@ onnx_model_one_hot_without_axis
 onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
-fused_clamp_uint16
-fused_clamp_uint8
-fused_clamp_int32
-fused_clamp_int8
-fused_clamp_float
-fused_clamp_int16
 onnx_dyn_shapes_model_acosh_1_3
 onnx_dyn_shapes_model_acosh_3_2
 onnx_dyn_shapes_model_asinh_1_3
@@ -573,7 +563,6 @@ select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double
-IE_CPU.fused_clamp_double
 
 # Incorrect precision bf16!
 convert_float32_bf16
@@ -598,11 +587,6 @@ greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
-
-# Unsupported primitive of type: Round
-IE_CPU.onnx_model_round
-IE_CPU.onnx_model_round_half_nearest_even
-round_away_from_zero
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -747,33 +731,24 @@ dyn_convolution_backprop_data
 dyn_convolution_backprop_filter
 
 # Pad Pad_524448 with not constant pad_value is not allowed
-pad_exterior_1d
 pad_negative_exterior_1d
 pad_negative_exterior_1d_check_limits
-pad_edge_1d
 pad_edge_1d_top_neg
 pad_edge_1d_top_neg_bigger_than_tensor
 pad_edge_1d_bottom_neg
 pad_edge_1d_bottom_neg_bigger_than_tensor
-pad_edge_2d
 pad_edge_2d_with_neg
-pad_reflect_1d
 pad_reflect_1d_top_neg
 pad_reflect_1d_top_neg_bigger_than_tensor
 pad_reflect_1d_bottom_neg
 pad_reflect_1d_bottom_neg_bigger_than_tensor
 pad_reflect_1d_multi_reflect
-pad_reflect_2d
 pad_reflect_2d_with_neg
 pad_negative_exterior_2d
 pad_negative_exterior_2d_all_negative
 pad_exterior_4d_1x2x2x2
 pad_negative_exterior_4d
 pad_2channel_2image_asym
-pad_symmetric
-
-
-IE_CPU/PadBackendTest.PadBackendTestForSpec
 
 # LRN operation should be converted to LRN_IE
 lrn_across_h
@@ -1090,10 +1065,22 @@ gru_cell_hardsigmoid_activation_function
 #
 #-------------------------------------------------------------------------------
 
-# Cannot cast ngraph node ReplaceSlice to CNNLayer!
-# Incorrect precision u32!
-# Parameter has zero dimension that is not allowable
-IE_CPU.fused_clamp_uint32
+# Clamp op:
+# Issue 51676: Output mismatch due to wrong conversion of bounds
+IE_CPU.clamp_integral
+IE_CPU.clamp_integral_negative
+# Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
+IE_CPU.clamp_int32
+# Precision mismatch
+IE_CPU.clamp_uint32
+IE_CPU.clamp_uint16
+IE_CPU.clamp_int16
+IE_CPU.clamp_int64
+IE_CPU.clamp_float16
+# [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
+IE_CPU.clamp_uint64
+# [NOT_IMPLEMENTED] Input image format BF16 is not supported yet...
+IE_CPU.clamp_bfloat16
 
 # Cannot cast ngraph node Reshape to CNNLayer!
 # Parameter has zero dimension that is not allowable
@@ -1118,12 +1105,6 @@ IE_CPU.convert_like_float32_bool
 IE_CPU.convert_like_float32_bfloat16
 IE_CPU.convert_like_bfloat16_float32
 IE_CPU.convert_like_dyn_float16_to_int64
-
-# Can't convert type f16 to IE Precision!
-IE_CPU.fused_clamp_float16
-
-# [NOT_IMPLEMENTED] Input image format BF16 is not supported yet...
-IE_CPU.fused_clamp_bfloat16
 
 # Operations were removed from opset
 IE_CPU.atanh
@@ -1390,7 +1371,7 @@ IE_GPU.normalize_across_chw_4d
 IE_GPU.normalize_across_h_4d
 IE_GPU.normalize_across_c_2x2_shape
 IE_GPU.normalize_across_c_2x4_shape
-IE_GPU.fused_clamp
+IE_GPU.clamp
 IE_GPU.grn_4d
 IE_GPU.squeeze
 IE_GPU.squared_difference
