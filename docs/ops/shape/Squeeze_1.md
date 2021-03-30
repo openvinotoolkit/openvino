@@ -24,7 +24,7 @@
 
 **Types**
 
-* *T*: any supported type.
+* *T*: any numeric type.
 
 * *T_INT*: any supported integer type.
 
