@@ -50,7 +50,6 @@ void FrontEnd::detectNetworkBatch(
 
     env.log->trace("Remove batch from inputs");
 
-    ShapesMap inputShapes;
     size_t inputBatch = 0;
 
     for (const auto& p : inputsInfo) {
@@ -60,7 +59,6 @@ void FrontEnd::detectNetworkBatch(
 
         const auto ieData = info->getInputData();
         IE_ASSERT(ieData != nullptr);
-
         auto ieShapes = ieData->getTensorDesc().getDims();
         env.log->trace("Input [%s] : %v", p.first, ieShapes);
         // assume only 4D and 5D inputs have batch
@@ -73,10 +71,7 @@ void FrontEnd::detectNetworkBatch(
                 env.log->trace("Network input with name %s has different batch dim then previous inputs, aborting batch detection", p.first);
                 return;
             }
-
-            ieShapes[0] = 1;
         }
-        inputShapes[ieData->getName()] = ieShapes;
     }
 
     if (inputBatch == 1) {
@@ -88,6 +83,17 @@ void FrontEnd::detectNetworkBatch(
         env.log->trace("Unable to decide on network batch size.");
         return;
     }
+
+    ShapesMap inputShapes;
+
+    for (const auto& p : inputsInfo) {
+        const auto info = p.second;
+        const auto ieData = info->getInputData();
+        auto ieShapes = ieData->getTensorDesc().getDims();
+        ieShapes[0] = 1;
+        inputShapes[ieData->getName()] = ieShapes;
+    }
+
     model->setBatchSize(checked_cast<int>(inputBatch));
 
     //

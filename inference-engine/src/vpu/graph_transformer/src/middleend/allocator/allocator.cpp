@@ -148,7 +148,7 @@ bool Allocator::allocateData(const Data& data) {
             IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
             auto finalByteSize = data->totalByteSize();
-            if (data->desc().numDims() == 4 || data->desc().numDims() == 5) {
+            if (_modelBatchSize > 1) {
                 finalByteSize *= _modelBatchSize;
                 data->attrs().set("batch", _modelBatchSize);
             }
