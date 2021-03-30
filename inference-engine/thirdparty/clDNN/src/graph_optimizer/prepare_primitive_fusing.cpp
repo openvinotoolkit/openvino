@@ -44,6 +44,7 @@
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
 #include <vector>
+#include <map>
 #include <list>
 #include <memory>
 #include <string>
@@ -163,12 +164,13 @@ void prepare_primitive_fusing::fuse_reorders(program_impl &p) {
 
 void prepare_primitive_fusing::fuse_activations(program_impl &p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
+    std::map<primitive_id, std::vector<primitive_id>> fusing_history;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        program_helpers::do_for_types<activation>(*node, [&p, &is_debug](activation_node& node) {
+        program_helpers::do_for_types<activation>(*node, [&p, &is_debug, &fusing_history](activation_node& node) {
             auto& input = node.input();
             auto id = node.id();
             // Restrictions:
@@ -224,7 +226,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
             } else {
                 // If node already has any fused node using new mechanism,
                 // we can just use the same way and handle any amount of activations
-                p.fuse_nodes(input, node);
+                p.fuse_nodes(input, node, &fusing_history);
             }
 
             p.add_optimized_primitive_info(id, {input.id()});
@@ -348,6 +350,7 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
 
 void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
     bool recalc_processing_order = false;
+    std::map<primitive_id, std::vector<primitive_id>> fusing_history;
 
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
@@ -554,7 +557,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (!should_fuse)
                 return;
 
-            p.fuse_nodes(input_data, activation_node);
+            p.fuse_nodes(input_data, activation_node, &fusing_history);
         };
 
         auto fuse_scale_f = [&](scale_node& scale_node) {
@@ -617,7 +620,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (!should_fuse)
                 return;
 
-            p.fuse_nodes(input_data, scale_node);
+            p.fuse_nodes(input_data, scale_node, &fusing_history);
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
@@ -709,7 +712,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (!should_fuse)
                 return;
 
-            p.fuse_nodes(input_data, quantize_node);
+            p.fuse_nodes(input_data, quantize_node, &fusing_history);
         };
 
         auto fuse_eltwise_f = [&](eltwise_node& node) {
@@ -823,7 +826,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                 recalc_processing_order = true;
             }
 
-            p.fuse_nodes(*fused_node, node);
+            p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
         program_helpers::do_for_types<activation, scale, quantize, eltwise>(*node,
@@ -883,6 +886,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
 }
 
 void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program_node* node) {
+    std::map<primitive_id, std::vector<primitive_id>> fusing_history;
     // make sure this convolution have only 1 user and it's depth_to_space
     // make sure convolution is not an output
     if (node->get_users().size() != 1 || node->is_output())
@@ -911,7 +915,7 @@ void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program
             return;
     }
 
-    p.fuse_nodes(*conv_node, *d_t_s_node);
+    p.fuse_nodes(*conv_node, *d_t_s_node, &fusing_history);
 }
 
 void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* node) {

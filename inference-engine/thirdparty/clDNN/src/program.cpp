@@ -895,7 +895,7 @@ bool program_impl::extract_and_remove(program_node& node) {
     return true;
 }
 
-void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node) {
+void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node, std::map<primitive_id, std::vector<primitive_id>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc;
     local_desc.node = get_node_ptr(peer_node.id());
@@ -913,9 +913,11 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
                                                  fused_node.get_output_layout().data_padding);
 
-    // TODO: Create fused dependencies using fused_map
-    if (peer_node.id() == "eltwise2") {
-        local_desc.fused_deps.push_back("eltwise1");
+    auto history_iter = fusing_history->find(peer_node.id());
+    if (history_iter != fusing_history->end()) {
+        for (auto& id : history_iter->second) {
+            local_desc.fused_deps.push_back(id);
+        }
     }
 
     // Add new dependencies to the fused_node
@@ -956,6 +958,10 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
         fused_node.add_fused_primitives(peer_node.get_fused_primitives());
     }
     add_optimized_primitive_info(peer_node.id(), { fused_node.id() });
+
+    for (auto& user : peer_node.users) {
+        (*fusing_history)[user->id()].push_back(peer_node.id());
+    }
 
     // Remove all edges connected with peer node
     while (peer_node.get_dependencies().size() > 0) {
