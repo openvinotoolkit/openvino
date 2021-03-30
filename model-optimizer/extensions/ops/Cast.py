@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+
 import numpy as np
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, \
     np_data_type_to_destination_type, packed_I4, packed_U4
