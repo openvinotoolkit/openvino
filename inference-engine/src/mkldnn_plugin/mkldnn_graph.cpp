@@ -747,6 +747,10 @@ void MKLDNNGraph::PullOutputData(const BlobMap &out) {
         auto node = outputMap.second;
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
 
+        if (!out.count(name)) {
+            continue;
+        }
+
         const Blob::Ptr &ext_blob = out.at(name);
 
         auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
