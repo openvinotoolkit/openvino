@@ -1586,3 +1586,6 @@ bin_convolution_2D_2batch_1channel
 
 # RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
 onnx_upsample6_dynamic
+
+# random values returned from the plugin: ticket 51762
+onnx_model_deformable_conv_2d

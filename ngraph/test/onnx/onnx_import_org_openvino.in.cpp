@@ -590,3 +590,45 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios)
     test_case.add_expected_output<float>(Shape{1, 4}, {1, 1, 3, 4});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/org.openvinotoolkit/deformable_conv_2d.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // data
+    test_case.add_input<float>({1.0f,
+                                2.0f,
+                                3.0f,
+                                4.0f,
+                                5.0f,
+                                6.0f,
+                                7.0f,
+                                8.0f,
+                                9.0f,
+                                10.0f,
+                                11.0f,
+                                12.0f,
+                                13.0f,
+                                14.0f,
+                                15.0f,
+                                16.0f});
+
+    // deformations
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f, 1.0f});
+
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3},
+                                         {4.5999999f,
+                                          5.2000003f,
+                                          6.4000001f,
+                                          8.4000006f,
+                                          9.8000002f,
+                                          9.6999998f,
+                                          11.5f,
+                                          13.4000006f,
+                                          14.3999996f});
+
+    test_case.run();
+}
