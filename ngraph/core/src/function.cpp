@@ -13,6 +13,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/memory.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -163,15 +164,22 @@ void Function::validate_nodes_and_infer_types() const
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
-        //        else if (const auto& memory_layer = std::dynamic_pointer_cast<Memory>(node))
-        //        {
-        //            if (std::find(m_variables.begin(), m_variables.end(),
-        //            memory_layer->get_variable()) ==
-        //                m_variables.end())
-        //            {
-        //                unregistered_variables << memory_layer->get_variable_id() << std::endl;
-        //            }
-        //        }
+        else if (const auto& memory_layer = std::dynamic_pointer_cast<Memory>(node))
+        {
+            // we shouldn't check Variables in Assign, ReadValue ops from opset3 to maintain
+            // backward compatibility
+            if (std::dynamic_pointer_cast<opset3::Assign>(node) ||
+                std::dynamic_pointer_cast<opset3::ReadValue>(node))
+            {
+                // do nothing
+            }
+            else if (std::find(m_variables.begin(),
+                               m_variables.end(),
+                               memory_layer->get_variable()) == m_variables.end())
+            {
+                unregistered_variables << memory_layer->get_variable_id() << std::endl;
+            }
+        }
 
         if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(node))
         {
