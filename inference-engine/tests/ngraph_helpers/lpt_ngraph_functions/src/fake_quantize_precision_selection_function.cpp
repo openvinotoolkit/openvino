@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,7 +149,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
 
     std::shared_ptr<ngraph::opset1::Multiply> branch1Multiply = std::make_shared<ngraph::opset1::Multiply>(
         convolution,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape({1, 1, 1}), std::vector<float>({ 0.0001f })));
+        std::make_shared<ngraph::opset1::Constant>(precision, Shape({1, 1, 1, 1}), std::vector<float>({ 0.0001f })));
 
 
     // just another branch

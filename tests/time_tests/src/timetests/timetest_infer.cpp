@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ int runPipeline(const std::string &model, const std::string &device) {
 
   try {
     pipeline(model, device);
-  } catch (const InferenceEngine::details::InferenceEngineException &iex) {
+  } catch (const InferenceEngine::Exception &iex) {
     std::cerr
         << "Inference Engine pipeline failed with Inference Engine exception:\n"
         << iex.what();

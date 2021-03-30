@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,13 +141,13 @@ MKLDNNPermuteNode::MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, 
 
 void MKLDNNPermuteNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     auto& layer = getCnnLayer();
     if (!layer) {
-        THROW_IE_EXCEPTION << "Cannot get CNNLayer.";
+        IE_THROW() << "Cannot get CNNLayer.";
     }
 
     order.clear();
@@ -233,11 +233,11 @@ void MKLDNNPermuteNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
     Precision precision = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision();
     auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);

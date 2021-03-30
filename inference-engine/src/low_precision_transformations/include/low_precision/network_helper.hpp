@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,6 +135,8 @@ public:
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node);
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
+
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible

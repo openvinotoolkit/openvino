@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
     InferRequestInternal(networkInputs, networkOutputs),
     _inferRequests(inferRequests) {
     if (_networkOutputs.empty() || _networkInputs.empty()) {
-        THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
+        IE_THROW() << "Internal error: no information about network's output/input";
     }
 
     auto requestBlob([&](const std::string& blobName, InferenceEngine::InferRequest::Ptr r) {
@@ -77,11 +77,7 @@ void HeteroInferRequest::SetBlob(const std::string& name, const InferenceEngine:
             if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
                 r->SetBlob(name, data, foundInput->getPreProcess());
             }
-        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
-            std::string message = ex.what();
-            if (message.find(NOT_FOUND_str) == std::string::npos)
-                throw ex;
-        }
+        } catch (const InferenceEngine::NotFound& ex) {}
     }
 }
 
