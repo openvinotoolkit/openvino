@@ -46,8 +46,8 @@ ngraph::pass::SwapInputMatMul::SwapInputMatMul() {
 
         if ((std::dynamic_pointer_cast<opset1::Constant>(input_a.get_node_shared_ptr())  ||
              std::dynamic_pointer_cast<opset1::FakeQuantize>(input_a.get_node_shared_ptr())) &&
-            !(std::dynamic_pointer_cast<opset1::Constant>(input_a.get_node_shared_ptr())  ||
-              std::dynamic_pointer_cast<opset1::FakeQuantize>(input_a.get_node_shared_ptr()))) {
+            !(std::dynamic_pointer_cast<opset1::Constant>(input_b.get_node_shared_ptr())  ||
+              std::dynamic_pointer_cast<opset1::FakeQuantize>(input_b.get_node_shared_ptr()))) {
 //            auto transpose_output = create_transpose(input_b, matmul->get_friendly_name() + "/input_b/reshape");
             auto transpose_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2},
                                                                             std::vector<size_t>{input_b.get_node_shared_ptr()->get_shape()[1],
@@ -59,7 +59,7 @@ ngraph::pass::SwapInputMatMul::SwapInputMatMul() {
             auto split = std::make_shared<ngraph::opset1::Split>(transpose_output, split_constant, input_b.get_node_shared_ptr()->get_shape()[1]);
             split->set_friendly_name(matmul->get_friendly_name() + "/split");
             new_ops.push_back(split);
-            for (int i = 0; i < input_b.get_node_shared_ptr()->get_shape()[1]; i++) {
+            for (size_t i = 0; i < input_b.get_node_shared_ptr()->get_shape()[1]; i++) {
                 auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2},
                                                                               std::vector<size_t>{1,
                                                                                                   input_b.get_node_shared_ptr()->get_shape()[0]});
