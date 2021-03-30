@@ -81,9 +81,13 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     auto diagLayer = std::make_shared<ScaleShiftLayer>(LayerParams({diagName, "ScaleShift", Precision::FP32}));
     IE_ASSERT(diagLayer != nullptr);
 
-    // TODO: diagonal size
-    size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ? weightsSize = nextLayer->outData[0]->getDims().back() :
-                                                               Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
+    auto inputLayer = InferenceEngine::CNNNetPrevLayerSkipCertain(nextLayer, 0, [](InferenceEngine::CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonValuesChangable();
+    });
+    IE_ASSERT(inputLayer != nullptr);
+    size_t weightsSize = (LayerInfo(prevLayer).has32BOutput() || LayerInfo(inputLayer).isInput()) ?
+                         weightsSize = nextLayer->outData[0]->getDims().back() :
+                         Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(
