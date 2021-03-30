@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <iostream>
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -168,7 +169,9 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval)
 
     auto handle = backend->compile(f);
 
+    std::cout << "nGraph function for DFT was successfully compiled.\n";
     handle->call({dft_output}, {backend_data});
+    std::cout << "nGraph function for DFT was successfully calculated.\n";
 
     EXPECT_TRUE(test::all_close_f(
         expected_dft1d_results, read_vector<float>(dft_output), MIN_FLOAT_TOLERANCE_BITS));
