@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <iostream>
 #include "ngraph/runtime/reference/fft.hpp"
 #include <algorithm>
 #include <cmath>
@@ -380,21 +381,58 @@ namespace ngraph
                 complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(fft_result);
 
                 const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
+                std::cout << "Input data shape: " << input_data_shape << "\n";
+                std::cout << "Axes data shape: " << axes_data_shape << "\n";
+                std::cout << "Output shape: " << output_shape << "\n";
+                std::cout << "Complex data rank: " << complex_data_rank << "\n";
 
                 const auto reversed_output_shape = reverse_shape(output_shape);
+                std::cout << "Reversed output shape: [ ";
+                for (auto v : reversed_output_shape)
+                {
+                    std::cout << v << " ";
+                }
+                std::cout << "]\n";
                 auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
+                std::cout << "FFT axes: [ ";
+                for (auto a : fft_axes)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 reverse_fft_axes(fft_axes, complex_data_rank);
+                std::cout << "Reversed FFT axes: [ ";
+                for (auto a : fft_axes)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
 
                 const int64_t fft_rank = fft_axes.size();
+                std::cout << "fft_rank: " << fft_rank << "\n";
                 const auto fft_lengths = get_lengths(reversed_output_shape, fft_axes);
+                std::cout << "fft_lengths: [ ";
+                for (auto a : fft_lengths)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto fft_strides = compute_strides(fft_lengths);
+                std::cout << "fft_strides: [ ";
+                for (auto a : fft_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const int64_t fft_size = fft_strides[fft_rank];
+                std::cout << "fft_size: " << fft_size << "\n";
 
                 if (fft_size <= 0)
                 {
                     return;
                 }
 
+                std::cout << "fft_size is posiztive\n";
                 std::vector<complex_type> data(fft_size);
 
                 const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank);
