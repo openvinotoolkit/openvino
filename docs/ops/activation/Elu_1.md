@@ -8,7 +8,7 @@
 
 **Detailed Description**
 
-*Elu* operation is introduced in this [article](https://arxiv.org/pdf/1511.07289.pdf).
+*Elu* operation is introduced in this [article](https://arxiv.org/abs/1511.07289v3).
 It performs element-wise activation function on a given input tensor based on the following mathematical formula:
 
 \f[
