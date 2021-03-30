@@ -21,11 +21,8 @@ import yaml
 
 from pathlib import Path
 from pprint import pprint
-import numpy as np
 
-# Define a range to cut outliers which are < Q1 − IRQ_CUTOFF * IQR, and > Q3 + IRQ_CUTOFF * IQR
-# https://en.wikipedia.org/wiki/Interquartile_range
-IRQ_CUTOFF = 1.5
+from test_runner.utils import filter_timetest_result
 
 
 def run_cmd(args: list, log=None, verbose=True):
@@ -65,14 +62,6 @@ def aggregate_stats(stats: dict):
             for step_name, duration_list in stats.items()}
 
 
-def calculate_iqr(stats: list):
-    """IQR is calculated as the difference between the 3th and the 1th quantile of the data"""
-    q1 = np.quantile(stats, 0.25)
-    q3 = np.quantile(stats, 0.75)
-    iqr = q3 - q1
-    return iqr, q1, q3
-
-
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [str(args["executable"].resolve(strict=True)),
@@ -110,14 +99,10 @@ def run_timetest(args: dict, log=None):
                      for step_name, duration in raw_data.items())
 
     # Remove outliers
-    for step_name, time_results in stats.items():
-        iqr, q1, q3 = calculate_iqr(time_results)
-        cut_off = iqr * IRQ_CUTOFF
-        upd_time_results = [x for x in time_results if x > q1 - cut_off or x < q3 + cut_off]
-        stats.update({step_name: upd_time_results})
+    filtered_stats = filter_timetest_result(stats)
 
     # Aggregate results
-    aggregated_stats = aggregate_stats(stats)
+    aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
     return 0, aggregated_stats
