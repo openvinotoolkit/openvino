@@ -65,12 +65,6 @@ INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
 INTERPRETER.gather_axis_0_uint8
 INTERPRETER.gather_axis_0_uint16
-INTERPRETER.fused_clamp_double
-INTERPRETER.fused_clamp_int8
-INTERPRETER.fused_clamp_int16
-INTERPRETER.fused_clamp_uint8
-INTERPRETER.fused_clamp_uint16
-INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
