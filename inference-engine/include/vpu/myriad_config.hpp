@@ -50,6 +50,11 @@ DECLARE_VPU_CONFIG(MYRIAD_PCIE);
 DECLARE_VPU_CONFIG(MYRIAD_USB);
 
 /**
+ * @brief Default key definition for InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_TILING_CMX_LIMIT_KB_AUTO);
+
+/**
  * @brief Optimize vpu plugin execution to maximize throughput.
  * This option should be used with integer value which is the requested number of streams.
  * The only possible values are:

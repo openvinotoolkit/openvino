@@ -43,7 +43,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_NUMBER_OF_SHAVES,
         ie::MYRIAD_NUMBER_OF_CMX_SLICES,
-        ie::MYRIAD_TILING_CMX_LIMIT_KB,
 
         ie::MYRIAD_TENSOR_STRIDES,
 
@@ -212,7 +211,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.numSHAVEs,        config, ie::MYRIAD_NUMBER_OF_SHAVES, preprocessCompileOption);
     setOption(_compileConfig.numCMXSlices,     config, ie::MYRIAD_NUMBER_OF_CMX_SLICES, preprocessCompileOption);
     setOption(_compileConfig.numExecutors,     config, ie::MYRIAD_THROUGHPUT_STREAMS, preprocessCompileOption);
-    setOption(_compileConfig.tilingCMXLimitKB, config, ie::MYRIAD_TILING_CMX_LIMIT_KB, preprocessCompileOption);
 
     if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
         (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {
@@ -247,9 +245,6 @@ IE_SUPPRESS_DEPRECATED_END
     }
     if (const auto envVar = std::getenv("IE_VPU_NUMBER_OF_SHAVES_AND_CMX_SLICES")) {
         _compileConfig.numSHAVEs = _compileConfig.numCMXSlices = preprocessCompileOption(envVar);
-    }
-    if (const auto envVar = std::getenv("IE_VPU_TILING_CMX_LIMIT_KB")) {
-        _compileConfig.tilingCMXLimitKB = preprocessCompileOption(envVar);
     }
 #endif
 }

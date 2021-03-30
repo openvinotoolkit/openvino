@@ -46,6 +46,7 @@
 #include <mvnc.h>
 
 #include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 
 namespace vpu {
 
@@ -104,8 +105,8 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
         ie::MYRIAD_NUMBER_OF_CMX_SLICES, 1, DeviceResources::numSlices(platform), numSlices);
 
     int defaultCmxLimit = DefaultAllocation::tilingCMXLimit(numSlices);
-    const auto tilingCMXLimit  = config.compileConfig().tilingCMXLimitKB != -1
-        ? std::min(config.compileConfig().tilingCMXLimitKB * 1024, defaultCmxLimit)
+    const auto tilingCMXLimit  = config.get<TilingCMXLimitKBOption>().hasValue()
+        ? std::min<int>(config.get<TilingCMXLimitKBOption>().get() * 1024, defaultCmxLimit)
         : defaultCmxLimit;
     VPU_THROW_UNLESS(tilingCMXLimit >= 0,
         R"(Value of configuration option ("{}") must be greater than {}, actual is "{}")",

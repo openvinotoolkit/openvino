@@ -4,6 +4,7 @@
 
 #include "vpu/vpu_plugin_config.hpp"
 #include "vpu/private_plugin_config.hpp"
+#include "vpu/utils/optional.hpp"
 #include "behavior/config.hpp"
 #include "myriad_devices.hpp"
 
@@ -37,7 +38,6 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)}},
 
-        {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-1"}},
         {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "0"}},
         {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10"}},
 
@@ -157,6 +157,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, {true}},
         {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, {false}},
         {InferenceEngine::MYRIAD_HW_BLACK_LIST, {std::string()}},
+        {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB_AUTO}},
     };
     return defaultEntries;
 }
@@ -209,6 +210,10 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "deconv", InferenceEngine::Parameter{"deconv"}),
         std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "conv,pool",   InferenceEngine::Parameter{"conv,pool"}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "0", InferenceEngine::Parameter{"0"}),
+        std::make_tuple(InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "1", InferenceEngine::Parameter{"1"}),
+        std::make_tuple(InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10", InferenceEngine::Parameter{"10"}),
     };
     return customEntries;
 }
@@ -243,6 +248,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_POWER_MANAGEMENT,
         InferenceEngine::MYRIAD_HW_EXTRA_SPLIT,
         InferenceEngine::MYRIAD_HW_BLACK_LIST,
+        InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB,
     };
     return privateOptions;
 }
@@ -272,6 +278,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"}},
         {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "OFF"}},
 
+        {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-1"}},
         {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-10"}},
 
         {{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}},
@@ -313,7 +320,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, "ON"},
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"},
-            {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10"},
+            {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-10"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "OFF"},
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "ON"},

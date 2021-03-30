@@ -18,7 +18,6 @@ struct CompilationConfig {
     int numSHAVEs = -1;
     int numCMXSlices = -1;
     int numExecutors = -1;
-    int tilingCMXLimitKB = -1;
 
     std::string irWithVpuScalesDir;
 

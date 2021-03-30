@@ -26,6 +26,7 @@
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
+#include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 
 #include "myriad_plugin.h"
 
@@ -58,6 +59,9 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
 #ifndef NDEBUG
     if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
         _parsedConfig.set(LogLevelOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_TILING_CMX_LIMIT_KB")) {
+        _parsedConfig.set(TilingCMXLimitKBOption::key(), envVar);
     }
 #endif
 }
@@ -154,6 +158,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<HwAccelerationOption>();
     _parsedConfig.registerOption<HwExtraSplitOption>();
     _parsedConfig.registerOption<HwBlackListOption>();
+    _parsedConfig.registerOption<TilingCMXLimitKBOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
