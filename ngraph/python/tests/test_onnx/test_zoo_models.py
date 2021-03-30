@@ -6,8 +6,6 @@ import tests
 from operator import itemgetter
 from pathlib import Path
 import os
-from typing import Sequence, Any
-import numpy as np
 
 from tests.test_onnx.utils import OpenVinoOnnxBackend
 from tests.test_onnx.utils.model_importer import ModelImportRunner
@@ -28,28 +26,6 @@ from tests import (
     xfail_issue_48190)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
-
-def yolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
-    concat_out_index = 2
-    # remove all elements with value -1 from yolonms_layer_1/concat_2:0 output
-    concat_out = outputs[concat_out_index][outputs[concat_out_index] != -1]
-    concat_out = np.expand_dims(concat_out, axis=0)
-    outputs[concat_out_index] = concat_out
-    return outputs
-
-def tinyyolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
-    concat_out_index = 2
-    # remove all elements with value -1 from yolonms_layer_1:1 output
-    concat_out = outputs[concat_out_index][outputs[concat_out_index] != -1]
-    concat_out = concat_out.reshape((outputs[concat_out_index].shape[0], -1, 3))
-    outputs[concat_out_index] = concat_out
-    return outputs
-
-post_processing = {
-    "yolov3" : {"post_processing" : yolov3_post_processing},
-    "tinyyolov3" : {"post_processing" : tinyyolov3_post_processing},
-    "tiny-yolov3-11": {"post_processing": tinyyolov3_post_processing},
-}
 
 tolerance_map = {
     "arcface_lresnet100e_opset8": {"atol": 0.001, "rtol": 0.001},
@@ -128,8 +104,6 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
             # updated model looks now:
             # {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
             model.update(tolerance_map[basedir])
-        if basedir in post_processing:
-            model.update(post_processing[basedir])
         zoo_models.append(model)
 
 if len(zoo_models) > 0:
