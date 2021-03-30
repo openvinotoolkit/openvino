@@ -797,6 +797,7 @@ mo/front/caffe/python_layer_extractor.py
 mo/front/caffe/register_custom_ops.py
 mo/front/common/__init__.py
 mo/front/common/custom_replacement_registry.py
+mo/front/common/extractors/__init__.py
 mo/front/common/extractors/utils.py
 mo/front/common/find_unsupported_ops.py
 mo/front/common/layout.py
