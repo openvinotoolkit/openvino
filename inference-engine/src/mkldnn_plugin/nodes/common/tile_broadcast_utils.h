@@ -25,7 +25,6 @@ protected:
     bool optimizedCase = false;
 
 private:
-    static inline uint8_t* getDataPtr(const MKLDNNPlugin::MKLDNNMemory &memoryPtr);
     static void fillOptimizedDimsAndSrcStrides(const InferenceEngine::SizeVector &srcBlockedDims, const InferenceEngine::SizeVector &blockedRepeats,
             InferenceEngine::SizeVector &optimizedDims, InferenceEngine::SizeVector &optimizedSrcStrides);
 

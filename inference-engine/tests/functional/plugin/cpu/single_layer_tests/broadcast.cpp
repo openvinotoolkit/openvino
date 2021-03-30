@@ -63,7 +63,7 @@ TEST_P(BroadcastLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Broadcast");
+    CheckPluginRelatedResults(executableNetwork, "Broadcast");
 }
 
 namespace {
