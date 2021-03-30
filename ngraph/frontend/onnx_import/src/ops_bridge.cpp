@@ -133,6 +133,7 @@
 #include "op/xor.hpp"
 #include "ops_bridge.hpp"
 
+#include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
@@ -461,6 +462,8 @@ namespace ngraph
             REGISTER_OPERATOR("Xor", 1, logical_xor);
 
             // custom OPs
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "DeformableConv2D", 1, deformable_conv_2d);
             REGISTER_OPERATOR_WITH_DOMAIN(
                 OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
