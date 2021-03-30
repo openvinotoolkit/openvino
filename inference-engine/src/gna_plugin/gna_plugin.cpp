@@ -60,7 +60,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
-#include <transformations/swap_input_matmul.hpp>
+#include <transformations/common_optimizations/swap_input_matmul_gna.hpp>
 
 uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
