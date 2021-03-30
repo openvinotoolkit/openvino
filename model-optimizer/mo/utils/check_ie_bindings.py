@@ -19,7 +19,7 @@ except ModuleNotFoundError:
 
 import mo.utils.version as v
 try:
-    import telemetry.telemetry as tm
+    import openvino.telemetry as tm
 except ImportError:
     import mo.utils.telemetry_stub as tm
 from mo.utils.error import classify_error_type

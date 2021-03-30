@@ -14,7 +14,7 @@ from collections import OrderedDict
 import numpy as np
 
 try:
-    import telemetry.telemetry as tm
+    import openvino.telemetry as tm
 except ImportError:
     import mo.utils.telemetry_stub as tm
 
