@@ -41,7 +41,7 @@ def unique_id(prefix: str = 'id') -> str:
 unique_id.names = []
 
 
-def create_zero_value_with_batch_from_input(input_out_port: Port, second_dim, precision = np.float):
+def create_zero_value_with_batch_from_input(input_out_port: Port, second_dim, precision=np.float32):
     # create init_graph connected to ReadValue
     graph = input_out_port.node.graph
     input_name = input_out_port.node.name
