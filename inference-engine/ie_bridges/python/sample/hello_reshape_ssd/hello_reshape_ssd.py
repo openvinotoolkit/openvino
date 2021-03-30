@@ -11,6 +11,7 @@ from openvino.inference_engine import IECore
 
 
 def parse_args() -> argparse.Namespace:
+    '''Parse and return command line arguments'''
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
@@ -109,7 +110,11 @@ def main():
     output_image = original_image.copy()
     h, w, _ = output_image.shape
 
-    for detection in res.reshape(-1, 7):
+    # Change a shape of a numpy.ndarray with results ([1, 1, N, 7]) to get another one ([N, 7]),
+    # where N is the number of detected bounding boxes
+    detections = res.reshape(-1, 7)
+
+    for detection in detections:
         confidence = detection[2]
         if confidence > 0.5:
             class_id = int(detection[1])

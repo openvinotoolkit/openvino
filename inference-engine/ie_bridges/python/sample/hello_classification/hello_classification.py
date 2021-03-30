@@ -11,6 +11,7 @@ from openvino.inference_engine import IECore
 
 
 def parse_args() -> argparse.Namespace:
+    '''Parse and return command line arguments'''
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
@@ -99,6 +100,7 @@ def main():
     log.info('probability | classid')
     log.info('---------------------')
 
+    # Change a shape of a numpy.ndarray with results to get another one with one dimension
     probs = res.reshape(num_of_classes)
     top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 

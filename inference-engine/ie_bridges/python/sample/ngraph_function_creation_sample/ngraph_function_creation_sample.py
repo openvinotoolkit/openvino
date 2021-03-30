@@ -14,6 +14,7 @@ from openvino.inference_engine import IECore, IENetwork
 
 
 def parse_args() -> argparse.Namespace:
+    '''Parse and return command line arguments'''
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
@@ -31,7 +32,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_image(image_path: str) -> np.ndarray:
-    # Read image as grayscale
+    '''Read and return an image as grayscale (one channel)'''
     image = cv2.imread(image_path,  cv2.IMREAD_GRAYSCALE)
 
     # Try to open image as ubyte
@@ -51,12 +52,13 @@ def read_image(image_path: str) -> np.ndarray:
     return image
 
 
-def shape_and_length(shape: list) -> (list, int):
-    length = reduce(lambda x, y: x * y, shape)
-    return shape, length
-
-
 def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
+    '''Create a network on the fly from the source code using ngraph'''
+
+    def shape_and_length(shape: list) -> (list, int):
+        length = reduce(lambda x, y: x * y, shape)
+        return shape, length
+
     weights = np.fromfile(args.model, dtype=np.float32)
     weights_offset = 0
     padding_begin = padding_end = [0, 0]

@@ -11,6 +11,7 @@ from openvino.inference_engine import IECore, StatusCode
 
 
 def parse_args() -> argparse.Namespace:
+    '''Parse and return command line arguments'''
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
@@ -113,11 +114,12 @@ def main():
         with open(args.labels, 'r') as f:
             labels = [line.split(',')[0].strip() for line in f]
 
+    # Create a list to control a order of output
     output_queue = list(range(num_of_input))
 
     while True:
         for i in output_queue:
-            # immediately returns the inference status without blocking or interrupting
+            # Immediately returns a inference status without blocking or interrupting
             infer_status = exec_net.requests[i].wait(0)
 
             if infer_status == StatusCode.RESULT_NOT_READY:
@@ -125,6 +127,7 @@ def main():
 
             log.info(f'Infer request {i} returned {infer_status}')
 
+            # Read infer request results from buffer
             res = exec_net.requests[i].output_blobs[out_blob].buffer
 
             log.info(f'Image path: {args.input[i]}')
@@ -133,6 +136,7 @@ def main():
             log.info('probability | classid')
             log.info('---------------------')
 
+            # Change a shape of a numpy.ndarray with results to get another one with one dimension
             probs = res.reshape(num_of_classes)
             top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 
