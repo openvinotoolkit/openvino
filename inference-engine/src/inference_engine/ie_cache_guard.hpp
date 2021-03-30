@@ -79,6 +79,7 @@ private:
 class CacheGuard {
 public:
     CacheGuard() = default;
+    ~CacheGuard();
 
     /**
      * @brief Gets a lock for a specific cache entry identified by it's hash value
@@ -109,7 +110,8 @@ private:
         std::atomic_int m_itemRefCounter {0};
 
         Item() = default;
-        Item(const Item&) = default;
+        Item(const Item& other): m_mutexPtr(other.m_mutexPtr),
+                                 m_itemRefCounter(other.m_itemRefCounter.load()) {}
         Item(Item&& other): m_mutexPtr(std::move(other.m_mutexPtr)),
                             m_itemRefCounter(other.m_itemRefCounter.load()) {}
     };

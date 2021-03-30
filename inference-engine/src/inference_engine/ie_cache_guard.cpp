@@ -3,6 +3,7 @@
 //
 
 #include "ie_cache_guard.hpp"
+#include "ie_common.h"
 
 namespace InferenceEngine {
 
@@ -24,6 +25,10 @@ void CacheGuardEntry::performLock() {
 }
 
 //////////////////////////////////////////////////////
+
+CacheGuard::~CacheGuard() {
+    IE_ASSERT(m_table.size() == 0);
+}
 
 std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash) {
     std::unique_lock<std::mutex> lock(m_tableMutex);
