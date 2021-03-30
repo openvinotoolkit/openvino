@@ -11,6 +11,7 @@
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
 #include "onnx_editor/editor.hpp"
+#include "onnx_import/onnx.hpp"
 
 using namespace ngraph;
 
@@ -217,11 +218,6 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
 {
 }
 
-ONNX_NAMESPACE::ModelProto& onnx_editor::ONNXModelEditor::model() const
-{
-    return m_pimpl->m_model_proto;
-}
-
 const std::string& onnx_editor::ONNXModelEditor::model_path() const
 {
     return m_model_path;
@@ -328,6 +324,12 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
 std::string onnx_editor::ONNXModelEditor::model_string() const
 {
     return m_pimpl->m_model_proto.SerializeAsString();
+}
+
+std::shared_ptr<Function> onnx_editor::ONNXModelEditor::get_function() const
+{
+    std::istringstream model_stream(model_string());
+    return onnx_import::import_onnx_model(model_stream, m_model_path);
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
