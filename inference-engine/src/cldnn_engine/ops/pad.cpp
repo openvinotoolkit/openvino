@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ static cldnn::border_type GetBorderType(ngraph::op::PadMode mode) {
         case ngraph::op::PadMode::EDGE: return cldnn::border_type::edge;
         case ngraph::op::PadMode::REFLECT: return cldnn::border_type::mirror_101;
         case ngraph::op::PadMode::SYMMETRIC: return cldnn::border_type::mirror;
-        default: THROW_IE_EXCEPTION << "Invalid border mode " << mode << " in layer ";
+        default: IE_THROW() << "Invalid border mode " << mode << " in layer ";
     }
     return cldnn::border_type::constant;
 }
@@ -50,10 +50,10 @@ void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
     if (op->get_input_size() == 4) {
         auto const_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (!const_node) {
-            THROW_IE_EXCEPTION << "Unsupported const node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported const node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         if (!ngraph::op::util::get_single_value(const_node, pad_value)) {
-            THROW_IE_EXCEPTION << "Unsupported pad value in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            IE_THROW() << "Unsupported pad value in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
     }
 

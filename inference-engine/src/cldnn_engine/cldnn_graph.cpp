@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -743,7 +743,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
 
 std::shared_ptr<cldnn::network> CLDNNGraph::GetNetwork(size_t idx) const {
     if (idx >= GetNetworksCount())
-        THROW_IE_EXCEPTION << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
+        IE_THROW() << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
 
     return m_networks[idx];
 }
@@ -755,18 +755,18 @@ std::string CLDNNGraph::MapOutputName(std::string outName) const {
 
     // Find correct output ID. Start with name stored in IR.
     if (primitiveIDs.find(outName) == primitiveIDs.end()) {
-        THROW_IE_EXCEPTION << "output with name " << outName << " was not found in primitiveIDs";
+        IE_THROW() << "output with name " << outName << " was not found in primitiveIDs";
     }
     std::string outputID = primitiveIDs.at(outName);
     while (std::find(networkOutputsIDs.begin(), networkOutputsIDs.end(), outputID) == networkOutputsIDs.end()) {
         // If current ID isn't found in cldnn network outputs, get previous primitive id and try again.
         auto prim = allPrimitiveIds.find(outputID);
         if (prim == allPrimitiveIds.end()) {
-            THROW_IE_EXCEPTION << "Unknown primitive id " << outputID;
+            IE_THROW() << "Unknown primitive id " << outputID;
         }
 
         if (prevPrimitiveIDs.at(outputID).size() != 1 || prim->second != "_optimized_") {
-            THROW_IE_EXCEPTION << "Unable to find parent for output primitive " << outputID;
+            IE_THROW() << "Unable to find parent for output primitive " << outputID;
         }
         outputID = prevPrimitiveIDs.at(outputID)[0];
     }

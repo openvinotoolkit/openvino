@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,11 +29,13 @@
 #include <stdio.h>
 #include <ios>
 #include <sys/stat.h>
-#include <os/windows/w_dirent.h>
+
+#include <samples/os/windows/w_dirent.h>
 
 #include <inference_engine.hpp>
 #include <precision_utils.h>
-#include <common.hpp>
+#include <samples/common.hpp>
+
 #include <vpu/vpu_config.hpp>
 
 static char* m_exename = nullptr;

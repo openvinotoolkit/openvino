@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ InferenceEngine::Layout setLayout(IsInterleaved isInterleaved, int dimsSize) {
     } else if (dimsSize == 2) {
         return (isInterleaved) ?  InferenceEngine::Layout::NHWC : InferenceEngine::Layout::NCHW;
     }
-    THROW_IE_EXCEPTION << "Can't set layout";
+    IE_THROW() << "Can't set layout";
 }
 
 //  Support only for 4d and 5d blobs
@@ -37,7 +37,7 @@ SizeVector  SetDimVector(BatchNum batchNum, ChannelNum channelNum, Dims dims) {
     } else if (dims.size() == 3) {
         return SizeVector{ batchNum, channelNum, dims[0], dims[1], dims[2] };
     }
-    THROW_IE_EXCEPTION << "Can't set dimVector";
+    IE_THROW() << "Can't set dimVector";
 }
 
 //  For FP16 and Q78 precision we use int16_t type
@@ -62,13 +62,15 @@ InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision, Size
             return make_shared_blob<uint64_t>(tensorDesc);
         case InferenceEngine::Precision::U16:
             return make_shared_blob<uint16_t>(tensorDesc);
+        case InferenceEngine::Precision::I4:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::BIN:
             return make_shared_blob<int8_t>(tensorDesc);
+        case InferenceEngine::Precision::U4:
         case InferenceEngine::Precision::U8:
             return make_shared_blob<uint8_t>(tensorDesc);
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision";
+            IE_THROW() << "Unsupported precision";
     }
 }
 
@@ -134,13 +136,15 @@ void FillBlob(Blob::Ptr& inputBlob) {
             return FillBlobRandom<uint64_t>(inputBlob);
         case InferenceEngine::Precision::U16:
             return FillBlobRandom<uint16_t>(inputBlob);
+        case InferenceEngine::Precision::I4:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::BIN:
             return FillBlobRandom<int8_t>(inputBlob);
+        case InferenceEngine::Precision::U4:
         case InferenceEngine::Precision::U8:
             return FillBlobRandom<uint8_t>(inputBlob);
         default:
-            THROW_IE_EXCEPTION << "Cant fill blob with \"" << precision << "\" precision\n";
+            IE_THROW() << "Cant fill blob with \"" << precision << "\" precision\n";
     }
 }
 
@@ -224,9 +228,11 @@ bool IsCorrectBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
             return IsCorrectBlobCopy_Impl<uint64_t >(srcBlob, dstBlob);
         case InferenceEngine::Precision::U16:
             return IsCorrectBlobCopy_Impl<uint16_t>(srcBlob, dstBlob);
+        case InferenceEngine::Precision::I4:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::BIN:
             return IsCorrectBlobCopy_Impl<int8_t>(srcBlob, dstBlob);
+        case InferenceEngine::Precision::U4:
         case InferenceEngine::Precision::U8:
             return IsCorrectBlobCopy_Impl<uint8_t>(srcBlob, dstBlob);
         default:
@@ -351,9 +357,11 @@ bool IsEqualBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
         return IsEqualBlobCopy_Impl<uint64_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::I64:
         return IsEqualBlobCopy_Impl<int64_t>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::I4:
     case InferenceEngine::Precision::I8:
     case InferenceEngine::Precision::BIN:
         return IsEqualBlobCopy_Impl<int8_t>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::U4:
     case InferenceEngine::Precision::U8:
         return IsEqualBlobCopy_Impl<uint8_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::U16:
@@ -404,13 +412,15 @@ void copy3DBlobsAllBytesWithReLayoutWrapper(const Blob::Ptr& srcLayoutBlob, Blob
         return copy3DBlobsAllBytesWithReLayout<int64_t>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::U16:
         return copy3DBlobsAllBytesWithReLayout<uint16_t>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::I4:
     case InferenceEngine::Precision::I8:
     case InferenceEngine::Precision::BIN:
         return copy3DBlobsAllBytesWithReLayout<int8_t>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::U4:
     case InferenceEngine::Precision::U8:
         return copy3DBlobsAllBytesWithReLayout<uint8_t>(srcLayoutBlob, trgLayoutBlob);
     default:
-        THROW_IE_EXCEPTION << "Cant copy blob with \"" << precision << "\" precision\n";
+        IE_THROW() << "Cant copy blob with \"" << precision << "\" precision\n";
     }
 }
 
