@@ -22,6 +22,7 @@ from mo.ops.result import Result
 
 class EfficientDet(FrontReplacementFromConfigFileGeneral):
     replacement_id = 'AutomlEfficientDet'
+    run_not_recursively = True
 
     def run_before(self):
         from extensions.front.ExpandDimsToUnsqueeze import ExpandDimsToUnsqueeze
@@ -57,10 +58,11 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
         # which includes padding and resizing from the model
         preprocessing_input_node_id = replacement_descriptions['preprocessing_input_node']
         assert preprocessing_input_node_id in graph.nodes, 'The node with name "{}" is not found in the graph. This ' \
-                                                           'node should provide scaled image output and is specified' \
+                                                           'should be a last node before image normalization and is specified' \
                                                            ' in the json file.'.format(preprocessing_input_node_id)
         preprocessing_input_node = Node(graph, preprocessing_input_node_id)
-        preprocessing_input_node.in_port(0).get_connection().set_source(parameter_node.out_port(0))
+        consumer_node = preprocessing_input_node.out_port(0).get_connection().get_destination().node
+        consumer_node.in_port(0).get_connection().set_source(parameter_node.out_port(0))
 
         preprocessing_output_node_id = replacement_descriptions['preprocessing_output_node']
         assert preprocessing_output_node_id in graph.nodes, 'The node with name "{}" is not found in the graph. This ' \
