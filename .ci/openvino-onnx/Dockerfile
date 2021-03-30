@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-LABEL version=2020.07.09.1
+LABEL version=2021.03.30.1
 
 # Build configuration arguments
 ARG BUILD_TYPE=Release
@@ -80,5 +80,5 @@ RUN make -j $(nproc) install
 WORKDIR /openvino/ngraph/python
 ENV NGRAPH_CPP_BUILD_PATH=/openvino/dist/deployment_tools/ngraph
 ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
-ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
+ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
 CMD tox
