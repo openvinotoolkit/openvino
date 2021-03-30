@@ -2,6 +2,10 @@ FROM ubuntu:20.04
 
 LABEL version=2020.07.09.1
 
+# Build configuration arguments
+ARG BUILD_TYPE=Release
+ARG PROTOBUF_LITE=OFF
+
 ARG http_proxy
 ARG https_proxy
 ENV http_proxy ${http_proxy}
@@ -10,7 +14,6 @@ ENV https_proxy ${https_proxy}
 ENV CI=true
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED 1
-ARG PROTOBUF_LITE=OFF
 
 # Install base dependencies
 RUN apt-get update && apt-get install -y locales && apt-get clean autoclean && apt-get autoremove -y
@@ -52,7 +55,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 COPY . /openvino/
 WORKDIR /openvino/build
 RUN cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DENABLE_VPU=OFF \
     -DENABLE_GNA=OFF \
     -DENABLE_OPENCV=OFF \
