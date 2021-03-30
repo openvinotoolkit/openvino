@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
 DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
 BACKEND_CONFIGURATIONS = [
@@ -111,12 +110,12 @@ def buildDockerImage(Map configuration) {
 def runTests(Map configuration) {
     // Run unit-tests
     sh """
-        docker run --name ${DOCKER_CONTAINER_NAME} ${DOCKER_IMAGE_TAG}
+        docker run --rm ${DOCKER_IMAGE_TAG}
     """
     // Run large model tests, skip in Debug builds
     if (configuration.build_type != "Debug") {
         sh """
-            docker run --name ${DOCKER_CONTAINER_NAME} \
+            docker run --rm \
             --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
             ${DOCKER_IMAGE_TAG} tox -e zoo_models
         """
@@ -177,7 +176,6 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 deleteDir()
                 sh """
                     docker image prune -f
-                    docker rm -f ${DOCKER_CONTAINER_NAME}
                 """
             }
         }
