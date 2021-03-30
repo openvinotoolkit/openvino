@@ -108,12 +108,19 @@ def buildDockerImage(Map configuration) {
     """
 }
 
-def runTests() {
+def runTests(Map configuration) {
+    // Run unit-tests
     sh """
-        docker run --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-        ${DOCKER_IMAGE_TAG}
+        docker run --name ${DOCKER_CONTAINER_NAME} ${DOCKER_IMAGE_TAG}
     """
+    // Run large model tests, skip in Debug builds
+    if (configuration.build_type != "Debug") {
+        sh """
+            docker run --name ${DOCKER_CONTAINER_NAME} \
+            --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
+            ${DOCKER_IMAGE_TAG} tox -e zoo_models
+        """
+    }
 }
 
 def getConfigurationsMap() {
@@ -150,8 +157,8 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 }
             }
             stage("Run tests") {
-                timeout(time: 30, unit: 'MINUTES') {
-                    runTests()
+                timeout(time: 20, unit: 'MINUTES') {
+                    runTests(configuration)
                 }
             }
         }
