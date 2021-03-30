@@ -109,6 +109,7 @@ private:
         std::atomic_int m_itemRefCounter {0};
 
         Item() = default;
+        Item(const Item&) = default;
         Item(Item&& other): m_mutexPtr(std::move(other.m_mutexPtr)),
                             m_itemRefCounter(other.m_itemRefCounter.load()) {}
     };
