@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5254f7ee..c63be3d6 100644
+index 5254f7ee..2e509de4 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -347,18 +347,44 @@ if (MSVC)
+@@ -347,18 +347,33 @@ if (MSVC)
    else()
      set(EXTRA_FLAGS "")
    endif()
@@ -14,7 +14,7 @@ index 5254f7ee..c63be3d6 100644
 +if(MSVC)
 +  if(ONNX_BUILD_MAIN_LIB)
 +  # ONNX_BUILD_MAIN_LIB can be be set if onnx_proto is static,
-+  # but it is linked into a shared library that wants
++  # but it is linked into a shared library which wants
 +  # to export the ONNX APIs and classes.
 +  target_compile_definitions(onnx_proto PUBLIC "ONNX_API=__declspec(dllexport)")
 +
@@ -30,32 +30,20 @@ index 5254f7ee..c63be3d6 100644
 +    target_compile_definitions(onnx_proto PUBLIC "ONNX_API=")
    endif()
  else()
--  # On non-Windows, hide all symbols we don't need
+   # On non-Windows, hide all symbols we don't need
 -  set(ONNX_API_DEFINE "-DONNX_API=__attribute__\(\(__visibility__\(\"default\"\)\)\)")
 -  set_target_properties(onnx_proto PROPERTIES CXX_VISIBILITY_PRESET hidden)
 -  set_target_properties(onnx_proto PROPERTIES VISIBILITY_INLINES_HIDDEN 1)
-+  # On non-Windows, set default visibility if built as shared or exporting symbols forced
-+  if(ONNX_BUILD_MAIN_LIB OR BUILD_SHARED_LIBS)
 +    target_compile_definitions(onnx_proto PUBLIC "ONNX_API=__attribute__\(\(__visibility__\(\"default\"\)\)\)")
 +    set_target_properties(onnx_proto PROPERTIES
-+      CXX_VISIBILITY_PRESET default
-+      C_VISIBILITY_PRESET default
-+      VISIBILITY_INLINES_HIDDEN OFF)
-+
-+  else() # hide symbols for static lib case
-+    target_compile_definitions(onnx_proto PUBLIC "ONNX_API=__attribute__\(\(__visibility__\(\"hidden\"\)\)\)")
-+    set_target_properties(onnx_proto PROPERTIES
 +      CXX_VISIBILITY_PRESET hidden
-+      C_VISIBILITY_PRESET hidden
 +      VISIBILITY_INLINES_HIDDEN ON)
-+
-+  endif()
  endif()
 -target_compile_definitions(onnx_proto PRIVATE ${ONNX_API_DEFINE})
  
  if(ONNX_USE_LITE_PROTO)
    if(TARGET protobuf::libprotobuf-lite)
-@@ -380,7 +406,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+@@ -380,7 +395,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
    # So, create a object library
    add_library(onnx OBJECT ${ONNX_SRCS})
  else()
