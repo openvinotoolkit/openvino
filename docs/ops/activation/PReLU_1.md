@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-*PReLU* operation is introduced in this [article](https://arxiv.org/pdf/1502.01852v1.pdf).
+*PReLU* operation is introduced in this [article](https://arxiv.org/abs/1502.01852v1).
 
 *PReLU* performs element-wise parametric *ReLU* operation on a given input tensor, based on the following mathematical formula:
 
@@ -19,17 +19,22 @@ PReLU(x) = \left\{\begin{array}{r}
 \end{array}\right.
 \f]
 
-Where α, is a learnable parameter and corresponds to the negative slope defined by the second input `slope`.
+Where α, is a learnable parameter and corresponds to the negative slope, per channel, defined by the second input `slope`.
 
-Before the operation computation, the second input tensor `slope` is broadcasted to the first input tensor `data` based on [Broadcast Rules For Elementwise Operations](../broadcast_rules.md). Additionally, *PReLU* is equivalent to *ReLU* operation when `slope` is equal to zero input tensor.
+Another mathematical representation that may be found in other references is as follows:
+
+\f[
+PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
+\f]
+
 
 **Attributes**: *PReLU* operation has no attributes.
 
 **Inputs**
 
 * **1**: `data`. A tensor of type `T` and arbitrary shape. **Required**.
-
-* **2**: `slope`. A tensor of type `T` and arbitrary shape. Tensor with negative slope values. The shape of the tensor should be broadcastable to input tensor `data`. **Required**.
+* **2**: `slope`. 1D tensor of type `T`. Tensor with negative slope values, one per channel dimension of `data` input tensor. **Required**.
+* **Note**: Channels dimension corresponds to second dimension of `data` input tensor. If `data` rank is less than 2, then the number of channels is 1.
 
 **Outputs**
 
@@ -39,7 +44,9 @@ Before the operation computation, the second input tensor `slope` is broadcasted
 
 * *T*: arbitrary supported floating point type.
 
-**Example**
+**Examples**
+
+*Example: 1D input tensor `data`*
 
 ```xml
 <layer ... type="Prelu">
@@ -53,6 +60,28 @@ Before the operation computation, the second input tensor `slope` is broadcasted
     </input>
     <output>
         <port id="2">
+            <dim>128</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example: 2D input tensor `data`*
+
+```xml
+<layer ... type="Prelu">
+    <input>
+        <port id="0">
+            <dim>20</dim>
+            <dim>128</dim>
+        </port>
+        <port id="1">
+            <dim>20</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>20</dim>
             <dim>128</dim>
         </port>
     </output>
