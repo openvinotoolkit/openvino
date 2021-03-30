@@ -12,7 +12,7 @@ try:
     import cv2
 except Exception as e:
     log.error(f"Can not import OpenCV Python package.\nPlease install required python packages by running:\n"
-              "pip3 install -r requirements.txt\n\n Original error message: {e}")
+              f"pip3 install -r requirements.txt\n\n Original error message: {e}")
     sys.exit(1)
 
 try:
