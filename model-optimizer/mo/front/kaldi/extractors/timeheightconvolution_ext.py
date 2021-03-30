@@ -45,7 +45,7 @@ class TimeHeightConvolutionFrontExtractor(FrontExtractorOp):
         collect_until_token(pb, b'<BiasParams>')
         biases = read_binary_vector(pb)
 
-        offsets = offsets.reshape([len(offsets)/2, 2])
+        offsets = offsets.reshape([len(offsets)//2, 2])
         mapping_rule = {'height_subsample': height_subsample,
                         'height_in': height_in,
                         'height_out': height_out,
