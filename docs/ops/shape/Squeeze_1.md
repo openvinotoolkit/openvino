@@ -16,7 +16,7 @@
 
 *   **1**: Multidimensional input tensor of type *T*. **Required**.
 
-*   **2**: 0D or 1D tensor of type *T_I* with indices of dimensions to squeeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the first input). **Optional**.
+*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to squeeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the first input). **Optional**.
 
 **Outputs**:
 
@@ -26,7 +26,7 @@
 
 * *T*: any supported type.
 
-* *T_I*: any supported integer type.
+* *T_INT*: any supported integer type.
 
 **Example**
 
