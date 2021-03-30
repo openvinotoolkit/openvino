@@ -3,6 +3,9 @@
 //
 
 #include "base.hpp"
+#include <ngraph/op/gather_elements.hpp>
+#include <nodes/common/tensor_desc_creator.h>
+#include <utils/general_utils.h>
 
 #include <string>
 #include <vector>
@@ -12,70 +15,82 @@ namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class GatherElementsImpl: public ExtLayerBase {
 public:
-    explicit GatherElementsImpl(const CNNLayer* layer) : strideAx1Diff_(0) {
-        errorPrefix_ = std::string("Layer GatherElements with name '") + layer->name + "'";
-
-        if (layer->insData.size() != 2 || layer->outData.size() != 1)
-            IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
-
-        auto inputData = layer->insData[dataIndex_].lock();
-        auto indices = layer->insData[indicesIndex_].lock();
-        if (!inputData || !indices)
-            IE_THROW() << errorPrefix_ << " has nullable inputs.";
-
-        const auto& dataDims = inputData->getTensorDesc().getDims();
-        const auto& indicesDims = indices->getTensorDesc().getDims();
-        if (dataDims.size() != indicesDims.size())
-            IE_THROW() << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
-
-        Precision dataPrecision = inputData->getTensorDesc().getPrecision();
-        if (dataPrecision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
-                dataPrecision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
-                dataPrecision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
-            IE_THROW() << errorPrefix_ << " has unsupported 'inputData' input precision: " << dataPrecision;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+        try {
+            auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v6::GatherElements>(op);
+            if (!gatherElementsOp) {
+                errorMessage = "Node is not an instance of the GatherElements operation from operation set v6.";
+                return false;
+            }
+        } catch (...) {
+            return false;
         }
 
-        Precision indicesPrecision = indices->getTensorDesc().getPrecision();
-        if (indicesPrecision != Precision::I32) {
-            IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
+        return true;
+    }
+
+    explicit GatherElementsImpl(const std::shared_ptr<ngraph::Node>& op) : strideAx1Diff_(0) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+            errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
+
+            if (op->get_input_size() != 2 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
+
+            const auto& dataDims = op->get_input_shape(dataIndex_);
+            const auto& indicesDims = op->get_input_shape(indicesIndex_);
+            if (dataDims.size() != indicesDims.size())
+                IE_THROW() << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
+
+            Precision inDataPrecision = details::convertPrecision(op->get_input_element_type(dataIndex_));
+            if (!MKLDNNPlugin::one_of(inDataPrecision.size(),
+                    sizeof(PrecisionTrait<Precision::I32>::value_type),
+                    sizeof(PrecisionTrait<Precision::I16>::value_type),
+                    sizeof(PrecisionTrait<Precision::I8>::value_type))) {
+                IE_THROW() << errorPrefix_ << " has unsupported 'inputData' input precision: " << inDataPrecision;
+            }
+
+            Precision indicesPrecision = details::convertPrecision(op->get_input_element_type(indicesIndex_));
+            if (!MKLDNNPlugin::one_of(indicesPrecision, Precision::I32, Precision::I64)) {
+                IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
+            }
+
+            dataTypeSize_ = inDataPrecision.size();
+
+            auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v6::GatherElements>(op);
+            auto axis = gatherElementsOp->get_axis();
+            if (axis < 0)
+                axis += dataDims.size();
+            if (axis < 0 || axis >= static_cast<int>(dataDims.size()))
+                IE_THROW() << errorPrefix_ << " has invalid axis attribute: " << axis;
+            axis_ = axis;
+
+            auto outputShape = op->get_output_shape(0);
+            strideAxDst_ = 1;
+            for (int i = outputShape.size() - 1; i > axis_; i--)
+                strideAxDst_ *= outputShape[i];
+            dstAxDim_ = op->get_output_shape(0)[axis_];
+            if (axis_ > 0) {
+                strideAx1Diff_ = 1;
+                for (int i = dataDims.size() - 1; i >= axis_; i--)
+                    strideAx1Diff_ *= dataDims[i];
+                strideAx1Diff_ -= strideAxDst_ * outputShape[axis_];
+            }
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, inDataPrecision},
+                           {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                          {{TensorDescCreatorTypes::ncsp, inDataPrecision}});
+        } catch (InferenceEngine::Exception &ex) {
+            errorMsg = ex.what();
+            throw;
         }
-
-        dataTypeSize_ = dataPrecision.size();
-
-        int axis = layer->GetParamAsInt("axis");
-        if (axis < 0)
-            axis += dataDims.size();
-        if (axis < 0 || axis >= static_cast<int>(dataDims.size()))
-            IE_THROW() << errorPrefix_ << " has invalid axis attribute: " << axis;
-        axis_ = axis;
-
-        auto& outputData = layer->outData[0];
-        strideAxDst_ = outputData->getTensorDesc().getBlockingDesc().getStrides()[axis_];
-        dstAxDim_ = outputData->getTensorDesc().getDims()[axis_];
-        if (axis_ > 0) {
-            strideAx1Diff_ = inputData->getTensorDesc().getBlockingDesc().getStrides()[axis_ - 1] -
-                    outputData->getTensorDesc().getBlockingDesc().getStrides()[axis_ - 1];
-        }
-
-        LayerConfig config;
-        DataConfig dataConfig, indicesConfig, outConfig;
-        dataConfig.desc = TensorDesc(dataPrecision, dataDims,
-            inputData->getTensorDesc().getLayoutByDims(dataDims));
-        config.inConfs.push_back(dataConfig);
-        indicesConfig.desc = TensorDesc(Precision::I32, indicesDims,
-            indices->getTensorDesc().getLayoutByDims(indicesDims));
-        config.inConfs.push_back(indicesConfig);
-
-        const auto& outDims = outputData->getTensorDesc().getDims();
-        outConfig.desc = TensorDesc(dataPrecision, outDims,
-                outputData->getTensorDesc().getLayoutByDims(outDims));
-        config.outConfs.push_back(outConfig);
-
-        config.dynBatchSupport = false;
-
-        confs.push_back(config);
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
