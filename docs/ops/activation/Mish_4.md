@@ -8,12 +8,12 @@
 
 **Detailed description**
 
-*Mish* is a self regularized non-monotonic neural activation function proposed in this [article](https://arxiv.org/abs/1908.08681).
+*Mish* is a self regularized non-monotonic neural activation function proposed in this [article](https://arxiv.org/abs/1908.08681v2).
 
 *Mish* performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[
-Mish(x) = x\cdot\tanh\big(Softplus(x)\big) = x\cdot\tanh\big(\ln(1+e^{x})\big)
+Mish(x) = x\cdot\tanh\big(SoftPlus(x)\big) = x\cdot\tanh\big(\ln(1+e^{x})\big)
 \f]
 
 **Attributes**: *Mish* operation has no attributes.
