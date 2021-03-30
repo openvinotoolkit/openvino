@@ -234,7 +234,7 @@ void PassImpl::adjustModelForMemReqs(const Model& model) {
         VPU_THROW_UNLESS(!failedData || failedData->memReqs() == MemoryType::CMX,
             R"(Stage "{}" of type "{}" requested {} bytes in {} for output "{}", while there is only {} bytes is free)",
             failedStage->name(), failedStage->type(), calcAllocationSize(failedData), failedData->memReqs(), failedData->name(),
-                         allocator.freeMemoryAmount(failedData->memReqs()));
+                        failedData->memReqs() == MemoryType::CMX ? allocator.freeCMXMemoryAmount() : -1);
 
         auto allCmxDatas = allocator.getAllocatedDatas(MemoryType::CMX);
         env.log->trace("Got %d datas in CMX : %v", allCmxDatas.size(), allCmxDatas);
