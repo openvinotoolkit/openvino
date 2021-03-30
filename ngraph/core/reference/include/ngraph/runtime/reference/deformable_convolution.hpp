@@ -281,10 +281,9 @@ namespace ngraph
                 const Shape group_filter_shape = [&]() {
                     Shape new_shape{f_shape};
                     new_shape[filter_out_ch_axis] /= groups;
-                    new_shape[filter_in_ch_axis] /= groups;
                     return new_shape;
                 }();
-                const size_t group_filter_size = shape_size(group_filter_shape) * groups;
+                const size_t group_filter_size = shape_size(group_filter_shape);
 
                 T* group_out = out;
                 const Shape group_out_shape = [&]() {
@@ -297,28 +296,39 @@ namespace ngraph
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_filter = f;
-                    for (size_t group_idx = 0; group_idx < groups; ++group_idx)
-                    {
-                        deformable_convolution(group_batch,
-                                               group_filter,
-                                               group_offset,
-                                               group_out,
-                                               group_batch_shape,
-                                               group_offset_shape,
-                                               group_filter_shape,
-                                               group_out_shape,
-                                               strides,
-                                               dilation,
-                                               pads_begin,
-                                               pads_end);
-                        group_batch += group_batch_size;
-                        if (deformable_groups > 1)
+                        for (size_t group_idx = 0; group_idx < groups; ++group_idx)
                         {
-                            group_offset += group_offset_size; // TODO
+                            #if 1
+                            runtime::reference::convolution(group_batch,
+                                                group_filter,
+                                                group_out,
+                                                group_batch_shape,
+                                                group_filter_shape,
+                                                group_out_shape,
+                                                strides,
+                                                dilation,
+                                                pads_begin,
+                                                pads_end);
+                            #else
+                            deformable_convolution(group_batch,
+                                                group_filter,
+                                                group_offset,
+                                                group_out,
+                                                group_batch_shape,
+                                                group_offset_shape,
+                                                group_filter_shape,
+                                                group_out_shape,
+                                                strides,
+                                                dilation,
+                                                pads_begin,
+                                                pads_end);
+                            #endif
+                            group_batch += group_batch_size;
+                            group_offset += group_offset_size;
+                            group_filter += group_filter_size;
+                            group_out += group_out_size;
                         }
-                        group_filter += group_filter_size;
-                        group_out += group_out_size;
-                    }
+                    //}
                 }
             }
         } // namespace reference
