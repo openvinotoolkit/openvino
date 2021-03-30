@@ -39,7 +39,12 @@ include_directories(${Protobuf_INCLUDE_DIRS} ${PADDLEPADDLE_FRONTEND_INCLUDE_DIR
 add_library(paddlepaddle_frontend SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(ngraph::paddlepaddle_frontend ALIAS paddlepaddle_frontend)
 
-target_include_directories(paddlepaddle_frontend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../generic/include ${CMAKE_CURRENT_BINARY_DIR})
+# TODO: fix relative include directory by moving
+target_include_directories(paddlepaddle_frontend
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/../generic/include
+            ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME paddlepaddle_frontend
