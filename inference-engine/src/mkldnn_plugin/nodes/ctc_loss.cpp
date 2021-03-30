@@ -18,7 +18,7 @@ using MKLDNNPlugin::TensorDescCreatorTypes;
 
 class CTCLossImpl : public ExtLayerBase {
 public:
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
             auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
             if (!ctcLossOp) {

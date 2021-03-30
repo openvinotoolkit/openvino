@@ -18,7 +18,7 @@ using MKLDNNPlugin::TensorDescCreatorTypes;
 
 class CTCGreedyDecoderImpl: public ExtLayerBase {
 public:
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
             auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
             if (!greedyDecOp) {

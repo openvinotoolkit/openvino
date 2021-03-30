@@ -3,6 +3,9 @@
 //
 
 #include "base.hpp"
+#include <ngraph/op/gather_nd.hpp>
+#include <nodes/common/tensor_desc_creator.h>
+#include <utils/general_utils.h>
 
 #include <string>
 #include <vector>
@@ -13,75 +16,84 @@ namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class GatherNDImpl: public ExtLayerBase {
 public:
-    explicit GatherNDImpl(const CNNLayer* layer) {
-        _errorPrefix = std::string("Layer GatherND with name '") + layer->name + "'";
-
-        if (layer->insData.size() != 2 || layer->outData.size() != 1)
-            IE_THROW() << _errorPrefix << " has invalid number of input/output edges.";
-
-        auto data = layer->insData[_dataIndex].lock();
-        auto indices = layer->insData[_indicesIndex].lock();
-        if (!data || !indices)
-            IE_THROW() << _errorPrefix << " has nullable inputs.";
-        Precision dataPrecision = data->getTensorDesc().getPrecision();
-        if (dataPrecision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
-                dataPrecision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
-                dataPrecision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
-            IE_THROW() << _errorPrefix << " has unsupported 'data' input precision: " << dataPrecision;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+        try {
+            auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op);
+            if (!gatherElementsOp) {
+                errorMessage = "Node is not an instance of the GatherND operation from operation set v5.";
+                return false;
+            }
+        } catch (...) {
+            return false;
         }
 
-        Precision indicesPrecision = indices->getTensorDesc().getPrecision();
-        if (indicesPrecision != Precision::I32 &&
-                indicesPrecision != Precision::I16 && indicesPrecision != Precision::U16 &&
-                indicesPrecision != Precision::I8 && indicesPrecision != Precision::U8) {
-            IE_THROW() << _errorPrefix << " has unsupported 'indices' input precision: " << indicesPrecision;
+        return true;
+    }
+
+    explicit GatherNDImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
+            _errorPrefix = std::string("Layer GatherND with name '") + op->get_friendly_name() + "'";
+
+            if (op->get_input_size() != 2 || op->get_output_size() != 1)
+                IE_THROW() << _errorPrefix << " has invalid number of input/output edges.";
+
+            Precision inDataPrecision = details::convertPrecision(op->get_input_element_type(_dataIndex));
+            if (!MKLDNNPlugin::one_of(inDataPrecision.size(),
+                    sizeof(PrecisionTrait<Precision::I32>::value_type),
+                    sizeof(PrecisionTrait<Precision::I16>::value_type),
+                    sizeof(PrecisionTrait<Precision::I8>::value_type))) {
+                IE_THROW() << _errorPrefix << " has unsupported 'data' input precision: " << inDataPrecision;
+            }
+
+            Precision indicesPrecision = details::convertPrecision(op->get_input_element_type(_indicesIndex));
+            if (!MKLDNNPlugin::one_of(indicesPrecision,
+                    Precision::I32, Precision::I64, Precision::I16, Precision::U16, Precision::I8, Precision::U8)) {
+                IE_THROW() << _errorPrefix << " has unsupported 'indices' input precision: " << indicesPrecision;
+            }
+
+            _dataTypeSize = inDataPrecision.size();
+            const auto& dataDims = op->get_input_shape(_dataIndex);
+            const auto& indicesDims = op->get_input_shape(_indicesIndex);
+
+            auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op);
+            _batchDims = gatherNdOp->get_batch_dims();
+            if (_batchDims >= std::min(dataDims.size(), indicesDims.size()))
+                IE_THROW() << _errorPrefix << " has invalid batch_dims attribute: " << _batchDims;
+
+            _batchNum = 1lu;
+            for (size_t i = 0; i < _batchDims; i++) {
+                _batchNum *= indicesDims[i];
+            }
+
+            _sliceRank = indicesDims[indicesDims.size() - 1];
+            _dataRank = dataDims.size() - _batchDims;
+            if (_sliceRank > _dataRank)
+                IE_THROW() << _errorPrefix << " has invalid inputs shapes.";
+
+            _blockSize = 1;
+            for (size_t i = _sliceRank + _batchDims; i < dataDims.size(); i++) {
+                _blockSize *= dataDims[i];
+            }
+            _batchStep = 1;
+            for (size_t i = _batchDims; i < dataDims.size(); i++) {
+                _batchStep *= dataDims[i];
+            }
+
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, inDataPrecision},
+                           {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                          {{TensorDescCreatorTypes::ncsp, inDataPrecision}});
+        } catch (InferenceEngine::Exception &ex) {
+            errorMsg = ex.what();
+            throw;
         }
-
-        _dataTypeSize = dataPrecision.size();
-        const auto& dataDims = data->getTensorDesc().getDims();
-        const auto& indicesDims = indices->getTensorDesc().getDims();
-
-        _batchDims = layer->GetParamAsInt("batch_dims", 0);
-        if (_batchDims >= std::min(dataDims.size(), indicesDims.size()))
-            IE_THROW() << _errorPrefix << " has invalid batch_dims attribute: " << _batchDims;
-
-        _batchNum = 1lu;
-        for (size_t i = 0; i < _batchDims; i++) {
-            _batchNum *= indicesDims[i];
-        }
-
-        _sliceRank = indicesDims[indicesDims.size() - 1];
-        _dataRank = dataDims.size() - _batchDims;
-        if (_sliceRank > _dataRank)
-            IE_THROW() << _errorPrefix << " has invalid inputs shapes.";
-
-        _blockSize = 1;
-        for (size_t i = _sliceRank + _batchDims; i < dataDims.size(); i++) {
-            _blockSize *= dataDims[i];
-        }
-        _batchStep = 1;
-        for (size_t i = _batchDims; i < dataDims.size(); i++) {
-            _batchStep *= dataDims[i];
-        }
-
-        LayerConfig config;
-        DataConfig dataConfig, indicesConfig, outConfig;
-        dataConfig.desc = TensorDesc(dataPrecision, dataDims,
-            data->getTensorDesc().getLayoutByDims(dataDims));
-        config.inConfs.push_back(dataConfig);
-        indicesConfig.desc = TensorDesc(Precision::I32, indicesDims,
-            indices->getTensorDesc().getLayoutByDims(indicesDims));
-        config.inConfs.push_back(indicesConfig);
-
-        const auto& outDims = layer->outData[0]->getTensorDesc().getDims();
-        outConfig.desc = TensorDesc(dataPrecision, outDims,
-                layer->outData[0]->getTensorDesc().getLayoutByDims(outDims));
-        config.outConfs.push_back(outConfig);
-        config.dynBatchSupport = false;
-
-        confs.push_back(config);
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {

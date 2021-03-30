@@ -789,10 +789,6 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
         IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
     }
 
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
-    }
-
     if (getParentEdgeAt(1)->getDims().ndims() != 4) {
         IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
@@ -803,15 +799,6 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
 
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
         IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
-    }
-
-    bool isMerged = (!getMergeWith().empty());
-    bool isGrouped = group != 1;
-    if (isMerged && isGrouped)
-        IE_THROW() << errorPrefix << "cannot be initialized: group splitted mode are used together with direct group specification.";
-
-    if (isMerged) {
-        group = getMergeWith().size() + 1;
     }
 }
 
