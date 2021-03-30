@@ -32,6 +32,9 @@
 #ifndef TBB_PREVIEW_NUMA_SUPPORT
 # define TBB_PREVIEW_NUMA_SUPPORT 1
 #endif
+
+#include <atomic>
+
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
 #include "tbb/blocked_range3d.h"
@@ -70,6 +73,99 @@ inline int parallel_get_env_threads() {
 #else
 #define PARTITIONING
 #endif
+
+
+namespace custom {
+using numa_node_id = int;
+using core_type_id = int;
+
+namespace detail {
+struct constraints {
+    constraints& set_numa_id(numa_node_id id) {
+        numa_id = id;
+        return *this;
+    }
+    constraints& set_max_concurrency(int maximal_concurrency) {
+        max_concurrency = maximal_concurrency;
+        return *this;
+    }
+
+    constraints& set_core_type(core_type_id id) {
+        core_type = id;
+        return *this;
+    }
+    constraints& set_max_threads_per_core(int threads_number) {
+        max_threads_per_core = threads_number;
+        return *this;
+    }
+
+    numa_node_id numa_id = -1;
+    int max_concurrency = -1;
+    core_type_id core_type = -1;
+    int max_threads_per_core = -1;
+};
+
+// TBBBind interfaces declaration
+class binding_handler;
+
+class binding_observer : public tbb::task_scheduler_observer {
+    binding_handler* my_binding_handler;
+public:
+    binding_observer(tbb::task_arena* ta, int num_slots, int numa_id, core_type_id core_type, int max_threads_per_core);
+    void on_scheduler_entry(bool) override;
+    void on_scheduler_exit(bool) override;
+    ~binding_observer();
+};
+
+// Concurrent initialization auxiliary interfaces
+enum class do_once_state {
+    uninitialized = 0,      ///< No execution attempts have been undertaken yet
+    pending,                ///< A thread is executing associated do-once routine
+    executed,               ///< Do-once routine has been executed
+    initialized = executed  ///< Convenience alias
+};
+
+} // namespace detail
+
+class task_arena {
+public:
+    tbb::task_arena my_task_arena;
+
+private:
+    std::atomic<detail::do_once_state> my_initialization_state;
+    detail::constraints my_constraints;
+    detail::binding_observer* my_binding_observer;
+
+public:
+    using constraints = detail::constraints;
+    static const int automatic = -1;
+
+    task_arena(int max_concurrency_ = automatic, unsigned reserved_for_masters = 1);
+    task_arena(const constraints& constraints_, unsigned reserved_for_masters = 1);
+    task_arena(const task_arena &s);
+
+    void initialize();
+    void initialize(int max_concurrency_, unsigned reserved_for_masters = 1);
+    void initialize(constraints constraints_, unsigned reserved_for_masters = 1);
+
+    int max_concurrency();
+
+    template<typename F>
+    void enqueue(F&& f);
+    template<typename F>
+    auto execute(F&& f) -> decltype(f());
+
+    ~task_arena();
+};
+
+namespace info {
+    std::vector<numa_node_id> numa_nodes();
+    int default_concurrency(numa_node_id id = task_arena::automatic);
+    std::vector<core_type_id> core_types();
+    int default_concurrency(task_arena::constraints c);
+} // namespace info
+} // namespace custom
+
 #elif IE_THREAD == IE_THREAD_OMP
 #include <omp.h>
 

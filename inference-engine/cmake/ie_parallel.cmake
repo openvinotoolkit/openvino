@@ -5,10 +5,13 @@
 function(set_ie_threading_interface_for TARGET_NAME)
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
         find_package(TBB COMPONENTS tbb tbbmalloc)
+
         set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
+        set("TBBBIND_2_4_FOUND" ${TBBBIND_2_4_FOUND} PARENT_SCOPE)
         set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
-        if (TBB_FOUND)
+
+        if (TBB_FOUND AND TBBBIND_2_4_FOUND)
             if (TBB_VERSION VERSION_LESS 2020)
                 ext_message(WARNING "TBB version is less than OpenVINO recommends to use.\
                                     Some TBB related features like NUMA-aware tbb::task_arena\
@@ -67,7 +70,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-        if (TBB_FOUND)
+        if (TBB_FOUND AND TBBBIND_2_4_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
         else ()
