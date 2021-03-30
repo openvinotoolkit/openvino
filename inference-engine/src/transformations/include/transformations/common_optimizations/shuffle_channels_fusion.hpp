@@ -28,6 +28,9 @@ namespace pass {
  * x'' = transpose(x', [0, 2, 1, 3, 4]) or transpose(x', [0, 2, 1, 3])
  * y   = reshape(x'', [N, C, H, W])
  *
+ * @param reshape_constants_check the flag that defines the need for additional checks of reshapes constant
+ *        Additional checks are required when ShuffleChannelsFusion using inside offline transformations
+ *        and are not necessary when ShuffleChannelsFusion using inside CommonOptimizations
  */
 
 class ngraph::pass::ShuffleChannelsFusion : public ngraph::pass::MatcherPass {
