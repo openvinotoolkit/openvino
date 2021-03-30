@@ -60,9 +60,6 @@ std::vector<std::string> disabledTestPatterns() {
         // shared SLT test
         R"(.*BatchToSpaceLayerTest.*)",
         R"(.*BucketizeLayerTest.*)",
-        R"(.*CTCGreedyDecoderSeqLenLayerTest.*)",
-        R"(.*CTCGreedyDecoderLayerTest.*)",
-        R"(.*CTCLossLayerTest.*)",
         R"(.*CumSumLayerTest.*)",
         R"(.*DepthToSpaceLayerTest.*)",
         R"(.*EmbeddingBagOffsetsSumLayerTest.*)",
