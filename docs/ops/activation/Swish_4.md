@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-*Swish* operation is introduced in this [article](https://arxiv.org/pdf/1710.05941.pdf).
+*Swish* operation is introduced in this [article](https://arxiv.org/abs/1710.05941).
 It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[
