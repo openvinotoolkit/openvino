@@ -62,6 +62,7 @@ namespace ngraph
         using OutputEdge = Edge<EdgeType::OUTPUT>;
 
         /// \brief Specifies a single node input by the name or index.
+        ///
         ///        For a node test_node, with 3 inputs:
         ///
         ///            ----(in_A)---->  +-----------+
@@ -106,7 +107,7 @@ namespace ngraph
         };
 
         /// \brief Specifies a single node by output name which is determinitic
-        ///        and node name which can be ambiguous.
+        ///        or node name which can be ambiguous.
         ///        For a node test_node, with 2 outputs:
         ///
         ///                             +-----------+  ---(out1)--->
