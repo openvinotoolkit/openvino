@@ -87,8 +87,8 @@ private:
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 8: uni_vmovsd(xmm_src, op); break;
-            case 4: uni_vmovss(xmm_src, op); break;
+            case 8: uni_vmovsd(vmm_arg, op); break;
+            case 4: uni_vmovss(vmm_arg, op); break;
             case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
             case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
             default:
@@ -98,8 +98,8 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
         Xbyak::Xmm xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 8: uni_vmovsd(op, xmm_dst); break;
-            case 4: uni_vmovss(op, xmm_dst); break;
+            case 8: uni_vmovsd(op, vmm_arg); break;
+            case 4: uni_vmovss(op, vmm_arg); break;
             case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
             case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
             default:
