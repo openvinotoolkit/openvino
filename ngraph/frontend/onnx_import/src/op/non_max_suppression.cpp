@@ -77,14 +77,25 @@ namespace ngraph
                             ? default_opset::NonMaxSuppression::BoxEncodingType::CORNER
                             : default_opset::NonMaxSuppression::BoxEncodingType::CENTER;
 
-                    return {std::make_shared<default_opset::NonMaxSuppression>(
+                    auto nms = std::make_shared<default_opset::NonMaxSuppression>(
                         boxes,
                         scores,
                         max_output_boxes_per_class,
                         iou_threshold,
                         score_threshold,
                         box_encoding,
-                        false)};
+                        false);
+
+                    // remove data padding from NonMaxSuppression output
+                    auto zero_constant = ngraph::op::Constant::create(element::i64, {}, {0});
+                    auto minus_one = ngraph::op::Constant::create(element::i64, {1}, {-1});
+                    auto split_lengths = std::make_shared<default_opset::Concat>(
+                        OutputVector{nms->output(2), minus_one}, 0);
+                    auto result = std::make_shared<default_opset::VariadicSplit>(
+                                      nms, zero_constant, split_lengths)
+                                      ->output(0);
+
+                    return {result};
                 }
 
             } // namespace set_1
