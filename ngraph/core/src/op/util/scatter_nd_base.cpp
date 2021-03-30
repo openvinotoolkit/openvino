@@ -65,11 +65,10 @@ void op::util::ScatterNDBase::validate_and_infer_types()
     {
         auto expected_updates_rank = indices_rank.get_length() + inputs_rank.get_length() -
                                      indices_shape[indices_rank.get_length() - 1].get_length() - 1;
-        // If expected updates rank is 0D it also can be 1D tensor with one element
+        // If expected updates rank is 0D it also can be a tensor with one element
         NODE_VALIDATION_CHECK(
             this,
-            updates_rank.get_length() == expected_updates_rank ||
-                expected_updates_rank == 0 && updates_rank.get_length() == 1,
+            updates_rank.get_length() == expected_updates_rank || expected_updates_rank == 0,
             "Rank of updates must be rank of inputs + rank of indices - last dimension of indices "
             "- 1");
 

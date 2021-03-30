@@ -66,7 +66,7 @@ class ScatterNDBase(Op):
         # if expected updates shape is scalar, updates can be tensor of shape [1]
         expected_updates_shape = np.concatenate((indices_shape[:-1], input_shape[indices_shape[-1]:]), axis=0)
         assert np.array_equal(updates_shape, expected_updates_shape) or\
-               np.array_equal(expected_updates_shape, []) and np.array_equal(updates_shape, [1]), \
+               np.array_equal(expected_updates_shape, []) and np.array_equal(updates_shape, np.ones(len(updates_shape))), \
             'The updates shape must be equal to indices_shape[:-1] + input_shape[indices_shape[-1]:] for the node "{}"'.format(node_name)
 
         node.out_port(0).data.set_shape(input_shape)
