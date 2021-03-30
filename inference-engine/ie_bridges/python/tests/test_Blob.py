@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
@@ -51,6 +38,30 @@ def test_get_buffer():
     array = np.ones(shape=(1, 3, 127, 127), dtype=np.float32)
     blob = Blob(tensor_desc, array)
     assert np.array_equal(blob.buffer, array)
+
+
+@pytest.mark.parametrize("precision, numpy_precision", [
+    ("FP32", np.float32),
+    ("FP64", np.float64),
+    ("FP16", np.float16),
+    ("I8", np.int8),
+    ("U8", np.uint8),
+    ("I32", np.int32),
+    ("I16", np.int16),
+    ("U16", np.uint16),
+    ("I64", np.int64),
+    ("BOOL", np.uint8),
+    ("BIN", np.int8),
+    ("BF16", np.float16),
+])
+def test_writes_to_buffer(precision, numpy_precision):
+    tensor_desc = TensorDesc(precision, [1, 3, 127, 127], "NCHW")
+    array = np.zeros(shape=(1, 3, 127, 127), dtype=numpy_precision)
+    blob = Blob(tensor_desc, array)
+    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=numpy_precision)
+    blob.buffer[:] = ones_arr
+    assert np.array_equal(blob.buffer, ones_arr)
+
 
 def write_to_buffer(precision, numpy_precision):
     tensor_desc = TensorDesc(precision, [1, 3, 127, 127], "NCHW")

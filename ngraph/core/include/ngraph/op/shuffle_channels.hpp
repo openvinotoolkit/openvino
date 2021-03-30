@@ -9,8 +9,6 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -67,5 +65,3 @@ namespace ngraph
         using v0::ShuffleChannels;
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

@@ -38,7 +38,7 @@ inline void fill_data_sine(float *data, size_t size, float center, float ampl, f
  */
 inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min, float max, int seed = 0) {
     std::vector<float> res;
-    std::mt19937 gen(static_cast<float>(seed));
+    std::mt19937 gen(seed);
 
     std::uniform_real_distribution<float> dist(min, max);
     for (std::size_t i = 0; i < vec_len; i++)
@@ -251,7 +251,7 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
         auto value = static_cast<float>(dist(generator));
         value /= static_cast<float>(k);
         if (PRC == InferenceEngine::Precision::FP16) {
-            elems.insert(ngraph::float16(value).to_bits());
+            elems.insert(static_cast<dataType>(ngraph::float16(value).to_bits()));
         } else {
             elems.insert(static_cast<dataType>(value));
         }
@@ -294,11 +294,11 @@ fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, i
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
         if (PRC == InferenceEngine::Precision::FP16) {
-            rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
+            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::float16(value).to_bits());
         } else if (PRC == InferenceEngine::Precision::BF16) {
-            rawBlobDataPtr[i] = ngraph::bfloat16(value).to_bits();
+            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::bfloat16(value).to_bits());
         } else {
-            rawBlobDataPtr[i] = value;
+            rawBlobDataPtr[i] = static_cast<dataType>(value);
         }
     }
 }
@@ -317,9 +317,9 @@ void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr &blob,
         auto value = static_cast<float>(normal_d(random));
         if (typeid(dataType) ==
             typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
+            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::float16(value).to_bits());
         } else {
-            rawBlobDataPtr[i] = value;
+            rawBlobDataPtr[i] = static_cast<dataType>(value);
         }
     }
 }
@@ -333,9 +333,10 @@ void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const T valu
         auto value = values[i];
         if (typeid(dataType) ==
             typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
+            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::float16(value).to_bits());
+
         } else {
-            rawBlobDataPtr[i] = value;
+            rawBlobDataPtr[i] = static_cast<dataType>(value);
         }
     }
 }
