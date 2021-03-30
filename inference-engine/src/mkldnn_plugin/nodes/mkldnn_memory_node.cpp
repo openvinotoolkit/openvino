@@ -58,7 +58,7 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisions()[0];
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
