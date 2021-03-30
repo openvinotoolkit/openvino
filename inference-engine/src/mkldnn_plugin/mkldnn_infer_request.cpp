@@ -263,8 +263,22 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                 data = make_blob_with_precision(desc);
                 data->allocate();
             } else {
-                if (blobs[name]->getTensorDesc() != data->getTensorDesc()) {
-                    IE_THROW() << "Network input and output use the same name: " << name << " but expect different tensors.";
+                const auto& expectedTensorDesc = blobs[name]->getTensorDesc();
+
+                if (expectedTensorDesc.getPrecision() != data->getTensorDesc().getPrecision()) {
+                    IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different precision: "
+                                                << data->getTensorDesc().getPrecision() << " for input and " << expectedTensorDesc.getPrecision()
+                                                << " for output.";
+                }
+
+                if (expectedTensorDesc.getDims() != data->getTensorDesc().getDims()) {
+                    IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different shapes.";
+                }
+
+                if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && expectedTensorDesc.getLayout() != InferenceEngine::Layout::ANY &&
+                    expectedTensorDesc.getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
+                    IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
+                                                << " but expect blobs with different blocking descriptors.";
                 }
             }
 
