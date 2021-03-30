@@ -1154,6 +1154,9 @@ IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
 
+# DFT is not implemented yet in plugins
+IE_CPU.dft1d_eval
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
