@@ -1,25 +1,28 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include <cpp_interfaces/exception2status.hpp>
-#include <details/ie_exception_conversion.hpp>
 
 using namespace InferenceEngine;
 
 using ExceptionTests = ::testing::Test;
 
-template<StatusCode T>
+template<StatusCode statusCode>
 class WrapperClass {
 public:
     static InferenceEngine::StatusCode toStatusWrapper(InferenceEngine::ResponseDesc *resp) {
-        TO_STATUS(THROW_IE_EXCEPTION << details::as_status << T)
+        TO_STATUS(IE_EXCEPTION_SWITCH(statusCode, ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{}
+                <<= std::stringstream{} << IE_LOCATION))
     }
 
     static InferenceEngine::StatusCode toStatusWrapperMsg(std::string &msg, InferenceEngine::ResponseDesc *resp) {
-        TO_STATUS(THROW_IE_EXCEPTION << details::as_status << T << msg)
+        TO_STATUS(IE_EXCEPTION_SWITCH(statusCode, ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{}
+                <<= std::stringstream{} << IE_LOCATION << msg))
     }
 };
 
@@ -54,8 +57,8 @@ TEST_F(ExceptionTests, canHandleNullPtr) {
     //  shared_ptr holding the nullptr
     std::shared_ptr<Mock> actual;
     //  check that accessing the nullptr thru macros throws
-    ASSERT_THROW(CALL_STATUS_FNC_NO_ARGS(func0), InferenceEngine::details::InferenceEngineException);
-    ASSERT_THROW(CALL_STATUS_FNC(func1, 0), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(CALL_STATUS_FNC_NO_ARGS(func0), InferenceEngine::Exception);
+    ASSERT_THROW(CALL_STATUS_FNC(func1, 0), InferenceEngine::Exception);
 }
 
 TEST_F(ExceptionTests, throwAfterConvertStatusToClassContainMessage) {
@@ -63,8 +66,8 @@ TEST_F(ExceptionTests, throwAfterConvertStatusToClassContainMessage) {
     auto actual = std::make_shared<WrapperClass<StatusCode::NOT_ALLOCATED>>();
     try {
         CALL_STATUS_FNC(toStatusWrapperMsg, refMessage)
-    } catch (const NotAllocated &iex) {
+    } catch (const NotAllocated& iex) {
         std::string actualMessage = iex.what();
-        ASSERT_EQ(actualMessage.find(refMessage), 0);
+        ASSERT_TRUE(actualMessage.find(refMessage) != std::string::npos);
     }
 }

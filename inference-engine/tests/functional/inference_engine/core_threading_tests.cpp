@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_core.hpp>
-#include <details/ie_exception.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_extension.h>
 
@@ -50,7 +49,7 @@ public:
                 FileUtils::makePluginLibraryName<char>({},
                     std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
-        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        } catch (const InferenceEngine::Exception & ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
     }
@@ -109,7 +108,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
     runParallel([&] () {
         std::string fileName, deviceName;
-        std:tie(fileName, deviceName) = getPluginXml();
+        std::tie(fileName, deviceName) = getPluginXml();
         ie.RegisterPlugins(fileName);
         ie.GetVersions(deviceName);
         ASSERT_EQ(0, std::remove(fileName.c_str()));
@@ -127,7 +126,7 @@ TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
         for (auto && deviceName : devices) {
             try {
                 ie.UnregisterPlugin(deviceName);
-            } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+            } catch (const InferenceEngine::Exception & ex) {
                 // if several threads unload plugin at once, the first thread does this
                 // while all others will throw an exception that plugin is not registered
                 ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");

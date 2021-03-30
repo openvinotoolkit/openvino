@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -50,7 +50,7 @@ if(NOT DEFINED ENABLE_CPPLINT_REPORT)
 	ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 endif()
 
-ie_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
+ie_dependent_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON "UNIX;NOT ANDROID" OFF)
 
 ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 

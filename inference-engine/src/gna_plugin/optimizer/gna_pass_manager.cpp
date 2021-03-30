@@ -975,7 +975,7 @@ void FlattenTrivialConcatPass::run() {
 
         auto axis = concatLayer->_axis;
         bool skip_layer = false;
-        for (int i = 0; i < axis; i++) {
+        for (unsigned int i = 0; i < axis; i++) {
             if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
         }
         if (skip_layer) continue;
@@ -1340,7 +1340,7 @@ static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
     auto weightsElements = blob->size();
     auto weightsBytes = blob->byteSize();
     if (weightsElements == 0) {
-        THROW_IE_EXCEPTION << "Blob size is 0";
+        IE_THROW() << "Blob size is 0";
     }
 
     auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), { TileTo });

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,10 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*BF16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
-        R"(.*BinaryConvolutionLayerTest.*)"
+        R"(.*BinaryConvolutionLayerTest.*)",
+        // TODO: 51676. Incorrect conversion of min and max limits from double to integral
+        R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
+        R"(.*ClampLayerTest.*netPrc=U64.*)"
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {

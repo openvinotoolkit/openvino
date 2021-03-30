@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,30 @@
 
 #include "single_layer_tests/convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "../skip_tests_check.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+
+class GnaConvolutionLayerTest : public ConvolutionLayerTest, GnaLayerTestCheck {
+protected:
+    void Run() override {
+        GnaLayerTestCheck::SkipTestCheck();
+
+        if (!GnaLayerTestCheck::skipTest) {
+            ConvolutionLayerTest::Run();
+        }
+    }
+
+    void SetUp() {
+        ConvolutionLayerTest::SetUp();
+    }
+};
+
+TEST_P(GnaConvolutionLayerTest, CompareWithRefs) {
+    Run();
+}
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -187,8 +207,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLay
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-// TODO: Enable for GNA 2.1 library
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_Kernels2D, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_Kernels2D,
         ::testing::ValuesIn(netPrecisions),
@@ -198,5 +217,5 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_Kernels2D, ConvolutionLayer
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(input2DNCHW),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-    ConvolutionLayerTest::getTestCaseName);
+    GnaConvolutionLayerTest::getTestCaseName);
 }  // namespace

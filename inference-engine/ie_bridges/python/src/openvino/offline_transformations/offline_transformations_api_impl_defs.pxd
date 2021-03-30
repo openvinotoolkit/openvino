@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from libcpp cimport bool
@@ -8,5 +8,7 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
     cdef void ApplyMOCTransformations(IENetwork network, bool cf)
 
     cdef void ApplyLowLatencyTransformation(IENetwork network)
+
+    cdef void ApplyPruningTransformation(IENetwork network)
 
     cdef void CheckAPI()

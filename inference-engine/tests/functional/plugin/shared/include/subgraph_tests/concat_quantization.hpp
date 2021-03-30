@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ TEST_P(ConcatQuantization, CompareWithRefImpl) {
         InferenceEngine::CNNNetwork cnnNetwork = InferenceEngine::CNNNetwork{ function };
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice);
     }
-    catch (InferenceEngine::details::InferenceEngineException & ex) {
+    catch (InferenceEngine::Exception & ex) {
         FAIL() << ex.what();
     }
 };
