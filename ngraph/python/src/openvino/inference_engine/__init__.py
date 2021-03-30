@@ -19,6 +19,6 @@ from openvino.pyopenvino import ResizeAlgorithm
 from openvino.pyopenvino import ColorFormat
 from openvino.pyopenvino import PreProcessChannel
 
-from openvino.inference_engine.ie_api import BlobPatch
+from openvino.inference_engine.ie_api import BlobWrapper
 # Patching for Blob class
-Blob = BlobPatch
+Blob = BlobWrapper
