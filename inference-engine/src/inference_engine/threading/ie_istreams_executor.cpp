@@ -31,6 +31,8 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     // bare minimum of streams (that evenly divides available number of core)
     const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
+    std::cout << "GetDefaultNumStreams, num_cores:  " << num_cores << " sockets: " << sockets << std::endl;
+    return 20;
     if (0 == num_cores % 4)
         return std::max(4, num_cores / 4);
     else if (0 == num_cores % 5)
