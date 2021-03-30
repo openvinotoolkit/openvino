@@ -210,6 +210,7 @@ def main():
     # Do it manually to have only one folder with IRs
     for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
         ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
+        # allows copy to an existing folder
         copy_tree(str(ir_src_path.parent), str(ir_dst_path.parent))
 
 
