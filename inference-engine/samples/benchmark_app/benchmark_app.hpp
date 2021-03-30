@@ -211,10 +211,10 @@ DEFINE_string(layout, "", layout_message);
 DEFINE_int32(qb, 16, gna_qb_message);
 
 /// @brief Specify precision for all input layers of the network
-DEFINE_string(ip, "U8", inputs_precision_message);
+DEFINE_string(ip, "", inputs_precision_message);
 
 /// @brief Specify precision for all ouput layers of the network
-DEFINE_string(op, "FP32", outputs_precision_message);
+DEFINE_string(op, "", outputs_precision_message);
 
 /// @brief Specify precision for input and output layers by name.\n"
 ///        Example: -iop \"input:FP16, output:FP16\".\n"

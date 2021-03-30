@@ -384,7 +384,15 @@ int main(int argc, char *argv[]) {
             processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
             for (auto& item : cnnNetwork.getInputsInfo()) {
                 /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
-                app_inputs_info.at(item.first).precision = item.second->getPrecision();
+                if (app_inputs_info.at(item.first).isImage()) {
+                    // if precision for input set by user, then set it to app_inputs
+                    // otherwise set U8
+                    if (!FLAGS_i.empty() || FLAGS_iop.find(item.first) != std::string::npos) {
+                        app_inputs_info.at(item.first).precision = item.second->getPrecision();
+                    } else {
+                        app_inputs_info.at(item.first).precision = Precision::U8;
+                    }
+                }
             }
 
 
