@@ -14,6 +14,8 @@
 
 namespace MKLDNNPlugin {
 
+class MKLDNNMemoryOutputNode;
+class MKLDNNMemoryInputNode;
 class MKLDNNMemoryNode {
     std::string _id;
  public:
@@ -28,35 +30,6 @@ class MKLDNNMemoryNode {
         return _id;
     }
     virtual void setInputNode(MKLDNNNode *) = 0;
-};
-class MKLDNNMemoryOutputNode;
-class MKLDNNMemoryInputNode;
-
-/**
- * @brief
- * TODO: ATTENTION: this is a temporary solution, this connection should be keep in graph
- * WARNING: thread_local and holderMutex are not needed if moved into graph
- */
-class MKLDNNMemoryNodeVirtualEdge {
- public:
-    using Holder = std::map<std::string, MKLDNNMemoryNode*>;
-    static Holder & getExisted() {
-        thread_local static Holder existed;
-        return existed;
-    }
-
-    static MKLDNNMemoryNode * getByName(Holder& holder, std::string name) {
-        auto result = holder.find(name);
-        if (result != holder.end()) {
-            return result->second;
-        }
-        return nullptr;
-    }
-
-    static Holder* registerOutput(MKLDNNMemoryOutputNode * node);
-    static Holder* registerInput(MKLDNNMemoryInputNode * node);
-    static void remove(MKLDNNMemoryNode * node, Holder* holder);
-    static std::mutex holderMutex;
 };
 
 class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
@@ -74,13 +47,13 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
     void setInputNode(MKLDNNNode* node) override {
         inputNode = node;
     }
+    void init() override;
 
  private:
     /**
      * @brief keeps reference to input sibling node
      */
     MKLDNNNode* inputNode = nullptr;
-    MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
@@ -98,9 +71,9 @@ public:
     void setInputNode(MKLDNNNode* node) override {}
     void storeState(const MKLDNNMemory& mem);
     MKLDNNMemoryPtr getStore();
+    void init() override;
  private:
     MKLDNNMemoryPtr dataStore;
-    MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
 }  // namespace MKLDNNPlugin

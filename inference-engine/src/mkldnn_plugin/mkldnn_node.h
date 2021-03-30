@@ -260,6 +260,7 @@ private:
     std::vector<mkldnn::memory::format_tag> outputLayouts;
 };
 
+class MKLDNNGraph;
 class MKLDNNNode : public InferenceEngine::details::no_copy {
 public:
     template<typename T, int N>
@@ -610,6 +611,8 @@ protected:
      */
     virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
 
+    MKLDNNGraph* graph = nullptr;
+
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
@@ -671,7 +674,6 @@ struct MKLDNNNodeImpl : public MKLDNNNodeType {
 
 #define REG_MKLDNN_CONCAT3_(X, Y, Z) X ## Y ## Z
 #define REG_MKLDNN_CONCAT3(X, Y, Z) REG_MKLDNN_CONCAT3_(X, Y, Z)
-
 #define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                 \
 static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                            \
     REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                    \

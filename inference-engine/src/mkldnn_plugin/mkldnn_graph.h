@@ -20,6 +20,7 @@
 
 namespace MKLDNNPlugin {
 class MKLDNNInferRequest;
+class MKLDNNMemoryNode;
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
@@ -181,6 +182,10 @@ protected:
 
     bool reuse_io_tensors = true;
 
+    friend class MKLDNNMemoryOutputNode;
+    friend class MKLDNNMemoryInputNode;
+    std::map<std::string, MKLDNNMemoryNode*> virtualEdge;
+
     MKLDNNMemoryPtr memWorkspace;
 
     std::map<std::string, MKLDNNNodePtr> inputNodes;
@@ -209,6 +214,7 @@ protected:
     void do_before(const std::string &dir, const MKLDNNNodePtr &node);
     void do_after(const std::string &dir, const MKLDNNNodePtr &node);
 
+    friend class MKLDNNMemoryNode;
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
     friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);

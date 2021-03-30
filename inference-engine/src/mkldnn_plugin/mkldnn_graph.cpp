@@ -248,6 +248,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         const MKLDNNNodePtr node(MKLDNNNode::factory().create(_layer, getEngine(), extMgr, weightsCache));
         graphNodes.push_back(node);
         layer2node[layer] = node;
+        node->graph = this;
 
         if (layer->params.count("originalLayersNames")) {
             node->originalLayers = layer->params["originalLayersNames"];
@@ -290,6 +291,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         graphNodes.push_back(node);
         outputNodes.push_back(node);
 
+        node->graph = this;
+
         unused_data.erase(data);
     }
 
@@ -307,6 +310,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         node->addEdge(edge);
         graphEdges.push_back(edge);
         graphNodes.push_back(node);
+        node->graph = this;
     }
 
     // Replicate input nodes

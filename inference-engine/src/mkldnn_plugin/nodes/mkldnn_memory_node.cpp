@@ -7,22 +7,37 @@
 #include <mkldnn_extension_utils.h>
 #include "mkldnn_memory_node.hpp"
 #include "common/cpu_memcpy.h"
+#include "mkldnn_graph.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-std::mutex MKLDNNMemoryNodeVirtualEdge::holderMutex;
-
 MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(layer, eng, cache) , MKLDNNMemoryNode(layer) {
+}
+
+void MKLDNNMemoryOutputNode::init() {
     if (created()) {
-        holder = MKLDNNMemoryNodeVirtualEdge::registerOutput(this);
+        // in case of output layer
+        IE_ASSERT(graph != nullptr);
+        auto itNode = graph->virtualEdge.find(getId());
+        if (itNode != graph->virtualEdge.end()) {
+            auto inputNode = dynamic_cast<MKLDNNMemoryInputNode*>(itNode->second);
+            IE_ASSERT(inputNode != nullptr);
+            setInputNode(inputNode);
+        } else {
+            graph->virtualEdge.emplace(getId(), this);
+        }
     }
 }
 
 MKLDNNMemoryOutputNode::~MKLDNNMemoryOutputNode() {
-    MKLDNNMemoryNodeVirtualEdge::remove(this, holder);
+    if (graph != nullptr) {
+        InferenceEngine::details::erase_if(graph->virtualEdge, [&](const std::pair<std::string, MKLDNNMemoryNode*>& it){
+            return it.second == this;
+        });
+    }
 }
 
 void MKLDNNMemoryOutputNode::getSupportedDescriptors() {}
@@ -52,8 +67,28 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
 
 MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer), dataStore(new MKLDNNMemory{eng}) {
+}
+
+void MKLDNNMemoryInputNode::init() {
     if (created()) {
-        holder = MKLDNNMemoryNodeVirtualEdge::registerInput(this);
+        IE_ASSERT(graph != nullptr);
+        // in case of output already registered
+        auto itNode = graph->virtualEdge.find(getId());
+        if (itNode != graph->virtualEdge.end()) {
+            auto outputNode = dynamic_cast<MKLDNNMemoryOutputNode*>(itNode->second);
+            IE_ASSERT(outputNode != nullptr);
+            outputNode->setInputNode(this);
+        } else {
+            graph->virtualEdge.emplace(getId(), this);
+        }
+    }
+}
+
+MKLDNNMemoryInputNode::~MKLDNNMemoryInputNode() {
+    if (graph != nullptr) {
+        InferenceEngine::details::erase_if(graph->virtualEdge, [&](const std::pair<std::string, MKLDNNMemoryNode*>& it){
+            return it.second == this;
+        });
     }
 }
 
@@ -85,10 +120,6 @@ static void simple_copy(MKLDNNMemory& dst, const MKLDNNMemory& src) {
     cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
 }
 
-MKLDNNMemoryInputNode::~MKLDNNMemoryInputNode() {
-    MKLDNNMemoryNodeVirtualEdge::remove(this, holder);
-}
-
 MKLDNNMemoryPtr MKLDNNMemoryInputNode::getStore() {
     return dataStore;
 }
@@ -106,45 +137,6 @@ void MKLDNNMemoryInputNode::execute(mkldnn::stream strm) {
     //           dst_mem.SetData(dataStore, false);
     //       But because of performance reason we use simple manual copy
     simple_copy(dst_mem, *dataStore);
-}
-
-MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(MKLDNNMemoryInputNode * node) {
-    std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
-    // in case of output already registered
-    auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
-    auto sibling = MKLDNNMemoryNodeVirtualEdge::getByName(holder, node->getId());
-    if (sibling != nullptr) {
-        auto outputNode = dynamic_cast<MKLDNNMemoryOutputNode*>(sibling);
-        IE_ASSERT(outputNode != nullptr);
-        outputNode->setInputNode(node);
-    } else {
-        holder[node->getId()] = node;
-    }
-    return &holder;
-}
-
-MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput(MKLDNNMemoryOutputNode * node) {
-    std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
-    // in case of output layer
-    auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
-    auto sibling = MKLDNNMemoryNodeVirtualEdge::getByName(holder, node->getId());
-    if (sibling != nullptr) {
-        auto inputNode = dynamic_cast<MKLDNNMemoryInputNode*>(sibling);
-        IE_ASSERT(inputNode != nullptr);
-        node->setInputNode(inputNode);
-    } else {
-        holder[node->getId()] = node;
-    }
-    return &holder;
-}
-
-void MKLDNNMemoryNodeVirtualEdge::remove(MKLDNNMemoryNode * node, Holder* holder) {
-    std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
-    if (nullptr != holder) {
-        InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type & it){
-            return it.second == node;
-        });
-    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMemoryInputNode, MemoryInput);
