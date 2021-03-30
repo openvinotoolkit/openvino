@@ -32,6 +32,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -321,6 +322,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                         }
                     }
                     return false;
+                });
+
+            pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+                [](const_node_ptr &node) -> bool {
+                    return node->input_value(0).get_partial_shape().rank().get_length() > 5;
                 });
 
             // List of enabled/disabled transformations
