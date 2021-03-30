@@ -82,7 +82,7 @@ static const std::vector<float> input_data = {
     0.6613363,   0.79498637,  0.79322547,  0.083214305,  0.577025,    0.58655965,  0.119723536,
     0.0012204717};
 
-NGRAPH_TEST(${BACKEND_NAME}, dft1d)
+NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval)
 {
     auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
     auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
