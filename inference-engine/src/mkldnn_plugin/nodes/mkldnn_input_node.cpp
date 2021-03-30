@@ -56,6 +56,20 @@ void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob, c
         return (reinterpret_cast<size_t>(ptr) % element_size) == 0;
     };
 
+    // This code makes me cry, we should iterate over all elements of the blob.
+    // The presence of subnormals is better to determined at IR read time.
+    auto hasSubnormals = [&] () {
+        if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
+            uint32_t const *u32data = blob->cbuffer().as<const uint32_t*>();
+            for (size_t i = 0; i < blob->size(); ++i) {
+                if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
     if (weightCache) {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", blob->cbuffer().as<const void*>());
@@ -64,7 +78,7 @@ void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob, c
                                     + "_" + ptr;
 
         constBlob = *weightCache->findOrCreate(key, cloneBlob);
-    } else if (isBlobAligned()) {
+    } else if (isBlobAligned() && !hasSubnormals()) {
         constBlob = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
         constBlob->Create(memDesc, blob->buffer());
     } else {
