@@ -11,14 +11,10 @@ file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
 # Remove disabled ops
 list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/matmul_integer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
     )
 list(REMOVE_ITEM LIBRARY_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/matmul_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.hpp
     )
 
