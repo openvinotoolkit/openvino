@@ -1,17 +1,18 @@
 # Python* nGraph Function Creation Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an inference using ngraph::Function to create a network, which uses weights from LeNet classification network.
+This sample demonstrates how to execute an inference using ngraph::Function to create a network, which uses weights from LeNet classification network.  
+In addition to regular images, the sample also supports single-channel ubyte images as an input.
 
 You do not need an XML file to create a network. The API of ngraph::Function allows to create a network on the fly from the source code.
 
 The following Inference Engine Python API is used in the application:
 
-| Feature            | API                                                                                                                                                                                                                                      | Description                                           |
-| :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| Basic Infer Flow   | [IECore], [IECore.load_network]                                                                                                                                                                                                          | Common API to do inference                            |
-| Synchronous Infer  | [ExecutableNetwork.infer]                                                                                                                                                                                                                | Do synchronous inference                              |
-| Network Operations | [IENetwork], [IENetwork.input_info], [IENetwork.outputs], [InputInfoPtr.precision], [DataPtr.precision], [InputInfoPtr.input_data.shape]                                                                                                 | Managing of network: configure input and output blobs |
-| nGraph Functions   | ngraph.impl.Function, [ngraph.parameter], [ngraph.constant], [ngraph.convolution], [ngraph.add], [ngraph.max_pool], [ngraph.reshape], [ngraph.matmul], [ngraph.relu], [ngraph.softmax], [ngraph.result], ngraph.impl.Function.to_capsule | Description of a network using nGraph Python API      |
+| Feature            | API                                                                                                                                                                                                                                        | Description                                           |
+| :----------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
+| Basic Infer Flow   | [IECore], [IECore.load_network]                                                                                                                                                                                                            | Common API to do inference                            |
+| Synchronous Infer  | [ExecutableNetwork.infer]                                                                                                                                                                                                                  | Do synchronous inference                              |
+| Network Operations | [IENetwork], [IENetwork.input_info], [IENetwork.outputs], [InputInfoPtr.precision], [DataPtr.precision], [InputInfoPtr.input_data.shape]                                                                                                   | Managing of network: configure input and output blobs |
+| nGraph Functions   | [ngraph.impl.Function], [ngraph.parameter], [ngraph.constant], [ngraph.convolution], [ngraph.add], [ngraph.max_pool], [ngraph.reshape], [ngraph.matmul], [ngraph.relu], [ngraph.softmax], [ngraph.result], ngraph.impl.Function.to_capsule | Description of a network using nGraph Python API      |
 
 | Options                    | Values                                                                  |
 | :------------------------- | :---------------------------------------------------------------------- |
@@ -136,6 +137,9 @@ The sample application logs each step in a standard output stream and outputs to
 [InputInfoPtr.input_data.shape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
 [ExecutableNetwork.infer]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#aea96e8e534c8e23d8b257bad11063519
 
+<!-- TODO: Replace the link by another one pointing to the Python API, if available -->
+[ngraph.impl.Function]:https://docs.openvinotoolkit.org/latest/ngraph_cpp_api/classngraph_1_1Function.html
+<!-- [ngraph.impl.Function.to_capsule]: -->
 [ngraph.parameter]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a709acd09288f5a76ed8d07492efc3d13
 [ngraph.constant]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a5b6c4e416026e007a4107b3f510d0c27
 [ngraph.convolution]:https://docs.openvinotoolkit.org/latest/ngraph_python_api/namespacengraph_1_1opset1_1_1ops.html#a3143ff55f68428afc1b6c802ee9381e8
