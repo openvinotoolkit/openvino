@@ -57,7 +57,7 @@ def pytest_addoption(parser):
         "--niter",
         type=check_positive_int,
         help="number of iterations to run executable and aggregate results",
-        default=10
+        default=3
     )
     # TODO: add support of --mo, --omz etc. required for OMZ support
     helpers_args_parser = parser.getgroup("test helpers")

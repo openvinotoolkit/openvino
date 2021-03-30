@@ -23,6 +23,10 @@ from pathlib import Path
 from pprint import pprint
 import numpy as np
 
+# Define a range to cut outliers which are < Q1 − IRQ_CUTOFF * IQR, and > Q3 + IRQ_CUTOFF * IQR
+# https://en.wikipedia.org/wiki/Interquartile_range
+IRQ_CUTOFF = 1.5
+
 
 def run_cmd(args: list, log=None, verbose=True):
     """ Run command
@@ -108,7 +112,7 @@ def run_timetest(args: dict, log=None):
     # Remove outliers
     for step_name, time_results in stats.items():
         iqr, q1, q3 = calculate_iqr(time_results)
-        cut_off = iqr * 1.5
+        cut_off = iqr * IRQ_CUTOFF
         upd_time_results = [x for x in time_results if x > q1 - cut_off or x < q3 + cut_off]
         stats.update({step_name: upd_time_results})
 
