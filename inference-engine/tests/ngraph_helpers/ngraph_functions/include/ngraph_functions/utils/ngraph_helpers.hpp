@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporationconvert2OutputVector
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,7 +131,8 @@ enum EltwiseTypes {
     SQUARED_DIFF,
     POWER,
     FLOOR_MOD,
-    MOD
+    MOD,
+    ERF
 };
 
 enum ComparisonTypes {

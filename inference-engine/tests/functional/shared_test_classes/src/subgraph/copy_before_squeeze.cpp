@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "shared_test_classes/subgraph/copy_before_squeeze.hpp"
 
 namespace SubgraphTestsDefinitions {
