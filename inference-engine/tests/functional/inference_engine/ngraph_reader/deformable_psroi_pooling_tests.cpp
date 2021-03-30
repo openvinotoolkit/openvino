@@ -5,7 +5,7 @@
 #include <string>
 #include "ngraph_reader_tests.hpp"
 
-TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork_wrong_mode) {
+TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork_incorrect_mode) {
     std::string model = R"V0G0N(
 <net name="DeformablePSROIPooling" version="10">
 	<layers>
@@ -124,7 +124,7 @@ TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork_wrong_mode) {
     compareIRs(model, modelV7);
 }
 
-TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork_correct_mode) {
+TEST_F(NGraphReaderTests, ReadDeformablePSROIPoolingNetwork) {
     std::string model = R"V0G0N(
 <net name="DeformablePSROIPooling" version="10">
 	<layers>
