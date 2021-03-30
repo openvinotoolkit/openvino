@@ -15,6 +15,7 @@ import re
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 from setuptools.command.build_py import build_py
+from shutil import copyfile
 
 package_name = 'mo'
 
@@ -44,6 +45,11 @@ class InstallCmd(install):
             path = os.path.join(self.install_purelib, package_name, name)
             with open(path, 'wt') as f:
                 f.write('\n'.join(deps))
+        # Add version.txt if exists
+        version_txt = 'version.txt'
+        if os.path.exists(version_txt):
+            copyfile(os.path.join(version_txt),
+                     os.path.join(self.install_purelib, package_name, version_txt))
         
         path = os.path.join(self.install_purelib, package_name, '__init__.py')
         with open(path, 'wt') as f:
