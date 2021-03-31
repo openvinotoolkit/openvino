@@ -128,13 +128,13 @@ int main(int argc, char **argv) {
         goto err;
     // check the network topology
     status = ie_network_get_inputs_number(network, &network_input_size);
-    if (status != OK || network_input_size != 1){
+    if (status != OK || network_input_size != 1) {
         printf("Sample supports topologies with 1 input only\n");
         goto err;
     }
 
     status = ie_network_get_outputs_number(network, &network_output_size);
-    if (status != OK || network_output_size != 1){
+    if (status != OK || network_output_size != 1) {
         printf("Sample supports topologies with 1 output only\n");
         goto err;
     }

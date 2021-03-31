@@ -65,7 +65,7 @@ int ParseAndCheckCommandLine(int argc, char *argv[]) {
             case 'l':
                 custom_ex_library_msg = optarg;
                 break;
-            case 'f':
+            case 'g':
                 config_msg = optarg;
                 break;
             default:
@@ -178,7 +178,7 @@ void parseInputFilesArguments(int argc, char **argv) {
 }
 
 /**
-* @brief Convert the contents of configuration file to the ie_config_t type.
+* @brief Convert the contents of configuration file to the ie_config_t struct.
 * @param config_file File path.
 * @param comment Separator symbol.
 * @return A pointer to the ie_config_t instance.
@@ -350,7 +350,7 @@ int main(int argc, char **argv) {
         printf("%sCustom extension loaded: %s\n", info, custom_ex_library_msg);
     }
 
-    if (custom_plugin_cfg_msg) {
+    if (custom_plugin_cfg_msg && (device_name == "GPU" || device_name == "MYRIAD" || device_name == "HDDL")) {
         // Config for device plugin custom extension is loaded from an .xml description
         ie_config_t cfg = {"CONFIG_FILE", custom_plugin_cfg_msg, NULL};
         status = ie_core_set_config(core, &cfg, device_name);
