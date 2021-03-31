@@ -24,6 +24,6 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
                          bool rotate = false);
 JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t);
 std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t);
-std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info);
+std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info, std::vector<size_t> order = {});
 bool CheckInputsOutputNoPitchSameDims(const base_params& params);
 }  // namespace kernel_selector

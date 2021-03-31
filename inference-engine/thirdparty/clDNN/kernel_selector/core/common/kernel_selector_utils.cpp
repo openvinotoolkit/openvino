@@ -198,19 +198,25 @@ std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t) {
     return sizes;
 }
 
-std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info) {
+std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info, std::vector<size_t> order) {
     const size_t lws_max = info.maxWorkGroupSize;
     const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
     size_t total_lws = 1;
-    std::vector<size_t> lws;
+    std::vector<size_t> lws(gws.size());
+
+    if (!order.empty() && gws.size() != order.size()) {
+        throw std::runtime_error("order size is different from gws size\n");
+    }
+
     for (size_t i = 0; i < gws.size(); ++i) {
+        size_t order_idx = order.empty() ? i : order[i];
         auto rest_lws = lws_max / total_lws;
         size_t lws_idx = 0;
         while (rest_lws < optimal_lws_values[lws_idx]) lws_idx++;
 
-        while (gws[i] % optimal_lws_values[lws_idx]) lws_idx++;
+        while (gws[order_idx] % optimal_lws_values[lws_idx]) lws_idx++;
 
-        lws.push_back(optimal_lws_values[lws_idx]);
+        lws[order_idx] = optimal_lws_values[lws_idx];
         total_lws *= optimal_lws_values[lws_idx];
     }
 

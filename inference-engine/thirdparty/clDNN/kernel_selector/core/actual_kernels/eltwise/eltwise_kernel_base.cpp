@@ -536,42 +536,19 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
-
-    const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
-    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
-         params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
-         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
-        params.output.Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
-        dispatchData.lws[0] = 1;
-        for (auto lws : optimal_lws_values) {
-            if (dispatchData.gws[1] % lws == 0) {
-                dispatchData.lws[1] = lws;
-                break;
-            }
-        }
-        dispatchData.lws[2] = 1;
-    } else if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        dispatchData.gws[2] = Align(dispatchData.gws[2], 32);
-        dispatchData.lws[0] = 1;
-        dispatchData.lws[1] = 1;
-        dispatchData.lws[2] = 32;
-    } else if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv32 && params.output.Feature().v % 32 == 0) {
-        if (params.layoutBased || params.int8_quantization || params.broadcast) {
-            dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = 32;
-            dispatchData.lws[2] = 1;
-        } else if (dispatchData.gws[0] == params.output.LogicalSize()) {
-            dispatchData.lws = local;
-        } else {
-            dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = 1;
-            dispatchData.lws[2] = 32;
-        }
+    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
+        params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+        params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+        params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+        params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+        params.output.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
+        params.output.GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
+        params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]},
+                                                            params.engineInfo, {1, 0, 2});  // feature dim first
     } else {
-        dispatchData.lws[0] = local[0];
-        dispatchData.lws[1] = local[1];
-        dispatchData.lws[2] = local[2];
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]},
+                                                            params.engineInfo);
     }
 
     return dispatchData;
