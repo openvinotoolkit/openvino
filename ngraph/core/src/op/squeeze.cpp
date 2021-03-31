@@ -18,7 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-
 NGRAPH_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
 
 op::Squeeze::Squeeze()
@@ -51,8 +50,10 @@ void op::Squeeze::validate_and_infer_types()
     {
         if (!data_has_dynamic_rank)
         {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data.get_partial_shape().rank()));
-        }         
+            set_output_type(0,
+                            get_input_element_type(0),
+                            PartialShape::dynamic(data.get_partial_shape().rank()));
+        }
         else
         {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
