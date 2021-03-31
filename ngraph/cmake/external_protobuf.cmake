@@ -97,7 +97,7 @@ else()
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
-        set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
+        set_target_properties(${_proto_libs} libprotobuf-lite PROPERTIES
             COMPILE_FLAGS "-Wno-unused-variable -Wno-inconsistent-missing-override")
     endif()
     if(NGRAPH_USE_PROTOBUF_LITE)
