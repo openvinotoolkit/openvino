@@ -15,7 +15,7 @@ It performs element-wise activation function on a given input tensor, based on t
 Swish(x) = x\cdot \sigma(\beta x) = x \left(1 + e^{-(\beta x)}\right)^{-1}
 \f]
 
-Where β, corresponds to `beta` scalar input.
+where β corresponds to `beta` scalar input.
 
 **Attributes**: *Swish* operation has no attributes.
 
@@ -27,11 +27,11 @@ Where β, corresponds to `beta` scalar input.
 
 **Outputs**:
 
-*   **1**: The result of element-wise *Swish* function applied to the input tensor `data`. A tensor of type `T` and same shape as `data` input tensor.
+*   **1**: The result of element-wise *Swish* function applied to the input tensor `data`. A tensor of type `T` and the same shape as `data` input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Examples**
 
