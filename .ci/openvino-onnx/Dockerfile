@@ -71,7 +71,7 @@ RUN cmake .. \
     -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist \
     -DNGRAPH_USE_PROTOBUF_LITE=${PROTOBUF_LITE}
-RUN make -j $(nproc) install
+RUN make -j ($(nproc)/2) install
 
 # Run tests via tox
 WORKDIR /openvino/ngraph/python
