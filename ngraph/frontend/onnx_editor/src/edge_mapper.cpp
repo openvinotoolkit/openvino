@@ -103,7 +103,8 @@ std::string onnx_editor::EdgeMapper::get_node_input_name(int node_index, int inp
     return input_name;
 }
 
-InputEdge onnx_editor::EdgeMapper::find_input_edge(const Node& node, const Input& in) const
+InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
+                                                   const EditorInput& in) const
 {
     // identification can be both based on node name and output name
     const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
@@ -160,7 +161,8 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const Node& node, const Input
     }
 }
 
-OutputEdge onnx_editor::EdgeMapper::find_output_edge(const Node& node, const Output& out) const
+OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node,
+                                                     const EditorOutput& out) const
 {
     // identification can be both based on node name and output name
     const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
@@ -214,5 +216,5 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const Node& node, const Out
 
 OutputEdge onnx_editor::EdgeMapper::find_output_edge(const std::string& output_name) const
 {
-    return find_output_edge(Node{Output{output_name}}, Output{output_name});
+    return find_output_edge(EditorNode{EditorOutput{output_name}}, EditorOutput{output_name});
 }

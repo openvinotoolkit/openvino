@@ -46,12 +46,12 @@ namespace ngraph
             ///        If InputEdge cannot be determined based on parameter values an ngraph_error
             ///        exception will be thrown.
             ///
-            /// \param node A node helper structure created based on a node name
+            /// \param node An EditorNode helper structure created based on a node name
             ///             or a node output name.
             ///
-            /// \param input An input helper structure created based on a input name
+            /// \param input An EditorInput helper structure created based on a input name
             ///              or a input index.
-            InputEdge find_input_edge(const Node& node, const Input& input) const;
+            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
 
             /// \brief Returns an OutputEdge based on a node (node name or output name)
             ///        and an output (output name or output index).
@@ -63,12 +63,12 @@ namespace ngraph
             ///        If OutputEdge cannot be determined based on given params the ngraph_error
             ///        exception is thrown.
             ///
-            /// \param node A node helper structure created based on a node name
+            /// \param node An EditorNode helper structure created based on a node name
             ///             or a node output name.
             ///
-            /// \param output A output helper structure created based on a output name
+            /// \param output An EditorOutput helper structure created based on a output name
             ///               or a output index.
-            OutputEdge find_output_edge(const Node& node, const Output& output) const;
+            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
 
             /// \brief Returns an OutputEdge based on a output name.
             ///

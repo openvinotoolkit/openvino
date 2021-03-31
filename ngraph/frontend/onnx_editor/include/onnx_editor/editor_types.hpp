@@ -68,15 +68,15 @@ namespace ngraph
         ///            ----(in_A)---->  +-----------+
         ///            ----(in_B)---->  | test_node |  ----(out)---->
         ///            ----(in_C)---->  +-----------+
-        ///        You can indicate in_B as Input("in_B") or Input(1)
-        struct Input
+        ///        You can indicate in_B as EditorInput("in_B") or EditorInput(1)
+        struct EditorInput
         {
-            Input() = delete;
-            Input(std::string input_name)
+            EditorInput() = delete;
+            EditorInput(std::string input_name)
                 : m_input_name{std::move(input_name)}
             {
             }
-            Input(const int input_index)
+            EditorInput(const int input_index)
                 : m_input_index{input_index}
             {
             }
@@ -90,15 +90,15 @@ namespace ngraph
         ///                             +-----------+  ---(out1)--->
         ///            ----(in_A)---->  | test_node |
         ///                             +-----------+  ---(out2)--->
-        ///        You can indicate out2 as Output("out2") or Output(1)
-        struct Output
+        ///        You can indicate out2 as EditorOutput("out2") or EditorOutput(1)
+        struct EditorOutput
         {
-            Output() = delete;
-            Output(std::string output_name)
+            EditorOutput() = delete;
+            EditorOutput(std::string output_name)
                 : m_output_name{std::move(output_name)}
             {
             }
-            Output(const int output_index)
+            EditorOutput(const int output_index)
                 : m_output_index{output_index}
             {
             }
@@ -113,25 +113,21 @@ namespace ngraph
         ///                             +-----------+  ---(out1)--->
         ///            ----(in_A)---->  | test_node |
         ///                             +-----------+  ---(out2)--->
-        ///        You can indicate test_node by name as Node("test_node")
-        ///        or by assigned output as Node(Output("out1")) or Node(Output("out2"))
-        struct Node
+        ///        You can indicate test_node by name as EditorNode("test_node")
+        ///        or by assigned output as EditorNode(EditorOutput("out1"))
+        ///        or EditorNode(EditorOutput("out2"))
+        struct EditorNode
         {
-            Node(std::string node_name)
+            EditorNode(std::string node_name)
                 : m_node_name{std::move(node_name)}
             {
             }
-            Node(Output output)
+            EditorNode(EditorOutput output)
                 : m_output_name{std::move(output.m_output_name)}
             {
             }
             const std::string m_node_name = "";
             const std::string m_output_name = "";
         };
-
-        // Aliases to avoid name conflicts with classes from ngraph namespace
-        using EditorInput = Input;
-        using EditorOutput = Output;
-        using EditorNode = Node;
     }
 }
