@@ -9,13 +9,13 @@
 **Detailed description**
 
 *Gelu* operation is introduced in this [article](https://arxiv.org/abs/1606.08415).
-It performs element-wise activation function on a given input tensor based on the following mathematical formula:
+It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[
     Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\left(x/\sqrt{2}\right)\right]
 \f]
 
-Where Φ(x) is the Cumulative Distribution Function for Gaussian Distribution.
+where Φ(x) is the Cumulative Distribution Function for Gaussian Distribution.
 
 Additionally, *Gelu* function may be approximated as follows:
 
@@ -31,11 +31,11 @@ Additionally, *Gelu* function may be approximated as follows:
 
 **Outputs**:
 
-*   **1**: The result of element-wise *Gelu* function applied to the input tensor. A tensor of type `T` and same shape as input tensor.
+*   **1**: The result of element-wise *Gelu* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 
