@@ -260,7 +260,7 @@ namespace ngraph
                 complex_type twiddle(int64_t k, int64_t length, FFTKind fft_kind)
                 {
                     float angle = -2.0f * pi * static_cast<float>(k) / static_cast<float>(length);
-                    complex_type result = std::polar(1.0f, angle);
+                    complex_type result = std::exp(complex_type(0.0f, angle));
                     return (fft_kind == FFTKind::Inverse) ? std::conj(result) : result;
                 }
 

@@ -3,6 +3,8 @@
 //
 
 #include <iostream>
+#include <iomanip>
+#include <limits>
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -173,6 +175,14 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval)
     handle->call({dft_output}, {backend_data});
     std::cout << "nGraph function for DFT was successfully calculated.\n";
 
+    auto result = read_vector<float>(dft_output);
+    std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+    std::cout << "Actual result:\n    ";
+    for (auto x : result)
+    {
+        std::cout << x << " ";
+    }
+    std::cout << "\n";
     EXPECT_TRUE(test::all_close_f(
         expected_dft1d_results, read_vector<float>(dft_output), MIN_FLOAT_TOLERANCE_BITS));
 }
