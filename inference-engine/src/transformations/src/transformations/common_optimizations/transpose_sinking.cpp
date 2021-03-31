@@ -174,10 +174,8 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
         if (!transpose || !(arithmetic_reduce || logical_reduce || squeeze))
             return false;
 
-        bool keep_dims;
-        if (squeeze)
-            keep_dims = false;
-        else if (logical_reduce)
+        bool keep_dims = false; // squeeze always reduces number of output dimensions
+        if (logical_reduce)
             keep_dims = logical_reduce->get_keep_dims();
         else if (arithmetic_reduce)
             keep_dims = arithmetic_reduce->get_keep_dims();
