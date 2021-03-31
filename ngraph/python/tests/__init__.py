@@ -86,12 +86,6 @@ xfail_issue_38712 = xfail_test(reason="RuntimeError: Check '(fmod == 1) "
                                       "Only 'fmod=1' mode is supported for mod operator.")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Momentum")
-xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>'"
-                                      "Check 'element::Type::merge(element_type, element_type,"
-                                      "node->get_input_element_type(i))' "
-                                      "While validating node 'v1::<name> (sizes[0]:i64{4},"
-                                      "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
-                                      "Argument element types are inconsistent.")
 xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "If")
 xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop"
