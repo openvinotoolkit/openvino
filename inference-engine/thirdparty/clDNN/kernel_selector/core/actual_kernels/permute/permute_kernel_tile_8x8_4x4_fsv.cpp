@@ -40,6 +40,8 @@ ParamsKey PermuteKernel_tile_8x8_4x4_fsv::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -70,6 +72,20 @@ static inline std::string GetTiledOutputOrder(size_t size) {
             order_str = "b, z, y, x, f + lw";
             break;
         default : throw std::runtime_error("Unsupported combination\n");
+    }
+    return order_str;
+}
+
+static inline std::string GetReorderedTiledOutputOrder(size_t size) {
+    std::string order_str = "";
+    switch (size) {
+        case 4 :
+            order_str = "b, y + lh, x, f";
+            break;
+       case 5 :
+            order_str = "b, z + lh, y, x, f";
+            break;
+       default : throw std::runtime_error("Unsupported combination\n");
     }
     return order_str;
 }
@@ -150,6 +166,10 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
+
+    if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
+        jit.AddConstant(MakeJitConstant("REORDERED_OUTPUT_TILED_ORDER", GetReorderedTiledOutputOrder(params.output.GetDims().size())));
+    }
 
     // whether F is tile_size-aligned
     if (f % tile_size != 0) {
@@ -258,6 +278,22 @@ bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p, const optional_pa
     };
 
     const permute_params& params = static_cast<const permute_params&>(p);
+
+    if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
+        if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4) ||
+            (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) ||
+            (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32)) {
+            if (params.output.GetLayout() != DataLayout::bfyx)
+                return false;
+        } else if ((params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) ||
+                   (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32)) {
+            if (params.output.GetLayout() != DataLayout::bfzyx) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
 
     if (params.inputs[0].GetDims().size() != params.output.GetDims().size()) {
         return false;
