@@ -28,6 +28,8 @@ namespace ngraph
     {
 
         #define FRONT_END_NOT_IMPLEMENTED(NAME) throw #NAME " is not implemented for this FrontEnd class";
+        #define FRONT_END_ASSERT(EXPRESSION) \
+            { if (!(EXPRESSION)) throw "AssertionFailed"; }
 
         std::vector<Place::Ptr> InputModel::getInputs () const
         {
@@ -429,8 +431,55 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(normalize);
         }
 
-        FrontEnd::Ptr FrontEndManager::loadByFramework (const std::string& framework, FrontEndCapabilities fec)
+        //////////////////////////////////////////////////////////////
+        class FrontEndManager::Impl
         {
+            std::map<std::string, FrontEndFactory> m_factories;
+
+            void registerDefault() {
+                registerFrontEnd("onnx", [](FrontEndCapabilities){return std::make_shared<FrontEndONNX>();});
+                registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
+                registerFrontEnd("tf", [](FrontEndCapabilities){return std::make_shared<FrontEndTensorflow>();});
+            }
+        public:
+            Impl() {
+                registerDefault();
+            }
+            ~Impl() = default;
+            FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapabilities fec) {
+                FRONT_END_ASSERT(m_factories.count(framework))
+                return m_factories[framework](fec);
+            }
+
+            std::vector<std::string> availableFrontEnds() const {
+                std::vector<std::string> keys;
+
+                std::transform(m_factories.begin(), m_factories.end(),
+                               std::back_inserter(keys),
+                               [](const std::pair<std::string, FrontEndFactory>& item) {
+                                   return item.first;
+                               });
+                return keys;
+            }
+
+            FrontEnd::Ptr loadByModel (const std::string& path, FrontEndCapabilities fec)
+            {
+                FRONT_END_NOT_IMPLEMENTED(loadByModel);
+            }
+
+            void registerFrontEnd(const std::string& name, FrontEndFactory creator) {
+                m_factories.insert({name, creator});
+            }
+        };
+
+        FrontEndManager::FrontEndManager(): m_impl(new Impl()) {
+            std::cout << "Create maanger:\n";
+        }
+        FrontEndManager::~FrontEndManager() = default;
+
+        FrontEnd::Ptr FrontEndManager::loadByFramework(const std::string& framework, FrontEndCapabilities fec)
+        {
+            m_impl->loadByFramework(framework, fec);
             if (framework == "onnx")
                 return std::make_shared<FrontEndONNX>();
             else if (framework == "pdpd")
@@ -441,14 +490,17 @@ namespace ngraph
                 throw "Framework " + framework + " is unknown for FrontEnd manager; cannot load it.";
         }
 
-        FrontEnd::Ptr FrontEndManager::loadByModel (const std::string& path, FrontEndCapabilities fec)
+        FrontEnd::Ptr FrontEndManager::loadByModel(const std::string& path, FrontEndCapabilities fec)
         {
-            FRONT_END_NOT_IMPLEMENTED(loadByModel);
+            return m_impl->loadByModel(path, fec);
         }
 
-        std::vector<std::string> FrontEndManager::availableFrontEnds () const
+        std::vector<std::string> FrontEndManager::availableFrontEnds() const
         {
-            return {"onnx", "pdpd", "tf"};
+            if (m_impl) {
+                std::cout << "No impl";
+            }
+            return m_impl->availableFrontEnds();
         }
     } // namespace frontend
 

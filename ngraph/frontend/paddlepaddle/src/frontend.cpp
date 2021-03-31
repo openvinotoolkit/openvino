@@ -16,6 +16,7 @@
 
 
 #include <algorithm>
+#include <numeric>
 #include <chrono>
 #include <memory>
 #include <map>

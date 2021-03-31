@@ -312,11 +312,19 @@ enum FrontEndCapabilities {
 class NGRAPH_API FrontEndManager
 {
 public:
-    FrontEndManager () {}
-    FrontEnd::Ptr loadByFramework (const std::string& framework, FrontEndCapabilities fec = FEC_DEFAULT);
-    FrontEnd::Ptr loadByModel (const std::string& path, FrontEndCapabilities fec = FEC_DEFAULT);
-    std::vector<std::string> availableFrontEnds () const;
+    FrontEndManager();
+    ~FrontEndManager();
+    FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapabilities fec = FEC_DEFAULT);
+    FrontEnd::Ptr loadByModel(const std::string& path, FrontEndCapabilities fec = FEC_DEFAULT);
+    std::vector<std::string> availableFrontEnds() const;
+
+    using FrontEndFactory = std::function<FrontEnd::Ptr(FrontEndCapabilities fec)>;
+    void registerFrontEnd(const std::string& name, FrontEndFactory creator);
+private:
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
 };
+
 } // namespace frontend
 
 } // namespace ngraph
