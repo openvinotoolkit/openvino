@@ -1027,7 +1027,7 @@ void MKLDNNQuantizeNode::init() {
             float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
-            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
+            if ((il == ih && levels != 2) || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
                 IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
                                    << "inputLow = " << il << ", inputHigh = " << ih;
             }

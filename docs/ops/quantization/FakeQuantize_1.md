@@ -13,13 +13,13 @@
 Each element of the output is defined as the result of the following expression:
 
 ```python
-if x <= min(input_low, input_high):
-    output = output_low
-elif x > max(input_low, input_high):
-    output = output_high
-else:
-    # input_low < x <= input_high
-    output = round((x - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low
+input_min = min(input_low, input_high)
+input_max = max(input_low, input_high)
+
+value = max(input_min, x)
+value = min(input_max, value)
+
+output = round((value - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low
 ```
 
 **Attributes**
