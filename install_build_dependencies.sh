@@ -1,7 +1,7 @@
 #!/bin/bash
-# Copyright (C) 2018 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 params=$1
 
@@ -37,6 +37,7 @@ if [ -f /etc/lsb-release ]; then
             libssl-dev \
             ca-certificates \
             git \
+            git-lfs \
             libboost-regex-dev \
             $x86_64_specific_packages \
             libgtk2.0-dev \
@@ -77,6 +78,7 @@ elif [ -f /etc/redhat-release ]; then
             libssl-dev \
             ca-certificates \
             git \
+            git-lfs \
             boost-devel \
             libtool \
             gcc \

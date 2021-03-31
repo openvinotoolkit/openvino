@@ -13,7 +13,6 @@
 #include <ie_common.h>
 
 #include "pyopenvino/inference_engine/common.hpp"
-#include "pyopenvino/inference_engine/ie_executable_network.hpp"
 #include "pyopenvino/inference_engine/ie_infer_request.hpp"
 #include "pyopenvino/inference_engine/ie_preprocess_info.hpp"
 
@@ -25,42 +24,37 @@ void regclass_InferRequest(py::module m)
         m, "InferRequest");
 
     cls.def("get_blob", &InferenceEngine::InferRequest::GetBlob);
-<<<<<<< HEAD
-=======
 
     cls.def("set_blob",
             [](InferenceEngine::InferRequest& self, const std::string& name, py::handle blob) {
                 self.SetBlob(name, Common::convert_to_blob(blob));
             });
 
->>>>>>> 071e446b5... move blob casting to common namespace
     cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
-        for (auto&& input : inputs)
-        {
-            auto name = input.first.cast<std::string>();
+        for (auto&& input : inputs) {
+            auto name = input.first.cast<std::string>().c_str();
             auto blob = Common::convert_to_blob(input.second);
             self.SetBlob(name, blob);
         }
     });
     cls.def("set_output", [](InferenceEngine::InferRequest& self, const py::dict& results) {
-        for (auto&& result : results)
-        {
-            auto name = result.first.cast<std::string>();
+        for (auto&& result : results) {
+            auto name = result.first.cast<std::string>().c_str();
             auto blob = Common::convert_to_blob(result.second);
             self.SetBlob(name, blob);
         }
     });
     cls.def("set_blob", [](InferenceEngine::InferRequest& self,
                            const std::string& name,
-                           const InferenceEngine::TBlob<float>::Ptr& blob) {
-        self.SetBlob(name, blob);
+                           py::handle blob) {
+        self.SetBlob(name,  Common::convert_to_blob(blob));
     });
 
     cls.def("set_blob", [](InferenceEngine::InferRequest& self,
                            const std::string& name,
-                           const InferenceEngine::TBlob<float>::Ptr& blob,
+                           py::handle blob,
                            const InferenceEngine::PreProcessInfo& info) {
-        self.SetBlob(name, blob);
+        self.SetBlob(name, Common::convert_to_blob(blob));
     });
 
     cls.def("set_batch", &InferenceEngine::InferRequest::SetBatch, py::arg("size"));

@@ -3,56 +3,89 @@
 
 from openvino.pyopenvino import TBlobFloat32
 from openvino.pyopenvino import TBlobFloat64
+from openvino.pyopenvino import TBlobFloat16
+from openvino.pyopenvino import TBlobInt64
+from openvino.pyopenvino import TBlobUint64
+from openvino.pyopenvino import TBlobInt32
+from openvino.pyopenvino import TBlobUint32
+from openvino.pyopenvino import TBlobInt16
+from openvino.pyopenvino import TBlobUint16
 from openvino.pyopenvino import TBlobInt8
 from openvino.pyopenvino import TBlobInt16
 from openvino.pyopenvino import TBlobInt32
 from openvino.pyopenvino import TBlobInt64
 from openvino.pyopenvino import TBlobUint8
-from openvino.pyopenvino import TBlobUint16
-from openvino.pyopenvino import TBlobUint32
-from openvino.pyopenvino import TBlobUint64
+from openvino.pyopenvino import TensorDesc
 
 from openvino.pyopenvino import TensorDesc
 
 import numpy as np
 
 
-# Patch for Blobs to dispatch types on Python side
-class BlobPatch:
-    def __new__(cls, tensor_desc, arr : np.ndarray = None):
-        # TODO: create tensor_desc based on arr itself
-        # if tenosr_desc is not given
-        if arr is not None:
+precision_map = {'FP32': np.float32,
+                 'FP64': np.float64,
+                 'FP16': np.int16,
+                 'BF16': np.int16,
+                 'I16': np.int16,
+                 'I8': np.int8,
+                 'BIN': np.int8,
+                 'I32': np.int32,
+                 'I64': np.int64,
+                 'U8': np.uint8,
+                 'BOOL': np.uint8,
+                 'U16': np.uint16,
+                 'U32': np.uint32,
+                 'U64': np.uint64}
+
+# Dispatch Blob types on Python side.
+class BlobWrapper:
+    def __new__(cls, tensor_desc : TensorDesc, arr : np.ndarray = None):
+        arr_size = 0
+        precision = ""
+        if arr is not None and tensor_desc is not None:
             arr = np.array(arr) # Keeping array as numpy array
-            size_arr = np.prod(arr.shape)
-            if arr is not None:
-                if np.isfortran(arr):
-                    arr = arr.ravel(order="F")
-                else:
-                    arr = arr.ravel(order="C")
-        # Return TBlob depends on numpy array dtype
-        # TODO: add dispatching based on tensor_desc precision value
-        if tensor_desc is not None and arr is None:
+            arr_size = np.prod(arr.shape)
+            tensor_desc_size = np.prod(tensor_desc.dims)
             precision = tensor_desc.precision
-            if precision == "FP32":
-                return TBlobFloat32(tensor_desc)
+            if np.isfortran(arr):
+                arr = arr.ravel(order="F")
             else:
-                raise ValueError("not supported precision")
-        elif tensor_desc is not None and arr is not None:
-            if arr.dtype in [np.float32]:
-                return TBlobFloat32(tensor_desc, arr, size_arr)
-            # elif arr.dtype in [np.float64]:
-            #     return TBlobFloat32(tensor_desc, arr.view(dtype=np.float32), size_arr)
-            # elif arr.dtype in [np.int64]:
-            #     return TBlobInt64(tensor_desc, arr, size)
-            # elif arr.dtype in [np.int32]:
-            #     return TBlobInt32(tensor_desc, arr, size)
-            # elif arr.dtype in [np.int16]:
-            #     return TBlobInt16(tensor_desc, arr, size)
-            # elif arr.dtype in [np.int8]:
-            #     return TBlobInt8(tensor_desc, arr, size)
-            # elif arr.dtype in [np.uint8]:
-            #     return TBlobUint8(tensor_desc, arr, size)
+                arr = arr.ravel(order="C")
+            if arr_size != tensor_desc_size:
+                raise AttributeError(f'Number of elements in provided numpy array '
+                                     f'{arr_size} and required by TensorDesc '
+                                     f'{tensor_desc_size} are not equal')
+            if arr.dtype != precision_map[precision]:
+                raise ValueError(f"Data type {arr.dtype} of provided numpy array "
+                                 f"doesn't match to TensorDesc precision {precision}")
+            if not arr.flags['C_CONTIGUOUS']:
+                arr = np.ascontiguousarray(arr)
+        elif arr is None and tensor_desc is not None:
+            arr = np.empty(0, dtype=precision_map[precision])
         else:
-            raise AttributeError(f'Unsupported precision '
-                                 f'{tensor_desc.precision} for Blob')
+            raise AttributeError("TensorDesc can't be None")
+
+        if precision in ["FP32"]:
+            return TBlobFloat32(tensor_desc, arr, arr_size)
+        elif precision in ["FP64"]:
+            return TBlobFloat64(tensor_desc, arr, arr_size)
+        elif precision in ["FP16", "BF16"]:
+            return TBlobFloat16(tensor_desc, arr.view(dtype=np.int16), arr_size)
+        elif precision in ["I64"]:
+            return TBlobInt64(tensor_desc, arr, arr_size)
+        elif precision in ["U64"]:
+            return TBlobUint64(tensor_desc, arr, arr_size)
+        elif precision in ["I32"]:
+            return TBlobInt32(tensor_desc, arr, arr_size)
+        elif precision in ["U32"]:
+            return TBlobUint32(tensor_desc, arr, arr_size)
+        elif precision in ["I16"]:
+            return TBlobInt16(tensor_desc, arr, arr_size)
+        elif precision in ["U16"]:
+            return TBlobUint16(tensor_desc, arr, arr_size)
+        elif precision in ["I8", "BIN"]:
+            return TBlobInt8(tensor_desc, arr, arr_size)
+        elif precision in ["U8", "BOOL"]:
+            return TBlobUint8(tensor_desc, arr, arr_size)
+        else:
+            raise AttributeError(f'Unsupported precision {precision} for Blob')

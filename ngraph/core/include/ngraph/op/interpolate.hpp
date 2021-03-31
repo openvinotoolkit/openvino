@@ -271,10 +271,9 @@ namespace ngraph
                                         const std::vector<int64_t>& sizes) const;
             };
         } // namespace v4
-        NGRAPH_SUPPRESS_DEPRECATED_START
+
         using v0::Interpolate;
         using v0::InterpolateAttrs;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 
     //---------------------------------------- v0 --------------------------------------------------

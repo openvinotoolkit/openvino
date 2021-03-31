@@ -10,8 +10,6 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -94,5 +92,3 @@ namespace ngraph
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

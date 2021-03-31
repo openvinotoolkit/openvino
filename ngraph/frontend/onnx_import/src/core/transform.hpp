@@ -42,6 +42,7 @@ namespace ngraph
             void expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto);
 
             static const std::vector<std::string> legacy_ops_to_fixup = {
+                "DeformableConv2D",
                 "DetectionOutput",
                 "ExperimentalDetectronDetectionOutput",
                 "ExperimentalDetectronGenerateProposalsSingleImage",

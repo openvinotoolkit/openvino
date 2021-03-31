@@ -656,11 +656,11 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU8_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 171, 242);
+    constant_convert_test(element::Type_t::i4, element::Type_t::u8, 171, 250);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI8_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 171, -14);
+    constant_convert_test(element::Type_t::i4, element::Type_t::i8, 171, -6);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI32) {
@@ -680,11 +680,11 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU32_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 171, -14);
+    constant_convert_test(element::Type_t::i4, element::Type_t::u32, 171, -6);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI32_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 171, -14);
+    constant_convert_test(element::Type_t::i4, element::Type_t::i32, 171, -6);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI16) {
@@ -704,11 +704,11 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU16_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 171, 65522);
+    constant_convert_test(element::Type_t::i4, element::Type_t::u16, 171, 65530);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI16_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 171, -14);
+    constant_convert_test(element::Type_t::i4, element::Type_t::i16, 171, -6);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U4ToI64) {
@@ -728,11 +728,11 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64) {
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToU64_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 171, -14);
+    constant_convert_test(element::Type_t::i4, element::Type_t::u64, 171, -6);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_I4ToI64_neg) {
-    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 171, -14);
+    constant_convert_test(element::Type_t::i4, element::Type_t::i64, 171, -6);
 }
 
 TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU8) {

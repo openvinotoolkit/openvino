@@ -76,30 +76,6 @@ TEST(type_prop, add_bad_arguments)
                 });
 }
 
-TEST(type_prop, divide_bad_arguments)
-{
-    test_binary("Divide",
-                [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::v1::Divide>(x, y);
-                });
-}
-
-TEST(type_prop, multiply_bad_arguments)
-{
-    test_binary("Multiply",
-                [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::v1::Multiply>(x, y);
-                });
-}
-
-TEST(type_prop, subtract_bad_arguments)
-{
-    test_binary("Subtract",
-                [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::v1::Subtract>(x, y);
-                });
-}
-
 //
 // Tests for binary elementwise logical ops.
 //
@@ -219,19 +195,14 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
 TEST(type_prop, eltwise_auto_bcast)
 {
     test_binary_eltwise_numpy<op::v1::Add>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Divide>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Equal>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Greater>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Less>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::LessEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Maximum>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Minimum>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Multiply>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::NotEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::LogicalOr>(element::boolean, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Power>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Subtract>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Xor>(element::boolean, op::AutoBroadcastType::NUMPY);
 }
 
@@ -292,19 +263,14 @@ namespace
 TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute)
 {
     test_binary_eltwise_bad_argument_shape<op::v1::Add>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Divide>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Equal>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Greater>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::GreaterEqual>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Less>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::LessEqual>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Maximum>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Minimum>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Multiply>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::NotEqual>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::LogicalOr>(element::boolean);
-    test_binary_eltwise_bad_argument_shape<op::v1::Power>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Subtract>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::Xor>(element::boolean);
 }
 

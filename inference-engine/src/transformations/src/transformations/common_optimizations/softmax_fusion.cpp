@@ -28,6 +28,9 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
     auto div_pattern = ngraph::pattern::wrap_type<opset6::Divide>({exp_pattern, reduce_sum_pattern});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        if (transformation_callback(m.get_match_root()))
+            return false;
+
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto reduce_max_axes = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());

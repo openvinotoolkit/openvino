@@ -35,6 +35,7 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -120,7 +121,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
 
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
@@ -148,6 +149,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             {ngraph::element::f64,     ngraph::element::f32},
             {ngraph::element::f16,     ngraph::element::f32},
             {ngraph::element::boolean, ngraph::element::u8},
+            {ngraph::element::i4, ngraph::element::i8},
+            {ngraph::element::u4, ngraph::element::u8},
     };
 
     for (auto &precision : convert_precision_list) {
@@ -256,6 +259,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
                 return MKLDNNMVNNode::checkAxesSuitability(node);
+            });
+
+    pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+            [](const_node_ptr &node) -> bool {
+                return node->input_value(0).get_partial_shape().rank().get_length() > 5;
             });
 
     // List of enabled/disabled transformations

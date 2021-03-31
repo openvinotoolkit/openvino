@@ -20,8 +20,6 @@ bool isFloat(InferenceEngine::Precision precision);
 /* Set FP32 to FP16, all others without changes */
 void setPrecisions(const InferenceEngine::CNNNetwork &network);
 
-std::map<std::string, std::string> parseConfig(const std::string &configName, char comment = '#');
-
 class BitMap {
 private:
     typedef struct {
