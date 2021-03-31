@@ -358,6 +358,12 @@ namespace ngraph
                     return right;
                 }
 
+                // WA to fix RNNSequence tests
+                if (right_shape.size() == 1 && right_shape.at(0) == 1)
+                {
+                    return right;
+                }
+
                 // Prepare new shape of right operand for broadcasting
                 // Remove dimensions with length=1 from back
                 auto new_right_shape = right_shape;
