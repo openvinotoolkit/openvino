@@ -23,8 +23,8 @@ class TRANSFORMATIONS_API GeluFusionWithErfThree;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief GeluFusion transformation replaces a sub-graph 0.5 * (x * (1 + erf(x /
- * sqrt(2))) with a Gelu op.
+ * @brief GeluFusion transformation replaces a sub-graph (0.5 * x) * (1 + erf(x
+ * / sqrt(2))) with a Gelu op.
  */
 class ngraph::pass::GeluFusionWithErfOne : public ngraph::pass::MatcherPass {
 public:
@@ -45,7 +45,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief GeluFusion transformation replaces a sub-graph 0.5 * (x * (1 + erf(x /
+ * @brief GeluFusion transformation replaces a sub-graph x * (0.5 * (1 + erf(x /
  * sqrt(2))) with a Gelu op.
  */
 class ngraph::pass::GeluFusionWithErfThree : public ngraph::pass::MatcherPass {
