@@ -178,7 +178,7 @@ void op::v7::Gather::validate_and_infer_types()
             axis_pshape);
     }
 
-    int64_t batch_dims = get_batch_dims(); // will not be converted to positive if axis is not
+    int64_t batch_dims = get_batch_dims(); // will not be converted to positive if axis is not set
     if (is_axis_set())
     {
         int64_t axis = get_axis();
@@ -211,57 +211,60 @@ void op::v7::Gather::validate_and_infer_types()
             indices_rank.get_length());
     }
 
-    if (data_rank.is_static() && indices_rank.is_static() && batch_dims >= 0)
+    if (data_rank.is_static() && indices_rank.is_static())
     {
-        auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
-        std::vector<Dimension> result_dims(out_rank);
-        PartialShape output_pshape(result_dims);
-
-        // implementation of out_shape formula
-        // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
-        // data.shape[axis + 1:]
-        int i = 0;
-        for (; i < batch_dims; i++)
+        if (batch_dims >= 0)
         {
-            NODE_VALIDATION_CHECK(this,
-                                  data_pshape[i].compatible(indices_pshape[i]),
-                                  "Shapes ",
-                                  data_pshape,
-                                  " and ",
-                                  indices_pshape,
-                                  " are not consistent. data and indices must have equal or "
-                                  "intersecting sizes until batch_dims");
+            auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
+            PartialShape output_pshape = PartialShape::dynamic(out_rank);
 
-            output_pshape[i] = data_pshape[i] & indices_pshape[i];
+            // implementation of out_shape formula
+            // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
+            // data.shape[axis + 1:]
+            int i = 0;
+            for (; i < batch_dims; i++)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      data_pshape[i].compatible(indices_pshape[i]),
+                                      "Shapes ",
+                                      data_pshape,
+                                      " and ",
+                                      indices_pshape,
+                                      " are not consistent. data and indices must have equal or "
+                                      "intersecting sizes until batch_dims");
+
+                output_pshape[i] = data_pshape[i] & indices_pshape[i];
+            }
+
+            if (is_axis_set())
+            {
+                int64_t axis = get_axis();
+                for (; i < axis; i++)
+                {
+                    output_pshape[i] = data_pshape[i];
+                }
+                for (; i < axis + indices_rank.get_length() - batch_dims; i++)
+                {
+                    output_pshape[i] = indices_pshape[batch_dims - axis + i];
+                }
+                for (; i < out_rank; i++)
+                {
+                    output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
+                }
+            }
+
+            set_output_type(0, data_type, output_pshape);
         }
-
-        if (is_axis_set())
+        else if (batch_dims < 0)
         {
-            int64_t axis = get_axis();
-            for (; i < axis; i++)
-            {
-                output_pshape[i] = data_pshape[i];
-            }
-            for (; i < axis + indices_rank.get_length() - batch_dims; i++)
-            {
-                output_pshape[i] = indices_pshape[batch_dims - axis + i];
-            }
-            for (; i < out_rank; i++)
-            {
-                output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
-            }
+            // batch_dims < 0 could be only if axis is not set
+            // as soon as axis value will arrive negative batch_dims should be resolved
+            // batch_dims value will be within [0, data_rank] && [0, indices_rank]
+            int64_t max_rank = data_rank.get_length() + indices_rank.get_length() - 1;
+            int64_t min_rank = max_rank - max(data_rank.get_length(), indices_rank.get_length());
+
+            set_output_type(0, data_type, PartialShape::dynamic(Dimension(min_rank, max_rank)));
         }
-
-        set_output_type(0, data_type, output_pshape);
-    }
-    else if (data_rank.is_static() && indices_rank.is_static() && batch_dims < 0)
-    {
-        // batch_dims < 0 could be only if axis is not set and in in optimistic scenario
-        // batch_dims will be within the intervals [0, data_rank] && [0, indices_rank]
-        int64_t max_rank = data_rank.get_length() + indices_rank.get_length() - 1;
-        int64_t min_rank = max_rank - max(data_rank.get_length(), indices_rank.get_length());
-
-        set_output_type(0, data_type, PartialShape::dynamic(Dimension(min_rank, max_rank)));
     }
     else
     {
@@ -295,9 +298,10 @@ int64_t op::v7::Gather::get_batch_dims() const
 bool op::v7::Gather::is_axis_set() const
 {
     const auto& axes_constant = get_constant_from_source(input_value(2));
-    if (axes_constant && !axes_constant->cast_vector<int64_t>().empty())
+    if (axes_constant)
         return true;
-    return false;
+    else
+        return false;
 }
 
 shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_args) const
