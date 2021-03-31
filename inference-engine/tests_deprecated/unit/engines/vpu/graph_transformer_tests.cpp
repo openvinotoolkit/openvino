@@ -17,6 +17,7 @@
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
+#include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
 
 namespace vpu {
 
@@ -178,11 +179,13 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<HwBlackListOption>();
     configuration.registerOption<TilingCMXLimitKBOption>();
     configuration.registerOption<WatchdogIntervalOption>();
+    configuration.registerOption<EnableReceivingTensorTimeOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
+    configuration.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
 IE_SUPPRESS_DEPRECATED_END
 
     return configuration;

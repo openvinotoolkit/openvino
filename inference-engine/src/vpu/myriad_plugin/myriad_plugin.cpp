@@ -28,6 +28,7 @@
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
+#include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
 
 #include "myriad_plugin.h"
 
@@ -137,13 +138,11 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     // TODO: remove once all options are migrated
 IE_SUPPRESS_DEPRECATED_START
     _config = {
-        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
         { MYRIAD_CUSTOM_LAYERS, "" },
         { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
         { MYRIAD_THROUGHPUT_STREAMS, "-1" },
 
         // Deprecated
-        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, CONFIG_VALUE(NO) },
         { KEY_VPU_CUSTOM_LAYERS, "" },
         { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
@@ -164,11 +163,13 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<HwBlackListOption>();
     _parsedConfig.registerOption<TilingCMXLimitKBOption>();
     _parsedConfig.registerOption<WatchdogIntervalOption>();
+    _parsedConfig.registerOption<EnableReceivingTensorTimeOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     _parsedConfig.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     _parsedConfig.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
+    _parsedConfig.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
 IE_SUPPRESS_DEPRECATED_END
 }
 

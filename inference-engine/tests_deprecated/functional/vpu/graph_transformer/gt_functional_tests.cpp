@@ -16,6 +16,7 @@
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
+#include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -62,11 +63,13 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<HwBlackListOption>();
     _configuration.registerOption<TilingCMXLimitKBOption>();
     _configuration.registerOption<WatchdogIntervalOption>();
+    _configuration.registerOption<EnableReceivingTensorTimeOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     _configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     _configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
+    _configuration.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
 IE_SUPPRESS_DEPRECATED_END
 
     _inputsInfo.clear();

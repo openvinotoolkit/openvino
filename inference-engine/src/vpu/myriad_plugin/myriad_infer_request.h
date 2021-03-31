@@ -26,7 +26,7 @@ class MyriadInferRequest : public InferenceEngine::IInferRequestInternal {
     MyriadExecutorPtr _executor;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
-    MyriadConfig _config;
+    MyriadConfiguration _config;
 
     const DataInfo _inputInfo;
     const DataInfo _outputInfo;
@@ -46,7 +46,7 @@ public:
                                 DataInfo& compilerInputsInfo,
                                 DataInfo& compilerOutputsInfo,
                                 const std::vector<StageMetaInfo> &blobMetaData,
-                                const MyriadConfig &myriadConfig,
+                                const MyriadConfiguration &myriadConfig,
                                 const Logger::Ptr &log,
                                 const MyriadExecutorPtr &executor,
                                 std::map<std::string, ie::Blob::Ptr> constDatas,

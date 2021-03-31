@@ -15,6 +15,7 @@
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/shape_io.hpp>
+#include "vpu/configuration/options/enable_receiving_tensor_time.hpp"
 
 #include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
@@ -31,7 +32,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        DataInfo& compilerInputsInfo,
                                        DataInfo& compilerOutputsInfo,
                                        const std::vector<StageMetaInfo> &blobMetaData,
-                                       const MyriadConfig& myriadConfig,
+                                       const MyriadConfiguration& myriadConfig,
                                        const Logger::Ptr &log,
                                        const MyriadExecutorPtr &executor,
                                        std::map<std::string, ie::Blob::Ptr> constDatas,
@@ -309,5 +310,5 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRe
     return vpu::parsePerformanceReport(
         _stagesMetaData,
         perfInfo.data(), static_cast<int>(perfInfo.size()),
-        _config.perfReport(), _config.printReceiveTensorTime());
+        _config.perfReport(), _config.get<EnableReceivingTensorTimeOption>());
 }

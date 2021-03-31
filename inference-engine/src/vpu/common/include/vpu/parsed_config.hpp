@@ -41,10 +41,6 @@ public:
         return _compileConfig;
     }
 
-    bool printReceiveTensorTime() const {
-        return _printReceiveTensorTime;
-    }
-
     bool perfCount() const {
         return _perfCount;
     }
@@ -62,7 +58,6 @@ protected:
 private:
     std::string _compilerLogFilePath;
     CompilationConfig _compileConfig;
-    bool _printReceiveTensorTime = false;
     bool _perfCount              = false;
     PerfReport _perfReport = PerfReport::PerLayer;
 };

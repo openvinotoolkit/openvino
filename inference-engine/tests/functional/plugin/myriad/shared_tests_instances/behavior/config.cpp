@@ -131,6 +131,10 @@ const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() 
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, YES}
         },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, YES}
+        },
 
         // Deprecated
         {
@@ -140,6 +144,10 @@ const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() 
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)},
+        },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), YES}
         },
     };
     return correctMultiConfigs;
@@ -163,6 +171,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_HW_BLACK_LIST, {std::string()}},
         {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB_AUTO}},
         {InferenceEngine::MYRIAD_WATCHDOG, {std::chrono::milliseconds(1000)}},
+        {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, {false}},
     };
     return defaultEntries;
 }
@@ -222,6 +231,12 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{std::chrono::milliseconds(1000)}),
         std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{std::chrono::milliseconds(0)}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+
+        std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
+        std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }
@@ -239,7 +254,9 @@ const std::vector<std::string>& getPublicOptions() {
         InferenceEngine::MYRIAD_PROTOCOL,
         VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
         InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
-        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)
+        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
+        InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
+        VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME)
     };
     return publicOptions;
 }
@@ -337,6 +354,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "ON"},
             {InferenceEngine::MYRIAD_WATCHDOG, "OFF"},
+            {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"},
         },
     };
     return incorrectConfigs;
@@ -363,6 +381,10 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}
         },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}
+        },
 
         // Deprecated
         {
@@ -388,6 +410,10 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"},
+        },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}
         },
     };
     return incorrectMultiConfigs;

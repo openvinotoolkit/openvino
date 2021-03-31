@@ -96,8 +96,6 @@ const std::unordered_set<std::string>& ParsedConfig::getRunTimeOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getRunTimeOptions(), {
         CONFIG_KEY(PERF_COUNT),
-        VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
-        ie::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
         ie::MYRIAD_PERF_REPORT_MODE,
     });
 IE_SUPPRESS_DEPRECATED_END
@@ -109,7 +107,6 @@ const std::unordered_set<std::string>& ParsedConfig::getDeprecatedOptions() cons
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getDeprecatedOptions(), {
         VPU_CONFIG_KEY(CUSTOM_LAYERS),
-        VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -219,14 +216,12 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 
-    setOption(_printReceiveTensorTime,                       switches, config, ie::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME);
     setOption(_perfCount,                                    switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_perfReport,                                perfReports, config, ie::MYRIAD_PERF_REPORT_MODE);
     setOption(_compileConfig.enableMemoryTypesAnnotation,    switches, config, ie::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
 
 IE_SUPPRESS_DEPRECATED_START
     setOption(_compileConfig.customLayers,                             config, VPU_CONFIG_KEY(CUSTOM_LAYERS));
-    setOption(_printReceiveTensorTime,                       switches, config, VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
     setOption(_compileConfig.detectBatch,                    switches, config, VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
 IE_SUPPRESS_DEPRECATED_END
 
