@@ -67,13 +67,8 @@ make_ng_node(std::map<std::string, google::protobuf::RepeatedPtrField<std::strin
     NamedInputs named_inputs;
     for(const auto& input: inputs_preproc)
     {
-        // TODO: what does this limitation really mean?
-        MY_ASSERT(
-                input.second.size() <= 1,
-                "More then one source is registered for input " + input.first + " of operation with type " + op.type());
-        // Handle optional inputs by not including them to the map
-        if(input.second.size() == 1)
-            named_inputs[input.first] = input.second[0];
+        for(auto node: input.second)
+            named_inputs[input.first].push_back(node);
     }
 
     OutputVector outputs = CREATORS_MAP.at(op.type())(NodeContext(op, named_inputs));

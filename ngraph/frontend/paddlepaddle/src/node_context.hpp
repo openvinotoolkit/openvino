@@ -16,12 +16,13 @@
 
 #pragma once
 #include "decoder.hpp"
+#include "utility.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 
-typedef std::map<std::string, Output<Node>> NamedInputs;
+typedef std::map<std::string, OutputVector> NamedInputs;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate conversion process in the rules code.
 class NodeContext
@@ -33,8 +34,25 @@ public:
 
     NodeContext (const DecoderPDPDProto& _node, NamedInputs& _name_map) : node(_node), name_map(_name_map) {}
 
-    bool has_ng_input (const std::string& name) const { return name_map.find(name) != name_map.end(); }
-    Output<Node> get_ng_input (const std::string& name) const { return name_map[name]; }
+    /// Detects if there is at least one input attached with a given name
+    bool has_ng_input (const std::string& name) const
+    {
+        auto found = name_map.find(name);
+        if(found != name_map.end())
+            return !found->second.empty();
+    }
+
+    size_t get_ng_input_size (const std::string& name) const { return name_map.at(name).size(); }
+
+    /// Returns exactly one input with a given name; throws if there is no inputs or there are more than one input
+    Output<Node> get_ng_input (const std::string& name) const
+    {
+        MY_ASSERT(name_map.at(name).size() == 1);
+        return name_map.at(name).at(0);
+    }
+
+    /// Returns all inputs with a given name
+    OutputVector get_ng_inputs (const std::string& name) const { return name_map.at(name); }
 
     template <typename T>
     T get_attribute (const std::string& name, const T& def = T()) const;
