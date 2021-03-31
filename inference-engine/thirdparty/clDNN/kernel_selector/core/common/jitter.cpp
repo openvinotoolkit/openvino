@@ -1567,7 +1567,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 var_input0 = get_input(0);
                 var_input1 = get_input(1);
             } else if (fused_deps.size() == 1) {
-                var_input0 = get_input(0);
+                var_input0 = get_input((desc.tensors.empty()? 0 : 1));
                 var_input1 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[0]), vec_size);
             } else {
                 var_input0 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[0]), vec_size);

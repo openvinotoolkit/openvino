@@ -49,6 +49,8 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_01_with_ref_b_fs_yx_fsv16_f32
     }
 
     set_values(input, inputVec);
+    set_values(sum_input1, {7.f});
+    set_values(sum_input2, {9.f});
 
     topology topology_act(
         input_layout("input", input.get_layout()),
@@ -165,6 +167,7 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_02_with_ref_b_fs_yx_fsv16_f32
     }
 
     set_values(input, inputVec);
+    set_values(sum_input, {7.f});
 
     topology topology_act(
         input_layout("input", input.get_layout()),
@@ -268,6 +271,8 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_03_with_ref_b_fs_yx_fsv16_f32
     }
 
     set_values(input, inputVec);
+    set_values(sum_input1, {7.f});
+    set_values(sum_input2, {23.f});
 
     topology topology_act(
         input_layout("input", input.get_layout()),
