@@ -63,7 +63,7 @@ class ScatterNDBase(Op):
             'The last dimension of indices shape must be at most a rank of input for the node "{}"'.format(node_name)
 
         # 3. updates is a tensor of shape indices_shape[:-1] + input_shape[indices_shape[-1]:]
-        # if expected updates shape is scalar, updates can be tensor of shape [1]
+        # if expected updates shape is scalar, updates can be tensor with the single element (for example, of shape [1], [[1]], etc.)
         expected_updates_shape = np.concatenate((indices_shape[:-1], input_shape[indices_shape[-1]:]), axis=0)
         assert np.array_equal(updates_shape, expected_updates_shape) or\
                np.array_equal(expected_updates_shape, []) and np.array_equal(updates_shape, np.ones(len(updates_shape))), \
