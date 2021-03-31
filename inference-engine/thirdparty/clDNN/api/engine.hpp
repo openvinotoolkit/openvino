@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 namespace cldnn {
 
@@ -61,6 +62,7 @@ struct engine_configuration {
                                               ///< (switched off for older drivers then NEO).
     uint16_t n_streams;                       ///< Number of queues executed in parallel
     const std::string kernels_cache_path;     ///< Path to compiled kernels cache
+    uint16_t n_threads;                       ///< Number of threads
     const std::string tuning_cache_path;      ///< Path to tuning kernel cache
 
     /// @brief Constructs engine configuration with specified options.
@@ -83,6 +85,7 @@ struct engine_configuration {
         bool memory_pool = true,
         uint16_t n_streams = 1,
         const std::string& kernels_cache_path = "",
+        uint16_t n_threads = std::max(static_cast<uint16_t>(std::thread::hardware_concurrency()), static_cast<uint16_t>(1)),
         const std::string& tuning_cache_path = "cache.json")
         : enable_profiling(profiling)
         , meaningful_kernels_names(decorate_kernel_names)
@@ -97,6 +100,7 @@ struct engine_configuration {
         , enable_memory_pool(memory_pool)
         , n_streams(n_streams)
         , kernels_cache_path(kernels_cache_path)
+        , n_threads(n_threads)
         , tuning_cache_path(tuning_cache_path) {
         if (n_streams == 0) {
             throw std::invalid_argument("Invalid streams count set in engine config");
