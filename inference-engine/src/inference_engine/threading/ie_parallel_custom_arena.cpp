@@ -4,6 +4,10 @@
 
 #include "ie_parallel_custom_arena.hpp"
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
+
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 #if defined(TBBBBIND_2_4_AVAILABLE)
 namespace custom {

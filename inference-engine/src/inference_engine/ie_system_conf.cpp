@@ -98,7 +98,7 @@ std::vector<int> getAvailableNUMANodes() { return {0}; }
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 std::vector<int> getAvailableNUMANodes() {
-#if TBB_INTERFACE_VERSION >= 11100
+#if TBB_NUMA_SUPPORT_PRESENT
     return custom::info::numa_nodes();
 #else
     return {0};
