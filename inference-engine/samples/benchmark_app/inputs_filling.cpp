@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,19 +48,18 @@ std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>&
 void fillBlobImage(Blob::Ptr& inputBlob,
                   const std::vector<std::string>& filePaths,
                   const size_t& batchSize,
-                  const InputInfo& info,
+                  const benchmark_app::InputInfo& app_info,
                   const size_t& requestId,
                   const size_t& inputId,
                   const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImage, " <<
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImage, " <<
             "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
     auto minputHolder = minput->wmap();
     auto inputBlobData = minputHolder.as<uint8_t *>();
-    const TensorDesc& inputBlobDesc = inputBlob->getTensorDesc();
 
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
@@ -77,24 +76,30 @@ void fillBlobImage(Blob::Ptr& inputBlob,
         }
 
         /** Getting image data **/
-        TensorDesc desc = info.getTensorDesc();
-        std::shared_ptr<uint8_t> imageData(reader->getData(getTensorWidth(desc), getTensorHeight(desc)));
+        std::shared_ptr<uint8_t> imageData(reader->getData(app_info.width(), app_info.height()));
         if (imageData) {
             vreader.push_back(imageData);
         }
     }
 
     /** Fill input tensor with images. First b channel, then g and r channels **/
-    const size_t numChannels = getTensorChannels(inputBlobDesc);
-    const size_t imageSize = getTensorWidth(inputBlobDesc) * getTensorHeight(inputBlobDesc);
+    const size_t numChannels = app_info.channels();
+    const size_t width = app_info.width();
+    const size_t height = app_info.height();
     /** Iterate over all input images **/
     for (size_t imageId = 0; imageId < vreader.size(); ++imageId) {
-        /** Iterate over all pixel in image (b,g,r) **/
-        for (size_t pid = 0; pid < imageSize; pid++) {
-            /** Iterate over all channels **/
-            for (size_t ch = 0; ch < numChannels; ++ch) {
-                /**          [images stride + channels stride + pixel id ] all in bytes            **/
-                inputBlobData[imageId * imageSize * numChannels + ch * imageSize + pid] = vreader.at(imageId).get()[pid*numChannels + ch];
+        /** Iterate over all width **/
+        for (size_t w = 0; w < app_info.width(); ++w) {
+            /** Iterate over all height **/
+            for (size_t h = 0; h < app_info.height(); ++h) {
+                /** Iterate over all channels **/
+                for (size_t ch = 0; ch < numChannels; ++ch) {
+                    /**          [images stride + channels stride + pixel id ] all in bytes            **/
+                    size_t offset = imageId * numChannels * width * height +
+                            (((app_info.layout == "NCHW") || (app_info.layout == "CHW")) ?
+                             (ch * width * height + h * width + w) : (h * width * numChannels + w * numChannels + ch));
+                    inputBlobData[offset] = vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch];
+                }
             }
         }
     }
@@ -109,7 +114,7 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
                     const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobBinary, " <<
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobBinary, " <<
             "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
@@ -122,17 +127,17 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
         slog::info << "Prepare binary file " << filePaths[inputIndex] << slog::endl;
         std::ifstream binaryFile(filePaths[inputIndex], std::ios_base::binary | std::ios_base::ate);
         if (!binaryFile) {
-            THROW_IE_EXCEPTION << "Cannot open " << filePaths[inputIndex];
+            IE_THROW() << "Cannot open " << filePaths[inputIndex];
         }
 
         auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
         binaryFile.seekg(0, std::ios_base::beg);
         if (!binaryFile.good()) {
-            THROW_IE_EXCEPTION << "Can not read " << filePaths[inputIndex];
+            IE_THROW() << "Can not read " << filePaths[inputIndex];
         }
         auto inputSize = inputBlob->size()*sizeof(T)/batchSize;
         if (fileSize != inputSize) {
-            THROW_IE_EXCEPTION << "File " << filePaths[inputIndex] << " contains " << std::to_string(fileSize) << " bytes "
+            IE_THROW() << "File " << filePaths[inputIndex] << " contains " << std::to_string(fileSize) << " bytes "
                                             "but the network expects " << std::to_string(inputSize);
         }
         binaryFile.read(&inputBlobData[i*inputSize], inputSize);
@@ -140,19 +145,33 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
 }
 
 template<typename T>
-void fillBlobRandom(Blob::Ptr& inputBlob) {
+using uniformDistribution =
+    typename std::conditional<
+        std::is_floating_point<T>::value,
+        std::uniform_real_distribution<T>,
+        typename std::conditional<
+            std::is_integral<T>::value,
+            std::uniform_int_distribution<T>,
+            void>::type
+    >::type;
+
+template<typename T, typename T2>
+void fillBlobRandom(Blob::Ptr& inputBlob,
+        T rand_min = std::numeric_limits<T>::min(),
+        T rand_max = std::numeric_limits<T>::max()) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobRandom, "
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobRandom, "
             << "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
     auto minputHolder = minput->wmap();
 
     auto inputBlobData = minputHolder.as<T *>();
+    std::mt19937 gen(0);
+    uniformDistribution<T2> distribution(rand_min, rand_max);
     for (size_t i = 0; i < inputBlob->size(); i++) {
-        auto rand_max = RAND_MAX;
-        inputBlobData[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+        inputBlobData[i] = static_cast<T>(distribution(gen));
     }
 }
 
@@ -162,7 +181,7 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
                     std::pair<size_t, size_t> image_size) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImInfo, " <<
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImInfo, " <<
             "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
@@ -185,24 +204,23 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
 
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
-               const InferenceEngine::ConstInputsDataMap& info,
+               benchmark_app::InputsInfo& app_inputs_info,
                std::vector<InferReqWrap::Ptr> requests) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
-    for (const ConstInputsDataMap::value_type& item : info) {
-        if (isImage(item.second)) {
-            input_image_sizes.push_back(std::make_pair(getTensorWidth(item.second->getTensorDesc()),
-                                                       getTensorHeight(item.second->getTensorDesc())));
+    for (auto& item : app_inputs_info) {
+        if (item.second.isImage()) {
+            input_image_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
         }
-        slog::info << "Network input '" << item.first << "' precision " << item.second->getTensorDesc().getPrecision()
-                                                      << ", dimensions (" << item.second->getTensorDesc().getLayout() << "): ";
-        for (const auto& i : item.second->getTensorDesc().getDims()) {
+        slog::info << "Network input '" << item.first << "' precision " << item.second.precision
+                                                      << ", dimensions (" << item.second.layout << "): ";
+        for (const auto& i : item.second.shape) {
             slog::info << i << " ";
         }
         slog::info << slog::endl;
     }
 
     size_t imageInputCount = input_image_sizes.size();
-    size_t binaryInputCount = info.size() - imageInputCount;
+    size_t binaryInputCount = app_inputs_info.size() - imageInputCount;
 
     std::vector<std::string> binaryFiles;
     std::vector<std::string> imageFiles;
@@ -258,68 +276,80 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
 
         size_t imageInputId = 0;
         size_t binaryInputId = 0;
-        for (const ConstInputsDataMap::value_type& item : info) {
+        for (auto& item : app_inputs_info) {
             Blob::Ptr inputBlob = requests.at(requestId)->getBlob(item.first);
-            if (isImage(inputBlob)) {
+            auto app_info = app_inputs_info.at(item.first);
+            auto precision = app_info.precision;
+            if (app_info.isImage()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
-                    fillBlobImage(inputBlob, imageFiles, batchSize, *item.second, requestId, imageInputId++, imageInputCount);
+                    fillBlobImage(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     continue;
                 }
             } else {
                 if (!binaryFiles.empty()) {
                     // Fill with binary files
-                    if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
+                    if (precision == InferenceEngine::Precision::FP32) {
                         fillBlobBinary<float>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
+                    } else if (precision == InferenceEngine::Precision::FP16) {
                         fillBlobBinary<short>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
+                    } else if (precision == InferenceEngine::Precision::I32) {
                         fillBlobBinary<int32_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
+                    } else if (precision == InferenceEngine::Precision::I64) {
+                        fillBlobBinary<int64_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
+                    } else if ((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::BOOL)) {
                         fillBlobBinary<uint8_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else {
-                        THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
+                        IE_THROW() << "Input precision is not supported for " << item.first;
                     }
                     continue;
                 }
 
-                if (isImageInfo(inputBlob) && (input_image_sizes.size() == 1)) {
+                if (app_info.isImageInfo() && (input_image_sizes.size() == 1)) {
                     // Most likely it is image info: fill with image information
                     auto image_size = input_image_sizes.at(0);
                     slog::info << "Fill input '" << item.first << "' with image size " << image_size.first << "x"
                                                                                        << image_size.second << slog::endl;
-                    if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
+                    if (precision == InferenceEngine::Precision::FP32) {
                         fillBlobImInfo<float>(inputBlob, batchSize, image_size);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
+                    } else if (precision == InferenceEngine::Precision::FP16) {
                         fillBlobImInfo<short>(inputBlob, batchSize, image_size);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
+                    } else if (precision == InferenceEngine::Precision::I32) {
                         fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
+                    } else if (precision == InferenceEngine::Precision::I64) {
+                        fillBlobImInfo<int64_t>(inputBlob, batchSize, image_size);
                     } else {
-                        THROW_IE_EXCEPTION << "Input precision is not supported for image info!";
+                        IE_THROW() << "Input precision is not supported for image info!";
                     }
                     continue;
                 }
             }
             // Fill random
             slog::info << "Fill input '" << item.first << "' with random values ("
-                       << std::string((isImage(inputBlob) ? "image" : "some binary data"))
+                       << std::string((app_info.isImage() ? "image" : "some binary data"))
                        << " is expected)" << slog::endl;
-            if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
-                fillBlobRandom<float>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
-                fillBlobRandom<short>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
-                fillBlobRandom<int32_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
-                fillBlobRandom<uint8_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::I8) {
-                fillBlobRandom<int8_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::U16) {
-                fillBlobRandom<uint16_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::I16) {
-                fillBlobRandom<int16_t>(inputBlob);
+            if (precision == InferenceEngine::Precision::FP32) {
+                fillBlobRandom<float, float>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::FP16) {
+                fillBlobRandom<short, short>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::I32) {
+                fillBlobRandom<int32_t, int32_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::I64) {
+                fillBlobRandom<int64_t, int64_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::U8) {
+                // uniform_int_distribution<uint8_t> is not allowed in the C++17 standard and vs2017/19
+                fillBlobRandom<uint8_t, uint32_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::I8) {
+                // uniform_int_distribution<int8_t> is not allowed in the C++17 standard and vs2017/19
+                fillBlobRandom<int8_t, int32_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::U16) {
+                fillBlobRandom<uint16_t, uint16_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::I16) {
+                fillBlobRandom<int16_t, int16_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::BOOL) {
+                fillBlobRandom<uint8_t, uint32_t>(inputBlob, 0, 1);
             } else {
-                THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
+                IE_THROW() << "Input precision is not supported for " << item.first;
             }
         }
     }

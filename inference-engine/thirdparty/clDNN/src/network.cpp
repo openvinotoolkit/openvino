@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "network_impl.h"
@@ -23,6 +11,7 @@
 #include "api/mutable_data.hpp"
 #include "api/input_layout.hpp"
 #include <src/include/to_string_utils.h>
+#include "cldnn_itt.h"
 
 #include "error_handler.h"
 #include "primitive_inst.h"
@@ -495,6 +484,7 @@ void network_impl::add_to_exec_order(const primitive_id& id) {
 }
 
 void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& events) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::Execute");
     // Wait for previous execution completion
     reset_execution(false);
 
@@ -747,6 +737,7 @@ void network_impl::allocate_primitive_instance(program_node const& node) {
 }
 
 void network_impl::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::TransferMemory");
     auto& inst_mem = instance->output_memory();
     auto alloc_type = inst_mem.get_allocation_type();
 

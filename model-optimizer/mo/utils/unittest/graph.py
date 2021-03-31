@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from argparse import Namespace
 from copy import deepcopy
 
@@ -359,7 +347,7 @@ def connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=
     second_op_name, in_port = get_name_and_port(second_tensor_name)
 
     if skip_data:
-        return [(first_op_name + '_d', second_op_name, {'in': in_port})]
+        return [(first_op_name + '_d', second_op_name, {'out': out_port, 'in': in_port})]
     if front_phase:
         return [(first_op_name, second_op_name, {'out': out_port, 'in': in_port})]
     return [

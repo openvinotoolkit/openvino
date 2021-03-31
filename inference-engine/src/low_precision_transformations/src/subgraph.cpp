@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,12 @@ bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
         return false;
     }
 
-    const auto inputs = ngraph::pass::low_precision::NetworkHelper::getInputs(node);
+    //WA to support StridedSlice in ConcatTransformation
+    if (ngraph::is_type<opset1::StridedSlice>(node)) {
+        return true;
+    }
+
+    const auto inputs = node->input_values();
     for (const auto& input : inputs) {
         if (ngraph::is_type<opset1::Constant>(input.get_node())) {
             continue;

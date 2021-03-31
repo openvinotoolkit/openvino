@@ -1,23 +1,12 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "ocl_builder.h"
 #include "configuration.h"
 #include "include/to_string_utils.h"
+#include "api/device.hpp"
 #include <string>
 #include <vector>
 #include <list>
@@ -49,8 +38,7 @@ std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void*
 
     std::map<std::string, device_impl::ptr> ret;
     for (auto& dptr : dev_orig) {
-        auto flag = dptr->get_device().getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
-        if (flag != 0)
+        if (dptr->get_info().dev_type == cldnn::device_type::integrated_gpu)
             dev_sorted.insert(dev_sorted.begin(), dptr);
         else
             dev_sorted.push_back(dptr);

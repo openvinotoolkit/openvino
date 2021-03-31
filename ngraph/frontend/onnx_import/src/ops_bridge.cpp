@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <functional>
 #include <iterator>
@@ -35,6 +23,7 @@
 #include "op/atanh.hpp"
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
+#include "op/bitshift.hpp"
 #include "op/cast.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
@@ -144,7 +133,13 @@
 #include "op/xor.hpp"
 #include "ops_bridge.hpp"
 
+#include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/prior_grid_generator.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
 #include "op/org.openvinotoolkit/fake_quantize.hpp"
 #include "op/org.openvinotoolkit/group_norm.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"
@@ -319,6 +314,7 @@ namespace ngraph
             REGISTER_OPERATOR("Atanh", 1, atanh);
             REGISTER_OPERATOR("AveragePool", 1, average_pool);
             REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
+            REGISTER_OPERATOR("BitShift", 1, bitshift);
             REGISTER_OPERATOR("Cast", 1, cast);
             REGISTER_OPERATOR("Ceil", 1, ceil);
             REGISTER_OPERATOR("Clip", 1, clip);
@@ -338,6 +334,8 @@ namespace ngraph
             REGISTER_OPERATOR("Div", 1, div);
             REGISTER_OPERATOR("Div", 7, div);
             REGISTER_OPERATOR("Dropout", 1, dropout);
+            REGISTER_OPERATOR("Dropout", 7, dropout);
+            REGISTER_OPERATOR("Dropout", 12, dropout);
             REGISTER_OPERATOR("Elu", 1, elu);
             REGISTER_OPERATOR("Equal", 1, equal);
             REGISTER_OPERATOR("Erf", 1, erf);
@@ -432,6 +430,9 @@ namespace ngraph
             REGISTER_OPERATOR("Slice", 1, slice);
             REGISTER_OPERATOR("Slice", 10, slice);
             REGISTER_OPERATOR("Softmax", 1, softmax);
+            // Softmax v7 should be in the 11th opset but,
+            // other frameworks(mxnet and onnxruntime) already use for older models.
+            REGISTER_OPERATOR("Softmax", 7, softmax);
             REGISTER_OPERATOR("Softplus", 1, softplus);
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
@@ -455,17 +456,44 @@ namespace ngraph
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
             REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
             REGISTER_OPERATOR("Upsample", 1, upsample);
+            REGISTER_OPERATOR("Upsample", 7, upsample);
             REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
 
             // custom OPs
             REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "DeformableConv2D", 1, deformable_conv_2d);
+            REGISTER_OPERATOR_WITH_DOMAIN(
                 OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronDetectionOutput",
+                                          1,
+                                          experimental_detectron_detection_output);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronGenerateProposalsSingleImage",
+                                          1,
+                                          experimental_detectron_generate_proposals);
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronGroupNorm", 1, group_norm);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronPriorGridGenerator",
+                                          1,
+                                          experimental_detectron_prior_grid_generator);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronROIFeatureExtractor",
+                                          1,
+                                          experimental_detectron_roi_feature_extractor);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronTopKROIs",
+                                          1,
+                                          experimental_detectron_topk_rois);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
         }
 

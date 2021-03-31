@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,6 +112,14 @@ void FP::ApplyConvolutional1DTransform(intel_dnn_component_t *component) {
         THROW_GNA_EXCEPTION << "Bad data width: " << component->num_bytes_per_input;
     }
     CNNFilter32(component);
+}
+
+void FP::ApplyConvolutional2DTransform(intel_dnn_component_t* component) {
+#if GNA_LIB_VER == 2
+    CNN2DFilter32(component);
+#else
+    THROW_GNA_EXCEPTION << "Wrong GNA Library: GNA_LIB_VER != 2";
+#endif
 }
 
 void FP::ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,

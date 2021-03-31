@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@ public:
                  const Output<Node>& weights,
                  const Output<Node>& bias,
                  const element::Type output_type = element::undefined);
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 

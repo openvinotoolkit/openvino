@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,9 +38,10 @@ endmacro()
 macro(ie_deprecated_no_errors)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(ie_c_cxx_deprecated "/Qdiag-warning:1478,1786")
+            set(ie_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            set(ie_c_cxx_deprecated "/wd4996")
+            # show 4996 only for /w4
+            set(ie_c_cxx_deprecated_no_errors "/w44996")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -183,7 +184,6 @@ endfunction()
 #
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
@@ -260,6 +260,8 @@ if(WIN32)
     # and observing warning D9025 about flag override
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 else()
     # TODO: enable for C sources as well
     # ie_add_compiler_flags(-Werror)

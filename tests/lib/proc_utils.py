@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (C) 2021 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Common utilities for working with processes.
@@ -9,7 +10,7 @@ import logging
 import subprocess
 
 
-def cmd_exec(args, log=None, verbose=True):
+def cmd_exec(args, env=None, log=None, verbose=True):
     """ Run cmd using subprocess with logging and other improvements
     """
     if log is None:
@@ -22,6 +23,7 @@ def cmd_exec(args, log=None, verbose=True):
 
     proc = subprocess.Popen(
         args,
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         encoding="utf-8",

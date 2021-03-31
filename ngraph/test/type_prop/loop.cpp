@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -54,11 +42,12 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes)
 
     auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
     loop->set_merged_input(M_body, M, Zo);
+
+    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
     // check input descriptors
     for (auto& desc : loop->get_input_descriptions())

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,12 +47,6 @@ static inline void parsePluginName(std::istream& networkModel) {
  * @ingroup ie_dev_api_plugin_api
  */
 class InferencePluginInternal : public IInferencePlugin {
-protected:
-    /**
-     * @brief Destroys the object.
-     */
-    ~InferencePluginInternal() override = default;
-
 public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                   const std::map<std::string, std::string>& config) override {
@@ -84,7 +78,7 @@ public:
                                     const std::map<std::string, std::string>& config) override {
         (void)modelFileName;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
@@ -102,7 +96,7 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override {
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     void SetCore(ICore* core) noexcept override {
@@ -115,11 +109,11 @@ public:
     }
 
     void AddExtension(InferenceEngine::IExtensionPtr /*extension*/) override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/) const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     void SetName(const std::string& pluginName) noexcept override {
@@ -132,20 +126,20 @@ public:
 
     Parameter GetConfig(const std::string& /*name*/,
                         const std::map<std::string, Parameter>& /*options*/) const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     Parameter GetMetric(const std::string& /*name*/,
                         const std::map<std::string, Parameter>& /*options*/) const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     RemoteContext::Ptr CreateContext(const ParamMap& /*params*/) override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     RemoteContext::Ptr GetDefaultContext(const ParamMap& /*params*/) override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
 protected:
@@ -178,7 +172,7 @@ protected:
         (void)network;
         (void)context;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     /**
@@ -194,7 +188,7 @@ protected:
                                                 const std::map<std::string, std::string>& config) {
         (void)networkModel;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     /**
@@ -211,7 +205,7 @@ protected:
         (void)networkModel;
         (void)context;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     std::string _pluginName;  //!< A device name that plugins enables

@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import sys,argparse
 from fnmatch import fnmatch
 
@@ -68,6 +71,10 @@ def parse_args():
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
                            'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.')
+    args.add_argument('-layout', type=str, required=False, default='',
+                      help='Optional. '
+                           'Prompts how network layouts should be treated by application. '
+                           'For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.')
     args.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
                       help='Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD '
                            '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
@@ -83,7 +90,7 @@ def parse_args():
                       help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO', 'NUMA'],
-                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')' 
+                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')'
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
@@ -106,6 +113,12 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
+    args.add_argument('-ip', '--input_precision', type=str, required=False, default='U8', choices=['U8', 'FP16', 'FP32'],
+                      help='Optional. Specifies precision for all input layers of the network.')
+    args.add_argument('-op', '--output_precision', type=str, required=False, default='FP32', choices=['U8', 'FP16', 'FP32'],
+                      help='Optional. Specifies precision for all output layers of the network.')
+    args.add_argument('-iop', '--input_output_precision', type=str, required=False,
+                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
     parsed_args = parser.parse_args()
 
     return parsed_args

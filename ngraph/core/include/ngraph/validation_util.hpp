@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -267,7 +255,14 @@ namespace ngraph
     /// \return boolean status if value evaluation was successful.
     NGRAPH_API bool default_lower_bound_evaluator(const Node* node,
                                                   const HostTensorVector& output_values);
-
+    /// \brief Estimates both bounds for node output tensors using both bounds of inputs. Works for
+    /// operations with two inputs (in_1 and in_2). Brute forces all the pairs of bounds for inputs
+    /// and evaluates all of them: {in_1_lower, in_2 lower}, {in_1_lower, in_2 upper}, {in_1_upper,
+    /// in_2_lower}, {in_1_upper, in_2_upper}. Lower and upper values are selected from all the
+    /// outputs calculated using input pairs.
+    /// \param node Operation to be performed
+    /// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
+    /// \return boolean status if value evaluation was successful.
     NGRAPH_API bool interval_bound_evaluator(const Node* node,
                                              const HostTensorVector& lower_output_values,
                                              const HostTensorVector& upper_output_values);
@@ -289,6 +284,10 @@ namespace ngraph
 
     /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
     NGRAPH_API std::shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t);
+
+    /// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
+    /// that all the HostTensorPtrs are not equal to nullptr
+    NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
 
     namespace opset1
     {

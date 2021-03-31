@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,18 +114,6 @@ const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
             { {}, {}, { 0.5f } },
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
-            { {}, {}, {} },
-        }
-    },
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, {}, { { 0.5f }, element::u8 } },
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },

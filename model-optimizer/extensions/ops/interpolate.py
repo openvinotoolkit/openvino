@@ -1,19 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import math
 
@@ -22,6 +8,7 @@ import numpy as np
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
 
 
@@ -60,6 +47,9 @@ def infer_for_opset4(node: Node):
         assert scales is not None
         for i, axis in enumerate(axes):
             output_shape[axis] = math.floor(scales[i] * output_shape[axis] + 1.0e-5)
+
+    if node.is_in_port_connected(3):
+        PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'axis')
 
     node.out_port(0).data.set_shape(output_shape)
 
@@ -103,7 +93,8 @@ def correct_scales_using_dst_shape(node, dst_shape, src_shape, axes):
     if scales_value is None or len(scales_value) != len(dst_shape):
         corrected_scales = np.zeros(len(dst_shape))
         for i, axis in enumerate(list(axes)):
-            corrected_scales[i] = math.floor((dst_shape[i] / src_shape[axis]) + 1.0e-5)
+            corrected_scales[i] = dst_shape[i] / src_shape[axis]
+        node.in_port(2).data.set_value(corrected_scales)
 
 
 class Interpolate(Op):

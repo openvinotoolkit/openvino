@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
 #include <mkldnn.hpp>  // TODO: just to replace mkldnn->dnnl via macros
 #include "utils/bfloat16.hpp"
+#include "emitters/jit_bf16_emitters.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -162,7 +163,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
         this->postamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_table();
+            emu_vcvtneps2bf16->emit_data();
 
         exp_injector->prepare_table();
     }
@@ -218,7 +219,7 @@ private:
                 if (mayiuse(avx512_core_bf16))
                     vcvtneps2bf16(ymm_dst, vmm_dst);
                 else
-                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             default:
@@ -231,7 +232,7 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     : input_prec(inpPrc), output_prec(outPrc) {
     if (Precision::BF16 == output_prec) {
         if (!mayiuse(avx512_core)) {
-            THROW_IE_EXCEPTION << "SoftmaxGeneric doesn't support BF16 precision on this target.";
+            IE_THROW() << "SoftmaxGeneric doesn't support BF16 precision on this target.";
         }
     }
 
@@ -307,7 +308,7 @@ void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, 
             auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(float_src_data, bf16_dst_data, B, C, H, W);
         } else {
-            THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
+            IE_THROW() << "Unsupported output precision: " << output_prec.name();
         }
     } else if (Precision::BF16 == input_prec) {
         auto bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
@@ -318,9 +319,9 @@ void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, 
             auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(bf16_dst_data, bf16_dst_data, B, C, H, W);
         } else {
-            THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
+            IE_THROW() << "Unsupported output precision: " << output_prec.name();
         }
     } else {
-        THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
+        IE_THROW() << "Unsupported input precision: " << input_prec.name();
     }
 }

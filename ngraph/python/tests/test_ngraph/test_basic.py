@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 
 import numpy as np
@@ -80,15 +68,15 @@ def test_simple_computation_on_ndarrays(dtype):
 
     value_a = np.array([[1, 2], [3, 4]], dtype=dtype)
     value_b = np.array([[5, 6], [7, 8]], dtype=dtype)
-    value_c = np.array([[9, 10], [11, 12]], dtype=dtype)
+    value_c = np.array([[2, 3], [4, 5]], dtype=dtype)
     result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[54, 80], [110, 144]], dtype=dtype))
+    assert np.allclose(result, np.array([[12, 24], [40, 60]], dtype=dtype))
 
-    value_a = np.array([[13, 14], [15, 16]], dtype=dtype)
-    value_b = np.array([[17, 18], [19, 20]], dtype=dtype)
-    value_c = np.array([[21, 22], [23, 24]], dtype=dtype)
+    value_a = np.array([[9, 10], [11, 12]], dtype=dtype)
+    value_b = np.array([[13, 14], [15, 16]], dtype=dtype)
+    value_c = np.array([[5, 4], [3, 2]], dtype=dtype)
     result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[630, 704], [782, 864]], dtype=dtype))
+    assert np.allclose(result, np.array([[110, 96], [78, 56]], dtype=dtype))
 
 
 def test_serialization():

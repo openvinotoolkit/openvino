@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "default_opset.hpp"
 #include "gtest/gtest.h"
@@ -335,12 +323,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph)
             return std::string{op->get_type_name()} == "Loop";
         });
     const auto body_ops =
-        ngraph::as_type_ptr<ngraph::opset5::Loop>(*loop_node_it)->get_function()->get_ops();
+        ngraph::as_type_ptr<default_opset::Loop>(*loop_node_it)->get_function()->get_ops();
     const auto body_mul_node_it =
         std::find_if(body_ops.begin(), body_ops.end(), [](const std::shared_ptr<Node>& op) {
             return std::string{op->get_type_name()} == "Multiply";
         });
-    const auto body_mul_node = ngraph::as_type_ptr<ngraph::opset5::Multiply>(*body_mul_node_it);
+    const auto body_mul_node = ngraph::as_type_ptr<default_opset::Multiply>(*body_mul_node_it);
     EXPECT_TRUE(body_mul_node);
     EXPECT_EQ(
         body_mul_node->get_autob().m_type,

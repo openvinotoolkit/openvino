@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -208,8 +196,10 @@ namespace ngraph
                                 typename element_type_traits<element::Type_t::u64>::value_type>(
                                 value));
                         break;
-                    case element::Type_t::u1: throw std::runtime_error("unsupported type");
-                    case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+                    case element::Type_t::i4:
+                    case element::Type_t::u1:
+                    case element::Type_t::u4:
+                    case element::Type_t::undefined:
                     case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
                     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -351,6 +341,8 @@ namespace ngraph
                 std::vector<T> get_vector() const
                 {
                     const T* p = get_data_ptr<T>();
+                    if (p == nullptr)
+                        throw std::runtime_error("Cannot create vector! Buffer is not allocated.");
                     return std::vector<T>(p, p + shape_size(m_shape));
                 }
 
@@ -470,6 +462,14 @@ namespace ngraph
                 }
                 std::string convert_value_to_string(size_t index) const;
 
+                /**
+                 * \brief Allows to avoid buffer allocation on the visit_attributes call
+                 */
+                void alloc_buffer_on_visit_attributes(bool val)
+                {
+                    m_alloc_buffer_on_visit_attributes = val;
+                }
+
             protected:
                 template <typename IN_T, typename OUT_T>
                 void cast_vector(std::vector<OUT_T>& output_vector) const
@@ -576,8 +576,10 @@ namespace ngraph
                     case element::Type_t::u64:
                         write_buffer<uint64_t, T>(target, source, target_element_count);
                         break;
-                    case element::Type_t::u1: throw std::runtime_error("unsupported type");
-                    case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+                    case element::Type_t::i4:
+                    case element::Type_t::u1:
+                    case element::Type_t::u4:
+                    case element::Type_t::undefined:
                     case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
                     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -591,6 +593,7 @@ namespace ngraph
                 std::shared_ptr<runtime::AlignedBuffer> m_data;
                 bool m_all_elements_bitwise_identical;
                 bool are_all_data_elements_bitwise_identical() const;
+                bool m_alloc_buffer_on_visit_attributes = true;
             };
         }
         using v0::Constant;

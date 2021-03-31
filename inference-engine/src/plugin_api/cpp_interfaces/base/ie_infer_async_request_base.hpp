@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 #include <cpp_interfaces/base/ie_variable_state_base.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
 
@@ -19,18 +20,16 @@ namespace InferenceEngine {
 /**
  * @brief Inference request `noexcept` wrapper which accepts IAsyncInferRequestInternal derived instance which can throw exceptions
  * @ingroup ie_dev_api_async_infer_request_api
- * @tparam T Minimal CPP implementation of IAsyncInferRequestInternal (e.g. AsyncInferRequestThreadSafeDefault)
  */
-template <class T>
 class InferRequestBase : public IInferRequest {
-    std::shared_ptr<T> _impl;
+    std::shared_ptr<IAsyncInferRequestInternal> _impl;
 
 public:
     /**
      * @brief Constructor with actual underlying implementation.
      * @param impl Underlying implementation of type IAsyncInferRequestInternal
      */
-    explicit InferRequestBase(std::shared_ptr<T> impl): _impl(impl) {}
+    explicit InferRequestBase(std::shared_ptr<IAsyncInferRequestInternal> impl): _impl(impl) {}
 
     StatusCode Infer(ResponseDesc* resp) noexcept override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Infer");
@@ -39,7 +38,7 @@ public:
 
     StatusCode Cancel(ResponseDesc* resp) noexcept override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Cancel");
-        NO_EXCEPT_CALL_RETURN_STATUS(_impl->Cancel());
+        TO_STATUS(_impl->Cancel());
     }
 
     StatusCode GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap,
@@ -85,10 +84,6 @@ public:
         TO_STATUS(_impl->SetUserData(data));
     }
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetBatch(batch_size));
     }
@@ -100,7 +95,7 @@ public:
             if (idx >= v.size()) {
                 return OUT_OF_BOUNDS;
             }
-            pState = std::make_shared<VariableStateBase<IVariableStateInternal>>(v[idx]);
+            pState = std::make_shared<VariableStateBase>(v[idx]);
             return OK;
         } catch (const std::exception& ex) {
             return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
@@ -109,9 +104,6 @@ public:
         }
     }
     IE_SUPPRESS_DEPRECATED_END
-
-private:
-    ~InferRequestBase() = default;
 };
 
 }  // namespace InferenceEngine

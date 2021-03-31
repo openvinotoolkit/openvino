@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(DSR_GatherND).*)",
         // TODO: Issue 26090
         ".*DSR_GatherStaticDataDynamicIdx.*f32.*1.3.200.304.*",
-        // TODO: Issue 46755
-        ".*DSR_GatherElements.*"
+        // TODO: Issue 47315
+        ".*ProposalLayerTest.*",
+        // TODO: Issue 48183
+        R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
+        // TODO: Issue 51472
+        ".*CachingSupportCase.*_batch2_.*",
+        // TODO: Issue 51804
+        ".*PreprocessConversionTest.*oPRC=U8.*",
     };
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,8 @@ protected:
     std::shared_ptr<unsigned char> _data;
 
 public:
+    virtual ~Reader() = default;
+
     /**
      * \brief Get width
      * @return width
@@ -69,8 +71,6 @@ public:
      * @return size
      */
     virtual size_t size() const = 0;
-
-    virtual void Release() noexcept = 0;
 };
 }  // namespace FormatReader
 

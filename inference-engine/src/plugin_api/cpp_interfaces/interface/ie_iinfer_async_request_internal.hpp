@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,6 @@ public:
      * @brief A shared pointer to IAsyncInferRequestInternal interface
      */
     typedef std::shared_ptr<IAsyncInferRequestInternal> Ptr;
-
-    /**
-     * @brief A virtual destructor
-     */
-    virtual ~IAsyncInferRequestInternal() = default;
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode

@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import unittest
 from argparse import Namespace
 
@@ -254,6 +242,44 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
         self.assertTrue(flag, resp)
         self.check_graph_attrs(graph, graph_ref, ['parameter'])
+
+    def test_mean_values_with_colon_in_node_name(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values={'param:0': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}})
+        graph = build_graph(nodes, [*connect('parameter', 'result')], {'parameter': {'name': 'param:0'}},
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_mean_values_with_colon_in_node_name_and_port(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values={'0:param:0': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}})
+        graph = build_graph(nodes, [*connect('parameter', 'result')],
+                            {'parameter': {'name': 'param:0', 'id': 'param:0/placeholder_0',
+                                           'initial_node_name': 'param:0'}},
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
 
     def test_scale_input(self):
         graph_ref = build_graph(nodes, [

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,6 @@ public:
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
-    InferenceEngine::ThreadLocal<MKLDNNGraph::Ptr>  _graphs;
-
 protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
@@ -56,7 +54,22 @@ protected:
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
+    struct Graph : public MKLDNNGraph {
+        std::mutex  _mutex;
+        struct Lock : public std::unique_lock<std::mutex> {
+            explicit Lock(Graph& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            Graph&                          _graph;
+        };
+    };
+    // WARNING: Do not use _graphs directly.
+    std::deque<Graph>                           _graphs;
+    NumaNodesWeights&                           _numaNodesWeights;
 
+    /* WARNING: Use GetGraph() function to get access to graph in current stream.
+     * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
+     *       even from main thread
+     */
+    Graph::Lock GetGraph();
 
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };

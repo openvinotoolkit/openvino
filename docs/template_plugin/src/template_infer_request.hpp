@@ -1,7 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #pragma once
 
@@ -39,8 +38,6 @@ public:
 
     void InferImpl() override;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-
-    InferenceEngine::StatusCode Cancel() override;
 
     // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor
     void inferPreprocess();

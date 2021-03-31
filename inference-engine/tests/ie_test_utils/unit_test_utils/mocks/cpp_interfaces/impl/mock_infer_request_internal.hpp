@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,5 +23,5 @@ public:
     MOCK_METHOD0(InferImpl, void());
     MOCK_CONST_METHOD0(GetPerformanceCounts, std::map<std::string, InferenceEngineProfileInfo>());
     MOCK_METHOD0(checkBlobs, void());
-    MOCK_METHOD0(Cancel, InferenceEngine::StatusCode());
+    MOCK_METHOD0(Cancel, void());
 };

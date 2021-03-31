@@ -1,19 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import os
@@ -25,7 +11,7 @@ modules = {
     "protobuf": "google.protobuf",
     "test-generator": "generator",
 }
-critical_modules = ["networkx"]
+critical_modules = ["networkx", "defusedxml", "numpy"]
 
 message = "\nDetected not satisfied dependencies:\n" \
           "{}\n" \
@@ -244,14 +230,12 @@ def check_requirements(framework=None):
                 not_satisfied_versions.append((name, 'not installed', 'required: {} {}'.format(key, required_version)))
             else:
                 not_satisfied_versions.append((name, 'not installed', ''))
-            exit_code = 1
             continue
         except Exception as e:
             log.error('Error happened while importing {} module. It may happen due to unsatisfied requirements of '
                       'that module. Please run requirements installation script once more.\n'
                       'Details on module importing failure: {}'.format(name, e))
             not_satisfied_versions.append((name, 'package error', 'required: {} {}'.format(key, required_version)))
-            exit_code = 1
             continue
 
     if len(not_satisfied_versions) != 0:

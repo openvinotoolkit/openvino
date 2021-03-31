@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 namespace LayerTestsDefinitions {
 typedef std::tuple<
         InferenceEngine::SizeVector,   // Input shape
+        int,                           // Sequence lengths
         InferenceEngine::Precision,    // Probabilities precision
         InferenceEngine::Precision,    // Indices precision
         int,                           // Blank index

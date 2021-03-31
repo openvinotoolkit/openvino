@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,12 +122,12 @@ inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
     return fnPtr;
 }
 
-inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32) {
-    // That which we iterate over
-    const size_t N = 32; // Batch size
-    const size_t L = 10; // Sequence length
-    const size_t I = 8;  // Input size
-    const size_t H = 32; // Hidden size
+inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(
+        ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32,
+        size_t N = 32,   // Batch size
+        size_t L = 10,   // Sequence length
+        size_t I = 8,    // Input size
+        size_t H = 32) { // Hidden size
     auto SENT = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, L, I});
 
     auto H_init = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
@@ -480,7 +480,7 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
     auto init_const = ngraph::op::Constant::create(element::f32, Shape{1, 1, 2, 2}, {0, 0, 0, 0});
-    auto read = std::make_shared<ngraph::op::ReadValue>(init_const, "v0");
+    auto read = std::make_shared<ngraph::opset5::ReadValue>(init_const, "v0");
     read->set_friendly_name("read");
     std::vector<std::shared_ptr<ngraph::Node>> args = {parameter[0], read};
     auto conc = std::make_shared<ngraph::op::Concat>(args, 3);
@@ -491,7 +491,7 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
     axis->set_friendly_name("axis");
     auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 3);
     crop->set_friendly_name("crop");
-    auto assign = std::make_shared<ngraph::op::Assign>(crop, "v0");
+    auto assign = std::make_shared<ngraph::opset5::Assign>(crop, "v0");
     assign->set_friendly_name("assign");
 
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector({res}),

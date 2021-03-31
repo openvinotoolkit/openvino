@@ -17,6 +17,8 @@ p(C|X) = \prod_{t=1}^{T} p(c_{t}|X)
 
 Sequences in the batch can have different length. The lengths of sequences are coded as values 1 and 0 in the second input tensor `sequence_mask`. Value `sequence_mask[j, i]` specifies whether there is a sequence symbol at index `i` in the sequence `i` in the batch of sequences. If there is no symbol at `j`-th position `sequence_mask[j, i] = 0`, and `sequence_mask[j, i] = 1` otherwise. Starting from `j = 0`, `sequence_mass[j, i]` are equal to 1 up to the particular index `j = last_sequence_symbol`, which is defined independently for each sequence `i`. For `j > last_sequence_symbol`, values in `sequence_mask[j, i]` are all zeros.
 
+**Note**: Regardless of the value of `ctc_merge_repeated` attribute, if the output index for a given batch and time step corresponds to the `blank_index`, no new element is emitted.
+
 **Attributes**
 
 * *ctc_merge_repeated*

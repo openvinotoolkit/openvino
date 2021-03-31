@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
 
@@ -54,8 +42,12 @@ class SetPortsPattern(FrontReplacementSubgraph):
                 graph.remove_edge(in_node_id, node_id)
                 if len(Node(graph, in_node_id).out_ports()) == 0:
                     Node(graph, in_node_id).add_output_port(0)
-                Node(graph, in_node_id).out_port(edge_attrs['out']).connect(node.in_port(idx))
-                if idx < in_ports_count-1:
+                in_node = Node(graph, in_node_id)
+                in_node.out_port(edge_attrs['out']).connect(node.in_port(idx))
+                # need to keep this attribute in edge for correct .mapping file generation and
+                # for generation of "names" field in IR
+                in_node.out_edge(edge_attrs['out'])['fw_tensor_debug_info'] = edge_attrs['fw_tensor_debug_info']
+                if idx < in_ports_count - 1:
                     idx = idx + 1
 
             idx = 0
@@ -64,5 +56,8 @@ class SetPortsPattern(FrontReplacementSubgraph):
                 if len(Node(graph, out_node_id).in_ports()) == 0:
                     Node(graph, out_node_id).add_input_port(0)
                 node.out_port(idx).connect(Node(graph, out_node_id).in_port(edge_attrs['in']))
-                if idx < out_ports_count-1:
+                # need to keep this attribute in edge for correct .mapping file generation and
+                # for generation of "names" field in IR
+                node.out_edge(idx)['fw_tensor_debug_info'] = edge_attrs['fw_tensor_debug_info']
+                if idx < out_ports_count - 1:
                     idx = idx + 1

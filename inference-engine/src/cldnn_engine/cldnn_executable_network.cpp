@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
     if (nullptr == casted_context) {
-        THROW_IE_EXCEPTION << "Invalid remote context";
+        IE_THROW() << "Invalid remote context";
     }
 
     m_context = casted_context;
@@ -66,16 +66,16 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
                                                                    OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     if (m_graphs.empty()) {
-        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+        IE_THROW(NetworkNotLoaded);
     }
 
     for (auto& graph : m_graphs) {
         if (graph == nullptr) {
-            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+            IE_THROW(NetworkNotLoaded);
         }
 
         if (!graph->IsLoaded()) {
-            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str << ": no networks created";
+            IE_THROW(NetworkNotLoaded) << ": no networks created";
         }
     }
 
@@ -98,7 +98,7 @@ IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
 
 InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
-        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
+        IE_THROW(NetworkNotLoaded);
 
     return m_graphs.front()->GetExecGraphInfo();
 }
@@ -108,12 +108,11 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) 
     if (it != m_config.key_config_map.end()) {
         return it->second;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
 InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::GetMetric");
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_ASSERT(!m_graphs.empty());
         IE_SET_METRIC_RETURN(NETWORK_NAME, m_graphs[0]->getName());
@@ -133,7 +132,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         unsigned int nr = m_config.throughput_streams * 2u;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 

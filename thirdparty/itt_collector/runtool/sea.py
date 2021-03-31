@@ -45,7 +45,6 @@ class Task:
         return self
 
     def arg(self, name, value):
-        assert self.id
         try:
             value = float(value)
             self.itt.lib.itt_metadata_add(self.itt.domain, self.id, self.itt.get_string_id(name), value)
@@ -54,7 +53,6 @@ class Task:
         return self
 
     def blob(self, name, pointer, size):
-        assert self.id
         self.itt.lib.itt_metadata_add_blob(self.itt.domain, self.id, self.itt.get_string_id(name), pointer, size)
         return self
 

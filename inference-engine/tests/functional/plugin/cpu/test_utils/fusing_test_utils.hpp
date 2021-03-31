@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ const auto fusingPRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto shape = inpNode->get_shape();
                 if (shape.size() == 1)
-                    THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                    IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
                 auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
@@ -104,6 +104,14 @@ const auto fusingSwish = fusingSpecificParams{std::make_shared<postNodesMgr>(std
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Swish, {}, {1.0f});
             }, "Swish"}}), {"Swish"}};
+const auto fusingHSwish = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::HSwish, {}, {});
+            }, "HSwish"}}), {"HSwish"}};
+const auto fusingMish = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Mish, {}, {});
+            }, "Mish"}}), {"Mish"}};
 
 const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
@@ -112,7 +120,7 @@ const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNode
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                  auto shape = inpNode->get_shape();
                  if (shape.size() == 1)
-                     THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                     IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                  ngraph::Shape newShape(shape.size(), 1);
                  newShape[1] = shape[1];
                  auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
@@ -121,18 +129,37 @@ const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNode
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto shape = inpNode->get_shape();
                 if (shape.size() == 1)
-                 THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                 IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
                 auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}), {"Relu", "Add"}};
+const auto fusingScaleShift = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                 auto shape = inpNode->get_shape();
+                 if (shape.size() == 1)
+                     IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+                 ngraph::Shape newShape(shape.size(), 1);
+                 newShape[1] = shape[1];
+                 auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
+                 return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+            }, "Multiply(PerChannel)"},
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto shape = inpNode->get_shape();
+                if (shape.size() == 1)
+                 IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+                ngraph::Shape newShape(shape.size(), 1);
+                newShape[1] = shape[1];
+                auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
+                return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+            }, "Add(PerChannel)"}}), {"Add"} };
 const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto localPrc = inpNode->get_element_type();
                 auto shape = inpNode->get_shape();
                 if (shape.size() == 1)
-                 THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                 IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
                 return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);

@@ -1,6 +1,6 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
+
 """Main entry-point to run timetests tests.
 
 Default run:
@@ -82,4 +82,3 @@ def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir
                              .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
 
     assert comparison_status == 0, "Comparison with references failed"
-

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,21 +16,19 @@ IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief Default implementation for IVariableState
- * @tparam T Minimal CPP implementation of IVariableStateInternal (e.g. VariableStateInternal)
- * @ingroup ie_dev_api_variable_state_api
+  * @ingroup ie_dev_api_variable_state_api
  */
-template <class T>
 class VariableStateBase : public IVariableState {
-    std::shared_ptr<T> impl;
+    std::shared_ptr<IVariableStateInternal> impl;
 
 public:
     /**
      * @brief Constructor with actual underlying implementation.
      * @param impl Underlying implementation of type IVariableStateInternal
      */
-    explicit VariableStateBase(std::shared_ptr<T> impl): impl(impl) {
+    explicit VariableStateBase(std::shared_ptr<IVariableStateInternal> impl): impl(impl) {
         if (impl == nullptr) {
-            THROW_IE_EXCEPTION << "VariableStateBase implementation is not defined";
+            IE_THROW() << "VariableStateBase implementation is not defined";
         }
     }
 

@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "extension.hpp"
 #include "cpu_kernel.hpp"
 #include "op.hpp"
@@ -109,7 +110,10 @@ InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_
 //! [extension:getImplementation]
 
 //! [extension:CreateExtension]
-// Exported function
+//Generate exported function
+IE_DEFINE_EXTENSION_CREATE_FUNCTION(Extension)
+//! [extension:CreateExtension]
+
 INFERENCE_EXTENSION_API(InferenceEngine::StatusCode) InferenceEngine::CreateExtension(InferenceEngine::IExtension *&ext,
                                                                                       InferenceEngine::ResponseDesc *resp) noexcept {
     try {
@@ -123,4 +127,3 @@ INFERENCE_EXTENSION_API(InferenceEngine::StatusCode) InferenceEngine::CreateExte
         return InferenceEngine::GENERAL_ERROR;
     }
 }
-//! [extension:CreateExtension]

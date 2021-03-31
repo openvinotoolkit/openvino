@@ -1,18 +1,5 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
@@ -111,3 +98,66 @@ def gather_elements(
     }
 
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
+
+
+@nameable_op
+def mvn(
+    data: Node,
+    axes: Node,
+    normalize_variance: bool,
+    eps: float,
+    eps_mode: str,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs MeanVarianceNormalization (MVN).
+
+    @param data: The node with data tensor.
+    @param axes: The node with axes to reduce on.
+    @param normalize_variance: Denotes whether to perform variance normalization.
+    @param eps: The number added to the variance to avoid division by zero
+               when normalizing the value. Scalar value.
+    @param eps_mode: how eps is applied (`inside_sqrt` or `outside_sqrt`)
+    @param name: Optional output node name.
+    @return The new node performing a MVN operation on input tensor.
+    """
+    inputs = as_nodes(data, axes)
+
+    attributes = {
+        "normalize_variance": normalize_variance,
+        "eps": eps,
+        "eps_mode": eps_mode
+    }
+
+    return _get_node_factory_opset6().create("MVN", inputs, attributes)
+
+
+@nameable_op
+def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param new_value:    Node producing a value to be assigned to a variable.
+    @param variable_id:  Id of a variable to be updated.
+    @param name:         Optional name for output node.
+    @return Assign node
+    """
+    return _get_node_factory_opset6().create(
+        "Assign",
+        [as_node(new_value)],
+        {"variable_id": variable_id}
+    )
+
+
+@nameable_op
+def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param init_value:   Node producing a value to be returned instead of an unassigned variable.
+    @param variable_id:  Id of a variable to be read.
+    @param name:         Optional name for output node.
+    @return ReadValue node
+    """
+    return _get_node_factory_opset6().create(
+        "ReadValue",
+        [as_node(init_value)],
+        {"variable_id": variable_id}
+    )

@@ -1,20 +1,8 @@
-"""
- Copyright (c) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
+import numpy as np
 
 from extensions.middle.UnsqueezeTileReshapeBlockToInterpolate import UnsqueezeTileReshapeBlockToInterpolate
 from mo.front.common.partial_infer.utils import int64_array
@@ -112,7 +100,7 @@ graph_edges = [
 ]
 
 
-ref_graph_node_attrs = {
+ref_graph_node_attrs_with_4_inputs_interpolate = {
     'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_data': {
         'value': None,
@@ -126,41 +114,54 @@ ref_graph_node_attrs = {
         'shape': None,
         'value': None,
     },
-    'strided_slice': {
-        'type': 'StridedSlice',
+    'gather': {
+        'type': 'Gather',
         'kind': 'op',
-        'op': 'StridedSlice',
-        'begin_mask': int64_array([1]),
-        'end_mask': int64_array([1]),
-        'new_axis_mask': int64_array([0]),
-        'shrink_axis_mask': int64_array([0]),
-        'ellipsis_mask': int64_array([0]),
+        'op': 'Gather'
     },
-    'strided_slice_data': {
+    'gather_data': {
         'kind': 'data',
         'shape': None,
         'value': None,
     },
-    'begin': {
+    'indices': {
         'kind': 'op',
         'op': 'Const',
         'type': 'Const',
         'value': int64_array([1]),
         'shape': int64_array([1]),
     },
-    'begin_data': {
+    'indices_data': {
         'kind': 'data',
         'value': None,
         'shape': None,
     },
-    'end': {
+    'gather_axis': {
         'kind': 'op',
         'op': 'Const',
         'type': 'Const',
-        'value': int64_array([2]),
+        'value': np.array(0, dtype=np.int64),
+        'shape': np.array(0, dtype=np.int64).shape,
+    },
+    'gather_axis_data': {
+        'kind': 'data',
+        'value': None,
+        'shape': None,
+    },
+    'scales_m': {
+        'kind': 'op',
+        'op': 'Const',
+        'type': 'Const',
+        'value': np.array([2], dtype=np.int64),
         'shape': int64_array([1]),
     },
-    'end_data': {
+    'scales_m_data': {
+        'kind': 'data',
+        'value': np.array([2], dtype=np.float32),
+        'shape': int64_array([1]),
+    },
+    'mul': {'type': 'Mul', 'kind': 'op', 'op': 'Mul'},
+    'mul_data': {
         'kind': 'data',
         'value': None,
         'shape': None,
@@ -169,19 +170,25 @@ ref_graph_node_attrs = {
         'kind': 'op',
         'op': 'Const',
         'type': 'Const',
-        'value': int64_array([2]),
+        'value': np.array([2], dtype=np.float32),
         'shape': int64_array([1]),
     },
     'scales_data': {
         'kind': 'data',
-        'value': None,
-        'shape': None,
+        'value': np.array([2], dtype=np.float32),
+        'shape': int64_array([1]),
     },
-    'mul': {'type': 'Mul', 'kind': 'op', 'op': 'Mul'},
-    'mul_data': {
+    'axes': {
+        'kind': 'op',
+        'op': 'Const',
+        'type': 'Const',
+        'value': int64_array([1]),
+        'shape': int64_array([1]),
+    },
+    'axes_data': {
         'kind': 'data',
-        'value': None,
-        'shape': None,
+        'value': int64_array([1]),
+        'shape': int64_array([1]),
     },
     'interpolate': {'type': 'Interpolate', 'kind': 'op', 'op': 'Interpolate'},
     'interpolate_data': {
@@ -198,22 +205,27 @@ ref_graph_node_attrs = {
     'output': {'kind': 'op', 'op': 'Result', 'type': 'Result'},
 }
 
-ref_graph_edges = [
+
+ref_graph_edges_attrs_with_4_inputs_interpolate = [
     ('placeholder', 'placeholder_data'),
     ('placeholder_data', 'shapeof'),
     ('shapeof', 'shapeof_data'),
-    ('shapeof_data', 'strided_slice', {'in': 0}),
-    ('strided_slice', 'strided_slice_data'),
-    ('begin', 'begin_data'),
-    ('begin_data', 'strided_slice', {'in': 1}),
-    ('end', 'end_data'),
-    ('end_data', 'strided_slice', {'in': 2}),
-    ('scales', 'scales_data'),
-    ('strided_slice_data', 'mul', {'in': 0}),
-    ('scales_data', 'mul', {'in': 1}),
+    ('shapeof_data', 'gather', {'in': 0}),
+    ('gather', 'gather_data'),
+    ('indices', 'indices_data'),
+    ('indices_data', 'gather', {'in': 1}),
+    ('gather_axis', 'gather_axis_data'),
+    ('gather_axis_data', 'gather', {'in': 2}),
+    ('scales_m', 'scales_m_data'),
+    ('gather_data', 'mul', {'in': 0}),
+    ('scales_m_data', 'mul', {'in': 1}),
     ('mul', 'mul_data'),
+    ('scales', 'scales_data'),
+    ('axes', 'axes_data'),
+    ('scales_data', 'interpolate', {'out': 0, 'in': 2}),
     ('mul_data', 'interpolate', {'in': 1}),
     ('placeholder_data', 'interpolate', {'in': 0}),
+    ('axes_data', 'interpolate', {'in': 3}),
     ('interpolate', 'interpolate_data'),
     ('interpolate_data', 'abs'),
     ('abs', 'abs_data'),
@@ -298,7 +310,8 @@ graph_edges_when_transformation_is_not_applicable = graph_edges
 class UnsqueezeTileReshapeBlockToInterpolateTest(unittest.TestCase):
     def test_5d(self):
         graph = build_graph(nodes_attrs=graph_node_attrs, edges=graph_edges)
-        ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs, edges=ref_graph_edges)
+        ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs_with_4_inputs_interpolate,
+                                edges=ref_graph_edges_attrs_with_4_inputs_interpolate)
         UnsqueezeTileReshapeBlockToInterpolate().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
         self.assertTrue(flag, resp)
@@ -320,12 +333,13 @@ class UnsqueezeTileReshapeBlockToInterpolateTest(unittest.TestCase):
             }
         )
         ref_graph = build_graph(
-            nodes_attrs=ref_graph_node_attrs,
-            edges=ref_graph_edges,
+            nodes_attrs=ref_graph_node_attrs_with_4_inputs_interpolate,
+            edges=ref_graph_edges_attrs_with_4_inputs_interpolate,
             update_attributes={
                 'placeholder_data': {'shape': int64_array([1, 8, 32, 32])},
                 'interpolate_data': {'shape': int64_array([1, 16, 32, 32])},
                 'abs_data': {'shape': int64_array([1, 16, 32, 32])},
+                'axes': {'shape': int64_array([1]), 'value': int64_array([1])},
             }
         )
         UnsqueezeTileReshapeBlockToInterpolate().find_and_replace_pattern(graph)

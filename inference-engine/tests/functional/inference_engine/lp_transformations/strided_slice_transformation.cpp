@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -365,6 +365,38 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
             {},
             ngraph::element::f32,
             {}
+        }
+    },
+    // quantization after convolution
+    {
+        ngraph::Shape{1, 3, 24, 24},
+        LayerTransformation::createParamsU8I8(),
+        specialDimensionSlice,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {3, 1, 1} }}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {1, 3, 1, 1} }}
+        }
+    },
+    // quantization after convolution
+    {
+        ngraph::Shape{1, 3, 24, 24},
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {3, 1, 1} }}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { {0.1f, 0.01f}, ngraph::element::f32, {1, 2, 1, 1} }}
         }
     },
 };

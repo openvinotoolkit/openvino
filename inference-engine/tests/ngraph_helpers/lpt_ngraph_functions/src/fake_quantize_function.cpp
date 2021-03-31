@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
         updateDequantization.multiply.constantPrecision = element::f32;
     }
 
+    updateDequantization.multiply.outPrecision = precision;
     std::shared_ptr<Node> deq;
     if (updatePrecisions) {
         deq = makeDequantization(fakeQuantize, updateDequantization);

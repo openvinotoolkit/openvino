@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <cstddef>
 #include <memory>
@@ -80,11 +68,28 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv,
                                                            const Output<ngraph::Node>& bias)
                     {
-                        const auto rank_of_conv = ng_conv.get_partial_shape().rank().get_length();
+                        const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
+                        const auto conv_rank = std::make_shared<default_opset::ShapeOf>(conv_shape);
 
-                        return {std::make_shared<default_opset::Add>(
-                            ng_conv,
-                            reshape::reshape_channel_shaped_node_to_nchw(bias, rank_of_conv))};
+                        // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
+                        const auto one_const =
+                            default_opset::Constant::create(element::i64, Shape{1}, {1});
+                        const auto two_const =
+                            default_opset::Constant::create(element::i64, Shape{1}, {2});
+                        const auto tail_shape_rank =
+                            std::make_shared<default_opset::Subtract>(conv_rank, two_const);
+                        const auto tail_shape =
+                            std::make_shared<default_opset::Broadcast>(one_const, tail_shape_rank);
+
+                        // Construct new bias shape: [1, C, 1, 1, ... ]
+                        const auto C_dim = std::make_shared<default_opset::ShapeOf>(bias);
+                        const auto bias_shape = std::make_shared<default_opset::Concat>(
+                            OutputVector{one_const, C_dim, tail_shape}, 0);
+
+                        const auto reshaped_bias =
+                            std::make_shared<default_opset::Reshape>(bias, bias_shape, false);
+
+                        return {std::make_shared<default_opset::Add>(ng_conv, reshaped_bias)};
                     }
                 } // namespace
 
@@ -123,11 +128,11 @@ namespace ngraph
                     }
                     else
                     {
-                        const auto bias = inputs.at(2);
-                        const auto bias_ps = bias.get_partial_shape();
+                        const auto& bias = inputs.at(2);
+                        const auto& bias_ps = bias.get_partial_shape();
 
-                        NGRAPH_CHECK(bias_ps.is_static() && is_vector(bias_ps.to_shape()),
-                                     "The bias input needs to be a static 1D vector");
+                        NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
+                                     "The bias input needs to be 1D vector");
 
                         return {add_bias(conv_node, bias)};
                     }
