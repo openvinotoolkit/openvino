@@ -9,7 +9,7 @@
 **Detailed Description**
 
 *Elu* operation is introduced in this [article](https://arxiv.org/abs/1511.07289v3).
-It performs element-wise activation function on a given input tensor based on the following mathematical formula:
+It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[
 Elu(x) = \left\{\begin{array}{r}
@@ -18,7 +18,7 @@ Elu(x) = \left\{\begin{array}{r}
 \end{array}\right.
 \f]
 
-Where α, corresponds to *alpha* attribute.
+where α corresponds to *alpha* attribute.
 
 *Elu* is equivalent to *ReLU* operation when *alpha* is equal to zero. 
 
@@ -27,7 +27,7 @@ Where α, corresponds to *alpha* attribute.
 * *alpha*
 
   * **Description**: scale for the negative factor
-  * **Range of values**: non-negative arbitrary floating point number
+  * **Range of values**: non-negative arbitrary floating-point number
   * **Type**: `float`
   * **Default value**: none
   * **Required**: *yes*
@@ -38,11 +38,11 @@ Where α, corresponds to *alpha* attribute.
 
 **Outputs**:
 
-*   **1**: Result of element-wise *Elu* function applied to the input tensor. A tensor of type `T` and same shape as input tensor.
+*   **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 
