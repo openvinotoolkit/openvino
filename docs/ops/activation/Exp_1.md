@@ -22,11 +22,11 @@ exp(x) = e^{x}
 
 **Outputs**
 
-*   **1**: The result of element-wise *Exp* function applied to the input tensor. A tensor of type `T` and same shape as input tensor.
+*   **1**: The result of element-wise *Exp* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 
