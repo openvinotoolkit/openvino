@@ -409,7 +409,7 @@ namespace ngraph
                     {
                         offset += coords[i] * strides[i];
                     }
-                    return result;
+                    return offset;
                 }
             }
 
