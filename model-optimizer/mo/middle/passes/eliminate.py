@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 import re
 from collections import deque
@@ -132,8 +120,13 @@ def eliminate_dead_nodes(graph):
         # During graph clean-up the operation node is removed and the attribute is lost.
         # This results in permutation of the Const shape in the IR and wrong inference results.
         # Here we explicitly save the 'nchw_layout' attribute in the data node to prevent permutation."
-        if node_attrs.get('type', None) == 'Const' and node_attrs.get('nchw_layout', False):
-            Node(graph, node_name).out_node()['nchw_layout'] = True
+        if node_attrs.get('type', None) == 'Const':
+            if node_attrs.get('nchw_layout', False):
+                Node(graph, node_name).out_node()['nchw_layout'] = True
+            if np.all(node_attrs.get('force_shape', False)):
+                Node(graph, node_name).out_node()['force_shape'] = node_attrs['force_shape']
+            if node_attrs.get('force_type', False):
+                Node(graph, node_name).out_node()['force_type'] = node_attrs['force_type']
 
         if not node_attrs['is_output_reachable'] or \
                 (node_attrs['is_const_producer'] and (not node_attrs['is_undead'] or

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 from io import IOBase
@@ -22,7 +9,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Mul
 from extensions.ops.split import AttributedVariadicSplit
-from mo.front.common.partial_infer.utils import float_array
+from mo.front.common.partial_infer.utils import float_array, int64_array
 from mo.front.extractor import add_outputs_identity
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
@@ -227,7 +214,9 @@ def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
         for o_n_name, params in node.get_outputs():
             o_n = Node(graph, o_n_name)
             if o_n['op'] == 'MemoryOffset':
-                o_n['parameters']['element_size'] = node['shape'][1]
+                # don't take batch from Parameter, it will be overwritten
+                # take only second dimension because we have only 2 dimensions
+                o_n['parameters']['element_size'] = int64_array([1, node.shape[1]])
 
     load_components(file_descr, graph, component_layer_map)
 
@@ -281,7 +270,7 @@ def load_components(file_descr, graph, component_layer_map=None):
                     for o_n_name, params in node.get_outputs():
                         o_n = Node(graph, o_n_name)
                         if o_n['op'] == 'MemoryOffset' and dim != 0:
-                            o_n['parameters']['element_size'] = dim
+                            o_n['parameters']['element_size'] = int64_array([1, dim])
             else:
                 raise Error("Something wrong with layer {}".format(name))
         else:
@@ -414,7 +403,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         for o_n_name, params in node.get_outputs():
             o_n = Node(graph, o_n_name)
             if o_n['op'] == 'MemoryOffset':
-                o_n['parameters']['element_size'] = dim
+                o_n['parameters']['element_size'] = int64_array([1, dim])
     else:
         raise Error("Unsupported node specifier {}".format(tokens[0]))
     return True

@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
@@ -21,7 +9,6 @@ add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
-    add_subdirectory(util)
     return()
 endif()
 
@@ -42,7 +29,6 @@ endif()
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
-    attributes.cpp
     bfloat16.cpp
     build_graph.cpp
     builder_autobroadcast.cpp
@@ -64,6 +50,7 @@ set(SRC
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
+    int4.cpp
     intervals.cpp
     main.cpp
     matcher_pass.cpp
@@ -73,6 +60,7 @@ set(SRC
     op.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
+    op_eval/clamp.cpp
     op_eval/floor_mod.cpp
     op_eval/gelu.cpp
     op_eval/hsigmoid.cpp
@@ -124,6 +112,7 @@ set(SRC
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
+    type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -149,6 +138,7 @@ set(SRC
     type_prop/hard_sigmoid.cpp
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
+    type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
@@ -156,6 +146,7 @@ set(SRC
     type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
+    type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
@@ -164,6 +155,7 @@ set(SRC
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
+    type_prop/power.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
@@ -177,6 +169,7 @@ set(SRC
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
     type_prop/roi_pooling.cpp
+    type_prop/roll.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
@@ -207,6 +200,57 @@ set(SRC
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
+    visitors/partial_shape.cpp
+    visitors/user_op.cpp
+    visitors/value_map.cpp
+    visitors/op/broadcast.cpp
+    visitors/op/bucketize.cpp
+    visitors/op/constant.cpp
+    visitors/op/cum_sum.cpp
+    visitors/op/detection_output.cpp
+    visitors/op/elu.cpp
+    visitors/op/extractimagepatches.cpp
+    visitors/op/fake_quantize.cpp
+    visitors/op/grn.cpp
+    visitors/op/group_conv.cpp
+    visitors/op/interpolate.cpp
+    visitors/op/logical_xor.cpp
+    visitors/op/lrn.cpp
+    visitors/op/lstm_cell.cpp
+    visitors/op/lstm_sequence.cpp
+    visitors/op/matmul.cpp
+    visitors/op/max_pool.cpp
+    visitors/op/mod.cpp
+    visitors/op/mvn.cpp
+    visitors/op/non_max_suppression.cpp
+    visitors/op/normalize_l2.cpp
+    visitors/op/one_hot.cpp
+    visitors/op/pad.cpp
+    visitors/op/prior_box.cpp
+    visitors/op/proposal.cpp
+    visitors/op/psroi_pooling.cpp
+    visitors/op/reduce_logical_and.cpp
+    visitors/op/reduce_logical_or.cpp
+    visitors/op/reduce_max.cpp
+    visitors/op/reduce_mean.cpp
+    visitors/op/reduce_min.cpp
+    visitors/op/reduce_prod.cpp
+    visitors/op/reduce_sum.cpp
+    visitors/op/region_yolo.cpp
+    visitors/op/reorg_yolo.cpp
+    visitors/op/reshape.cpp
+    visitors/op/reverse.cpp
+    visitors/op/reverse_sequence.cpp
+    visitors/op/rnn_cell.cpp
+    visitors/op/roi_pooling.cpp
+    visitors/op/shuffle_channels.cpp
+    visitors/op/softmax.cpp
+    visitors/op/space_to_depth.cpp
+    visitors/op/split.cpp
+    visitors/op/squared_difference.cpp
+    visitors/op/strided_slice.cpp
+    visitors/op/topk.cpp
+    uint4.cpp
     util.cpp
 )
 
@@ -270,6 +314,7 @@ set(MULTI_TEST_SRC
     backend/convert_like.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
+    backend/clamp.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -335,6 +380,7 @@ set(MULTI_TEST_SRC
     backend/reverse.in.cpp
     backend/roi_pooling.in.cpp
     backend/round.in.cpp
+    backend/scatter_nd_update.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
     backend/sigmoid.in.cpp
@@ -410,12 +456,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation
-                                        openvino::itt
-                                        ngraph
                                         ngraph::builder
-                                        ngraph_backend
-                                        libgtest)
+                                        openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -450,7 +492,6 @@ if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
-target_link_libraries(unit-test PRIVATE inference_engine)
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

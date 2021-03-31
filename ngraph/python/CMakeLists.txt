@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
 
 cmake_minimum_required (VERSION 3.13)
 
@@ -78,6 +66,11 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-Wno-error=attributes)
 endif()
 
+if(CMAKE_COMPILER_IS_GNUCXX AND Python_VERSION VERSION_GREATER_EQUAL "3.9")
+    # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
+    add_compile_options(-Wno-deprecated-declarations)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
@@ -85,7 +78,10 @@ file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
+target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph)
+if (TARGET ngraph::onnx_importer)
+    add_dependencies(_${PROJECT_NAME} ngraph::onnx_importer)
+endif()
 
 # perform copy
 if(OpenVINO_MAIN_SOURCE_DIR)

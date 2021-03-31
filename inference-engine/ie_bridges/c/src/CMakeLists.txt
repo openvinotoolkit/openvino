@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,5 +37,5 @@ install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
-        DESTINATION ${IE_CPACK_IE_DIR}/include/
+        DESTINATION ${IE_CPACK_IE_DIR}/include
         COMPONENT core_c)

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -482,12 +482,12 @@ void generateTestModel(const std::string &modelPath,
     std::ofstream ofsXml;
     ofsXml.open(modelPath);
     if (!ofsXml) {
-        THROW_IE_EXCEPTION << "File '" << modelPath << "' can not be opened as out file stream";
+        IE_THROW() << "File '" << modelPath << "' can not be opened as out file stream";
     }
     ofsXml << ir_builder_v10.serialize();
     ofsXml.close();
     if (!ofsXml.good()) {
-        THROW_IE_EXCEPTION << "Error during '" << modelPath << "' closing";
+        IE_THROW() << "Error during '" << modelPath << "' closing";
     }
 
     /* Allocate conv blobs and store them to the reference with the required tensor desc */
@@ -507,7 +507,7 @@ void generateTestModel(const std::string &modelPath,
     std::ofstream ofsBin;
     ofsBin.open(weightsPath, std::ofstream::out | std::ofstream::binary);
     if (!ofsBin) {
-        THROW_IE_EXCEPTION << "File '" << weightsPath << "' can not be opened as out file stream";
+        IE_THROW() << "File '" << weightsPath << "' can not be opened as out file stream";
     }
 
     /* Write weights for Conv1 layer to the bin file */
@@ -540,11 +540,11 @@ void generateTestModel(const std::string &modelPath,
                  conv3LayerPtr->blobs["weights"]->byteSize());
 
     if (!ofsBin.good()) {
-        THROW_IE_EXCEPTION << "Error during writing blob weights";
+        IE_THROW() << "Error during writing blob weights";
     }
     ofsBin.close();
     if (!ofsBin.good()) {
-        THROW_IE_EXCEPTION << "Error during '" << weightsPath << "' closing";
+        IE_THROW() << "Error during '" << weightsPath << "' closing";
     }
 }
 

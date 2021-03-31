@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,14 +146,17 @@ void LoadNetworkCacheTestBase::SetUp() {
     auto hash = std::hash<std::string>()(GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
     m_cacheFolderName = ss.str();
+    core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
 }
 
 void LoadNetworkCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
+    core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
 }
 
 void LoadNetworkCacheTestBase::Run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto compareOutputs = [&](const std::vector<InferenceEngine::Blob::Ptr>& expected,
                               const std::vector<InferenceEngine::Blob::Ptr>& actual) {
         ASSERT_EQ(expected.size(), actual.size());
