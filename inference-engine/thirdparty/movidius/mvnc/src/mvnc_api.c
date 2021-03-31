@@ -82,8 +82,9 @@ static OVERLAPPED global_lock_overlap = { 0 };
 #define GLOBAL_UNLOCK() UnlockFileEx(global_lock_fd, 0, MAXDWORD, MAXDWORD, &global_lock_overlap)
 #else
 static int global_lock_fd = -1;
-#define GLOBAL_LOCK() flock(global_lock_fd, LOCK_EX)
-#define GLOBAL_UNLOCK() flock(global_lock_fd, LOCK_UN)
+#define SAFETY_CHECK(_func) do { if((_func) != 0) { mvLog(MVLOG_ERROR, "does not finish correctly"); return NC_ERROR;}} while(0)
+#define GLOBAL_LOCK() SAFETY_CHECK(flock(global_lock_fd, LOCK_EX)); SAFETY_CHECK(pthread_mutex_lock(&deviceOpenMutex))
+#define GLOBAL_UNLOCK() SAFETY_CHECK(flock(global_lock_fd, LOCK_UN)); SAFETY_CHECK(pthread_mutex_unlock(&deviceOpenMutex))
 #endif
 
 #define STRINGIFY(_text) #_text
@@ -749,12 +750,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     }
 
     GLOBAL_LOCK();
-    int error = pthread_mutex_lock(&deviceOpenMutex);
-    if (error) {
-        GLOBAL_UNLOCK();
-        mvLog(MVLOG_ERROR, "pthread_mutex_lock(&deviceOpenMutex) failed with error: %d", error);
-        return NC_ERROR;
-    }
 
     if (!initialized) {
         ncStatus_t sc;
@@ -1049,7 +1044,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     devices = d;
 
     mvLog(MVLOG_INFO, "XLinkConnect done - link Id %d\n", handler->linkId);
-
+    int error = 0;
     if ((error = pthread_mutex_init(&d->dev_data_m, NULL)) != 0) {
         mvLog(MVLOG_ERROR, "pthread_mutex_init (dev_data_m) failed with error: %d", error);
         destroyDeviceHandle(deviceHandlePtr);
@@ -1941,22 +1936,25 @@ ncStatus_t checkGraphMonitorResponse(streamId_t graphMonStream) {
     return NC_OK;
 }
 
-static void lockAllInferences() {
+static ncStatus_t lockAllInferences() {
+    GLOBAL_LOCK();
     struct _devicePrivate_t *d = devices;
     while (d) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
         d = d->next;
     }
-    return;
+    GLOBAL_UNLOCK();
+    return NC_OK;
 }
 
-static void unlockAllInferences() {
+static ncStatus_t unlockAllInferences() {
     struct _devicePrivate_t *d = devices;
     while (d) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         d = d->next;
     }
-    return;
+    GLOBAL_UNLOCK();
+    return NC_OK;
 }
 
 ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
@@ -2006,7 +2004,12 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
         return NC_OUT_OF_MEMORY;
     }
 
-    lockAllInferences();
+    rc = lockAllInferences();
+    if (rc != 0) {
+        mvLog(MVLOG_ERROR, "can't lock all inferences");
+        unlockAllInferences();
+        return rc;
+    }
     g->id = graphIdCount++;
     streamId_t streamId;
 
@@ -2171,7 +2174,11 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
 
     g->debug_buffer = g->aux_buffer;
     g->time_taken = (float *) (g->aux_buffer + 120);
-    unlockAllInferences();
+    rc = unlockAllInferences();
+    if (rc != 0) {
+        mvLog(MVLOG_ERROR, "Can't unlock all inferences");
+        return rc;
+    }
 
     GLOBAL_LOCK();
     g->dev = d;
