@@ -32,9 +32,6 @@ std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMea
 }
 
 void ReduceOpsLayerTest::SetUp() {
-    // TODO: Issue 33151
-    // Failed to create function on SetUp stage with some parameters
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Precision netPrecision;
     bool keepDims;
     ngraph::helpers::ReductionType reductionType;
