@@ -35,10 +35,10 @@
 #include "tbb/task_scheduler_observer.h"
 
 namespace custom {
-#define TBB_NUMA_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 11100 || defined(TBBBBIND_2_4_AVAILABLE)
-#define TBB_HYBRID_CPUS_SUPPORT_PRESENT defined(TBBBBIND_2_4_AVAILABLE)
+#define TBB_NUMA_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 11100 || defined(TBBBIND_2_4_AVAILABLE)
+#define TBB_HYBRID_CPUS_SUPPORT_PRESENT defined(TBBBIND_2_4_AVAILABLE)
 
-#if defined(TBBBBIND_2_4_AVAILABLE)
+#if defined(TBBBIND_2_4_AVAILABLE)
 using numa_node_id = int;
 using core_type_id = int;
 
@@ -136,7 +136,7 @@ namespace info {
 
 inline tbb::task_arena& get_arena_ref(task_arena& ta) { return ta.my_task_arena; }
 
-#else /*defined(TBBBBIND_2_4_AVAILABLE)*/
+#else /*defined(TBBBIND_2_4_AVAILABLE)*/
 
 using task_arena = tbb::task_arena;
 inline tbb::task_arena& get_arena_ref(task_arena& ta) { return ta; }
@@ -148,6 +148,6 @@ namespace info {
 } // namespace info
 #endif /*TBB_NUMA_SUPPORT_PRESENT*/
 
-#endif /*defined(TBBBBIND_2_4_AVAILABLE)*/
+#endif /*defined(TBBBIND_2_4_AVAILABLE)*/
 } // namespace custom
 #endif /*(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)*/
