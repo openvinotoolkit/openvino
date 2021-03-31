@@ -330,11 +330,19 @@ namespace ngraph
                                  complex_type* buffer,
                                  FFTKind fft_kind)
                 {
+                    std::cout << "Arguments of naive_fft1d:\n";
+                    std::cout << "    length:     " << length << "\n";
+                    std::cout << "    fft_offset: " << fft_offset << "\n";
+                    std::cout << "    stride:     " << stride << "\n";
+                    std::cout << "    fft_kind:   "
+                              << ((fft_kind == FFTKind::Inverse) ? "IFFT" : "FFT") << "\n";
                     bool input_is_zero = gather_to_buffer(data, length, fft_offset, stride, buffer);
+                    std::cout << "Data were gathered to buffer.\n";
                     if (input_is_zero)
                     {
                         return;
                     }
+                    std::cout << "input_is_zero: " << (input_is_zero ? "true" : "false") << "\n";
                     for (int64_t k = 0; k < length; ++k)
                     {
                         complex_type value = complex_type(0.0f, 0.0f);
@@ -359,10 +367,12 @@ namespace ngraph
                 {
                     if (is_power_of_two(length))
                     {
+                        std::cout << "Started optimized version of FFT.\n";
                         optimized_fft1d(length, fft_offset, stride, data, buffer, fft_kind);
                     }
                     else
                     {
+                        std::cout << "Started naive version of FFT.\n";
                         naive_fft1d(length, fft_offset, stride, data, buffer, fft_kind);
                     }
                 }
