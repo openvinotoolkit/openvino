@@ -33,7 +33,7 @@ Where β, corresponds to `beta` scalar input.
 
 * *T*: arbitrary supported floating point type.
 
-**Example**
+**Examples**
 
 *Example: Second input `beta` provided*
 ```xml
