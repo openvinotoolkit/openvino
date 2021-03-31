@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include <iostream>
+#include <iomanip>
+#include <limits>
 #include "ngraph/runtime/reference/fft.hpp"
 #include <algorithm>
 #include <cmath>
@@ -221,7 +223,21 @@ namespace ngraph
                                          const std::vector<int64_t>& fft_strides,
                                          const std::vector<int64_t>& output_fft_strides)
                 {
+                    std::cout << "Arguments of copy_data_to_output:\n";
+                    std::cout << "    dst_index:          " << dst_index << "\n";
+                    std::cout << "    fft_size:           " << fft_size << "\n";
+                    std::cout << "    fft_strides:        ";
+                    for (auto s : fft_strides)
+                    {
+                        std::cout << s << " ";
+                    }
+                    std::cout << "    output_fft_strides: ";
+                    for (auto s : output_fft_strides)
+                    {
+                        std::cout << s << " ";
+                    }
                     int64_t num_of_fft_axes = static_cast<int64_t>(fft_strides.size());
+                    std::cout << "num_of_fft_axes: " << num_of_fft_axes << "\n";
 
                     for (int64_t idx = 0; idx < fft_size; ++idx)
                     {
@@ -520,6 +536,7 @@ namespace ngraph
                 }
                 std::cout << "]\n";
 
+                std::cout << std::setprecision(std::numeric_limits<float>::digits10 + 1);
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
                     std::cout << "outer_idx: " << outer_idx << "\n";
@@ -579,6 +596,12 @@ namespace ngraph
                         }
                     }
 
+                    std::cout << "Calculated data:\n    ";
+                    for(auto x : data)
+                    {
+                        std::cout << x << " ";
+                    }
+                    std::cout << "\n";
                     std::cout << "Copying data to output...\n";
                     copy_data_to_output(complex_output_ptr,
                                         data.data(),
