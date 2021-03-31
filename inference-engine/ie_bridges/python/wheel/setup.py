@@ -1,16 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
- http://www.apache.org/licenses/LICENSE-2.0
- This conversation was marked as resolved by dkurt
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import os.path
 import sys
@@ -150,9 +139,10 @@ class PrepareLibs(build_clib):
                             "--component", comp_data.get('name')])
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get('rpath'):
-                lib_pattern = "*.so" if sys.platform == "linux" else "*.dylib"
-                for path in Path(install_dir).glob(lib_pattern):
-                    set_rpath(comp_data['rpath'], path)
+                file_types = ["*.so"] if sys.platform == "linux" else ["*.dylib", "*.so"]
+                for file in file_types:
+                    for path in Path(install_dir).glob(file):
+                        set_rpath(comp_data['rpath'], path)
 
     def generate_package(self, src_dirs):
         """
