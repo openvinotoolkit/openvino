@@ -231,13 +231,13 @@ namespace ngraph
                     {
                         std::cout << s << " ";
                     }
-                    std::cout << "    output_fft_strides: ";
+                    std::cout << "\n    output_fft_strides: ";
                     for (auto s : output_fft_strides)
                     {
                         std::cout << s << " ";
                     }
                     int64_t num_of_fft_axes = static_cast<int64_t>(fft_strides.size()) - 1;
-                    std::cout << "num_of_fft_axes: " << num_of_fft_axes << "\n";
+                    std::cout << "\nnum_of_fft_axes: " << num_of_fft_axes << "\n";
 
                     for (int64_t idx = 0; idx < fft_size; ++idx)
                     {
