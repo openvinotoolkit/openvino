@@ -13,13 +13,14 @@
 Each element of the output is defined as the result of the following expression:
 
 ```python
-input_min = min(input_low, input_high)
-input_max = max(input_low, input_high)
-
-value = max(input_min, x)
-value = min(input_max, value)
-
-output = round((value - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low
+if input_low != input_high:
+    input_min = min(input_low, input_high)
+    input_max = max(input_low, input_high)
+    value = max(input_min, x)
+    value = min(input_max, value)
+    output = round((value - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low
+else:
+    output = output_low if x <= input_low else output_high
 ```
 
 **Attributes**

@@ -211,16 +211,23 @@ namespace ngraph
                                                out_high,
                                                i,
                                                out_high_offsets);
-                    T in_min_val = std::min(in_low_val, in_high_val);
-                    T in_max_val = std::max(in_low_val, in_high_val);
 
-                    T val = std::max(in_min_val, arg[i]);
-                    val = std::min(in_max_val, val);
+                    if (in_low_val != in_high_val)
+                    {
+                        T in_min_val = std::min(in_low_val, in_high_val);
+                        T in_max_val = std::max(in_low_val, in_high_val);
+                        T val = std::max(in_min_val, arg[i]);
+                        val = std::min(in_max_val, val);
 
-                    out[i] =
-                        nearbyint((val - in_low_val) / (in_high_val - in_low_val) * (levels - 1)) /
-                            (levels - 1) * (out_high_val - out_low_val) +
-                        out_low_val;
+                        out[i] = nearbyint((val - in_low_val) / (in_high_val - in_low_val) *
+                                           (levels - 1)) /
+                                     (levels - 1) * (out_high_val - out_low_val) +
+                                 out_low_val;
+                    }
+                    else
+                    {
+                        out[i] = arg[i] <= in_low_val ? out_low_val : out_high_val;
+                    }
                     increment_current_dim(current_dim, arg_shape, arg_shape.size() - 1);
                 }
                 std::fesetround(initial_round_mode);
