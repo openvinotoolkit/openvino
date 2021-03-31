@@ -67,6 +67,14 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
     }
 
+    bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
+    bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
+    if (isNetworkCompiled && isPrecisionSet) {
+        std::string err = std::string("Cannot set precision for a compiled network. ") +
+                          std::string("Please re-compile your network with required precision using compile_tool");
+
+        throw std::logic_error(err);
+    }
     return true;
 }
 
@@ -380,6 +388,10 @@ int main(int argc, char *argv[]) {
                     item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
+
+            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+
+            printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
             startTime = Time::now();

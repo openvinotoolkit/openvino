@@ -26,7 +26,7 @@ namespace ngraph
                 ///
                 /// \param arg                Node that produces the input tensor.
                 /// \param deformable_values  Node producing the deformable values tensor.
-                /// \param filters            Node producing the filters(kernels) tensor wit OIZYX
+                /// \param filters            Node producing the filters(kernels) tensor with OIZYX
                 ///                           layout.
                 /// \param strides            Convolution strides.
                 /// \param pads_begin         Amount of padding to be added to the beginning along
