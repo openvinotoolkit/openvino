@@ -49,7 +49,7 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
         pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
     bool valid_constant_values =
-        op::util::has_constant_value<float>(div_const_value, 1.41421353f) &&
+        op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
         op::util::has_constant_value<float>(add_const_value, 1.0f) &&
         op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
@@ -112,7 +112,7 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
         pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
     bool valid_constant_values =
-        op::util::has_constant_value<float>(div_const_value, 1.41421353f) &&
+        op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
         op::util::has_constant_value<float>(add_const_value, 1.0f) &&
         op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
@@ -175,7 +175,7 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
         pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
     bool valid_constant_values =
-        op::util::has_constant_value<float>(div_const_value, 1.41421353f) &&
+        op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
         op::util::has_constant_value<float>(add_const_value, 1.0f) &&
         op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
