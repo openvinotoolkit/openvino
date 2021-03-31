@@ -10,7 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/transpose_sinking_fq_reduce.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 
@@ -181,7 +181,8 @@ INSTANTIATE_TEST_CASE_P(TransposeSinkingReduces, TransposeSinking, testing::Comb
             TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, 3, 6}, true, {6, 5, 3}, {0, 6, 1, 5, 2, 4, 3}},
             TransposeReduceParams{{1, 3, 240, 140}, {0, 2, 3, 1}, {1, 2}, false, {2, 3}, {0, 1}},
             TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, 3, 6}, false, {6, 5, 3}, {0, 1, 2, 3}},
-            TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, -4, 6}, false, {6, 5, 3}, {0, 1, 2, 3}}),
+            TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, -4, 6}, false, {6, 5, 3}, {0, 1, 2, 3}},
+            TransposeReduceParams{{1, 3, 240, 140}, {0, 1, 2, 3}, {0, 1, 2, -1}, false, {0, 1, 2, 3}, {}}),
         testing::Values(
             ngraph::opset6::ReduceMax::type_info,
             ngraph::opset6::ReduceMean::type_info,

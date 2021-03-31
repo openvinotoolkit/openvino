@@ -3,7 +3,7 @@
 //
 
 #include "itt.hpp"
-#include "transformations/common_optimizations/transpose_sinking_fq_reduce.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>

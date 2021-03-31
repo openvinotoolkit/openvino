@@ -19,7 +19,7 @@
 #include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/transpose_sinking_fq_reduce.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

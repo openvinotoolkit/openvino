@@ -38,7 +38,7 @@
 #include "transformations/common_optimizations/space_to_batch_fusion.hpp"
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
-#include "transformations/common_optimizations/transpose_sinking_fq_reduce.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"

@@ -46,7 +46,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeFQReduction transformation sinks Transpose through FakeQuantize and Reduce operations
+ * @brief TransposeFQReduction transformation sinks Transpose through FakeQuantize in case it is followed by reduction or squeeze
  */
 class ngraph::pass::TransposeFQReduction : public ngraph::pass::MatcherPass {
 public:
