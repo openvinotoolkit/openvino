@@ -32,36 +32,52 @@
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
+#define NUM_BATCHES     INPUT0_BATCH_NUM
+#define NUM_BOXES       INPUT0_FEATURE_NUM
+#define NUM_CLASSES     INPUT1_FEATURE_NUM
+
+typedef struct {
+    int boxId;
+    int suppress_begin_index;
+    INPUT1_TYPE score;
+} FUNC(SortedBoxInfo);
+
 typedef struct {
     int batchId;
     int classId;
     int boxId;
-    int suppress_begin_index;
     INPUT1_TYPE score;
 } FUNC(BoxInfo);
 
+#define SBOX_INFO FUNC(SortedBoxInfo)
 #define BOX_INFO FUNC(BoxInfo)
 
 inline float FUNC(intersectionOverUnion)(const __global INPUT0_TYPE *boxes,
     int batchA, int boxIdA,
     int batchB, int boxIdB)
 {
-    float4 pA = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchA, boxIdA, 0, 0)]));
-    float4 pB = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchB, boxIdB, 0, 0)]));
+    const float4 pA = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchA, boxIdA, 0, 0)]));
+    const float4 pB = convert_float4(vload4(0, &boxes[INPUT0_GET_INDEX(batchB, boxIdB, 0, 0)]));
 
-    float areaA = (pA[3] - pA[1]) * (pA[2] - pA[0]);
-    float areaB = (pB[3] - pB[1]) * (pB[2] - pB[0]);
+    const float areaA = (pA[3] - pA[1]) * (pA[2] - pA[0]);
+    const float areaB = (pB[3] - pB[1]) * (pB[2] - pB[0]);
 
-    float intersection_ymin = max(pA[1], pB[1]);
-    float intersection_xmin = max(pA[0], pB[0]);
-    float intersection_ymax = min(pA[3], pB[3]);
-    float intersection_xmax = min(pA[2], pB[2]);
+    const float intersection_ymin = max(pA[1], pB[1]);
+    const float intersection_xmin = max(pA[0], pB[0]);
+    const float intersection_ymax = min(pA[3], pB[3]);
+    const float intersection_xmax = min(pA[2], pB[2]);
 
-    float intersection_area =
-        max(intersection_ymax - intersection_ymin, 0.0f) *
-        max(intersection_xmax - intersection_xmin, 0.0f);
+    const float intersection_x = max(intersection_xmax - intersection_xmin, 0.f);
+    const float intersection_y = max(intersection_ymax - intersection_ymin, 0.f);
+    if (intersection_x == 0.f || intersection_y == 0.f)
+        return 0.f;
 
-    return intersection_area / (areaA + areaB - intersection_area);
+    const float intersection_area = intersection_x * intersection_y;
+    const float union_area = areaA + areaB - intersection_area;
+    if (union_area <= 0.0f)
+        return 0.f;
+
+    return intersection_area / union_area;
 }
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
@@ -74,48 +90,83 @@ inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
     }
 }
 
-inline void FUNC(swap)(__global BOX_INFO* a, __global BOX_INFO* b)
+inline void FUNC(swap_sbox_info)(__global SBOX_INFO* a, __global SBOX_INFO* b)
 {
-    BOX_INFO temp = *a;
+    SBOX_INFO temp = *a;
     *a = *b;
     *b = temp;
 }
 
-inline int FUNC(initBoxList)(__global BOX_INFO *outBoxes, int boxNum, const __global INPUT1_TYPE *scores, float score_threshold, int batchId, int classId)
+inline int FUNC(partition)(__global SBOX_INFO* arr, int l, int h)
+{
+    INPUT1_TYPE x = arr[h].score;
+    int i = (l - 1);
+
+    for (int j = l; j <= h - 1; j++) {
+        if (arr[j].score <= x) {
+            i++;
+            FUNC_CALL(swap_sbox_info)(&arr[i], &arr[j]);
+        }
+    }
+    FUNC_CALL(swap_sbox_info)(&arr[i + 1], &arr[h]);
+    return (i + 1);
+}
+
+
+inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
+{
+    // Create an auxiliary stack
+    int stack[NUM_BOXES];
+
+    // initialize top of stack
+    int top = -1;
+
+    // push initial values of l and h to stack
+    stack[++top] = l;
+    stack[++top] = h;
+
+    // Keep popping from stack while is not empty
+    while (top >= 0) {
+        // Pop h and l
+        h = stack[top--];
+        l = stack[top--];
+  
+        // Set pivot element at its correct position
+        // in sorted array
+        int p = FUNC_CALL(partition)(arr, l, h);
+  
+        // If there are elements on left side of pivot,
+        // then push left side to stack
+        if (p - 1 > l) {
+            stack[++top] = l;
+            stack[++top] = p - 1;
+        }
+  
+        // If there are elements on right side of pivot,
+        // then push right side to stack
+        if (p + 1 < h) {
+            stack[++top] = p + 1;
+            stack[++top] = h;
+        }
+    }
+}
+
+inline int FUNC(initBoxList)(__global SBOX_INFO *outBoxes, int boxNum, const __global INPUT1_TYPE *scores, float score_threshold, int batchId, int classId)
 {
     int count = 0;
     for (int i = 0; i < boxNum; ++i) {
-        float score = scores[INPUT1_GET_INDEX(batchId, classId, i, 0)];
-        if (score < score_threshold) continue;
+        INPUT1_TYPE score = scores[INPUT1_GET_INDEX(batchId, classId, i, 0)];
+        if (convert_float(score) < score_threshold) continue;
 
-        // printf("score: %f, threshold: %f\n", score, score_threshold);
-
-        outBoxes[count].batchId = batchId;
-        outBoxes[count].classId = classId;
-        outBoxes[count].boxId = i;
-        outBoxes[count].suppress_begin_index = 0;
-        outBoxes[count].score = scores[INPUT1_GET_INDEX(batchId, classId, i, 0)];
+        SBOX_INFO binfo;
+        binfo.boxId = i;
+        binfo.suppress_begin_index = 0;
+        binfo.score = score;
+        outBoxes[count] = binfo;
         ++count;
     }
 
     return count;
-}
-
-inline void FUNC(sortBoxList)(__global BOX_INFO *outSortedBoxes, int boxNum)
-{
-    for (int i = 0; i < boxNum - 1; ++i) {
-        // bool swapped = false;
-        for (int j = 0; j < boxNum - i - 1; ++j) {
-            if (outSortedBoxes[j].score > outSortedBoxes[j+1].score) {
-                FUNC_CALL(swap)(&outSortedBoxes[j], &outSortedBoxes[j+1]);
-                // swapped = true;
-            }
-        }
-
-        // // IF no two elements were swapped by inner loop, then break
-        // if (swapped == false)
-        //     break;
-    }
 }
 
 inline void FUNC(initOutputBoxList)(__global BOX_INFO *outBoxes, int boxNum, const __global INPUT1_TYPE *scores, __global OUTPUT_TYPE *output)
@@ -125,9 +176,15 @@ inline void FUNC(initOutputBoxList)(__global BOX_INFO *outBoxes, int boxNum, con
         outBoxes[i].batchId = output[outputId + 0];
         outBoxes[i].classId = output[outputId + 1];
         outBoxes[i].boxId = output[outputId + 2];
-        outBoxes[i].suppress_begin_index = 0;
         outBoxes[i].score = scores[INPUT1_GET_INDEX(outBoxes[i].batchId, outBoxes[i].classId, outBoxes[i].boxId, 0)];
     }
+}
+
+inline void FUNC(swap)(__global BOX_INFO* a, __global BOX_INFO* b)
+{
+    BOX_INFO temp = *a;
+    *a = *b;
+    *b = temp;
 }
 
 inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNum)
@@ -151,10 +208,6 @@ inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNu
             break;
     }
 }
-
-#define NUM_BATCHES     INPUT0_BATCH_NUM
-#define NUM_BOXES       INPUT0_FEATURE_NUM
-#define NUM_CLASSES     INPUT1_FEATURE_NUM
 
 // boxes shape: {num_batches, num_boxes, 4}
 // scores shape: {num_batches, num_classes, num_boxes}
@@ -188,16 +241,21 @@ KERNEL (non_max_suppression_ref)(
     )
 {
 
-#ifdef IS_FIRST_ITER
+#ifdef IS_ZERO_ITER
     int batchId = get_global_id(0);
     int classId = get_global_id(1);
 
-    __global BOX_INFO *sortedBoxList = (__global BOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+    __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int sortedBoxNum = FUNC_CALL(initBoxList)(sortedBoxList, NUM_BOXES, scores, SCORE_THRESHOLD_VAL, batchId, classId);
-    // printf("Sorted Box Num: %d\n", sortedBoxNum);
-    FUNC_CALL(sortBoxList)(sortedBoxList, sortedBoxNum);
-
     buffer3[batchId * NUM_CLASSES + classId] = sortedBoxNum;
+
+#elif IS_FIRST_ITER
+    int batchId = get_global_id(0);
+    int classId = get_global_id(1);
+
+    int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
+    __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+    FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
 
 #elif IS_SECOND_ITER
     // printf("Is second iter\n");
@@ -217,31 +275,28 @@ KERNEL (non_max_suppression_ref)(
 
     int outputIdx = 0;
 
-    __global BOX_INFO *sortedBoxList = (__global BOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+    __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
 
     __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int selectedBoxNum = 0;
-    INPUT1_TYPE original_score = 0;
     while (sortedBoxNum != 0 && selectedBoxNum < NUM_SELECT_PER_CLASS_VAL) {
         //printf("sortedBoxNum(%d) selectedBoxNum(%d) NUM_SELECT_PER_CLASS_VAL(%d)\n",
         //    sortedBoxNum, selectedBoxNum, NUM_SELECT_PER_CLASS_VAL);
 
-        BOX_INFO next_candidate = sortedBoxList[sortedBoxNum - 1];
+        SBOX_INFO next_candidate = sortedBoxList[sortedBoxNum - 1];
         INPUT1_TYPE original_score = next_candidate.score;
         --sortedBoxNum;
-
-        //printf("next_candidate.boxId(%d) next_candidate.score(%.2f)\n", next_candidate.boxId, next_candidate.score);
-        //printf("next_candidate.suppress_begin_index(%d)\n", next_candidate.suppress_begin_index);
 
         bool should_hard_suppress = false;
         for (int j = selectedBoxNum - 1;
                 j >= next_candidate.suppress_begin_index;
                 --j)
         {
-            float iou = FUNC_CALL(intersectionOverUnion)(boxes, batchId, next_candidate.boxId, batchId, selectedBoxList[j].boxId);
-            next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
-            //printf("iou(%.2f) next.score(%.2f)  next(%d)-vs-selt(%d)\n", iou, next_candidate.score, next_candidate.boxId, selectedBoxList[j].boxId);
+            const float iou = FUNC_CALL(intersectionOverUnion)(boxes, batchId, next_candidate.boxId, batchId, selectedBoxList[j].boxId);
+            next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);;
+            // printf("[%d, %d] iou(%f) next.score(%f)  next(%d)-vs-selt(%d)  %f %f\n"
+            //     , batchId, classId, iou, next_candidate.score, next_candidate.boxId, selectedBoxList[j].boxId, IOU_THRESHOLD_VAL, scale);
 
             if (iou >= IOU_THRESHOLD_VAL)
             {
@@ -262,23 +317,23 @@ KERNEL (non_max_suppression_ref)(
         {
             if (next_candidate.score == original_score)
             {
-                //printf("SEL[ ] batch(%d) classId(%d) boxId(%d) score(%.2f)\n", 
-                //    next_candidate.batchId, next_candidate.classId, next_candidate.boxId, next_candidate.score);
-                selectedBoxList[selectedBoxNum] = next_candidate;
+                BOX_INFO binfo;
+                binfo.batchId = batchId;
+                binfo.classId = classId;
+                binfo.boxId = next_candidate.boxId;
+                binfo.score = next_candidate.score;
+                selectedBoxList[selectedBoxNum] = binfo;
                 ++selectedBoxNum;
                 continue;
             }
             if (next_candidate.score > SCORE_THRESHOLD_VAL)
             {
-                //printf("called sortBoxList\n");
                 sortedBoxList[sortedBoxNum] = next_candidate;
                 ++sortedBoxNum;
-                FUNC_CALL(sortBoxList)(sortedBoxList, sortedBoxNum);
+                FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
             }
         }
     }
-
-    // printf("Selected Box Num: %d\n", selectedBoxNum);
 
     // Set pad value to indicate the end of selected box list.
     if (selectedBoxNum < NUM_BOXES) {
@@ -293,11 +348,7 @@ KERNEL (non_max_suppression_ref)(
             __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
             for (int i = 0; i < NUM_BOXES; i++) {
                 if (selectedBoxList[i].batchId > -1) {
-                    sortedBoxList[outputIdx].batchId = selectedBoxList[i].batchId;
-                    sortedBoxList[outputIdx].classId = selectedBoxList[i].classId;
-                    sortedBoxList[outputIdx].boxId   = selectedBoxList[i].boxId;
-                    sortedBoxList[outputIdx].score   = selectedBoxList[i].score;
-                    sortedBoxList[outputIdx].suppress_begin_index = selectedBoxList[i].suppress_begin_index;
+                    sortedBoxList[outputIdx] = selectedBoxList[i];
                     outputIdx++;
                 } else {
                     break;

@@ -119,7 +119,7 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_params& params, int idx) {
     NonMaxSuppressionKernelRef::DispatchData dispatchData;
 
-    if (idx == 0 || idx == 1) {
+    if (idx == 0 || idx == 1 || idx == 2) {
         const auto& input = params.inputs[1];
         if (input.GetLayout() == DataLayout::bfyx) {
             //dispatchData.gws = {input.Batch().v, 1, 1};
@@ -190,7 +190,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
         return {};
     }
 
-    KernelData kd = KernelData::Default<non_max_suppression_params>(params, 3);
+    KernelData kd = KernelData::Default<non_max_suppression_params>(params, 4);
     const non_max_suppression_params& orgParams = static_cast<const non_max_suppression_params&>(params);
 
     // Assign internel buffer
@@ -202,15 +202,25 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     size_t buffer_size = batch_num * class_num * buffer_stride;
     size_t sel_num_buffer_size = batch_num * class_num * 4;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         DispatchData dispatchData = SetDefault(orgParams, i);
         auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
         auto cldnn_jit = GetJitConstants(orgParams);
         cldnn_jit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
 
+        // if (i == 0) {
+        //     cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+        // } else if (i == 1) {
+        //     cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
+        // } else {
+        //     cldnn_jit.AddConstant(MakeJitConstant("IS_THIRD_ITER", "true"));
+        // }
+
         if (i == 0) {
-            cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+            cldnn_jit.AddConstant(MakeJitConstant("IS_ZERO_ITER", "true"));
         } else if (i == 1) {
+            cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+        } else if (i == 2) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
         } else {
             cldnn_jit.AddConstant(MakeJitConstant("IS_THIRD_ITER", "true"));
