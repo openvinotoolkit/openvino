@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <functional>
 #include <iterator>
@@ -145,6 +133,7 @@
 #include "op/xor.hpp"
 #include "ops_bridge.hpp"
 
+#include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
@@ -467,11 +456,14 @@ namespace ngraph
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
             REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
             REGISTER_OPERATOR("Upsample", 1, upsample);
+            REGISTER_OPERATOR("Upsample", 7, upsample);
             REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
 
             // custom OPs
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "DeformableConv2D", 1, deformable_conv_2d);
             REGISTER_OPERATOR_WITH_DOMAIN(
                 OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,

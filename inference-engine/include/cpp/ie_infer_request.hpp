@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 #include "cpp/ie_memory_state.hpp"
 #include "ie_remote_context.hpp"
 #include "ie_iinfer_request.hpp"
-#include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_blob.h"
 
@@ -91,7 +90,7 @@ public:
                           InferenceEngine::details::SharedObjectLoader::Ptr splg = {}):
                           actual(request), plg(splg) {
         //  plg can be null, but not the actual
-        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
+        if (actual == nullptr) IE_THROW() << "InferRequest was not initialized.";
     }
 
     /**
@@ -126,8 +125,8 @@ public:
         std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
         auto blobPtr = data.get();
         const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
-        if (blobPtr == nullptr) THROW_IE_EXCEPTION << error;
-        if (!remoteBlobPassed && blobPtr->buffer() == nullptr) THROW_IE_EXCEPTION << error;
+        if (blobPtr == nullptr) IE_THROW() << error;
+        if (!remoteBlobPassed && blobPtr->buffer() == nullptr) IE_THROW() << error;
         return data;
     }
 
@@ -241,11 +240,13 @@ public:
      */
     StatusCode Wait(int64_t millis_timeout) {
         ResponseDesc resp;
-        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
+        if (actual == nullptr) IE_THROW() << "InferRequest was not initialized.";
         auto res = actual->Wait(millis_timeout, &resp);
         if (res != OK && res != RESULT_NOT_READY &&
             res != INFER_NOT_STARTED && res != INFER_CANCELLED) {
-            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << res << resp.msg;
+            IE_EXCEPTION_SWITCH(res, ExceptionType,
+                InferenceEngine::details::ThrowNow<ExceptionType>{}
+                    <<= std::stringstream{} << IE_LOCATION << resp.msg)
         }
         return res;
     }
@@ -272,7 +273,7 @@ public:
      */
     std::vector<VariableState> QueryState() {
         IE_SUPPRESS_DEPRECATED_START
-        if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
+        if (actual == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
         IVariableState::Ptr pState = nullptr;
         auto res = OK;
         std::vector<VariableState> controller;
@@ -280,7 +281,7 @@ public:
             ResponseDesc resp;
             res = actual->QueryState(pState, idx, &resp);
             if (res != OK && res != OUT_OF_BOUNDS) {
-                THROW_IE_EXCEPTION << resp.msg;
+                IE_THROW() << resp.msg;
             }
             if (res != OUT_OF_BOUNDS) {
                 controller.push_back(VariableState(pState, plg));
@@ -296,7 +297,7 @@ public:
      * @return A shared pointer to underlying IInferRequest interface
      */
     operator IInferRequest::Ptr&() {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
+        if (actual == nullptr) IE_THROW() << "InferRequest was not initialized.";
         return actual;
     }
 

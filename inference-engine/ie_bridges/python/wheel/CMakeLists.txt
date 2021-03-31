@@ -1,5 +1,6 @@
 ﻿# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+#
 
 set(WHEEL_PACKAGE_NAME "openvino" CACHE STRING "Name of the package")
 set(WHEEL_LICENCE_TYPE "OSI Approved :: Apache Software License" CACHE STRING "License type for the package")
@@ -37,7 +38,18 @@ endif()
 
 configure_file(${SETUP_ENV} "${CMAKE_CURRENT_SOURCE_DIR}/.env")
 
-add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api _pyngraph)
+add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api)
+
+if(TARGET _pyngraph)
+    add_dependencies(ie_wheel _pyngraph)
+endif()
+
+if(LINUX)
+    find_host_program(patchelf_program NAMES patchelf)
+    if(NOT patchelf_program)
+        message(FATAL_ERROR "patchelf is not found, which is needed to build ie_wheel")
+    endif()
+endif()
 
 add_custom_command(TARGET ie_wheel
     POST_BUILD

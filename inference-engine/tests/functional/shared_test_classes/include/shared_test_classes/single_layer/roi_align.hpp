@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +22,9 @@ class ROIAlignLayerTest : public testing::WithParamInterface<roialignParams>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<roialignParams> obj);
+    static void fillCoordTensor(std::vector<float>& coords, int height, int width,
+                                float spatialScale, int pooledRatio, int pooledH, int pooledW);
+    static void fillIdxTensor(std::vector<int>& idx, int batchSize);
 
 protected:
     void SetUp() override;
