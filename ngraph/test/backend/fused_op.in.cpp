@@ -752,7 +752,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze_default_axes)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squeeze_dynamic)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squeeze_dynamic)
 {
     const auto data_param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
     const auto axes_param = make_shared<op::Parameter>(element::i64, Shape{2});

@@ -18,23 +18,23 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
 
 op::Squeeze::Squeeze()
-    : FusedOp()
+    : Op()
 {
 }
 
 op::Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes)
-    : FusedOp({data, axes})
+    : Op({data, axes})
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Squeeze::pre_validate_and_infer_types()
+void op::Squeeze::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
     auto data = input_value(0);
     auto axes_node = input_value(1).get_node_shared_ptr();
 
@@ -49,7 +49,14 @@ void op::Squeeze::pre_validate_and_infer_types()
     if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
         (data_has_dynamic_shape && axes_is_empty_constant))
     {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        if (!data_has_dynamic_rank)
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data.get_partial_shape().rank()));
+        }         
+        else
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        }
         return;
     }
 
@@ -110,20 +117,6 @@ bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes);
     return true;
-}
-
-OutputVector op::Squeeze::decompose_op() const
-{
-    NODE_VALIDATION_CHECK(
-        this,
-        (get_output_partial_shape(0).is_static()),
-        "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
-    auto data = input_value(0);
-    auto output_data_shape = get_output_shape(0);
-    return {make_shared<op::v1::Reshape>(
-        data,
-        op::Constant::create(element::u64, {output_data_shape.size()}, output_data_shape),
-        false)};
 }
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const
@@ -209,6 +202,7 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
 
 bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate_lower);
     NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
@@ -217,6 +211,7 @@ bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) cons
 
 bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate_upper);
     NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
@@ -225,6 +220,7 @@ bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) cons
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_constant_fold);
     if (get_output_partial_shape(0).is_dynamic())
     {
         return false;
