@@ -17,17 +17,12 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusion, "GeluFusion", 0);
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfOne, "GeluFusionWithErfOne",
-                       0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfOne,
+                       "GeluFusionWithErfOne", 0);
 
 ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
   MATCHER_SCOPE(GeluFusionWithErfOne);
-  // Replaces a sub-graph with a Gelu op.
-  // Depending on mode value there are 3 patterns:
-  // 0 : (0.5 * x) * (1 + erf(x / sqrt(2))
-  // 1 : 0.5 * (x * (1 + erf(x / sqrt(2)))
-  // 2 : x * (0.5 * (1 + erf(x / sqrt(2)))
-
+  // Replaces a sub-graph with a Gelu op
   // Shared by every pattern: (1 + erf(x / sqrt(2)))
   auto input = ngraph::pattern::any_input();
   auto div_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -37,6 +32,7 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
   auto add = std::make_shared<ngraph::opset7::Add>(add_constant, erf);
   auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
 
+  // (0.5 * x) * (1 + erf(x / sqrt(2))
   auto mul_first =
       std::make_shared<ngraph::opset7::Multiply>(input, mul_constant);
   auto mul = std::make_shared<ngraph::opset7::Multiply>(mul_first, add);
@@ -53,7 +49,7 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
         pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
     bool valid_constant_values =
-        op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
+        op::util::has_constant_value<float>(div_const_value, 1.41421353f) &&
         op::util::has_constant_value<float>(add_const_value, 1.0f) &&
         op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
@@ -80,21 +76,16 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     return true;
   };
 
-  auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
+  auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
   register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfTwo, "GeluFusionWithErfTwo",
-                       0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfTwo,
+                       "GeluFusionWithErfTwo", 0);
 
 ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
   MATCHER_SCOPE(GeluFusionWithErfTwo);
-  // Replaces a sub-graph with a Gelu op.
-  // Depending on mode value there are 3 patterns:
-  // 0 : (0.5 * x) * (1 + erf(x / sqrt(2))
-  // 1 : 0.5 * (x * (1 + erf(x / sqrt(2)))
-  // 2 : x * (0.5 * (1 + erf(x / sqrt(2)))
-
+  // Replaces a sub-graph with a Gelu op
   // Shared by every pattern: (1 + erf(x / sqrt(2)))
   auto input = ngraph::pattern::any_input();
   auto div_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -104,6 +95,7 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
   auto add = std::make_shared<ngraph::opset7::Add>(add_constant, erf);
   auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
 
+  // 0.5 * (x * (1 + erf(x / sqrt(2)))
   auto mul_first = std::make_shared<ngraph::opset7::Multiply>(input, add);
   auto mul =
       std::make_shared<ngraph::opset7::Multiply>(mul_constant, mul_first);
@@ -120,7 +112,7 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
         pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
     bool valid_constant_values =
-        op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
+        op::util::has_constant_value<float>(div_const_value, 1.41421353f) &&
         op::util::has_constant_value<float>(add_const_value, 1.0f) &&
         op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
@@ -147,20 +139,16 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     return true;
   };
 
-  auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
+  auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
   register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfThree, "GeluFusionWithErfThree", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GeluFusionWithErfThree,
+                       "GeluFusionWithErfThree", 0);
 
 ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
   MATCHER_SCOPE(GeluFusionWithErfThree);
-  // Replaces a sub-graph with a Gelu op.
-  // Depending on mode value there are 3 patterns:
-  // 0 : (0.5 * x) * (1 + erf(x / sqrt(2))
-  // 1 : 0.5 * (x * (1 + erf(x / sqrt(2)))
-  // 2 : x * (0.5 * (1 + erf(x / sqrt(2)))
-
+  // Replaces a sub-graph with a Gelu op
   // Shared by every pattern: (1 + erf(x / sqrt(2)))
   auto input = ngraph::pattern::any_input();
   auto div_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -170,6 +158,7 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
   auto add = std::make_shared<ngraph::opset7::Add>(add_constant, erf);
   auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
 
+  // x * (0.5 * (1 + erf(x / sqrt(2)))
   auto mul_first =
       std::make_shared<ngraph::opset7::Multiply>(add, mul_constant);
   auto mul = std::make_shared<ngraph::opset7::Multiply>(input, mul_first);
@@ -186,7 +175,7 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
         pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
     bool valid_constant_values =
-        op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
+        op::util::has_constant_value<float>(div_const_value, 1.41421353f) &&
         op::util::has_constant_value<float>(add_const_value, 1.0f) &&
         op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
@@ -213,6 +202,6 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     return true;
   };
 
-  auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
+  auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
   register_matcher(m, callback);
 }
