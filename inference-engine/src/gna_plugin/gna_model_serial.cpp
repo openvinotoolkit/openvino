@@ -413,10 +413,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         writeBits(layer.NumberOfOperands, os);
 
         for (uint32_t i = 0; i < layer.NumberOfOperands; i++) {
-            if (layer.Operands[i] == nullptr)
+            if (layer.Operands[i] == nullptr) {
                 writeBits(Gna2Tensor{}, os);
-            else
-                writeBits(getTensorWithProperOffset(*layer.Operands[i]), os);
+            } else {
+                Gna2Tensor tensor = getTensorWithProperOffset(*layer.Operands[i]);
+                // we need to remove legacy (up to & including GNA HW 2.0) CNN enforement during export
+                // to avoid issues when importing and running the model on newer GNA HW with libGNA 2.1.x.y
+                if (i == OutOpIdx && layer.Type == Gna2OperationTypeConvolution) {
+                    memset(tensor.Layout, 0, sizeof(tensor.Layout));
+                }
+                writeBits(tensor, os);
+            }
         }
 
         writeBits(layer.NumberOfParameters, os);
