@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 
@@ -429,13 +417,11 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
-TEST(constant_folding, const_convert)
+template <typename T, typename U>
+static void test_const_convert(const vector<T>& values_in, const vector<U>& values_expected)
 {
-    Shape input_shape{3, 4};
-
-    vector<int32_t> values_in{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
-    auto constant = op::Constant::create(element::f32, input_shape, values_in);
-    auto convert = make_shared<op::Convert>(constant, element::u64);
+    auto constant = op::Constant::create(element::from<T>(), Shape{values_in.size()}, values_in);
+    auto convert = make_shared<op::Convert>(constant, element::from<U>());
     convert->set_friendly_name("test");
     auto f = make_shared<Function>(convert, ParameterVector{});
 
@@ -450,11 +436,29 @@ TEST(constant_folding, const_convert)
         as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
-    ASSERT_EQ(new_const->get_output_element_type(0), element::u64);
-    auto values_out = new_const->get_vector<uint64_t>();
+    ASSERT_EQ(new_const->get_output_element_type(0), element::from<U>());
+    auto values_out = new_const->template get_vector<U>();
 
-    vector<uint64_t> values_expected{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
     ASSERT_EQ(values_expected, values_out);
+}
+
+TEST(constant_folding, const_convert)
+{
+    {
+        vector<float> in{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
+        vector<uint64_t> expected{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<bool> in{false, true, true, false, false, false, true};
+        vector<float> expected{0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<float> in{1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f};
+        vector<bool> expected{true, false, true, false, true, false, true};
+        test_const_convert(in, expected);
+    }
 }
 
 TEST(constant_folding, shape_of_v0)
