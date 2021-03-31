@@ -109,18 +109,19 @@ def buildDockerImage(Map configuration) {
 }
 
 def runTests(Map configuration) {
-    // Run unit-tests
-    sh """
-        docker run --name ${DOCKER_CONTAINER_NAME} ${DOCKER_IMAGE_TAG}
-        docker rm -f ${DOCKER_CONTAINER_NAME}
-    """
-    // Run large model tests, skip in Debug builds
-    if (configuration.build_type != "Debug") {
+    // Run only basic unit tests in Debug configuration
+    if (configuration.build_type == "Debug") {
+        sh """
+            docker run --name ${DOCKER_CONTAINER_NAME} ${DOCKER_IMAGE_TAG}
+        """
+    }
+
+    // Run unit-tests AND large model tests by default
+    else {
         sh """
             docker run --name ${DOCKER_CONTAINER_NAME} \
             --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-            ${DOCKER_IMAGE_TAG} tox -e zoo_models
-            docker rm -f ${DOCKER_CONTAINER_NAME}
+            ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models"
         """
     }
 }
@@ -178,6 +179,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
             stage("Cleanup") {
                 deleteDir()
                 sh """
+                    docker rm -f ${DOCKER_CONTAINER_NAME}
                     docker image prune -f
                 """
             }
