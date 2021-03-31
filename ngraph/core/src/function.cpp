@@ -157,29 +157,12 @@ void Function::validate_nodes_and_infer_types() const
     };
     std::map<Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
-    std::stringstream unregistered_variables;
     for (auto& node : get_ordered_ops())
     {
         node->revalidate_and_infer_types();
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
-        else if (const auto& memory_layer = std::dynamic_pointer_cast<Memory>(node))
-        {
-            // we shouldn't check Variables in Assign, ReadValue ops from opset3 to maintain
-            // backward compatibility
-            if (std::dynamic_pointer_cast<opset3::Assign>(node) ||
-                std::dynamic_pointer_cast<opset3::ReadValue>(node))
-            {
-                // do nothing
-            }
-            else if (std::find(m_variables.begin(),
-                               m_variables.end(),
-                               memory_layer->get_variable()) == m_variables.end())
-            {
-                unregistered_variables << memory_layer->get_variable_id() << std::endl;
-            }
-        }
 
         if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(node))
         {
@@ -193,9 +176,6 @@ void Function::validate_nodes_and_infer_types() const
     if (!unregistered_parameters.str().empty())
         throw ngraph_error("Function references undeclared parameters: " +
                            unregistered_parameters.str());
-    if (!unregistered_variables.str().empty())
-        throw ngraph_error("Function references undeclared Variables: " +
-                           unregistered_variables.str());
 
     bool only_pairs = std::all_of(
         pair_checker.begin(), pair_checker.end(), [](const std::pair<Variable*, Counter>& val) {
