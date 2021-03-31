@@ -45,9 +45,7 @@ Selu(x) = \lambda\cdot\big(\max(0, x) + \min(0, \alpha(e^{x}-1))\big)
 
 * *T*: arbitrary supported floating point type.
 
-**Examples**
-
-*Example 1*
+**Example**
 
 ```xml
 <layer ... type="Selu">
