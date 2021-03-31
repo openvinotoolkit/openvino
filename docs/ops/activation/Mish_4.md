@@ -30,7 +30,7 @@ Mish(x) = x\cdot\tanh\big(SoftPlus(x)\big) = x\cdot\tanh\big(\ln(1+e^{x})\big)
 
 * *T*: arbitrary supported floating point type.
 
-**Examples**
+**Example**
 
 ```xml
 <layer ... type="Mish">
