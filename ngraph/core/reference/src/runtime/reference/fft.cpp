@@ -532,10 +532,15 @@ namespace ngraph
                     std::cout << "input_is_zero: " << (input_is_zero ? "true" : "false") << "\n";
                     if (!input_is_zero)
                     {
+                        std::cout << std::string(80, '*') << "\n";
+                        std::cout << std::string(80, '*') << "\n";
                         for (int64_t axis_idx = 0; axis_idx < fft_rank; ++axis_idx)
                         {
+                            std::cout << "axis_idx:           " << axis_idx << "\n";
                             int64_t current_fft_stride = fft_strides[axis_idx];
                             int64_t current_fft_length = fft_lengths[axis_idx];
+                            std::cout << "current_fft_stride: " << current_fft_stride << "\n";
+                            std::cout << "current_fft_length: " << current_fft_length << "\n";
 
                             int64_t outer_fft_size = 1;
                             for (int64_t i = 0; i < fft_rank; ++i)
@@ -546,10 +551,13 @@ namespace ngraph
                                 }
                                 outer_fft_size *= fft_lengths[i];
                             }
+                            std::cout << "outer_fft_size:     " << outer_fft_size << "\n";
 
                             for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size;
                                  ++outer_fft_idx)
                             {
+                                std::cout << std::string(80, '*') << "\n";
+                                std::cout << "outer_fft_idx:  " << outer_fft_idx << "\n";
                                 fft1d(current_fft_length,
                                       outer_fft_idx,
                                       current_fft_stride,
