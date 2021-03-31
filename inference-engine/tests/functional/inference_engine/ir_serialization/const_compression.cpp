@@ -38,16 +38,15 @@ protected:
 };
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI32) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 1;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 1;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -55,20 +54,19 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI32) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI64) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 1;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 1;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::i64, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ngraph::op::Constant::create(ngraph::element::i64, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -80,16 +78,15 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI64) {
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP16) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 1;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 1;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::f16, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ngraph::op::Constant::create(ngraph::element::f16, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -101,16 +98,15 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP16) {
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP32) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 1;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 1;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::f32, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ngraph::op::Constant::create(ngraph::element::f32, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -122,9 +118,8 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP32) {
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 2;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 2;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
@@ -135,7 +130,7 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
     auto D = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {0, 3, 1, 2, 5, 6, 25, 3});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B, C, D},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B, C, D},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -143,13 +138,12 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOccurences) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 2;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 2;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
@@ -164,7 +158,7 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOc
     auto F = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {0, 3, 1, 2, 5, 6, 25, 3});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B, C, D, E, F},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B, C, D, E, F},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -172,20 +166,19 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOc
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstants) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 2;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 2;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {2, 2, 3, 4, 5, 6, 7, 8});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -193,20 +186,19 @@ TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstants) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I64) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 1;
-    ngraph::Shape shape{2, 2, 2};
+    constexpr int unique_const_count = 1;
+    const ngraph::Shape shape{2, 2, 2};
 
     auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {1, 0, 2, 0, 3, 0, 4, 0});
     auto B = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape({1, 2, 2}),
         {1, 2, 3, 4});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -214,21 +206,20 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I8) {
-    std::shared_ptr<ngraph::Function> ngraph_a;
-    const int unique_const_count = 1;
+    constexpr int unique_const_count = 1;
+    const ngraph::Shape shape{1, 1, 2};
 
-    ngraph::Shape shape{1, 1, 2};
     auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
         {1, 2});
     auto B = ngraph::op::Constant::create(ngraph::element::i8, ngraph::Shape({1, 2, 4}),
         {1, 0, 0, 0,
          2, 0, 0, 0});
 
-    ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
         ngraph::ParameterVector{});
 
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
@@ -236,5 +227,5 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
 }
