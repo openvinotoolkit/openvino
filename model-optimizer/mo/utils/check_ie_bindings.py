@@ -19,7 +19,7 @@ except ModuleNotFoundError:
 
 import mo.utils.version as v
 try:
-    import openvino.telemetry as tm
+    import openvino.telemetry as tm  # pylint: disable=import-error,no-name-in-module
 except ImportError:
     import mo.utils.telemetry_stub as tm
 from mo.utils.error import classify_error_type
@@ -35,8 +35,8 @@ def send_telemetry(mo_version: str, message: str, event_type: str):
 
 def import_core_modules(silent: bool, path_to_module: str):
     try:
-        from openvino.inference_engine import IECore, get_version # pylint: disable=import-error
-        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
+        from openvino.inference_engine import IECore, get_version  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI  # pylint: disable=import-error,no-name-in-module
 
         import openvino # pylint: disable=import-error
 
