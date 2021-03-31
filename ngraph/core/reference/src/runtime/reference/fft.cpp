@@ -277,6 +277,12 @@ namespace ngraph
                         buffer[k] = value;
                         input_is_zero = input_is_zero && (value == complex_type(0.0f, 0.0f));
                     }
+                    std::cout << "Gathered data:\n    ";
+                    for (int64_t k = 0; k < length; ++k)
+                    {
+                        std::cout << buffer[k] << " ";
+                    }
+                    std::cout << "\n";
                     return input_is_zero;
                 }
 
