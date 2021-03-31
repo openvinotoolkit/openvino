@@ -19,9 +19,9 @@ Selu(x) = \lambda \left\{\begin{array}{r}
 \end{array}\right.
 \f]
 
-Where α and λ correspond to inputs `alpha` and `lambda` respectively.
+where α and λ correspond to inputs `alpha` and `lambda` respectively.
 
-Another mathematical representation that may be found in other references is as follows:
+Another mathematical representation that may be found in other references:
 
 \f[
 Selu(x) = \lambda\cdot\big(\max(0, x) + \min(0, \alpha(e^{x}-1))\big)
@@ -39,11 +39,11 @@ Selu(x) = \lambda\cdot\big(\max(0, x) + \min(0, \alpha(e^{x}-1))\big)
 
 **Outputs**
 
-* **1**: The result of element-wise *Selu* function applied to `data` input tensor. A tensor of type `T` and same shape as `data` input tensor.
+* **1**: The result of element-wise *Selu* function applied to `data` input tensor. A tensor of type `T` and the same shape as `data` input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 
