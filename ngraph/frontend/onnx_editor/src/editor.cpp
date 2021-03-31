@@ -214,6 +214,7 @@ struct onnx_editor::ONNXModelEditor::Impl
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
+    , m_edge_mapper{m_pimpl->m_model_proto.graph()}
     , m_model_path{model_path}
 {
 }
@@ -359,7 +360,19 @@ void onnx_editor::ONNXModelEditor::set_input_values(
     }
 }
 
-EdgeMapper onnx_editor::ONNXModelEditor::create_edge_mapper() const
+InputEdge onnx_editor::ONNXModelEditor::find_input_edge(const EditorNode& node,
+                                                        const EditorInput& input) const
 {
-    return EdgeMapper{m_pimpl->m_model_proto.graph()};
+    return m_edge_mapper.find_input_edge(node, input);
+}
+
+OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const EditorNode& node,
+                                                          const EditorOutput& input) const
+{
+    return m_edge_mapper.find_output_edge(node, input);
+}
+
+OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& output_name) const
+{
+    return m_edge_mapper.find_output_edge(output_name);
 }

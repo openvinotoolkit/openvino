@@ -13,6 +13,11 @@ using namespace ngraph::onnx_editor;
 
 onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto)
 {
+    update(graph_proto);
+}
+
+void onnx_editor::EdgeMapper::update(const ONNX_NAMESPACE::GraphProto& graph_proto)
+{
     int topological_index = 0;
     m_node_inputs.resize(graph_proto.node().size());
     m_node_outputs.resize(graph_proto.node().size());

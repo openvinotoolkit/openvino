@@ -111,18 +111,54 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
-            /// \brief Create an EdgeMapper object which allows the use of node names
-            ///        instead of node indexes when specifying input and output edges.
+            /// \brief Returns the InputEdge based on a node (node name or output name)
+            ///        and an input (input name or input index).
             ///
-            /// \return EdgeMapper object which simplifies using methods which operate over
-            ///         InputEdge and OutputEdge.
-            EdgeMapper create_edge_mapper() const;
+            /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
+            ///        In such a case the algorthim tries to match the given node name
+            ///        with the input name (providing an input index is not enough).
+            ///        If a unique edge is found, it will be returned.
+            ///        If InputEdge cannot be determined based on parameter values an ngraph_error
+            ///        exception will be thrown.
+            ///
+            /// \param node A node helper structure created based on a node name
+            ///             or a node output name.
+            ///
+            /// \param input An input helper structure created based on a input name
+            ///              or a input index.
+            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
+
+            /// \brief Returns an OutputEdge based on a node (node name or output name)
+            ///        and an output (output name or output index).
+            ///
+            /// \note  The node name can be ambiguous (many ONNX nodes can have the same name).
+            ///        In such a case the algorthim will try to match the given node name
+            ///        with the output name (providing an output index is not enough).
+            ///        If after such operation a found edge is unique, it is returned.
+            ///        If OutputEdge cannot be determined based on given params the ngraph_error
+            ///        exception is thrown.
+            ///
+            /// \param node A node helper structure created based on a node name
+            ///             or a node output name.
+            ///
+            /// \param output A output helper structure created based on a output name
+            ///               or a output index.
+            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
+
+            /// \brief Returns an OutputEdge based on a output name.
+            ///
+            /// \note  The output name guarantees the uniqueness of the edge.
+            ///
+            /// \param output_name A node output name.
+            ///
+            OutputEdge find_output_edge(const std::string& output_name) const;
 
         private:
             const std::string m_model_path;
 
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
+            EdgeMapper m_edge_mapper;
         };
     } // namespace onnx_editor
 } // namespace ngraph

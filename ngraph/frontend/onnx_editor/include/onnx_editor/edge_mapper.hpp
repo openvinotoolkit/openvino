@@ -30,10 +30,10 @@ namespace ngraph
 
             /// \brief Creates an edge mapper based on a GraphProto object.
             ///
-            /// \note If state of graph_proto will be changed, the information
-            ///       from edge mapper is outdated.
+            /// \note If state of graph_proto will be changed, the information from edge mapper
+            ///       is outdated. In such a case the update method should be called.
             ///
-            /// \param graph_proto Reference to GraphProto object.
+            /// \param graph_proto Reference to a GraphProto object.
             EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto);
 
             /// \brief Returns the InputEdge based on a node (node name or output name)
@@ -77,6 +77,12 @@ namespace ngraph
             /// \param output_name A node output name.
             ///
             OutputEdge find_output_edge(const std::string& output_name) const;
+
+            /// \brief Updates state of a EdgeMapper instance if a model was changed.
+            ///
+            /// \param graph_proto Reference to a GraphProto object.
+            ///
+            void update(const ONNX_NAMESPACE::GraphProto& graph_proto);
 
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,
