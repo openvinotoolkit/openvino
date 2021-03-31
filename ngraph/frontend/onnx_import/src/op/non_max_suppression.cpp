@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/non_max_suppression.hpp"
@@ -21,6 +22,7 @@ namespace ngraph
             {
                 OutputVector non_max_suppression(const Node& node)
                 {
+                    using ngraph::op::is_null;
                     // TODO: this op will not be tested until at least
                     //       a reference implementation is added
 
@@ -29,7 +31,7 @@ namespace ngraph
                     const Output<ngraph::Node> scores = ng_inputs.at(1);
 
                     Output<ngraph::Node> max_output_boxes_per_class;
-                    if (ng_inputs.size() > 2)
+                    if (ng_inputs.size() > 2 && !is_null(ng_inputs.at(2)))
                     {
                         max_output_boxes_per_class =
                             ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(2));
@@ -41,7 +43,7 @@ namespace ngraph
                     }
 
                     Output<ngraph::Node> iou_threshold;
-                    if (ng_inputs.size() > 3)
+                    if (ng_inputs.size() > 3 && !is_null(ng_inputs.at(3)))
                     {
                         iou_threshold =
                             ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(3));
@@ -53,7 +55,7 @@ namespace ngraph
                     }
 
                     Output<ngraph::Node> score_threshold;
-                    if (ng_inputs.size() > 4)
+                    if (ng_inputs.size() > 4 && !is_null(ng_inputs.at(4)))
                     {
                         score_threshold =
                             ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(4));

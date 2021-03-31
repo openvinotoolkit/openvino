@@ -61,7 +61,7 @@ void op::Squeeze::pre_validate_and_infer_types()
         normalize_axes(this->description(), axes_constant->cast_vector<int64_t>(), data_rank);
 
     // Prepare set of unique axes marked to be removed from input data.
-    vector<uint64_t> axes_to_squeeze(data_rank);
+    vector<bool> axes_to_squeeze(data_rank);
     if (axes_is_empty_constant)
     {
         auto data_shape = data.get_shape();
@@ -70,11 +70,11 @@ void op::Squeeze::pre_validate_and_infer_types()
         {
             if (data_shape.at(idx) == 1)
             {
-                axes_to_squeeze.at(idx) = 1;
+                axes_to_squeeze.at(idx) = true;
             }
             else
             {
-                axes_to_squeeze.at(idx) = 0;
+                axes_to_squeeze.at(idx) = false;
             }
         }
     }
@@ -91,14 +91,14 @@ void op::Squeeze::pre_validate_and_infer_types()
                     (data_shape.at(axis) == 1),
                     "provided axis value is invalid. Only axes of size 1 may be removed.");
             }
-            axes_to_squeeze.at(axis) = 1;
+            axes_to_squeeze.at(axis) = true;
         }
     }
 
     vector<Dimension> output_data_shape;
     for (uint64_t idx = 0; idx < data_rank; ++idx)
     {
-        if (axes_to_squeeze.at(idx) == 0)
+        if (!axes_to_squeeze.at(idx))
         {
             output_data_shape.push_back(data_partial_shape[idx]);
         }
@@ -251,4 +251,9 @@ bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVec
         return true;
     }
     return false;
+}
+
+bool op::v0::Squeeze::is_dynamic() const
+{
+    return get_output_partial_shape(0).is_dynamic();
 }

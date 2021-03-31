@@ -45,14 +45,11 @@ void op::v0::Unsqueeze::validate_and_infer_types()
     // Get value of axes from Constant
     const auto axes_values = axes_constant->cast_vector<int64_t>();
     const auto expanded_rank = data_rank_value + axes_values.size();
-    auto axes = normalize_axes(this->description(), axes_values, expanded_rank);
 
-    NODE_VALIDATION_CHECK(this, !axes.empty(), "'axes' input is mandatory.");
-    NODE_VALIDATION_CHECK(this,
-                          axes.size() == set<int64_t>(begin(axes), end(axes)).size(),
-                          "'axes' input has a duplicate axis.");
+    NODE_VALIDATION_CHECK(this, !axes_values.empty(), "'axes' input is mandatory");
 
-    sort(begin(axes), end(axes), less<int64_t>());
+    auto normalized_axes = normalize_axes(this->description(), axes_values, expanded_rank);
+    set<int64_t> axes(begin(normalized_axes), end(normalized_axes));
 
     vector<Dimension> output_shape{data_partial_shape};
     for (auto axis : axes)
