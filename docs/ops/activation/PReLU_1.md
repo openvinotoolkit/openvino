@@ -19,9 +19,9 @@ PReLU(x) = \left\{\begin{array}{r}
 \end{array}\right.
 \f]
 
-Where α, is a learnable parameter and corresponds to the negative slope, per channel, defined by the second input `slope`.
+where α is a learnable parameter and corresponds to the negative slope, per channel, defined by the second input `slope`.
 
-Another mathematical representation that may be found in other references is as follows:
+Another mathematical representation that may be found in other references:
 
 \f[
 PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
@@ -34,15 +34,15 @@ PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
 
 * **1**: `data`. A tensor of type `T` and arbitrary shape. **Required**.
 * **2**: `slope`. 1D tensor of type `T`. Tensor with negative slope values, one per channel dimension of `data` input tensor. **Required**.
-* **Note**: Channels dimension corresponds to second dimension of `data` input tensor. If `data` rank is less than 2, then the number of channels is 1.
+* **Note**: Channels dimension corresponds to second dimension of `data` input tensor. If `data` rank is less than 2, the number of channels is 1.
 
 **Outputs**
 
-* **1**: The result of element-wise *PReLU* operation applied to `data` input tensor with negative slope values from `slope` input tensor. A tensor of type `T` and same shape as `data` input tensor.
+* **1**: The result of element-wise *PReLU* operation applied to `data` input tensor with negative slope values from `slope` input tensor. A tensor of type `T` and the same shape as `data` input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Examples**
 
