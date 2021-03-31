@@ -74,32 +74,6 @@ inline int parallel_get_env_threads() {
 #define PARTITIONING
 #endif
 
-namespace custom {
-using numa_node_id = int;
-using core_type_id = int;
-
-namespace detail { class binding_handler; }
-class binding_observer : public tbb::task_scheduler_observer {
-    detail::binding_handler* my_binding_handler;
-public:
-    binding_observer(tbb::task_arena& ta, int num_slots,
-                     numa_node_id numa_id = tbb::task_arena::automatic,
-                     core_type_id core_type = tbb::task_arena::automatic,
-                     int max_threads_per_core = tbb::task_arena::automatic);
-    void on_scheduler_entry(bool) override;
-    void on_scheduler_exit(bool) override;
-    ~binding_observer();
-};
-
-namespace info {
-    std::vector<numa_node_id> numa_nodes();
-    std::vector<core_type_id> core_types();
-    int default_concurrency(numa_node_id numa_id = tbb::task_arena::automatic,
-                            core_type_id core_type_id = tbb::task_arena::automatic,
-                            int max_threads_per_core = tbb::task_arena::automatic);
-} // namespace info
-} // namespace custom
-
 #elif IE_THREAD == IE_THREAD_OMP
 #include <omp.h>
 
