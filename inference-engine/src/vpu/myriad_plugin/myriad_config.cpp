@@ -32,7 +32,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_ENABLE_FORCE_RESET,
 
-        ie::MYRIAD_WATCHDOG,
         ie::MYRIAD_THROUGHPUT_STREAMS,
 
         ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
@@ -79,11 +78,6 @@ IE_SUPPRESS_DEPRECATED_START
     };
 IE_SUPPRESS_DEPRECATED_END
 
-    static const std::unordered_map<std::string, std::chrono::milliseconds> watchdogIntervals = {
-        { CONFIG_VALUE(YES), std::chrono::milliseconds(1000) },
-        { CONFIG_VALUE(NO), std::chrono::milliseconds(0) }
-    };
-
     static const std::unordered_map<std::string, MovidiusDdrType> memoryTypes = {
         { ie::MYRIAD_DDR_AUTO,         MovidiusDdrType::AUTO },
         { ie::MYRIAD_DDR_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
@@ -97,7 +91,6 @@ IE_SUPPRESS_DEPRECATED_END
     setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
     setOption(_deviceName,                              config, CONFIG_KEY(DEVICE_ID));
     setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
-    setOption(_watchdogInterval, watchdogIntervals,     config, ie::MYRIAD_WATCHDOG);
     setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
     setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);
     setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
@@ -114,9 +107,6 @@ IE_SUPPRESS_DEPRECATED_END
     }
     if (const auto envVar = std::getenv("IE_VPU_MYRIAD_FORCE_RESET")) {
         _forceReset = std::stoi(envVar);
-    }
-    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_WATCHDOG_INTERVAL")) {
-        _watchdogInterval = std::chrono::milliseconds(std::stoi(envVar));
     }
 #endif
 }

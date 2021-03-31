@@ -14,6 +14,7 @@
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
+#include <vpu/configuration/options/watchdog_interval.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -363,6 +364,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<HwExtraSplitOption>();
     configuration.registerOption<HwBlackListOption>();
     configuration.registerOption<TilingCMXLimitKBOption>();
+    configuration.registerOption<WatchdogIntervalOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

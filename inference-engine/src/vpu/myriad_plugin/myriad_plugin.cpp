@@ -27,6 +27,7 @@
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
+#include <vpu/configuration/options/watchdog_interval.hpp>
 
 #include "myriad_plugin.h"
 
@@ -62,6 +63,9 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     }
     if (const auto envVar = std::getenv("IE_VPU_TILING_CMX_LIMIT_KB")) {
         _parsedConfig.set(TilingCMXLimitKBOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_WATCHDOG_INTERVAL")) {
+        _parsedConfig.set(WatchdogIntervalOption::key(), envVar);
     }
 #endif
 }
@@ -159,6 +163,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<HwExtraSplitOption>();
     _parsedConfig.registerOption<HwBlackListOption>();
     _parsedConfig.registerOption<TilingCMXLimitKBOption>();
+    _parsedConfig.registerOption<WatchdogIntervalOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

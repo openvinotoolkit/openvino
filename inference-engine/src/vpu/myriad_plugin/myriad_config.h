@@ -43,10 +43,6 @@ public:
         return _platform;
     }
 
-    const std::chrono::milliseconds& watchdogInterval() const {
-        return _watchdogInterval;
-    }
-
     const std::chrono::seconds& deviceConnectTimeout() const {
         return _deviceConnectTimeout;
     }
@@ -70,7 +66,6 @@ private:
     bool _forceReset = false;
     bool _enableAsyncDma = true;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
-    std::chrono::milliseconds _watchdogInterval = std::chrono::milliseconds(1000);
     std::chrono::seconds _deviceConnectTimeout = std::chrono::seconds(15);
     std::string _deviceName;
     MovidiusDdrType _memoryType = MovidiusDdrType::AUTO;

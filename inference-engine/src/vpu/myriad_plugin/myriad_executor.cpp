@@ -21,6 +21,7 @@
 
 #include <vpu/configuration/options/protocol.hpp>
 #include <vpu/configuration/options/power_config.hpp>
+#include <vpu/configuration/options/watchdog_interval.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
@@ -141,7 +142,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 
     ncDeviceOpenParams_t deviceOpenParams = {};
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
-    deviceOpenParams.watchdogInterval = static_cast<int>(config.watchdogInterval().count());
+    deviceOpenParams.watchdogInterval = static_cast<int>(config.get<WatchdogIntervalOption>().count());
     deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
     deviceOpenParams.customFirmwareDirectory = dirName.c_str();
 

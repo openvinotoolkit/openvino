@@ -15,6 +15,7 @@
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
+#include <vpu/configuration/options/watchdog_interval.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -60,6 +61,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<HwExtraSplitOption>();
     _configuration.registerOption<HwBlackListOption>();
     _configuration.registerOption<TilingCMXLimitKBOption>();
+    _configuration.registerOption<WatchdogIntervalOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
