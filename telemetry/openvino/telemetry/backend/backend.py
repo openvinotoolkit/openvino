@@ -3,7 +3,7 @@
 
 import abc
 
-from openvino.telemetry.utils.message import Message
+from ..utils.message import Message
 
 
 class BackendRegistry:

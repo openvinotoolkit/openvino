@@ -4,7 +4,7 @@
 import unittest
 import time
 
-from openvino.telemetry.utils.sender import TelemetrySender
+from sender import TelemetrySender
 
 
 class FakeTelemetryBackend:

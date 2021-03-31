@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.telemetry.utils.isip as isip
+import utils.isip as isip
 
-from openvino.telemetry.backend.backend import BackendRegistry
-from openvino.telemetry.utils.sender import TelemetrySender
+from backend.backend import BackendRegistry
+from utils.sender import TelemetrySender
 
 
 class SingletonMetaClass(type):

@@ -5,8 +5,8 @@ import threading
 from concurrent import futures
 from time import sleep
 
-from openvino.telemetry.backend.backend import TelemetryBackend
-from openvino.telemetry.utils.message import Message
+from ..backend.backend import TelemetryBackend
+from ..utils.message import Message
 
 MAX_QUEUE_SIZE = 1000
 

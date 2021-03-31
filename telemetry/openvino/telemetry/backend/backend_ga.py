@@ -3,9 +3,9 @@
 
 import uuid
 
-from openvino.telemetry.backend.backend import TelemetryBackend
-from openvino.telemetry.utils.message import Message, MessageType
-from openvino.telemetry.utils.guid import get_or_generate_uid
+from backend import TelemetryBackend
+from ..utils.message import Message, MessageType
+from ..utils.guid import get_or_generate_uid
 
 
 class GABackend(TelemetryBackend):
