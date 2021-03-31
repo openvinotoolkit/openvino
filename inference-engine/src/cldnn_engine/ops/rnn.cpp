@@ -153,11 +153,19 @@ void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell
     p.AddInnerPrimitiveToProfiler(gemmReorderID, op->get_friendly_name(), op);
     p.AddInnerPrimitiveToProfiler(lstm_elt_id, op->get_friendly_name(), op);
 
+    cldnn::tensor outSz = cldnn::tensor{ lstm_batch_size, lstm_hidden_size, 1, 1 };
+    cldnn::primitive_id outputHiddenCropID = layerName + "_hc";
     cldnn::primitive_id outputHiddenID = layerName + ".0";
-    p.AddPrimitive(cldnn::crop(outputHiddenID, lstm_elt_id, hiddenSz, cldnn::tensor{0, 0, 0, 0}));
+    p.AddPrimitive(cldnn::crop(outputHiddenCropID, lstm_elt_id, hiddenSz, cldnn::tensor{0, 0, 0, 0}));
+    p.AddInnerPrimitiveToProfiler(outputHiddenCropID, op->get_friendly_name(), op);
+    p.AddPrimitive(cldnn::reshape(outputHiddenID, outputHiddenCropID, outSz));
     p.AddInnerPrimitiveToProfiler(outputHiddenID, op->get_friendly_name(), op);
+
+    cldnn::primitive_id outputCellCropID = layerName + "_cc";
     cldnn::primitive_id outputCellID = layerName + ".1";
-    p.AddPrimitive(cldnn::crop(outputCellID, lstm_elt_id, hiddenSz, cellCropSz));
+    p.AddPrimitive(cldnn::crop(outputCellCropID, lstm_elt_id, hiddenSz, cellCropSz));
+    p.AddInnerPrimitiveToProfiler(outputCellCropID, op->get_friendly_name(), op);
+    p.AddPrimitive(cldnn::reshape(outputCellID, outputHiddenCropID, outSz));
     p.AddInnerPrimitiveToProfiler(outputCellID, op->get_friendly_name(), op);
 
     // output primitive IDs
