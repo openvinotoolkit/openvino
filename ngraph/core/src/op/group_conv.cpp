@@ -419,8 +419,7 @@ const PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_
     auto filter_pshape = get_input_partial_shape(1);
 
     PartialShape shape;
-    bool is_output_shape_present = inputs().size() == 3;
-    if (is_output_shape_present)
+    if (inputs().size() == 3)
     {
         if (const auto& const_op = get_constant_from_source(input_value(2)))
         {

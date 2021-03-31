@@ -331,7 +331,6 @@ PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(
             }
             if (!auto_padding_applied)
             {
-                // set_output_type(0, result_et, result_shape);
                 return result_shape;
             }
         }
