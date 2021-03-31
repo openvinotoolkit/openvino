@@ -113,7 +113,7 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
             if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() &&
                 filters_pshape[3].is_static())
             {
-                #if 0 // TODO: fix when working on deformable_group attribute
+#if 0 // TODO: fix when working on deformable_group attribute
                 auto deformable_channels = m_deformable_group * filters_pshape[2].get_length() *
                                            filters_pshape[3].get_length() * 2;
                 NODE_VALIDATION_CHECK(this,
@@ -127,7 +127,7 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
                                       m_deformable_group,
                                       ", filters shape: ",
                                       filters_pshape);
-                #endif
+#endif
             }
             else
             {

@@ -296,38 +296,38 @@ namespace ngraph
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_filter = f;
-                        for (size_t group_idx = 0; group_idx < groups; ++group_idx)
-                        {
-                            #if 1
-                            runtime::reference::convolution(group_batch,
-                                                group_filter,
-                                                group_out,
-                                                group_batch_shape,
-                                                group_filter_shape,
-                                                group_out_shape,
-                                                strides,
-                                                dilation,
-                                                pads_begin,
-                                                pads_end);
-                            #else
-                            deformable_convolution(group_batch,
-                                                group_filter,
-                                                group_offset,
-                                                group_out,
-                                                group_batch_shape,
-                                                group_offset_shape,
-                                                group_filter_shape,
-                                                group_out_shape,
-                                                strides,
-                                                dilation,
-                                                pads_begin,
-                                                pads_end);
-                            #endif
-                            group_batch += group_batch_size;
-                            group_offset += group_offset_size;
-                            group_filter += group_filter_size;
-                            group_out += group_out_size;
-                        }
+                    for (size_t group_idx = 0; group_idx < groups; ++group_idx)
+                    {
+#if 1
+                        runtime::reference::convolution(group_batch,
+                                                        group_filter,
+                                                        group_out,
+                                                        group_batch_shape,
+                                                        group_filter_shape,
+                                                        group_out_shape,
+                                                        strides,
+                                                        dilation,
+                                                        pads_begin,
+                                                        pads_end);
+#else
+                        deformable_convolution(group_batch,
+                                               group_filter,
+                                               group_offset,
+                                               group_out,
+                                               group_batch_shape,
+                                               group_offset_shape,
+                                               group_filter_shape,
+                                               group_out_shape,
+                                               strides,
+                                               dilation,
+                                               pads_begin,
+                                               pads_end);
+#endif
+                        group_batch += group_batch_size;
+                        group_offset += group_offset_size;
+                        group_filter += group_filter_size;
+                        group_out += group_out_size;
+                    }
                     //}
                 }
             }
