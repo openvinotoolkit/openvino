@@ -356,6 +356,7 @@ namespace ngraph
                         }
                         data[fft_offset + k * stride] = value;
                     }
+                    std::cout << "Naive (I)FFT was successfully calculated.\n";
                 }
 
                 void fft1d(int64_t length,
@@ -578,6 +579,7 @@ namespace ngraph
                         }
                     }
 
+                    std::cout << "Copying data to output...\n";
                     copy_data_to_output(complex_output_ptr,
                                         data.data(),
                                         outer_idx,
