@@ -91,7 +91,10 @@ public:
             m_binary_output.write(ptr, size);
             return offset;
         }
-
+        // The biggest supported models have at maximum 1-2 thousand constant nodes,
+        // with 64 bit hash that gives a probability around 1 in 10 trillion that a
+        // hash collision will appear. Because of this, a choice has been made to
+        // not perform collision detection and keep the hashing quick and seamless.
         const HashValue hash = hash_combine(ptr, size);
         const auto found = m_hash_to_file_positions.find(hash);
         if (found != end(m_hash_to_file_positions)) {
