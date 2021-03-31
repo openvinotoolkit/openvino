@@ -86,9 +86,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
     manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
-
-    // depends on the following AlgebraicSimplification for Transpose
-    manager.register_pass<ngraph::pass::TransposeSinkingFQReduce>();
+    manager.register_pass<ngraph::pass::TransposeSinking>();
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();

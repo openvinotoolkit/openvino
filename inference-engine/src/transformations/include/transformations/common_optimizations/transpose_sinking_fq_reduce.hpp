@@ -16,17 +16,54 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API TransposeSinkingFQReduce;
+class TRANSFORMATIONS_API TransposeSinking;
+class TRANSFORMATIONS_API TransposeOptimization;
+class TRANSFORMATIONS_API TransposeReduction;
+class TRANSFORMATIONS_API TransposeFQReduction;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeSinkingFQReduce transformation sinks Transpose through FakeQuantize and Reduce operations
+ * @brief TransposeOptimization transformation replaces suitable Transposes with Reshape operation or optimises them out
  */
-class ngraph::pass::TransposeSinkingFQReduce : public ngraph::pass::MatcherPass {
+class ngraph::pass::TransposeOptimization : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    TransposeSinkingFQReduce();
+    TransposeOptimization();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeReduction transformation sinks Transpose through Reduce operations
+ */
+class ngraph::pass::TransposeReduction : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    TransposeReduction();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeFQReduction transformation sinks Transpose through FakeQuantize and Reduce operations
+ */
+class ngraph::pass::TransposeFQReduction : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    TransposeFQReduction();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeSinking transformation sinks Transposes through known operations
+ */
+class ngraph::pass::TransposeSinking: public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    TransposeSinking() {
+        add_matcher<ngraph::pass::TransposeFQReduction>();
+        add_matcher<ngraph::pass::TransposeReduction>();
+        add_matcher<ngraph::pass::TransposeOptimization>();
+    }
 };
