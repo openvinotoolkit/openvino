@@ -135,7 +135,7 @@ def cli_parser():
                         type=str,
                         help='target device to infer on')
     parser.add_argument('-niter',
-                        default=3,
+                        default=10,
                         type=check_positive_int,
                         help='number of times to execute binary to aggregate statistics of')
     parser.add_argument('-s',
