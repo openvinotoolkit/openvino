@@ -178,7 +178,11 @@ static std::string GetOperandType(Gna2DataType type) {
         {Gna2DataTypePwlSegment, "Gna2DataTypePwlSegment"},
         {Gna2DataTypeWeightScaleFactor, "Gna2DataTypeWeightScaleFactor"}
     };
-    return operandTypeMap.find(type)->second;
+    if (operandTypeMap.find(type) != operandTypeMap.end()) {
+        return operandTypeMap.find(type)->second;
+    } else {
+        return {"unknown"};
+    }
 }
 
 static std::vector<std::string> GetOperandNames(Gna2OperationType type) {
@@ -191,7 +195,11 @@ static std::vector<std::string> GetOperandNames(Gna2OperationType type) {
         {Gna2OperationTypeRecurrent, {"inputs", "outputs", "weights", "biases", "activationFunction"}},
         {Gna2OperationTypeTransposition, {"inputs", "outputs"}}
     };
-    return operationOperandNamesMap.find(type)->second;
+    if (operationOperandNamesMap.find(type) != operationOperandNamesMap.end()) {
+        return operationOperandNamesMap.find(type)->second;
+    } else {
+        return {"unknown"};
+    }
 }
 
 static std::vector<std::string> GetParamaterNames(Gna2OperationType type) {
@@ -202,7 +210,11 @@ static std::vector<std::string> GetParamaterNames(Gna2OperationType type) {
         {Gna2OperationTypeGmm, {"maximumScore"}},
         {Gna2OperationTypeRecurrent, {"delay"}}
     };
-    return operationParamaterNamesMap.find(type)->second;
+    if (operationParamaterNamesMap.find(type) != operationParamaterNamesMap.end()) {
+        return operationParamaterNamesMap.find(type)->second;
+    } else {
+        return {"unknown"};
+    }
 }
 
 static std::string GetBiasMode(Gna2BiasMode mode) {
@@ -211,7 +223,11 @@ static std::string GetBiasMode(Gna2BiasMode mode) {
         {Gna2BiasModePerStride, "Gna2BiasModePerStride"},
         {Gna2BiasModeGrouping, "Gna2BiasModeGrouping"}
     };
-    return biasModeMap.find(mode)->second;
+    if (biasModeMap.find(mode) != biasModeMap.end()) {
+        return biasModeMap.find(mode)->second;
+    } else {
+        return {"unknown"};
+    }
 }
 
 static std::string GetPoolingMode(Gna2PoolingMode mode) {
@@ -220,7 +236,11 @@ static std::string GetPoolingMode(Gna2PoolingMode mode) {
         {Gna2PoolingModeMax, "Gna2PoolingModeMax"},
         {Gna2PoolingModeSum, "Gna2PoolingModeSum"}
     };
-    return poolingModeMap.find(mode)->second;
+    if (poolingModeMap.find(mode) != poolingModeMap.end()) {
+        return poolingModeMap.find(mode)->second;
+    } else {
+        return {"unknown"};
+    }
 }
 
 static void DumpShape(std::ostream& dumpFile, Gna2Shape* shape, const std::string paramName) {
