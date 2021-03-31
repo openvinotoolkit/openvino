@@ -28,7 +28,7 @@ exp(x) = e^{x}
 
 * *T*: arbitrary supported floating point type.
 
-**Examples**
+**Example**
 
 ```xml
 <layer ... type="Exp">
