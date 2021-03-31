@@ -24,11 +24,11 @@ Mish(x) = x\cdot\tanh\big(SoftPlus(x)\big) = x\cdot\tanh\big(\ln(1+e^{x})\big)
 
 **Outputs**:
 
-*   **1**: The result of element-wise *Mish* function applied to the input tensor. A tensor of type `T` and same shape as input tensor.
+*   **1**: The result of element-wise *Mish* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 
