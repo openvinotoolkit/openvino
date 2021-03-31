@@ -9,7 +9,7 @@
 #endif
 
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-#if defined(TBBBBIND_2_4_AVAILABLE)
+#if defined(TBBBIND_2_4_AVAILABLE)
 namespace custom {
 namespace detail {
 extern "C" {
@@ -207,5 +207,5 @@ int default_concurrency(numa_node_id id) {
 
 } // namespace info
 } // namespace custom
-#endif /*defined(TBBBBIND_2_4_AVAILABLE)*/
+#endif /*defined(TBBBIND_2_4_AVAILABLE)*/
 #endif /*IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO*/
