@@ -144,7 +144,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
     target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
     if (TBBBIND_2_4_FOUND)
-        target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DTBBBBIND_2_4_AVAILABLE=1)
+        target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DTBBBIND_2_4_AVAILABLE=1)
     endif()
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
