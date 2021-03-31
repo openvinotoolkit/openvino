@@ -186,9 +186,9 @@ endif ()
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.1")
-    set(OPENCV_BUILD "044")
-    set(OPENCV_BUILD_YOCTO "337")
+    set(OPENCV_VERSION "4.5.2")
+    set(OPENCV_BUILD "076")
+    set(OPENCV_BUILD_YOCTO "708")
 
     if (AARCH64)
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
