@@ -25,10 +25,10 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace
+            namespace detail
             {
                 template <typename T>
-                void deformable_convolve_3D_channels(const ConvolutionParams& p,
+                void deformable_convolve_2D_channels(const ConvolutionParams& p,
                                                      const T* batch,
                                                      const Shape& batch_shape,
                                                      const T* offset,
@@ -37,18 +37,14 @@ namespace ngraph
                                                      const Shape& filter_shape,
                                                      T*& out)
                 {
-                    const int input_size_z = batch_shape[1];
-                    const int input_size_y = batch_shape[2];
-                    const int input_size_x = batch_shape[3];
-                    const int filter_size_z = filter_shape[1];
-                    const int filter_size_y = filter_shape[2];
-                    const int filter_size_x = filter_shape[3];
-                    const int dilated_filter_size_z =
-                        filter_size_z + (filter_size_z - 1) * (p.dilation[0] - 1);
+                    const int input_size_y = batch_shape[1];
+                    const int input_size_x = batch_shape[2];
+                    const int filter_size_y = filter_shape[1];
+                    const int filter_size_x = filter_shape[2];
                     const int dilated_filter_size_y =
-                        filter_size_y + (filter_size_y - 1) * (p.dilation[1] - 1);
+                        filter_size_y + (filter_size_y - 1) * (p.dilation[0] - 1);
                     const int dilated_filter_size_x =
-                        filter_size_x + (filter_size_x - 1) * (p.dilation[2] - 1);
+                        filter_size_x + (filter_size_x - 1) * (p.dilation[1] - 1);
 
                     const Shape input_channel_shape(++batch_shape.begin(), batch_shape.end());
                     const size_t input_channel_size = shape_size(input_channel_shape);
@@ -56,82 +52,72 @@ namespace ngraph
                     const size_t filter_channel_size = shape_size(filter_channel_shape);
                     int f_c = 0;
                     int off = 0;
-                    const Shape offset_spatial_dims_shape(++offset_shape.begin(),
-                                                          offset_shape.end());
-                    const int spatial_size = shape_size(offset_spatial_dims_shape);
-                    for (int i_z = -p.pads_begin[0];
-                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z);
-                         i_z += p.strides[0])
+                    // const Shape offset_spatial_dims_shape(++offset_shape.begin(),
+                    //                                      offset_shape.end());
+                    // const int spatial_size = shape_size(offset_spatial_dims_shape);
+
+                    for (int i_y = -p.pads_begin[0];
+                         i_y <= (p.pads_end[0] + input_size_y - dilated_filter_size_y);
+                         i_y += p.strides[0])
                     {
-                        for (int i_y = -p.pads_begin[1];
-                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y);
-                             i_y += p.strides[1])
+                        for (int i_x = -p.pads_begin[1];
+                             i_x <= (p.pads_end[1] + input_size_x - dilated_filter_size_x);
+                             i_x += p.strides[1])
                         {
-                            for (int i_x = -p.pads_begin[2];
-                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x);
-                                 i_x += p.strides[2])
+                            auto input_channel = batch;
+                            auto filter_channel = filter;
+                            T sum = 0;
+                            size_t filter_channels_count = filter_shape[0];
+                            while (filter_channels_count--)
                             {
-                                auto input_channel = batch;
-                                auto filter_channel = filter;
-                                T sum = 0;
-                                size_t filter_channels_count = filter_shape[0];
-                                while (filter_channels_count--)
+                                off = 0;
+
+                                for (int f_y = 0; f_y < filter_size_y; ++f_y)
                                 {
-                                    off = 0;
-                                    for (int f_z = 0; f_z < filter_size_z; ++f_z)
+                                    for (int f_x = 0; f_x < filter_size_x; ++f_x)
                                     {
-                                        for (int f_y = 0; f_y < filter_size_y; ++f_y)
-                                        {
-                                            for (int f_x = 0; f_x < filter_size_x; ++f_x)
-                                            {
-                                                int rel_i_z = i_z + (f_z * p.dilation[0]);
-                                                int rel_i_y = i_y + (f_y * p.dilation[1]);
-                                                int rel_i_x = i_x + (f_x * p.dilation[2]);
+                                        int rel_i_y = i_y + (f_y * p.dilation[0]);
+                                        int rel_i_x = i_x + (f_x * p.dilation[1]);
 
-                                                int f_buf_idx =
-                                                    (f_z * filter_size_y * filter_size_x) +
-                                                    (f_y * filter_size_x) + f_x;
+                                        int f_buf_idx = (f_y * filter_size_x) + f_x;
 
-                                                int y_offset =
-                                                    offset[(f_buf_idx + off++) * spatial_size +
-                                                           f_c];
-                                                int x_offset =
-                                                    offset[(f_buf_idx + off) * spatial_size + f_c];
+                                        int y_offset = 0; /*
+                                             offset[(f_buf_idx + off++) * spatial_size +
+                                                    f_c];*/
+                                        int x_offset = 0; /*
+                                            offset[(f_buf_idx + off) * spatial_size + f_c]; */
 
-                                                if (x_offset + rel_i_x >= input_size_x ||
-                                                    y_offset + rel_i_y >= input_size_y)
-                                                    continue;
-                                                if (x_offset + rel_i_x < 0 ||
-                                                    y_offset + rel_i_y < 0)
-                                                    continue;
+                                        if (x_offset + rel_i_x >= input_size_x ||
+                                            y_offset + rel_i_y >= input_size_y)
+                                            continue;
+                                        if (x_offset + rel_i_x < 0 || y_offset + rel_i_y < 0)
+                                            continue;
 
-                                                int i_buf_idx =
-                                                    (rel_i_z * input_size_y * input_size_x) +
-                                                    ((rel_i_y + y_offset) * input_size_x) +
-                                                    rel_i_x + x_offset;
-                                                sum += static_cast<T>(input_channel[i_buf_idx]) *
-                                                       static_cast<T>(filter_channel[f_buf_idx]);
-                                            }
-                                        }
+                                        int i_buf_idx = ((rel_i_y + y_offset) * input_size_x) +
+                                                        rel_i_x + x_offset;
+                                        sum += static_cast<T>(input_channel[i_buf_idx]) *
+                                               static_cast<T>(filter_channel[f_buf_idx]);
                                     }
-                                    input_channel += input_channel_size;
-                                    filter_channel += filter_channel_size;
                                 }
-                                f_c++;
-                                *out = sum;
-                                ++out;
+
+                                input_channel += input_channel_size;
+                                filter_channel += filter_channel_size;
                             }
+                            f_c++;
+                            *out = sum;
+                            ++out;
                         }
                     }
                 }
 
-                void validate_deformable_convolution_parameters(const Shape& in_shape,
-                                                                const Shape& o_shape,
-                                                                const Shape& f_shape,
-                                                                const Strides& strides,
-                                                                const Strides& dilations,
-                                                                const CoordinateDiff& pads_begin,
-                                                                const CoordinateDiff& pads_end)
+                inline void
+                    validate_deformable_convolution_parameters(const Shape& in_shape,
+                                                               const Shape& o_shape,
+                                                               const Shape& f_shape,
+                                                               const Strides& strides,
+                                                               const Strides& dilations,
+                                                               const CoordinateDiff& pads_begin,
+                                                               const CoordinateDiff& pads_end)
                 {
                     // this implementation supports 2D deformable convolutions
                     NGRAPH_CHECK(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
@@ -152,30 +138,6 @@ namespace ngraph
                                  "Pads not defined for all and only spatial dimensions");
                 }
 
-                void extend_to_3D(ConvolutionParams& p,
-                                  Shape& in_shape,
-                                  Shape& offset_shape,
-                                  Shape& filter_shape)
-                {
-                    int spatial_rank = in_shape.size() - 2;
-                    if (spatial_rank < 3)
-                    {
-                        int missing_dims = 3 - spatial_rank;
-                        p.dilation.insert(
-                            std::prev(p.dilation.end(), spatial_rank), missing_dims, 1);
-                        p.strides.insert(std::prev(p.strides.end(), spatial_rank), missing_dims, 1);
-                        p.pads_begin.insert(
-                            std::prev(p.pads_begin.end(), spatial_rank), missing_dims, 0);
-                        p.pads_end.insert(
-                            std::prev(p.pads_end.end(), spatial_rank), missing_dims, 0);
-                        in_shape.insert(std::next(in_shape.end(), -spatial_rank), missing_dims, 1);
-                        offset_shape.insert(
-                            std::prev(offset_shape.end(), spatial_rank), missing_dims, 1);
-                        filter_shape.insert(
-                            std::prev(filter_shape.end(), spatial_rank), missing_dims, 1);
-                    }
-                }
-
                 template <typename T>
                 void deformable_convolution(const T* in,
                                             const T* f,
@@ -194,16 +156,10 @@ namespace ngraph
                     // here we are converting all param types to int's to avoid arithmetic issues
                     // (e.g signed + unsigned) in indexes calculation later
                     ConvolutionParams params{strides, dilation, pads_begin, pads_end};
-                    // here we are extending spatial dimensions to 3D, because we are going to use
-                    // 3D
-                    // convolution implementation to convolve also in 1D & 2D case
+
                     Shape input_shape{in_shape};
                     Shape offsets_shape(o_shape);
                     Shape filters_shape{f_shape};
-                    if (in_shape.size() < 5)
-                    {
-                        extend_to_3D(params, input_shape, offsets_shape, filters_shape);
-                    }
 
                     const size_t batches_count = input_shape[in_batch_axis];
                     const Shape batch_shape(++input_shape.begin(), input_shape.end());
@@ -223,7 +179,7 @@ namespace ngraph
                         auto filter = f;
                         for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                         {
-                            deformable_convolve_3D_channels(params,
+                            deformable_convolve_2D_channels(params,
                                                             batch,
                                                             batch_shape,
                                                             offsets,
@@ -256,7 +212,7 @@ namespace ngraph
                                         const int64_t deformable_groups)
 
             {
-                validate_deformable_convolution_parameters(
+                detail::validate_deformable_convolution_parameters(
                     in_shape, o_shape, f_shape, strides, dilation, pads_begin, pads_end);
 
                 const T* group_batch = in;
@@ -298,31 +254,18 @@ namespace ngraph
                     group_filter = f;
                     for (size_t group_idx = 0; group_idx < groups; ++group_idx)
                     {
-#if 1
-                        runtime::reference::convolution(group_batch,
-                                                        group_filter,
-                                                        group_out,
-                                                        group_batch_shape,
-                                                        group_filter_shape,
-                                                        group_out_shape,
-                                                        strides,
-                                                        dilation,
-                                                        pads_begin,
-                                                        pads_end);
-#else
-                        deformable_convolution(group_batch,
-                                               group_filter,
-                                               group_offset,
-                                               group_out,
-                                               group_batch_shape,
-                                               group_offset_shape,
-                                               group_filter_shape,
-                                               group_out_shape,
-                                               strides,
-                                               dilation,
-                                               pads_begin,
-                                               pads_end);
-#endif
+                        detail::deformable_convolution(group_batch,
+                                                       group_filter,
+                                                       group_offset,
+                                                       group_out,
+                                                       group_batch_shape,
+                                                       group_offset_shape,
+                                                       group_filter_shape,
+                                                       group_out_shape,
+                                                       strides,
+                                                       dilation,
+                                                       pads_begin,
+                                                       pads_end);
                         group_batch += group_batch_size;
                         group_offset += group_offset_size;
                         group_filter += group_filter_size;

@@ -390,7 +390,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_zeroed_offsets_groups_bas
                                     -5.0f, -6.0f,
                                     -7.0f, -8.0f};
 
-    const Shape offsets_shape{1, 18, 3, 3};
+    const Shape offsets_shape{1, 8, 2, 2};
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 2, 2, 2};
@@ -471,7 +471,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_zeroed_offsets_groups_com
                                     -13.0f, -14.0f,
                                     -15.0f, -16.0f};
 
-    const Shape offsets_shape{1, 18, 3, 3};
+    const Shape offsets_shape{1, 8, 2, 2};
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 4, 2, 2};
