@@ -20,7 +20,7 @@ PReluTransformation::PReluTransformation(const Params& params) : LayerTransforma
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (m_transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);

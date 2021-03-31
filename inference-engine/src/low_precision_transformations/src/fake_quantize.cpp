@@ -15,14 +15,12 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-FakeQuantizeTransformation::FakeQuantizeTransformation() : LayerTransformation(Params()) {}
-
 FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (m_transformation_callback(op)) {
             return false;
         }
 

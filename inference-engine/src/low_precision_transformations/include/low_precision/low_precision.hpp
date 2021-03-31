@@ -35,6 +35,7 @@ public:
         const std::vector<OperationPrecisionRestriction>& restrictions = {},
         const LayerTransformation::Params = LayerTransformation::Params());
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function_original(std::shared_ptr<ngraph::Function> f);
 
 protected:
     std::vector<OperationPrecisionRestriction> restrictions;

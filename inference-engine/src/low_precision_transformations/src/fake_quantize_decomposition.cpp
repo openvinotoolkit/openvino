@@ -17,9 +17,22 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params) : LayerTransformation(params) {
+FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params, TransformationContext& context) : LayerTransformation(params) {
    auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
+    ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (!op || m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(context, m);
+    };
 
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeDecompositionTransformation");
+    this->register_matcher(m, callback);
+}
+
+FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (!op || m_transformation_callback(op)) {
@@ -38,6 +51,11 @@ void FakeQuantizeDecompositionTransformation::registerMatcherIn(GraphRewrite& pa
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
+
+    //if (layer->get_friendly_name() == "conv4/WithoutBiases/fq_input_0") {
+    //    std::cout << layer->get_friendly_name() << std::endl;
+    //}
+
     if (!NetworkHelper::isQuantizeSupported(layer)) {
         return false;
     }
@@ -245,12 +263,13 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             printDequantizationValues(dequantizationScales, dequantizationShifts);
         }
 #endif
+        // ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(context.function);
 
         std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
         updateOutput(context, dequantize, layer);
-    }
 
-    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(context.function);
+        // ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(context.function);
+    }
 
     return true;
 }

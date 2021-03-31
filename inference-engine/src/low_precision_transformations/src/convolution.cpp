@@ -10,6 +10,7 @@
 #include <vector>
 #include <cassert>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -18,7 +19,11 @@ namespace pass {
 namespace low_precision {
 
 ConvolutionTransformation::ConvolutionTransformation(const Params& params) : WeightableLayerTransformation(params) {
-    auto matcher = make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() });
+    // TODO: not completed
+    //ngraph::pattern::op::AnyOf();
+    //auto matcher = make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), ngraph::pattern::any_input() });
+    //auto matcher = make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), ngraph::pattern::any_input() });
+    auto matcher = ngraph::pattern::wrap_type<opset1::Convolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

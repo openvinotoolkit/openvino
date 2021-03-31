@@ -294,44 +294,55 @@ DataPrecision LayerTransformation::getDataPrecision(
 #endif
     std::vector<element::Type> precisions = onWeights ? precisionsOnWeights : precisionsOnActivations;
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
-    {
-        if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
-            if (!onWeights) {
-                fillAvailablePrecisions(layer, precisions);
-            }
-
-            // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
-            if (!precisions.empty()) {
-                const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
-                const element::Type resultPrecision = foundIt != precisions.end() ?
-                                                  precisionDetailsAtOutputIntervals.precision :
-                                                  *precisions.begin();
-
-                const DataPrecision dataPrecision(
-                        resultPrecision,
-                        DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
-                        DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
-                        foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
-
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-                printDequantizationInfo(dataPrecision);
-#endif
-                return dataPrecision;
-            }
-        }
+    if (precisionDetailsAtOutputIntervals.precision == element::undefined) {
+        THROW_TRANSFORMATION_EXCEPTION << "unxpected results";
     }
 
-    const DataPrecision dataPrecision = precisions.empty() ?
-                                        DataPrecision(element::undefined, 0.f, 0.f, false) :
-                                        DataPrecision(
-                                                *precisions.begin(),
-                                                DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
-                                                DataPrecision::getMaxValue(*precisions.begin(), quantizationDetails.levels),
-                                                true);
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    printDequantizationInfo(dataPrecision);
-#endif
-    return dataPrecision;
+    return DataPrecision(
+            precisionDetailsAtOutputIntervals.precision,
+            DataPrecision::getMinValue(precisionDetailsAtOutputIntervals.precision, quantizationDetails.levels),
+            DataPrecision::getMaxValue(precisionDetailsAtOutputIntervals.precision, quantizationDetails.levels),
+            true);
+
+
+//    {
+//        if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
+//            if (!onWeights) {
+//                fillAvailablePrecisions(layer, precisions);
+//            }
+//
+//            // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
+//            if (!precisions.empty()) {
+//                const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
+//                const element::Type resultPrecision = foundIt != precisions.end() ?
+//                                                  precisionDetailsAtOutputIntervals.precision :
+//                                                  *precisions.begin();
+//
+//                const DataPrecision dataPrecision(
+//                        resultPrecision,
+//                        DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
+//                        DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
+//                        foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+//
+//#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+//                printDequantizationInfo(dataPrecision);
+//#endif
+//                return dataPrecision;
+//            }
+//        }
+//    }
+//
+//    const DataPrecision dataPrecision = precisions.empty() ?
+//                                        DataPrecision(element::undefined, 0.f, 0.f, false) :
+//                                        DataPrecision(
+//                                                *precisions.begin(),
+//                                                DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
+//                                                DataPrecision::getMaxValue(*precisions.begin(), quantizationDetails.levels),
+//                                                true);
+//#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+//    printDequantizationInfo(dataPrecision);
+//#endif
+//    return dataPrecision;
 }
 
 void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const {
@@ -427,15 +438,27 @@ void LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ngraph::Node> lastNode,
     std::shared_ptr<ngraph::Node> originalNode) const {
-    const size_t outputSize = context.function->get_output_size();
-    for (size_t i = 0; i < outputSize; ++i) {
-        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
-        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
-        if (outputNode.get() == lastNode.get()) {
-            const std::string originalName = originalNode->get_friendly_name();
-            originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
-            lastNode->set_friendly_name(originalName);
-            break;
+    //const size_t outputSize = context.function->get_output_size();
+    //for (size_t i = 0; i < outputSize; ++i) {
+    //    std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
+    //    std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
+    //    if (outputNode.get() == lastNode.get()) {
+    //        const std::string originalName = originalNode->get_friendly_name();
+    //        originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
+    //        lastNode->set_friendly_name(originalName);
+    //        break;
+    //    }
+    //}
+
+    // TODO: not tested!!!
+    for (auto output : lastNode->outputs()) {
+        for (auto input : output.get_target_inputs()) {
+            if (is_type<ngraph::opset1::Result>(input.get_node())) {
+                const std::string originalName = originalNode->get_friendly_name();
+                originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
+                lastNode->set_friendly_name(originalName);
+                break;
+            }
         }
     }
 }

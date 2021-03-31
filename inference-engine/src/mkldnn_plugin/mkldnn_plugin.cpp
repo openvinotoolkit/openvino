@@ -115,6 +115,7 @@ Engine::~Engine() {
 
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
+    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.original").run_on_function(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -298,26 +299,16 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
         ngraph::pass::Manager manager;
 
-        // variant #1: simple: transformation(supportedPrecisionsOnActivation)
         auto supportedPrecisionsOnActivation = std::vector<OperationPrecisionRestriction>({
-            // disabling, add precision pattern
-            // {getKey<ngraph::opset1::MaxPool>({}), {}},
-            // limitation by U8
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}}
+                {1, {ngraph::element::i8}},
             }),
             OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
-            }),
-            //{getKey<ngraph::opset1::GroupConvolution>(port), {ngraph::element::i8}}
+            })
         });
-
-        //// variant #2: more general
-        //auto markup = manager.register_pass<ngraph::pass::GraphRewrite>();
-        //markup->add_matcher<ngraph::pass::Convolution1>({ ngraph::element::u8 });
-        //markup->add_matcher<ngraph::pass::Convolution2>({ ngraph::element::u8, ngraph::element::i8 });
 
         //// TODO: transformation refactoring: let's skip it right now: use pattern matching for quantized weights identification
         //manager.register_pass<ngraph::pass::low_precision::MarkupPortWeights>(supportedPrecisionsOnActivation);

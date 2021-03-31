@@ -15,8 +15,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
 public:
-    FakeQuantizeTransformation();
-    FakeQuantizeTransformation(const Params& params);
+    FakeQuantizeTransformation(const Params& params = Params());
     ~FakeQuantizeTransformation() override {};
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;

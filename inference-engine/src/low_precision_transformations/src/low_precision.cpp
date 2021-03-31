@@ -21,6 +21,8 @@
 #include "low_precision/concat.hpp"
 #include "low_precision/concat_multi_channels.hpp"
 
+#include "low_precision/fake_quantize_decomposition.hpp"
+
 // general transformations
 #include "low_precision/add.hpp"
 #include "low_precision/avg_pool.hpp"
@@ -64,6 +66,81 @@ ngraph::pass::low_precision::LowPrecision::LowPrecision(
 }
 
 bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    // TODO: to debug only
+    TransformationContext context(f);
+
+    const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+    ngraph::pass::Manager prerequisites;
+    prerequisites.register_pass<PullReshapeThroughDequantization>(supportedTypes);
+    prerequisites.register_pass<PullTransposeThroughDequantization>(supportedTypes);
+    //prerequisites.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    prerequisites.run_passes(f);
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(restrictions);
+    manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+    manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+    manager.run_passes(f);
+
+    //{
+    //    // TODO: just to DEBUG: use the same manager
+    //    ngraph::pass::Manager manager1;
+    //    manager1.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(restrictions);
+    //    manager1.run_passes(f);
+    //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming.1").run_on_function(f);
+
+    //    ngraph::pass::Manager manager2;
+    //    manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+    //    manager2.run_passes(f);
+    //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming.2").run_on_function(f);
+
+    //    ngraph::pass::Manager manager3;
+    //    manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+    //    manager3.run_passes(f);
+    //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transforming.3").run_on_function(f);
+    //}
+
+    // TODO: remove Params from constructor input arguments list
+    ngraph::pass::Manager commonManager;
+    std::shared_ptr<ngraph::pass::GraphRewrite> common = commonManager.register_pass<ngraph::pass::GraphRewrite>();
+    common->add_matcher<ngraph::pass::low_precision::AddTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::ClampTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::ConvolutionTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::DepthToSpaceTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::FakeQuantizeTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::InterpolateTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::GroupConvolutionTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::MatMulTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::MultiplyTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::MVNTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::NormalizeL2Transformation>();
+    common->add_matcher<ngraph::pass::low_precision::PReluTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::ReluTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::ReshapeTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::SqueezeTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::TransposeTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::UnsqueezeTransformation>();
+    commonManager.run_passes(f);
+
+    //cleanupStep4.register_pass<ngraph::pass::low_precision::FuseConvertTransformation, opset1::Multiply>(params);
+
+    ngraph::pass::Manager cleanupManager;
+    std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = cleanupManager.register_pass<ngraph::pass::GraphRewrite>();
+    cleanup->add_matcher<ngraph::pass::low_precision::FakeQuantizeTransformation>();
+    cleanup->add_matcher<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
+    cleanup->add_matcher<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
+    cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>();
+    cleanup->add_matcher<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation>();
+    cleanupManager.run_passes(f);
+
+    return true;
+}
+
+bool ngraph::pass::low_precision::LowPrecision::run_on_function_original(std::shared_ptr<ngraph::Function> f) {
     TransformationContext context(f);
 
     // TODO: just to DEBUG: use the same manager
@@ -93,6 +170,8 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     ngraph::pass::low_precision::Manager branchSpecificStep1(get_pass_config(), &context);
     branchSpecificStep1.register_pass<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params);
     branchSpecificStep1.run_passes(f);
+
+    //quantizationStep3.register_pass<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, opset1::FakeQuantize>(params);
 
     ngraph::pass::low_precision::Manager quantizationStep3(get_pass_config(), &context);
     quantizationStep3.register_pass<ngraph::pass::low_precision::AddTransformation, opset1::Add>(params);
