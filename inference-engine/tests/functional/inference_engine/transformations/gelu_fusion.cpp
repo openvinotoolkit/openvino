@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define _USE_MATH_DEFINES
+
 #include <gtest/gtest.h>
 
 #include <math.h>
