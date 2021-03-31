@@ -11,9 +11,9 @@ using namespace ngraph;
 
 TEST(type_prop, deformable_conv_v1_partial_auto_padding_same)
 {
-    const PartialShape data_batch_shape{1, 4, 5, 5};
+    const PartialShape data_batch_shape{1, 8, 5, 5};
     const PartialShape deformable_shape{1, 4, 3, 3};
-    const PartialShape filters_shape{4, 4, 3, 3};
+    const PartialShape filters_shape{4, 2, 3, 3};
     Strides strides{1, 1};
     CoordinateDiff pads_begin{0, 0};
     CoordinateDiff pads_end{0, 0};
@@ -112,9 +112,9 @@ TEST(type_prop, deformable_conv_v1_partial_auto_padding_same_nc_dims_dynamic_sam
 
 TEST(type_prop, deformable_conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
 {
-    const PartialShape data_batch_shape{1, 4, Dimension::dynamic(), 5};
+    const PartialShape data_batch_shape{1, 8, Dimension::dynamic(), 5};
     const PartialShape deformable_shape{1, 4, 3, 3};
-    const PartialShape filters_shape{4, 4, 3, 3};
+    const PartialShape filters_shape{4, 2, 3, 3};
     Strides strides{1, 1};
     CoordinateDiff pads_begin{0, 0};
     CoordinateDiff pads_end{0, 0};
