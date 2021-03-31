@@ -88,13 +88,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         }
 
         // create meta device
-        auto cfg = getDeviceConfig(deviceName);
-        std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        if (std::find(std::begin(supportedConfigKeys), std::end(supportedConfigKeys), CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN))
-            != std::end(supportedConfigKeys)) {
-            cfg.emplace(CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN), "");
-        }
-        metaDevices.push_back({ deviceName, cfg, numRequests });
+        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests });
     }
 
     return metaDevices;
@@ -140,8 +134,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, device_name);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys = {
-            MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-            CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN)};
+            MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES};
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
         IE_THROW() << "Unsupported metric key " << name;

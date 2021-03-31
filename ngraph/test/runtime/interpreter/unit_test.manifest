@@ -65,12 +65,6 @@ INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
 INTERPRETER.gather_axis_0_uint8
 INTERPRETER.gather_axis_0_uint16
-INTERPRETER.fused_clamp_double
-INTERPRETER.fused_clamp_int8
-INTERPRETER.fused_clamp_int16
-INTERPRETER.fused_clamp_uint8
-INTERPRETER.fused_clamp_uint16
-INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
@@ -118,7 +112,7 @@ INTERPRETER.onnx_model_conv_integer_pads
 onnx_model_lstm_fwd_with_clip_peepholes
 onnx_model_lstm_bdir_short_input_seq_peepholes
 # Activation function hardsigmoid unsupported
-onnx_model_gru_fwd_activations_relu_hardsigmoid 
+onnx_model_gru_fwd_activations_relu_hardsigmoid
 onnx_model_lstm_fwd_hardsigmoid_activation
 gru_cell_hardsigmoid_activation_function
 
@@ -171,3 +165,6 @@ INTERPRETER.onnx_model_experimental_detectron_prior_grid_generator
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
 INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
+
+# No evaluator for DeformableConv2D
+onnx_model_deformable_conv_2d
