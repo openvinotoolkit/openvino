@@ -16,7 +16,7 @@ class StridedSlice_extender(Extender):
     def extend(op: Node):
         input_shape = op.in_port(0).data.get_shape()
         for attr in StridedSlice.get_mask_names():
-            if op[attr] != '':
+            if op.has_and_set(attr):
                 Extender.attr_to_list(op, attr)
             else:
                 op[attr] = np.zeros_like(input_shape)
