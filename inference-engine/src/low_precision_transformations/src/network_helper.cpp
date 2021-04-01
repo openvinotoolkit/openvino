@@ -1102,7 +1102,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
         return 1ul;
     };
 
-    Output<Node> dataNode = inPlace ? node : node->input_value(parentIndex);
+    Output<Node> dataNode = inPlace ? node->output(0) : node->input_value(parentIndex);
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr());
     std::shared_ptr<opset1::Constant> multiplyConstant;

@@ -25,6 +25,7 @@
 #include "file_utils.h"
 #include "ie_network_reader.hpp"
 #include "xml_parse_utils.h"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
@@ -222,13 +223,14 @@ class Core::Impl : public ICore {
                                       const std::map<std::string, std::string>& parsedConfig,
                                       const RemoteContext::Ptr& context,
                                       const std::string& blobID,
-                                      const std::string& modelPath = std::string()) {
+                                      const std::string& modelPath = std::string(),
+                                      bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::LoadNetworkImpl");
         ExecutableNetwork execNetwork;
         execNetwork = context ? plugin.LoadNetwork(network, context, parsedConfig) :
                                 plugin.LoadNetwork(network, parsedConfig);
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
-        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+        if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
@@ -296,14 +298,21 @@ class Core::Impl : public ICore {
         std::map<std::string, Parameter> getMetricConfig;
         auto compileConfig = origConfig;
 
-        // 0. remove DEVICE_ID key
+        // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
+        auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt != compileConfig.end()) {
+            getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
+            compileConfig.erase(targetFallbackIt);
+        }
+
+        // 1. remove DEVICE_ID key
         auto deviceIt = compileConfig.find(CONFIG_KEY(DEVICE_ID));
         if (deviceIt != compileConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
             compileConfig.erase(deviceIt);
         }
 
-        // 1. replace it with DEVICE_ARCHITECTURE value
+        // 2. replace it with DEVICE_ARCHITECTURE value
         std::vector<std::string> supportedMetricKeys =
             plugin.GetMetric(METRIC_KEY(SUPPORTED_METRICS), getMetricConfig);
         auto archIt = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
@@ -456,19 +465,24 @@ public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+        bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+        if (forceDisableCache) {
+            // remove this config key from parsed as plugins can throw unsupported exception
+            parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
+        }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         bool loadedFromCache = false;
         ExecutableNetwork res;
         std::string hash;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
-        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+        if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
         }
 
         if (!loadedFromCache) {
-            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, hash);
+            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
         }
         return res;
     }

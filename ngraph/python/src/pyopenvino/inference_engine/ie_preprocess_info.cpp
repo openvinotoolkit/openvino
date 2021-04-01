@@ -5,6 +5,7 @@
 #include <pybind11/stl.h>
 
 #include "pyopenvino/inference_engine/ie_preprocess_info.hpp"
+#include "pyopenvino/inference_engine/common.hpp"
 
 #include <ie_preprocess.hpp>
 #include <ie_common.h>
@@ -27,13 +28,13 @@ void regclass_PreProcessInfo(py::module m) {
     cls.def("get_number_of_channels", &InferenceEngine::PreProcessInfo::getNumberOfChannels);
     cls.def("init", &InferenceEngine::PreProcessInfo::init);
     cls.def("set_mean_image", [](InferenceEngine::PreProcessInfo& self,
-            const InferenceEngine::TBlob<float>::Ptr& meanImage) {
-        self.setMeanImage(meanImage);
+                                 py::handle meanImage) {
+        self.setMeanImage(Common::convert_to_blob(meanImage));
     });
     cls.def("set_mean_image_for_channel", [](InferenceEngine::PreProcessInfo& self,
-                                             const InferenceEngine::TBlob<float>::Ptr& meanImage,
+                                             py::handle meanImage,
                                              const size_t channel) {
-        self.setMeanImageForChannel(meanImage, channel);
+        self.setMeanImageForChannel(Common::convert_to_blob(meanImage), channel);
     });
     cls.def_property("mean_variant", &InferenceEngine::PreProcessInfo::getMeanVariant,
                      &InferenceEngine::PreProcessInfo::setVariant);
