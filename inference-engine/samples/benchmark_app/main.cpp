@@ -378,18 +378,21 @@ int main(int argc, char *argv[]) {
             topology_name = cnnNetwork.getName();
             slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
 
-            // ----------------- 6. Configuring input ----------------------------------------------------------------------
+            // ----------------- 6. Configuring inputs and outputs ----------------------------------------------------------------------
             next_step();
 
-            for (auto& item : inputInfo) {
-                if (app_inputs_info.at(item.first).isImage()) {
-                    /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
+            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            for (auto& item : cnnNetwork.getInputsInfo()) {
+                // if precision for input set by user, then set it to app_inputs
+                // if it an image, set U8
+                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos) {
+                    app_inputs_info.at(item.first).precision = item.second->getPrecision();
+                } else if (app_inputs_info.at(item.first).isImage()) {
                     app_inputs_info.at(item.first).precision = Precision::U8;
                     item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
 
-            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
 
             printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
