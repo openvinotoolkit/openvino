@@ -113,11 +113,9 @@ namespace ngraph
                         {
                             auto bias = ng_inputs.at(3);
                             auto split_bias = builder::opset1::split(bias, 2, 1);
-                            NGRAPH_SUPPRESS_DEPRECATED_START
                             m_input_map[LSTMInput::LSTM_INPUT_B] =
                                 std::make_shared<default_opset::Add>(split_bias.at(0),
                                                                      split_bias.at(1));
-                            NGRAPH_SUPPRESS_DEPRECATED_END
                             m_input_map[LSTMInput::LSTM_INPUT_B] =
                                 ngraph::op::util::convert_lstm_node_format(
                                     m_input_map[LSTMInput::LSTM_INPUT_B],

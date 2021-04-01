@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 from math import sqrt
@@ -25,6 +12,7 @@ from extensions.front.split_normalizer import SqueezeAxis
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
+from extensions.front.tf.KerasRNNTransformation import KerasRNNInputSlicing, KerasRNNOutputConcatenation
 from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
 from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
@@ -32,7 +20,7 @@ from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_
 from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.ReduceOps import ReduceMean
 from extensions.ops.activation_ops import Sigmoid
-from extensions.ops.elementwise import Mul
+from extensions.ops.elementwise import Mul, Sub, Add, Div
 from extensions.ops.gather import Gather
 from extensions.ops.parameter import Parameter
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
@@ -41,10 +29,12 @@ from extensions.ops.psroipooling import PSROIPoolingOp
 from extensions.ops.transpose import Transpose
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
-    mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input
+    mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input, \
+    create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
 from mo.ops.concat import Concat
@@ -57,7 +47,7 @@ from mo.ops.roipooling import ROIPooling
 from mo.ops.shape import Shape
 from mo.ops.softmax import Softmax
 from mo.utils.error import Error
-from mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info
+from mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info, sub_graph_between_nodes
 from mo.utils.pipeline_config import PipelineConfig
 
 missing_param_error = 'To convert the model specify path to the pipeline configuration file which was used to ' \
@@ -512,19 +502,107 @@ def update_parameter_shape(graph: Graph, match: [SubgraphMatch, None]):
     return initial_input_node_name, parameter_node
 
 
-class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
+class ObjectDetectionAPITransformationsStart(FrontReplacementPattern):
     """
-    The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
-    to applying mean/scaling values are kept.
+    This is a anchor transformation which is used to distinguish TF OD API models related transformations.
     """
-    replacement_id = 'ObjectDetectionAPIPreprocessorReplacement'
+    enabled = True
+
+    def run_after(self):
+        return [CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        pass
+
+
+class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
+    """
+    This is a anchor transformation which is used to distinguish TF OD API models related transformations.
+    """
+    enabled = True
+    # cleanup the graph after applying of TF OD API transformations to remove a lot of unconnected nodes to avoid issues
+    # with shape inference
+    force_clean_up = True
 
     def run_before(self):
         # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
         # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
         # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
         # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad]
+        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, StandaloneConstEraser, TFSliceToSliceReplacer,
+                KerasRNNOutputConcatenation, KerasRNNInputSlicing]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        pass
+
+
+def get_specific_ops_with_const_inputs(first_node: Node, allowed_ops: list, forward: bool = True):
+    """
+    Returns the list with information about consecutive nodes of operation from "allowed_ops".
+
+    :param first_node: The first node (not included) to start looking for nodes from the "allowed_ops" list
+    :param allowed_ops: list of allowed operations
+    :param forward: flag specifying direction of search
+    :return: list of triplets (Node, const_port_index, const_value)
+    """
+    node = first_node.out_port(0).get_destination().node if forward else first_node.in_port(0).get_source().node
+    result = []  # (Node, port # with constant input, value)
+    while node.soft_get('op') in allowed_ops:
+        num_in_ports = len(node.in_ports())
+        assert num_in_ports == 2, 'The node "{}" should have exactly 2 inputs, but it has only {}.' \
+                                  ''.format(node.soft_get('name', node.id), num_in_ports)
+        for port in (0, 1):
+            if node.in_port(port).get_source().node.has_valid('value'):  # this is a constant input to the node
+                result.append((node, port, node.in_port(port).get_source().node.value.copy()))
+                node = node.out_port(0).get_destination().node if forward else node.in_port(1 - port).get_source().node
+                break
+    return result
+
+
+def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_suffix: str):
+    """
+    Finds a sequence of pre-processing nodes (Sub, Mul, Div and Add) after the node with the id suffix
+    'end_node_id_suffix' or ending with the node with id suffix 'end_node_id_suffix'.
+
+    :param graph: graph to look for pre-processing ops
+    :param start_node_id_suffix: suffix of the start node name
+    :param end_node_id_suffix: suffix of the end node name
+    :return: the list with pre-processing nodes information and flag specifying nodes position
+    """
+    start_node = None
+    end_node = None
+    for node in graph.get_op_nodes():
+        if node.id.endswith(start_node_id_suffix):
+            start_node = node
+        if node.id.endswith(end_node_id_suffix):
+            end_node = node
+
+    assert start_node is not None and end_node is not None, \
+        'Failed to find start/end nodes of the pre-processing block. The section of the transformation JSON ' \
+        'configuration file related to "ObjectDetectionAPIPreprocessor2Replacement" transformation should be updated ' \
+        'for this particular model.'
+    allowed_ops = ['Sub', 'Mul', 'Div', 'Add']
+    preprocessing_nodes = get_specific_ops_with_const_inputs(start_node, allowed_ops, False)
+    trailing = False  # switch to apply newly created pre-processing nodes after/before start_node/end_node
+    if len(preprocessing_nodes) == 0:
+        preprocessing_nodes = get_specific_ops_with_const_inputs(end_node, allowed_ops, True)
+        trailing = True
+    return preprocessing_nodes, trailing
+
+
+class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
+    """
+    The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
+    to applying mean/scaling values are kept.
+    """
+    replacement_id = 'ObjectDetectionAPIPreprocessorReplacement'
+    run_not_recursively = True
+
+    def run_before(self):
+        return [ObjectDetectionAPITransformationsFinish]
+
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names()
@@ -593,15 +671,33 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
     """
     The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
     to applying mean/scaling values are kept. The transformation is used for TensorFlow 2.X models.
+
+    There are 6 possible cases:
+    1. ... -> Scale -> Start -> Resize -> End -> ...
+    2. ... -> Start -> Resize -> End -> Scale -> ...
+    3. ... -> Start -> Resize -> End -> ...
+    4. ... -> Start -> While (... -> Scale  -> Resize -> ...) -> End -> ...
+    5. ... -> Start -> While (... -> Resize -> Scale -> ...) -> End -> ...
+    6. ... -> Start -> While (... -> Resize -> ...) -> End -> ...
+
+    Where:
+    - "Start" - is the node name specified in the transformation configuration file
+    - "End" - is the node name specified in the transformation configuration file
+    - "Scale" - a node or a sequence of element-wise nodes like Mul, Add, Sub or Div with Const input
+    - "While" (... nodes ... ) - a Loop operation with body nodes specified in parentheses
+    - "Resize" - the Resize sub-graph being removed
+
+    The transformation creates a new sub-graph of pre-processing nodes if in the original model it is inside the Loop,
+    or keeps the existing one if they are in the main graph originally.
     """
     replacement_id = 'ObjectDetectionAPIPreprocessor2Replacement'
+    run_not_recursively = True
 
     def run_before(self):
-        # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
-        # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
-        # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
-        # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad]
+        return [ObjectDetectionAPITransformationsFinish]
+
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         update_parameter_shape(graph, None)
@@ -609,16 +705,69 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         start_nodes = replacement_descriptions['start_nodes']
         end_nodes = replacement_descriptions['end_nodes']
 
+        start_nodes = [node_id for node_id in start_nodes if node_id in graph.nodes]
+        end_nodes = [node_id for node_id in end_nodes if node_id in graph.nodes]
+
         assert len(start_nodes) >= 1
-        assert start_nodes[0] in graph.nodes
-        input_node = Node(graph, start_nodes[0])
+        start_node = Node(graph, start_nodes[0])
 
         assert len(end_nodes) >= 1
-        assert end_nodes[0] in graph.nodes
-        output_node = Node(graph, end_nodes[0])
+        end_node = Node(graph, end_nodes[0])
 
-        output_node.out_port(0).get_connection().set_source(input_node.in_port(0).get_source())
-        input_node.in_port(0).disconnect()
+        # determine nodes between specified input and output nodes to check if there is a Loop op among them
+        sub_graph_node_ids = sub_graph_between_nodes(graph, start_nodes, end_nodes, include_control_flow=False,
+                                                     allow_non_reachable_end_nodes=True)
+
+        pre_processing_in_loop = False
+        # If the pre-processing block contains Loop operation then mean and scale value should be obtained from it using
+        # some pre-defined marker nodes existing for all pre-processing blocks.
+        # If there is no Loop then pre-processing nodes are in the main graph and they should be obtained from it
+        loop_nodes_ids = [node_id for node_id in sub_graph_node_ids if graph.node[node_id].get('op') == 'Loop']
+        if len(loop_nodes_ids):
+            assert len(loop_nodes_ids) == 1, 'There should be exactly one Loop node in the pre-processor block.'
+            pre_processing_in_loop = True
+            loop_node = Node(graph, loop_nodes_ids[0])
+            body_graph = loop_node.body
+            # we stick to the nodes with ids 'map/while/Preprocessor/unstack' and 'map/while/Preprocessor/stack' as they
+            # "wrap" nodes performing image resize. The scale/mean values nodes are located strictly before or after
+            # them
+            pre_processing_ops, trailing = get_preprocessing_ops(body_graph,
+                                                                 'map/while/Preprocessor/unstack',
+                                                                 'map/while/Preprocessor/stack')
+        else:
+            pre_processing_ops, trailing = get_preprocessing_ops(graph, start_node.id, end_node.id)
+
+        if len(pre_processing_ops):
+            # if the pre-processing is applied before the resize then reverse them to be in the topological order
+            if not trailing:
+                pre_processing_ops = list(reversed(pre_processing_ops))
+
+            if pre_processing_in_loop:  # case 4 and 5
+                # build a sub-graph containing a sequence of pre_processing_ops if they came from the Loop
+                new_preprocessing_ops = []
+                ops_mapping = {'Add': Add, 'Div': Div, 'Mul': Mul, 'Sub': Sub}
+                for idx in range(len(pre_processing_ops)):
+                    origin_node, const_port_ind, value = pre_processing_ops[idx]
+                    new_node = create_op_with_const_inputs(graph, ops_mapping[origin_node.op], {const_port_ind: value})
+                    if len(new_preprocessing_ops):
+                        new_node.in_port(1 - const_port_ind).connect(new_preprocessing_ops[-1].out_port(0))
+                    new_preprocessing_ops.append(new_node)
+
+                # replace sub-graph between start and end nodes (including them) with new_preprocessing_ops nodes
+                end_node.out_port(0).get_connection().set_source(new_preprocessing_ops[-1].out_port(0))
+                start_node.in_port(0).get_connection().set_destination(
+                    new_preprocessing_ops[0].in_port(new_preprocessing_ops[0].is_in_port_connected(0)))
+            else:
+                if trailing:  # case 2
+                    # change output of the end_node to be produced with the start node producer
+                    source_port = start_node.in_port(0).get_source()
+                    source_port.disconnect()
+                    end_node.out_port(0).get_connection().set_source(source_port)
+                else:  # case 1
+                    # change output of the end_node to be produced with the last preprocessing op
+                    end_node.out_port(0).get_connection().set_source(pre_processing_ops[-1][0].out_port(0))
+        else:  # simply remove the nodes in between start_node and end_node (including them). Case 3 and 6
+            end_node.out_port(0).get_connection().set_source(start_node.in_port(0).get_source())
 
         print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
               ' applicable) are kept.')
@@ -633,12 +782,13 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
     Refer to the code for more details.
     """
     replacement_id = 'ObjectDetectionAPIDetectionOutputReplacement'
+    run_not_recursively = True
 
     def run_before(self):
-        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement, SqueezeAxis, TransposeOrderNormalizer]
+        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
 
     def run_after(self):
-        return [ObjectDetectionAPIProposalReplacement, CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize]
+        return [ObjectDetectionAPIProposalReplacement]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names().copy()
@@ -822,6 +972,10 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
 class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFromConfigFileSubGraph):
     replacement_id = 'ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement'
+    run_not_recursively = True
+
+    def run_before(self):
+        return [ObjectDetectionAPITransformationsFinish]
 
     def run_after(self):
         return [ObjectDetectionAPIProposalReplacement]
@@ -893,6 +1047,10 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
     Adds activation with sigmoid function to the end of the network producing masks tensors.
     """
     replacement_id = 'ObjectDetectionAPIMaskRCNNSigmoidReplacement'
+    run_not_recursively = True
+
+    def run_before(self):
+        return [ObjectDetectionAPITransformationsFinish]
 
     def run_after(self):
         return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
@@ -919,12 +1077,13 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
     Refer to comments inside the function for more information about performed actions.
     """
     replacement_id = 'ObjectDetectionAPIProposalReplacement'
+    run_not_recursively = True
 
     def run_after(self):
         return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def run_before(self):
-        return [CropAndResizeReplacement, TransposeOrderNormalizer, Pack]
+        return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['proposal_node'].id}
@@ -1070,13 +1229,13 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
 class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
     replacement_id = 'ObjectDetectionAPISSDPostprocessorReplacement'
+    run_not_recursively = True
 
     def run_after(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
-                FakeQuantWithMinMaxVarsToQuantize]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def run_before(self):
-        return [StandaloneConstEraser, TransposeOrderNormalizer, TFSliceToSliceReplacer]
+        return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         # the DetectionOutput in IE produces single tensor, but in TF it produces two tensors, so create only one output
@@ -1215,10 +1374,13 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
     SecondStageBoxPredictor_1/Conv_1/BiasAdd will be output if it exists in the graph.
     """
     replacement_id = 'ObjectDetectionAPIOutputReplacement'
+    run_not_recursively = True
+
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
 
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
-                TransposeOrderNormalizer]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         if graph.graph['cmd_params'].output is not None:
@@ -1240,9 +1402,13 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
 
 class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSubGraph):
     replacement_id = 'ObjectDetectionAPIPSROIPoolingReplacement'
+    run_not_recursively = True
 
     def run_after(self):
-        return [ObjectDetectionAPIProposalReplacement, TransposeOrderNormalizer]
+        return [ObjectDetectionAPIProposalReplacement]
+
+    def run_before(self):
+        return [ObjectDetectionAPITransformationsFinish]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['output_node'].id}
@@ -1311,10 +1477,13 @@ class ObjectDetectionAPIConstValueOverride(FrontReplacementFromConfigFileGeneral
     no more equal to the 'first_stage_max_proposals' saved as a constant.
     """
     replacement_id = 'ObjectDetectionAPIConstValueOverride'
+    run_not_recursively = True
+
+    def run_after(self):
+        return [ObjectDetectionAPITransformationsStart]
 
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
-                TransposeOrderNormalizer]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         argv = graph.graph['cmd_params']

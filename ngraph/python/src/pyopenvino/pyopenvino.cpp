@@ -58,24 +58,20 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_IECore(m);
     regclass_IENetwork(m);
 
-    regclass_Data(m);
-    regclass_TensorDecription(m);
-
     // Registering template of Blob
     regclass_Blob(m);
     // Registering specific types of Blobs
     regclass_TBlob<float>(m, "Float32");
     regclass_TBlob<double>(m, "Float64");
-
-    regclass_TBlob<int8_t>(m, "Int8");
-    regclass_TBlob<int16_t>(m, "Int16");
-    regclass_TBlob<int32_t>(m, "Int32");
+    regclass_TBlob<short>(m, "Float16");
     regclass_TBlob<int64_t>(m, "Int64");
-
-    regclass_TBlob<uint8_t>(m, "Uint8");
-    regclass_TBlob<uint16_t>(m, "Uint16");
-    regclass_TBlob<uint32_t>(m, "Uint32");
     regclass_TBlob<uint64_t>(m, "Uint64");
+    regclass_TBlob<int32_t>(m, "Int32");
+    regclass_TBlob<uint32_t>(m, "Uint32");
+    regclass_TBlob<int16_t>(m, "Int16");
+    regclass_TBlob<uint16_t>(m, "Uint16");
+    regclass_TBlob<int8_t>(m, "Int8");
+    regclass_TBlob<uint8_t>(m, "Uint8");
 
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);

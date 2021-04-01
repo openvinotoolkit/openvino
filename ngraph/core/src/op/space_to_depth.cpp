@@ -18,8 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 constexpr NodeTypeInfo op::SpaceToDepth::type_info;
 
 op::SpaceToDepth::SpaceToDepth(const Output<Node>& data,

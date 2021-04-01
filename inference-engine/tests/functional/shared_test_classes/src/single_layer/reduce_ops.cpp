@@ -69,6 +69,21 @@ void ReduceOpsLayerTest::SetUp() {
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
 }
+InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    ngraph::helpers::ReductionType reductionType = std::get<3>(GetParam());
+    InferenceEngine::Precision netPrecision = std::get<4>(GetParam());
+    if (reductionType == ngraph::helpers::ReductionType::LogicalOr ||
+        reductionType == ngraph::helpers::ReductionType::LogicalAnd) {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+    } else if (!netPrecision.is_float()) {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 0);
+    }
+    auto td = info.getTensorDesc();
+    auto blob = make_blob_with_precision(td);
+    blob->allocate();
+    CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
+    return blob;
+}
 
 InferenceEngine::Blob::Ptr ReduceOpsLayerWithSpecificInputTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     auto axis_vec = std::get<0>(GetParam());

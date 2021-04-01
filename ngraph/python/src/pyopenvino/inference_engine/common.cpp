@@ -84,25 +84,21 @@ namespace Common
             auto val = param.as<bool>();
             return val ? Py_True : Py_False;
         }
-        // Check for std::vector<std::string>
-        else if (param.is<std::vector<std::string>>())
-        {
+            // Check for std::vector<std::string>
+        else if (param.is<std::vector<std::string>>()) {
             auto val = param.as<std::vector<std::string>>();
-            PyObject* list = PyList_New(0);
-            for (const auto& it : val)
-            {
-                PyObject* str_val = PyUnicode_FromString(it.c_str());
+            PyObject *list = PyList_New(0);
+            for (const auto &it : val) {
+                PyObject *str_val = PyUnicode_FromString(it.c_str());
                 PyList_Append(list, str_val);
             }
             return list;
         }
-        // Check for std::vector<int>
-        else if (param.is<std::vector<int>>())
-        {
+            // Check for std::vector<int>
+        else if (param.is<std::vector<int>>()) {
             auto val = param.as<std::vector<int>>();
-            PyObject* list = PyList_New(0);
-            for (const auto& it : val)
-            {
+            PyObject *list = PyList_New(0);
+            for (const auto &it : val) {
                 PyList_Append(list, PyLong_FromLong(it));
             }
             return list;
@@ -118,56 +114,47 @@ namespace Common
             }
             return list;
         }
-        // Check for std::vector<float>
-        else if (param.is<std::vector<float>>())
-        {
+            // Check for std::vector<float>
+        else if (param.is<std::vector<float>>()) {
             auto val = param.as<std::vector<float>>();
-            PyObject* list = PyList_New(0);
-            for (const auto& it : val)
-            {
-                PyList_Append(list, PyFloat_FromDouble((double)it));
+            PyObject *list = PyList_New(0);
+            for (const auto &it : val) {
+                PyList_Append(list, PyFloat_FromDouble((double) it));
             }
             return list;
         }
-        // Check for std::tuple<unsigned int, unsigned int>
-        else if (param.is<std::tuple<unsigned int, unsigned int>>())
-        {
+            // Check for std::tuple<unsigned int, unsigned int>
+        else if (param.is<std::tuple<unsigned int, unsigned int>>()) {
             auto val = param.as<std::tuple<unsigned int, unsigned int>>();
-            PyObject* tuple = PyTuple_New(2);
-            PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
-            PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
+            PyObject *tuple = PyTuple_New(2);
+            PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long) std::get<0>(val)));
+            PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long) std::get<1>(val)));
             return tuple;
         }
-        // Check for std::tuple<unsigned int, unsigned int, unsigned int>
-        else if (param.is<std::tuple<unsigned int, unsigned int, unsigned int>>())
-        {
+            // Check for std::tuple<unsigned int, unsigned int, unsigned int>
+        else if (param.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
             auto val = param.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
-            PyObject* tuple = PyTuple_New(3);
-            PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
-            PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
-            PyTuple_SetItem(tuple, 2, PyLong_FromUnsignedLong((unsigned long)std::get<2>(val)));
+            PyObject *tuple = PyTuple_New(3);
+            PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long) std::get<0>(val)));
+            PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long) std::get<1>(val)));
+            PyTuple_SetItem(tuple, 2, PyLong_FromUnsignedLong((unsigned long) std::get<2>(val)));
             return tuple;
         }
-        // Check for std::map<std::string, std::string>
-        else if (param.is<std::map<std::string, std::string>>())
-        {
-            auto val = param.as<std::map<std::string, std::string>>();
-            PyObject* dict = PyDict_New();
-            for (const auto& it : val)
-            {
-                PyDict_SetItemString(
-                    dict, it.first.c_str(), PyUnicode_FromString(it.second.c_str()));
+            // Check for std::map<std::string, std::string>
+        else if (param.is <std::map<std::string, std::string>>()) {
+            auto val = param.as <std::map<std::string, std::string>>();
+            PyObject *dict = PyDict_New();
+            for (const auto &it : val) {
+                PyDict_SetItemString(dict, it.first.c_str(), PyUnicode_FromString(it.second.c_str()));
             }
             return dict;
         }
-        // Check for std::map<std::string, int>
-        else if (param.is<std::map<std::string, int>>())
-        {
+            // Check for std::map<std::string, int>
+        else if (param.is<std::map<std::string, int>>()) {
             auto val = param.as<std::map<std::string, int>>();
-            PyObject* dict = PyDict_New();
-            for (const auto& it : val)
-            {
-                PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
+            PyObject *dict = PyDict_New();
+            for (const auto &it : val) {
+                PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long) it.second));
             }
             return dict;
         }
@@ -226,4 +213,31 @@ namespace Common
             // Throw error
         }
     }
-}; // namespace Common
+
+    const std::shared_ptr<InferenceEngine::Blob> convert_to_blob(const py::handle& blob) {
+        if (py::isinstance<InferenceEngine::TBlob<float>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<double>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<double>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<int8_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int8_t>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<int16_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int16_t>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<int32_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int32_t>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<int64_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int64_t>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<uint8_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint8_t>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<uint16_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint16_t>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<uint32_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint32_t>> &>();
+        } else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob)) {
+            return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint64_t>> &>();
+        } else {
+            // Throw error
+        }
+    }
+
+};
