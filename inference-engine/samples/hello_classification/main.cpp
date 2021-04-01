@@ -6,12 +6,12 @@
 #include <memory>
 #include <string>
 #include <iterator>
+#include <samples/common.hpp>
 
 #include <inference_engine.hpp>
+#include <samples/ocv_common.hpp>
 
 #include <samples/classification_results.h>
-#include <samples/common.hpp>
-#include <samples/ocv_common.hpp>
 
 using namespace InferenceEngine;
 

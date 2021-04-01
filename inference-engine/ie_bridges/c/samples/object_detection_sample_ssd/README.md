@@ -29,7 +29,7 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 ## How It Works
 
 Upon the start-up the sample application reads command line parameters, loads specified network and image(s) to the Inference
-Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application creates output image(s) and output data to the standard output stream.
+Engine plugin. Then, the sample creates an asynchronous inference request object. When inference is done, the application creates output image(s) and output data to the standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
