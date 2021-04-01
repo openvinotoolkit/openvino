@@ -418,8 +418,11 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
-            onnx/onnx_editor.cpp
             onnx/onnx_tensor_names.cpp)
+endif()
+
+if (NGRAPH_ONNX_EDITOR_ENABLE)
+    list(APPEND SRC onnx/onnx_editor.cpp)
 endif()
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
@@ -495,7 +498,11 @@ endif()
 target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_importer onnx_editor)
+    target_link_libraries(unit-test PRIVATE onnx_importer)
+endif()
+
+if (NGRAPH_ONNX_EDITOR_ENABLE)
+    target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
