@@ -13,8 +13,6 @@
 
 namespace py = pybind11;
 
-namespace py = pybind11;
-
 namespace Common
 {
     InferenceEngine::Layout get_layout_from_string(const std::string& layout);

@@ -239,5 +239,4 @@ namespace Common
             // Throw error
         }
     }
-
 };

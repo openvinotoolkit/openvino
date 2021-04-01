@@ -16,7 +16,6 @@ from openvino.pyopenvino import TBlobInt32
 from openvino.pyopenvino import TBlobInt64
 from openvino.pyopenvino import TBlobUint8
 from openvino.pyopenvino import TensorDesc
-
 from openvino.pyopenvino import TensorDesc
 
 import numpy as np
