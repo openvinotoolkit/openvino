@@ -15,6 +15,6 @@
         <model name="mobilenet-ssd" precision="FP16" source="omz" />
         <model name="ssd300" precision="FP16" source="omz" />
         <!--Models with FP16-INT8 precision-->
-        <model name="vehicle-attributes-recognition-barrier-0039" precision="FP16-INT8" source="omz" />
+        <model name="emotions-recognition-retail-0003" precision="FP16-INT8" source="omz" />
     </models>
 </attributes>
