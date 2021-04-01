@@ -3,7 +3,7 @@
 
 import uuid
 
-from backend import TelemetryBackend
+from .backend import TelemetryBackend
 from ..utils.message import Message, MessageType
 from ..utils.guid import get_or_generate_uid
 

@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import utils.isip as isip
+from .utils import isip
 
-from backend.backend import BackendRegistry
-from utils.sender import TelemetrySender
+from .backend.backend import BackendRegistry
+from .utils.sender import TelemetrySender
 
 
 class SingletonMetaClass(type):
