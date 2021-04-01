@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
 
         outputInfo = outputsInfo.begin()->second;
         outputName = outputInfo->getName();
-        // SSD has an additional post-processing DetectionOutput layer 
+        // SSD has an additional post-processing DetectionOutput layer
         // that simplifies output filtering, try to find it.
         if (auto ngraphFunction = network.getFunction()) {
             for (const auto& out : outputsInfo) {
