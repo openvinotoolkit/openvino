@@ -922,7 +922,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling)
 // Nodes with ambiguous node names tests
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_but_matched_input)
 {
-    const ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
 
     InputEdge edge = editor.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in2"});
@@ -1027,7 +1027,7 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_an
     }
 }
 
-NGRAPH_TEST(onnx_editor, editor_api_use_editor_with_graph_cutter)
+NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
 {
     ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
@@ -1035,7 +1035,7 @@ NGRAPH_TEST(onnx_editor, editor_api_use_editor_with_graph_cutter)
     // InputEdge{1, "in2"}
     const auto input_edge_1 = editor.find_input_edge(
                                    EditorNode(EditorOutput("add1")), EditorInput(1));
-    //InputEdge{2, "in3"}
+    // InputEdge{2, "in3"}
     const auto input_edge_2 = editor.find_input_edge(
                                    EditorNode(EditorOutput("conv1")), EditorInput(0));
 
@@ -1053,6 +1053,21 @@ NGRAPH_TEST(onnx_editor, editor_api_use_editor_with_graph_cutter)
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
+
+    // check if mapper was updated after the model changed
+    const auto input_edge_4 = editor.find_input_edge(
+                                EditorNode(EditorOutput("relu1")), EditorInput(0));
+    EXPECT_EQ(input_edge_4.m_node_idx, 0);
+    EXPECT_EQ(input_edge_4.m_tensor_name, "in1");
+
+    const auto input_edge_5 = editor.find_input_edge(
+                                EditorNode(EditorOutput("add1")), EditorInput(1));
+    EXPECT_EQ(input_edge_5.m_node_idx, 1);
+    EXPECT_EQ(input_edge_5.m_tensor_name, "in2");
+
+    const auto output_edge_3 = editor.find_output_edge("mul2");
+    EXPECT_EQ(output_edge_3.m_node_idx, 3);
+    EXPECT_EQ(output_edge_3.m_tensor_name, "mul2");
 }
 
 using TestEngine = test::INTERPRETER_Engine;

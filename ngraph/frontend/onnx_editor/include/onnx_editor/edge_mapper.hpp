@@ -26,7 +26,7 @@ namespace ngraph
         class EdgeMapper
         {
         public:
-            EdgeMapper() = delete;
+            EdgeMapper() = default;
 
             /// \brief Creates an edge mapper based on a GraphProto object.
             ///

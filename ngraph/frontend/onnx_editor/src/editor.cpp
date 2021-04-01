@@ -214,7 +214,7 @@ struct onnx_editor::ONNXModelEditor::Impl
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
-    , m_edge_mapper{m_pimpl->m_model_proto.graph()}
+    , m_is_mapper_updated{false}
     , m_model_path{model_path}
 {
 }
@@ -305,6 +305,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     editor.extract_subgraph(outputs);
 
     m_pimpl->remove_shape_inference_info();
+    m_is_mapper_updated = false;
 }
 
 std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
@@ -360,19 +361,31 @@ void onnx_editor::ONNXModelEditor::set_input_values(
     }
 }
 
-InputEdge onnx_editor::ONNXModelEditor::find_input_edge(const EditorNode& node,
-                                                        const EditorInput& input) const
+void onnx_editor::ONNXModelEditor::update_mapper_if_needed()
 {
+    if (!m_is_mapper_updated)
+    {
+        m_edge_mapper.update(m_pimpl->m_model_proto.graph());
+    }
+    m_is_mapper_updated = true;
+}
+
+InputEdge onnx_editor::ONNXModelEditor::find_input_edge(const EditorNode& node,
+                                                        const EditorInput& input)
+{
+    update_mapper_if_needed();
     return m_edge_mapper.find_input_edge(node, input);
 }
 
 OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const EditorNode& node,
-                                                          const EditorOutput& input) const
+                                                          const EditorOutput& input)
 {
+    update_mapper_if_needed();
     return m_edge_mapper.find_output_edge(node, input);
 }
 
-OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& output_name) const
+OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& output_name)
 {
+    update_mapper_if_needed();
     return m_edge_mapper.find_output_edge(output_name);
 }

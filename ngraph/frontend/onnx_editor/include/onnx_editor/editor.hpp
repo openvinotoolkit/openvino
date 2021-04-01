@@ -126,7 +126,7 @@ namespace ngraph
             ///
             /// \param input An input helper structure created based on a input name
             ///              or a input index.
-            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
+            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input);
 
             /// \brief Returns an OutputEdge based on a node (node name or output name)
             ///        and an output (output name or output index).
@@ -143,7 +143,7 @@ namespace ngraph
             ///
             /// \param output A output helper structure created based on a output name
             ///               or a output index.
-            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
+            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output);
 
             /// \brief Returns an OutputEdge based on a output name.
             ///
@@ -151,10 +151,13 @@ namespace ngraph
             ///
             /// \param output_name A node output name.
             ///
-            OutputEdge find_output_edge(const std::string& output_name) const;
+            OutputEdge find_output_edge(const std::string& output_name);
 
         private:
+            void update_mapper_if_needed();
+
             const std::string m_model_path;
+            bool m_is_mapper_updated;
 
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;

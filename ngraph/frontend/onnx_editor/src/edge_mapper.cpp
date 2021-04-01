@@ -18,6 +18,11 @@ onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_prot
 
 void onnx_editor::EdgeMapper::update(const ONNX_NAMESPACE::GraphProto& graph_proto)
 {
+    // reset state
+    m_node_inputs.clear();
+    m_node_outputs.clear();
+    m_node_name_to_index.clear();
+
     int topological_index = 0;
     m_node_inputs.resize(graph_proto.node().size());
     m_node_outputs.resize(graph_proto.node().size());
