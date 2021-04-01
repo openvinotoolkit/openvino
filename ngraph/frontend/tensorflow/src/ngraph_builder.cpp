@@ -14,6 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
+#include <numeric>
 #include "graph.pb.h"
 #include "tensor.pb.h"
 
