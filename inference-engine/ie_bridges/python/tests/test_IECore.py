@@ -4,7 +4,6 @@
 import os
 import pytest
 from sys import platform
-import numpy as np
 from pathlib import Path
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
@@ -61,8 +60,11 @@ def test_load_network_wrong_device():
 
 
 def test_query_network(device):
-    import ngraph as ng
     ie = IECore()
+    if device == "CPU":
+        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
+    import ngraph as ng
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(net, device)
     func_net = ng.function_from_cnn(net)
@@ -73,18 +75,22 @@ def test_query_network(device):
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugin():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to MKLDNNPlugin specific test")
     ie.register_plugin("MKLDNNPlugin", "BLA")
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "BLA")
     assert isinstance(exec_net, ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugins():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to MKLDNNPlugin specific test")
     if platform == "linux" or platform == "linux2":
         ie.register_plugins(plugins_xml)
     elif platform == "darwin":
@@ -126,11 +132,12 @@ def test_get_metric_list_of_str():
                                                    "metric are strings!"
 
 
-
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_two_ints():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to unsupported device metric")
     param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -142,6 +149,8 @@ def test_get_metric_tuple_of_two_ints():
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_three_ints():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to unsupported device metric")
     param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -185,20 +194,24 @@ def test_read_network_from_onnx():
     net = ie.read_network(model=test_net_onnx)
     assert isinstance(net, IENetwork)
 
+
 def test_read_network_from_onnx_as_path():
     ie = IECore()
     net = ie.read_network(model=Path(test_net_onnx))
     assert isinstance(net, IENetwork)
+
 
 def test_read_network_from_prototxt():
     ie = IECore()
     net = ie.read_network(model=test_net_prototxt)
     assert isinstance(net, IENetwork)
 
+
 def test_read_network_from_prototxt_as_path():
     ie = IECore()
     net = ie.read_network(model=Path(test_net_prototxt))
     assert isinstance(net, IENetwork)
+
 
 def test_incorrect_xml():
     ie = IECore()
