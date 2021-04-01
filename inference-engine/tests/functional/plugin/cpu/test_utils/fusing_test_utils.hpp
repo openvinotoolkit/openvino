@@ -157,12 +157,12 @@ const auto fusingTanh = fusingSpecificParams{std::make_shared<postNodesMgr>(std:
 
 const auto fusingHSwish = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::HSwish);
+                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::HSwish, {}, {});
             }, "HSwish"}}), {"HSwish"}};
 
 const auto fusingMish = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Mish);
+                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Mish, {}, {});
             }, "Mish"}}), {"Mish"}};
 
 const auto fusingHSigmoid = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
