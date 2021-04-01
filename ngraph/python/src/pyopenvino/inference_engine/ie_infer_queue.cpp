@@ -151,7 +151,7 @@ void regclass_InferQueue(py::module m)
         for (auto&& input : inputs)
         {
             auto name = input.first.cast<std::string>();
-            auto blob = Common::convert_to_blob(input.second);
+            auto blob = Common::cast_to_blob(input.second);
             self._requests[handle].SetBlob(name, blob);
         }
         // Start InferRequest in asynchronus mode
