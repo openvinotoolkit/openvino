@@ -997,6 +997,7 @@ mo/utils/ir_engine/compare_graphs.py
 mo/utils/ir_engine/ir_engine.py
 mo/utils/ir_reader/__init__.py
 mo/utils/ir_reader/extender.py
+mo/utils/ir_reader/extenders/__init__.py
 mo/utils/ir_reader/extenders/binary_convolution_extender.py
 mo/utils/ir_reader/extenders/bucketize_extender.py
 mo/utils/ir_reader/extenders/conv_extender.py
