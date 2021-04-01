@@ -123,6 +123,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
                 jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
                 jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));
+                // in_name = out_name;
 
                 bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
                 can_all_use_preload &= can_use_preload;

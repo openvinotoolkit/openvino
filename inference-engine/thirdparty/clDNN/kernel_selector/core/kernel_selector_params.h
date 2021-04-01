@@ -558,7 +558,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
-    std::vector<size_t> fused_deps_op_id;
+    std::vector<size_t> fused_op_ids;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }

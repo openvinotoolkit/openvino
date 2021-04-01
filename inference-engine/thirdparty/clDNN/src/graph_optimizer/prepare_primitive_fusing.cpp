@@ -50,6 +50,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <deque>
 #include "error_handler.h"
 
 void prepare_primitive_fusing::run(program_impl& p) {
@@ -502,8 +503,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto& input_data = activation_node.get_dependency(0);
-            if (input_data.get_users().size() != 1 || activation_node.get_dependencies().size() >= 3)
+            if ((input_data.get_users().size() != 1 && !input_data.has_fused_primitives()) || activation_node.get_dependencies().size() >= 3) {
                 return;
+            }
 
             bool should_fuse = input_data.is_type<binary_convolution>();
 
@@ -814,10 +816,63 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (parent2->is_type<convolution>() && !conv_supports_fusings(parent2->as<convolution>()))
                 return;
 
-            // This fusing can be extended to support peer node in any layout
-            // bool merge_allowed = fused_node->get_users().size() == 1;
+            // TODO write comments for this change
             bool merge_allowed = true;
+            if (fused_node->is_type<convolution>() && fused_node->get_users().size() > 1) {
+                //std::pair<cldnn::program_node*, layer level>
+                std::deque<std::pair<cldnn::program_node*, size_t>> node_queue;
+                std::vector<cldnn::program_node*> node_history;
+                node_queue.push_back(std::make_pair(fused_node, 0));
 
+                const uint8_t max_levels = 5;
+                do {
+                    auto current_node = node_queue.front();
+                    node_queue.pop_front();
+                    node_history.push_back(current_node.first);
+                    if (current_node.second > max_levels) {
+                        return;
+                    }
+
+                    auto push_node_queue = [&](cldnn::program_node* in_node, size_t level) {
+                        auto iter = std::find_if(node_queue.begin(), node_queue.end(), [&](std::pair<cldnn::program_node*, size_t> element) {
+                            return (in_node->id() == element.first->id());
+                        });
+                        if (iter == node_queue.end()) {
+                            node_queue.push_back(std::make_pair(in_node, level));
+                        }
+                    };
+
+                    // all internal node of fused nodes should be eltwise or acivation
+                    auto user_list = current_node.first->get_users();
+                    user_list.remove_if([&](cldnn::program_node* user){
+                        auto ret = (user->is_output() ||
+                                (!(user->is_type<eltwise>() && user->get_primitive()->input.size() == 2) &&
+                                !(user->is_type<activation>() && user->get_primitive()->input.size() == 1)));
+                        return ret;
+                    });
+
+                    if (user_list.size() != current_node.first->get_users().size()) {
+                        // If fused_node have invalid user node, it is impossible to fuse
+                        if (fused_node->id() == current_node.first->id()) {
+                            return;
+                        }
+                        push_node_queue(current_node.first, (current_node.second+1));
+                        continue;
+                    }
+
+                    // Add user node in current node to the queue
+                    // But, do not add the node that passed once, it is checked using node_history
+                    for (auto& user : user_list) {
+                        auto iter = std::find(node_history.begin(), node_history.end(), user);
+                        if (iter == node_history.end())
+                            push_node_queue(user, current_node.second+1);
+                    }
+                } while (node_queue.size() > 1);
+            } else {
+                merge_allowed = fused_node->get_users().size() == 1;
+            }
+
+            // This fusing can be extended to support peer node in any layout
             for (auto& parent : fused_node->get_dependencies())
                 if (parent->id() == peer_node->id())
                     merge_allowed = false;
@@ -865,6 +920,22 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
         // 2. fuse conv bias to quantize shift
         auto& fused_prims = node->get_fused_primitives();
 
+        auto remove_deps_of_node = [&](cldnn::fused_primitive_desc& desc) {
+            for (auto& prim : fused_prims) {
+                if (desc.node->id() == prim.node->id()) {
+                    continue;
+                }
+
+                auto rm_iter = std::find_if(prim.fused_deps.begin(), prim.fused_deps.end(), [&](primitive_id& dep_id){
+                    return (desc.node->id() == dep_id);
+                });
+                if (rm_iter != prim.fused_deps.end()) {
+                    prim.fused_deps.erase(rm_iter);
+                    prim.fused_deps.insert(prim.fused_deps.end(), desc.fused_deps.begin(), desc.fused_deps.end());
+                }
+            }
+        };
+
         // Drop relu if the next fused op is quantize with u8 output and no in_shift
         auto fp_itr = fused_prims.begin();
         while (fp_itr != fused_prims.end()) {
@@ -887,6 +958,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
                                 !quantize_node.get_need_pre_shift();
 
                 if (can_skip) {
+                    remove_deps_of_node(fp);
                     fp_itr = fused_prims.erase(curr_itr);
                 }
             }

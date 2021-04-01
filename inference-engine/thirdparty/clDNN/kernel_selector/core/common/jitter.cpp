@@ -1485,6 +1485,8 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     auto idx = conf.bfzyx_idx_order;
     std::string shuffle_var = conf.shuffle_var_name;
     bool is_shuffled = false;
+    auto& fused_op_ids = desc.fused_op_ids;
+    std::vector<std::string> input_vars;
 
     out_var = GetOutputVarName(in_var, desc.op_id);
     auto out_type = desc.output_tensor.GetDType();
@@ -1521,7 +1523,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     };
 
     auto get_input = [&](size_t index) -> std::string {
-        auto in_name = index == 0 ? in_var : GetInputVarName(index - 1, is_shuffled, shuffle_var);
+        auto in_name = (index == 0 || desc.tensors.empty()) ? in_var : GetInputVarName(index - 1, is_shuffled, shuffle_var);
         auto tensor_type = (index == 0 || desc.tensors.empty()) ? in_type : desc.tensors[index - 1].GetDType();
         auto acc_t = get_acc_t();
 
@@ -1531,15 +1533,43 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             return in_name;
     };
 
+    // Generate input variable list
+    // dst + tensor inputs + fused ops input
+#ifdef DEBUG_ISSUE
+    std::cout << "fused_op_ids: " << fused_op_ids.size() << std::endl;
+    std::cout << "desc.tensors: " << desc.tensors.size() << std::endl;
+#endif
+    if (fused_op_ids.empty() || desc.tensors.empty()) {
+        input_vars.push_back(get_input(0));
+    }
+
+    for (size_t i = 0; i < desc.tensors.size(); i++) {
+        input_vars.push_back(get_input(i + 1));
+    }
+
+    for (size_t i = 0; i < fused_op_ids.size(); i++) {
+        input_vars.push_back(ConvertToOutputType(GetOutputVarName(in_var, fused_op_ids[i]), vec_size));
+    }
+
+    size_t max_num_input_vars = (desc.tensors.size() > 1)? 3 : 2;
+    if (input_vars.size() > max_num_input_vars) {
+        input_vars.erase(input_vars.begin());
+    }
+#ifdef DEBUG_ISSUE
+    for (auto var_name :  input_vars) {
+        std::cout << "var_name : " << var_name << std::endl;
+    }
+#endif
+
     switch (desc.GetType()) {
         case KernelType::SCALE: {
             auto tmp_var = out_var + "_tmp";
             if (desc.tensors.size() > 1) {
                 op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
-                          + get_input(0) + " * " + get_input(1) + " + " + get_input(2) + ";";
+                          + input_vars[0] + " * " + input_vars[1] + " + " + input_vars[2] + ";";
             } else {
                 op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
-                          + get_input(0) + " * " + get_input(1) + ";";
+                          + input_vars[0] + " * " + input_vars[1] + ";";
             }
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
             break;
@@ -1560,23 +1590,10 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             default:
                 throw std::runtime_error("[clDNN] Eltwise mode is not supported in fused ops codegen");
             }
-            std::string var_input0 = "";
-            std::string var_input1 = "";
-            auto& fused_deps = desc.fused_deps_op_id;
-            if (fused_deps.empty()) {
-                var_input0 = get_input(0);
-                var_input1 = get_input(1);
-            } else if (fused_deps.size() == 1) {
-                var_input0 = get_input((desc.tensors.empty()? 0 : 1));
-                var_input1 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[0]), vec_size);
-            } else {
-                var_input0 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[0]), vec_size);
-                var_input1 = ConvertToOutputType(GetOutputVarName(in_var, fused_deps[1]), vec_size);
-            }
+
             auto tmp_var = out_var + "_tmp";
-            op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + var_input0 + op + var_input1 + ";";
+            op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + input_vars[0] + op + input_vars[1] + ";";
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
-            std::cout << conf.suffix << " :: " << op_decls << std::endl;
             break;
         }
         case KernelType::QUANTIZE: {
@@ -1584,14 +1601,12 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             if (!p)
                 throw std::runtime_error("[clDNN] Quantize fuse params can't be nullptr");
 
-            std::string in_converted = in_var;
+            std::string in_converted = (fused_op_ids.empty()) ? in_var : GetOutputVarName(in_var, fused_op_ids[0]);
             Datatype tmp_type = Datatype::F32;
             std::string tmp_type_str = GetType(tmp_type, vec_size);
             std::string tmp_var = out_var + "_tmp";
 
-            if (in_type != tmp_type) {
-                in_converted = ConvertToType(in_var, tmp_type, vec_size);
-            }
+            in_converted = ConvertToType(in_converted, tmp_type, vec_size);
 
             auto post_scale = p->per_tensor_output_scale ? Broadcast(std::to_string(p->out_scale), tmp_type, vec_size)
                                                          : ConvertToType(GetInputVarName(p->out_scale_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
@@ -1632,7 +1647,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         case KernelType::ACTIVATION: {
             auto p = desc.GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(in_var, vec_size) + ";";
+
+            std::string new_in_var = (fused_op_ids.empty()) ? in_var : GetOutputVarName(in_var, fused_op_ids[0]);
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(new_in_var, vec_size) + ";";
             if (activation_p.function != ActivationFunction::NONE) {
                 auto suffix = "_FUSED_OP"+std::to_string(desc.op_id) + conf.suffix;
                 std::string nl_m = std::to_string(activation_p.m);
@@ -1660,7 +1677,9 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         }
         default: break;
     }
-
+#ifdef DEBUG_ISSUE
+    std::cout << ("FUSED_OP"+std::to_string(desc.op_id)+"_ACTION" + conf.suffix) << " " << op_decls << std::endl;
+#endif
     jit.AddConstant(MakeJitConstant("FUSED_OP"+std::to_string(desc.op_id)+"_ACTION" + conf.suffix, op_decls));
 
     return jit;
