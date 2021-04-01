@@ -14,37 +14,28 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "op/batch_norm.hpp"
-#include "op/conv2d.hpp"
-#include "op/elementwise_add.hpp"
-#include "op/matmul.hpp"
-#include "op/mul.hpp"
-#include "op/pool2d.hpp"
-#include "op/relu.hpp"
-#include "op/reshape2.hpp"
-#include "op/scale.hpp"
-#include "op/softmax.hpp"
-
-#include "op_table.hpp"
-
+#include <ngraph/opsets/opset6.hpp>
+#include "reshape2.hpp"
+#include "utility.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
+namespace op {
+    
+OutputVector reshape2(const NodeContext& node) {
+    auto data = node.get_ng_input("X");
+    if (!node.has_ng_input("Shape") && !node.has_ng_input("ShapeTensor"))
+    {
+        auto shape_attr = node.get_attribute<std::vector<int32_t>>("shape");
+        auto shape_node = ngraph::opset6::Constant::create(ngraph::element::i32, {shape_attr.size()}, shape_attr);
+        return {std::make_shared<ngraph::opset6::Reshape>(data, shape_node, true)};
+    } else {
+        NOT_IMPLEMENTED("reshape2 with shape as input");
+    }
+}
 
-std::map<std::string, CreatorFunction> get_supported_ops() {
-    return {
-            {"batch_norm", op::batch_norm},
-            {"conv2d", op::conv2d},
-            {"elementwise_add", op::elementwise_add},
-            {"matmul", op::matmul},
-            {"mul", op::mul},
-            {"pool2d", op::pool2d},
-            {"relu", op::relu},
-            {"reshape2", op::reshape2},
-            {"scale", op::scale},
-            {"softmax", op::softmax}
-    };
-};
-
-}}}
+} // namespace op
+} // namespace pdpd
+} // namespace frontend
+} // namespace ngraph

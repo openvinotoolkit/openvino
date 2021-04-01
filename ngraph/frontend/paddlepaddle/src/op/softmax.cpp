@@ -14,37 +14,26 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "op/batch_norm.hpp"
-#include "op/conv2d.hpp"
-#include "op/elementwise_add.hpp"
-#include "op/matmul.hpp"
-#include "op/mul.hpp"
-#include "op/pool2d.hpp"
-#include "op/relu.hpp"
-#include "op/reshape2.hpp"
-#include "op/scale.hpp"
-#include "op/softmax.hpp"
-
-#include "op_table.hpp"
-
+#include <ngraph/opsets/opset6.hpp>
+#include "softmax.hpp"
+#include "utility.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
-
-std::map<std::string, CreatorFunction> get_supported_ops() {
-    return {
-            {"batch_norm", op::batch_norm},
-            {"conv2d", op::conv2d},
-            {"elementwise_add", op::elementwise_add},
-            {"matmul", op::matmul},
-            {"mul", op::mul},
-            {"pool2d", op::pool2d},
-            {"relu", op::relu},
-            {"reshape2", op::reshape2},
-            {"scale", op::scale},
-            {"softmax", op::softmax}
-    };
-};
-
-}}}
+namespace op {
+    OutputVector softmax(const NodeContext& node) {
+        auto data = node.get_ng_input("X");
+        auto axis = node.get_attribute<int32_t>("axis");
+        if (axis < 0)
+        {
+            MY_ASSERT(data.get_partial_shape().rank().is_static(), "Softmax rank must be static");
+            auto data_rank = data.get_partial_shape().rank().get_length();
+            axis = data_rank + axis;
+        }
+        return {std::make_shared<ngraph::opset6::Softmax>(data, axis)};
+    }
+} // namespace op
+} // namespace pdpd
+} // namespace frontend
+} // namespace ngraph

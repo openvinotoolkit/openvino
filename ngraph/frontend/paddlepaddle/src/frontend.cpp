@@ -76,29 +76,41 @@ make_ng_node(std::map<std::string, google::protobuf::RepeatedPtrField<std::strin
     return outputs[0].get_node_shared_ptr();
 }
 
-std::shared_ptr<ngraph::opset6::Constant>
-read_tensor(const paddle::framework::proto::VarDesc &var, const std::string &model_dir) {
+std::shared_ptr<ngraph::opset6::Constant> read_tensor(const paddle::framework::proto::VarDesc& var,
+                std::shared_ptr<ngraph::frontend::InputModelPDPD> model)
+{
     std::cout << "Reading tensor " << var.name() << std::endl;
     MY_ASSERT(var.type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
     auto tensor = var.type().lod_tensor().tensor();
-
-    std::ifstream is(model_dir + "/" + var.name(), std::ios::in | std::ifstream::binary);
-    if (!is || !is.is_open()) {
-        std::cout << "File not opened" << std::endl;
-    }
-    // get length of file:
-    is.seekg(0, std::ios::end);
-    auto length = is.tellg();
-    auto tensor_length = std::accumulate(tensor.dims().cbegin(), tensor.dims().cend(), 1,
-                                         std::multiplies<int64_t>());
-    std::cout << "length: " << length << ", ten_len: " << tensor_length << std::endl;
-    is.seekg((size_t) length - tensor_length * 4, std::ios::beg);
-
+    auto tensor_length = std::accumulate(
+        tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
     std::vector<float> tensor_data(tensor_length, 0);
-    is.read(reinterpret_cast<char *>(&tensor_data[0]), tensor_length * 4);
-    is.close();
+
+    if (model->weights_composed) {
+        std::vector<char> leading_zeros(16, 0);
+        model->weights_stream.read(&leading_zeros[0], 16);
+        uint32_t dims_len = 0;
+        model->weights_stream.read(reinterpret_cast<char*>(&dims_len), 4);
+        std::vector<char> dims_struct(dims_len, 0);
+        model->weights_stream.read(&dims_struct[0], dims_len);
+        model->weights_stream.read(reinterpret_cast<char*>(&tensor_data[0]), tensor_length * 4);
+    } else {
+        std::ifstream is(model->path + "/" + var.name(), std::ios::in | std::ifstream::binary);
+        if (!is || !is.is_open())
+        {
+            std::cout << "File not opened" << std::endl;
+        }
+        // get length of file:
+        is.seekg(0, std::ios::end);
+        auto length = is.tellg();
+        std::cout << "length: " << length << ", ten_len: " << tensor_length << std::endl;
+        is.seekg((size_t)length - tensor_length * 4, std::ios::beg);
+
+        is.read(reinterpret_cast<char*>(&tensor_data[0]), tensor_length * 4);
+    }
     auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
-    return ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape(shape), tensor_data);
+    return ngraph::opset6::Constant::create(
+        ngraph::element::f32, ngraph::Shape(shape), tensor_data);
 }
 
 bool endsWith(const std::string &str, const std::string &suffix) {
@@ -108,10 +120,13 @@ bool endsWith(const std::string &str, const std::string &suffix) {
     return false;
 }
 
-std::shared_ptr<ngraph::Function> convert_model(const std::string &model_dir) {
-    std::cout << "Convert Model Start" << std::endl;
+std::shared_ptr<ngraph::Function>
+    convert_model(std::shared_ptr<ngraph::frontend::InputModelPDPD> model)
+{
+    std::cout << "Convert Model Start" << std::endl;    
+    
     paddle::framework::proto::ProgramDesc fw_model;
-    std::ifstream pb_stream(model_dir + "/__model__", std::ios::binary);
+    std::ifstream pb_stream(model->model_file, std::ios::binary);
     std::cout << "Model Parsed: " << fw_model.ParseFromIstream(&pb_stream) << std::endl;
 
     std::map<std::string, std::shared_ptr<ngraph::Node>> nodes_dict;
@@ -119,19 +134,26 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string &model_dir) {
     ngraph::ResultVector result_nodes;
 
     std::cout << "Blocks number: " << fw_model.blocks().size() << std::endl;
-    const auto &global_block = fw_model.blocks()[0];
-    for (const auto &var : global_block.vars()) {
-        if (endsWith(var.name(), "feed") || endsWith(var.name(), "fetch"))
+    const auto& global_block = fw_model.blocks()[0];
+    // We need to read variables in sorted by name order. This is the order variables written in composed file.
+    std::map<std::string, paddle::framework::proto::VarDesc> sorted_vars;
+    for (auto& var : global_block.vars())
+    {
+        sorted_vars[var.name()] = var;
+    }
+    for (const auto& name_var : sorted_vars)
+    {
+        if (endsWith(name_var.first, "feed") || endsWith(name_var.first, "fetch"))
             continue;
-        if (!var.persistable())
+        if (!name_var.second.persistable())
             continue;
-        nodes_dict[var.name()] = read_tensor(var, model_dir);
+        nodes_dict[name_var.first] = read_tensor(name_var.second, model);
     }
     std::cout << "Reading consts finished" << std::endl;
 
     std::map<std::string, CreatorFunction> CREATORS_MAP = get_supported_ops();
 
-    for (const auto &block : fw_model.blocks()) {
+    for (const auto& block : fw_model.blocks()) {
         std::map<std::string, paddle::framework::proto::VarType> vars_dict;
         for (const auto &var : block.vars()) {
             vars_dict[var.name()] = var.type();
@@ -158,6 +180,7 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string &model_dir) {
                 auto dtype = tensor_desc.data_type();
                 std::vector<size_t> shape;
                 // set all -1 dims to 1
+                // TODO: remove when input shape can be specified
                 for (auto dim : tensor_desc.dims()) {
                     if (dim >= 0) {
                         shape.push_back(dim);
@@ -195,9 +218,29 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string &model_dir) {
 }
 
 std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndPDPD::convert(InputModel::Ptr model) const {
-    std::string path = std::dynamic_pointer_cast<ngraph::frontend::InputModelPDPD>(model)->path;
     std::cerr << "[ INFO ] PFrontEndPDPD::convert invoked\n";
-    auto f = pdpd::convert_model(path);
+    auto pdpd_model = std::dynamic_pointer_cast<ngraph::frontend::InputModelPDPD>(model);
+    std::string ext = ".pdmodel";
+    if (pdpd_model->path.length() >= ext.length() &&
+        (0 ==
+         pdpd_model->path.compare(pdpd_model->path.length() - ext.length(), ext.length(), ext)))
+    {
+        pdpd_model->weights_composed = true;
+        pdpd_model->model_file = pdpd_model->path;
+        auto weights_file =
+            pdpd_model->path.replace(pdpd_model->path.size() - ext.size(), ext.size(), ".pdiparams");
+        pdpd_model->weights_stream = std::ifstream(weights_file, std::ios::binary);
+        if (!pdpd_model->weights_stream || !pdpd_model->weights_stream.is_open())
+        {
+            std::cout << "File not opened" << std::endl;
+        }
+    }
+    else
+    {
+        pdpd_model->weights_composed = false;
+        pdpd_model->model_file = pdpd_model->path + "/__model__";
+    }
+    auto f = pdpd::convert_model(pdpd_model);
     std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << "\n";
     return f;
 }

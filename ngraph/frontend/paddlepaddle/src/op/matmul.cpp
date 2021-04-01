@@ -14,37 +14,27 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "op/batch_norm.hpp"
-#include "op/conv2d.hpp"
-#include "op/elementwise_add.hpp"
-#include "op/matmul.hpp"
-#include "op/mul.hpp"
-#include "op/pool2d.hpp"
-#include "op/relu.hpp"
-#include "op/reshape2.hpp"
-#include "op/scale.hpp"
-#include "op/softmax.hpp"
-
-#include "op_table.hpp"
-
+#include <ngraph/opsets/opset6.hpp>
+#include "matmul.hpp"
+#include "utility.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
+namespace op {
 
-std::map<std::string, CreatorFunction> get_supported_ops() {
-    return {
-            {"batch_norm", op::batch_norm},
-            {"conv2d", op::conv2d},
-            {"elementwise_add", op::elementwise_add},
-            {"matmul", op::matmul},
-            {"mul", op::mul},
-            {"pool2d", op::pool2d},
-            {"relu", op::relu},
-            {"reshape2", op::reshape2},
-            {"scale", op::scale},
-            {"softmax", op::softmax}
-    };
-};
+    OutputVector matmul(const NodeContext& node) {
+        auto x = node.get_ng_input("X");
+        auto y = node.get_ng_input("Y");
+        auto alpha = node.get_attribute<float>("alpha");
+        auto transpose_a = node.get_attribute<bool>("transpose_a");
+        auto transpose_b = node.get_attribute<bool>("transpose_b");
+        auto mm = std::make_shared<ngraph::opset6::MatMul>(x, y, transpose_a, transpose_b);
+        auto alpha_node = ngraph::opset6::Constant::create(ngraph::element::f32, {1}, {alpha});
+        return {std::make_shared<ngraph::opset6::Multiply>(mm, alpha_node)};
+    }
 
-}}}
+} // namespace op
+} // namespace pdpd
+} // namespace frontend
+} // namespace ngraph
