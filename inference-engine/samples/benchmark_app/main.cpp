@@ -570,18 +570,6 @@ int main(int argc, char* argv[]) {
             inferRequest->startAsync();
         }
         inferRequestsQueue.waitAll();
-
-        // auto res_req = inferRequestsQueue.requests[0];
-        // auto res_blob = res_req->getBlob("yolonms_layer_1/concat_2:0");
-        // auto num_out = res_blob->getTensorDesc().getDims()[0];
-        // const int32_t* res_ptr = res_blob->buffer().as<int32_t*>();
-
-        // for (size_t i = 0; i < num_out; i++) {
-        //     std::cout << res_ptr[3 * i]
-        //         << "," << res_ptr[3 * i + 1]
-        //         << "," << res_ptr[3 * i + 2] << "\n";
-        // }
-
         auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
         if (statistics)

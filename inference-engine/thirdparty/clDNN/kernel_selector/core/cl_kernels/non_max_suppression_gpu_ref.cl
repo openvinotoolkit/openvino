@@ -242,12 +242,91 @@ KERNEL (non_max_suppression_ref)(
 {
 
 #ifdef IS_ZERO_ITER
-    int batchId = get_global_id(0);
-    int classId = get_global_id(1);
+    const int batchId = get_global_id(0);
+    const int classId = get_global_id(1);
+    const int box_gid = get_global_id(2);
 
-    __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
-    int sortedBoxNum = FUNC_CALL(initBoxList)(sortedBoxList, NUM_BOXES, scores, SCORE_THRESHOLD_VAL, batchId, classId);
-    buffer3[batchId * NUM_CLASSES + classId] = sortedBoxNum;
+    const int start_bid = box_gid * NUM_SCORE_PER_ITEM;
+    const int end_bid = min(start_bid + NUM_SCORE_PER_ITEM, NUM_BOXES);
+
+    // printf("batchId[%d] classId[%d] box_gid[%d] start_bid[%d] end_bid[%d] %d\n", batchId, classId, box_gid, start_bid, end_bid, NUM_SCORE_PER_ITEM);
+
+    __local char bit_mask[NUM_BIT_MASK];
+    __local int block_num[NUM_SCORE_BLOCK];
+    // printf("(%3d %3d %3d) (%3zu %3zu %3zu) (%3zu %3zu %3zu) \n", batchId, classId, box_gid
+    // , get_group_id(0), get_group_id(1), get_group_id(2)
+    // , get_local_id(0), get_local_id(1), get_local_id(2));
+
+    block_num[box_gid] = 0;
+
+    {
+        int mask_id = start_bid / 8;
+        int total_block_selected_num = 0;
+        for (int i = start_bid; i < end_bid; i += 8) {
+            MAKE_VECTOR_TYPE(INPUT1_TYPE, 8) score8 = vload8(0, &scores[INPUT1_GET_INDEX(batchId, classId, i, 0)]);
+
+            char mask = 0;
+            for (int bi = 0; bi < 8; bi++) {
+                if (TO_ACCUMULATOR_TYPE(score8[bi]) < SCORE_THRESHOLD_VAL || (i + bi) >= NUM_BOXES)
+                    continue;
+                // printf("[%d %d %d] %f (%f) %d\n", batchId, classId, i + bi, TO_ACCUMULATOR_TYPE(score8[bi]), SCORE_THRESHOLD_VAL, NUM_BOXES);
+                mask |= (1 << bi);
+                total_block_selected_num++;
+            }
+            bit_mask[mask_id] = mask;
+            mask_id++;
+        }
+
+        block_num[box_gid] = total_block_selected_num;
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    {
+        // first item of group
+        if (box_gid == 0 && get_local_id(2) == 0) {
+            int acc_num = 0;
+            int total_sel_num = 0;
+            for (int i = 0; i < NUM_SCORE_BLOCK; i++) {
+                int n = block_num[i];
+                block_num[i] = acc_num;
+                acc_num += n;
+            }
+            buffer3[batchId * NUM_CLASSES + classId] = acc_num;
+            // printf("[%3d %3d] %d\n", batchId, classId, acc_num);
+        }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    {
+        __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+
+        int write_offset = block_num[box_gid];
+
+        int mask_id = start_bid / 8;
+        for (int i = start_bid; i < end_bid; i += 8) {
+            MAKE_VECTOR_TYPE(INPUT1_TYPE, 8) score8 = vload8(0, &scores[INPUT1_GET_INDEX(batchId, classId, i, 0)]);
+            const char mask = bit_mask[mask_id];
+
+            for (int bi = 0; bi < 8; bi++) {
+                if ((mask & (1 << bi)) && (i + bi) < NUM_BOXES)
+                {
+                    SBOX_INFO binfo;
+                    binfo.boxId = i + bi;
+                    binfo.suppress_begin_index = 0;
+                    binfo.score = score8[bi];
+                    sortedBoxList[write_offset] = binfo;
+                    write_offset++;
+                }
+            }
+            mask_id++;
+        }
+    }
+
+    // __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+    // int sortedBoxNum = FUNC_CALL(initBoxList)(sortedBoxList, NUM_BOXES, scores, SCORE_THRESHOLD_VAL, batchId, classId);
+    // buffer3[batchId * NUM_CLASSES + classId] = sortedBoxNum;
 
 #elif IS_FIRST_ITER
     int batchId = get_global_id(0);
@@ -256,6 +335,12 @@ KERNEL (non_max_suppression_ref)(
     int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
+
+    for (int i = 0; i < sortedBoxNum; i++) {
+        SBOX_INFO binfo = sortedBoxList[i];
+        // printf("[%d, %d] %d %d %f\n", batchId, classId, binfo.boxId, binfo.suppress_begin_index, TO_ACCUMULATOR_TYPE(binfo.score));
+    }
+    // printf("[%d, %d] sortedBoxNum: %d\n", batchId, classId, sortedBoxNum);
 
 #elif IS_SECOND_ITER
     // printf("Is second iter\n");

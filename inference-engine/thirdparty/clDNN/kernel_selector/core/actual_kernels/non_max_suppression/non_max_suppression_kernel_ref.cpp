@@ -119,7 +119,16 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_params& params, int idx) {
     NonMaxSuppressionKernelRef::DispatchData dispatchData;
 
-    if (idx == 0 || idx == 1 || idx == 2) {
+    if (idx == 0) {
+        const auto& input = params.inputs[1];
+        if (input.GetLayout() == DataLayout::bfyx) {
+            dispatchData.gws = {input.Batch().v, input.Feature().v, 256};
+        }
+        dispatchData.lws = {1, 1, 256};
+
+        // printf("gws: %zd, %zd, %zd\n", dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
+        // printf("lws: %zd, %zd, %zd\n", dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
+    } else if (idx == 1 || idx == 2) {
         const auto& input = params.inputs[1];
         if (input.GetLayout() == DataLayout::bfyx) {
             //dispatchData.gws = {input.Batch().v, 1, 1};
@@ -208,16 +217,16 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
         auto cldnn_jit = GetJitConstants(orgParams);
         cldnn_jit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
 
-        // if (i == 0) {
-        //     cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
-        // } else if (i == 1) {
-        //     cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
-        // } else {
-        //     cldnn_jit.AddConstant(MakeJitConstant("IS_THIRD_ITER", "true"));
-        // }
-
         if (i == 0) {
-            cldnn_jit.AddConstant(MakeJitConstant("IS_ZERO_ITER", "true"));
+            size_t num_bit_mask = CeilDiv(boxes_num, 8);
+            size_t num_score_per_item = RoundUp(CeilDiv(boxes_num, 256), 8);
+            size_t num_score_block = CeilDiv(boxes_num, num_score_per_item);
+            printf("num_score_per_item: %zd = RoundUp((%zd - 1)/256 + 1, 8), num_score_block: %zd, num_bit_mask: %zd\n"
+                    , num_score_per_item, boxes_num, num_score_block, num_bit_mask);
+            cldnn_jit.AddConstants({ MakeJitConstant("NUM_BIT_MASK", num_bit_mask)
+                                    , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
+                                    , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)
+                                    , MakeJitConstant("IS_ZERO_ITER", "true")});
         } else if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
         } else if (i == 2) {
