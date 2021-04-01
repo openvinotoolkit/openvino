@@ -808,6 +808,52 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             // This fusing can be extended to support peer node in any layout
             // bool merge_allowed = fused_node->get_users().size() == 1;
             bool merge_allowed = true;
+            ///////////////////////////////////////////////////////////////////////////////
+            //// Checking merge allowed
+            ///////////////////////////////////////////////////////////////////////////////
+            std::list<cldnn::program_node*> fused_node_users = fused_node->get_users();
+            size_t num_avaiable_paths = fused_node_users.size() - 1;
+            cldnn::program_node* eval_node = &node;
+
+            std::function<int(cldnn::program_node*)> evaluate_node_to_merge;
+            evaluate_node_to_merge = [&](cldnn::program_node* node) -> int {
+                if (!node->is_type<eltwise>()) {
+                    return 0;
+                }
+
+                if (node->get_users().size() != 1) {
+                    return 0;
+                }
+
+                int num_find_fused_node_path = 0;
+                for (auto& parent : node->get_dependencies()) {
+                    if (parent->id() == fused_node->id()) {
+                        num_find_fused_node_path++;
+                    } else if (parent->is_type<eltwise>()) {
+                        num_find_fused_node_path += evaluate_node_to_merge(parent);
+                    }
+                }
+                return num_find_fused_node_path;
+            };
+
+            //How to exit the loop if the sub graph is not enough to merge?
+            int checking_num_path = 0;
+            while (num_avaiable_paths > checking_num_path) {
+                if (eval_node->get_users().size() != 1) {
+                    return;
+                }
+                auto parent_node = eval_node;
+                eval_node = eval_node->get_users().front();
+                for (auto& p_node : eval_node->get_dependencies()) {
+                    if (p_node->id() == parent_node->id()) {
+                        continue;
+                    }
+                    checking_num_path += evaluate_node_to_merge(p_node);
+                }
+            }
+            ///////////////////////////////////////////////////////////////////////////////
+            //// Checking merge allowed
+            ///////////////////////////////////////////////////////////////////////////////
 
             for (auto& parent : fused_node->get_dependencies())
                 if (parent->id() == peer_node->id())
