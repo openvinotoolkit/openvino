@@ -13,7 +13,9 @@ class StridedSlice_extender(Extender):
     @staticmethod
     def extend(op: Node):
         for attr in StridedSlice.get_mask_names():
-            if op.has_and_set(attr):
+            # We can not use op.has_and_set(attr) here as a condition, because it will return False if begin/end is
+            # 1D tensor and begin_mask/end_mask is equal to 0
+            if op.has(attr) and op[attr] != '':
                 Extender.attr_to_list(op, attr)
             else:
                 assert attr not in ['begin_mask', 'end_mask'],\
