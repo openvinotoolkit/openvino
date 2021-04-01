@@ -426,15 +426,48 @@ namespace ngraph
                 complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(fft_result);
 
                 const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
+                std::cout << "input_data_shape:      " << input_data_shape << "\n";
+                std::cout << "axes_data_shape:       " << axes_data_shape << "\n";
+                std::cout << "output_shape:          " << output_shape << "\n";
+                std::cout << "fft_kind:              "
+                          << ((fft_kind == FFTKind::Inverse) ? "IDFT" : "DFT") << "\n";
+                std::cout << "complex_data_rank:     " << complex_data_rank << "\n";
 
                 const auto reversed_output_shape = reverse_shape(output_shape);
+                std::cout << "reversed_output_shape: " << output_shape << "\n";
                 auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
+                std::cout << "fft_axes:              [ ";
+                for (auto a : fft_axes)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 reverse_fft_axes(fft_axes, complex_data_rank);
+                std::cout << "reversed fft_axes:     [ ";
+                for (auto a : fft_axes)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
 
                 const int64_t fft_rank = fft_axes.size();
+                std::cout << "fft_rank:              " << fft_rank << "\n";
                 const auto fft_lengths = get_lengths(reversed_output_shape, fft_axes);
+                std::cout << "fft_lengths:           [ ";
+                for (auto a : fft_lengths)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto fft_strides = compute_strides(fft_lengths);
+                std::cout << "fft_strides:           [ ";
+                for (auto a : fft_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const int64_t fft_size = fft_strides[fft_rank];
+                std::cout << "fft_size:              " << fft_size << "\n";
 
                 if (fft_size <= 0)
                 {
@@ -444,23 +477,92 @@ namespace ngraph
                 std::vector<complex_type> data(fft_size);
 
                 const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank);
+                std::cout << "outer_axes:            [ ";
+                for (auto a : outer_axes)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
 
                 const int64_t outer_rank = outer_axes.size();
+                std::cout << "outer_rank:            " << outer_rank << "\n";
                 const auto outer_lengths = get_lengths(reversed_output_shape, outer_axes);
+                std::cout << "outer_lengths:         [ ";
+                for (auto a : outer_lengths)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto outer_strides = compute_strides(outer_lengths);
+                std::cout << "outer_strides:         [ ";
+                for (auto a : outer_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const int64_t outer_size = outer_strides[outer_rank];
+                std::cout << "outer_size:            " << outer_size << "\n";
 
                 int64_t buffer_size = compute_buffer_size(fft_lengths);
+                std::cout << "buffer_size:           " << buffer_size << "\n";
                 std::vector<complex_type> buffer(buffer_size);
 
                 const auto output_strides = compute_strides(reversed_output_shape);
+                std::cout << "output_strides:        [ ";
+                for (auto a : output_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto output_fft_strides = get_lengths(output_strides, fft_axes);
+                std::cout << "output_fft_strides:    [ ";
+                for (auto a : output_fft_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto output_outer_strides = get_lengths(output_strides, outer_axes);
+                std::cout << "output_outer_strides:  [ ";
+                for (auto a : output_outer_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto reversed_input_shape = reverse_shape(input_data_shape);
+                std::cout << "reversed_input_shape:  [ ";
+                for (auto a : reversed_input_shape)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
+                std::cout << "input_fft_lengths:     [ ";
+                for (auto a : input_fft_lengths)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto input_strides = compute_strides(reversed_input_shape);
+                std::cout << "input_strides:         [ ";
+                for (auto a : input_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto input_fft_strides = get_lengths(input_strides, fft_axes);
+                std::cout << "input_fft_strides:     [ ";
+                for (auto a : input_fft_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 const auto input_outer_strides = get_lengths(input_strides, outer_axes);
+                std::cout << "input_outer_strides:    [ ";
+                for (auto a : input_outer_strides)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n\n";
 
                 std::cout << std::setprecision(std::numeric_limits<float>::digits10 + 1);
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
@@ -475,6 +577,7 @@ namespace ngraph
                     std::cout << "]\n";
                     int64_t outer_input_offset =
                         offset_from_coords_and_strides(outer_coords, input_outer_strides);
+                    std::cout << "outer_input_offset: " << outer_input_offset << "\n";
 
                     copy_data_from_input(data.data(),
                                          complex_input_data_ptr,
@@ -484,6 +587,12 @@ namespace ngraph
                                          input_fft_lengths,
                                          input_fft_strides);
                     std::cout << "Copied data from input.\n";
+                    std::cout << "Copied data:\n    ";
+                    for (auto a : data)
+                    {
+                        std::cout << std::real(a) << ", " << std::imag(a) << ", ";
+                    }
+                    std::cout << "]\n";
 
                     bool input_is_zero = blob_is_zero(data.data(), fft_size);
                     std::cout << "input_is_zero: " << (input_is_zero ? "true" : "false") << "\n";
