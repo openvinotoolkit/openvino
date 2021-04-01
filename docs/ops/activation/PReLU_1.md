@@ -76,12 +76,38 @@ PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
             <dim>128</dim>
         </port>
         <port id="1">
-            <dim>20</dim>
+            <dim>128</dim>
         </port>
     </input>
     <output>
         <port id="2">
             <dim>20</dim>
+            <dim>128</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example: 4D input tensor `data`*
+
+```xml
+<layer ... type="Prelu">
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>20</dim>
+            <dim>128</dim>
+            <dim>128</dim>
+        </port>
+        <port id="1">
+            <dim>20</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>1</dim>
+            <dim>20</dim>
+            <dim>128</dim>
             <dim>128</dim>
         </port>
     </output>
