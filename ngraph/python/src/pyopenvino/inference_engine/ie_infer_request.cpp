@@ -4,8 +4,6 @@
 
 #include <pybind11/stl.h>
 
-#include <boost/type_index.hpp>
-
 #include <string>
 #include <vector>
 
