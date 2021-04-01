@@ -16,6 +16,7 @@ through Tensorflow* tf.feature_column API. Table below presents what feature typ
 
 ```sh
 git clone https://github.com/tensorflow/models.git;
+git checkout r2.2.0
 cd official/r1/wide_deep
 ```
 
