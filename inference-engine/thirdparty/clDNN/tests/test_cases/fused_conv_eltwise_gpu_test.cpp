@@ -425,6 +425,110 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_04_with_ref_b_fs_yx_fsv16_f32
     execute_and_compare(network_act, network_ref, 3, 8, true);
 }
 
+TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_05_with_ref_b_fs_yx_fsv16_f32)
+{
+    // Test pattern for combination of multiple parallel eltwise primitives
+    /**
+     * Conv -> Eltw -> Eltw -> Eltw
+     *   \–--> Eltw -->/       /
+     * Conv -> Eltw -> Eltw ->/
+     *   \–--> Eltw -->/
+     */
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 128, 40, 40 } /*memory order*/ }); //memory order
+    auto weights = memory::allocate(engine, { data_types::f32, format::os_is_yx_isv16_osv16, { 128, 128, 1, 1 } });
+    auto sum_input1 = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 1, 1, 1 } });
+    auto sum_input2 = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 1, 1, 1 } });
+    auto sum_input3 = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 1, 1, 1 } });
+    auto sum_input4 = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 1, 1, 1 } });
+
+    const int32_t total_size = 128 * 40 * 40;
+    std::vector<float> inputVec(total_size);
+    for (int i = 0; i < total_size; i++)
+    {
+        inputVec[i] = float(i+1);
+    }
+
+    set_values(input, inputVec);
+    set_values(sum_input1, {7.f});
+    set_values(sum_input2, {23.f});
+    set_values(sum_input3, {9.f});
+    set_values(sum_input4, {14.f});
+
+    topology topology_act(
+        input_layout("input", input.get_layout()),
+        data("sum_input1", sum_input1),
+        data("sum_input2", sum_input2),
+        data("sum_input3", sum_input3),
+        data("sum_input4", sum_input4),
+        data("weights", weights),
+        convolution("conv", "input", { "weights" }),
+        eltwise("eltwise1", "conv", "sum_input1", eltwise_mode::sum),
+        eltwise("eltwise2", "conv", "sum_input2", eltwise_mode::sum),
+        eltwise("eltwise3", "conv", "sum_input3", eltwise_mode::sum),
+        eltwise("eltwise4", "conv", "sum_input4", eltwise_mode::sum),
+        eltwise("eltwise5", "eltwise1", "eltwise2", eltwise_mode::prod),
+        eltwise("eltwise6", "eltwise3", "eltwise4", eltwise_mode::prod),
+        eltwise("eltwise7", "eltwise5", "eltwise6", eltwise_mode::prod),
+        reorder("out_reorder", "eltwise7", format::bfyx, data_types::f32));
+
+    std::cout << "*************************************************************" << std::endl;
+    std::cout << "Test : fused_eltw_pattern_05_with_ref_b_fs_yx_fsv16_f32" << std::endl;
+    std::cout << "input : f32, b_fs_yx_fsv16, {1, 128, 40, 40}" << std::endl;
+    std::cout << "weights : f32, os_is_yx_osv16_isv16 {128, 128, 1, 1}" << std::endl;
+    std::cout << "sum_input1 : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+    std::cout << "sum_input2 : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+    std::cout << "sum_input3 : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+    std::cout << "sum_input4 : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+
+    std::cout << "topology topology(" << std::endl;
+    std::cout << "    input_layout(\"input\", input.get_layout())," << std::endl;
+    std::cout << "    data(\"sum_input1\", sum_input1)," << std::endl;
+    std::cout << "    data(\"sum_input2\", sum_input2)," << std::endl;
+    std::cout << "    data(\"sum_input3\", sum_input3)," << std::endl;
+    std::cout << "    data(\"sum_input4\", sum_input4)," << std::endl;
+    std::cout << "    data(\"weights\", weights)," << std::endl;
+    std::cout << "    convolution(\"conv\", \"input\", { \"weights\" })," << std::endl;
+    std::cout << "    eltwise(\"eltwise1\", \"conv\", \"sum_input1\", eltwise_mode::sum)," << std::endl;
+    std::cout << "    eltwise(\"eltwise2\", \"conv\", \"sum_input2\", eltwise_mode::sum)," << std::endl;
+    std::cout << "    eltwise(\"eltwise3\", \"conv\", \"sum_input3\", eltwise_mode::sum)," << std::endl;
+    std::cout << "    eltwise(\"eltwise4\", \"conv\", \"sum_input4\", eltwise_mode::sum)," << std::endl;
+    std::cout << "    eltwise(\"eltwise5\", \"eltwise1\", \"eltwise2\", eltwise_mode::prod)," << std::endl;
+    std::cout << "    eltwise(\"eltwise6\", \"eltwise3\", \"eltwise4\", eltwise_mode::prod)," << std::endl;
+    std::cout << "    eltwise(\"eltwise7\", \"eltwise5\", \"eltwise6\", eltwise_mode::prod)," << std::endl;
+    std::cout << "    reorder(\"out_reorder\", \"eltwise7\", format::bfyx, data_types::f32));" << std::endl << std::endl;
+
+    build_options opt_act;
+    opt_act.set_option(build_option::optimize_data(true));
+    network network_act(engine, topology_act, opt_act);
+    network_act.set_input_data("input", input);
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        data("sum_input1", sum_input1),
+        data("sum_input2", sum_input2),
+        data("sum_input3", sum_input3),
+        data("sum_input4", sum_input4),
+        data("weights", weights),
+        convolution("conv", "input", { "weights" }),
+        eltwise("eltwise1", "conv", "sum_input1", eltwise_mode::sum),
+        eltwise("eltwise2", "conv", "sum_input2", eltwise_mode::sum),
+        eltwise("eltwise3", "conv", "sum_input3", eltwise_mode::sum),
+        eltwise("eltwise4", "conv", "sum_input4", eltwise_mode::sum),
+        eltwise("eltwise5", "eltwise1", "eltwise2", eltwise_mode::prod),
+        eltwise("eltwise6", "eltwise3", "eltwise4", eltwise_mode::prod),
+        eltwise("eltwise7", "eltwise5", "eltwise6", eltwise_mode::prod),
+        reorder("out_reorder", "eltwise7", format::bfyx, data_types::f32));
+
+    build_options opt_ref;
+    opt_ref.set_option(build_option::optimize_data(false));
+    network network_ref(engine, topology_ref, opt_ref);
+    network_ref.set_input_data("input", input);
+
+    execute_and_compare(network_act, network_ref, 3, 10, true);
+}
+
 TEST(fused_conv_eltwise, yolov5_fused_eltw_quant_pattern_01_with_ref_b_fs_yx_fsv16_f32)
 {
     // Test pattern of serial eltwise + quantize primitives
