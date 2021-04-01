@@ -193,12 +193,6 @@ namespace
             tensor_type->set_elem_type(initializer.data_type());
         }
     }
-
-    template <typename T>
-    std::string extract_name(const T& input_or_initializer)
-    {
-        return input_or_initializer.name();
-    };
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
@@ -364,55 +358,12 @@ void onnx_editor::ONNXModelEditor::set_input_values(
     }
 }
 
-void onnx_import::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<OutputEdge>& outputs)
-{
-    if (inputs.empty() && outputs.empty())
-    {
-        return;
-    }
-
-    m_pimpl->infer_shapes();
-
-    SubgraphExtractor editor{*(m_pimpl->m_model_proto.mutable_graph())};
-    editor.add_new_inputs(inputs);
-    editor.add_new_outputs(outputs);
-    editor.extract_subgraph(outputs);
-
-    m_pimpl->remove_shape_inference_info();
-}
-
-std::vector<std::string> onnx_import::ONNXModelEditor::model_inputs() const
-{
-    const auto& graph = m_pimpl->m_model_proto.graph();
-
-    std::vector<std::string> inputs_and_initializers;
-    inputs_and_initializers.reserve(graph.input_size() + graph.initializer_size());
-
-    std::transform(graph.input().begin(),
-                   graph.input().end(),
-                   std::back_inserter(inputs_and_initializers),
-                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
-
-    std::transform(graph.initializer().begin(),
-                   graph.initializer().end(),
-                   std::back_inserter(inputs_and_initializers),
-                   extract_name<ONNX_NAMESPACE::TensorProto>);
-
-    return inputs_and_initializers;
-}
-
-std::string onnx_import::ONNXModelEditor::model_string() const
-{
-    return m_pimpl->m_model_proto.SerializeAsString();
-}
-
 namespace {
     const auto is_equal_to =
             +[](const std::string& other) { return [&](const std::string& s) { return s == other; }; };
 }
 
-int onnx_import::ONNXModelEditor::find_producing_node_idx(const std::string& tensorName) const
+int onnx_editor::ONNXModelEditor::find_producing_node_idx(const std::string& tensorName) const
 {
 
     const auto& graph = m_pimpl->m_model_proto.graph();
@@ -433,7 +384,7 @@ int onnx_import::ONNXModelEditor::find_producing_node_idx(const std::string& ten
 }
 
 
-std::vector<int> onnx_import::ONNXModelEditor::find_consumeing_node_idxs(const std::string& tensorName) const {
+std::vector<int> onnx_editor::ONNXModelEditor::find_consumeing_node_idxs(const std::string& tensorName) const {
     const auto &graph = m_pimpl->m_model_proto.graph();
     std::vector<int> result;
     for (int i = 0; i < graph.node_size(); ++i) {
@@ -448,7 +399,7 @@ std::vector<int> onnx_import::ONNXModelEditor::find_consumeing_node_idxs(const s
     return result;
 }
 
-bool onnx_import::ONNXModelEditor::validate_tensor_name(const std::string& tensorName) const {
+bool onnx_editor::ONNXModelEditor::validate_tensor_name(const std::string& tensorName) const {
     const auto &graph = m_pimpl->m_model_proto.graph();
     for (int i = 0; i < graph.node_size(); ++i) {
         const auto &outputs = graph.node(i).output();

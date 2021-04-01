@@ -11,10 +11,15 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_editor/detail/subgraph_extraction.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
 #include "onnx_editor/editor.hpp"
 #include "onnx_editor/editor_types.hpp"
+
+namespace ONNX_NAMESPACE
+{
+    // forward declaration to avoid the necessity of include paths setting in components
+    // that don't directly depend on the ONNX library
+    class ModelProto;
+} // namespace ONNX_NAMESPACE
 
 namespace ngraph
 {
@@ -80,19 +85,6 @@ namespace ngraph
             ///                     overwritten.
             void set_input_values(
                 const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
-            
-            /// \brief Extracts a subgraph constrained by input edges and output edges. In the end
-            ///        the underlying ModelProto is modified - obsolete inputs, initializers, nodes
-            ///        and outputs are removed from the in-memory model.
-            ///
-            /// \node Please look at the declaration of InputEdge and OutputEdge for explanation
-            ///       how those objects can be created. If the outputs parameter is empty
-            ///       this method keeps all of the original outputs of the model.
-            ///
-            /// \param inputs A collection of input edges which become new inputs to the graph
-            /// \param outputs A collection of output edges which become new outputs of the graph
-            void cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                    const std::vector<OutputEdge>& outputs);
 
             /// \brief Returns a non-const reference to the underlying ModelProto object, possibly
             ///        modified by the editor's API calls

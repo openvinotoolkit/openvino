@@ -16,7 +16,7 @@
 
 #include <ngraph/except.hpp>
 #include "onnx_import/onnx.hpp"
-#include "onnx_import/editor/editor.hpp"
+#include "onnx_editor/editor.hpp"
 #include "tensorflow_frontend/tensorflow.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 #include "paddlepaddle_frontend/frontend.hpp"
@@ -226,7 +226,7 @@ namespace ngraph
         {
         public:
 
-            onnx_import::InputEdge edge;
+            onnx_editor::InputEdge edge;
 
             PlaceInputEdgeONNX (const std::string& _sourceTensorName, int _operationNodeIndex) :
                     edge(_operationNodeIndex, _sourceTensorName)
@@ -237,7 +237,7 @@ namespace ngraph
         {
         public:
 
-            onnx_import::OutputEdge edge;
+            onnx_editor::OutputEdge edge;
 
             PlaceOutputEdgeONNX (int _operationNodeIndex, const std::string& _targetTensorName) :
                     edge(_operationNodeIndex, _targetTensorName)
@@ -271,7 +271,7 @@ namespace ngraph
 
         public:
             // TODO: Move to private
-            onnx_import::ONNXModelEditor editor;
+            onnx_editor::ONNXModelEditor editor;
 
             InputModelONNX (const std::string& model_path) : editor(model_path) {}
 
@@ -308,7 +308,7 @@ namespace ngraph
                 std::cerr << "inputs.size() = " << inputs.size() << "\n";
                 // Current implementation is limited by tensor places only, each input tensor should be consumed by a single op only
                 // TODO Extend to non tensor inputs/outputs and remove other limitations
-                std::vector<onnx_import::InputEdge> onnx_inputs;
+                std::vector<onnx_editor::InputEdge> onnx_inputs;
                 onnx_inputs.reserve(inputs.size());
                 for(const auto& input: inputs)
                 {
@@ -326,7 +326,7 @@ namespace ngraph
                 }
                 std::cerr << "{4}\n";
 
-                std::vector<onnx_import::OutputEdge> onnx_outputs;
+                std::vector<onnx_editor::OutputEdge> onnx_outputs;
                 onnx_outputs.reserve(outputs.size());
                 for(const auto& output: outputs)
                 {
@@ -372,7 +372,7 @@ namespace ngraph
 
             virtual std::shared_ptr<ngraph::Function> convert (InputModel::Ptr model) const override
             {
-                return import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor);
+                return onnx_import::import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor.model_path());
             }
         };
 
