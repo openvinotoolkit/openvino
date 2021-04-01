@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 
@@ -59,8 +60,8 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                     op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
         }
 
-        auto new_input_low = std::make_shared<opset5::Divide>(fq->input_value(1), mul_const_node);
-        auto new_input_high = std::make_shared<opset5::Divide>(fq->input_value(2), mul_const_node);
+        auto new_input_low = get_constant_from_source(std::make_shared<opset5::Divide>(fq->input_value(1), mul_const_node));
+        auto new_input_high = get_constant_from_source(std::make_shared<opset5::Divide>(fq->input_value(2), mul_const_node));
 
         auto mul = pattern_value_map.at(mul_pattern).get_node_shared_ptr();
         const auto& mul_data = pattern_value_map.at(input_pattern);
@@ -88,15 +89,15 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             // new_output_low is defined as follows:
             //   output_low[i],  when mul_const[i] >= 0
             //   output_high[i], when mul_const[i] < 0
-            auto new_output_low = std::make_shared<opset5::Add>(
+            auto new_output_low = get_constant_from_source(std::make_shared<opset5::Add>(
                     std::make_shared<opset5::Multiply>(greater_eq_const, output_low),
-                    std::make_shared<opset5::Multiply>(less_const, output_high));
+                    std::make_shared<opset5::Multiply>(less_const, output_high)));
             // new_output_high is defined as follows:
             //   output_high[i], when mul_const[i] >= 0
             //   output_low[i],  when mul_const[i] < 0
-            auto new_output_high = std::make_shared<opset5::Add>(
+            auto new_output_high = get_constant_from_source(std::make_shared<opset5::Add>(
                     std::make_shared<opset5::Multiply>(greater_eq_const, output_high),
-                    std::make_shared<opset5::Multiply>(less_const, output_low));
+                    std::make_shared<opset5::Multiply>(less_const, output_low)));
             new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low,
                     new_input_high, new_output_low, new_output_high, fq->get_levels());
         } else {

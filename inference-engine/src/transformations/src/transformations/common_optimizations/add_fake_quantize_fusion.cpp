@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 
@@ -21,7 +22,14 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     auto input_pattern = ngraph::pattern::any_input();
     auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto add_pattern = ngraph::pattern::wrap_type<opset5::Add>({input_pattern, const_pattern},
-                                                               pattern::consumers_count(1));
+            [] (const Output<Node>& node) -> bool {
+                if (node.get_target_inputs().size() != 1)
+                    return false;
+                const auto& inputs = node.get_node()->input_values();
+                const auto& node_type_info = inputs[0].get_node()->get_type_info();
+                return node_type_info != opset5::Convolution::type_info &&
+                       node_type_info != opset5::GroupConvolution::type_info;
+            });
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({add_pattern,
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input(),
@@ -51,8 +59,8 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             const_shape.insert(const_shape.begin(), fq->get_input_partial_shape(0).rank().get_length() - const_shape.size(), 1);
             add_const = std::make_shared<opset5::Reshape>(add_const, op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
         }
-        auto new_input_low = std::make_shared<opset5::Subtract>(fq->input_value(1), add_const);
-        auto new_input_high = std::make_shared<opset5::Subtract>(fq->input_value(2), add_const);
+        auto new_input_low = get_constant_from_source(std::make_shared<opset5::Subtract>(fq->input_value(1), add_const));
+        auto new_input_high = get_constant_from_source(std::make_shared<opset5::Subtract>(fq->input_value(2), add_const));
         auto new_fq = register_new_node<opset5::FakeQuantize>(pattern_value_map.at(input_pattern),
                                                               new_input_low,
                                                               new_input_high,

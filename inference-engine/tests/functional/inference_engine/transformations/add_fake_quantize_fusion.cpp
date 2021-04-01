@@ -42,7 +42,6 @@ TEST(TransformationTests, AddFakeQuantizeFusion) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::AddFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -81,7 +80,6 @@ TEST(TransformationTests, AddFakeQuantizeFusionConstantOnFirstInput) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::AddFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -120,7 +118,6 @@ TEST(TransformationTests, AddFakeQuantizeFusionReshape) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::AddFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -159,7 +156,6 @@ TEST(TransformationTests, NegativeAddFakeQuantizeFusionNotAConstant) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::AddFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
