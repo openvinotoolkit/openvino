@@ -28,6 +28,66 @@ using namespace cldnn;
 using namespace tests;
 using namespace testing;
 
+
+void execute_and_compare(network& fused_net, network& not_fused_net, size_t num_fused_prims, size_t num_not_fused_prims, bool count_reorder = false) {
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>> execute not fused network <<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+    auto outputs_not_fused = not_fused_net.execute();
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>> execute fused network <<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+    auto outputs_fused  = fused_net.execute();
+
+    auto get_reorders_count = [](network& net) -> size_t {
+        size_t count = 0;
+        for (auto& pi : net.get_primitives_info()) {
+            if (pi.type_id == "reorder") {
+                auto exec_prims = net.get_executed_primitives();
+                auto it = std::find_if(exec_prims.begin(), exec_prims.end(), [&](const std::pair<primitive_id, event>& e) -> bool {
+                    return e.first == pi.original_id;
+                });
+                if (it != exec_prims.end())
+                    count++;
+            }
+        }
+        return count;
+    };
+
+    size_t reorders_count_fused = get_reorders_count(fused_net);
+    size_t reorders_count_not_fused = get_reorders_count(not_fused_net);
+
+    std::stringstream description;
+    description << std::endl << "not fused: " << std::endl;
+    for (auto i : not_fused_net.get_primitives_info()) {
+        description << "  " << i.original_id << " " << i.kernel_id << std::endl;
+    }
+    description << "fused: " << std::endl;
+    for (auto i : fused_net.get_primitives_info()) {
+        description << "  " << i.original_id << " " << i.kernel_id << std::endl;
+    }
+    SCOPED_TRACE(description.str());
+
+    // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
+    ASSERT_EQ(fused_net.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), num_fused_prims);
+    ASSERT_EQ(not_fused_net.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), num_not_fused_prims);
+    ASSERT_EQ(outputs_not_fused.size(), outputs_fused.size());
+    ASSERT_EQ(outputs_not_fused.size(), size_t(1));
+
+    float tolerance = 0.0f;
+    auto output_not_fused_prim = outputs_not_fused.begin()->second.get_memory();
+    auto output_fused_prim = outputs_fused.begin()->second.get_memory();
+    if (output_not_fused_prim.get_layout().data_type == data_types::f32) {
+        auto ref = output_not_fused_prim.pointer<float>();
+        auto output_ptr = output_fused_prim.pointer<float>();
+        for (size_t i = 0; i < output_fused_prim.get_layout().count(); i++) {
+            ASSERT_NEAR(ref[i], output_ptr[i], tolerance) << "i = " << i;
+        }
+    } else {
+        auto ref = output_not_fused_prim.pointer<int16_t>();
+        auto output_ptr = output_fused_prim.pointer<int16_t>();
+        for (size_t i = 0; i < output_fused_prim.get_layout().count(); i++) {
+            ASSERT_NEAR(float16_to_float32(ref[i]), float16_to_float32(output_ptr[i]), tolerance) << "i = " << i;
+        }
+    }
+}
+
 TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_01_with_ref_b_fs_yx_fsv16_f32)
 {
     // Test pattern of multiple serial eltwise primitives
@@ -60,7 +120,7 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_01_with_ref_b_fs_yx_fsv16_f32
         convolution("conv", "input", { "weights" }),
         eltwise("eltwise1", "conv", "sum_input1", eltwise_mode::sum),
         eltwise("eltwise2", "eltwise1", "sum_input2", eltwise_mode::sum),
-        reorder("out_reorder", "eltwise2", format::b_fs_yx_fsv16, data_types::f32));
+        reorder("out_reorder", "eltwise2", format::bfyx, data_types::f32));
 
     std::cout << "*************************************************************" << std::endl;
     std::cout << "Test : fused_eltw_pattern_01_with_ref_b_fs_yx_fsv16_f32" << std::endl;
@@ -83,19 +143,8 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_01_with_ref_b_fs_yx_fsv16_f32
     network network_act(engine, topology_act, opt_act);
     network_act.set_input_data("input", input);
 
-    auto outputs_act = network_act.execute();
-    EXPECT_EQ(outputs_act.size(), size_t(1));
-    EXPECT_EQ(outputs_act.begin()->first, "out_reorder");
-
-    auto output_act = outputs_act.begin()->second.get_memory();
-    auto&& out_layout_act = output_act.get_layout();
-    auto out_act_ptr = output_act.pointer<uint8_t>();
-
-    EXPECT_EQ(out_layout_act.format, format::b_fs_yx_fsv16);
-    EXPECT_EQ(out_layout_act.size.batch[0], 1);
-    EXPECT_EQ(out_layout_act.size.feature[0], 128);
-    EXPECT_EQ(out_layout_act.size.spatial[0], 40);
-    EXPECT_EQ(out_layout_act.size.spatial[1], 40);
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
 
     topology topology_ref(
         input_layout("input", input.get_layout()),
@@ -105,30 +154,17 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_01_with_ref_b_fs_yx_fsv16_f32
         convolution("conv", "input", { "weights" }),
         eltwise("eltwise1", "conv", "sum_input1", eltwise_mode::sum),
         eltwise("eltwise2", "eltwise1", "sum_input2", eltwise_mode::sum),
-        reorder("out_reorder", "eltwise2", format::b_fs_yx_fsv16, data_types::f32));
+        reorder("out_reorder", "eltwise2", format::bfyx, data_types::f32));
 
     build_options opt_ref;
     opt_ref.set_option(build_option::optimize_data(false));
     network network_ref(engine, topology_ref, opt_ref);
     network_ref.set_input_data("input", input);
 
-    auto outputs_ref = network_ref.execute();
-    EXPECT_EQ(outputs_ref.size(), size_t(1));
-    EXPECT_EQ(outputs_ref.begin()->first, "out_reorder");
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
 
-    auto output_ref = outputs_ref.begin()->second.get_memory();
-    auto&& out_layout_ref = output_ref.get_layout();
-    auto out_ref_ptr = output_ref.pointer<uint8_t>();
-
-    EXPECT_EQ(out_layout_ref.format, format::b_fs_yx_fsv16);
-    EXPECT_EQ(out_layout_ref.size.batch[0], 1);
-    EXPECT_EQ(out_layout_ref.size.feature[0], 128);
-    EXPECT_EQ(out_layout_ref.size.spatial[0], 40);
-    EXPECT_EQ(out_layout_ref.size.spatial[1], 40);
-
-    for (int i = 0;i < 3 * 256 * 4;i++) {
-        EXPECT_EQ(out_act_ptr[i], out_ref_ptr[i]);
-    }
+    execute_and_compare(network_act, network_ref, 3, 5, true);
 }
 
 TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_02_with_ref_b_fs_yx_fsv16_f32)
@@ -176,7 +212,7 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_02_with_ref_b_fs_yx_fsv16_f32
         convolution("conv", "input", { "weights" }),
         eltwise("eltwise1", "conv", "sum_input", eltwise_mode::sum),
         eltwise("eltwise2", "eltwise1", "conv", eltwise_mode::prod),
-        reorder("out_reorder", "eltwise2", format::b_fs_yx_fsv16, data_types::f32));
+        reorder("out_reorder", "eltwise2", format::bfyx, data_types::f32));
 
     std::cout << "*************************************************************" << std::endl;
     std::cout << "Test : fused_eltw_pattern_02_with_ref_b_fs_yx_fsv16_f32" << std::endl;
@@ -201,20 +237,6 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_02_with_ref_b_fs_yx_fsv16_f32
     network network_act(engine, topology_act, opt_act);
     network_act.set_input_data("input", input);
 
-    auto outputs_act = network_act.execute();
-    EXPECT_EQ(outputs_act.size(), size_t(1));
-    EXPECT_EQ(outputs_act.begin()->first, "out_reorder");
-
-    auto output_act = outputs_act.begin()->second.get_memory();
-    auto&& out_layout_act = output_act.get_layout();
-    auto out_act_ptr = output_act.pointer<uint8_t>();
-
-    EXPECT_EQ(out_layout_act.format, format::b_fs_yx_fsv16);
-    EXPECT_EQ(out_layout_act.size.batch[0], 1);
-    EXPECT_EQ(out_layout_act.size.feature[0], 128);
-    EXPECT_EQ(out_layout_act.size.spatial[0], 40);
-    EXPECT_EQ(out_layout_act.size.spatial[1], 40);
-
     topology topology_ref(
         input_layout("input", input.get_layout()),
         data("sum_input", sum_input),
@@ -222,7 +244,7 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_02_with_ref_b_fs_yx_fsv16_f32
         convolution("conv", "input", { "weights" }),
         eltwise("eltwise1", "conv", "sum_input", eltwise_mode::sum),
         eltwise("eltwise2", "eltwise1", "conv", eltwise_mode::prod),
-        reorder("out_reorder", "eltwise2", format::b_fs_yx_fsv16, data_types::f32));
+        reorder("out_reorder", "eltwise2", format::bfyx, data_types::f32));
 
     build_options opt_ref;
     // opt_ref.set_option(build_option::graph_dumps_dir("/home/yblee/conv_fusing"));
@@ -230,23 +252,7 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_02_with_ref_b_fs_yx_fsv16_f32
     network network_ref(engine, topology_ref, opt_ref);
     network_ref.set_input_data("input", input);
 
-    auto outputs_ref = network_ref.execute();
-    EXPECT_EQ(outputs_ref.size(), size_t(1));
-    EXPECT_EQ(outputs_ref.begin()->first, "out_reorder");
-
-    auto output_ref = outputs_ref.begin()->second.get_memory();
-    auto&& out_layout_ref = output_ref.get_layout();
-    auto out_ref_ptr = output_ref.pointer<uint8_t>();
-
-    EXPECT_EQ(out_layout_ref.format, format::b_fs_yx_fsv16);
-    EXPECT_EQ(out_layout_ref.size.batch[0], 1);
-    EXPECT_EQ(out_layout_ref.size.feature[0], 128);
-    EXPECT_EQ(out_layout_ref.size.spatial[0], 40);
-    EXPECT_EQ(out_layout_ref.size.spatial[1], 40);
-
-    for (int i = 0;i < 3 * 256 * 4;i++) {
-        EXPECT_EQ(out_act_ptr[i], out_ref_ptr[i]);
-    }
+    execute_and_compare(network_act, network_ref, 3, 5, true);
 }
 
 TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_03_with_ref_b_fs_yx_fsv16_f32)
@@ -283,7 +289,7 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_03_with_ref_b_fs_yx_fsv16_f32
         eltwise("eltwise1", "conv", "sum_input1", eltwise_mode::sum),
         eltwise("eltwise2", "conv", "sum_input2", eltwise_mode::sum),
         eltwise("eltwise3", "eltwise1", "eltwise2", eltwise_mode::prod),
-        reorder("out_reorder", "eltwise3", format::b_fs_yx_fsv16, data_types::f32));
+        reorder("out_reorder", "eltwise3", format::bfyx, data_types::f32));
 
     std::cout << "*************************************************************" << std::endl;
     std::cout << "Test : fused_eltw_pattern_03_with_ref_b_fs_yx_fsv16_f32" << std::endl;
@@ -308,20 +314,6 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_03_with_ref_b_fs_yx_fsv16_f32
     network network_act(engine, topology_act, opt_act);
     network_act.set_input_data("input", input);
 
-    auto outputs_act = network_act.execute();
-    EXPECT_EQ(outputs_act.size(), size_t(1));
-    EXPECT_EQ(outputs_act.begin()->first, "out_reorder");
-
-    auto output_act = outputs_act.begin()->second.get_memory();
-    auto&& out_layout_act = output_act.get_layout();
-    auto out_act_ptr = output_act.pointer<uint8_t>();
-
-    EXPECT_EQ(out_layout_act.format, format::b_fs_yx_fsv16);
-    EXPECT_EQ(out_layout_act.size.batch[0], 1);
-    EXPECT_EQ(out_layout_act.size.feature[0], 128);
-    EXPECT_EQ(out_layout_act.size.spatial[0], 40);
-    EXPECT_EQ(out_layout_act.size.spatial[1], 40);
-
     topology topology_ref(
         input_layout("input", input.get_layout()),
         data("sum_input1", sum_input1),
@@ -331,30 +323,14 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_03_with_ref_b_fs_yx_fsv16_f32
         eltwise("eltwise1", "conv", "sum_input1", eltwise_mode::sum),
         eltwise("eltwise2", "conv", "sum_input2", eltwise_mode::sum),
         eltwise("eltwise3", "eltwise1", "eltwise2", eltwise_mode::prod),
-        reorder("out_reorder", "eltwise3", format::b_fs_yx_fsv16, data_types::f32));
+        reorder("out_reorder", "eltwise3", format::bfyx, data_types::f32));
 
     build_options opt_ref;
     opt_ref.set_option(build_option::optimize_data(false));
     network network_ref(engine, topology_ref, opt_ref);
     network_ref.set_input_data("input", input);
 
-    auto outputs_ref = network_ref.execute();
-    EXPECT_EQ(outputs_ref.size(), size_t(1));
-    EXPECT_EQ(outputs_ref.begin()->first, "out_reorder");
-
-    auto output_ref = outputs_ref.begin()->second.get_memory();
-    auto&& out_layout_ref = output_ref.get_layout();
-    auto out_ref_ptr = output_ref.pointer<uint8_t>();
-
-    EXPECT_EQ(out_layout_ref.format, format::b_fs_yx_fsv16);
-    EXPECT_EQ(out_layout_ref.size.batch[0], 1);
-    EXPECT_EQ(out_layout_ref.size.feature[0], 128);
-    EXPECT_EQ(out_layout_ref.size.spatial[0], 40);
-    EXPECT_EQ(out_layout_ref.size.spatial[1], 40);
-
-    for (int i = 0;i < 3 * 256 * 4;i++) {
-        EXPECT_EQ(out_act_ptr[i], out_ref_ptr[i]);
-    }
+    execute_and_compare(network_act, network_ref, 3, 6, true);
 }
 
 TEST(fused_conv_eltwise, origin_yxfb_f16)
