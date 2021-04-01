@@ -65,6 +65,7 @@ enum Algorithm {
     EltwiseHsigmoid,
     EltwiseRoundHalfToEven,
     EltwiseRoundHalfAwayFromZero,
+    EltwiseErf,
 
     // FakeQuantize algorithms
     FQCommon,

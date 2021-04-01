@@ -411,7 +411,8 @@ private:
         OV_CASE(EltwiseLogicalXor, jit_logical_xor_emitter),
         OV_CASE(EltwiseLogicalNot, jit_logical_not_emitter),
         OV_CASE(EltwisePowerStatic, jit_power_static_emitter),
-        OV_CASE(EltwisePrelu, jit_prelu_emitter));
+        OV_CASE(EltwisePrelu, jit_prelu_emitter),
+        OV_CASE(EltwiseErf, jit_erf_emitter));
 
         if (precisions.empty())
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -473,7 +474,8 @@ private:
         OV_CASE(EltwiseLogicalXor, jit_logical_xor_emitter),
         OV_CASE(EltwiseLogicalNot, jit_logical_not_emitter),
         OV_CASE(EltwisePowerStatic, jit_power_static_emitter),
-        OV_CASE(EltwisePrelu, jit_prelu_emitter));
+        OV_CASE(EltwisePrelu, jit_prelu_emitter),
+        OV_CASE(EltwiseErf, jit_erf_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -953,6 +955,9 @@ MKLDNNEltwiseNode::initializers = {
     {ngraph::op::v0::PRelu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwisePrelu;
     }},
+    {ngraph::op::v0::Erf::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseErf;
+    }},
 };
 
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
@@ -970,7 +975,7 @@ size_t MKLDNNEltwiseNode::getOpInputsNum() const {
         case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseSquare: case EltwiseAbs: case EltwiseSqrt:
         case EltwisePowerStatic: case EltwiseLinear: case EltwiseBoundedRelu: case EltwiseSoftRelu: case EltwiseRelu6: case EltwiseExp: case EltwiseClamp:
         case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
-        case EltwiseLogicalNot:
+        case EltwiseLogicalNot: case EltwiseErf:
             return 1;
         case EltwiseAdd: case EltwiseSubtract: case EltwiseMultiply: case EltwiseDivide: case EltwiseFloorMod: case EltwiseMod: case EltwiseMaximum:
         case EltwiseMinimum: case EltwiseSquaredDifference: case EltwisePowerDynamic: case EltwiseEqual: case EltwiseNotEqual: case EltwiseGreater:

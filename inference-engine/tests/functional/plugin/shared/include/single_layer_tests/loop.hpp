@@ -10,10 +10,12 @@ namespace LayerTestsDefinitions {
 
 
 TEST_P(LoopTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 }
 
 TEST_P(StaticShapeLoopTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 }
 

@@ -21,33 +21,6 @@ namespace Cpu {
 using MKLDNNPlugin::TensorDescCreatorTypes;
 
 class MathImpl: public ExtLayerBase {
-    static float error_function(float x) {
-        const float clip_bound = 2.86f;
-        //  Points clip_bound and -clip_bound are extremums for this polynom
-        //  So in order to provide better accuracy comparing to std::erf we have to clip input range
-        if (x > clip_bound)
-            return 1;
-        if (x < -clip_bound)
-            return -1;
-
-        //  A polynomial approximation of the error function
-        const float erfNumerator[4] = { 90.0260162353515625f, 2232.00537109375f,
-            7003.3251953125f, 55592.30078125f };
-        const float erfDenominator[5] = { 33.56171417236328125f, 521.35797119140625f,
-            4594.32373046875f, 22629.0f, 49267.39453125f };
-        float polynom = 9.60497379302978515625f;
-        float x2 = x * x;
-        for (float c : erfNumerator) {
-            polynom = polynom * x2 + c;
-        }
-        x *= polynom;
-        polynom = 1.0f;
-        for (float c : erfDenominator) {
-            polynom = polynom * x2 + c;
-        }
-        return x / polynom;
-    }
-
 public:
     bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
@@ -107,11 +80,6 @@ public:
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         switch (getAlgorithm()) {
-        case MKLDNNPlugin::MathErf:
-            parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = error_function(src_data[i]);
-            });
-            break;
         case MKLDNNPlugin::MathAbs:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = (std::abs)(src_data[i]);
@@ -252,9 +220,6 @@ private:
 };
 
 std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MathImpl& node)>> MathImpl::initializers = {
-    {ngraph::op::v0::Erf::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
-        node.algorithm = MKLDNNPlugin::MathErf;
-    }},
     {ngraph::op::v0::Abs::type_info, [](const std::shared_ptr<ngraph::Node>& op, MathImpl& node) {
         node.algorithm = MKLDNNPlugin::MathAbs;
     }},
@@ -329,7 +294,6 @@ REG_FACTORY_FOR(MathImpl, Ceil);
 REG_FACTORY_FOR(MathImpl, Ceiling);
 REG_FACTORY_FOR(MathImpl, Cos);
 REG_FACTORY_FOR(MathImpl, Cosh);
-REG_FACTORY_FOR(MathImpl, Erf);
 REG_FACTORY_FOR(MathImpl, Floor);
 REG_FACTORY_FOR(MathImpl, HardSigmoid);
 REG_FACTORY_FOR(MathImpl, Log);
