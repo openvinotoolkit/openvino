@@ -473,21 +473,12 @@ namespace ngraph
         };
 
         FrontEndManager::FrontEndManager(): m_impl(new Impl()) {
-            std::cout << "Create maanger:\n";
         }
         FrontEndManager::~FrontEndManager() = default;
 
         FrontEnd::Ptr FrontEndManager::loadByFramework(const std::string& framework, FrontEndCapabilities fec)
         {
-            m_impl->loadByFramework(framework, fec);
-            if (framework == "onnx")
-                return std::make_shared<FrontEndONNX>();
-            else if (framework == "pdpd")
-                return std::make_shared<FrontEndPDPD>();
-            else if (framework == "tf")
-                return std::make_shared<FrontEndTensorflow>();
-            else
-                throw "Framework " + framework + " is unknown for FrontEnd manager; cannot load it.";
+            return m_impl->loadByFramework(framework, fec);
         }
 
         FrontEnd::Ptr FrontEndManager::loadByModel(const std::string& path, FrontEndCapabilities fec)
@@ -497,9 +488,6 @@ namespace ngraph
 
         std::vector<std::string> FrontEndManager::availableFrontEnds() const
         {
-            if (m_impl) {
-                std::cout << "No impl";
-            }
             return m_impl->availableFrontEnds();
         }
     } // namespace frontend
