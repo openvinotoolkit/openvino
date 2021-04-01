@@ -1,0 +1,288 @@
+[{
+  "name" : "Function_4",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_155",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_155_0"],
+      "shape" : [ 2, 3, 2, 2 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_109",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_109_0"],
+      "shape" : [3]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_108",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_108_0"],
+      "shape" : [3]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_107",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_107_0"],
+      "shape" : [3]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_106",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_106_0"],
+      "shape" : [3]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_105",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_105_0"],
+      "shape" : [ 2, 3, 2, 2 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_137",
+      "op" : "Constant",
+      "outputs" : ["Constant_137_0"],
+      "shape" : [],
+      "value" : ["0.001"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_117",
+      "op" : "Constant",
+      "outputs" : ["Constant_117_0"],
+      "shape" : [3],
+      "value" : [ "8", "8", "8" ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_111",
+      "op" : "Constant",
+      "outputs" : ["Constant_111_0"],
+      "shape" : [3],
+      "value" : [ "8", "8", "8" ]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_107"],
+      "name" : "Reshape_148",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 3, 1, 1 ],
+      "outputs" : ["Reshape_148_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_106"],
+      "name" : "Reshape_147",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 3, 1, 1 ],
+      "outputs" : ["Reshape_147_0"]
+    },
+    {
+      "inputs" : [ "Parameter_105", "Parameter_105" ],
+      "name" : "Multiply_115",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_115_0"]
+    },
+    {
+      "inputs" : ["Parameter_105"],
+      "name" : "Sum_110",
+      "op" : "Sum",
+      "outputs" : ["Sum_110_0"],
+      "reduction_axes" : [ 0, 2, 3 ]
+    },
+    {
+      "inputs" : ["Parameter_105"],
+      "name" : "Sum_114",
+      "op" : "Sum",
+      "outputs" : ["Sum_114_0"],
+      "reduction_axes" : [ 0, 2, 3 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_137"],
+      "name" : "Broadcast_138",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_138_0"],
+      "shape" : [ 2, 3, 2, 2 ]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_148"],
+      "name" : "Reshape_152",
+      "op" : "Reshape",
+      "output_shape" : [3],
+      "outputs" : ["Reshape_152_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_147"],
+      "name" : "Reshape_149",
+      "op" : "Reshape",
+      "output_shape" : [3],
+      "outputs" : ["Reshape_149_0"]
+    },
+    {
+      "inputs" : ["Multiply_115"],
+      "name" : "Sum_116",
+      "op" : "Sum",
+      "outputs" : ["Sum_116_0"],
+      "reduction_axes" : [ 0, 2, 3 ]
+    },
+    {
+      "inputs" : [ "Sum_110", "Constant_111" ],
+      "name" : "Divide_112",
+      "op" : "Divide",
+      "outputs" : ["Divide_112_0"]
+    },
+    {
+      "inputs" : [ "Sum_114", "Sum_114" ],
+      "name" : "Multiply_118",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_118_0"]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_152"],
+      "name" : "Broadcast_153",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_153_0"],
+      "shape" : [ 2, 3, 2, 2 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_149"],
+      "name" : "Broadcast_150",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_150_0"],
+      "shape" : [ 2, 3, 2, 2 ]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Divide_112"],
+      "name" : "Reshape_113",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 3, 1, 1 ],
+      "outputs" : ["Reshape_113_0"]
+    },
+    {
+      "inputs" : [ "Multiply_118", "Constant_117" ],
+      "name" : "Divide_119",
+      "op" : "Divide",
+      "outputs" : ["Divide_119_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_113"],
+      "name" : "Reshape_143",
+      "op" : "Reshape",
+      "output_shape" : [3],
+      "outputs" : ["Reshape_143_0"]
+    },
+    {
+      "inputs" : [ "Sum_116", "Divide_119" ],
+      "name" : "Subtract_120",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_120_0"]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_143"],
+      "name" : "Broadcast_144",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_144_0"],
+      "shape" : [ 2, 3, 2, 2 ]
+    },
+    {
+      "inputs" : [ "Subtract_120", "Constant_117" ],
+      "name" : "Divide_121",
+      "op" : "Divide",
+      "outputs" : ["Divide_121_0"]
+    },
+    {
+      "inputs" : [ "Parameter_105", "Broadcast_144" ],
+      "name" : "Subtract_145",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_145_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Divide_121"],
+      "name" : "Reshape_122",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 3, 1, 1 ],
+      "outputs" : ["Reshape_122_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_122"],
+      "name" : "Reshape_139",
+      "op" : "Reshape",
+      "output_shape" : [3],
+      "outputs" : ["Reshape_139_0"]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_139"],
+      "name" : "Broadcast_140",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_140_0"],
+      "shape" : [ 2, 3, 2, 2 ]
+    },
+    {
+      "inputs" : [ "Broadcast_140", "Broadcast_138" ],
+      "name" : "Add_141",
+      "op" : "Add",
+      "outputs" : ["Add_141_0"]
+    },
+    {
+      "inputs" : ["Add_141"],
+      "name" : "Sqrt_142",
+      "op" : "Sqrt",
+      "outputs" : ["Sqrt_142_0"]
+    },
+    {
+      "inputs" : [ "Subtract_145", "Sqrt_142" ],
+      "name" : "Divide_146",
+      "op" : "Divide",
+      "outputs" : ["Divide_146_0"]
+    },
+    {
+      "inputs" : [ "Divide_146", "Broadcast_150" ],
+      "name" : "Multiply_151",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_151_0"]
+    },
+    {
+      "inputs" : [ "Multiply_151", "Broadcast_153" ],
+      "name" : "Add_154",
+      "op" : "Add",
+      "outputs" : ["Add_154_0"]
+    },
+    {
+      "inputs" : [ "Add_154", "Parameter_155" ],
+      "name" : "Multiply_156",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_156_0"]
+    }
+  ],
+  "parameters" : [
+    "Parameter_105", "Parameter_106", "Parameter_107", "Parameter_108",
+    "Parameter_109", "Parameter_155"
+  ],
+  "result" : ["Multiply_156"]
+}]

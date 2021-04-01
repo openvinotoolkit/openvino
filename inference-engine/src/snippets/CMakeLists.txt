@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -31,7 +31,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations ${NGRAPH_LIBRARIES}
-                                     PRIVATE ${NGRAPH_REF_LIBRARIES})
+                                     PRIVATE ${NGRAPH_REF_LIBRARIES} openvino::conditional_compilation)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

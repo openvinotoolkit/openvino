@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -228,8 +228,8 @@ protected:
         _incorrectName = "incorrect_name";
         _inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
         _failedToFindInOutError =
-                "[ NOT_FOUND ] Failed to find input or output with name: \'" + _incorrectName + "\'";
-        _inputDataNotAllocatedError = std::string("[ NOT_ALLOCATED ] Input data was not allocated. Input name: \'")
+                NOT_FOUND_str + "Failed to find input or output with name: \'" + _incorrectName + "\'";
+        _inputDataNotAllocatedError = std::string("Input data was not allocated. Input name: \'")
                                       + _inputName + "\'";
         _inputDataIsEmptyError = std::string("Input data is empty. Input name: \'")
                                  + _inputName + "\'";
@@ -250,7 +250,7 @@ protected:
         std::string actualError;
         try {
             function();
-        } catch (const Exception &iie) {
+        } catch (const InferenceEngineException &iie) {
             actualError = iie.what();
         }
         return actualError;
@@ -280,7 +280,7 @@ TEST_F(InferRequestTests, constructorsTests) {
     ASSERT_NO_THROW(InferRequest req(mock_request));
     IInferRequest::Ptr tmp;
     // InferRequest's "actual" is nullptr, let's check it throws on construction
-    ASSERT_THROW(InferRequest req(tmp), Exception);
+    ASSERT_THROW(InferRequest req(tmp), InferenceEngineException);
 }
 
 // StartAsync
@@ -291,7 +291,7 @@ TEST_F(InferRequestTests, canForwardStartAsync) {
 
 TEST_F(InferRequestTests, throwsIfStartAsyncReturnNotOK) {
     EXPECT_CALL(*mock_request.get(), StartAsync(_)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(requestWrapper->StartAsync(), Exception);
+    ASSERT_THROW(requestWrapper->StartAsync(), InferenceEngineException);
 }
 
 // Wait
@@ -314,7 +314,7 @@ TEST_F(InferRequestTests, canForwardInfer) {
 
 TEST_F(InferRequestTests, throwsIfInferReturnNotOK) {
     EXPECT_CALL(*mock_request.get(), Infer(_)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(requestWrapper->Infer(), Exception);
+    ASSERT_THROW(requestWrapper->Infer(), InferenceEngineException);
 }
 
 // GetPerformanceCounts
@@ -327,7 +327,7 @@ TEST_F(InferRequestTests, canForwardGetPerformanceCounts) {
 TEST_F(InferRequestTests, throwsIfGetPerformanceCountsReturnNotOK) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
     EXPECT_CALL(*mock_request.get(), GetPerformanceCounts(_, _)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(info = requestWrapper->GetPerformanceCounts(), Exception);
+    ASSERT_THROW(info = requestWrapper->GetPerformanceCounts(), InferenceEngineException);
 }
 
 MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
@@ -351,7 +351,7 @@ TEST_F(InferRequestTests, getInputCallsSetBlob) {
 TEST_F(InferRequestTests, throwsIfSetInputReturnNotOK) {
     EXPECT_CALL(*mock_request.get(), SetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
     BlobMap blobMap{{{}, {}}};
-    ASSERT_THROW(requestWrapper->SetInput(blobMap), Exception);
+    ASSERT_THROW(requestWrapper->SetInput(blobMap), InferenceEngineException);
 }
 
 // SetOutput
@@ -382,7 +382,7 @@ TEST_F(InferRequestTests, throwsIfGetBlobReturnNotOK) {
     std::string name = "blob1";
 
     EXPECT_CALL(*mock_request.get(), GetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(blob = requestWrapper->GetBlob(name), Exception);
+    ASSERT_THROW(blob = requestWrapper->GetBlob(name), InferenceEngineException);
 }
 
 // SetBlob
@@ -399,13 +399,13 @@ TEST_F(InferRequestTests, throwsIfSetBlobReturnNotOK) {
     std::string name = "blob1";
 
     EXPECT_CALL(*mock_request.get(), SetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(requestWrapper->SetBlob(name, blob), Exception);
+    ASSERT_THROW(requestWrapper->SetBlob(name, blob), InferenceEngineException);
 }
 
 TEST_F(InferRequestTests, throwsIfSetOutputReturnNotOK) {
     EXPECT_CALL(*mock_request.get(), SetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
     BlobMap blobMap{{{}, {}}};
-    ASSERT_THROW(requestWrapper->SetOutput(blobMap), Exception);
+    ASSERT_THROW(requestWrapper->SetOutput(blobMap), InferenceEngineException);
 }
 
 // SetCompletionCallback API
@@ -446,23 +446,27 @@ TEST_F(InferRequestTests, canForwardAnyCallback) {
 TEST_F(InferRequestTests, failToSetInputWithInCorrectName) {
     auto InferRequest = getInferRequestWithMockImplInside();
     auto blobMap = getBlobMapWithIncorrectName();
-    ASSERT_THROW(InferRequest->SetInput(blobMap), NotFound);
+    auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetInput(blobMap); });
+    ASSERT_EQ(_failedToFindInOutError, exceptionMessage.substr(0, _failedToFindInOutError.size()));
 }
 
 TEST_F(InferRequestTests, failToSetOutputWithInCorrectName) {
     auto InferRequest = getInferRequestWithMockImplInside();
     auto blobMap = getBlobMapWithIncorrectName();
-    ASSERT_THROW(InferRequest->SetOutput(blobMap), NotFound);
+    auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetOutput(blobMap); });
+    ASSERT_EQ(_failedToFindInOutError, exceptionMessage.substr(0, _failedToFindInOutError.size()));
 }
 
 TEST_F(InferRequestTests, failToSetInputWithNotAllocatedInput) {
     auto InferRequest = getInferRequestWithMockImplInside();
     auto blobMap = getBlobMapWithNotAllocatedInput();
-    ASSERT_THROW(InferRequest->SetInput(blobMap), NotAllocated);
+    auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetInput(blobMap); });
+    ASSERT_EQ(_inputDataNotAllocatedError, exceptionMessage.substr(0, _inputDataNotAllocatedError.size()));
 }
 
 TEST_F(InferRequestTests, failToSetInputWithEmptyDimensions) {
     auto InferRequest = getInferRequestWithMockImplInside();
     auto blobMap = getBlobMapWithEmptyDimensions();
-    ASSERT_THROW(InferRequest->SetInput(blobMap), GeneralError);
+    auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetInput(blobMap); });
+    ASSERT_EQ(_inputDataIsEmptyError, exceptionMessage.substr(0, _inputDataIsEmptyError.size()));
 }

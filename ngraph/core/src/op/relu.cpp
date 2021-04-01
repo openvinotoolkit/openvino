@@ -1,8 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2017-2021 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
-#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 #include "ngraph/op/multiply.hpp"
@@ -14,7 +25,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Relu, "Relu", 0, util::UnaryElementwiseArithmetic);
+NGRAPH_RTTI_DEFINITION(op::Relu, "Relu", 0);
 
 op::Relu::Relu(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -39,10 +50,9 @@ namespace relu
         return true;
     }
 
-    bool evaluate_relu(const HostTensorPtr& arg0, const HostTensorPtr& out)
+    bool evaluate_relu(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
         bool rc = true;
-        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
@@ -63,9 +73,7 @@ namespace relu
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Relu_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return relu::evaluate_relu(inputs[0], outputs[0]);
+    return relu::evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Relu::visit_attributes(AttributeVisitor& visitor)

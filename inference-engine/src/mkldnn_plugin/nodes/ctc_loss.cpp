@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ public:
         _logPrefix = std::string("CTCLoss layer with name '") + layer->name + "'";
 
         if (layer->insData.size() != 4 && layer->insData.size() != 5)
-            IE_THROW() << _logPrefix << " has invalid inputs number.";
+            THROW_IE_EXCEPTION << _logPrefix << " has invalid inputs number.";
 
         _ctcMergeRepeated = layer->GetParamAsBool("ctc_merge_repeated", true);
         _preprocessCollapseRepeated = layer->GetParamAsBool("preprocess_collapse_repeated", false);
@@ -26,7 +26,7 @@ public:
 
         auto logitsData = layer->insData[0].lock();
         if (logitsData == nullptr)
-            IE_THROW() << _logPrefix << " has nullable logits data";
+            THROW_IE_EXCEPTION << _logPrefix << " has nullable logits data";
 
         LayerConfig config;
         config.inConfs.resize(layer->insData.size());
@@ -37,7 +37,7 @@ public:
         for (int i = 1; i < layer->insData.size(); i++) {
             auto data = layer->insData[i].lock();
             if (data == nullptr)
-                IE_THROW() << _logPrefix << " has nullable input data at " << i;
+                THROW_IE_EXCEPTION << _logPrefix << " has nullable input data at " << i;
             config.inConfs[i].desc = TensorDesc(intPrecision,
                 data->getTensorDesc().getDims(),
                 TensorDesc::getLayoutByDims(data->getTensorDesc().getDims()));

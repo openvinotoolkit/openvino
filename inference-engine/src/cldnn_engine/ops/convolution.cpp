@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
                                                       uint32_t groups) {
     cldnn::tensor stride, padding, dilation;
     if (pads_begin.size() != strides.size() || dilations.size() != strides.size())
-        IE_THROW() << "Strides, Dilations and Pads are supposed to have the same elements count";
+        THROW_IE_EXCEPTION << "Strides, Dilations and Pads are supposed to have the same elements count";
 
     switch (strides.size()) {
         case 3: {
@@ -55,7 +55,7 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[0], 1, 1));
             break;
         }
-        default: IE_THROW() << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
+        default: THROW_IE_EXCEPTION << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
     }
 
     return {stride, padding, dilation, groups};
@@ -127,7 +127,7 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
     auto dilations = op->get_dilations();
     for (auto d : dilations) {
         if (d != 1) {
-            IE_THROW() << "Unsupported dilation in ConvolutionBackpropData " << op->get_friendly_name();
+            THROW_IE_EXCEPTION << "Unsupported dilation in ConvolutionBackpropData " << op->get_friendly_name();
         }
     }
 
@@ -180,7 +180,7 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
     auto dilations = op->get_dilations();
     for (auto d : dilations) {
         if (d != 1) {
-            IE_THROW() << "Unsupported dilation in GroupConvolutionBackpropData " << op->get_friendly_name();
+            THROW_IE_EXCEPTION << "Unsupported dilation in GroupConvolutionBackpropData " << op->get_friendly_name();
         }
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ public:
     Layer &getLayer() {
         auto locked = m_parent.lock();
         if (!locked) {
-            IE_THROW() << "Error getting parent Layer class";
+            THROW_IE_EXCEPTION << "Error getting parent Layer class";
         }
         return *locked;
     }
@@ -90,7 +90,7 @@ public:
 
     Port &getPortById(int64_t id) const {
         if (id >= m_ports.size()) {
-            IE_THROW() << "Out of range: a port with id " << id << " not found";
+            THROW_IE_EXCEPTION << "Out of range: a port with id " << id << " not found";
         }
         return *m_ports[id];
     }
@@ -123,7 +123,7 @@ public:
 
     Port &operator[](size_t id) const {
         if (id >= m_ports.size()) {
-            IE_THROW() << "Out of range: a port with id " << id << " not found";
+            THROW_IE_EXCEPTION << "Out of range: a port with id " << id << " not found";
         }
         return *m_ports[id];
     }
@@ -131,7 +131,7 @@ public:
     IRNet &getNetwork() const {
         auto locked = m_parent.lock();
         if (!locked) {
-            IE_THROW() << "Error getting parent IRNet class";
+            THROW_IE_EXCEPTION << "Error getting parent IRNet class";
         }
         return *locked;
     }
@@ -139,7 +139,7 @@ public:
     const std::string &getName() const {
         auto it = m_common_attributes.find("name");
         if (it == m_common_attributes.end()) {
-            IE_THROW() << "The layer attribute \"name\" not found.";
+            THROW_IE_EXCEPTION << "The layer attribute \"name\" not found.";
         }
         return it->second;
     }
@@ -260,14 +260,14 @@ public:
                                    return layer_name == layer->getName();
                                });
         if (it == m_layers.end()) {
-            IE_THROW() << "Out of range: a layer with name " << layer_name << " not found";
+            THROW_IE_EXCEPTION << "Out of range: a layer with name " << layer_name << " not found";
         }
         return **it;
     }
 
     Layer &getLayerById(size_t id) const {
         if (id >= m_layers.size()) {
-            IE_THROW() << "Out of range: a layer with id " << id << " not found";
+            THROW_IE_EXCEPTION << "Out of range: a layer with id " << id << " not found";
         }
         return *m_layers[id];
     }
@@ -357,7 +357,7 @@ public:
             }
 
             if (specific_attributes.find("size") == specific_attributes.end()) {
-                IE_THROW() << "Required attribute \"size\" for Const layer is not found";
+                THROW_IE_EXCEPTION << "Required attribute \"size\" for Const layer is not found";
             }
             m_offset += std::strtol(specific_attributes["size"].c_str(), nullptr, 10);
         }

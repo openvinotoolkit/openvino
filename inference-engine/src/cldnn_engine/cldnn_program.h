@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <mutex>
 
 #include <cpp/ie_cnn_network.h>
+#include "details/ie_exception.hpp"
 
 #include "cldnn_config.h"
 
@@ -38,7 +39,7 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
     [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
         auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
         if (!op_casted)                                                                           \
-            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__; \
+            THROW_IE_EXCEPTION << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__; \
         Create##op_name##Op(p, op_casted);                                                        \
        });                                                                                        \
 }
@@ -137,7 +138,7 @@ public:
     template<typename PType>
     void AddPrimitive(PType prim) {
         if (m_topology == nullptr) {
-            IE_THROW() << "m_topology object was not created in clDNNPlugin::Program";
+            THROW_IE_EXCEPTION << "m_topology object was not created in clDNNPlugin::Program";
         }
 
         m_topology->add(prim);

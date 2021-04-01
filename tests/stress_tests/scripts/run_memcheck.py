@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
+#
 """
 This script runs memcheck tests isolated with help of gtest_parallel. It can
 upload memory measurment results to database and generate reports.

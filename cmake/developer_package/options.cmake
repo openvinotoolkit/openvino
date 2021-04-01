@@ -1,7 +1,6 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
 # Usage: ie_option(<option_variable> "description" <initial value or boolean expression> [IF <condition>])
 
 include (CMakeDependentOption)
@@ -29,7 +28,6 @@ macro (ie_option_enum variable description value)
     list(APPEND IE_OPTIONS ${variable})
 
     set(${variable} ${value} CACHE STRING "${description}")
-    set_property(CACHE ${variable} PROPERTY STRINGS ${IE_OPTION_ENUM_ALLOWED_VALUES})
 endmacro()
 
 function (print_enabled_features)

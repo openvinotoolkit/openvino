@@ -1,4 +1,5 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +45,6 @@ InferenceEngine::Blob::Ptr EltwiseLayerTest::GenerateInput(const InferenceEngine
         case ngraph::helpers::EltwiseTypes::DIVIDE:
             return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
                                                     FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 100, 101);
-        case ngraph::helpers::EltwiseTypes::ERF:
-            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 6, -3);
         default:
             return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
     }
@@ -69,7 +68,7 @@ void EltwiseLayerTest::SetUp() {
         inputShape1 = inputShapes.front();
         inputShape2 = inputShapes.back();
     } else {
-        IE_THROW() << "Incorrect number of input shapes";
+        THROW_IE_EXCEPTION << "Incorrect number of input shapes";
     }
 
     configuration.insert(additional_config.begin(), additional_config.end());

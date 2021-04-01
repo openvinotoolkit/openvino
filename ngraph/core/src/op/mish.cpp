@@ -1,8 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2017-2021 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
-#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
@@ -52,10 +63,9 @@ namespace mish
         return true;
     }
 
-    bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out)
+    bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
         bool rc = true;
-        size_t count = shape_size(arg0->get_shape());
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
@@ -71,7 +81,5 @@ namespace mish
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_Mish_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return mish::evaluate_mish(inputs[0], outputs[0]);
+    return mish::evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

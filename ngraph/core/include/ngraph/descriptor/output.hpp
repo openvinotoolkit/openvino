@@ -1,10 +1,21 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2017-2021 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
 #pragma once
 
-#include <map>
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -22,8 +33,6 @@ namespace ngraph
     // in practice including node.hpp here was causing compilation errors on some
     // systems (namely macOS).
     class Node;
-
-    class Variant;
 
     namespace descriptor
     {
@@ -54,10 +63,6 @@ namespace ngraph
             const std::vector<Input*>& get_inputs() const { return m_inputs; }
             Tensor& get_tensor() const;
 
-            using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-
-            RTMap& get_rt_info() { return m_rt_info; }
-            const RTMap& get_rt_info() const { return m_rt_info; }
             /// \return the shape of the output
             const Shape& get_shape() const;
 
@@ -75,7 +80,6 @@ namespace ngraph
             Node* m_node;
             size_t m_index;
             std::shared_ptr<Tensor> m_tensor;
-            RTMap m_rt_info;
             std::vector<Input*> m_inputs;
         };
     }

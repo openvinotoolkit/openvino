@@ -1,5 +1,18 @@
-# Copyright (C) 2018-2021 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+"""
+ Copyright (C) 2018-2021 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
 
 import os
 import cv2
@@ -24,6 +37,11 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
         info = app_input_info[key]
         if info.is_image:
             input_image_sizes[key] = (info.width, info.height)
+        logger.info("Network input '{}' precision {}, dimensions ({}): {}".format(key,
+                                                                                  info.precision,
+                                                                                  info.layout,
+                                                                                  " ".join(str(x) for x in
+                                                                                           info.shape)))
 
     images_count = len(input_image_sizes.keys())
     binaries_count = len(app_input_info) - images_count
@@ -194,7 +212,6 @@ def fill_blob_with_random(layer):
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
-    rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
     if layer.shape:
-        return rs.uniform(rand_min, rand_max, layer.shape).astype(dtype)
-    return (dtype)(rs.uniform(rand_min, rand_max))
+        return np.random.uniform(rand_min, rand_max, layer.shape).astype(dtype)
+    return (dtype)(np.random.uniform(rand_min, rand_max))

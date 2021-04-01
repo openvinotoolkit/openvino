@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
     }
     auto it = networkOutputs.find(inputID);
     if (it == networkOutputs.end()) {
-        IE_THROW() << "Can't find output " << inputID << " in OutputsDataMap";
+        THROW_IE_EXCEPTION << "Can't find output " << inputID << " in OutputsDataMap";
     }
     std::string originalOutName = it->first;
     DataPtr outputData = it->second;
@@ -48,7 +48,7 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
         outputlayout != NC &&
         outputlayout != C &&
         outputlayout != SCALAR) {
-        IE_THROW() << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
+        THROW_IE_EXCEPTION << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
     }
 
     auto outLayerName = layer_type_name_ID(op);

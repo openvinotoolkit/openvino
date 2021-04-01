@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,7 @@ struct Config {
                graph_dumps_dir(""),
                sources_dumps_dir(""),
                device_id(""),
-               kernels_cache_dir(""),
-               n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())) {
+               kernels_cache_dir("") {
         adjustKeyMapValues();
     }
 
@@ -57,7 +56,6 @@ struct Config {
     std::string sources_dumps_dir;
     std::string device_id;
     std::string kernels_cache_dir;
-    size_t n_threads;
 
     std::map<std::string, std::string> key_config_map;
 };

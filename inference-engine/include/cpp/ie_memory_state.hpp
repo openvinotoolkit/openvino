@@ -13,6 +13,7 @@
 #include <string>
 
 #include "ie_blob.h"
+#include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
 
 namespace InferenceEngine {

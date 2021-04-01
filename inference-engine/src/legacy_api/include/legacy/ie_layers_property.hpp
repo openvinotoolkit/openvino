@@ -1,17 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief a header file for describing property style structure used by CNNLayers
- *
+ * 
  * @file ie_layers_property.hpp
  */
 #pragma once
 
 #include <vector>
-
-#include <ie_common.h>
+#include <details/ie_exception.hpp>
 
 namespace InferenceEngine {
 
@@ -30,7 +29,7 @@ public:
 
     PropertyVector(size_t len, T val) {
         if (len > N) {
-            IE_THROW() << "Property size exceeed limit of: " << N;
+            THROW_IE_EXCEPTION << "Property size exceeed limit of: " << N;
         }
         for (size_t i = 0; i < len; i++) {
             _axises[i] = val;
@@ -61,21 +60,21 @@ public:
      */
     T& at(int index) {
         if (index >= N) {
-            IE_THROW() << "Property index is out of bounds (" << index << "/" << N;
+            THROW_IE_EXCEPTION << "Property index is out of bounds (" << index << "/" << N;
         }
         return _axises[index];
     }
 
     const T& operator[](size_t index) const {
         if (index >= N || !_allocated[index]) {
-            IE_THROW() << "Property index (" << index << ") is out of bounds";
+            THROW_IE_EXCEPTION << "Property index (" << index << ") is out of bounds";
         }
         return _axises[index];
     }
 
     T& operator[](size_t index) {
         if (index >= N || !_allocated[index]) {
-            IE_THROW() << "Property index (" << index << ") is out of bounds";
+            THROW_IE_EXCEPTION << "Property index (" << index << ") is out of bounds";
         }
         return _axises[index];
     }
@@ -113,7 +112,7 @@ public:
             }
             _axises[axis] = val;
         } else {
-            IE_THROW() << "Layer Property insertion at(axis) should be in [0," << N << ")";
+            THROW_IE_EXCEPTION << "Layer Property insertion at(axis) should be in [0," << N << ")";
         }
     }
 

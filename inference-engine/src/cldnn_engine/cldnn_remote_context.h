@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -363,7 +363,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
 
     void check_if_shared() {
         if (GetType() != CLDNNExecutionContextImpl::ContextType::DEV_SHARED)
-            IE_THROW() << "Shared context is required to to share this type of memory";
+            THROW_IE_EXCEPTION << "Shared context is required to to share this type of memory";
     }
 public:
     using Ptr = std::shared_ptr<typedCLDNNExecutionContext>;
@@ -407,7 +407,7 @@ public:
                     check_if_shared();
 #endif
                 } else {
-                    IE_THROW() << "Unsupported shared object type " << memTypeStr;
+                    THROW_IE_EXCEPTION << "Unsupported shared object type " << memTypeStr;
                 }
 
                 return reuse_obj(tensorDesc, mem, blob_type);

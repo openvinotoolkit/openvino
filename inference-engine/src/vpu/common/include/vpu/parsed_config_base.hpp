@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ protected:
         if (value != config.end()) {
             const auto parsedValue = supported.find(value->second);
             if (parsedValue == supported.end()) {
-                IE_THROW()
+                THROW_IE_EXCEPTION
                         << "Unsupported value " << "\"" << value->second << "\""
                         << " for key " << key;
             }
@@ -87,7 +87,7 @@ protected:
             try {
                 dst = preprocess(value->second);
             } catch(const std::exception& e) {
-                IE_THROW()
+                THROW_IE_EXCEPTION
                         << "Invalid value " << "\"" << value->second << "\""
                         << " for key " << key
                         << " : " << e.what();
@@ -99,7 +99,7 @@ protected:
         try {
             return std::chrono::seconds(std::stoi(src));
         } catch (const std::exception& e) {
-            IE_THROW()
+            THROW_IE_EXCEPTION
                         << "Can not convert string:"
                         << src << " to seconds. "
                         << "Message : " << e.what();

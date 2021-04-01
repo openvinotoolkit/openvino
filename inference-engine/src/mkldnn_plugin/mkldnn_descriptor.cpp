@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_common.h>
-
+#include <details/ie_exception.hpp>
 #include "mkldnn_descriptor.h"
 
 mkldnn::primitive_desc_iterator MKLDNNDescriptor::createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
@@ -30,7 +29,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::batch_normalization_f
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::batch_normalization_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::batch_normalization_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -42,7 +41,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_forward::
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::convolution_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -57,7 +56,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_backward_
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_backward_data::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescBwdImpl<mkldnn::convolution_backward_data::desc, mkldnn::convolution_forward::primitive_desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -65,7 +64,7 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_backward_data::de
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_forward::primitive_desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescBwdImpl<mkldnn::convolution_backward_data::desc, mkldnn::convolution_forward::primitive_desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPrimPtr();
 }
@@ -77,7 +76,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::inner_product_forward
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::inner_product_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::inner_product_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -89,7 +88,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::lrn_forward::desc> de
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::lrn_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::lrn_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -101,7 +100,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_forward::desc
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::pooling_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::pooling_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -113,7 +112,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::softmax_forward::desc
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::softmax_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::softmax_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -125,7 +124,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::vanilla_rnn_forward::
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::vanilla_rnn_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::vanilla_rnn_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -137,7 +136,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::lstm_forward::desc> d
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::lstm_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::lstm_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -149,7 +148,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::gru_forward::desc> de
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::gru_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::gru_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -161,7 +160,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::lbr_gru_forward::desc
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::lbr_gru_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::lbr_gru_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }
@@ -173,7 +172,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::eltwise_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::eltwise_forward::desc>>(desc);
     if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
 }

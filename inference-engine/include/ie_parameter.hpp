@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <details/ie_exception.hpp>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -274,11 +275,11 @@ private:
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
     struct Any {
-#ifdef __ANDROID__
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
         virtual ~Any();
 #else
         virtual ~Any() = default;
-#endif
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
@@ -306,7 +307,7 @@ private:
         template <class U>
         typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
         equal(const Any& left, const Any& rhs) const {
-            IE_THROW() << "Parameter doesn't contain equal operator";
+            THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
@@ -322,20 +323,20 @@ private:
 
     template <typename T>
     static T& dyn_cast(Any* obj) {
-        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
+        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
         return dynamic_cast<RealData<T>&>(*obj).get();
     }
 
     template <typename T>
     static const T& dyn_cast(const Any* obj) {
-        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
+        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
         return dynamic_cast<const RealData<T>&>(*obj).get();
     }
 
     Any* ptr = nullptr;
 };
 
-#ifdef __ANDROID__
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
@@ -350,6 +351,6 @@ extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-#endif
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
 
 }  // namespace InferenceEngine

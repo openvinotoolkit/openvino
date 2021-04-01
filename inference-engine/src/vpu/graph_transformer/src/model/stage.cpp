@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -224,14 +224,14 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
 void StageNode::initialCheck() const {
     try {
         initialCheckImpl();
-    } catch (const InferenceEngine::Exception& exception) {
+    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
         VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
     }
 
     if (const auto injectedStage = this->injectedStage()) {
         try {
             injectedStage->initialCheck();
-        } catch (const InferenceEngine::Exception& exception) {
+        } catch (const InferenceEngine::details::InferenceEngineException& exception) {
             VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
         }
     }
@@ -240,14 +240,14 @@ void StageNode::initialCheck() const {
 void StageNode::finalCheck() const {
     try {
         finalCheckImpl();
-    } catch (const InferenceEngine::Exception& exception) {
+    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
         VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
     }
 
     if (const auto injectedStage = this->injectedStage()) {
         try {
             injectedStage->finalCheck();
-        } catch (const ie::Exception& exception) {
+        } catch (const ie::details::InferenceEngineException& exception) {
             VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
         }
     }

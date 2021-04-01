@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,11 +23,11 @@ void MKLDNNCropNode::getSupportedDescriptors() {
     CropLayer* cropLayer = dynamic_cast<CropLayer*>(getCnnLayer().get());
 
     if (cropLayer == nullptr)
-        IE_THROW() << "Cannot convert crop layer.";
+        THROW_IE_EXCEPTION << "Cannot convert crop layer.";
 
     channelAxis = 1;
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2) {
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     }
 
     MKLDNNDims childDims = getChildEdgeAt(0)->getDims();
@@ -51,7 +51,7 @@ void MKLDNNCropNode::getSupportedDescriptors() {
     }
 
     if (!getChildEdges().size())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 }
 
 void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
@@ -68,7 +68,7 @@ void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
 
     auto& inDims = getParentEdgeAt(0)->getDims();
     if (inDims.ndims() != 2 && inDims.ndims() != 4 && inDims.ndims() != 5) {
-        IE_THROW() << "Crop supports only 2d, 4d and 5d blobs.";
+        THROW_IE_EXCEPTION << "Crop supports only 2d, 4d and 5d blobs.";
     }
 
     memory::format_tag fmt = memory::format_tag::undef;
@@ -111,11 +111,11 @@ void MKLDNNCropNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 }
 
 void MKLDNNCropNode::execute(mkldnn::stream strm) {

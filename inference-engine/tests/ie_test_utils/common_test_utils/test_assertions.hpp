@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,18 @@
 #include <ie_preprocess.hpp>
 #include <ie_icnn_network.hpp>
 
-inline bool strContains(const std::string & str, const std::string & substr) {
+namespace {
+
+bool strContains(const std::string & str, const std::string & substr) {
     return str.find(substr) != std::string::npos;
 }
 
-inline bool strDoesnotContain(const std::string & str, const std::string & substr) {
+bool strDoesnotContain(const std::string & str, const std::string & substr) {
+    (void)strDoesnotContain;  // to overcome unused warning
     return !strContains(str, substr);
 }
+
+}  // namespace
 
 #define ASSERT_STR_CONTAINS(str, substr) \
     ASSERT_PRED2(&strContains, str, substr)

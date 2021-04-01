@@ -67,14 +67,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
     }
 
-    bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
-    bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
-    if (isNetworkCompiled && isPrecisionSet) {
-        std::string err = std::string("Cannot set precision for a compiled network. ") +
-                          std::string("Please re-compile your network with required precision using compile_tool");
-
-        throw std::logic_error(err);
-    }
     return true;
 }
 
@@ -96,7 +88,7 @@ static void next_step(const std::string additional_info = "") {
 
     step_id++;
     if (step_names.count(step_id) == 0)
-        IE_THROW() << "Step ID " << step_id << " is out of total steps number " << step_names.size();
+        THROW_IE_EXCEPTION << "Step ID " << step_id << " is out of total steps number " << step_names.size();
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
@@ -388,10 +380,6 @@ int main(int argc, char *argv[]) {
                     item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
-
-            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
-
-            printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
             startTime = Time::now();
@@ -444,8 +432,8 @@ int main(int argc, char *argv[]) {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
                     nireq = exeNetwork.GetMetric(key).as<unsigned int>();
-                } catch (const std::exception& ex) {
-                    IE_THROW()
+                } catch (const details::InferenceEngineException& ex) {
+                    THROW_IE_EXCEPTION
                             << "Every device used with the benchmark_app should "
                             << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                             << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
@@ -543,7 +531,7 @@ int main(int argc, char *argv[]) {
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
-            IE_THROW() << "No idle Infer Requests!";
+            THROW_IE_EXCEPTION << "No idle Infer Requests!";
         }
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -572,7 +560,7 @@ int main(int argc, char *argv[]) {
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.getIdleRequest();
             if (!inferRequest) {
-                IE_THROW() << "No idle Infer Requests!";
+                THROW_IE_EXCEPTION << "No idle Infer Requests!";
             }
 
             if (FLAGS_api == "sync") {

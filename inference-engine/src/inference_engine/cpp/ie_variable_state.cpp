@@ -1,6 +1,7 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 
 #include "ie_imemory_state.hpp"
 #include "cpp/ie_memory_state.hpp"
@@ -11,7 +12,7 @@ IE_SUPPRESS_DEPRECATED_START
 
 VariableState::VariableState(IVariableState::Ptr pState, details::SharedObjectLoader::Ptr plg) : actual(pState), plugin(plg) {
     if (actual == nullptr) {
-        IE_THROW() << "VariableState wrapper was not initialized.";
+        THROW_IE_EXCEPTION << "VariableState wrapper was not initialized.";
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,14 +58,6 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
         if (req.GetBlob(name) != blob)
             req.SetBlob(name, blob);
     }
-}
-
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
-    IE_THROW(NotImplemented);
-}
-
-void MultiDeviceInferRequest::InferImpl() {
-    IE_THROW(NotImplemented);
 }
 
 }  // namespace MultiDevicePlugin

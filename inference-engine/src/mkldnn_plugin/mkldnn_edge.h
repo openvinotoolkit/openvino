@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ public:
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
 private:
-    std::string name();
+    std::string name() const;
 
 private:
     std::weak_ptr<MKLDNNNode> parent;

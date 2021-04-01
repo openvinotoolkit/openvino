@@ -1,9 +1,20 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2017-2021 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
 #include "ngraph/op/hsigmoid.hpp"
-#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -45,10 +56,9 @@ namespace
         return true;
     }
 
-    bool evaluate_hsigmoid(const HostTensorPtr& arg, const HostTensorPtr& out)
+    bool evaluate_hsigmoid(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count)
     {
         bool rc = true;
-        size_t count = shape_size(arg->get_shape());
         out->set_unary(arg);
 
         switch (arg->get_element_type())
@@ -66,7 +76,5 @@ bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v5_HSigmoid_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return evaluate_hsigmoid(inputs[0], outputs[0]);
+    return evaluate_hsigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

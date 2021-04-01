@@ -1,6 +1,18 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2017-2021 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
 #include "ie_engines.hpp"
 
@@ -107,7 +119,7 @@ namespace
         case InferenceEngine::Precision::BOOL:
             return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
             break;
-        default: IE_THROW() << "Not implemented yet";
+        default: THROW_IE_EXCEPTION << "Not implemented yet";
         }
     }
 }; // namespace
@@ -137,9 +149,7 @@ namespace
         case element::Type_t::u32: return InferenceEngine::Precision::U32; break;
         case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
         case element::Type_t::u1: return InferenceEngine::Precision::BIN; break;
-        case element::Type_t::i4:
-        case element::Type_t::u4:
-        case element::Type_t::undefined:
+        case element::Type_t::undefined: throw std::runtime_error("unsupported type");
         case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -173,7 +183,7 @@ void test::IE_Engine::infer()
 {
     if (m_network_inputs.size() != m_allocated_inputs)
     {
-        IE_THROW() << "The tested graph has " << m_network_inputs.size() << " inputs, but "
+        THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size() << " inputs, but "
                            << m_allocated_inputs << " were passed.";
     }
     else
@@ -280,7 +290,7 @@ std::shared_ptr<Function>
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
-            IE_THROW() << "Unsupported operator detected in the graph: "
+            THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
                                << node->get_type_info().name;
         }
     }
@@ -315,14 +325,20 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
+// those definitions and template specializations are required for clang (both Linux and Mac)
 // Without this section the linker is not able to find destructors for missing TBlob specializations
 // which are instantiated in the unit tests that use TestCase and this engine
+#ifdef __clang__
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {
         free();
     }
 
+    template class TBlob<unsigned int>;
+    template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
+    template class TBlob<char>;
+#endif
 } // namespace InferenceEngine

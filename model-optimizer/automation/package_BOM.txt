@@ -11,7 +11,6 @@ extensions/back/__init__.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
-extensions/back/ChangeCastOutputType.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
@@ -33,7 +32,6 @@ extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LinearToLinearONNXReplacer.py
 extensions/back/LRNToNorm.py
-extensions/back/MarkNodesWithShapeValues.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
 extensions/back/NormalizeToNormalizeL2.py
@@ -127,6 +125,7 @@ extensions/front/caffe/softmax_ext.py
 extensions/front/caffe/spatial_transformer_ext.py
 extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
+extensions/front/ChangeCastOutputType.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
 extensions/front/disable_weights_quantize_value_propagation.py
@@ -391,7 +390,6 @@ extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
 extensions/front/tf/efficient_det_support_api_v2.0.json
-extensions/front/tf/efficient_det_support_api_v2.4.json
 extensions/front/tf/elementwise_ext.py
 extensions/front/tf/embedding_segments_sum.py
 extensions/front/tf/expand_dims_ext.py
@@ -406,7 +404,6 @@ extensions/front/tf/faster_rcnn_support_api_v1.14.json
 extensions/front/tf/faster_rcnn_support_api_v1.15.json
 extensions/front/tf/faster_rcnn_support_api_v1.7.json
 extensions/front/tf/faster_rcnn_support_api_v2.0.json
-extensions/front/tf/faster_rcnn_support_api_v2.4.json
 extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
@@ -433,7 +430,6 @@ extensions/front/tf/mask_rcnn_support_api_v1.14.json
 extensions/front/tf/mask_rcnn_support_api_v1.15.json
 extensions/front/tf/mask_rcnn_support_api_v1.7.json
 extensions/front/tf/mask_rcnn_support_api_v2.0.json
-extensions/front/tf/mask_rcnn_support_api_v2.4.json
 extensions/front/tf/matmul_ext.py
 extensions/front/tf/mvn.py
 extensions/front/tf/mvn_unrolled.py
@@ -441,7 +437,6 @@ extensions/front/tf/nearest_neighbor_upsampling.py
 extensions/front/tf/next_iteration_ext.py
 extensions/front/tf/non_max_suppression_ext.py
 extensions/front/tf/non_max_suppression_normalize.py
-extensions/front/tf/NonConstBeginStridedSliceReplacement.py
 extensions/front/tf/noop.py
 extensions/front/tf/ObjectDetectionAPI.py
 extensions/front/tf/one_hot_ext.py
@@ -483,7 +478,6 @@ extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
 extensions/front/tf/ssd_support_api_v1.15.json
 extensions/front/tf/ssd_support_api_v2.0.json
-extensions/front/tf/ssd_support_api_v2.4.json
 extensions/front/tf/ssd_toolbox_detection_output.json
 extensions/front/tf/ssd_toolbox_multihead_detection_output.json
 extensions/front/tf/ssd_v2_support.json
@@ -775,7 +769,6 @@ install_prerequisites/protobuf-3.6.1-py3.6-win-amd64.egg
 install_prerequisites/protobuf-3.6.1-py3.7-win-amd64.egg
 mo.py
 mo/__init__.py
-mo/__main__.py
 mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
@@ -799,7 +792,6 @@ mo/front/caffe/python_layer_extractor.py
 mo/front/caffe/register_custom_ops.py
 mo/front/common/__init__.py
 mo/front/common/custom_replacement_registry.py
-mo/front/common/extractors/__init__.py
 mo/front/common/extractors/utils.py
 mo/front/common/find_unsupported_ops.py
 mo/front/common/layout.py

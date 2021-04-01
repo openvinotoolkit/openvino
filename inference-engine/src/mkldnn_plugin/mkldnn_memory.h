@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,7 @@ public:
     void* GetData() const {
         void* data = prim->get_data_handle();
         if (data == nullptr)
-            IE_THROW() << "Cannot get memory!";
+            THROW_IE_EXCEPTION << "Cannot get memory!";
         return data;
     }
 

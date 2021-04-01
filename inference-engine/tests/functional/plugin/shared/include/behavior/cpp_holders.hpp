@@ -1,7 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
 
 #include <string>
@@ -15,6 +14,7 @@
 #include <common_test_utils/test_constants.hpp>
 #include <cpp/ie_cnn_network.h>
 #include "gtest/gtest.h"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/precision_utils.hpp"

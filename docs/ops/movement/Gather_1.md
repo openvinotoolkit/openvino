@@ -8,10 +8,9 @@
 
 **Detailed description**
 
-    output[p_0, p_1, ..., p_{axis-1}, i, ..., j, ...] = 
-       input1[p_0, p_1, ..., p_{axis-1}, input2[i, ..., j], ...]
+    output[:, ... ,:, i, ... , j,:, ... ,:] = input1[:, ... ,:, input2[i, ... ,j],:, ... ,:]
 
-Where `axis` is the value from the third input.
+Where `i` is the value from the third input.
 
 **Attributes**: *Gather* has no attributes
 

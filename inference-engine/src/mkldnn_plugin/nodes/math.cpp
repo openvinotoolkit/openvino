@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,13 +46,13 @@ public:
     explicit MathImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
 
             if (layer->insData.size() != 1)
-                IE_THROW() << layer->name << " Incorrect number of input edges!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
 
             if (layer->insData[0].lock()->getTensorDesc().getDims() != layer->outData[0]->getTensorDesc().getDims())
-                IE_THROW() << layer->name << " Incorrect number of input/output dimensions!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
 
             alpha = layer->GetParamAsFloat("alpha", 0.0f);
             beta = layer->GetParamAsFloat("beta", 0.0f);
@@ -84,10 +84,10 @@ public:
             else if (math_func == "Softsign") mathFunction = Math::Softsign;
             else if (math_func == "Tan") mathFunction = Math::Tan;
             else
-                IE_THROW() << layer->name << " Incorrect Math layer type!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect Math layer type!";
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN, false, 0, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, false, 0, Precision::FP32)});
-        } catch (InferenceEngine::Exception &ex) {
+        } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <dlfcn.h>
 
+#include "details/ie_exception.hpp"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 
@@ -19,7 +20,7 @@ public:
         shared_object = dlopen(pluginName, RTLD_LAZY);
 
         if (shared_object == nullptr)
-            IE_THROW() << "Cannot load library '" << pluginName << "': " << dlerror();
+            THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << dlerror();
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
@@ -29,7 +30,7 @@ public:
 
     ~Impl() noexcept(false) {
         if (0 != dlclose(shared_object)) {
-            IE_THROW() << "dlclose failed: " << dlerror();
+            THROW_IE_EXCEPTION << "dlclose failed: " << dlerror();
         }
     }
 
@@ -37,14 +38,14 @@ public:
      * @brief Searches for a function symbol in the loaded module
      * @param symbolName Name of the function to find
      * @return A pointer to the function if found
-     * @throws Exception if the function is not found
+     * @throws InferenceEngineException if the function is not found
      */
     void* get_symbol(const char* symbolName) const {
         void* procAddr = nullptr;
 
         procAddr = dlsym(shared_object, symbolName);
         if (procAddr == nullptr)
-            IE_THROW(NotFound)
+            THROW_IE_EXCEPTION << details::as_status << NOT_FOUND
                 << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
         return procAddr;
     }

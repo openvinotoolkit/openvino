@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,6 @@ typedef struct {
     std::vector<ptrdiff_t> padBegin;
     std::vector<ptrdiff_t> padEnd;
     size_t numOutChannels;
-    InferenceEngine::SizeVector poolingWindow;
-    InferenceEngine::SizeVector poolingStride;
 } convReluSpecificParams;
 
 typedef struct {
@@ -32,12 +30,11 @@ typedef struct {
 } convReluSpecificParamsAll;
 
 typedef std::tuple<
-    convReluSpecificParamsAll,          // CNN2D sequence desc
-    InferenceEngine::Precision,         // Net precision
-    InferenceEngine::Precision,         // Input precision
-    InferenceEngine::Precision,         // Output precision
-    LayerTestsUtils::TargetDevice,      // Device name
-    std::map<std::string, std::string>  // Configuration
+    convReluSpecificParamsAll,      // CNN2D sequence desc
+    InferenceEngine::Precision,     // Net precision
+    InferenceEngine::Precision,     // Input precision
+    InferenceEngine::Precision,     // Output precision
+    LayerTestsUtils::TargetDevice   // Device name
 > convReluSequenceTestParamsSet;
 
 class ConvolutionReluSequenceTest : public testing::WithParamInterface<convReluSequenceTestParamsSet>,

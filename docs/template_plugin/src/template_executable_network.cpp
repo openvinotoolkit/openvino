@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,12 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     try {
         CompileNetwork(function);
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::Exception&) {
+    } catch (const InferenceEngine::details::InferenceEngineException&) {
         throw;
     } catch (const std::exception & e) {
-        IE_THROW() << "Standard exception from compilation library: " << e.what();
+        THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        IE_THROW() << "Generic exception is thrown";
+        THROW_IE_EXCEPTION << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
@@ -74,12 +74,12 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     try {
         CompileNetwork(cnnnetwork.getFunction());
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::Exception&) {
+    } catch (const InferenceEngine::details::InferenceEngineException&) {
         throw;
     } catch (const std::exception & e) {
-        IE_THROW() << "Standard exception from compilation library: " << e.what();
+        THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
     } catch (...) {
-        IE_THROW() << "Generic exception is thrown";
+        THROW_IE_EXCEPTION << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_import_stream]
@@ -181,7 +181,7 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
         unsigned int value = _cfg._streamsExecutorConfig._streams;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
+        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 // ! [executable_network:get_metric]

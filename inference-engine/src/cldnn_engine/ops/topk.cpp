@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,7 +114,7 @@ void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
         p.AddPrimitive(argmaxPrim);
         p.AddPrimitiveToProfiler(op);
     } else {
-        IE_THROW() << op->get_friendly_name() << " Incorrect TopK outputs number";
+        THROW_IE_EXCEPTION << op->get_friendly_name() << " Incorrect TopK outputs number";
     }
 }
 

@@ -1,4 +1,5 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2019 Intel Corporation
+#
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -31,7 +32,6 @@ addIeTarget(
             PRIVATE
                 inference_engine_transformations
         DEPENDENCIES
-            inference_engine
             mock_engine
             HeteroPlugin
             MultiDevicePlugin

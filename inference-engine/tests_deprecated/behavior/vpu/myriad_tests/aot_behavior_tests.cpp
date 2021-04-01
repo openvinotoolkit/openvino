@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,15 +67,27 @@ class AOTBehaviorTests : public BehaviorPluginTest {
     }
 
     void canImportBlob() {
-        ASSERT_NO_THROW(importBlob()) << response.msg;
+        ASSERT_EQ(StatusCode::OK, importBlob()) << response.msg;
     }
 
     void canNotImportBlob() {
-        ASSERT_THROW(importBlob(), InferenceEngine::Exception) << response.msg;
+        ASSERT_NE(StatusCode::OK, importBlob()) << response.msg;
     }
 
-    void importBlob() {
-        InferenceEngine::Core{}.ImportNetwork("local_tmp.fw", GetParam().device);
+    StatusCode importBlob() {
+        InferenceEngine::Core core;
+        ExecutableNetwork ret;
+
+        try
+        {
+            ret = core.ImportNetwork("local_tmp.fw", GetParam().device);
+        }
+        catch (InferenceEngine::details::InferenceEngineException & ex)
+        {
+            return ex.getStatus();
+        }
+
+        return StatusCode::OK;
     }
 
     void setHeaderVersion(int major, int minor) {

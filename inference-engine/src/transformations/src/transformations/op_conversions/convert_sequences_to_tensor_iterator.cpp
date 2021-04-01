@@ -1,7 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "itt.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -71,6 +70,18 @@ namespace {
         }
         return squeezed_nodes;
     }
+
+    bool should_enable_mask(const ngraph::Output<ngraph::Node> &seq_lengths, int64_t max_seq_len) {
+        // disable the mask if all values of seq_lengths input are equal to max_seq_len (X_shape[1])
+        if (const auto &seq_len_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(
+                seq_lengths.get_node_shared_ptr())) {
+            const auto &seq_len_values = seq_len_const->cast_vector<int64_t>();
+            return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
+                return val != max_seq_len;
+            });
+        }
+        return true;
+    }
 } // namespace
 
 ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
@@ -82,12 +93,12 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
                                                                     pattern::any_input(),
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
+        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
         }
 
@@ -102,7 +113,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = should_enable_mask(seq_lengths, max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
@@ -241,12 +252,12 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
                                                                     pattern::any_input(),
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
+        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
         }
 
@@ -261,7 +272,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = should_enable_mask(seq_lengths, max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
@@ -401,12 +412,12 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
                                                                      pattern::any_input(),
                                                                      pattern::any_input(),
                                                                      pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
+        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
         }
 
@@ -422,7 +433,7 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = should_enable_mask(seq_lengths, max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {

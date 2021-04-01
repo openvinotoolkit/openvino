@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 
 class DataTests : public ::testing::Test {
 protected:
@@ -73,7 +74,7 @@ TEST_F(DataTests, canSetEmptyDimsForBlockingDescOrder) {
 
 TEST_F(DataTests, throwOnFillDescByEmptyDimsForBlockingDesc) {
     BlockingDescTest desc(emptyDims, emptyDims);
-    ASSERT_THROW(desc.fillDescTest(emptyDims, emptyDims), Exception);
+    ASSERT_THROW(desc.fillDescTest(emptyDims, emptyDims), InferenceEngineException);
 }
 
 TEST_F(DataTests, throwOnSetEmptyDimsForBlockingDescBlocked) {

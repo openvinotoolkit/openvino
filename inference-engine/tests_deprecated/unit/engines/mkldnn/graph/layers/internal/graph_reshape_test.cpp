@@ -1,6 +1,7 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 
 #include "test_graph.hpp"
 
@@ -161,7 +162,7 @@ protected:
             ref_reshape(*srcPtr, dst_ref);
 
             compare(*output, dst_ref);
-        } catch (const InferenceEngine::Exception &e) {
+        } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
     }

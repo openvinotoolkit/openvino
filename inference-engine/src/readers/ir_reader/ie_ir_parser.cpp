@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2017-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/variant.hpp>
 #include <set>
 #include <sstream>
@@ -43,7 +42,7 @@ IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtension
         parser = std::make_shared<V10Parser>(exts);
         break;
     default:
-        IE_THROW() << "Unsupported IR version: " << version;
+        THROW_IE_EXCEPTION << "Unsupported IR version: " << version;
     }
 }
 
@@ -71,7 +70,7 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
     std::string field;
     while (getline(ss, field, ',')) {
         if (field.empty())
-            IE_THROW() << "Cannot get vector of parameters! \"" << param
+            THROW_IE_EXCEPTION << "Cannot get vector of parameters! \"" << param
                                << "\" is incorrect";
         std::stringstream fs(field);
         T val;
@@ -82,13 +81,11 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
 }
 
 template <class T>
-T stringToType(const std::string& valStr) {
-    T ret{0};
+bool stringToType(const std::string& valStr, T& value) {
     std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
-    }
-    return ret;
+    if (ss.eof()) return false;
+    ss >> value;
+    return !ss.fail();
 }
 
 class XmlDeserializer : public ngraph::AttributeVisitor {
@@ -126,12 +123,16 @@ public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
         std::string val;
         if (!getStrAttribute(node.child("data"), name, val)) return;
-        adapter.set(stringToType<double>(val));
+        double value;
+        stringToType<double>(val, value);
+        adapter.set(value);
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
         std::string val;
         if (!getStrAttribute(node.child("data"), name, val)) return;
-        adapter.set(stringToType<int64_t>(val));
+        int64_t value;
+        stringToType<int64_t>(val, value);
+        adapter.set(value);
     }
 
     void on_adapter(
@@ -225,7 +226,7 @@ XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& nod
     auto body_node = node.child("body");
 
     if (body_node.empty()) {
-        IE_THROW() << "Missing body part.";
+        THROW_IE_EXCEPTION << "Missing body part.";
     }
     // Fill map: parameter/result id to parameter/result number in Function
 
@@ -488,7 +489,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         pugi::xml_node dn = node.child("data");
         auto type = XMLParseUtils::GetStrAttr(node, "type");
 
-        if (dn.empty()) IE_THROW() << "No attrtibutes defined for " << type << " op!";
+        if (dn.empty()) THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
 
         if (getStrAttribute(dn, name, value)) {
             auto buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(value.size());
@@ -508,10 +509,10 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
 
             size_t length = weights->byteSize();
             if (!length)
-                IE_THROW() << "Empty weights data in bin file or bin file cannot be found!";
-            if (length < offset + size) IE_THROW() << "Incorrect weights in bin file!";
+                THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
+            if (length < offset + size) THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
             if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-                IE_THROW() << "Attribute and shape size are inconsistent for " << type
+                THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type
                                    << " op!";
 
             char* data = weights->cbuffer().as<char*>() + offset;
@@ -521,7 +522,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             a->set(buffer);
         }
     } else {
-        IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name
+        THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                            << " parameter";
     }
 }
@@ -532,13 +533,13 @@ void XmlDeserializer::on_adapter(
     if (!name.compare("body")) {
         auto body_node = node.child(name.c_str());
         if (body_node.empty()) {
-            IE_THROW() << "TensorIterator has no body.";
+            THROW_IE_EXCEPTION << "TensorIterator has no body.";
         }
         ngraph_function = parse_function(node.child(name.c_str()), weights);
     } else if (!name.compare("net")) {
         ngraph_function = parse_function(node, weights);
     } else {
-        IE_THROW() << "Error: not recognized adapter name: " << name << ".";
+        THROW_IE_EXCEPTION << "Error: not recognized adapter name: " << name << ".";
     }
     adapter.set(ngraph_function);
 }
@@ -571,7 +572,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     FOREACH_CHILD(node, root.child("layers"), "layer") {
         auto node_param = parseGenericParams(node);
         if (opName.find(node_param.name) != opName.end() && node_param.type != "Result")
-            IE_THROW() << "Invalid IR! " << node_param.name << " name is not unique!";
+            THROW_IE_EXCEPTION << "Invalid IR! " << node_param.name << " name is not unique!";
         opName.insert(node_param.name);
         params[node_param.layerId] = {node, node_param};
         if (node_param.type == "Result" || node_param.type == "Assign") {
@@ -617,13 +618,13 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         for (auto& e : edges[layer_id]) {
             auto input_node = id_to_node[e.fromLayerId];
             if (!input_node) {
-                IE_THROW() << "Attempt to access node " << e.fromLayerId
+                THROW_IE_EXCEPTION << "Attempt to access node " << e.fromLayerId
                                    << " that not in graph.";
             }
             auto& p_output = params[e.fromLayerId].params;
             size_t const realInputPortId = p.params.getRealInputPortId(e.toPortId);
             if (realInputPortId >= inputs.size())
-                IE_THROW() << p.params.type << " layer " << p.params.name
+                THROW_IE_EXCEPTION << p.params.type << " layer " << p.params.name
                                    << " with id: " << p.params.layerId << " is inconsistent!";
             inputs[realInputPortId] =
                 input_node->output(p_output.getRealOutputPortId(e.fromPortId));
@@ -637,7 +638,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         // Temporary disabled!
         //        for (size_t i = 0; i < p.params.outputPorts.size(); ++i) {
         //            if (p.params.outputPorts[i].dims != node->output(i).get_shape()) {
-        //                IE_THROW() << "Shape after nGraph infer " <<
+        //                THROW_IE_EXCEPTION << "Shape after nGraph infer " <<
         //                details::dumpVec(node->output(i).get_shape())
         //                                   << " differ from IR shapes: " <<
         //                                   details::dumpVec(p.params.outputPorts[i].dims);
@@ -693,7 +694,7 @@ V10Parser::V10Parser::GenericLayerParams XmlDeserializer::parseGenericParams(
             const pugi::char_t* dimVal = node.child_value();
             std::stringstream ss(dimVal);
             if (!(ss >> dim) || dim < 0) {
-                IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
+                THROW_IE_EXCEPTION << "dimension (" << dimVal << ") in node " << node.name()
                                    << " must be a non-negative integer: at offset "
                                    << node.offset_debug();
             }
@@ -757,11 +758,11 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
-            IE_THROW() << params.type << " layer " << params.name
+            THROW_IE_EXCEPTION << params.type << " layer " << params.name
                                << " with id: " << params.layerId
                                << " has incorrect input with index " << i << "!";
         if (ngraph::element::Type_t::undefined == inputs[i].get_element_type())
-            IE_THROW() << params.type << " layer " << params.name
+            THROW_IE_EXCEPTION << params.type << " layer " << params.name
                                << " with id: " << params.layerId
                                << " has undefined element type for input with index " << i << "!";
     }
@@ -795,7 +796,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
             if (type == "MVN" || type == "ROIPooling" || type == "ReorgYolo") {
                 opsetIt = opsets.find("opset2");
                 if (opsetIt == opsets.end()) {
-                    IE_THROW() << "Cannot create " << params.type << " layer "
+                    THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer "
                                        << params.name << " id:" << params.layerId
                                        << " from unsupported opset: " << params.version;
                 }
@@ -806,7 +807,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
-            IE_THROW() << "Opset " << params.version
+            THROW_IE_EXCEPTION << "Opset " << params.version
                                << " doesn't contain the operation with type: " << type;
         }
         // Share Weights form constant blob
@@ -824,7 +825,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     }
 
     if (!ngraphNode) {
-        IE_THROW() << "Cannot create " << params.type << " layer " << params.name
+        THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name
                            << " id:" << params.layerId
                            << " from unsupported opset: " << params.version;
     }
@@ -870,7 +871,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     for (const auto& ext : exts) {
         for (const auto& it : ext->getOpSets()) {
             if (opsets.find(it.first) != opsets.end())
-                IE_THROW() << "Cannot add opset with name: " << it.first
+                THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first
                                    << ". Opset with the same name already exists.";
             opsets[it.first] = it.second;
         }
@@ -915,7 +916,7 @@ void V10Parser::parsePreProcess(
         // fallback (old format), look for the picture in the inputs
         InputsDataMap inputs = network.getInputsInfo();
 
-        if (inputs.empty()) IE_THROW() << "network has no input";
+        if (inputs.empty()) THROW_IE_EXCEPTION << "network has no input";
 
         for (auto i : inputs) {
             if (i.second->getTensorDesc().getDims().size() == 4) {
@@ -931,7 +932,7 @@ void V10Parser::parsePreProcess(
     } else {
         preProcessInput = network.getInputsInfo()[inputName];
         if (!preProcessInput)
-            IE_THROW() << "pre-process name ref '" << inputName
+            THROW_IE_EXCEPTION << "pre-process name ref '" << inputName
                                << "' refers to un-existing input";
     }
 
@@ -940,7 +941,7 @@ void V10Parser::parsePreProcess(
     size_t noOfChannels = 0, width = 0, height = 0;
 
     if (inputDims.size() < 2) {
-        IE_THROW() << "network did not define input dimensions properly";
+        THROW_IE_EXCEPTION << "network did not define input dimensions properly";
     } else if (inputDims.size() == 2) {  // NC
         noOfChannels = inputDims[1];
         width = inputDims[1];
@@ -964,7 +965,7 @@ void V10Parser::parsePreProcess(
 
     auto meanSegmentPrecision = GetPrecisionAttr(ppNode, "mean-precision", Precision::UNSPECIFIED);
     if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
-        IE_THROW() << "mean blob defined without specifying precision.";
+        THROW_IE_EXCEPTION << "mean blob defined without specifying precision.";
 
     InferenceEngine::PreProcessChannel::Ptr preProcessChannel;
 
@@ -974,7 +975,7 @@ void V10Parser::parsePreProcess(
     FOREACH_CHILD(chan, ppNode, "channel") {
         int chanNo = GetIntAttr(chan, "id", lastChanNo + 1);
         if (chanNo >= static_cast<int>(noOfChannels) || chanNo < 0) {
-            IE_THROW() << "Pre-process channel id invalid: " << chanNo;
+            THROW_IE_EXCEPTION << "Pre-process channel id invalid: " << chanNo;
         }
         lastChanNo = chanNo;
         preProcessChannel = pp[chanNo];
@@ -982,14 +983,14 @@ void V10Parser::parsePreProcess(
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
             if (!meanNode.attribute("size")) {
-                IE_THROW() << "mean should have the attribute: size";
+                THROW_IE_EXCEPTION << "mean should have the attribute: size";
             }
             if (meanNode.attribute("size")) {
                 idsForMeanImage.insert(chanNo);
                 size_t size = static_cast<size_t>(GetIntAttr(meanNode, "size"));
                 size_t offset = static_cast<size_t>(GetIntAttr(meanNode, "offset"));
                 if (width * height * meanSegmentPrecision.size() != size) {
-                    IE_THROW() << "mean blob size mismatch expected input, got: " << size
+                    THROW_IE_EXCEPTION << "mean blob size mismatch expected input, got: " << size
                                        << " extpecting " << width << " x " << height << " x "
                                        << meanSegmentPrecision.size();
                 }
@@ -1013,7 +1014,7 @@ void V10Parser::parsePreProcess(
         for (auto id : idsForMeanImage) {
             validMeanImageIds += std::to_string(id) + " ";
         }
-        IE_THROW() << "mean is not provided for all channels\n"
+        THROW_IE_EXCEPTION << "mean is not provided for all channels\n"
                               "Provided mean image for: "
                            << validMeanImageIds;
     }
@@ -1027,7 +1028,7 @@ size_t V10Parser::GenericLayerParams::getRealInputPortId(size_t id) const {
         }
         ++real_id;
     }
-    IE_THROW() << "Can not find input port with id " << id << " in layer " << name;
+    THROW_IE_EXCEPTION << "Can not find input port with id " << id << " in layer " << name;
 }
 
 size_t V10Parser::GenericLayerParams::getRealOutputPortId(size_t id) const {
@@ -1038,6 +1039,6 @@ size_t V10Parser::GenericLayerParams::getRealOutputPortId(size_t id) const {
         }
         ++real_id;
     }
-    IE_THROW() << "Can not find output port with id " << id << " in layer " << name;
+    THROW_IE_EXCEPTION << "Can not find output port with id " << id << " in layer " << name;
 }
 }  // namespace InferenceEngine

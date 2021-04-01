@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,13 +35,10 @@ HeteroAsyncInferRequest::HeteroAsyncInferRequest(const InferRequestInternal::Ptr
             Task            _task;
         };
 
-        auto requestExecutor = std::make_shared<RequestExecutor>(_heteroInferRequest->_inferRequests[requestId]._request.get());
-        _pipeline.emplace_back(requestExecutor, [requestExecutor] {
-            if (StatusCode::OK != requestExecutor->_status) {
-                IE_EXCEPTION_SWITCH(requestExecutor->_status, ExceptionType,
-                    InferenceEngine::details::ThrowNow<ExceptionType>{}
-                        <<= std::stringstream{} << IE_LOCATION
-                        <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+        auto reuestExecutor = std::make_shared<RequestExecutor>(_heteroInferRequest->_inferRequests[requestId]._request.get());
+        _pipeline.emplace_back(reuestExecutor, [reuestExecutor] {
+            if (StatusCode::OK != reuestExecutor->_status) {
+                THROW_IE_EXCEPTION << InferenceEngine::details::as_status << reuestExecutor->_status;
             }
         });
     }

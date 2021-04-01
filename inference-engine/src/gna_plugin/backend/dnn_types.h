@@ -164,10 +164,10 @@ typedef struct {
 } intel_convolutional2D_t;
 
 typedef struct {
-    std::array<uint32_t, 2> poolingWindowXY;
-    std::array<uint32_t, 2> poolingStrideXY;
-    std::array<uint32_t, 3> inCHW;
-    std::array<uint32_t, 3> outCHW;
+    uint32_t num_inputs;         // pool size
+    uint32_t num_inputs_step;     // pool step
+    uint32_t num_inputs_stride;  // pool stride (number of convolution filters)
+    bool do_sum_not_max;
 } intel_maxpool_t;
 
 typedef struct {
@@ -257,7 +257,7 @@ static std::string OvGnaModeToString(OvGnaMode mode) {
 }
 #endif
 
-struct intel_dnn_component_t {
+typedef struct {
 #if GNA_LIB_VER == 2
     std::vector < OvGnaTensor > tensors;
 #endif
@@ -287,9 +287,9 @@ struct intel_dnn_component_t {
     float output_scale_factor;
     float input_scale_factor;
     const char * original_layer_name = nullptr;
-};
+} intel_dnn_component_t;
 
-struct intel_score_error_t {
+typedef struct {
     uint32_t num_scores;
     uint32_t num_errors;
     float threshold;
@@ -301,4 +301,4 @@ struct intel_score_error_t {
     float max_rel_error;
     float sum_rel_error;
     float sum_squared_rel_error;
-};
+} intel_score_error_t;

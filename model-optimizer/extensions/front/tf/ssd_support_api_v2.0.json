@@ -2,7 +2,8 @@
     {
         "custom_attributes": {
             "start_nodes": ["StatefulPartitionedCall/Preprocessor/unstack"],
-            "end_nodes": ["StatefulPartitionedCall/Preprocessor/stack"]
+            "end_nodes": ["StatefulPartitionedCall/Preprocessor/stack",
+                          "StatefulPartitionedCall/Preprocessor/stack_1"]
         },
         "id": "ObjectDetectionAPIPreprocessor2Replacement",
         "match_kind": "general"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,7 @@ protected:
             inferRequest.SetBlob(outInfo.begin()->first, dst);
             inferRequest.Infer();
 
-        } catch (const Exception &e) {
+        } catch (const details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
     }

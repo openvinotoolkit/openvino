@@ -1,6 +1,18 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2017-2021 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
 #pragma once
 
@@ -17,7 +29,8 @@ namespace ngraph
         namespace v6
         {
             /// \brief An operation ExperimentalDetectronTopKROIs, according to the repository
-            /// is TopK operation applied to probabilities of input ROIs.
+            /// https://github.com/openvinotoolkit/training_extensions (see
+            /// pytorch_toolkit/instance_segmentation/segmentoly/rcnn/roi_feature_extractor.py).
             class NGRAPH_API ExperimentalDetectronTopKROIs : public Op
             {
             public:
@@ -40,7 +53,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 size_t get_max_rois() const { return m_max_rois; }
-
             private:
                 size_t m_max_rois;
             };

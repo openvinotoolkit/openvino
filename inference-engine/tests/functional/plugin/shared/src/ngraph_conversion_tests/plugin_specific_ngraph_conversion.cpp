@@ -1,4 +1,5 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +35,7 @@ TEST_P(PluginSpecificConversion, addOutputAfterLoadNetwork) {
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, device);
         network.addOutput("add1");
         InferenceEngine::ExecutableNetwork exeNetwork2 = ie.LoadNetwork(network, device);
-    } catch (InferenceEngine::Exception& ex) {
+    } catch (InferenceEngine::details::InferenceEngineException& ex) {
         FAIL() << ex.what();
     }
 }

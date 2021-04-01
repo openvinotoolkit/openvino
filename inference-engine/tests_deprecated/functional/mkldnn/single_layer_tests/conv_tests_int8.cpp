@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -371,7 +371,7 @@ protected:
 
             // Comparing the result with the reference
             compare_NRMSD(*dst, dst_ref, 0.17);
-        } catch (const Exception &e) {
+        } catch (const details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
     }

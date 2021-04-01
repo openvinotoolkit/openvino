@@ -19,6 +19,7 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
+#include "details/ie_exception_conversion.hpp"
 #include "ie_extension.h"
 
 namespace ngraph {

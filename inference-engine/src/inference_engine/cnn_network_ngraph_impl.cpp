@@ -80,7 +80,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
     for (const auto& dim : dims) {
         if (!dim)
-            IE_THROW() << outName << " has zero dimension which is not allowed";
+            THROW_IE_EXCEPTION << outName << " has zero dimension which is not allowed";
     }
 
     if (ptr) {
@@ -144,7 +144,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     const ICNNNetwork& iNetwork = network;
     const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
     if (network.getFunction() == nullptr || !net) {
-        IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
+        THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
@@ -405,7 +405,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
             const auto &outName = parameter->get_friendly_name();
             if (opName.find(outName) != opName.end()) {
-                IE_THROW() << "All operations in nGraph function should have unique friendly names!";
+                THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
             }
             opName.insert(outName);
             createDataForResult(parameter, outName, _data[outName]);
@@ -427,7 +427,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
             custom_opsets);
         manager.run_passes(_ngraph_function);
-    } catch (const Exception& e) {
+    } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();

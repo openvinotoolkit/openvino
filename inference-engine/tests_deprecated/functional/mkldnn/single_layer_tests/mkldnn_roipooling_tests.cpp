@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ protected:
             InferenceEngine::Core ie;
             ASSERT_NO_THROW(ie.ReadNetwork(model, Blob::CPtr()));
 
-        } catch (const InferenceEngine::Exception &e) {
+        } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
     }

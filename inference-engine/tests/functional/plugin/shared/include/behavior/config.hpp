@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ namespace BehaviorTestsDefinitions {
             targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
             ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
             ASSERT_THROW(ie->SetConfig(configuration, targetDevice),
-                         InferenceEngine::Exception);
+                         InferenceEngine::details::InferenceEngineException);
         } else {
             ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
             ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
@@ -74,7 +74,7 @@ namespace BehaviorTestsDefinitions {
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
         ASSERT_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration),
-                     InferenceEngine::Exception);
+                     InferenceEngine::details::InferenceEngineException);
     }
 
     using IncorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -90,7 +90,7 @@ namespace BehaviorTestsDefinitions {
         } else {
             try {
                 ie->SetConfig(configuration, targetDevice);
-            } catch (InferenceEngine::Exception &) {}
+            } catch (InferenceEngine::details::InferenceEngineException &) {}
         }
     }
 

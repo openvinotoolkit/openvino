@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace GNAPluginNS {
 
 class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
 private:
-    std::mutex syncCallsToLoadExeNetworkImpl;
     Config defaultConfig;
     std::weak_ptr <GNAPlugin> plgPtr;
     std::shared_ptr<GNAPlugin> GetCurrentPlugin() const {
@@ -33,7 +32,6 @@ public:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
                                                 const InferenceEngine::CNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
-        std::lock_guard<std::mutex> lock{ syncCallsToLoadExeNetworkImpl };
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
@@ -77,7 +75,7 @@ public:
         auto plg = GetCurrentPlugin();
         try {
             plg->SetConfig(config);
-        } catch (InferenceEngine::Exception&) {}
+        } catch (InferenceEngine::details::InferenceEngineException) {}
         return plg->QueryNetwork(network, config);
     }
 

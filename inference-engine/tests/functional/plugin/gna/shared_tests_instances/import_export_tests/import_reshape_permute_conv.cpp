@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,23 +14,13 @@ namespace {
 class ImportReshapePermuteConvGNA : public ImportReshapePermuteConv {
 private:
     void exportImportNetwork() override {
-        {
-            std::ofstream out(fileName);
-            out.write(applicationHeader.c_str(), applicationHeader.size());
-            executableNetwork.Export(out);
+        executableNetwork.Export(fileName);
+        std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
+        if (inputStream.fail()) {
+            FAIL() << "Cannot open file to import model: " << fileName;
         }
-        {
-            std::string appHeader(applicationHeader.size(), ' ');
-            std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
-            if (inputStream.fail()) {
-                FAIL() << "Cannot open file to import model: " << fileName;
-            }
-            inputStream.read(&appHeader[0], applicationHeader.size());
-            ASSERT_EQ(appHeader, applicationHeader);
-            executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
-        }
+        executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
     }
-
 protected:
     void TearDown() override {
         if (remove(fileName.c_str()) != 0) {
@@ -69,18 +59,12 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
     },
 };
 
-const std::vector<std::string> appHeaders = {
-        "",
-        "APPLICATION_HEADER"
-};
-
 INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportReshapePermuteConvGNA,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
-                            ::testing::ValuesIn(importConfigs),
-                            ::testing::ValuesIn(appHeaders)),
+                            ::testing::ValuesIn(importConfigs)),
                         ImportReshapePermuteConvGNA::getTestCaseName);
 
 } // namespace

@@ -1,0 +1,200 @@
+[{
+  "name" : "Function_9",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_763",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_763_0"],
+      "shape" : [ 3, 3, 64, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_762",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_762_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_761",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_761_0"],
+      "shape" : [ 1, 1, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_760",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_760_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_775",
+      "op" : "Constant",
+      "outputs" : ["Constant_775_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_763"],
+      "name" : "Reshape_779",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 64, 3, 3 ],
+      "outputs" : ["Reshape_779_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Parameter_762"],
+      "name" : "Reshape_770",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 50, 8, 8 ],
+      "outputs" : ["Reshape_770_0"]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_761"],
+      "name" : "Reshape_766",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 32, 1, 1 ],
+      "outputs" : ["Reshape_766_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Parameter_760"],
+      "name" : "Reshape_764",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 8, 8, 64 ],
+      "outputs" : ["Reshape_764_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Parameter_760"],
+      "name" : "Reshape_769",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 8, 8, 64 ],
+      "outputs" : ["Reshape_769_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_775"],
+      "name" : "Broadcast_776",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_776_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_764"],
+      "name" : "Reshape_765",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 8, 8 ],
+      "outputs" : ["Reshape_765_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Reshape_769"],
+      "name" : "Reshape_771",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 50, 8, 8 ],
+      "outputs" : ["Reshape_771_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_769"],
+      "name" : "Reshape_778",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 8, 8 ],
+      "outputs" : ["Reshape_778_0"]
+    },
+    {
+      "inputs" : [ "Parameter_762", "Broadcast_776" ],
+      "name" : "Greater_777",
+      "op" : "Greater",
+      "outputs" : ["Greater_777_0"]
+    },
+    {
+      "data_batch_shape" : [ 50, 32, 16, 16 ],
+      "data_dilation_strides_forward" : [ 1, 1 ],
+      "inputs" : [ "Reshape_766", "Reshape_765" ],
+      "name" : "ConvolutionBackpropData_767",
+      "op" : "ConvolutionBackpropData",
+      "outputs" : ["ConvolutionBackpropData_767_0"],
+      "padding_above_forward" : [ 0, 0 ],
+      "padding_below_forward" : [ 0, 0 ],
+      "window_dilation_strides_forward" : [ 1, 1 ],
+      "window_movement_strides_forward" : [ 2, 2 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_770", "Reshape_771" ],
+      "name" : "Convolution_772",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_772_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "data_batch_shape" : [ 50, 64, 8, 8 ],
+      "data_dilation_strides_forward" : [ 1, 1 ],
+      "inputs" : [ "Reshape_779", "Reshape_778" ],
+      "name" : "ConvolutionBackpropData_780",
+      "op" : "ConvolutionBackpropData",
+      "outputs" : ["ConvolutionBackpropData_780_0"],
+      "padding_above_forward" : [ 1, 1 ],
+      "padding_below_forward" : [ 1, 1 ],
+      "window_dilation_strides_forward" : [ 1, 1 ],
+      "window_movement_strides_forward" : [ 1, 1 ]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["ConvolutionBackpropData_767"],
+      "name" : "Reshape_768",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 16, 16, 32 ],
+      "outputs" : ["Reshape_768_0"]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Convolution_772"],
+      "name" : "Reshape_773",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 3, 3, 64 ],
+      "outputs" : ["Reshape_773_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["ConvolutionBackpropData_780"],
+      "name" : "Reshape_781",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 8, 8, 64 ],
+      "outputs" : ["Reshape_781_0"]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Reshape_773"],
+      "name" : "Reshape_774",
+      "op" : "Reshape",
+      "output_shape" : [ 3, 3, 64, 64 ],
+      "outputs" : ["Reshape_774_0"]
+    },
+    {
+      "inputs" : [ "Greater_777", "Reshape_781", "Broadcast_776" ],
+      "name" : "Select_782",
+      "op" : "Select",
+      "outputs" : ["Select_782_0"]
+    }
+  ],
+  "parameters" :
+      [ "Parameter_760", "Parameter_761", "Parameter_762", "Parameter_763" ],
+  "result" : [ "Reshape_764", "Reshape_768", "Reshape_774", "Select_782" ]
+}]

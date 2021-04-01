@@ -28,7 +28,7 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
     case mkldnn::memory::data_type::undef:
         return 0;
     default:
-        IE_THROW() << "Unsupported data type.";
+        THROW_IE_EXCEPTION << "Unsupported data type.";
     }
 }
 
@@ -48,7 +48,7 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
         case InferenceEngine::Precision::BIN:
             return memory::data_type::bin;
         default: {
-            IE_THROW() << "The plugin does not support " << prec.name();
+            THROW_IE_EXCEPTION << "The plugin does not support " << prec.name();
         }
     }
 }
@@ -68,7 +68,7 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
         case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
         default: {
-            IE_THROW() << "Unsupported data type.";
+            THROW_IE_EXCEPTION << "Unsupported data type.";
         }
     }
 }
@@ -136,7 +136,7 @@ PartialBlkDesc PartialBlkDesc::makeCBlocked(const InferenceEngine::SizeVector &d
 
 PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &desc) {
     if (desc.getLayout() == InferenceEngine::ANY)
-        IE_THROW() << "Cannot extract partial blocked descriptor for `ANY` layout";
+        THROW_IE_EXCEPTION << "Cannot extract partial blocked descriptor for `ANY` layout";
 
     const auto &dims = desc.getDims();
     const auto &blk = desc.getBlockingDesc();

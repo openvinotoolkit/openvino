@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -225,11 +225,11 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
 
                 // Check errors
                 if (sts == GENERAL_ERROR) {
-                    IE_THROW() << "Scoring failed! Critical error: " << dsc.msg;
+                    THROW_IE_EXCEPTION << "Scoring failed! Critical error: " << dsc.msg;
                 } else if (sts == NOT_IMPLEMENTED) {
-                    IE_THROW() << "Scoring failed! Input data is incorrect and not supported!";
+                    THROW_IE_EXCEPTION << "Scoring failed! Input data is incorrect and not supported!";
                 } else if (sts == NETWORK_NOT_LOADED) {
-                    IE_THROW() << "Scoring failed! " << dsc.msg;
+                    THROW_IE_EXCEPTION << "Scoring failed! " << dsc.msg;
                 }
                 if (!fetchResult.fetchMore) break;
             }

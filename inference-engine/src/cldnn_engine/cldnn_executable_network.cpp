@@ -50,7 +50,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
     if (nullptr == casted_context) {
-        IE_THROW() << "Invalid remote context";
+        THROW_IE_EXCEPTION << "Invalid remote context";
     }
 
     m_context = casted_context;
@@ -66,16 +66,16 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
                                                                    OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     if (m_graphs.empty()) {
-        IE_THROW(NetworkNotLoaded);
+        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
     }
 
     for (auto& graph : m_graphs) {
         if (graph == nullptr) {
-            IE_THROW(NetworkNotLoaded);
+            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
         }
 
         if (!graph->IsLoaded()) {
-            IE_THROW(NetworkNotLoaded) << ": no networks created";
+            THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str << ": no networks created";
         }
     }
 
@@ -98,7 +98,7 @@ IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
 
 InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
-        IE_THROW(NetworkNotLoaded);
+        THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
 
     return m_graphs.front()->GetExecGraphInfo();
 }
@@ -108,7 +108,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) 
     if (it != m_config.key_config_map.end()) {
         return it->second;
     } else {
-        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
+        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
@@ -132,7 +132,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         unsigned int nr = m_config.throughput_streams * 2u;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
     } else {
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
+        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
 }
 

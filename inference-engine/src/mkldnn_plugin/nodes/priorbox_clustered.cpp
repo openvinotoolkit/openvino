@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,11 +15,11 @@ public:
     explicit PriorBoxClusteredImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
-                IE_THROW() << "Incorrect number of input/output edges!";
+                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
             if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4 ||
                     layer->insData[1].lock()->getTensorDesc().getDims().size() != 4)
-                IE_THROW() << "PriorBoxClustered supports only 4D blobs!";
+                THROW_IE_EXCEPTION << "PriorBoxClustered supports only 4D blobs!";
 
             widths_ = layer->GetParamAsFloats("width", {});
             heights_ = layer->GetParamAsFloats("height", {});
@@ -33,7 +33,7 @@ public:
             offset_ = layer->GetParamAsFloat("offset");
 
             addConfig(layer, {{ConfLayout::PLN, true}, {ConfLayout::PLN, true}}, {{ConfLayout::PLN, true, -1, Precision::FP32}});
-        } catch (InferenceEngine::Exception &ex) {
+        } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }

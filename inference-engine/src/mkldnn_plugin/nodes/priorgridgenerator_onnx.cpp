@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,14 +30,14 @@ public:
     explicit ExperimentalDetectronPriorGridGeneratorImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() > 3 || layer->outData.empty())
-                IE_THROW() << "Incorrect number of input/output edges!";
+                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
             if (layer->insData[INPUT_PRIORS].lock()->getTensorDesc().getDims().size() != 2 ||
                     (layer->insData.size() > INPUT_FEATUREMAP &&
                      layer->insData[INPUT_FEATUREMAP].lock()->getTensorDesc().getDims().size() != 4) ||
                     (layer->insData.size() > INPUT_IMAGE &&
                      layer->insData[INPUT_IMAGE].lock()->getTensorDesc().getDims().size() != 4))
-                IE_THROW() << "Unsupported shape of input blobs!";
+                THROW_IE_EXCEPTION << "Unsupported shape of input blobs!";
 
             grid_w_ = layer->GetParamAsInt("w", 0);
             grid_h_ = layer->GetParamAsInt("h", 0);
@@ -47,7 +47,7 @@ public:
             addConfig(layer,
                       {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::ANY), DataConfigurator(ConfLayout::ANY)},
                       {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
-        } catch (InferenceEngine::Exception &ex) {
+        } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }

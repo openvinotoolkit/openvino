@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ void RawMatcher::match() {
         InferenceEngine::InputsDataMap networkInputs;
         networkInputs = cnnNetwork.getInputsInfo();
         if (networkInputs.size() == 0) {
-            IE_THROW() << "No inputs detected.";
+            THROW_IE_EXCEPTION << "No inputs detected.";
         }
 
         if (config._paths_to_images.size() % ( config.batchSize * networkInputs.size()) != 0) {
@@ -86,7 +86,7 @@ void RawMatcher::match() {
         for (auto & imageName : config._paths_to_images) {
             FormatReader::ReaderPtr reader(imageName.c_str());
             if (reader.get() == nullptr) {
-                IE_THROW() << "[ERROR]: Image " + imageName + " cannot be read!";
+                THROW_IE_EXCEPTION << "[ERROR]: Image " + imageName + " cannot be read!";
             }
             actualNetSize += reader->size();
             // Store image data
@@ -103,14 +103,14 @@ void RawMatcher::match() {
                 height = dims.at(3);
                 width = dims.at(4);
             } else {
-                IE_THROW() << inputData->getName() << " has unsupported layout " << inputData->getTensorDesc().getLayout();
+                THROW_IE_EXCEPTION << inputData->getName() << " has unsupported layout " << inputData->getTensorDesc().getLayout();
             }
 
             std::shared_ptr<unsigned char> data(reader->getData(width, height));
             if (data.get() != nullptr) {
                 imagesData.push_back(data);
             } else {
-                IE_THROW() << "Invalid image '" << imageName << "'";
+                THROW_IE_EXCEPTION << "Invalid image '" << imageName << "'";
             }
         }
 
@@ -150,7 +150,7 @@ void RawMatcher::match() {
                     blob = InferenceEngine::make_shared_blob<uint8_t>(desc);
                     break;
                 default:
-                    IE_THROW() << "Unsupported blob precision: " << desc.getPrecision();
+                    THROW_IE_EXCEPTION << "Unsupported blob precision: " << desc.getPrecision();
             }
             blob->allocate();
 
@@ -209,7 +209,7 @@ void RawMatcher::match() {
                 *config.perfInfoPtr = inferRequest.GetPerformanceCounts();
             }
         }
-    } catch (Exception &e) {
+    } catch (details::InferenceEngineException &e) {
         FAIL() << e.what();
     }
     catch (std::exception &e) {

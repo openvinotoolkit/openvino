@@ -3,7 +3,6 @@
 branch = True
 
 source =
-    extensions/
     mo/
     mo.py
 

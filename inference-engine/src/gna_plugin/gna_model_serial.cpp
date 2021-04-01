@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <array>
+#include <details/ie_exception.hpp>
 #include <ios>
 #include <iomanip>
 #include <map>
@@ -76,17 +77,12 @@ const int gna_header_magic = is_little_endian() ?  0x4d414e47 : 0x474e414d;
 
 GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
     is.exceptions(std::istream::failbit);
-    auto startPos = is.tellg();
-    if (startPos == -1) {
-        THROW_GNA_EXCEPTION << "Can't open stream to import";
-    }
     is.seekg(0, is.end);
     auto stream_len = is.tellg();
     if (stream_len == -1) {
         THROW_GNA_EXCEPTION << "Can't open file to import";
     }
-    stream_len -= startPos;
-    is.seekg(startPos, is.beg);
+    is.seekg(0, is.beg);
 
     HeaderLatest::ModelHeader header;
     header.version.major = 0u;
@@ -107,7 +103,7 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                            std::hex << std::setw(2) << static_cast<short>(header.gnam[3]);
     }
 
-    is.seekg(startPos, is.beg);
+    is.seekg(0, is.beg);
     Header2dot1::ModelHeader tempHeader2dot1;
     switch (header.version.major) {
         case 2:
@@ -836,7 +832,7 @@ void GNAModelSerial::ImportInputs(std::istream &is,
         InferenceEngine::InputsDataMap& dataMap) {
     dataMap.clear();
 
-    for (uint32_t inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
+    for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                 ? inputNames.at(inputIndex) : std::string("input" + std::to_string(inputIndex));
         HeaderLatest::RuntimeEndPoint input;
@@ -865,7 +861,7 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     dataMap.clear();
     desc.resize(modelHeader.nOutputs);
 
-    for (uint32_t outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
+    for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                                   ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
         HeaderLatest::RuntimeEndPoint output;

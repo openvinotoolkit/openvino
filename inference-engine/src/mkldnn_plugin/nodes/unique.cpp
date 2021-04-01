@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,13 +25,13 @@ public:
         try {
             // check number of inputs and outputs
             if (layer->insData.size() != 1 || layer->outData.size() < 1 || layer->outData.size() > 3) {
-                IE_THROW() << layer->name << " Incorrect number of input/output edges!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
             }
 
             // check precision of tensors
             Precision input_indices_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
             if (input_indices_precision != Precision::FP32) {
-                IE_THROW() << layer->name << " Incorrect input precision. Only FP32 is supported!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32 is supported!";
             }
 
             // check attributes
@@ -48,13 +48,13 @@ public:
                 claimed_num_outputs++;
             }
             if (layer->outData.size() != claimed_num_outputs) {
-                IE_THROW() << layer->name << " A number of outputs claimed by attributes does not match a real number of outputs!";
+                THROW_IE_EXCEPTION << layer->name << " A number of outputs claimed by attributes does not match a real number of outputs!";
             }
 
             // check dimensions of input tensors
             SizeVector input_dims = layer->insData[0].lock()->getTensorDesc().getDims();
             if (input_dims.size() != 1) {
-                IE_THROW() << layer->name << " Input must be 1-D tensor.";
+                THROW_IE_EXCEPTION << layer->name << " Input must be 1-D tensor.";
             }
             num_elements = input_dims[0];
 
@@ -62,20 +62,20 @@ public:
             size_t cur_output_port = 0;
             SizeVector output_uniques_dims = layer->outData[cur_output_port]->getTensorDesc().getDims();
             if (output_uniques_dims.size() != 1 || output_uniques_dims[0] != num_elements) {
-                IE_THROW() << layer->name << " Incorrect dimensions for output tensor of unique elements.";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output tensor of unique elements.";
             }
             if (return_inverse) {
                 cur_output_port++;
                 SizeVector output_indices_dims = layer->outData[cur_output_port]->getTensorDesc().getDims();
                 if (output_indices_dims.size() != 1 || output_indices_dims[0] != num_elements) {
-                    IE_THROW() << layer->name << " Incorrect dimensions for output tensor of indices.";
+                    THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output tensor of indices.";
                 }
             }
             if (return_counts) {
                 cur_output_port++;
                 SizeVector output_counts_dims = layer->outData[cur_output_port]->getTensorDesc().getDims();
                 if (output_counts_dims.size() != 1 || output_counts_dims[0] != num_elements) {
-                    IE_THROW() << layer->name << " Incorrect dimensions for output tensor of counts.";
+                    THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions for output tensor of counts.";
                 }
             }
 
@@ -94,7 +94,7 @@ public:
                     DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32) });
             }
         }
-        catch (InferenceEngine::Exception &ex) {
+        catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }

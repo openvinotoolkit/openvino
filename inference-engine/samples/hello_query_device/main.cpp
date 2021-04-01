@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,7 @@ std::ostream & operator << (std::ostream & stream, const std::vector<T> & v) {
 }
 
 void printParameterValue(const Parameter & value) {
-    if (value.empty()) {
-        std::cout << "EMPTY VALUE" << std::endl;
-    } else if (value.is<bool>()) {
+    if (value.is<bool>()) {
         std::cout << std::boolalpha << value.as<bool>() << std::noboolalpha << std::endl;
     } else if (value.is<int>()) {
         std::cout << value.as<int>() << std::endl;
@@ -114,7 +112,7 @@ int main(int argc, char *argv[]) {
             std::cout << std::endl;
         }
     } catch (const std::exception & ex) {
-        std::cerr << std::endl << "Exception occurred: " << ex.what() << std::endl << std::flush;
+        std::cerr << ex.what() << std::endl;
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
