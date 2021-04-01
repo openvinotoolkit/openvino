@@ -163,6 +163,7 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
     InferenceEngine::QueryNetworkResult refResult = ie.QueryNetwork(network, deviceName);
 
     runParallel([&] () {
+        *(int*)0 = 0;
         const auto result = ie.QueryNetwork(network, deviceName);
         safePluginUnregister(ie);
 
