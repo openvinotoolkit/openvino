@@ -234,7 +234,7 @@ limitations under the License.
                 <tab type="user" title="ScatterNDUpdate" url="@ref openvino_docs_ops_movement_ScatterNDUpdate_3"/>
                 <tab type="user" title="ScatterUpdate-3" url="@ref openvino_docs_ops_movement_ScatterUpdate_3"/>
                 <tab type="user" title="Select-1" url="@ref openvino_docs_ops_condition_Select_1"/>
-                <tab type="user" title="Selu-1" url="@ref openvino_docs_ops_arithmetic_Selu_1"/>
+                <tab type="user" title="Selu-1" url="@ref openvino_docs_ops_activation_Selu_1"/>
                 <tab type="user" title="ShapeOf-1" url="@ref openvino_docs_ops_shape_ShapeOf_1"/>
                 <tab type="user" title="ShapeOf-3" url="@ref openvino_docs_ops_shape_ShapeOf_3"/>
                 <tab type="user" title="ShuffleChannels-1" url="@ref openvino_docs_ops_movement_ShuffleChannels_1"/>
