@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,18 +25,18 @@ public:
     explicit DepthToSpaceImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << "' has incorrect number of input/output edges";
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name << "' has incorrect number of input/output edges";
 
             inDims = layer->insData[0].lock()->getTensorDesc().getDims();
             if (inDims.size() < 3)
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << "' has incorrect number of input dimensions";
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name << "' has incorrect number of input dimensions";
 
             if (inDims.size() > 5)
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << "' doesn't support dimensions with rank greater than 5";
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name << "' doesn't support dimensions with rank greater than 5";
 
             SizeVector outDims = layer->outData[0]->getTensorDesc().getDims();
             if (inDims.size() != outDims.size())
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << "' has incorrect number of input/output dimensions";
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name << "' has incorrect number of input/output dimensions";
 
             std::string modeString = layer->GetParamAsString("mode");
             if (modeString == "blocks_first") {
@@ -44,31 +44,31 @@ public:
             } else if (modeString == "depth_first") {
                 mode = DepthToSpaceMode::DEPTH_FIRST;
             } else {
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << "' doesn't support mode: " << modeString;
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name << "' doesn't support mode: " << modeString;
             }
 
             blockSize = layer->GetParamAsUInt("block_size", 1);
             if (blockSize == 0)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect blockSize parameter is zero!";
+                IE_THROW() << layer->name << " Incorrect blockSize parameter is zero!";
 
             size_t numSpatialDims = inDims.size() - 2;
             blockStep = static_cast<size_t>(std::pow(blockSize, numSpatialDims));
             if (inDims[1] % blockStep)
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name <<
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name <<
                     "' has block_size parameter which is incompatible with input tensor channels dimension size";
 
             if (inDims[1] / blockStep != outDims[1])
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << " has incompatible input/output channels";
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name << " has incompatible input/output channels";
 
             for (int i = 0; i < numSpatialDims; i++) {
                 if (inDims[i + 2] * blockSize != outDims[i + 2])
-                    THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << " has incompatible spatial dims";
+                    IE_THROW() << "DepthToSpace layer with name '" << layer->name << " has incompatible spatial dims";
             }
 
             auto computePrc = layer->insData[0].lock()->getTensorDesc().getPrecision();
             const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
             if (supported_precision_sizes.find(computePrc.size()) == supported_precision_sizes.end())
-                THROW_IE_EXCEPTION << "DepthToSpace layer with name '" << layer->name << " doesn't support precision: " << computePrc.name();
+                IE_THROW() << "DepthToSpace layer with name '" << layer->name << " doesn't support precision: " << computePrc.name();
 
 
             if (inDims.size() == 4 || inDims.size() == 5) {
@@ -96,7 +96,7 @@ public:
 
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,7 +122,7 @@ TEST_F(IncorrectIRTests, smoke_loadIRWithIncorrectInput) {
 
     InferenceEngine::Core ie;
     ASSERT_THROW(ie.ReadNetwork(model, InferenceEngine::Blob::CPtr()), 
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_P(IncorrectIRTests, loadIncorrectLayer) {

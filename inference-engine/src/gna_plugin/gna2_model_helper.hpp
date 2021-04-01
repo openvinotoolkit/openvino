@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@ constexpr uint32_t PoolModeParamIdx = 2;
 constexpr uint32_t PoolWinParamIdx = 3;
 constexpr uint32_t PoolStrideParamIdx = 4;
 constexpr uint32_t ZeroPaddingParamIdx = 5;
+constexpr uint32_t MaximumScoreParamIdx = 0;
 
 #define GNA_MAX_OP_PARAM 10
 typedef void (*GnaUserFree)(void*);
