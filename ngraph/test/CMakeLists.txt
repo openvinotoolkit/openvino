@@ -338,6 +338,7 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
     backend/hard_sigmoid.in.cpp
+    backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
