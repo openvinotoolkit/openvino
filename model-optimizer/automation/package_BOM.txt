@@ -155,6 +155,7 @@ extensions/front/kaldi/add_reshape_around_pooling.py
 extensions/front/kaldi/apply_counts.py
 extensions/front/kaldi/logsoftmax_component_ext.py
 extensions/front/kaldi/memory_offset_adjustment.py
+extensions/front/kaldi/memoryoffset_batch_update.py
 extensions/front/kaldi/replace_eltwise_nin1.py
 extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
@@ -578,6 +579,7 @@ extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
+extensions/middle/MakeKaldiConstReshapable.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
 extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
