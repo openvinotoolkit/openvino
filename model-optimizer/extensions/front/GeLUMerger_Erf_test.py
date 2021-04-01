@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 from math import sqrt
@@ -23,7 +10,7 @@ from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, const, regular_op, result, build_graph
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),
-             **regular_op('gelu', {'type': 'Gelu', 'name': 'final_mul'}),
+             **regular_op('gelu', {'type': 'Gelu', 'approximation_mode': 'erf', 'name': 'final_mul'}),
              **result('result')
              }
 ref_edges = [('input', 'gelu'), ('gelu', 'result')]
@@ -65,6 +52,7 @@ class GeLUMergerErfTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.assertTrue(graph.get_op_nodes(op='Gelu')[0].approximation_mode == 'erf')
         self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
                         graph.get_op_nodes(name='final_mul')[0].op == 'Gelu')
 
@@ -89,6 +77,7 @@ class GeLUMergerErfTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.assertTrue(graph.get_op_nodes(op='Gelu')[0].approximation_mode == 'erf')
         self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
                         graph.get_op_nodes(name='final_mul')[0].op == 'Gelu')
 
@@ -113,5 +102,6 @@ class GeLUMergerErfTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.assertTrue(graph.get_op_nodes(op='Gelu')[0].approximation_mode == 'erf')
         self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
                         graph.get_op_nodes(name='final_mul')[0].op == 'Gelu')

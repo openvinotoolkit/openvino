@@ -1,5 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,7 +11,7 @@ list(APPEND TEST_SRC ${CLDNN_TEST_SOURCES})
 
 list(APPEND CLDNN_LIBS
         IESharedTests
-        ${CLDNN__IOCL_ICD_LIBPATH})
+        ${CLDNN__OCL_ICD_LIBPATH})
 
 # try to find VA libraries
 find_package(PkgConfig QUIET)
@@ -57,7 +56,7 @@ if(LIBVA_FOUND)
     target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
 endif()
 
-target_include_directories(${TARGET_NAME} PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+target_include_directories(${TARGET_NAME} PRIVATE ${CLDNN__OCL_ICD_INCDIRS})
 target_link_libraries(${TARGET_NAME} PRIVATE ${CLDNN_LIBS})
 
 add_dependencies(${TARGET_NAME} ${DEPENDENCIES})

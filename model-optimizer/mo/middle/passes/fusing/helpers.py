@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 from collections import deque
@@ -59,7 +46,8 @@ def get_value_in_port(node) -> Port:
     return None if len(value_ports) != 1 else value_ports[0]
 
 
-def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: bool = True, allowed_all: bool = False):
+def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: bool = True, allowed_all: bool = False,
+               attr_to_check='type', follow_multi_consumer_data_nodes=False):
     """
     The purpose of this algorithm is to find layers with 'op_name' located in given direction.
     In case of branching algorithm goes into each branch, but if it can't find layer in one of them it returns
@@ -70,6 +58,8 @@ def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: 
     :param op_name: The list with names of operations for searching
     :param is_backward: The direction of BFS algorithm
     :param allowed_all: Bool flag meaning we can jump over all operations
+    :param attr_to_check: the attribute to check when looking if the node is in "op_name" list
+    :param follow_multi_consumer_data_nodes: for backward traversal allow to follow data nodes with multiple consumers
     """
     ret = []
     q = deque([start_node])
@@ -83,8 +73,8 @@ def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: 
         in_nodes_size = len(node.in_nodes()) if is_backward else len(node.out_nodes())
         for id in range(in_nodes_size):  # in_nodes() can return either list or dict
             pnode = node.in_node(id) if is_backward else node.out_node(id)
-            if pnode.has_valid('type'):
-                if pnode.type in op_name:
+            if pnode.has_valid(attr_to_check):
+                if pnode[attr_to_check] in op_name:
                     if pnode.id not in ret:
                         ret.append(pnode.id)
                 elif allowed_all or pnode.op in allowed_ops:
@@ -93,7 +83,7 @@ def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: 
                     return []
             elif pnode.kind == 'data' and pnode.value is None:
                 # If we go backward we don't use data node that have more than one consumer
-                if not is_backward or (is_backward and len(pnode.out_nodes()) == 1):
+                if not is_backward or (len(pnode.out_nodes()) == 1 or follow_multi_consumer_data_nodes):
                     q.append(pnode)
     return [Node(start_node.graph, x) for x in ret]
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ using NmsParams = std::tuple<InputShapeParams,                                  
 class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NmsParams> obj);
-    void Infer() override;
+    void GenerateInputs() override;
     void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
 
 protected:

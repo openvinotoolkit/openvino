@@ -85,7 +85,7 @@ jobs:
           wget -q http://download.tensorflow.org/models/mobilenet_v1_2018_08_02/mobilenet_v1_1.0_224.tgz
           tar -xf mobilenet_v1_1.0_224.tgz
           python3 -m pip install model-optimizer/dist/*.whl
-          python3 -c "import sys, subprocess, mo_tf; subprocess.run([sys.executable, mo_tf.__file__, '--input_model', 'mobilenet_v1_1.0_224_frozen.pb', '--input_shape', '[1,224,224,3]'], check=True)"
+          python3 -m mo --input_model mobilenet_v1_1.0_224_frozen.pb --input_shape "[1,224,224,3]"
 
       - uses: actions/upload-artifact@v2
         with:

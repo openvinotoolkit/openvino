@@ -40,17 +40,18 @@ ie_add_plugin(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
+ie_mark_target_as_cc(${TARGET_NAME})
+
 if(SELECTIVE_BUILD STREQUAL "ON")
     # After disabling a block of code, some variables might be unused.
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
+       CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
     endif()
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
-                                             inference_engine_transformations inference_engine_lp_transformations
-                                             openvino::conditional_compilation)
+                                             inference_engine_transformations inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
@@ -83,9 +84,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inferenc
                                                       $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                               PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+                                                      $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)

@@ -1,5 +1,9 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 #distutils: language=c++
 #cython: embedsignature=True
+
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -8,7 +12,7 @@ from libcpp.pair cimport pair
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr
 from libc.stdlib cimport malloc, free
-from libc.stdint cimport int64_t, uint8_t, int8_t, int32_t, uint16_t, int16_t
+from libc.stdint cimport int64_t, uint8_t, int8_t, int32_t, uint16_t, int16_t, uint32_t, uint64_t
 from libc.stddef cimport size_t
 from libc.string cimport memcpy
 
@@ -119,6 +123,8 @@ cdef class Blob:
         cdef int8_t[::1] I8_array_memview
         cdef int32_t[::1] I32_array_memview
         cdef int64_t[::1] I64_array_memview
+        cdef uint32_t[::1] U32_array_memview
+        cdef uint64_t[::1] U64_array_memview
 
         cdef int16_t[:] x_as_uint
         cdef int16_t[:] y_as_uint
@@ -138,18 +144,22 @@ cdef class Blob:
                 self._ptr = C.make_shared_blob[float](c_tensor_desc)
             elif precision == "FP64":
                 self._ptr = C.make_shared_blob[double](c_tensor_desc)
-            elif precision == "FP16" or precision == "I16":
+            elif precision == "FP16" or precision == "I16" or precision == "BF16":
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc)
             elif precision == "Q78" or precision == "U16":
                 self._ptr = C.make_shared_blob[uint16_t](c_tensor_desc)
             elif  precision == "U8" or precision == "BOOL":
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc)
-            elif  precision == "I8" or precision == "BIN":
+            elif  precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc)
             elif  precision == "I32":
                 self._ptr = C.make_shared_blob[int32_t](c_tensor_desc)
+            elif  precision == "U32":
+                self._ptr = C.make_shared_blob[uint32_t](c_tensor_desc)
             elif  precision == "I64":
                 self._ptr = C.make_shared_blob[int64_t](c_tensor_desc)
+            elif  precision == "U64":
+                self._ptr = C.make_shared_blob[uint64_t](c_tensor_desc)
             else:
                 raise AttributeError(f"Unsupported precision {precision} for blob")
             deref(self._ptr).allocate()
@@ -172,7 +182,7 @@ cdef class Blob:
             elif precision == "FP64":
                 fp64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[double](c_tensor_desc, &fp64_array_memview[0], fp64_array_memview.shape[0])
-            elif precision == "FP16":
+            elif precision == "FP16" or precision == "BF16":
                 I16_array_memview = self._array_data.view(dtype=np.int16)
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
             elif precision == "I16":
@@ -184,15 +194,21 @@ cdef class Blob:
             elif  precision == "U8" or precision == "BOOL":
                 U8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc, &U8_array_memview[0], U8_array_memview.shape[0])
-            elif  precision == "I8" or precision == "BIN":
+            elif  precision == "I8" or precision == "BIN" or precision == "I4" or precision == "U4":
                 I8_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int8_t](c_tensor_desc, &I8_array_memview[0], I8_array_memview.shape[0])
             elif  precision == "I32":
                 I32_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int32_t](c_tensor_desc, &I32_array_memview[0], I32_array_memview.shape[0])
+            elif  precision == "U32":
+                U32_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[uint32_t](c_tensor_desc, &U32_array_memview[0], U32_array_memview.shape[0])
             elif  precision == "I64":
                 I64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int64_t](c_tensor_desc, &I64_array_memview[0], I64_array_memview.shape[0])
+            elif  precision == "U64":
+                U64_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[uint64_t](c_tensor_desc, &U64_array_memview[0], U64_array_memview.shape[0])
             else:
                 raise AttributeError(f"Unsupported precision {precision} for blob")
 
@@ -292,7 +308,7 @@ cdef class IECore:
     #    and creates an `ExecutableNetwork` object of the `IENetwork` class.
     #    You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware
     #    resources).
-    #  @param network: A valid `IENetwork` instance
+    #  @param network: A valid `IENetwork` instance. Model file name .xml, .onnx can also be passed as argument
     #  @param device_name: A device name of a target plugin
     #  @param config: A dictionary of plugin configuration keys and their values
     #  @param num_requests: A positive integer value of infer requests to be created. Number of infer requests is limited
@@ -306,7 +322,7 @@ cdef class IECore:
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
     #  ```
-    cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config=None, int num_requests=1):
+    cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
         if num_requests < 0:
@@ -315,7 +331,10 @@ cdef class IECore:
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
-        exec_net.impl = move(self.impl.loadNetwork(network.impl, device_name.encode(), c_config, num_requests))
+        if isinstance(network, str):
+            exec_net.impl = move(self.impl.loadNetworkFromFile((<str>network).encode(), device_name.encode(), c_config, num_requests))
+        else:
+            exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, device_name.encode(), c_config, num_requests))
         return exec_net
 
     ## Creates an executable network from a previously exported network
@@ -1447,10 +1466,6 @@ cdef class IENetwork:
         name = bytes(orig_name, 'utf-8')
         return self.impl.getOVNameForTensor(name).decode('utf-8')
 
-    def get_ov_name_for_operation(self, orig_name: str):
-        name = bytes(orig_name, 'utf-8')
-        return self.impl.getOVNameForOperation(name).decode('utf-8')
-
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
 
@@ -1509,6 +1524,9 @@ cdef class BlobBuffer:
             'U32': 'I',  # unsigned int
             'I64': 'q',  # signed long int
             'U64': 'Q',  # unsigned long int
+            'BOOL': 'B',  # unsigned char
+            'BF16': 'h',  # signed short
+            'BIN': 'b',  # signed char
         }
         if name not in precision_to_format:
             raise ValueError(f"Unknown Blob precision: {name}")

@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -37,7 +25,11 @@ TEST(type_prop, squared_difference)
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
     }
 
-    const auto clamp = make_shared<op::SquaredDifference>(x1, x3);
-    EXPECT_EQ(clamp->get_element_type(), element::f64);
-    EXPECT_EQ(clamp->get_shape(), (Shape{2, 2}));
+    const auto squared_diff = make_shared<op::SquaredDifference>(x1, x3);
+    EXPECT_EQ(squared_diff->get_element_type(), element::f64);
+    EXPECT_EQ(squared_diff->get_shape(), (Shape{2, 2}));
+    EXPECT_EQ(squared_diff->get_autob(), op::AutoBroadcastType::NUMPY);
+
+    const auto squared_diff_no_args = make_shared<op::SquaredDifference>();
+    EXPECT_EQ(squared_diff_no_args->get_autob(), op::AutoBroadcastType::NUMPY);
 }

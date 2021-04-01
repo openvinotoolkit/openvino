@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,13 @@ const std::vector<ReshapeTransformationParam> params = {
         ngraph::Shape{ 1, 3, 16, 16 },
         { 1, 3, 256 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        true
+    },
+    // 4D -> 3D
+    {
+        ngraph::Shape{ 1, 3, 16, 16 },
+        { 0, 3, -1 },
+        { 256ul, ngraph::Shape{ 1, 3, 1, 1 }, { 0.f }, { 255.f }, { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         true
     },
     // 4D -> 2D

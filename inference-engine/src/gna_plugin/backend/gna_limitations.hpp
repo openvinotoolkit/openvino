@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ namespace GNALimitations {
 constexpr uint32_t convMinFiltersNum = 4;
 constexpr uint32_t convMaxFiltersNum = 65532;
 constexpr uint32_t convFiltersNumDivider = 4;
+constexpr uint32_t convEachKernelByteAlignment = 16;
 
 }
 } // namespace GNAPluginNS

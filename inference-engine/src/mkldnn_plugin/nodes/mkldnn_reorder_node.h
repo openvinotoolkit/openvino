@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,9 +55,12 @@ private:
     MKLDNNMemoryPtr src_blocked;
 
     bool isOptimized = false;
+    bool canUseOptimizedNspc2Ncsp = false;
+    bool canUseOptimizedNcsp2Nspc = false;
 
+    void optimizedNspc2Ncsp();
+    void optimizedNcsp2Nspc();
     void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
 };
 
 }  // namespace MKLDNNPlugin
-

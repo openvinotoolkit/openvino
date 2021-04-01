@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,6 +128,7 @@ IE_SUPPRESS_DEPRECATED_END
     setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
     setOption(_powerConfig,      powerConfigs,          config, ie::MYRIAD_POWER_MANAGEMENT);
     setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);
+    setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
 
 IE_SUPPRESS_DEPRECATED_START
     setOption(_forceReset,       switches,              config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
