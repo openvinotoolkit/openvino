@@ -87,7 +87,7 @@ namespace ngraph
                                               int64_t complex_data_rank)
                 {
                     auto axes = canonicalize_axes(axes_data, axes_data_shape, complex_data_rank);
-                    std::sort(axes.begin(), axes.end());
+                    std::sort(axes.begin(), axes.end(), std::greater<int64_t>{});
                     return axes;
                 }
 
@@ -434,7 +434,7 @@ namespace ngraph
                 std::cout << "complex_data_rank:     " << complex_data_rank << "\n";
 
                 const auto reversed_output_shape = reverse_shape(output_shape);
-                std::cout << "reversed_output_shape: " << output_shape << "\n";
+                std::cout << "reversed_output_shape: " << reversed_output_shape << "\n";
                 auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
                 std::cout << "fft_axes:              [ ";
                 for (auto a : fft_axes)
