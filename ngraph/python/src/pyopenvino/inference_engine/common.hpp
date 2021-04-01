@@ -20,5 +20,5 @@ namespace Common {
 
     PyObject *parse_parameter(const InferenceEngine::Parameter &param);
 
-    const std::shared_ptr<InferenceEngine::Blob> convert_to_blob(const py::handle& blob);
+    const std::shared_ptr<InferenceEngine::Blob> cast_to_blob(const py::handle& blob);
 }; // namespace Common

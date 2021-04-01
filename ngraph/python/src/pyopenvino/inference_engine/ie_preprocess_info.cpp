@@ -29,12 +29,12 @@ void regclass_PreProcessInfo(py::module m) {
     cls.def("init", &InferenceEngine::PreProcessInfo::init);
     cls.def("set_mean_image", [](InferenceEngine::PreProcessInfo& self,
                                  py::handle meanImage) {
-        self.setMeanImage(Common::convert_to_blob(meanImage));
+        self.setMeanImage(Common::cast_to_blob(meanImage));
     });
     cls.def("set_mean_image_for_channel", [](InferenceEngine::PreProcessInfo& self,
                                              py::handle meanImage,
                                              const size_t channel) {
-        self.setMeanImageForChannel(Common::convert_to_blob(meanImage), channel);
+        self.setMeanImageForChannel(Common::cast_to_blob(meanImage), channel);
     });
     cls.def_property("mean_variant", &InferenceEngine::PreProcessInfo::getMeanVariant,
                      &InferenceEngine::PreProcessInfo::setVariant);

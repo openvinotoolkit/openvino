@@ -29,14 +29,14 @@ void regclass_InferRequest(py::module m)
     cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
         for (auto&& input : inputs) {
             auto name = input.first.cast<std::string>().c_str();
-            auto blob = Common::convert_to_blob(input.second);
+            auto blob = Common::cast_to_blob(input.second);
             self.SetBlob(name, blob);
         }
     });
     cls.def("set_output", [](InferenceEngine::InferRequest& self, const py::dict& results) {
         for (auto&& result : results) {
             auto name = result.first.cast<std::string>().c_str();
-            auto blob = Common::convert_to_blob(result.second);
+            auto blob = Common::cast_to_blob(result.second);
             self.SetBlob(name, blob);
         }
     });
@@ -44,14 +44,14 @@ void regclass_InferRequest(py::module m)
     cls.def("set_blob", [](InferenceEngine::InferRequest& self,
                            const std::string& name,
                            py::handle blob) {
-        self.SetBlob(name,  Common::convert_to_blob(blob));
+        self.SetBlob(name,  Common::cast_to_blob(blob));
     });
 
     cls.def("set_blob", [](InferenceEngine::InferRequest& self,
                            const std::string& name,
                            py::handle blob,
                            const InferenceEngine::PreProcessInfo& info) {
-        self.SetBlob(name, Common::convert_to_blob(blob));
+        self.SetBlob(name, Common::cast_to_blob(blob));
     });
 
     cls.def("set_batch", &InferenceEngine::InferRequest::SetBatch, py::arg("size"));

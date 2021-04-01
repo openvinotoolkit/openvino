@@ -153,7 +153,7 @@ namespace Common {
         }
     }
 
-    const std::shared_ptr<InferenceEngine::Blob> convert_to_blob(const py::handle& blob) {
+    const std::shared_ptr<InferenceEngine::Blob> cast_to_blob(const py::handle& blob) {
         if (py::isinstance<InferenceEngine::TBlob<float>>(blob)) {
             return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>> &>();
         } else if (py::isinstance<InferenceEngine::TBlob<double>>(blob)) {
