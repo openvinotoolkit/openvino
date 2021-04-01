@@ -190,6 +190,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
     auto newConcat = std::make_shared<opset1::Concat>(OutputVector{ layerDequantizations[0].data, layerDequantizations[1].data }, 1ul);
     replace_node(concat, newConcat);
+    ngraph::copy_runtime_info(concat, newConcat);
 
     return true;
 }

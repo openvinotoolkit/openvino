@@ -44,10 +44,10 @@ public:
     MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {});
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
+private:
     static bool isDisabled(const std::shared_ptr<Node>& node);
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);
     static bool isQuantized(const std::shared_ptr<Node>& node);
 
-private:
     std::unordered_map<std::string, Restriction> restrictionsByOperation;
 };

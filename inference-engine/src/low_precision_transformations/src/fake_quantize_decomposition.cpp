@@ -10,7 +10,7 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/quantization_aligment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -180,15 +180,14 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    std::shared_ptr<QuantizationAligmentAttribute::SharedPart::SharedValue> alignValue;
+    std::shared_ptr<QuantizationAlignmentAttribute::SharedPart::SharedValue> alignValue;
     {
-        //QUANTIZATION_ALIGMENT
         auto& rt = layer->get_rt_info();
-        auto it = rt.find(ngraph::VariantWrapper<QuantizationAligmentAttribute>::type_info.name);
+        auto it = rt.find(ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name);
         if (it != rt.end()) {
-            auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAligmentAttribute>>(it->second);
-            const QuantizationAligmentAttribute attribute = attributeWrapper->get();
-            alignValue = attribute.sharedPart->value;
+            auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(it->second);
+            const QuantizationAlignmentAttribute attribute = attributeWrapper->get();
+            alignValue = attribute.sharedPart->value->hasToBeAligned ? attribute.sharedPart->value : nullptr;
         }
     }
 
@@ -227,6 +226,16 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             newFakeQuantizeLayer);
 
         replace_node(layer, dequantization.multiply);
+
+        std::vector<std::shared_ptr<ngraph::Node>> sourceNodes { layer };
+        std::vector<std::shared_ptr<ngraph::Node>> targetNodes { newFakeQuantizeLayer,  dequantization.multiply };
+        if (dequantization.convert != nullptr) {
+            targetNodes.push_back(dequantization.convert);
+        }
+        if (dequantization.subtract != nullptr) {
+            targetNodes.push_back(dequantization.subtract);
+        }
+        ngraph::copy_runtime_info(sourceNodes, targetNodes);
     } else {
         if (dataPrecision.precision == element::undefined) {
             dataPrecision = getDataPrecision(layer, quantizationDetails, false);
@@ -263,12 +272,8 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             printDequantizationValues(dequantizationScales, dequantizationShifts);
         }
 #endif
-        // ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(context.function);
-
         std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
         updateOutput(context, dequantize, layer);
-
-        // ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(context.function);
     }
 
     return true;

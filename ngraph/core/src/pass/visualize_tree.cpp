@@ -449,7 +449,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                         for (const auto& item : rt)
                         {
                             auto attributeValue = item.second->get_string();
-                            label << (first ? "" : "\\n") << item.first + "(" + attributeValue + ") ";
+                            label << (first ? " " : ", ") << item.first + "(" + attributeValue + ") ";
                             first = false;
                         }
                     }
@@ -471,7 +471,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                     for (const auto& item : rt)
                     {
                         auto attributeValue = item.second->get_string();
-                        label << (first ? "" : "\\n") << item.first + "(" + attributeValue + ") ";
+                        label << (first ? " " : ", ") << item.first + "(" + attributeValue + ") ";
                         first = false;
                     }
                 }
@@ -519,7 +519,8 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
             for (const auto& item : rt)
             {
                 auto attributeValue = item.second->get_string();
-                rc += (first ? "" : "\\n") + item.first + "(" + attributeValue + ") ";
+                rc += (first ? " " : "\\n") + item.first +
+                      (attributeValue.empty() ? "" : ("(" + attributeValue + ")"));
                 first = false;
             }
         }

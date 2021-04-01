@@ -19,6 +19,7 @@
 #include <ngraph/rt_info.hpp>
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -252,12 +253,13 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
 }
 
 void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
-    // TODO: merge_runtime_info with correctly defined DEQUANTIZATION
-    const auto& sourceAttributes = source->get_rt_info();
-    auto& targetAttrubutes = target->get_rt_info();
-    for (auto attribute : sourceAttributes) {
-        targetAttrubutes[attribute.first] = attribute.second;
-    }
+    //// TODO: merge_runtime_info with correctly defined DEQUANTIZATION
+    //const auto& sourceAttributes = source->get_rt_info();
+    //auto& targetAttrubutes = target->get_rt_info();
+    //for (auto attribute : sourceAttributes) {
+    //    targetAttrubutes[attribute.first] = attribute.second;
+    //}
+    ngraph::copy_runtime_info(source, target);
 
     const std::string friendlyName = source->get_friendly_name();
     if (!friendlyName.empty()) {
@@ -546,6 +548,16 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
     replace_node(node->shared_from_this(), newFakeQuantize);
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
     return newFakeQuantize;
+}
+
+bool NetworkHelper::isPrecisionPreserved(std::shared_ptr<ngraph::Node> node) {
+    auto& rtInfo = node->get_rt_info();
+    auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
+    if (it == rtInfo.end()) {
+        return false;
+    }
+    auto tmpAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
+    return tmpAttribute->get().sharedValue->value;
 }
 
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(

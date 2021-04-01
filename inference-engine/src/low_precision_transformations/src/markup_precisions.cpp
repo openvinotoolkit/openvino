@@ -58,10 +58,13 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
             continue;
         }
 
-        auto& rt = node->get_rt_info();
-        rt.emplace(
-            ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name,
-            std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttribute>>(isPrecisionPreserved(node)));
+        const bool precisionPreserved = isPrecisionPreserved(node);
+        if (precisionPreserved) {
+            auto& rt = node->get_rt_info();
+            rt.emplace(
+                ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name,
+                std::make_shared<::ngraph::VariantWrapper<PrecisionPreservedAttribute>>(precisionPreserved));
+        }
 
         const auto& typeInfo = node->get_type_info();
         auto it = restrictionsByOperation.find(typeInfo.name);
@@ -113,7 +116,6 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     }
 
     static std::unordered_set<std::string> precisionPreserved = {
-        { "AvgPool" },
         { "Concat" },
         { "MaxPool" }
     };
