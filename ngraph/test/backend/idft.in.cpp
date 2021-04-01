@@ -171,9 +171,9 @@ NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval)
 
     auto handle = backend->compile(f);
 
-    std::cout << "nGraph function for DFT was successfully compiled.\n";
+    std::cout << "nGraph function for IDFT was successfully compiled.\n";
     handle->call({idft_output}, {backend_data});
-    std::cout << "nGraph function for DFT was successfully calculated.\n";
+    std::cout << "nGraph function for IDFT was successfully calculated.\n";
 
     auto result = read_vector<float>(idft_output);
     std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
@@ -183,5 +183,9 @@ NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval)
         std::cout << x << ", ";
     }
     std::cout << "\n";
-    EXPECT_TRUE(test::all_close_f(expected_result, read_vector<float>(idft_output)));
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
+    {
+        EXPECT_NEAR(result[j], expected_result[j], 0.000002);
+    }
 }
