@@ -32,10 +32,6 @@ CacheGuard::~CacheGuard() {
 
 std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash) {
     std::unique_lock<std::mutex> lock(m_tableMutex);
-    if (!m_table.count(hash)) {
-        m_table.insert({hash, Item{}});
-    }
-    // Now entry exists, need to increment refCount and acquire lock
     auto& data = m_table[hash];
     std::unique_ptr<CacheGuardEntry> res;
     try {
@@ -50,7 +46,7 @@ std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash
         throw;
     }
     lock.unlock(); // can unlock table lock here, as refCounter is positive and nobody can remove entry
-    res->performLock();
+    res->performLock(); // in case of exception, 'res' will be destroyed and item will be cleaned up from table
     return res;
 }
 

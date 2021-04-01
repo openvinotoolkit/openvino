@@ -349,6 +349,7 @@ TEST(NetworkContext_CNNNetwork, HashWithDifferentMeanValues) {
               NetworkCompilationContext::computeHash(net3, {}));
 }
 
+// Verify all internal hash calculations are thread-safe (like ngraph::function serialization)
 TEST(NetworkContext_CNNNetwork, HashOfSameMultiThreading) {
     auto net1 = createNetwork();
     auto net2 = createNetwork();
