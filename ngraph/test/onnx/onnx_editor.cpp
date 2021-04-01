@@ -771,10 +771,3 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_mixed_types)
     test_case.add_expected_output<int16_t>(Shape{2, 2, 1}, {1, 4, 5, 8});
     test_case.run();
 }
-
-NGRAPH_TEST(onnx_editor, performance_test)
-{
-    onnx_editor::ONNXModelEditor editor{"/shared/onnx/onnx-model-zoo/text/machine_comprehension/bert-squad/model/bertsquad-10.onnx"};
-    const auto function = editor.get_function();
-    std::cout << function->get_friendly_name() << "\n";
-}
