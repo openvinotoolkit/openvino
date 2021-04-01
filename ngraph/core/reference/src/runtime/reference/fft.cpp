@@ -434,7 +434,12 @@ namespace ngraph
                 std::cout << "complex_data_rank:     " << complex_data_rank << "\n";
 
                 const auto reversed_output_shape = reverse_shape(output_shape);
-                std::cout << "reversed_output_shape: " << reversed_output_shape << "\n";
+                std::cout << "reversed_output_shape: [";
+                for (auto a : reversed_output_shape)
+                {
+                    std::cout << a << " ";
+                }
+                std::cout << "]\n";
                 auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
                 std::cout << "fft_axes:              [ ";
                 for (auto a : fft_axes)
@@ -587,7 +592,7 @@ namespace ngraph
                                          input_fft_lengths,
                                          input_fft_strides);
                     std::cout << "Copied data from input.\n";
-                    std::cout << "Copied data:\n    ";
+                    std::cout << "Copied data:\n    [";
                     for (auto a : data)
                     {
                         std::cout << std::real(a) << ", " << std::imag(a) << ", ";
