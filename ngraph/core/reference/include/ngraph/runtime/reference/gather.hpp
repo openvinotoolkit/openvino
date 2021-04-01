@@ -17,106 +17,41 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace
-            {
-                template <typename Container>
-                Shape to_shape(const Container& c)
-                {
-                    return Shape(begin(c), end(c));
-                }
-
-                template <typename Container>
-                std::vector<size_t>
-                    join(const Container& c1, const Container& c2, const Container& c3)
-                {
-                    using container_value_type =
-                        typename std::remove_cv<typename Container::value_type>::type;
-                    static_assert(std::is_same<container_value_type, size_t>::value,
-                                  "Expect same type in container");
-                    std::vector<size_t> ret;
-                    ret.reserve(c1.size() + c2.size() + c3.size());
-                    std::copy(begin(c1), end(c1), std::back_inserter(ret));
-                    std::copy(begin(c2), end(c2), std::back_inserter(ret));
-                    std::copy(begin(c3), end(c3), std::back_inserter(ret));
-                    return ret;
-                }
-
-                const auto only_one = [] { return coordinates::index(Shape{1}); };
-            } // namespace
             template <typename T, typename U>
-            void gather(const T* const params,
+            void gather(const T* const data,
                         const U* const indices,
-                        T* const out,
-                        const Shape& params_shape,
+                        T* out,
+                        const Shape& data_shape,
                         const Shape& indices_shape,
                         const Shape& out_shape,
-                        size_t axis)
+                        size_t axis,
+                        size_t batch_dims = 0)
             {
-                using std::next;
-                assert(std::memset(out, 0, shape_size(out_shape) * sizeof(T)));
+                const auto batch_flattened_shape = shape_size(span(data_shape).subspan(0, batch_dims));
+                const auto outer_flattened_size = shape_size(span(data_shape).subspan(batch_dims, axis));
+                const auto indices_flattened_shape = shape_size(span(indices_shape).subspan(batch_dims));
+                const auto inner_flattened_shape = shape_size(span(data_shape).subspan(axis + 1));
+                const auto size_along_axis = data_shape[axis];
+                int64_t offset, idx;
 
-                const auto params_axes_part = span(params_shape).subspan(0, axis);
+                for (int64_t batch_idx = 0; batch_idx < batch_flattened_shape; batch_idx++)
+                    for (int64_t outer_idx = 0; outer_idx < outer_flattened_size; outer_idx++) {
+                        offset = inner_flattened_shape * size_along_axis * outer_idx;
+                        for (int64_t i = 0; i < indices_flattened_shape; i++) {
+                            idx = indices[i];
+                            if (idx >= size_along_axis  || (idx < 0 && -idx >= size_along_axis))
+                                throw std::domain_error{"indices values of Gather exceed size along axis"};
+                            if (idx < 0)
+                                idx += size_along_axis;
 
-                NGRAPH_CHECK(params_shape.size() >= axis, "Not enough axes in param_shape.");
+                            const auto src_begin = std::next(data, offset + inner_flattened_shape * idx);
+                            const auto src_end = std::next(src_begin, inner_flattened_shape);
+//                            const auto out_ = std::next(src_begin, inner_flattened_shape);
 
-                const auto remainder_part_shape = span(params_shape).subspan(axis + 1);
-
-                const auto found_out_shape =
-                    join(params_axes_part, span(indices_shape), remainder_part_shape);
-
-                NGRAPH_CHECK(found_out_shape == out_shape,
-                             "Output shape mismatch with calculations");
-
-                const auto batch_shape = span(params_shape).subspan(axis);
-
-                const auto batch_size = shape_size(batch_shape);
-
-                const auto copy_size = shape_size(remainder_part_shape);
-
-                const size_t copy_round_in_batch =
-                    indices_shape.size() > 1
-                        ? shape_size(span(indices_shape.data(), indices_shape.size() - 1))
-                        : 1;
-                const size_t round_batch_offset = indices_shape.empty() ? 1 : indices_shape.back();
-
-                auto dst = out;
-
-                auto gather_range = params_axes_part.empty()
-                                        ? only_one()
-                                        : coordinates::index(to_shape(params_axes_part));
-                for (auto i : gather_range)
-                {
-                    auto batch_index = i.begin_index;
-                    for (size_t batch = 0; batch != i.element_number;
-                         batch_index += i.step, ++batch)
-                    {
-                        const auto batch_offset = batch_index * batch_size;
-                        assert(batch_offset < shape_size(params_shape));
-                        for (size_t round = 0; round != copy_round_in_batch; ++round)
-                        {
-                            const U* input_indices = indices + round * round_batch_offset;
-                            const auto indices_no =
-                                indices_shape.empty() ? 1 : indices_shape.back();
-
-                            assert(!batch_shape.empty());
-                            for (size_t ii = 0; ii != indices_no; ++ii)
-                            {
-                                const auto positive_input_index =
-                                    input_indices[ii] < 0 ? batch_shape.front() + input_indices[ii]
-                                                          : input_indices[ii];
-
-                                const auto src_offset =
-                                    batch_offset + copy_size * positive_input_index;
-
-                                const auto src_begin = next(params, src_offset);
-                                const auto src_end = next(src_begin, copy_size);
-
-                                std::copy(src_begin, src_end, dst);
-                                dst += copy_size;
-                            }
+                            std::copy(src_begin, src_end, out);
+                            out += inner_flattened_shape;
                         }
                     }
-                }
             }
         } // namespace reference
     }     // namespace runtime

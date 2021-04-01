@@ -450,11 +450,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int32)
     auto A = op::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
-
+    // clang-format off
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<int32_t>({10, 11, 20, 21, 30, 31});
-    test_case.add_input<int32_t>({0, 1, 1, 2});
-    test_case.add_expected_output<int32_t>(out_shape, {10, 11, 20, 21, 20, 21, 30, 31});
+    test_case.add_input<int32_t>({10, 11,
+                                  20, 21,
+                                  30, 31});
+    test_case.add_input<int32_t>({0, 1,
+                                  1, 2});
+    test_case.add_expected_output<int32_t>(out_shape, {10, 11,
+                                                       20, 21,
+
+                                                       20, 21,
+                                                       30, 31});
+    // clang-format on
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -565,3 +573,75 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_bool)
     test_case.add_expected_output<char>(out_shape, {1, 1, 1, 0, 1, 0, 0, 1});
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
+
+//NGRAPH_TEST(${BACKEND_NAME}, gather_7_axis_0_bool)
+//{
+//    Shape data_shape{3, 2};
+//    Shape indices_shape{2, 2};
+//    Shape out_shape{2, 2, 2};
+//    int64_t batch_dims = 1;
+//
+//    auto P = make_shared<op::Parameter>(element::boolean, data_shape);
+//    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+//    auto A = op::Constant::create(element::i64, Shape{}, {1});
+//    auto G = make_shared<op::v7::Gather>(P, I, A, batch_dims);
+//    auto f = make_shared<Function>(G, ParameterVector{P, I});
+//
+//    auto test_case = test::TestCase<TestEngine>(f);
+//    test_case.add_input<char>({1, 1, 1, 0, 0, 1});
+//    test_case.add_input<int64_t>({0, 1, 1, 2});
+//    test_case.add_expected_output<char>(out_shape, {1, 1, 1, 0, 1, 0, 0, 1});
+//    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
+//}
+//
+//NGRAPH_TEST(${BACKEND_NAME}, gather_7_3d_indices_axis_1_batch_dims_1)
+//{
+//    Shape data_shape{2, 5, 2};
+//    Shape indices_shape{2, 2, 3};
+//    Shape out_shape{2, 2, 3, 2};
+//    auto P = make_shared<op::Parameter>(element::f32, data_shape);
+//    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+//    auto A = op::Constant::create(element::i64, Shape{}, {1});
+//    int64_t batch_dims = 1;
+//    auto G = make_shared<op::v7::Gather>(P, I, A, batch_dims);
+//    auto f = make_shared<Function>(G, ParameterVector{P, I});
+//
+//    auto test_case = test::TestCase<TestEngine>(f);
+//
+//    // clang-format off
+//    test_case.add_input<float>({1.0f, 2.0f,
+//                                3.0f, 4.0f,
+//                                5.0f, 6.0f,
+//                                7.0f, 8.0f,
+//                                9.0f, 10.0f,
+//
+//                                11.0f, 12.0f,
+//                                13.0f, 14.0f,
+//                                15.0f, 16.0f,
+//                                17.0f, 18.0f,
+//                                19.0f, 20.0f});
+//
+//    test_case.add_input<int32_t>({0, 0, 4,
+//                                  4, 0, 0,
+//
+//                                  1, 2, 4,
+//                                  4, 3, 2});
+//    test_case.add_expected_output<float>({1.0f, 2.0f,
+//                                          1.0f, 2.0f,
+//                                          9.0f, 10.0f,
+//
+//                                          9.0f, 10.0f,
+//                                          1.0f, 2.0f,
+//                                          1.0f, 2.0f,
+//
+//
+//                                          13.0f, 14.0f,
+//                                          15.0f, 16.0f,
+//                                          19.0f, 20.0f,
+//
+//                                          19.0f, 20.0f,
+//                                          17.0f, 18.0f,
+//                                          15.0f, 16.0f});
+//    // clang-format on
+//    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
+//}
