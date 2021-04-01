@@ -792,6 +792,7 @@ mo/front/caffe/python_layer_extractor.py
 mo/front/caffe/register_custom_ops.py
 mo/front/common/__init__.py
 mo/front/common/custom_replacement_registry.py
+mo/front/common/extractors/__init__.py
 mo/front/common/extractors/utils.py
 mo/front/common/find_unsupported_ops.py
 mo/front/common/layout.py
@@ -987,6 +988,7 @@ mo/utils/ir_engine/compare_graphs.py
 mo/utils/ir_engine/ir_engine.py
 mo/utils/ir_reader/__init__.py
 mo/utils/ir_reader/extender.py
+mo/utils/ir_reader/extenders/__init__.py
 mo/utils/ir_reader/extenders/binary_convolution_extender.py
 mo/utils/ir_reader/extenders/bucketize_extender.py
 mo/utils/ir_reader/extenders/conv_extender.py
