@@ -1,4 +1,4 @@
-# Python* Hello Classification Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
+# Hello Classification Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
 
 This sample demonstrates how to do inference of image classification networks using Synchronous Inference Request API.  
 Models with only 1 input and output are supported.

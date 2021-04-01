@@ -1,4 +1,4 @@
-# Python* nGraph Function Creation Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
+# nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
 This sample demonstrates how to execute an inference using ngraph::Function to create a network, which uses weights from LeNet classification network.  
 In addition to regular images, the sample also supports single-channel ubyte images as an input.

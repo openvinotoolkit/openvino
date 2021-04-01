@@ -1,4 +1,4 @@
-# Python* Object Detection Sample SSD {#openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README}
+# Object Detection SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README}
 
 This sample demonstrates how to do inference of object detection networks using Synchronous Inference Request API.  
 Models with 1 input and 1 or 2 outputs are supported.  

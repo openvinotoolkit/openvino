@@ -1,4 +1,4 @@
-# Python* Style Transfer Sample {#openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README}
+# Style Transfer Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README}
 
 This sample demonstrates how to do synchronous inference of style transfer networks using Network Batch Size Feature.  
 You can specify multiple images to input, a network batch size will be set equal to their number automatically.  
