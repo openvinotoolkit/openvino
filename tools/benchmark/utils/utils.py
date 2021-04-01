@@ -57,9 +57,8 @@ def _configure_network_inputs(ie_network: IENetwork, app_inputs_info, input_prec
     input_info = ie_network.input_info
 
     for key in input_info.keys():
-        if app_inputs_info[key].is_image:
-            app_inputs_info[key].precision = input_precision
-            input_info[key].precision = input_precision 
+        app_inputs_info[key].precision = input_precision
+        input_info[key].precision = input_precision
 
 def _configure_network_outputs(ie_network: IENetwork, output_precision: str):
     output_info = ie_network.outputs
