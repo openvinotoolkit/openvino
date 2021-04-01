@@ -484,7 +484,7 @@ const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get(
         {
             for (size_t i = 0; i < m_ref.rank().get_length(); ++i)
             {
-                auto& elt = m_ref[i];
+                const auto& elt = static_cast<const PartialShape&>(m_ref)[i];
                 m_buffer.push_back(elt.is_dynamic() ? -1 : elt.get_length());
             }
         }

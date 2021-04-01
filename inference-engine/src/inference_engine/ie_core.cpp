@@ -21,6 +21,7 @@
 #include "ie_plugin_cpp.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_cache_manager.hpp"
+#include "ie_cache_guard.hpp"
 #include "ie_itt.hpp"
 #include "file_utils.h"
 #include "ie_network_reader.hpp"
@@ -196,6 +197,8 @@ class Core::Impl : public ICore {
 
     // Core settings (cache config, etc)
     CoreConfig coreConfig;
+
+    CacheGuard cacheGuard;
 
     struct PluginDescriptor {
         FileUtils::FilePath libraryLocation;
@@ -447,17 +450,18 @@ public:
         }
         auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        bool loadedFromCache = false;
         ExecutableNetwork res;
-        std::string hash;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
-            hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+            auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+            bool loadedFromCache = false;
+            auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, context, loadedFromCache);
-        }
-
-        if (!loadedFromCache) {
-            res = LoadNetworkImpl(network, plugin, parsed._config, context, hash);
+            if (!loadedFromCache) {
+                res = LoadNetworkImpl(network, plugin, parsed._config, context, hash);
+            }
+        } else {
+            res = LoadNetworkImpl(network, plugin, parsed._config, context, {});
         }
         return res;
     }
@@ -472,17 +476,18 @@ public:
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
         }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        bool loadedFromCache = false;
         ExecutableNetwork res;
-        std::string hash;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
-            hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+            auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+            bool loadedFromCache = false;
+            auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
-        }
-
-        if (!loadedFromCache) {
-            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+            if (!loadedFromCache) {
+                res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+            }
+        } else {
+            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
         }
         return res;
     }
@@ -493,19 +498,21 @@ public:
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        bool loadedFromCache = false;
         ExecutableNetwork res;
-        std::string hash;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
-            hash = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
+            bool loadedFromCache = false;
+            auto hash = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
+            auto lock = cacheGuard.getHashLock(hash);
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config,
                                        nullptr, loadedFromCache, modelPath);
-        }
-
-        if (!loadedFromCache) {
+            if (!loadedFromCache) {
+                auto cnnNetwork = ReadNetwork(modelPath, std::string());
+                res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
+            }
+        } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
-            res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
+            res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
         }
         return res;
     }
