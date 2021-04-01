@@ -17,12 +17,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-using namespace std;
-using namespace ngraph;
-
-
 namespace modop
 {
     template <element::Type_t ET>
@@ -86,6 +80,3 @@ bool op::v1::Mod::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_Mod_evaluate);
     return modop::evaluate_mod(inputs[0], inputs[1], outputs[0], get_autob());
 }
-
-
-
