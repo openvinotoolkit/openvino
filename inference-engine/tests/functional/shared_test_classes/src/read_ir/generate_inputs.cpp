@@ -404,70 +404,6 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::Power>
            FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
 }
 
-namespace ReduceOps {
-    bool isFloat(const ngraph::element::Type& type) {
-        return (type == ngraph::element::Type_t::bf16 || type == ngraph::element::Type_t::f16 ||
-                type == ngraph::element::Type_t::f32 || type == ngraph::element::Type_t::f64);
-    }
-
-    InferenceEngine::Blob::Ptr generate(const InferenceEngine::InputInfo& info,
-                                        const ngraph::element::Type& type,
-                                        bool isLogical) {
-        if (isLogical) {
-            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
-        } else if (!isFloat(type)) {
-            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 0);
-        }
-        auto td = info.getTensorDesc();
-        auto blob = make_blob_with_precision(td);
-        blob->allocate();
-        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
-        return blob;
-    }
-} // namespace ReduceOps
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalAnd> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), true);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalOr> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), true);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceMax> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), false);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceMean> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), false);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceMin> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), false);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceProd> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), false);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::ReduceSum> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), false);
-}
-
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v3::Bucketize> node,
                                                    const InferenceEngine::InputInfo& info,
                                                    size_t port) {
@@ -531,18 +467,6 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Propos
         return FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
     }
     return FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::ReduceL1> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), false);
-}
-
-InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::ReduceL2> node,
-                                    const InferenceEngine::InputInfo& info,
-                                    size_t port) {
-    return ReduceOps::generate(info, node->get_element_type(), false);
 }
 
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::SoftPlus> node,
