@@ -145,7 +145,7 @@ def main():  # noqa
             cv2.rectangle(output_image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
 
     cv2.imwrite('out.bmp', output_image)
-    log.info('Image out.bmp was created!')
+    log.info('Image out.bmp created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
