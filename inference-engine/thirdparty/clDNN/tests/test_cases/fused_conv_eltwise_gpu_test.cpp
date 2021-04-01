@@ -9,6 +9,7 @@
 #include "api/convolution.hpp"
 #include "api/eltwise.hpp"
 #include "api/reorder.hpp"
+#include "api/quantize.hpp"
 #include <api/topology.hpp>
 #include <api/network.hpp>
 #include <api/engine.hpp>
@@ -422,6 +423,197 @@ TEST(fused_conv_eltwise, yolov5_fused_eltw_pattern_04_with_ref_b_fs_yx_fsv16_f32
     network_ref.set_input_data("input", input);
 
     execute_and_compare(network_act, network_ref, 3, 8, true);
+}
+
+TEST(fused_conv_eltwise, yolov5_fused_eltw_quant_pattern_01_with_ref_b_fs_yx_fsv16_f32)
+{
+    // Test pattern of serial eltwise + quantize primitives
+    /**
+     * Conv -> Eltw -> Quant
+     */
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 128, 40, 40 } /*memory order*/ }); //memory order
+    auto weights = memory::allocate(engine, { data_types::f32, format::os_is_yx_isv16_osv16, { 128, 128, 1, 1 } });
+    auto sum_input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 1, 1, 1 } });
+    auto in_lo = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 128, 1, 1} });
+    auto in_hi = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 128, 1, 1} });
+    auto out_lo = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 1, 1, 1} });
+    auto out_hi = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 1, 1, 1} });
+
+    const int32_t total_size = 128 * 40 * 40;
+    std::vector<float> inputVec(total_size);
+    for (int i = 0; i < total_size; i++)
+    {
+        inputVec[i] = float(i+1);
+    }
+
+    set_values(input, inputVec);
+    set_values(sum_input, {7.f});
+    set_values(in_lo, generate_random_1d<float>(128, -200, 0));
+    set_values(in_hi, generate_random_1d<float>(128, 1, 200));
+    set_values(out_lo, {-127.0f});
+    set_values(out_hi, {127.0f});
+
+    topology topology_act(
+        input_layout("input", input.get_layout()),
+        data("weights", weights),
+        data("sum_input", sum_input),
+        data("in_lo", in_lo),
+        data("in_hi", in_hi),
+        data("out_lo", out_lo),
+        data("out_hi", out_hi),
+        convolution("conv", "input", { "weights" }),
+        eltwise("eltwise", "conv", "sum_input", eltwise_mode::sum),
+        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        reorder("out_reorder", "quantize", format::bfyx, data_types::f32));
+
+    std::cout << "*************************************************************" << std::endl;
+    std::cout << "Test : fused_eltw_quant_pattern_01_with_ref_b_fs_yx_fsv16_f32" << std::endl;
+    std::cout << "input : f32, b_fs_yx_fsv16, {1, 128, 40, 40}" << std::endl;
+    std::cout << "weights : f32, os_is_yx_osv16_isv16 {128, 128, 1, 1}" << std::endl;
+    std::cout << "sum_input : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+    std::cout << "in_lo : f32, b_fs_yx_fsv16 {1, 128, 1, 1}" << std::endl;
+    std::cout << "in_hi : f32, b_fs_yx_fsv16 {1, 128, 1, 1}" << std::endl;
+    std::cout << "out_lo : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+    std::cout << "out_hi : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+
+    std::cout << "topology topology(" << std::endl;
+    std::cout << "    input_layout(\"input\", input.get_layout())," << std::endl;
+    std::cout << "    data(\"weights\", weights)," << std::endl;
+    std::cout << "    data(\"sum_input\", sum_input)," << std::endl;
+    std::cout << "    data(\"in_lo\", in_lo)," << std::endl;
+    std::cout << "    data(\"in_hi\", in_hi)," << std::endl;
+    std::cout << "    data(\"out_lo\", out_lo)," << std::endl;
+    std::cout << "    data(\"out_hi\", out_hi)," << std::endl;
+    std::cout << "    convolution(\"conv\", \"input\", { \"weights\" })," << std::endl;
+    std::cout << "    eltwise(\"eltwise\", \"conv\", \"sum_input\", eltwise_mode::sum)," << std::endl;
+    std::cout << "    quantize(\"quantize\", \"eltwise\", \"in_lo\", \"in_hi\", \"out_lo\", \"out_hi\", 255, data_types::i8)," << std::endl;
+    std::cout << "    reorder(\"out_reorder\", \"quantize\", format::bfyx, data_types::f32));" << std::endl << std::endl;
+
+    build_options opt_act;
+    opt_act.set_option(build_option::optimize_data(true));
+    network network_act(engine, topology_act, opt_act);
+    network_act.set_input_data("input", input);
+
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        data("weights", weights),
+        data("sum_input", sum_input),
+        data("in_lo", in_lo),
+        data("in_hi", in_hi),
+        data("out_lo", out_lo),
+        data("out_hi", out_hi),
+        convolution("conv", "input", { "weights" }),
+        eltwise("eltwise", "conv", "sum_input", eltwise_mode::sum),
+        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        reorder("out_reorder", "quantize", format::bfyx, data_types::f32));
+
+    build_options opt_ref;
+    opt_ref.set_option(build_option::optimize_data(false));
+    network network_ref(engine, topology_ref, opt_ref);
+    network_ref.set_input_data("input", input);
+
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+
+    execute_and_compare(network_act, network_ref, 3, 5, true);
+}
+
+TEST(fused_conv_eltwise, yolov5_fused_eltw_quant_pattern_02_with_ref_b_fs_yx_fsv16_f32)
+{
+    // Test pattern of diverged quantize and eltwise primitives
+    /**
+     * Conv -> Quant -> Eltw
+     *   \–------------>/
+     */
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 128, 40, 40 } /*memory order*/ }); //memory order
+    auto weights = memory::allocate(engine, { data_types::f32, format::os_is_yx_isv16_osv16, { 128, 128, 1, 1 } });
+    auto in_lo = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 128, 1, 1} });
+    auto in_hi = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 128, 1, 1} });
+    auto out_lo = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 1, 1, 1} });
+    auto out_hi = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, {1, 1, 1, 1} });
+
+    const int32_t total_size = 128 * 40 * 40;
+    std::vector<float> inputVec(total_size);
+    for (int i = 0; i < total_size; i++)
+    {
+        inputVec[i] = float(i+1);
+    }
+
+    set_values(input, inputVec);
+    set_values(in_lo, generate_random_1d<float>(128, -200, 0));
+    set_values(in_hi, generate_random_1d<float>(128, 1, 200));
+    set_values(out_lo, {-127.0f});
+    set_values(out_hi, {127.0f});
+
+    topology topology_act(
+        input_layout("input", input.get_layout()),
+        data("weights", weights),
+        data("in_lo", in_lo),
+        data("in_hi", in_hi),
+        data("out_lo", out_lo),
+        data("out_hi", out_hi),
+        convolution("conv", "input", { "weights" }),
+        quantize("quantize", "conv", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", "conv", "quantize", eltwise_mode::prod),
+        reorder("out_reorder", "eltwise", format::bfyx, data_types::f32));
+
+    std::cout << "*************************************************************" << std::endl;
+    std::cout << "Test : fused_eltw_quant_pattern_02_with_ref_b_fs_yx_fsv16_f32" << std::endl;
+    std::cout << "input : f32, b_fs_yx_fsv16, {1, 128, 40, 40}" << std::endl;
+    std::cout << "weights : f32, os_is_yx_osv16_isv16 {128, 128, 1, 1}" << std::endl;
+    std::cout << "in_lo : f32, b_fs_yx_fsv16 {1, 128, 1, 1}" << std::endl;
+    std::cout << "in_hi : f32, b_fs_yx_fsv16 {1, 128, 1, 1}" << std::endl;
+    std::cout << "out_lo : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+    std::cout << "out_hi : f32, b_fs_yx_fsv16 {1, 1, 1, 1}" << std::endl;
+
+    std::cout << "topology topology(" << std::endl;
+    std::cout << "    input_layout(\"input\", input.get_layout())," << std::endl;
+    std::cout << "    data(\"weights\", weights)," << std::endl;
+    std::cout << "    data(\"in_lo\", in_lo)," << std::endl;
+    std::cout << "    data(\"in_hi\", in_hi)," << std::endl;
+    std::cout << "    data(\"out_lo\", out_lo)," << std::endl;
+    std::cout << "    data(\"out_hi\", out_hi)," << std::endl;
+    std::cout << "    convolution(\"conv\", \"input\", { \"weights\" })," << std::endl;
+    std::cout << "    quantize(\"quantize\", \"conv\", \"in_lo\", \"in_hi\", \"out_lo\", \"out_hi\", 255, data_types::i8)," << std::endl;
+    std::cout << "    eltwise(\"eltwise\", \"conv\", \"quantize\", eltwise_mode::prod)," << std::endl;
+    std::cout << "    reorder(\"out_reorder\", \"eltwise\", format::bfyx, data_types::f32));" << std::endl << std::endl;
+
+    build_options opt_act;
+    opt_act.set_option(build_option::optimize_data(true));
+    network network_act(engine, topology_act, opt_act);
+    network_act.set_input_data("input", input);
+
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        data("weights", weights),
+        data("in_lo", in_lo),
+        data("in_hi", in_hi),
+        data("out_lo", out_lo),
+        data("out_hi", out_hi),
+        convolution("conv", "input", { "weights" }),
+        quantize("quantize", "conv", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", "quantize", "conv", eltwise_mode::prod),
+        reorder("out_reorder", "eltwise", format::bfyx, data_types::f32));
+
+    build_options opt_ref;
+    opt_ref.set_option(build_option::optimize_data(false));
+    network network_ref(engine, topology_ref, opt_ref);
+    network_ref.set_input_data("input", input);
+
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+    std::cout << "//////////////////////////////////////////////////////////" << std::endl;
+
+    execute_and_compare(network_act, network_ref, 3, 5, true);
 }
 
 TEST(fused_conv_eltwise, origin_yxfb_f16)
