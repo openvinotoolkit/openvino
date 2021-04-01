@@ -27,7 +27,7 @@ void regclass_InferRequest(py::module m)
 
     cls.def("set_blob",
             [](InferenceEngine::InferRequest& self, const std::string& name, py::handle blob) {
-                self.SetBlob(name, Common::convert_to_blob(blob));
+                self.SetBlob(name, Common::cast_to_blob(blob));
             });
 
     cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
