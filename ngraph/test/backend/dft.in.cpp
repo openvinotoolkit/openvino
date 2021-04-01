@@ -288,5 +288,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval)
         std::cout << x << ", ";
     }
     std::cout << "\n";
-    EXPECT_TRUE(test::all_close_f(expected_dft2d_results, read_vector<float>(dft_output)));
+    // EXPECT_TRUE(test::all_close_f(expected_dft2d_results, read_vector<float>(dft_output)));
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
+    {
+        EXPECT_NEAR(result[j], expected_dft2d_results[j], 0.000061);
+    }
 }
