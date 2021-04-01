@@ -221,17 +221,22 @@ def main():
     res = res[out_blob]
 
     for i in range(n):
-        log.info(f'Top {args.number_top} results: ')
-        log.info('---------------------')
-        log.info('probability | classid')
-        log.info('---------------------')
-
         probs = res[i]
         top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 
+        header = 'classid probability'
+        header = header + ' label' if args.labels else header
+
+        log.info(f'Image path: {args.input[i]}')
+        log.info(f'Top {args.number_top} results: ')
+        log.info(header)
+        log.info('-' * len(header))
+
         for class_id in top_n_idexes:
-            label = labels[class_id] if args.labels else class_id
-            log.info(f'{probs[class_id]:.9f} | {label}')
+            probability_indent = ' ' * (len('classid') - len(str(class_id)) + 1)
+            label_indent = ' ' * (len('probability') - 8) if args.labels else ''
+            label = labels[class_id] if args.labels else ''
+            log.info(f'{class_id}{probability_indent}{probs[class_id]:.7f}{label_indent}{label}')
         log.info('')
 
 # ----------------------------------------------------------------------------------------------------------------------
