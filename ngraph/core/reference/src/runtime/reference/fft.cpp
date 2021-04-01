@@ -155,6 +155,10 @@ namespace ngraph
                                                        const std::vector<int64_t>& strides)
                 {
                     int64_t num_of_axes = static_cast<int64_t>(strides.size()) - 1;
+                    if (num_of_axes == 0)
+                    {
+                        return std::vector<int64_t>{};
+                    }
                     std::vector<int64_t> coords(num_of_axes);
                     int64_t curr = index;
                     for (int64_t j = num_of_axes - 1; j >= 1; --j)
@@ -614,6 +618,8 @@ namespace ngraph
                             std::cout << "current_fft_length: " << current_fft_length << "\n";
 
                             int64_t outer_fft_size = 1;
+                            std::vector<int64_t> outer_fft_lengths;
+                            std::vector<int64_t> outer_fft_axes;
                             for (int64_t i = 0; i < fft_rank; ++i)
                             {
                                 if (i == axis_idx)
@@ -621,16 +627,42 @@ namespace ngraph
                                     continue;
                                 }
                                 outer_fft_size *= fft_lengths[i];
+                                outer_fft_lengths.push_back(fft_lengths[i]);
+                                outer_fft_axes.push_back(fft_axes[i]);
                             }
+                            auto outer_fft_strides = compute_strides(outer_fft_lengths);
+                            auto fft_strides_for_outer_fft_axes =
+                                get_lengths(fft_strides, outer_fft_axes);
                             std::cout << "outer_fft_size:     " << outer_fft_size << "\n";
+                            std::cout << "outer_fft_lengths: [ ";
+                            for (auto a : outer_fft_lengths)
+                            {
+                                std::cout << a << " ";
+                            }
+                            std::cout << "]\n";
+                            std::cout << "outer_fft_axes: [ ";
+                            for (auto a : outer_fft_axes)
+                            {
+                                std::cout << a << " ";
+                            }
+                            std::cout << "]\n";
+                            std::cout << "outer_fft_strides: [ ";
+                            for (auto a : outer_fft_strides)
+                            {
+                                std::cout << a << " ";
+                            }
+                            std::cout << "]\n";
 
                             for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size;
                                  ++outer_fft_idx)
                             {
                                 std::cout << std::string(80, '*') << "\n";
                                 std::cout << "outer_fft_idx:  " << outer_fft_idx << "\n";
+                                const auto outer_fft_coords =
+                                    coords_from_index(outer_fft_idx, outer_fft_strides);
+                                int64_t outer_fft_offset = offset_from_coords_and_strides(outer_fft_coords, fft_strides_for_outer_fft_axes);
                                 fft1d(current_fft_length,
-                                      outer_fft_idx,
+                                      outer_fft_offset,
                                       current_fft_stride,
                                       data.data(),
                                       buffer.data(),
