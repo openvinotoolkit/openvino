@@ -119,14 +119,10 @@ namespace ngraph
                     }
                     else
                     {
-                        auto axis =
-                            default_opset::Constant::create(element::i64, ngraph::Shape{}, {0});
                         OutputVector padding = builder::opset1::split(pads, 2, 0);
 
-                        padding_begin =
-                            std::make_shared<default_opset::Convert>(padding.at(0), element::i64);
-                        padding_end =
-                            std::make_shared<default_opset::Convert>(padding.at(1), element::i64);
+                        padding_begin = padding.at(0);
+                        padding_end = padding.at(1);
                     }
 
                     const std::string mode =
