@@ -21,6 +21,21 @@ namespace ngraph
     {
         namespace detail
         {
+            /// \brief      Imports and converts an serialized ONNX model from a ModelProto
+            ///             to an nGraph Function representation.
+            ///
+            /// \note       The function can be used only internally by OV components!
+            ///             Passing ModelProto between componets which use different protobuf
+            ///             library can cause segfaults. If stream parsing fails or the ONNX model
+            ///             contains unsupported ops, the function throws an ngraph_error exception.
+            ///
+            /// \param[in]  model_proto Reference to a GraphProto object.
+            /// \param[in]  model_path  The path to the imported onnx model.
+            ///                         It is required if the imported model uses data saved in
+            ///                         external files.
+            ///
+            /// \return     An nGraph function that represents a single output from the created
+            /// graph.
             ONNX_IMPORTER_API
             std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
                                                         const std::string& model_path);
