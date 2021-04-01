@@ -21,10 +21,14 @@ public:
     public:
         class SharedValue {
         public:
-            SharedValue(const float intervalLow, const float intervalHigh) : intervalLow(intervalLow), intervalHigh(intervalHigh), hasToBeAligned(false) {}
+            SharedValue(const float intervalLow, const float intervalHigh) :
+                intervalLow(intervalLow),
+                intervalHigh(intervalHigh),
+                hasToBeAligned(false) {}
             float intervalLow;
             float intervalHigh;
             bool hasToBeAligned;
+            std::vector<ngraph::element::Type> defaultPrecisions;
         };
 
         SharedPart(std::shared_ptr<SharedValue> value) : value(value) {}

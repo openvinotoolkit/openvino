@@ -2,7 +2,8 @@
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Pipeline #1: FakeQuantize decomposition](#pipeline-1-fakequantize-decomposition)
-2. [Pipeline #2: Concat](#pipeline-2-concat)
+3. [Pipeline #2: Concat per-tensor quantization](#pipeline-2-concat-per-tensor-quantization)
+4. [Pipeline #3: Concat multi-channels quantization](#pipeline-3-concat-multi-channels-quantization)
 
 ## Introduction
 `FakeQuantizeDecompositionTransformation` decomposes `FakeQuantize` operation on quantize (`FakeQuantize` with low precision output) and dequantization operations (`Convert`, `Subtract` and `Multiply`). `FakeQuantize` result output precision depends on:
@@ -67,3 +68,26 @@ Features:
 
 ### Transformations
 ![Transformations result](img/pipeline2/transformed.svg)
+
+## Pipeline #3: Concat multi-channels quantization
+Features:
+1. Quantize and dequantize operations on activations are presented by one `Fakequantize` operation. 
+2. There is no `FakeQuantize` between `AvgPool` and `Result`.
+
+### Original model
+![Original model](img/pipeline3/actual.svg)
+
+### Markup precisions
+![Markup precisions result](img/pipeline3/step1_markup_precisions.svg)
+
+### Markup AvgPool precisions (CPU/GPU specific)
+![Markup AvgPool precisions (CPU/GPU specific) result](img/pipeline2/step2_markup_avg_pool_precisions.svg)
+
+### Propagate precisions
+![Propagate precisions result](img/pipeline3/step3_propagate_precisions.svg)
+
+### Align concatization quantization
+![Align concatization quantization result](img/pipeline3/step4_align_concat_quantization.svg)
+
+### Transformations
+![Transformations result](img/pipeline3/transformed.svg)
