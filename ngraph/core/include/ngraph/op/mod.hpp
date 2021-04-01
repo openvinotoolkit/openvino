@@ -30,12 +30,12 @@ namespace ngraph
                 /// \param auto_broadcast Auto broadcast specification
                 Mod(const Output<Node>& A,
                     const Output<Node>& B,
-                    const AutoBroadcastSpec& auto_broadcast = 
-                    AutoBroadcastSpec(AutoBroadcastType::NUMPY)); 
+                    const AutoBroadcastSpec& auto_broadcast =
+                        AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                
+
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
