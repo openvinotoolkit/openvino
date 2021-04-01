@@ -36,7 +36,7 @@ Features:
 ### Transformations
 ![Transformations result](img/pipeline1/transformed.svg)
 
-## Pipeline #2: Concat
+## Pipeline #2: Concat per-tensor quantization
 Features:
 1. `FakeQuantize` on activations operations output intervals are signed, default precision should be `signed int8` which is not supported by `Convolution` bellow.
 2. `FakeQuantize` on activations operations have different output intervals which will be aligned.
