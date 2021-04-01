@@ -385,7 +385,7 @@ int main(int argc, char *argv[]) {
             for (auto& item : cnnNetwork.getInputsInfo()) {
                 // if precision for input set by user, then set it to app_inputs
                 // if it an image, set U8
-                if (!FLAGS_i.empty() || FLAGS_iop.find(item.first) != std::string::npos) {
+                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos) {
                     app_inputs_info.at(item.first).precision = item.second->getPrecision();
                 } else if (app_inputs_info.at(item.first).isImage()) {
                     app_inputs_info.at(item.first).precision = Precision::U8;
