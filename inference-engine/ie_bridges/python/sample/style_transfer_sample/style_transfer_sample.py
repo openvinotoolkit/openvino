@@ -28,6 +28,8 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
                            'is acceptable. The sample will look for a suitable plugin for device specified. '
                            'Default value is CPU.')
+    args.add_argument('--original_size', action='store_true', default=False,
+                      help='Optional. Resize an output image to original image size.')
     args.add_argument('--mean_val_r', default=0, type=float,
                       help='Optional. Mean value of red channel for mean value subtraction in postprocessing.')
     args.add_argument('--mean_val_g', default=0, type=float,
@@ -126,8 +128,9 @@ def main():
         output_image = np.clip(output_image, 0, 255)
 
         # Resize a output image to original size
-        h, w, _ = original_images[i].shape
-        output_image = cv2.resize(output_image, (w, h))
+        if args.original_size:
+            h, w, _ = original_images[i].shape
+            output_image = cv2.resize(output_image, (w, h))
 
         cv2.imwrite(f'out_{i}.bmp', output_image)
         log.info(f'Image out_{i}.bmp created!')
