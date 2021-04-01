@@ -312,6 +312,8 @@ Models in the Intermediate Representation format always include a pair of `.xml`
 - **REQUIRED:** `model_name.xml`
 - **REQUIRED:** `model_name.bin`
 
+The conversion may also create a `model_name.mapping` file, but it is not needed for running inference.
+
 This guide uses the public SqueezeNet 1.1 Caffe\* model to run the Image Classification Sample. See the example to download a model in the <a href="#download-models">Download Models</a> section to learn how to download this model.
 
 The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to the IR. 
@@ -376,7 +378,7 @@ To run the **Image Classification** code sample with an input image on the IR:
    ```
 3. Run the code sample executable, specifying the input media file, the IR of your model, and a target device on which you want to perform inference:
    ```sh
-   classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
+   ./classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
    ```
 <details>
     <summary><strong>Click for examples of running the Image Classification code sample on different devices</strong></summary>
@@ -482,8 +484,8 @@ Template to call sample code or a demo application:
 With the sample information specified, the command might look like this:
 
 ```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/ir/fp32/mobilenet-ssd.xml -d CPU
+cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos/object_detection_demo
+./object_detection_demo -i ~/Videos/catshow.mp4 -m ~/ir/fp32/mobilenet-ssd.xml -d CPU
 ```
 
 ## <a name="advanced-samples"></a> Advanced Demo Use 

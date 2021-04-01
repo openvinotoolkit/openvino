@@ -60,10 +60,15 @@ The development and target platforms have the same requirements, but you can sel
 
 **Software Requirements**
 
-- CMake 3.10 or higher
-- Python 3.6 - 3.7
-- Apple Xcode\* Command Line Tools
-- (Optional) Apple Xcode\* IDE (not required for OpenVINO, but useful for development)
+* CMake 3.10 or higher
+	+ [Install](https://cmake.org/download/) (choose "macOS 10.13 or later")
+	+ Add `/Applications/CMake.app/Contents/bin` to path (for default install) 
+* Python 3.6 - 3.7
+	+ [Install](https://www.python.org/downloads/mac-osx/) (choose 3.6.x or 3.7.x, not latest)
+	+ Add to path
+* Apple Xcode\* Command Line Tools
+	+ In the terminal, run `xcode-select --install` from any directory
+* (Optional) Apple Xcode\* IDE (not required for OpenVINO, but useful for development)
 
 **Operating Systems**
 
