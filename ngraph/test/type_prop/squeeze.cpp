@@ -86,6 +86,50 @@ TEST(type_prop, squeeze_axes_invalid_value)
     }
 }
 
+TEST(type_prop, squeeze_axes_invalid_type)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto axes_node =
+        make_shared<ngraph::op::Constant>(element::f32, Shape{2}, vector<float>{0.1f, 0.2f});
+
+    try
+    {
+        auto squeeze = make_shared<op::Squeeze>(param, axes_node);
+        FAIL() << "Squeeze axis invalid type not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Second input (axes) is expected to be of integer type.");
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, squeeze_axes_invalid_rank)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto axes_node =
+        make_shared<ngraph::op::Constant>(element::i32, Shape{2, 1}, vector<int32_t>{0, 2});
+
+    try
+    {
+        auto squeeze = make_shared<op::Squeeze>(param, axes_node);
+        FAIL() << "Squeeze axis invalid rank not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Second input (axes) should not be of rank higher than 1.");
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, squeeze_negative_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});

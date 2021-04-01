@@ -36,6 +36,7 @@ void op::Squeeze::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
     auto data = input_value(0);
     auto axes_node = input_value(1).get_node_shared_ptr();
+    auto axes_pshape = get_input_partial_shape(1);
 
     bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
@@ -44,6 +45,18 @@ void op::Squeeze::validate_and_infer_types()
     bool axes_is_empty_constant = (axes_constant && axes_constant->get_data_ptr() != nullptr)
                                       ? axes_constant->cast_vector<int64_t>().empty()
                                       : false;
+
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_element_type(1).is_integral_number(),
+        "Second input (axes) is expected to be of integer type. Got: ",
+        get_input_element_type(1));
+
+    NODE_VALIDATION_CHECK(
+        this,
+        axes_pshape.rank().is_static() && axes_pshape.rank().get_length() < 2,
+        "Second input (axes) should not be of rank higher than 1. Got: ",
+        axes_pshape.rank().get_length());
 
     if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
         (data_has_dynamic_shape && axes_is_empty_constant))
@@ -69,7 +82,7 @@ void op::Squeeze::validate_and_infer_types()
         normalize_axes(this->description(), axes_constant->cast_vector<int64_t>(), data_rank);
 
     // Prepare set of unique axes marked to be removed from input data.
-    vector<bool> axes_to_squeeze(data_rank);
+    vector<bool> axes_to_squeeze(data_rank, false);
     if (axes_is_empty_constant)
     {
         auto data_shape = data.get_shape();
@@ -79,10 +92,6 @@ void op::Squeeze::validate_and_infer_types()
             if (data_shape.at(idx) == 1)
             {
                 axes_to_squeeze.at(idx) = true;
-            }
-            else
-            {
-                axes_to_squeeze.at(idx) = false;
             }
         }
     }
