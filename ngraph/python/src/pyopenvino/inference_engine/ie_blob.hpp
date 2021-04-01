@@ -24,17 +24,17 @@ void regclass_TBlob(py::module m, std::string typestring)
     auto pyclass_name = py::detail::c_str((std::string("TBlob") + typestring));
 
     py::class_<InferenceEngine::TBlob<T>, std::shared_ptr<InferenceEngine::TBlob<T>>> cls(
-        m, pyclass_name);
+            m, pyclass_name);
 
     cls.def(py::init(
-        [](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T>& arr, size_t size = 0) {
-            auto blob = InferenceEngine::make_shared_blob<T>(tensorDesc);
-            blob->allocate();
-            if (size != 0) {
-                std::copy(arr.data(0), arr.data(0) + size, blob->rwmap().template as<T*>());
-            }
-            return blob;
-        }));
+            [](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T>& arr, size_t size = 0) {
+                auto blob = InferenceEngine::make_shared_blob<T>(tensorDesc);
+                blob->allocate();
+                if (size != 0) {
+                    std::copy(arr.data(0), arr.data(0) + size, blob->rwmap().template as<T *>());
+                }
+                return blob;
+            }));
 
     cls.def_property_readonly("buffer", [](InferenceEngine::TBlob<T>& self) {
         auto blob_ptr = self.buffer().template as<T*>();
