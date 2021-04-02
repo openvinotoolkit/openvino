@@ -141,8 +141,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
         auto getTransposeInfoFromData = [](InferenceEngine::DataPtr data, bool transpose = true) {
-            auto rows = FROM_IR_DIM(data, 3);
-            auto columns = FROM_IR_DIM(data, 1) * FROM_IR_DIM(data, 2);
+            auto rows = InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::C);
+            auto columns = InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::H) *
+                           InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::W);
             return std::vector<TranspositionInfo>{{transpose, rows, columns}};
         };
         if (LayerInfo(layer).isConvolution() || LayerInfo(layer).isPooling()) {
@@ -236,8 +237,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
         if (LayerInfo(layer).isConvolution()) {
-            auto rows = FROM_IR_DIM(layer->input(), 3);
-            auto columns = FROM_IR_DIM(layer->input(), 1) * FROM_IR_DIM(layer->input(), 2);
+            auto rows = InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::C);
+            auto columns = InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::H) *
+                           InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::W);
             return {{true, rows, columns}};
         }
 
