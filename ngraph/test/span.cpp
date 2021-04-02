@@ -10,10 +10,10 @@
 
 #include "ngraph/runtime/reference/utils/span.hpp"
 
+using namespace ngraph::runtime::reference;
+
 TEST(span_util, create_from_vector)
 {
-    using namespace ngraph::runtime::reference;
-
     std::vector<int> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -28,8 +28,6 @@ TEST(span_util, create_from_vector)
 
 TEST(span_util, create_from_const_vector)
 {
-    using namespace ngraph::runtime::reference;
-
     const std::vector<int> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -44,8 +42,6 @@ TEST(span_util, create_from_const_vector)
 
 TEST(span_util, create_from_memory)
 {
-    using namespace ngraph::runtime::reference;
-
     std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -55,8 +51,6 @@ TEST(span_util, create_from_memory)
 
 TEST(span_util, create_from_const_memory)
 {
-    using namespace ngraph::runtime::reference;
-
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -66,7 +60,6 @@ TEST(span_util, create_from_const_memory)
 
 TEST(span_util, empty_span_stay_empty_for_drop_front)
 {
-    using namespace ngraph::runtime::reference;
     {
         constexpr std::array<int, 1> data{1};
         auto s = span(data);
@@ -104,7 +97,6 @@ TEST(span_util, empty_span_stay_empty_for_drop_front)
 }
 TEST(span_util, empty_span_stay_empty_for_drop_back)
 {
-    using namespace ngraph::runtime::reference;
     {
         constexpr std::array<int, 1> data{1};
         auto s = span(data);
@@ -143,8 +135,6 @@ TEST(span_util, empty_span_stay_empty_for_drop_back)
 
 TEST(span_util, create_substring)
 {
-    using namespace ngraph::runtime::reference;
-
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data.data(), data.size());
 
@@ -167,8 +157,6 @@ TEST(span_util, create_substring)
 
 TEST(span_util, compare_substr_with_drop_front)
 {
-    using namespace ngraph::runtime::reference;
-
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data.data(), data.size());
 
@@ -189,8 +177,6 @@ TEST(span_util, compare_substr_with_drop_front)
 
 TEST(span_util, drop_elements)
 {
-    using namespace ngraph::runtime::reference;
-
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data.data(), data.size());
 
