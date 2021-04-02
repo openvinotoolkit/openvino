@@ -84,7 +84,7 @@ class Cast(Op):
         bit_order_little = (padded[:, None] & (1 << np.arange(num_bits)) > 0).astype(np.uint8)
         bit_order_big = np.flip(bit_order_little, axis=1)
         bit_order_big_flattened = bit_order_big.flatten()
-        packed = np.packbits(bit_order_big_flattened, bitorder='big')
+        packed = np.packbits(bit_order_big_flattened)
 
         node.out_node(0)['force_shape'] = data_shape.copy()
         node.out_node(0)['force_type'] = np_data_type_to_precision(dst_type)

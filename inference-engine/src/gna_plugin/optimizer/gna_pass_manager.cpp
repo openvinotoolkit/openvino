@@ -677,16 +677,6 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         }
 
         nhwc_layout_patterns.push_back({prev, next});
-
-        auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
-        if (!convolution) {
-            THROW_GNA_EXCEPTION << "Invalid type of convolution layer";
-        }
-        if (convolution->_kernel_y != 1) {
-            THROW_GNA_LAYER_EXCEPTION(l) << "this case is not implemented yet";
-        }
-        auto in_channels = convolution->input()->getDims()[1];
-        convolution->_kernel_y = in_channels;
     }
 
     for (const auto& layers : nhwc_layout_patterns) {
@@ -1087,7 +1077,7 @@ void InsertConcatAligningFilterPass::run() {
                     std::make_shared<WeightableLayer>(LayerParams({filterName, "ConcatAlignFilter", Precision::FP32}));
 
                 if (dims.size() != 2) {
-                    THROW_GNA_EXCEPTION << "unsupported concat input    a of dims.size()=" << dims.size() << ", layer=" << prevLayer->name;
+                    THROW_GNA_EXCEPTION << "unsupported concat input of dims.size()=" << dims.size() << ", layer=" << prevLayer->name;
                 }
 
                 auto num_rows_in = dims[1];
@@ -2150,7 +2140,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                     transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
                 }
             }
-            if (!transpositionInfo.empty()) {
+            if (foundPartToTranspose(transpositionInfo)) {
+                if (l->input()->getDims().front() > 1) {
+                    THROW_GNA_EXCEPTION << l->name << " Weights transposition is not supported for a layer with batch size > 1";
+                }
                 auto weightable = dynamic_cast<WeightableLayer*>(l.get());
                 IE_ASSERT(weightable != nullptr);
                 ConvertTensorFromNCHWToNHWC(weightable->precision.size(), 1, weightable->_weights->size(),
@@ -2175,8 +2168,17 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             auto weightsColumns = InferenceEngine::details::product(std::begin(in_dims) + 1, std::end(in_dims));
             // Find a convolution in previous layers to rotate weights rows
             if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
-                auto transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
-                if (!transpositionInfo.empty()) {
+                std::vector<TranspositionInfo> transpositionInfo;
+                auto prevLayer = InferenceEngine::CNNNetPrevLayer(l);
+                transpositionInfo = FindTranspositionInfoFromPrevLayers(prevLayer);
+                if (foundPartToTranspose(transpositionInfo)) {
+                    if (l->input()->getDims().front() > 1) {
+                        THROW_GNA_EXCEPTION << l->name << " Weights transposition is not supported for a layer with batch size > 1";
+                    }
+                    if (LayerInfo(prevLayer).isSplit()) {
+                        // If we found a split it's not possible to rotate data
+                        THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a split before it";
+                    }
                     size_t totalColumns = 0;
                     for (auto && transpositionInfoPart : transpositionInfo) {
                         totalColumns += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
@@ -2193,14 +2195,23 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             }
             // Find a convolution in next layers to rotate weights columns
             if (!l->outData.empty() && !getInputTo(l->outData[0]).empty() && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
-                auto transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
-                if (!transpositionInfo.empty()) {
+                std::vector<TranspositionInfo> transpositionInfo;
+                auto nextLayer = getInputTo(l->outData[0]).begin()->second;
+                transpositionInfo = FindTranspositionInfoFromNextLayers(nextLayer);
+                if (foundPartToTranspose(transpositionInfo)) {
+                    if (l->outData[0]->getDims().front() > 1) {
+                        THROW_GNA_EXCEPTION << l->name << " Weights transposition is not supported for a layer with batch size > 1";
+                    }
+                    if (LayerInfo(nextLayer).isConcat()) {
+                        // If we found a concat it's not possible to rotate data
+                        THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a concat after it";
+                    }
                     size_t totalRows = 0;
                     for (const auto& transpositionInfoPart : transpositionInfo) {
                         totalRows += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
                     }
                     if (weightsRows != totalRows) {
-                        THROW_GNA_EXCEPTION << l->name << "weights rows from transposition info (" << totalRows
+                        THROW_GNA_EXCEPTION << l->name << " weights rows from transposition info (" << totalRows
                                             << ") don't match output dimensions (" << weightsRows << ")";
                     }
                     ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
@@ -2227,12 +2238,53 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             if (!foundPartToTranspose(transpositionInfo)) {
                 transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
             }
-            if (!transpositionInfo.empty()) {
+            if (foundPartToTranspose(transpositionInfo)) {
                 auto blob = secondInput->blobs["custom"];
                 ConvertTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(), 1, blob->size(),
                                             blob->buffer().as<uint8_t*>(), true, transpositionInfo);
-                gnalog() << l->name << " data transposition info:\n";
+                gnalog() << secondInput->name << " data transposition info:\n";
                 printTranspositionInfo(transpositionInfo);
+            }
+        }
+
+        if (LayerInfo(l).isConcat()) {
+            auto concatLayer = LayerInfo(l).as<InferenceEngine::ConcatLayer*>();
+            IE_ASSERT(concatLayer != nullptr);
+            // If concatenation is along channel axis constant input transposition isn't required
+            if (concatLayer->_axis <= 1) continue;
+
+            std::vector<InferenceEngine::CNNLayerPtr> constInputs;
+            bool transpose = false;
+            int nonConstInputIx = 0;
+            // Check if non-const inputs are transposed
+            for (int i = 0; InferenceEngine::CNNNetHasPrevLayer(l.get(), i); ++i) {
+                auto input = InferenceEngine::CNNNetPrevLayer(l, i);
+                if (LayerInfo(input).isConst()) {
+                    constInputs.push_back(input);
+                    continue;
+                }
+                auto transpositionInfo = FindTranspositionInfoFromPrevLayers(input);
+                bool transposeInput = foundPartToTranspose(transpositionInfo);
+                if (nonConstInputIx == 0) {
+                    transpose = transposeInput;
+                } else if (transposeInput != transpose) {
+                    THROW_GNA_EXCEPTION << "Concat layer " << l->name << " inputs have different layouts";
+                }
+                ++nonConstInputIx;
+            }
+            if (!transpose) continue;
+
+            // Transpose all constant inputs
+            for (auto && input : constInputs) {
+                auto rows = GetDataDimSize(input->outData[0], DataDimName::C);
+                auto columns = GetDataDimSize(input->outData[0], DataDimName::H) * GetDataDimSize(input->outData[0], DataDimName::W);
+                auto blob = input->blobs["custom"];
+                // A constant should have the same number of channels since concatenation will be in height/weight dimension
+                TranspositionInfo concatTranspositionInfo{true, rows, columns};
+                ConvertTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(), 1, blob->size(),
+                                            blob->buffer().as<uint8_t*>(), true, {concatTranspositionInfo});
+                gnalog() << input->name << " data transposition info:\n";
+                printTranspositionInfo({concatTranspositionInfo});
             }
         }
     }
