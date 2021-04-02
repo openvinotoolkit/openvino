@@ -72,6 +72,11 @@ DECLARE_CLDNN_CONFIG_KEY(ENABLE_FP16_FOR_QUANTIZED_MODELS);
 */
 DECLARE_CLDNN_CONFIG_KEY(NV12_TWO_INPUTS);
 
+/**
+* @brief This key sets the max number of host threads that can be used by GPU plugin on model loading.
+* Default value is maximum number of threads available in the environment.
+*/
+DECLARE_CLDNN_CONFIG_KEY(MAX_NUM_THREADS);
 
 }  // namespace CLDNNConfigParams
 }  // namespace InferenceEngine

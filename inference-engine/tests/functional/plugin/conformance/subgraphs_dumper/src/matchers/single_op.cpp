@@ -4,6 +4,7 @@
 
 #include "matchers/single_op.hpp"
 #include "ngraph/ops.hpp"
+#include "ngraph/validation_util.hpp"
 #include <cstdlib>
 
 using namespace SubgraphsDumper;
@@ -121,17 +122,17 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node, con
         if (std::any_of(begin(ignored_ports), end(ignored_ports), [=](size_t p){return p == port_id;})) {
             continue;
         }
-        const auto &cur_node_input = node->input_value(port_id).get_node_shared_ptr();
-        const auto &ref_node_input = ref->input_value(port_id).get_node_shared_ptr();
+        const auto &cur_node_input = node->input_value(port_id);
+        const auto &ref_node_input = ref->input_value(port_id);
 
-        const auto &cur_const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(cur_node_input);
-        const auto &ref_const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(ref_node_input);
+        const auto &cur_const_input = ngraph::get_constant_from_source(cur_node_input);
+        const auto &ref_const_input = ngraph::get_constant_from_source(ref_node_input);
 
         // Check that both OP an reference port inputs are constant and have same data
         if (cur_const_input && ref_const_input &&
             !compare_constants_data(cur_const_input, ref_const_input)) {
             return false;
-            // Check that input nodes on the port both not constants
+        // Check that input nodes on the port both not constants
         } else if ((cur_const_input && !ref_const_input) || (!cur_const_input && ref_const_input)) {
             return false;
         }

@@ -52,6 +52,7 @@
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
 #include <ngraph/runtime/reference/roi_pooling.hpp>
+#include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
 #include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
@@ -2123,6 +2124,48 @@ namespace
                                              op->get_spatial_bins_x(),
                                              op->get_spatial_bins_y());
 
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v7::Roll>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto& shiftType = inputs[1]->get_element_type();
+        std::vector<int64_t> shift_int64;
+        if (shiftType == element::Type_t::i32)
+        {
+            auto shift = inputs[1]->get_data_ptr<const int32_t>();
+            shift_int64.resize(shape_size(inputs[1]->get_shape()));
+            std::transform(shift,
+                           shift + shape_size(inputs[1]->get_shape()),
+                           shift_int64.begin(),
+                           [](const int32_t& elem) { return static_cast<int64_t>(elem); });
+        }
+        const auto& axesType = inputs[2]->get_element_type();
+        std::vector<int64_t> axes_int64;
+        if (axesType == element::Type_t::i32)
+        {
+            auto axes = inputs[2]->get_data_ptr<const int32_t>();
+            axes_int64.resize(shape_size(inputs[2]->get_shape()));
+            std::transform(axes,
+                           axes + shape_size(inputs[2]->get_shape()),
+                           axes_int64.begin(),
+                           [](const int32_t& elem) { return static_cast<int64_t>(elem); });
+        }
+        runtime::reference::roll(inputs[0]->get_data_ptr<const char>(),
+                                 inputs[1]->get_element_type() != element::Type_t::i64
+                                     ? shift_int64.data()
+                                     : inputs[1]->get_data_ptr<const int64_t>(),
+                                 inputs[2]->get_element_type() != element::Type_t::i64
+                                     ? axes_int64.data()
+                                     : inputs[2]->get_data_ptr<const int64_t>(),
+                                 outputs[0]->get_data_ptr<char>(),
+                                 inputs[0]->get_shape(),
+                                 inputs[1]->get_shape(),
+                                 inputs[2]->get_shape(),
+                                 inputs[0]->get_element_type().size());
         return true;
     }
 

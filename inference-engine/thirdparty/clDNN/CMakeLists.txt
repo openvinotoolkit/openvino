@@ -59,6 +59,14 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # ======================================================================================================
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================
+# ======================================================================================================
+if("${CLDNN_THREADING}" MATCHES "SEQ")
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_SEQ)
+elseif("${CLDNN_THREADING}" MATCHES "TBB")
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_TBB)
+else()
+    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)
+endif()
 
 # Path which points to main directory of project.
 set(CLDNN__MAIN_DIR      "${CMAKE_CURRENT_SOURCE_DIR}")

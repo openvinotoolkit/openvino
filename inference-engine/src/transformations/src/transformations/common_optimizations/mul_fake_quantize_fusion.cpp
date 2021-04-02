@@ -73,7 +73,6 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         } else if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f < 0.0f; })) {
             const auto& output_low = fq->input_value(3);
             const auto& output_high = fq->input_value(4);
-            auto zero = op::Constant::create(element::f32, Shape{}, {0.0f});
             // get the mask of the values from mul_const that are less than zero
             std::vector<float> less_than_zero;
             less_than_zero.reserve(mul_const_value.size());
@@ -84,8 +83,8 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                 less_than_zero.push_back(mul_const_value[i] < 0);
                 greater_eq_zero.push_back(mul_const_value[i] >= 0);
             }
-            auto less_const = op::Constant::create(element::f32, const_shape, less_than_zero);
-            auto greater_eq_const = op::Constant::create(element::f32, const_shape, greater_eq_zero);
+            auto less_const = op::Constant::create(output_low.get_element_type(), const_shape, less_than_zero);
+            auto greater_eq_const = op::Constant::create(output_low.get_element_type(), const_shape, greater_eq_zero);
             // new_output_low is defined as follows:
             //   output_low[i],  when mul_const[i] >= 0
             //   output_high[i], when mul_const[i] < 0

@@ -29,20 +29,19 @@ class Benchmark:
     def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
         if path_to_cldnn_config:
             self.ie.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
-            logger.info('GPU extensions is loaded {}'.format(path_to_cldnn_config))
+            logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
         if path_to_extension:
             self.ie.add_extension(extension_path=path_to_extension, device_name=CPU_DEVICE_NAME)
-            logger.info('CPU extensions is loaded {}'.format(path_to_extension))
+            logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def get_version_info(self) -> str:
-        logger.info('InferenceEngine:\n{: <9}{:.<24} {}'.format('', 'API version', get_version()))
+        logger.info(f"InferenceEngine:\n{'': <9}{'API version':.<24} {get_version()}")
         version_string = 'Device info\n'
         for device, version in self.ie.get_versions(self.device).items():
-            version_string += '{: <9}{}\n'.format('', device)
-            version_string += '{: <9}{:.<24}{} {}.{}\n'.format('', version.description, ' version', version.major,
-                                                               version.minor)
-            version_string += '{: <9}{:.<24} {}\n'.format('', 'Build', version.build_number)
+            version_string += f"{'': <9}{device}\n"
+            version_string += f"{'': <9}{version.description:.<24}{' version'} {version.major}.{version.minor}\n"
+            version_string += f"{'': <9}{'Build':.<24} {version.build_number}\n"
         return version_string
 
     def set_config(self, config = {}):
@@ -102,9 +101,8 @@ class Benchmark:
             infer_request.async_infer()
             status = exe_network.wait()
             if status != StatusCode.OK:
-                raise Exception("Wait for all requests is failed with status code {}!".format(status))
-            latency = infer_request.latency
-        return latency
+                raise Exception(f"Wait for all requests is failed with status code {status}!")
+        return infer_request.latency
 
     def infer(self, exe_network=None, batch_size=1, infer_requests=None, progress_bar=None):
         progress_count = 0
@@ -162,10 +160,9 @@ class Benchmark:
                   progress_bar.add_progress(1)
 
         # wait the latest inference executions
-        if self.mode != "poc":
-            status = exe_network.wait()
-            if status != StatusCode.OK:
-                raise Exception("Wait for all requests is failed with status code {}!".format(status))
+        status = exe_network.wait()
+        if status != StatusCode.OK:
+            raise Exception(f"Wait for all requests is failed with status code {status}!")
 
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:

@@ -93,14 +93,14 @@ def run(args):
                 ## set to user defined value
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
             elif 'PERF_COUNT' in config[device].keys() and config[device]['PERF_COUNT'] == 'YES':
-                logger.warning("Performance counters for {} device is turned on. ".format(device) +
+                logger.warning(f"Performance counters for {device} device is turned on. " +
                                "To print results use -pc option.")
             elif args.report_type in [ averageCntReport, detailedCntReport ]:
-                logger.warning("Turn on performance counters for {} device ".format(device) +
-                               "since report type is {}.".format(args.report_type))
+                logger.warning(f"Turn on performance counters for {device} device " +
+                               f"since report type is {args.report_type}.")
                 config[device]['PERF_COUNT'] = 'YES'
             elif args.exec_graph_path is not None:
-                logger.warning("Turn on performance counters for {} device ".format(device) +
+                logger.warning(f"Turn on performance counters for {device} device " +
                                "due to execution graph dumping.")
                 config[device]['PERF_COUNT'] = 'YES'
             else:
@@ -114,11 +114,11 @@ def run(args):
                     ## set to user defined value
                     supported_config_keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                     if key not in supported_config_keys:
-                        raise Exception("Device {} doesn't support config key '{}'! ".format(device, key) +
+                        raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
                     config[device][key] = device_number_streams[device]
                 elif key not in config[device].keys() and args.api_type == "async":
-                    logger.warning("-nstreams default value is determined automatically for {} device. ".format(device) +
+                    logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance,"
                                    "but it still may be non-optimal for some cases, for more information look at README.")
                     if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
@@ -139,7 +139,7 @@ def run(args):
                     config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
                 elif 'CPU_BIND_THREAD' not in config[device].keys():
                     if MULTI_DEVICE_NAME in device_name and GPU_DEVICE_NAME in device_name:
-                        logger.warning("Turn off threads pinning for {}".format(device) +
+                        logger.warning(f"Turn off threads pinning for {device} " +
                                        "device since multi-scenario with GPU device is used.")
                         config[device]['CPU_BIND_THREAD'] = 'NO'
                     else:
@@ -185,8 +185,8 @@ def run(args):
 
             start_time = datetime.utcnow()
             ie_network = benchmark.read_network(args.path_to_model)
-            duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
-            logger.info("Read network took {} ms".format(duration_ms))
+            duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            logger.info(f"Read network took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -203,8 +203,8 @@ def run(args):
                 logger.info(
                     'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
                 ie_network.reshape(shapes)
-                duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
-                logger.info("Reshape network took {} ms".format(duration_ms))
+                duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+                logger.info(f"Reshape network took {duration_ms} ms")
                 if statistics:
                     statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                               [
@@ -214,7 +214,7 @@ def run(args):
             # use batch size according to provided layout and shapes
             batch_size = get_batch_size(app_inputs_info) if args.layout else ie_network.batch_size
 
-            logger.info('Network batch size: {}'.format(batch_size))
+            logger.info(f'Network batch size: {batch_size}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
@@ -227,8 +227,8 @@ def run(args):
 
             start_time = datetime.utcnow()
             exe_network = benchmark.load_network(ie_network)
-            duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
-            logger.info("Load network took {} ms".format(duration_ms))
+            duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            logger.info(f"Load network took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -247,8 +247,8 @@ def run(args):
 
             start_time = datetime.utcnow()
             exe_network = benchmark.import_network(args.path_to_model)
-            duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
-            logger.info("Import network took {} ms".format(duration_ms))
+            duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            logger.info(f"Import network took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -302,7 +302,7 @@ def run(args):
             for nstreams in device_number_streams.items():
                 statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
                                          [
-                                            ("number of {} streams".format(nstreams[0]), str(nstreams[1])),
+                                            (f"number of {nstreams[0]} streams", str(nstreams[1])),
                                          ])
 
         # ------------------------------------ 10. Measuring performance -----------------------------------------------
@@ -316,11 +316,8 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        if args.mode == "poc":
-            duration_ms =  "{:.2f}".format(benchmark.first_infer(infer_requests=infer_requests))
-        else:
-            duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
-        logger.info("First inference took {} ms".format(duration_ms))
+        duration_ms =  f"{benchmark.first_infer(exe_network):.2f}"
+        logger.info(f"First inference took {duration_ms} ms")
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
@@ -340,7 +337,7 @@ def run(args):
 
         if args.dump_config:
             dump_config(args.dump_config, config)
-            logger.info("Inference Engine configuration settings were dumped to {}".format(args.dump_config))
+            logger.info(f"Inference Engine configuration settings were dumped to {args.dump_config}")
 
         if args.exec_graph_path:
             dump_exec_graph(exe_network, args.exec_graph_path)
@@ -357,28 +354,28 @@ def run(args):
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                       [
-                                          ('total execution time (ms)', '{:.2f}'.format(get_duration_in_milliseconds(total_duration_sec))),
+                                          ('total execution time (ms)', f'{get_duration_in_milliseconds(total_duration_sec):.2f}'),
                                           ('total number of iterations', str(iteration)),
                                       ])
             if MULTI_DEVICE_NAME not in device_name:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('latency (ms)', '{:.2f}'.format(latency_ms)),
+                                              ('latency (ms)', f'{latency_ms:.2f}'),
                                           ])
 
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                       [
-                                          ('throughput', '{:.2f}'.format(fps)),
+                                          ('throughput', f'{fps:.2f}'),
                                       ])
 
         if statistics:
           statistics.dump()
 
-        print('Count:      {} iterations'.format(iteration))
-        print('Duration:   {:.2f} ms'.format(get_duration_in_milliseconds(total_duration_sec)))
+        print(f'Count:      {iteration} iterations')
+        print(f'Duration:   {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
-            print('Latency:    {:.2f} ms'.format(latency_ms))
-        print('Throughput: {:.2f} FPS'.format(fps))
+            print(f'Latency:    {latency_ms:.2f} ms')
+        print(f'Throughput: {fps:.2f} FPS')
 
         del exe_network
 

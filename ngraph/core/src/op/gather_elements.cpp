@@ -87,13 +87,12 @@ void op::v6::GatherElements::validate_and_infer_types()
     {
         if (i != axis)
         {
-            // if size of the current axis of indices is unknown it will retrieve it from data
-            // e.g., if data_shape = {4, 4, ?} indices_shape = {1, ?, 5} and axis = 0
+            // if size of the current dimension of indices is unknown it will be retrieved from data
+            // e.g., if data_shape = {4, 4, ?}, indices_shape = {1, ?, 5} and axis = 0
             // (and if intervals intersect) then output_pshape will be {1, 4, 5}
-            Dimension curr_dim = data_pshape[i] & indices_pshape[i];
 
             NODE_VALIDATION_CHECK(this,
-                                  !curr_dim.get_interval().empty(),
+                                  data_pshape[i].compatible(indices_pshape[i]),
                                   "Shapes ",
                                   data_pshape,
                                   " and ",
@@ -102,7 +101,7 @@ void op::v6::GatherElements::validate_and_infer_types()
                                   "intersecting sizes, except for axis ",
                                   m_axis);
 
-            output_pshape[i] = curr_dim;
+            output_pshape[i] = data_pshape[i] & indices_pshape[i];
         }
     }
     set_output_type(0, data_type, output_pshape);

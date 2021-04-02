@@ -779,4 +779,53 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
     }
 }
 
+/**
+ * @brief returns a size of a specified data dimension depending on its back offset
+ * @param data a pointer to the data
+ * @param backOffset back dimension offset
+ */
+inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, uint32_t backOffset) {
+    auto dims = data->getDims();
+    return (dims.size() > backOffset - 1) ? dims[dims.size() - backOffset] : 1;
+}
+
+enum class DataDimName {
+    N, C, H, W
+};
+
+/**
+ * @brief returns a size of a specified data dimension depending on the layout
+ * @param data a pointer to the data
+ * @param dimName dimension name
+ */
+inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, DataDimName dimName) {
+    uint32_t dimIxInNCHW = static_cast<uint32_t>(dimName);
+    IE_ASSERT(dimIxInNCHW <= 3);
+
+    std::vector<uint32_t> backOffsets;
+    switch (data->getLayout()) {
+        case Layout::C:
+            // 1 will be returned for offsets > 1
+            backOffsets = std::vector<uint32_t>{1, 2, 3, 4};
+            break;
+        case Layout::NC:
+            // 1 will be returned for offsets > 2
+            backOffsets = std::vector<uint32_t>{2, 1, 3, 4};
+            break;
+        case Layout::HWC:
+            // 1 will be returned for offset 4
+        case Layout::NHWC:
+            backOffsets = std::vector<uint32_t>{4, 1, 3, 2};
+            break;
+        case Layout::CHW:
+            // 1 will be returned for offset 4
+        case Layout::NCHW:
+            backOffsets = std::vector<uint32_t>{4, 3, 2, 1};
+            break;
+        default:
+            THROW_GNA_EXCEPTION << data->getName() << " Unexpected layout " << data->getLayout();
+    }
+    return GetDataDimSize(data, backOffsets[dimIxInNCHW]);
+}
+
 }  // namespace InferenceEngine

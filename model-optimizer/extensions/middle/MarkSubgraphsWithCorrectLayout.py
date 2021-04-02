@@ -3,14 +3,12 @@
 
 import logging as log
 from collections import deque
-
 from typing import Set
 
 from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose, \
     mark_as_correct_data_layout, mark_output_as_in_correct_layout, mark_input_as_in_correct_layout
 from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.graph.port import Port
@@ -51,7 +49,8 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
                     result.append(dest_port.node)
         return result
 
-    def bfs(self, start_nodes: list, visited: set, condition: callable = None, forward: bool = True):
+    @staticmethod
+    def bfs(start_nodes: list, visited: set, condition: callable = None, forward: bool = True):
         """
         The function performs BFS starting from selected nodes in forward or backward direction adding nodes by an
         optional condition
@@ -63,7 +62,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         :return: the list of Nodes visited
         """
         assert visited is not None, 'The "visited" set must be defined'
-        assert start_nodes is not None and len(start_nodes) != 0, 'The list of start nodes must be specified'
+        assert start_nodes is not None, 'The list of start nodes must be specified'
 
         result = list()
         d = deque(start_nodes)
@@ -72,9 +71,9 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             result.append(cur_node)
             visited.add(cur_node)
             if forward:
-                next_nodes = self.get_output_nodes(cur_node)
+                next_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
             else:
-                next_nodes = self.get_input_nodes(cur_node)
+                next_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
             for next_node in next_nodes:
                 if next_node not in visited and (condition is None or condition(next_node)):
                     d.append(next_node)

@@ -17,6 +17,9 @@ namespace ngraph
 {
     namespace test
     {
+        std::shared_ptr<Function> function_from_ir(const std::string& xml_path,
+                                                   const std::string& bin_path = {});
+
         template <typename Engine, TestCaseType tct = TestCaseType::STATIC>
         class TestCase
         {

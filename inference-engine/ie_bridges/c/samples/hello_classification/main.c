@@ -2,17 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <opencv_c_wraper.h>
-#include <c_api/ie_c_api.h>
 
+#include <c_api/ie_c_api.h>
+#include <opencv_c_wraper.h>
+
+/**
+* @brief Struct to store classification results
+*/
 struct classify_res {
     size_t class_id;
     float probability;
 };
 
+/**
+* @brief Sort result of image classification by probability
+* @param struct with classification results to sort
+* @param size of the struct
+* @return none
+*/
 void classify_res_sort(struct classify_res *res, size_t n) {
     size_t i, j;
     for (i = 0; i < n; ++i) {
@@ -30,6 +41,12 @@ void classify_res_sort(struct classify_res *res, size_t n) {
     }
 }
 
+/**
+* @brief Convert output blob to classify struct for processing results
+* @param blob of output data
+* @param size of the blob
+* @return struct classify_res
+*/
 struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
     dimensions_t output_dim;
     IEStatusCode status = ie_blob_get_dims(blob, &output_dim);
@@ -60,6 +77,13 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
     return cls;
 }
 
+/**
+* @brief Print results of classification
+* @param struct of the classification results
+* @param size of the struct of classification results
+* @param string image path
+* @return none
+*/
 void print_classify_res(struct classify_res *cls, size_t n, const char *img_path) {
     printf("\nImage %s\n", img_path);
     printf("\nclassid probability\n");
@@ -68,6 +92,7 @@ void print_classify_res(struct classify_res *cls, size_t n, const char *img_path
     for (i = 0; i < n; ++i) {
         printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
     }
+    printf("\nThis sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n");
 }
 
 int main(int argc, char **argv) {
@@ -86,22 +111,36 @@ int main(int argc, char **argv) {
     ie_infer_request_t *infer_request = NULL;
     char *input_name = NULL, *output_name = NULL;
     ie_blob_t *imgBlob = NULL, *output_blob = NULL;
+    size_t network_input_size;
+    size_t network_output_size;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 1. Load inference engine instance -------------------------------------
+    // --------------------------- Step 1. Initialize inference engine core -------------------------------------
 
     IEStatusCode status = ie_core_create("", &core);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+    // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
     status = ie_core_read_network(core, input_model, NULL, &network);
     if (status != OK)
         goto err;
+    // check the network topology
+    status = ie_network_get_inputs_number(network, &network_input_size);
+    if (status != OK || network_input_size != 1) {
+        printf("Sample supports topologies with 1 input only\n");
+        goto err;
+    }
+
+    status = ie_network_get_outputs_number(network, &network_output_size);
+    if (status != OK || network_output_size != 1) {
+        printf("Sample supports topologies with 1 output only\n");
+        goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 3. Configure input & output ---------------------------------------------
+    // --------------------------- Step 3. Configure input & output ---------------------------------------------
     // --------------------------- Prepare input blobs -----------------------------------------------------
 
     status = ie_network_get_input_name(network, 0, &input_name);
@@ -124,20 +163,20 @@ int main(int argc, char **argv) {
 
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 4. Loading model to the device ------------------------------------------
+    // --------------------------- Step 4. Loading model to the device ------------------------------------------
     ie_config_t config = {NULL, NULL, NULL};
     status = ie_core_load_network(core, network, device_name, &config, &exe_network);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 5. Create infer request -------------------------------------------------
+    // --------------------------- Step 5. Create infer request -------------------------------------------------
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 6. Prepare input --------------------------------------------------------
+    // --------------------------- Step 6. Prepare input --------------------------------------------------------
     /* Read input image to a blob and set it to an infer request without resize and layout conversions. */
     c_mat_t img;
     image_read(input_image_path, &img);
@@ -158,14 +197,14 @@ int main(int argc, char **argv) {
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 7. Do inference --------------------------------------------------------
+    // --------------------------- Step 7. Do inference --------------------------------------------------------
     /* Running the request synchronously */
     status = ie_infer_request_infer(infer_request);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 8. Process output ------------------------------------------------------
+    // --------------------------- Step 8. Process output ------------------------------------------------------
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
     if (status != OK) {
         image_free(&img);

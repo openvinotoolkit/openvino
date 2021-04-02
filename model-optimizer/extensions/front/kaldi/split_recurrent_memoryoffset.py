@@ -3,6 +3,7 @@
 
 import networkx as nx
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 from mo.ops.memoryoffset import MemoryOffset
@@ -51,7 +52,7 @@ class SplitRecurrentMemoryOffset(FrontReplacementSubgraph):
                 # check if previous layer contains information about its shape in out-size
                 # out-size is set in extractor of some nodes like affinecomponent based on weight's size
                 if offset_node.in_port(0).get_source().node.has_valid('out-size'):
-                    offset_node['element_size'] = offset_node.in_port(0).get_source().node['out-size']
+                    offset_node['element_size'] = int64_array([1, offset_node.in_port(0).get_source().node['out-size']])
                 else:
                     raise Error("In a recurrent block 'element_size' for node {} is not set".format(offset_node.id))
             SplitRecurrentMemoryOffset.split_offset(offset_node)

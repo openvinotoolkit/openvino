@@ -2,16 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include <c_api/ie_c_api.h>
 
+/**
+* @brief Struct to store classification results
+*/
 struct classify_res {
     size_t class_id;
     float probability;
 };
 
+/**
+* @brief Sort result of image classification by probability
+* @param struct with classification results to sort
+* @param size of the struct
+* @return none
+*/
 void classify_res_sort(struct classify_res *res, size_t n) {
     size_t i, j;
     for (i = 0; i < n; ++i) {
@@ -29,6 +40,12 @@ void classify_res_sort(struct classify_res *res, size_t n) {
     }
 }
 
+/**
+* @brief Convert output blob to classify struct for processing results
+* @param blob of output data
+* @param size of the blob
+* @return struct classify_res
+*/
 struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
     dimensions_t output_dim;
     IEStatusCode status = ie_blob_get_dims(blob, &output_dim);
@@ -59,6 +76,13 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
     return cls;
 }
 
+/**
+* @brief Print results of classification
+* @param struct of the classification results
+* @param size of the struct of classification results
+* @param string image path
+* @return none
+*/
 void print_classify_res(struct classify_res *cls, size_t n, const char *img_path) {
     printf("\nImage %s\n", img_path);
     printf("\nclassid probability\n");
@@ -67,8 +91,16 @@ void print_classify_res(struct classify_res *cls, size_t n, const char *img_path
     for (i = 0; i < n; ++i) {
         printf("%zu       %f\n", cls[i].class_id, cls[i].probability);
     }
+    printf("\nThis sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n");
 }
 
+/**
+* @brief Read image data
+* @param string image path
+* @param pointer to store image data
+* @param size bytes of image
+* @return total number of elements successfully read, in case of error it doesn't equal to size param
+*/
 size_t read_image_from_file(const char *img_path, unsigned char *img_data, size_t size) {
     FILE *fp = fopen(img_path, "rb+");
     size_t read_size = 0;
@@ -84,7 +116,14 @@ size_t read_image_from_file(const char *img_path, unsigned char *img_data, size_
     return read_size;
 }
 
-size_t parse_image_size(const char *size_str, size_t *width, size_t *height) {
+/**
+* @brief Check image has supported width and height
+* @param string image size in WIDTHxHEIGHT format
+* @param pointer to image width
+* @param pointer to image height
+* @return bool status True(success) or False(fail)
+*/
+bool is_supported_image_size(const char *size_str, size_t *width, size_t *height) {
     const char *_size = size_str;
     size_t _width = 0, _height = 0;
     while (_size && *_size != 'x' && *_size != '\0') {
@@ -112,10 +151,10 @@ size_t parse_image_size(const char *size_str, size_t *width, size_t *height) {
         if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
             *height = _height;
-            return 0;
+            return true;
         } else {
             printf("Unsupported image size, width and height must be even numbers \n");
-            return -1;
+            return false;
         }
     } else {
         goto err;
@@ -123,7 +162,7 @@ size_t parse_image_size(const char *size_str, size_t *width, size_t *height) {
 err:
     printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
             "actual: %s\n", size_str);
-    return -1;
+    return false;
 }
 
 int main(int argc, char **argv) {
@@ -134,7 +173,7 @@ int main(int argc, char **argv) {
     }
 
     size_t input_width = 0, input_height = 0, img_size = 0;
-    if (parse_image_size(argv[3], &input_width, &input_height) == -1)
+    if (!is_supported_image_size(argv[3], &input_width, &input_height))
         return EXIT_FAILURE;
 
     const char *input_model = argv[1];
@@ -149,28 +188,30 @@ int main(int argc, char **argv) {
     ie_blob_t *y_blob = NULL, *uv_blob = NULL, *nv12_blob = NULL, *output_blob = NULL;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 1. Load inference engine instance -------------------------------------
+    // --------------------------- Step 1. Initialize inference engine core -------------------------------------
     IEStatusCode status = ie_core_create("", &core);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+    // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
     status = ie_core_read_network(core, input_model, NULL, &network);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 3. Configure input & output ---------------------------------------------
+    // --------------------------- Step 3. Configure input & output ---------------------------------------------
     // --------------------------- Prepare input blobs -----------------------------------------------------
     status = ie_network_get_input_name(network, 0, &input_name);
     if (status != OK)
         goto err;
 
+    /* Mark input as resizable by setting of a resize algorithm.
+     * In this case we will be able to set an input blob of any shape to an infer request.
+     * Resize and layout conversions are executed automatically during inference */
+     status |= ie_network_set_input_resize_algorithm(network, input_name, RESIZE_BILINEAR);
     status |= ie_network_set_input_layout(network, input_name, NCHW);
     status |= ie_network_set_input_precision(network, input_name, U8);
-    // set input resize algorithm to enable input autoresize
-    status |= ie_network_set_input_resize_algorithm(network, input_name, RESIZE_BILINEAR);
     // set input color format to NV12 to enable automatic input color format pre-processing
     status |= ie_network_set_color_format(network, input_name, NV12);
 
@@ -185,20 +226,20 @@ int main(int argc, char **argv) {
 
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 4. Loading model to the device ------------------------------------------
+    // --------------------------- Step 4. Loading model to the device ------------------------------------------
     ie_config_t config = {NULL, NULL, NULL};
     status = ie_core_load_network(core, network, device_name, &config, &exe_network);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 5. Create infer request -------------------------------------------------
+    // --------------------------- Step 5. Create infer request -------------------------------------------------
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 6. Prepare input --------------------------------------------------------
+    // --------------------------- Step 6. Prepare input --------------------------------------------------------
     // read image with size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
     img_size = input_width * (input_height * 3 / 2);
     img_data = (unsigned char *)calloc(img_size, sizeof(unsigned char));
@@ -230,14 +271,14 @@ int main(int argc, char **argv) {
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 7. Do inference --------------------------------------------------------
+    // --------------------------- Step 7. Do inference --------------------------------------------------------
     /* Running the request synchronously */
     status = ie_infer_request_infer(infer_request);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
 
-    // --------------------------- 8. Process output ------------------------------------------------------
+    // --------------------------- Step 8. Process output ------------------------------------------------------
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
     if (status != OK)
         goto err;

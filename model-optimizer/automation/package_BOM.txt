@@ -11,6 +11,7 @@ extensions/back/__init__.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
+extensions/back/ChangeCastOutputType.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
@@ -32,6 +33,7 @@ extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LinearToLinearONNXReplacer.py
 extensions/back/LRNToNorm.py
+extensions/back/MarkNodesWithShapeValues.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
 extensions/back/NormalizeToNormalizeL2.py
@@ -125,7 +127,6 @@ extensions/front/caffe/softmax_ext.py
 extensions/front/caffe/spatial_transformer_ext.py
 extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
-extensions/front/ChangeCastOutputType.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
 extensions/front/disable_weights_quantize_value_propagation.py
@@ -154,6 +155,7 @@ extensions/front/kaldi/add_reshape_around_pooling.py
 extensions/front/kaldi/apply_counts.py
 extensions/front/kaldi/logsoftmax_component_ext.py
 extensions/front/kaldi/memory_offset_adjustment.py
+extensions/front/kaldi/memoryoffset_batch_update.py
 extensions/front/kaldi/replace_eltwise_nin1.py
 extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
@@ -577,6 +579,7 @@ extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
+extensions/middle/MakeKaldiConstReshapable.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
 extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
@@ -774,6 +777,7 @@ install_prerequisites/protobuf-3.6.1-py3.6-win-amd64.egg
 install_prerequisites/protobuf-3.6.1-py3.7-win-amd64.egg
 mo.py
 mo/__init__.py
+mo/__main__.py
 mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
@@ -993,6 +997,7 @@ mo/utils/ir_engine/compare_graphs.py
 mo/utils/ir_engine/ir_engine.py
 mo/utils/ir_reader/__init__.py
 mo/utils/ir_reader/extender.py
+mo/utils/ir_reader/extenders/__init__.py
 mo/utils/ir_reader/extenders/binary_convolution_extender.py
 mo/utils/ir_reader/extenders/bucketize_extender.py
 mo/utils/ir_reader/extenders/conv_extender.py

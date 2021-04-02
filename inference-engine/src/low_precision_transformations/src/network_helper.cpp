@@ -189,7 +189,7 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     if (multiplyConst == nullptr)
         return addAfterMultiply;
 
-    const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
+    const auto x = multiply->get_input_source_output(multiplyInputBranch);
     auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
     auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
     std::shared_ptr<Node> bDivA;
@@ -228,14 +228,13 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         bDivA = fold<opset1::Convert>(bDivA, a->get_output_element_type(0));
     }
 
-    std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
-
+    OutputVector inputs{ {}, {} };
     inputs[0] = x;
     inputs[1] = bDivA;
 
     std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
         std::vector<element::Type>{element::f32, element::f32},
-        std::vector<element::Type>{ x->get_output_element_type(0) },
+        std::vector<element::Type>{ x.get_element_type() },
         ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
     copyInfo(addAfterMultiply, newAdd);

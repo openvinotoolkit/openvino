@@ -156,7 +156,6 @@ tests_expected_to_fail = [
     (xfail_issue_39662,
      "OnnxBackendNodeModelTest.test_nonmaxsuppression_two_classes_cpu",
      "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
-     "OnnxBackendNodeModelTest.test_constantofshape_int_shape_zero_cpu",
      "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu"),
     (xfail_issue_49753,
      "OnnxBackendNodeModelTest.test_slice_default_axes_cpu"),

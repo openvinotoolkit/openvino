@@ -53,7 +53,7 @@ def align_frame_time(graph: Graph, node: Node, frame_time_max):
                                                           'splitted': False}).create_node()
                 # add element_size for MemoryOffset after Parameter for infer
                 if in_node.op == 'Parameter':
-                    memory_align['element_size'] = in_node.shape[1]
+                    memory_align['element_size'] = in_node.shape
                 in_port.get_connection().set_source(memory_align.out_port(0))
                 memory_align.in_port(0).connect(in_node_out_port)
                 memory_align['frame_time'] = memory_align.t

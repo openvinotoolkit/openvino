@@ -31,6 +31,7 @@ struct configuration {
     uint16_t queues_num;
     std::string tuning_cache_path;
     std::string kernels_cache_path;
+    uint16_t n_threads;
 };
 }  // namespace gpu
 }  // namespace cldnn

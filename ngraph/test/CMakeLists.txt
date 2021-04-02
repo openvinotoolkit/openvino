@@ -90,6 +90,7 @@ set(SRC
     provenance.cpp
     replace_node.cpp
     shape.cpp
+    span.cpp
     specialize_function.cpp
     tensor.cpp
     type_prop/assign.cpp
@@ -379,7 +380,9 @@ set(MULTI_TEST_SRC
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roi_pooling.in.cpp
+    backend/roll.in.cpp
     backend/round.in.cpp
+    backend/scatter_nd_update.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
     backend/sigmoid.in.cpp
