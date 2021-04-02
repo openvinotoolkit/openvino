@@ -91,3 +91,11 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
     }
 
 }
+
+#undef FEATURE_SLICE_SIZE
+#undef unroll_for
+#undef OUTPUT_TYPE_BLOCK
+#undef TO_TYPE
+#undef READ_FUNC
+#undef WRITE_FUNC
+#undef GET_INDEX

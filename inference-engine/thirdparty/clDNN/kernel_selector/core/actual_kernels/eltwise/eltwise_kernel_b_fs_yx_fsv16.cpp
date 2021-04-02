@@ -32,6 +32,7 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 }
 
 static inline size_t GetBlockSize(const eltwise_params& params) {
+    // Set blocksize 1 when broadcasting X dim
     for (size_t i = 0; i < params.inputs.size(); i++) {
         if (params.inputs[i].X().v == 1 && params.inputs[i].LogicalSize() != 1) {
             return 1;
@@ -82,51 +83,43 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::MakeLoadJitConstants(const eltwise_par
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
                 {
-                    const std::string idx_order = "INPUT" + std::to_string(input.index) + "_IDX_ORDER";
-                    jit.AddConstant(MakeJitConstant(idx_order, "b, f_block*16, y, x"));
-
-                    if (params.inputs[input.index].LogicalSize() == 1) {
+                    if (params.inputs[input.index].LogicalSize() == params.output.Feature().v &&
+                        params.inputs[input.index].LogicalSize() == params.inputs[input.index].Feature().v) {
+                        jit.AddConstant(MakeJitConstant(name,
+                                                        "BLOCK_READN(INPUT" + std::to_string(input.index) + "_TYPE, 1, input" + std::to_string(input.index) +
+                                                        ", INPUT"+std::to_string(input.index)+"_GET_INDEX(b, f_block*16, y, x))"));
+                    } else if (params.inputs[input.index].LogicalSize() == 1) {
                         jit.AddConstant(MakeJitConstant(name,
                                                         "input" + std::to_string(input.index) +
                                                         "[0]"));
                     } else {
+                        const std::string idx_order = "INPUT" + std::to_string(input.index) + "_IDX_ORDER";
+                        jit.AddConstant(MakeJitConstant(idx_order, "b, f_block*16, y, x"));
+
                         bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.output.Feature().v != 1);
 
-                        if ((params.inputs[input.index].LogicalSize() == params.output.Feature().v &&
-                            params.inputs[input.index].LogicalSize() == params.inputs[input.index].Feature().v) ||
-                            (GetBlockSize(params) == 1)) {
-                            const std::string block_read_str = "TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 1), BLOCK_READN(INPUT" +
-                                                                    std::to_string(input.index) + "_TYPE, 1, "
-                                                                    "input" + std::to_string(input.index) + ", " +
-                                                                    "GET_INDEX(INPUT, " + std::to_string(input.index) + ", " + idx_order + ")))";
-                            if (feature_broadcasting) {
-                                const std::string broadcast_name = "DO_FEATURE_BROADCAST" + std::to_string(op_num);
-                                std::string broadcast_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 1) tmp_b" + std::to_string(op_num) +
-                                                            " = " + block_read_str + ";" +
-                                                            "\\\n\ttmp_b" + std::to_string(op_num) +
-                                                            " = sub_group_broadcast(tmp_b" + std::to_string(op_num) + ", 0);";
-                                jit.AddConstant(MakeJitConstant(broadcast_name, broadcast_value));
-                                jit.AddConstant(MakeJitConstant(name, "tmp_b" + std::to_string(op_num)));
+                        const std::string block_read_str = "TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE), BLOCK_READN(INPUT" +
+                                                                std::to_string(input.index) + "_TYPE, BLOCK_SIZE, " +
+                                                                "input" + std::to_string(input.index) + ", " +
+                                                                "GET_INDEX(INPUT, " + std::to_string(input.index) + ", " + idx_order + ")))";
+                        if (feature_broadcasting) {
+                            const std::string broadcast_name = "DO_FEATURE_BROADCAST" + std::to_string(op_num);
+                            std::string sub_group_broadcast;
+                            if (GetBlockSize(params) == 1) {
+                                sub_group_broadcast = "\\\n\ttmp_b" + std::to_string(op_num) +
+                                                    " = sub_group_broadcast(tmp_b" + std::to_string(op_num) + ", 0);";
                             } else {
-                                jit.AddConstant(MakeJitConstant(name, block_read_str));
+                                sub_group_broadcast = "\\\n\tunroll_for (uint i = 0; i < BLOCK_SIZE; ++i) tmp_b" + std::to_string(op_num) +
+                                                    "[i] = sub_group_broadcast(tmp_b" + std::to_string(op_num) + "[i], 0);";
                             }
+
+                            std::string broadcast_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE) tmp_b" + std::to_string(op_num) +
+                                                        " = " + block_read_str + ";" + sub_group_broadcast;
+
+                            jit.AddConstant(MakeJitConstant(broadcast_name, broadcast_value));
+                            jit.AddConstant(MakeJitConstant(name, "tmp_b" + std::to_string(op_num)));
                         } else {
-                            const std::string block_read_str = "TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE), BLOCK_READN(INPUT" +
-                                                                    std::to_string(input.index) + "_TYPE, BLOCK_SIZE, " +
-                                                                    "input" + std::to_string(input.index) + ", " +
-                                                                    "GET_INDEX(INPUT, " + std::to_string(input.index) + ", " + idx_order + ")))";
-                            if (feature_broadcasting) {
-                                const std::string broadcast_name = "DO_FEATURE_BROADCAST" + std::to_string(op_num);
-                                std::string broadcast_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE) tmp_b" +
-                                                            std::to_string(op_num) + " = " + block_read_str + ";" +
-                                                            "\\\n\tunroll_for (uint i = 0; i < BLOCK_SIZE; ++i) tmp_b" + std::to_string(op_num) +
-                                                            "[i] = sub_group_broadcast(tmp_b" + std::to_string(op_num) + "[i], 0);";
-                                jit.AddConstant(MakeJitConstant(broadcast_name, broadcast_value));
-                                jit.AddConstant(MakeJitConstant(name, "tmp_b" + std::to_string(op_num)));
-                            } else {
-                                jit.AddConstant(MakeJitConstant(name,
-                                                                "TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE), " + block_read_str + ")"));
-                            }
+                            jit.AddConstant(MakeJitConstant(name, block_read_str));
                         }
                     }
                     break;
@@ -213,13 +206,9 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
     const auto& output = ewParams.output;
-    const auto count = output.PhysicalSize();
-
-    if (count % 8 != 0)
-        return false;
 
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) {
+        if (ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16 && GetBlockSize(ewParams) != 1) {
             return false;
         }
     }
