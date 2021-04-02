@@ -16,8 +16,12 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<std::tuple<
 
     std::ostringstream result;
     auto splittedFilename = CommonTestUtils::splitStringByDelimiter(pathToModel, CommonTestUtils::FileSeparator);
-    result << "ModelPath=" << splittedFilename.back() << "_";
-    result << "TargetDevice=" << deviceName << "_";
+    result << "ModelPath=";
+    if (splittedFilename.size() > 1) {
+        result << *std::next(splittedFilename.rbegin()) << "_";
+    }
+    result << splittedFilename.back() << "_";
+    result << "TargetDevice=" << deviceName;
     return result.str();
 }
 
