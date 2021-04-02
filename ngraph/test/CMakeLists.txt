@@ -503,6 +503,7 @@ endif()
 
 if (NGRAPH_ONNX_EDITOR_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_editor)
+    target_compile_definitions(unit-test PRIVATE NGRAPH_ONNX_EDITOR_ENABLE="${NGRAPH_ONNX_EDITOR_ENABLE}")
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)

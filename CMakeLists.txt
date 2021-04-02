@@ -66,7 +66,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
     endif()
     if(NGRAPH_ONNX_IMPORT_ENABLE)
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
+        ngraph_set(NGRAPH_ONNX_EDITOR_ENABLE ON)
     endif()
     ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
 

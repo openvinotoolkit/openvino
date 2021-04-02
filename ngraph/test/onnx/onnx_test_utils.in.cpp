@@ -9,7 +9,9 @@
 #include "default_opset.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#ifdef NGRAPH_ONNX_EDITOR_ENABLE
 #include "onnx_editor/editor.hpp"
+#endif
 #include "onnx_import/onnx.hpp"
 #include "util/test_control.hpp"
 
@@ -25,6 +27,7 @@ using namespace ngraph;
 static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
+#ifdef NGRAPH_ONNX_EDITOR_ENABLE
 template <typename T>
 class ElemTypesTests : public ::testing::Test
 {
@@ -76,6 +79,8 @@ REGISTER_TYPED_TEST_CASE_P(ElemTypesTests,
                            onnx_test_split_multioutput_set_precission);
 typedef ::testing::Types<int8_t, int16_t, int32_t, uint8_t, float> ElemTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(${BACKEND_NAME}, ElemTypesTests, ElemTypes);
+
+#endif // NGRAPH_ONNX_EDITOR_ENABLE
 
 NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
     const auto ir_xml = file_util::path_join(SERIALIZED_ZOO, "ir/add_abc.xml");
