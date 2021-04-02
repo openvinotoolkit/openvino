@@ -13,7 +13,14 @@ class StridedSlice_extender(Extender):
     @staticmethod
     def extend(op: Node):
         for attr in StridedSlice.get_mask_names():
-            Extender.attr_to_list(op, attr)
+            # We can not use op.has_and_set(attr) here as a condition, because it will return False if begin/end is
+            # 1D tensor and begin_mask/end_mask is equal to 0
+            if op.has(attr) and op[attr] != '':
+                Extender.attr_to_list(op, attr)
+            else:
+                assert attr not in ['begin_mask', 'end_mask'],\
+                    '{} is not defined for the node {}'.format(attr, op.soft_get('name', op.id))
+                op[attr] = int64_array([0])
 
         op.begin_mask = int64_array([1 - i for i in op.begin_mask])
         op.end_mask = int64_array([1 - i for i in op.end_mask])
