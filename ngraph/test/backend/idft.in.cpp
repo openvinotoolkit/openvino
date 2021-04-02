@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
-#include <iomanip>
-#include <limits>
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -171,18 +168,9 @@ NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval)
 
     auto handle = backend->compile(f);
 
-    std::cout << "nGraph function for IDFT was successfully compiled.\n";
     handle->call({idft_output}, {backend_data});
-    std::cout << "nGraph function for IDFT was successfully calculated.\n";
 
     auto result = read_vector<float>(idft_output);
-    std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-    std::cout << "Actual result:\n    ";
-    for (auto x : result)
-    {
-        std::cout << x << ", ";
-    }
-    std::cout << "\n";
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
@@ -276,18 +264,9 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_eval)
 
     auto handle = backend->compile(f);
 
-    std::cout << "nGraph function for IDFT was successfully compiled.\n";
     handle->call({idft_output}, {backend_data});
-    std::cout << "nGraph function for IDFT was successfully calculated.\n";
 
     auto result = read_vector<float>(idft_output);
-    std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-    std::cout << "Actual result:\n    [";
-    for (auto x : result)
-    {
-        std::cout << x << ", ";
-    }
-    std::cout << "]\n";
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
@@ -372,22 +351,12 @@ NGRAPH_TEST(${BACKEND_NAME}, idft3d_eval)
 
     auto handle = backend->compile(f);
 
-    std::cout << "nGraph function for IDFT was successfully compiled.\n";
     handle->call({idft_output}, {backend_data});
-    std::cout << "nGraph function for IDFT was successfully calculated.\n";
 
     auto result = read_vector<float>(idft_output);
-    std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-    std::cout << "Actual result:\n    [";
-    for (auto x : result)
-    {
-        std::cout << x << ", ";
-    }
-    std::cout << "]\n";
-//     EXPECT_TRUE(test::all_close_f(expected_result, read_vector<float>(idft_output)));
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        EXPECT_NEAR(result[j], expected_result[j], 0.000002);
+        EXPECT_NEAR(result[j], expected_result[j], 0.000003);
     }
 }
