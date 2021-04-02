@@ -196,3 +196,13 @@ TEST(span_util, drop_elements)
         length--;
     }
 }
+
+TEST(span_util, throw_on_out_of_range)
+{
+    std::array<int, 2> data{};
+    EXPECT_THROW(Span<char>{}.at(0), std::out_of_range);
+    EXPECT_NO_THROW(span(data).at(0));
+    EXPECT_NO_THROW(span(data).at(1));
+    EXPECT_THROW(span(data).at(2), std::out_of_range);
+    EXPECT_THROW(span(data).at(3), std::out_of_range);
+}

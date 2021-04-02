@@ -6,6 +6,7 @@
 
 #include <iterator>
 #include <limits>
+#include <stdexcept>
 #include <type_traits>
 
 namespace ngraph
@@ -81,7 +82,15 @@ namespace ngraph
                 constexpr Element& front() const noexcept { return *m_data; }
                 constexpr Element& back() const noexcept { return *(m_data + (m_size - 1)); }
                 constexpr Element& operator[](std::size_t idx) const { return *(m_data + idx); }
-                Element& at(std::size_t idx) const { return *(m_data + idx); }
+                Element& at(std::size_t idx) const
+                {
+                    if (idx >= m_size)
+                    {
+                        throw std::out_of_range{"index out of range"};
+                    }
+                    return *(m_data + idx);
+                }
+
                 /**
                  * @brief return sub part of span starting from offset and not greater than size
                  *
