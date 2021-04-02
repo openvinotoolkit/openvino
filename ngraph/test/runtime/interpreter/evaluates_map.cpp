@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "evaluates_map.hpp"
 
 #include "backend.hpp"
@@ -958,7 +957,6 @@ namespace
         auto info = fft_v7::get_info_for_fft7_eval(inputs);
 
         std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
-        std::cout << "Started calculation of DFT...\n";
         runtime::reference::fft(info.input_data.data(),
                                 info.input_data_shape,
                                 info.axes_data.data(),
@@ -966,7 +964,6 @@ namespace
                                 fft_result.data(),
                                 info.output_shape,
                                 runtime::reference::FFTKind::Forward);
-        std::cout << "Finished calculation of DFT\n";
 
         const auto output_type = op->get_input_element_type(0);
         runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
