@@ -220,35 +220,45 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
 bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
     bool no_pitch_same_dims = true;
 
+    std::vector<std::pair <DataLayout, int>> block_layouts = {
+        {DataLayout::b_fs_yx_fsv16,          16},
+        {DataLayout::b_fs_zyx_fsv16,         16},
+        {DataLayout::b_fs_yx_fsv32,          32},
+        {DataLayout::b_fs_zyx_fsv32,         32},
+        {DataLayout::bs_fs_yx_bsv16_fsv16,   16},
+        {DataLayout::bs_fs_zyx_bsv16_fsv16,  16},
+        {DataLayout::bs_f_bsv8__af8,         8},
+        {DataLayout::bs_f_bsv16__af8,        16},
+        {DataLayout::b_fs_yx_fsv4,           4},
+        {DataLayout::fs_b_yx_fsv32,          32},
+        {DataLayout::b_fs_yx_32fp,           32}
+    };
+
     if (params.inputs.size()) {
-        no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
+        for (const auto& layout : block_layouts) {
+            no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
-        if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[0].Feature().v % 16 != 0) ||
-            (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
-            return false;
-
-        if (params.fused_ops.size()) {
-            for (auto fused_op : params.fused_ops) {
-                for (size_t in = 0; in < fused_op.tensors.size(); in++) {
-                    if (fused_op.tensors[in].LogicalSize() == 1)
-                        continue;
-                    if ((fused_op.tensors[in].GetLayout() == DataLayout::b_fs_yx_fsv16 && fused_op.tensors[in].Feature().v % 16 != 0) ||
-                        (fused_op.tensors[in].GetLayout() == DataLayout::b_fs_zyx_fsv16 && fused_op.tensors[in].Feature().v % 16 != 0))
-                        return false;
-                    no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == fused_op.tensors[in]);
+            if (params.fused_ops.size()) {
+                for (auto fused_op : params.fused_ops) {
+                    for (size_t in = 0; in < fused_op.tensors.size(); in++) {
+                        if (fused_op.tensors[in].LogicalSize() == 1)
+                            continue;
+                        if (fused_op.tensors[in].GetLayout() == layout.first && fused_op.tensors[in].Feature().v % layout.second != 0)
+                            return false;
+                        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == fused_op.tensors[in]);
+                    }
                 }
             }
+
+            for (size_t i = 0; i < params.inputs.size(); i++) {
+                no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.inputs[i]);
+
+                if (params.inputs[i].GetLayout() == layout.first && params.inputs[i].Feature().v % layout.second != 0)
+                    return false;
+            }
+
+            no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.output);
         }
-
-        for (size_t i = 1; i < params.inputs.size(); i++) {
-            no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.inputs[i]);
-
-            if ((params.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[i].Feature().v % 16 != 0) ||
-                (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
-                return false;
-        }
-
-        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.output);
     }
 
     return no_pitch_same_dims;
