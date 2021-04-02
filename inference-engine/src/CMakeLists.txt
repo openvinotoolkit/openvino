@@ -51,5 +51,5 @@ add_custom_target(ie_libraries ALL
                           inference_engine_lp_transformations inference_engine_snippets)
 
 if(NGRAPH_ONNX_IMPORT_ENABLE)
-    add_dependencies(ie_libraries inference_engine_onnx_reader)
+    add_dependencies(ie_libraries inference_engine_onnx_reader frontend_manager)
 endif()

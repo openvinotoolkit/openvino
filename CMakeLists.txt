@@ -107,6 +107,7 @@ function(build_ngraph)
     set(SDL_cmake_included ON)
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
+    set(FRONTEND_LIBRARIES frontend_manager PARENT_SCOPE)
     set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
