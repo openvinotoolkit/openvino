@@ -81,27 +81,23 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_zeroed_offsets_default)
     const CoordinateDiff padding{0, 0};
     const Strides dilations{1, 1};
 
-    const Shape inputs_shape{1, 1, 6, 6};
-    const std::vector<float> inputs{1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f,
-                                    1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f,
-                                    1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f,
-                                    1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f,
-                                    1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f,
-                                    1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f};
+    const Shape inputs_shape{1, 1, 4, 4};
+    const std::vector<float> inputs{1.0f, 2.0f, 3.0f, 4.0f,
+                                    5.0f, 6.0f, 7.0f, 8.0f,
+                                    9.0f, 10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f, 16.0f};
 
-    const Shape filter_shape{1, 1, 3, 3};
-    const std::vector<float> filter{2.0f, 0.0f, 1.0f,
-                                     2.0f, 1.0f, 1.0f,
-                                     2.0f, 3.0f, 1.0f};
+    const Shape filter_shape{1, 1, 2, 2};
+    const std::vector<float> filter{1.0f, 2.0f,
+                                    -1.0f, -2.0f};
 
-    const Shape offsets_shape{1, 18, 4, 4};
+    const Shape offsets_shape{1, 8, 3, 3};
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
 
-    const Shape outputs_shape{1, 1, 4, 4};
-    const std::vector<float> outputs{27.0f, 30.0f, 21.0f, 10.0f,
-                                     27.0f, 30.0f, 21.0f, 10.0f,
-                                     27.0f, 30.0f, 21.0f, 10.0f,
-                                     27.0f, 30.0f, 21.0f, 10.0f,};
+    const Shape outputs_shape{1, 1, 3, 3};
+    const std::vector<float> outputs{-12.0f, -12.0f, -12.0f,
+                                     -12.0f, -12.0f, -12.0f,
+                                     -12.0f, -12.0f, -12.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
@@ -614,57 +610,54 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_default)
     const Strides dilations{1, 1};
 
     const Shape inputs_shape{1, 1, 4, 4};
-    const std::vector<float> inputs{1.0f, 3.0f, 7.0f, 7.0f,
-                                    7.0f, 6.0f, 3.0f, 1.0f,
-                                    4.0f, 4.0f, 2.0f, 8.0f,
-                                    1.0f, 1.0f, 1.0f, 2.0f};
+    const std::vector<float> inputs{1.0f, 2.0f, 3.0f, 4.0f,
+                                    5.0f, 6.0f, 7.0f, 8.0f,
+                                    9.0f, 10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f, 16.0f};
 
-    const Shape filter_shape{1, 1, 3, 3};
-    const std::vector<float> filter{1.0f, 2.0f, 3.0f,
-                                    0.0f, 1.0f, 0.0f,
-                                    3.0f, 2.0f, 1.0f};
+    const Shape filter_shape{1, 1, 2, 2};
+    const std::vector<float> filter{1.0f, 2.0f,
+                                    -1.0f, -2.0f};
 
-    const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets{1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 1.0f,
-                                     0.0f, 2.0f};
+    const Shape offsets_shape{1, 8, 3, 3};
+    const std::vector<float> offsets{//channel 1: Y offsets
+                                     1.0f, 1.0f, 1.0f, // out1 .. out 3
+                                     1.0f, 1.0f, 1.0f, // out4 .. out 6
+                                     1.0f, 1.0f, 1.0f, // out7 .. out 9
+                                     //channel 1: X offsets
+                                     1.0f, 1.0f, 1.0f, // out1 .. out 3
+                                     1.0f, 1.0f, 1.0f, // out4 .. out 6
+                                     1.0f, 1.0f, 1.0f, // out7 .. out 9
+                                     //channel 2: Y offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 2: X offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 3: Y offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 3: X offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 4: Y offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 4: X offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                    };
 
-    const Shape outputs_shape{1, 1, 2, 2};
-    const std::vector<float> outputs{56.0f, 21.0f,
-                                     22.0f, 10.0f};
+    const Shape outputs_shape{1, 1, 3, 3};
+    const std::vector<float> outputs{-12.0f, -12.0f, -4.0f,
+                                     -12.0f, -12.0f, -4.0f,
+                                     44.0f, 47.0f, 16.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);

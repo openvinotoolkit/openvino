@@ -65,7 +65,7 @@ namespace ngraph
                 void convolve_2D_channels(const ConvolutionParams& p,
                                           const T* batch,
                                           const Shape& batch_shape,
-                                          const T* offset,
+                                          const T* offsets,
                                           const Shape& offset_shape,
                                           const T* filter,
                                           const Shape& filter_shape,
@@ -82,12 +82,9 @@ namespace ngraph
 
                     const int input_channel_size = shape_size(shape_reduce(batch_shape));
                     const int filter_channel_size = shape_size(shape_reduce(filter_shape));
-                    int f_c = 0;
-                    int off = 0;
-                    // const Shape offset_spatial_dims_shape(++offset_shape.begin(),
-                    //                                      offset_shape.end());
-                    // const int spatial_size = shape_size(offset_spatial_dims_shape);
+                    const int offsets_spatial_size = shape_size(shape_reduce(offset_shape));
 
+                    int out_idx = 0;
                     for (int i_y = -p.pads_begin[0];
                          i_y <= (p.pads_end[0] + input_size_y - dilated_filter_size_y);
                          i_y += p.strides[0])
@@ -99,44 +96,37 @@ namespace ngraph
                             auto input_channel = batch;
                             auto filter_channel = filter;
                             T sum = 0;
-                            size_t filter_channels_count = filter_shape[0];
+                            int filter_channels_count = filter_shape[0];
                             while (filter_channels_count--)
                             {
-                                off = 0;
-
+                                auto offsets_channel = offsets;
                                 for (int f_y = 0; f_y < filter_size_y; ++f_y)
                                 {
                                     for (int f_x = 0; f_x < filter_size_x; ++f_x)
                                     {
-                                        int rel_i_y = i_y + (f_y * p.dilation[0]);
-                                        int rel_i_x = i_x + (f_x * p.dilation[1]);
+                                        int y_offset = offsets_channel[out_idx];
+                                        int x_offset =
+                                            offsets_channel[offsets_spatial_size + out_idx];
+                                        int rel_i_y = i_y + (f_y * p.dilation[0]) + y_offset;
+                                        int rel_i_x = i_x + (f_x * p.dilation[1]) + x_offset;
 
                                         int f_buf_idx = (f_y * filter_size_x) + f_x;
 
-                                        int y_offset = 0; /* offset[(f_buf_idx + off++) *
-                                                             spatial_size + f_c]; */
-                                        int x_offset =
-                                            0; /* offset[(f_buf_idx + off) * spatial_size + f_c]; */
-
-                                        if (x_offset + rel_i_x >= input_size_x ||
-                                            y_offset + rel_i_y >= input_size_y)
-                                            continue;
-                                        if (x_offset + rel_i_x < 0 || y_offset + rel_i_y < 0)
+                                        offsets_channel += (2 * offsets_spatial_size);
+                                        bool padding = !(in_range(rel_i_x, {0, input_size_x}) &&
+                                                         in_range(rel_i_y, {0, input_size_y}));
+                                        if (padding)
                                             continue;
 
-                                        int i_buf_idx = ((rel_i_y + y_offset) * input_size_x) +
-                                                        rel_i_x + x_offset;
-                                        sum += static_cast<T>(input_channel[i_buf_idx]) *
-                                               static_cast<T>(filter_channel[f_buf_idx]);
+                                        int i_buf_idx = (rel_i_y * input_size_x) + rel_i_x;
+                                        sum += input_channel[i_buf_idx] * filter_channel[f_buf_idx];
                                     }
                                 }
 
                                 input_channel += input_channel_size;
                                 filter_channel += filter_channel_size;
                             }
-                            f_c++;
-                            *out = sum;
-                            ++out;
+                            out[out_idx++] = sum;
                         }
                     }
                 }
@@ -174,7 +164,7 @@ namespace ngraph
 
                 const Shape group_offset_shape =
                     shape_scale(shape_reduce(o_shape), deformable_groups);
-                const size_t group_offset_size = shape_size(group_offset_shape);
+                const size_t batch_defgroup_offset_size = shape_size(group_offset_shape);
 
                 const size_t group_filters_count = f_shape[filter_out_ch_axis] / groups;
                 const Shape group_filter_shape = shape_reduce(shape_scale(f_shape, groups));
@@ -201,8 +191,8 @@ namespace ngraph
                             out += out_ch_size;
                         }
                         in += group_in_size;
-                        offsets += group_offset_size;
                     }
+                    offsets += batch_defgroup_offset_size;
                 }
             }
         } // namespace reference
