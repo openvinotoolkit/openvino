@@ -291,6 +291,6 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_eval)
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        EXPECT_NEAR(result[j], expected_result[j], 0.000002);
+        EXPECT_NEAR(result[j], expected_result[j], 0.000003);
     }
 }
