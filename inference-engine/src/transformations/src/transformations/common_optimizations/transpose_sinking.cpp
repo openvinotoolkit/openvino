@@ -62,7 +62,7 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
 
     const size_t input_shape_rank = input_shape.rank().get_length();
 
-    auto order = as_type_ptr<opset3::Constant>(transpose->input_value(1).get_node_shared_ptr());
+    auto order = as_type_ptr<opset6::Constant>(transpose->input_value(1).get_node_shared_ptr());
     if (!order || !ngraph::shape_size(order->get_shape())) {
         return false;
     }
@@ -145,11 +145,7 @@ ngraph::pass::TransposeOptimization::TransposeOptimization() {
     auto transpose_label = pattern::wrap_type<opset6::Transpose>(
             {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<opset6::Constant>()});
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
-        auto transpose = as_type_ptr<opset6::Transpose>(pattern_to_output.at(transpose_label).get_node_shared_ptr());
-        if (!transpose)
-            return false;
-        return replace_transpose_with_reshape(transpose);
+        return replace_transpose_with_reshape(m.get_match_root());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_label, matcher_name);
@@ -164,7 +160,7 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
             {transpose_label, pattern::wrap_type<opset6::Constant>()});
 
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+        const auto &pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto reduction = pattern_to_output.at(reduce_or_squeeze_label).get_node_shared_ptr();
