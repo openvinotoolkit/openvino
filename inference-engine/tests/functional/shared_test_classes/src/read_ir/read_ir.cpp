@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 
 #include "shared_test_classes/read_ir/read_ir.hpp"
@@ -14,7 +15,8 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<std::tuple<
     std::tie(pathToModel, deviceName) = obj.param;
 
     std::ostringstream result;
-    result << "ModelPath=" << pathToModel << "_";
+    auto splittedFilename = CommonTestUtils::splitStringByDelimiter(pathToModel, CommonTestUtils::FileSeparator);
+    result << "ModelPath=" << splittedFilename.back() << "_";
     result << "TargetDevice=" << deviceName << "_";
     return result.str();
 }
