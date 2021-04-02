@@ -40,6 +40,7 @@ public:
         auto found = name_map.find(name);
         if(found != name_map.end())
             return !found->second.empty();
+        return false;
     }
 
     size_t get_ng_input_size (const std::string& name) const { return name_map.at(name).size(); }

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
+#include <fstream>
 
 #include "place.hpp"
 
@@ -29,11 +30,14 @@ class NGRAPH_API InputModelPDPD : public InputModel
 {
     // TODO: replace it by already deserialized proto hidden under some Impl class
     // TODO: avoid using explicit format-dependent data stuctures here, hide it under some Impl class
-    std::string path;
-
+   
     friend class FrontEndPDPD;
 
 public:
+    std::string path;
+    std::string model_file;
+    std::ifstream weights_stream;
+    bool weights_composed = false;
 
     InputModelPDPD (const std::string& _path) : path(_path) {}
 };

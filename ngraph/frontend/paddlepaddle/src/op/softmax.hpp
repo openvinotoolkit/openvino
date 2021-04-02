@@ -14,37 +14,17 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "op/batch_norm.hpp"
-#include "op/conv2d.hpp"
-#include "op/elementwise_add.hpp"
-#include "op/matmul.hpp"
-#include "op/mul.hpp"
-#include "op/pool2d.hpp"
-#include "op/relu.hpp"
-#include "op/reshape2.hpp"
-#include "op/scale.hpp"
-#include "op/softmax.hpp"
-
-#include "op_table.hpp"
-
+#pragma once
+#include "node_context.hpp"
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
+namespace op {
 
-std::map<std::string, CreatorFunction> get_supported_ops() {
-    return {
-            {"batch_norm", op::batch_norm},
-            {"conv2d", op::conv2d},
-            {"elementwise_add", op::elementwise_add},
-            {"matmul", op::matmul},
-            {"mul", op::mul},
-            {"pool2d", op::pool2d},
-            {"relu", op::relu},
-            {"reshape2", op::reshape2},
-            {"scale", op::scale},
-            {"softmax", op::softmax}
-    };
-};
+OutputVector softmax(const NodeContext& node);
 
-}}}
+} // namespace op
+} // namespace pdpd
+} // namespace frontend
+} // namespace ngraph
