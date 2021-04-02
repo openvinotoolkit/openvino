@@ -46,6 +46,11 @@ class ParameterResultCustomBlobTest : public ParameterResultSubgraphTest {
 TEST_P(ParameterResultCustomBlobTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    // Just to show that it is not possible to set different precisions for inputs and outputs with the same name.
+    // If it was possible, the input would have I8 precision and couldn't store data from the custom blob.
+    inPrc = Precision::I8;
+    outPrc = Precision::FP32;
+
     Run();
 }
 namespace {
