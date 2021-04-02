@@ -18,7 +18,7 @@
 #include <string>
 #include <ie_common.h>
 #include <ie_version.hpp>
-
+#include <ie_iinfer_request.hpp>
 
 namespace py = pybind11;
 
@@ -50,14 +50,20 @@ PYBIND11_MODULE(pyopenvino, m) {
     .value("NETWORK_NOT_READ", InferenceEngine::StatusCode::NETWORK_NOT_READ)
     .export_values();
 
+    py::enum_<InferenceEngine::IInferRequest::WaitMode>(m, "WaitMode")
+    .value("RESULT_READY", InferenceEngine::IInferRequest::WaitMode::RESULT_READY)
+    .value("STATUS_ONLY", InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY)
+    .export_values();
 
     regclass_IECore(m);
+    regclass_IENetwork(m);
 
     // Registering template of Blob
     regclass_Blob(m);
     // Registering specific types of Blobs
     regclass_TBlob<float>(m, "Float32");
     regclass_TBlob<double>(m, "Float64");
+    regclass_TBlob<short>(m, "Float16");
     regclass_TBlob<int64_t>(m, "Int64");
     regclass_TBlob<uint64_t>(m, "Uint64");
     regclass_TBlob<int32_t>(m, "Int32");
@@ -67,13 +73,10 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_TBlob<int8_t>(m, "Int8");
     regclass_TBlob<uint8_t>(m, "Uint8");
 
-    regclass_IENetwork(m);
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);
-    regclass_TensorDecription(m);
     regclass_Version(m);
     regclass_Parameter(m);
-    regclass_Data(m);
     regclass_InputInfo(m);
     regclass_PreProcessInfo(m);
 }

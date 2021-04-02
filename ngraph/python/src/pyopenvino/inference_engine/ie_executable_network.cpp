@@ -26,7 +26,9 @@ void regclass_ExecutableNetwork(py::module m)
                std::shared_ptr<InferenceEngine::ExecutableNetwork>>
         cls(m, "ExecutableNetwork");
 
-    cls.def("create_infer_request", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
+    cls.def("create_infer_request", [](InferenceEngine::ExecutableNetwork& self) {
+        return static_cast<InferenceEngine::InferRequest>(self.CreateInferRequest());
+    });
 
     cls.def("get_exec_graph_info", &InferenceEngine::ExecutableNetwork::GetExecGraphInfo);
 

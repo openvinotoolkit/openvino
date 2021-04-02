@@ -3,6 +3,7 @@
 
 from openvino.pyopenvino import TBlobFloat32
 from openvino.pyopenvino import TBlobFloat64
+from openvino.pyopenvino import TBlobFloat16
 from openvino.pyopenvino import TBlobInt64
 from openvino.pyopenvino import TBlobUint64
 from openvino.pyopenvino import TBlobInt32
@@ -10,7 +11,11 @@ from openvino.pyopenvino import TBlobUint32
 from openvino.pyopenvino import TBlobInt16
 from openvino.pyopenvino import TBlobUint16
 from openvino.pyopenvino import TBlobInt8
+from openvino.pyopenvino import TBlobInt16
+from openvino.pyopenvino import TBlobInt32
+from openvino.pyopenvino import TBlobInt64
 from openvino.pyopenvino import TBlobUint8
+from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import TensorDesc
 
 import numpy as np
@@ -36,27 +41,26 @@ class BlobWrapper:
     def __new__(cls, tensor_desc : TensorDesc, arr : np.ndarray = None):
         arr_size = 0
         precision = ""
-        if tensor_desc is not None:
-            tensor_desc_size = int(np.prod(tensor_desc.dims))
+        if arr is not None and tensor_desc is not None:
+            arr = np.array(arr) # Keeping array as numpy array
+            arr_size = np.prod(arr.shape)
+            tensor_desc_size = np.prod(tensor_desc.dims)
             precision = tensor_desc.precision
-            if arr is not None:
-                arr = np.array(arr) # Keeping array as numpy array
-                arr_size = int(np.prod(arr.shape))
-                if np.isfortran(arr):
-                    arr = arr.ravel(order="F")
-                else:
-                    arr = arr.ravel(order="C")
-                if arr_size != tensor_desc_size:
-                    raise AttributeError(f'Number of elements in provided numpy array '
-                                         f'{arr_size} and required by TensorDesc '
-                                         f'{tensor_desc_size} are not equal')
-                if arr.dtype != precision_map[precision]:
-                    raise ValueError(f"Data type {arr.dtype} of provided numpy array "
-                                     f"doesn't match to TensorDesc precision {precision}")
-                if not arr.flags['C_CONTIGUOUS']:
-                    arr = np.ascontiguousarray(arr)
-            elif arr is None:
-                arr = np.empty(0, dtype=precision_map[precision])
+            if np.isfortran(arr):
+                arr = arr.ravel(order="F")
+            else:
+                arr = arr.ravel(order="C")
+            if arr_size != tensor_desc_size:
+                raise AttributeError(f'Number of elements in provided numpy array '
+                                     f'{arr_size} and required by TensorDesc '
+                                     f'{tensor_desc_size} are not equal')
+            if arr.dtype != precision_map[precision]:
+                raise ValueError(f"Data type {arr.dtype} of provided numpy array "
+                                 f"doesn't match to TensorDesc precision {precision}")
+            if not arr.flags['C_CONTIGUOUS']:
+                arr = np.ascontiguousarray(arr)
+        elif arr is None and tensor_desc is not None:
+            arr = np.empty(0, dtype=precision_map[precision])
         else:
             raise AttributeError("TensorDesc can't be None")
 
@@ -65,7 +69,7 @@ class BlobWrapper:
         elif precision in ["FP64"]:
             return TBlobFloat64(tensor_desc, arr, arr_size)
         elif precision in ["FP16", "BF16"]:
-            return TBlobInt16(tensor_desc, arr.view(dtype=np.int16), arr_size)
+            return TBlobFloat16(tensor_desc, arr.view(dtype=np.int16), arr_size)
         elif precision in ["I64"]:
             return TBlobInt64(tensor_desc, arr, arr_size)
         elif precision in ["U64"]:

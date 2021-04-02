@@ -12,6 +12,7 @@ from openvino.pyopenvino import DataPtr
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
 from openvino.pyopenvino import StatusCode
+from openvino.pyopenvino import InferQueue
 from openvino.pyopenvino import Blob
 from openvino.pyopenvino import PreProcessInfo
 from openvino.pyopenvino import MeanVariant
