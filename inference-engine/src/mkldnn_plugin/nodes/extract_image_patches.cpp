@@ -22,10 +22,10 @@ using namespace Xbyak;
 #define GET_OFF(field) offsetof(jit_eximpat_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_eximpat_kernel_f32 : public jit_uni_eximpat_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eximpat_kernel_f32)
+struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_eximpat_kernel)
 
-    explicit jit_uni_eximpat_kernel_f32(jit_eximpat_params jpp) : jit_uni_eximpat_kernel(jpp), jit_generator() {}
+    explicit jit_eximpat_kernel(jit_eximpat_params jpp) : jit_uni_eximpat_kernel(jpp), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -245,14 +245,13 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         auto ksizes = layer->GetParamAsUInts("sizes");
         auto strides = layer->GetParamAsUInts("strides");
         auto rates = layer->GetParamAsUInts("rates");
-        _auto_pad = layer->GetParamAsString("auto_pad");
-        if (!CaselessEq<std::string>()(_auto_pad, "valid")
-                && !CaselessEq<std::string>()(_auto_pad, "same_upper")
-                && !CaselessEq<std::string>()(_auto_pad, "same_lower"))
-            IE_THROW() <<  errorPrefix << "has unsupported auto_pad value: " << _auto_pad;
+        std::string auto_pad = layer->GetParamAsString("auto_pad");
+        if (!CaselessEq<std::string>()(auto_pad, "valid")
+                && !CaselessEq<std::string>()(auto_pad, "same_upper")
+                && !CaselessEq<std::string>()(auto_pad, "same_lower"))
+            IE_THROW() <<  errorPrefix << "has unsupported auto_pad value: " << auto_pad;
         if (ksizes.size() != 2 || strides.size() != 2 || rates.size() != 2)
             IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
-
         _ksizes.clear();
         _strides.clear();
         _rates.clear();
@@ -262,8 +261,35 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             _strides.push_back((int64_t)strides[i]);
         for (size_t i = 0; i < rates.size(); i++)
             _rates.push_back((int64_t)rates[i]);
-        jit_eximpat_params jpp;
+
         SizeVector in_dims = inData->getTensorDesc().getDims();
+        _pad_left = 0;
+        _pad_top = 0;
+        if (!CaselessEq<std::string>()(auto_pad, "valid")) {
+            const int64_t iheight = in_dims[2];
+            const int64_t iwidth = in_dims[3];
+            const int64_t ihStep = _ksizes[0] + (_rates[0] - 1) * (_ksizes[0] - 1);
+            const int64_t iwStep = _ksizes[1] + (_rates[1] - 1) * (_ksizes[1] - 1);
+
+            int64_t PW = (std::ceil(1.f * iwidth/_strides[1]) - 1) * _strides[1] + iwStep - iwidth;
+            int64_t PH = (std::ceil(1.f * iheight/_strides[0]) - 1) * _strides[0] + ihStep - iheight;
+
+            int64_t increment_sign = 0;
+            if (CaselessEq<std::string>()(auto_pad, "same_lower")) {
+                increment_sign = 1;
+            } else if (CaselessEq<std::string>()(auto_pad, "same_upper")) {
+                increment_sign = -1;
+            }
+
+            if ((PW > 0) && (PW < iwStep)) {
+                _pad_left = (PW + increment_sign * (PW % 2) ) / 2;
+            }
+            if ((PH > 0) && (PH < ihStep)) {
+                _pad_top = (PH + increment_sign * (PH % 2) ) / 2;
+            }
+        }
+
+        jit_eximpat_params jpp;
         jpp.IW = in_dims[3];
         SizeVector out_dims = layer->outData[0]->getTensorDesc().getDims();
         jpp.OH = out_dims[2];
@@ -277,13 +303,13 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
 
         if (mayiuse(x64::avx512_common)) {
             jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jpp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx512_common>(jpp));
+            eximpat_kernel.reset(new jit_eximpat_kernel<x64::avx512_common>(jpp));
         } else if (mayiuse(x64::avx2)) {
             jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / jpp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::avx2>(jpp));
+            eximpat_kernel.reset(new jit_eximpat_kernel<x64::avx2>(jpp));
         } else if (mayiuse(x64::sse41)) {
             jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
-            eximpat_kernel.reset(new jit_uni_eximpat_kernel_f32<x64::sse41>(jpp));
+            eximpat_kernel.reset(new jit_eximpat_kernel<x64::sse41>(jpp));
         }
 
         if (eximpat_kernel)
@@ -329,30 +355,7 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
     const int64_t KH = _ksizes[0], KW = _ksizes[1];
     const int64_t SH = _strides[0], SW = _strides[1];
     const int64_t RH = _rates[0], RW = _rates[1];
-
-    int64_t pad_left = 0, pad_top = 0;
-    if (!CaselessEq<std::string>()(_auto_pad, "valid")) {
-        const int64_t iwStep = KW + (RW - 1) * (KW - 1);
-        const int64_t ihStep = KH + (RH - 1) * (KH - 1);
-        int64_t PW = (std::ceil(1.f * IW/SW) - 1) * SW + iwStep - IW;
-        int64_t PH = (std::ceil(1.f * IH/SH) - 1) * SH + ihStep - IH;
-
-        int64_t increment_sign = 0;
-        if (CaselessEq<std::string>()(_auto_pad, "same_lower")) {
-            increment_sign = 1;
-        } else if (CaselessEq<std::string>()(_auto_pad, "same_upper")) {
-            increment_sign = -1;
-        }
-
-        if ((PW > 0) && (PW < iwStep)) {
-            pad_left = (PW + increment_sign * (PW % 2) ) / 2;
-        }
-        if ((PH > 0) && (PH < ihStep)) {
-            pad_top = (PH + increment_sign * (PH % 2) ) / 2;
-        }
-    }
-    const int64_t PL = pad_left;
-    const int64_t PT = pad_top;
+    const int64_t PT = _pad_top, PL = _pad_left;
 
     const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
     const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};

@@ -22,7 +22,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::I16,
     InferenceEngine::Precision::I32,
     InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::U64
+    InferenceEngine::Precision::I64
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_layers_CPU, ExtractImagePatchesTest,

@@ -56,8 +56,8 @@ private:
     std::vector<int64_t> _ksizes;
     std::vector<int64_t> _strides;
     std::vector<int64_t> _rates;
-    std::string _auto_pad;
-
+    int64_t _pad_left;
+    int64_t _pad_top;
     std::shared_ptr<jit_uni_eximpat_kernel> eximpat_kernel;
     static const std::set<size_t> _supported_precisions_sizes;
 };
