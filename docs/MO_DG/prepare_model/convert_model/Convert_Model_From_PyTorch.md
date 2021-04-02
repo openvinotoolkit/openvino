@@ -50,8 +50,3 @@ torch.onnx.export(model, (dummy_input, ), 'model.onnx')
 * Not all PyTorch\* operations can be exported to ONNX\* opset 9 which is used by default, as of version 1.8.1.
 We recommend to export models to opset 11 when export to default opset 9 is not working. For that case, use `opset_version`
 option of the `torch.onnx.export`.
-* Some models contain control flow operations, like loops. If such models are converted using regular tracing approach
-Loop operation will not appear in the model, loop will be unfolded according to the number of iterations happened for
-dummy input. In this case scripting approach should be used, OpenVINO have limited support for ONNX\* Loop. For more
-details on scripting please refer to [PyTorch\* documentation](https://pytorch.org/docs/stable/onnx.html).
-
