@@ -41,8 +41,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission)
 
     editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<DataType>(std::vector<DataType>{1, 2, 3});
     test_case.add_input<DataType>(std::vector<DataType>{4, 5, 6});
@@ -61,8 +60,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission)
 
     editor.set_input_types({{"input", ng_type}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<DataType>(std::vector<DataType>{1, 2, 3, 4, 5, 6});
     test_case.add_expected_output<DataType>(Shape{2}, std::vector<DataType>{1, 2});
