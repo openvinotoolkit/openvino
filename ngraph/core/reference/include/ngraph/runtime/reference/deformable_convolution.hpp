@@ -53,7 +53,7 @@ namespace ngraph
                                  "Pads not defined for all and only spatial dimensions");
                 }
 
-                inline Shape shape_reduce(const Shape& s) { return Shape{++s.begin(), s.end()}; }
+                inline Shape shape_reduce(const Shape& s) { return Shape(++s.begin(), s.end()); }
 
                 inline Shape shape_scale(Shape s, size_t groups)
                 {

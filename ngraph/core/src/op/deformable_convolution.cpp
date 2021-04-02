@@ -173,7 +173,7 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
     }
     // adjust filter shape to reuse regular infer_convolution_forward()
     const auto new_filters_pshape = [&](int groups) {
-        auto new_shape{filters_shape};
+        auto new_shape(filters_shape);
         new_shape[1] *= groups;
         return new_shape;
     }(m_group);
