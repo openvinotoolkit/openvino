@@ -1078,13 +1078,13 @@ class MXNetCustomFrontExtractorOp(object):
     In contrast to FrontReplacement* classes, this class doesn't modify graph topology and
     doesn't completely override node attributes. So it is safe to preserve the original
     MO inference function (which can use FW fallback mechanism).
-    
+
     It is needed to keep the list of extractors for particularly custom layers.
 
     When actual extraction happens, Model Optimizer first finds the match by type, which is CustomFrontExtractorOp.
     It in turns looks up the MXNetCustomFrontExtractorOp for the needed layer extractor not by type, but by op_type.
 
-    
+
     A sub-class should implement one of extract methods:
         def extract(self, node):
             return (<supported or not: Boolean>, { <additional node attributes> })

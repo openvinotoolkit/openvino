@@ -121,14 +121,13 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
             used_nodes.add(edge[0])
 
     all_nodes = set([(node['name']) for node in model_nodes])
-    output_node_names = all_nodes - used_nodes
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
     # for each output Identity node is added, and tensor name for the output is kept
     # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
-    add_outputs_identity(graph, output_node_names, lambda g, output, fake_node_id, id_map: g.add_edges_from([
+    add_outputs_identity(graph, all_nodes - used_nodes, lambda g, output, fake_node_id, id_map: g.add_edges_from([
         create_mxnet_edge(id_map[output], fake_node_id, 0, 0, output)]), {'id_map': node_id_map})
 
     return graph
