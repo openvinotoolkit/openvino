@@ -6,9 +6,6 @@
 
 #include <numeric>
 
-#include "ngraph/coordinate_range.hpp"
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/gather_nd.hpp"
 #include "utils/span.hpp"
 
 namespace ngraph
@@ -25,31 +22,40 @@ namespace ngraph
                         const Shape& indices_shape,
                         const Shape& out_shape,
                         size_t axis,
-                        size_t batch_dims = 0)
+                        size_t batch_dims)
             {
-                const auto batch_flattened_shape = shape_size(span(data_shape).subspan(0, batch_dims));
-                const auto outer_flattened_size = shape_size(span(data_shape).subspan(batch_dims, axis));
-                const auto indices_flattened_shape = shape_size(span(indices_shape).subspan(batch_dims));
-                const auto inner_flattened_shape = shape_size(span(data_shape).subspan(axis + 1));
-                const auto size_along_axis = data_shape[axis];
-                int64_t offset, idx;
+                // flattened shapes
+                int64_t batch_size = shape_size(span(data_shape).subspan(0, batch_dims));
+                int64_t outer_size =
+                    shape_size(span(data_shape).subspan(batch_dims, axis - batch_dims));
+                int64_t indices_size = shape_size(span(indices_shape).subspan(batch_dims));
+                int64_t inner_size = shape_size(span(data_shape).subspan(axis + 1));
 
-                for (int64_t batch_idx = 0; batch_idx < batch_flattened_shape; batch_idx++)
-                    for (int64_t outer_idx = 0; outer_idx < outer_flattened_size; outer_idx++) {
-                        offset = inner_flattened_shape * size_along_axis * outer_idx;
-                        for (int64_t i = 0; i < indices_flattened_shape; i++) {
-                            idx = indices[i];
-                            if (idx >= size_along_axis  || (idx < 0 && -idx >= size_along_axis))
-                                throw std::domain_error{"indices values of Gather exceed size along axis"};
+                int64_t batch_data_mul = shape_size(span(data_shape).subspan(batch_dims));
+                int64_t batch_out_mul = shape_size(span(out_shape).subspan(batch_dims));
+                int64_t batch_indices_mul = shape_size(span(indices_shape).subspan(batch_dims));
+
+                int64_t axis_size = data_shape[axis];
+                int64_t data_offset, out_offset, idx;
+
+                for (int64_t batch = 0; batch < batch_size; batch++)
+                    for (int64_t outer_idx = 0; outer_idx < outer_size; outer_idx++)
+                    {
+                        data_offset = batch_data_mul * batch + inner_size * axis_size * outer_idx;
+                        out_offset = batch_out_mul * batch + indices_size * inner_size * outer_idx;
+                        for (int64_t i = 0; i < indices_size; i++)
+                        {
+                            idx = indices[i + batch_indices_mul * batch];
+                            if (idx >= axis_size || (idx < 0 && -idx >= axis_size))
+                                throw std::domain_error{
+                                    "indices values of Gather exceed size along axis"};
                             if (idx < 0)
-                                idx += size_along_axis;
+                                idx += axis_size;
 
-                            const auto src_begin = std::next(data, offset + inner_flattened_shape * idx);
-                            const auto src_end = std::next(src_begin, inner_flattened_shape);
-//                            const auto out_ = std::next(src_begin, inner_flattened_shape);
-
-                            std::copy(src_begin, src_end, out);
-                            out += inner_flattened_shape;
+                            const auto src_begin = std::next(data, data_offset + inner_size * idx);
+                            const auto src_end = std::next(src_begin, inner_size);
+                            const auto out_ptr = std::next(out, out_offset + inner_size * i);
+                            std::copy(src_begin, src_end, out_ptr);
                         }
                     }
             }
