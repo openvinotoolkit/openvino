@@ -9,10 +9,10 @@ The following Inference Engine Python API is used in the application:
 
 | Feature            | API                                                                                                                                                                                                                                        | Description                                           |
 | :----------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| Basic Infer Flow   | [IECore], [IECore.load_network]                                                                                                                                                                                                            | Common API to do inference                            |
-| Synchronous Infer  | [ExecutableNetwork.infer]                                                                                                                                                                                                                  | Do synchronous inference                              |
-| Network Operations | [IENetwork], [IENetwork.input_info], [IENetwork.outputs], [InputInfoPtr.precision], [DataPtr.precision], [InputInfoPtr.input_data.shape]                                                                                                   | Managing of network: configure input and output blobs |
+| Network Operations | [IENetwork]                                                                                                | Managing of network |
 | nGraph Functions   | [ngraph.impl.Function], [ngraph.parameter], [ngraph.constant], [ngraph.convolution], [ngraph.add], [ngraph.max_pool], [ngraph.reshape], [ngraph.matmul], [ngraph.relu], [ngraph.softmax], [ngraph.result], ngraph.impl.Function.to_capsule | Description of a network using nGraph Python API      |
+
+Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                  |
 | :------------------------- | :---------------------------------------------------------------------- |

@@ -7,10 +7,10 @@ The following Inference Engine Python API is used in the application:
 
 | Feature                  | API                                                                                                             | Description                                           |
 | :----------------------- | :-------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| Basic Infer Flow         | [IECore], [IECore.read_network], [IECore.load_network]                                                          | Common API to do inference                            |
-| Synchronous Infer        | [ExecutableNetwork.infer]                                                                                       | Do synchronous inference                              |
-| Network Operations       | [IENetwork.input_info], [IENetwork.outputs], [InputInfoPtr.precision], [DataPtr.precision], [IENetwork.reshape] | Managing of network: configure input and output blobs |
+| Network Operations       | [IENetwork.reshape] | Managing of network: configure input and output blobs |
 | Custom Extension Kernels | [IECore.add_extension], [IECore.set_config]                                                                     | Load extension library and config to the device       |
+
+Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                                                                      |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
