@@ -390,6 +390,7 @@ set(MULTI_TEST_SRC
     backend/softmax.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
+    backend/squared_difference.in.cpp
     backend/subtract.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp
