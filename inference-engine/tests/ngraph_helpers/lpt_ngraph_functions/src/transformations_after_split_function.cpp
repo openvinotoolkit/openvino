@@ -41,7 +41,12 @@ std::shared_ptr<Function> TransformationsAfterSplitFunction::get(const std::stri
 std::shared_ptr<Node> TransformationsAfterSplitFunction::getLayerByTransformationName(
     const std::string transformationName,
     const Output<Node> parent) {
-    if (transformationName == "AddTransformation") {
+    if (transformationName == "AddTransformationWithoutConcat") {
+        const auto dequantization = makeDequantization(parent, { {}, {}, { 3.f } });
+        const auto addConstant = opset1::Constant::create(element::u8, Shape{}, { 128.f });
+        return std::make_shared<opset1::Add>(dequantization, addConstant);
+    }
+    if (transformationName == "AddTransformationWithConcat") {
         const auto dequantization = makeDequantization(parent, { {element::f32}, {}, { 0.1f } });
         const auto addConstant = opset1::Constant::create(element::f32, Shape{}, { 128.f });
         return std::make_shared<opset1::Add>(dequantization, addConstant);
