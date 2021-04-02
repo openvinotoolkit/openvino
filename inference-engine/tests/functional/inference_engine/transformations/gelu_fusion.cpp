@@ -5,35 +5,36 @@
 #define _USE_MATH_DEFINES
 
 #include <gtest/gtest.h>
-
 #include <math.h>
-#include <string>
-#include <memory>
-#include <queue>
 
+#include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/gelu_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 using namespace ngraph;
 
-
 TEST(TransformationTests, GeluFusionPatternOne) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
+        auto data =
+            std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
 
-        auto div_const = opset7::Constant::create(element::f32, Shape{1}, {M_SQRT2});
-        auto add_const = opset7::Constant::create(element::f32, Shape{1}, {1.0});
-        auto mul_const = opset7::Constant::create(element::f32, Shape{1}, {0.5});
+        auto div_const =
+            opset7::Constant::create(element::f32, Shape{1}, {M_SQRT2});
+        auto add_const =
+            opset7::Constant::create(element::f32, Shape{1}, {1.0});
+        auto mul_const =
+            opset7::Constant::create(element::f32, Shape{1}, {0.5});
 
         auto div = std::make_shared<opset7::Divide>(data, div_const);
         auto erf = std::make_shared<opset7::Erf>(div);
@@ -51,9 +52,11 @@ TEST(TransformationTests, GeluFusionPatternOne) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data =
+            std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
+        f_ref =
+            std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -63,11 +66,15 @@ TEST(TransformationTests, GeluFusionPatternOne) {
 TEST(TransformationTests, GeluFusionPatternTwo) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
+        auto data =
+            std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
 
-        auto div_const = opset7::Constant::create(element::f32, Shape{1}, {M_SQRT2});
-        auto add_const = opset7::Constant::create(element::f32, Shape{1}, {1.0});
-        auto mul_const = opset7::Constant::create(element::f32, Shape{1}, {0.5});
+        auto div_const =
+            opset7::Constant::create(element::f32, Shape{1}, {M_SQRT2});
+        auto add_const =
+            opset7::Constant::create(element::f32, Shape{1}, {1.0});
+        auto mul_const =
+            opset7::Constant::create(element::f32, Shape{1}, {0.5});
 
         auto div = std::make_shared<opset7::Divide>(data, div_const);
         auto erf = std::make_shared<opset7::Erf>(div);
@@ -85,9 +92,11 @@ TEST(TransformationTests, GeluFusionPatternTwo) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data =
+            std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
+        f_ref =
+            std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -97,11 +106,15 @@ TEST(TransformationTests, GeluFusionPatternTwo) {
 TEST(TransformationTests, GeluFusionPatternThree) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
+        auto data =
+            std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
 
-        auto div_const = opset7::Constant::create(element::f32, Shape{1}, {M_SQRT2});
-        auto add_const = opset7::Constant::create(element::f32, Shape{1}, {1.0});
-        auto mul_const = opset7::Constant::create(element::f32, Shape{1}, {0.5});
+        auto div_const =
+            opset7::Constant::create(element::f32, Shape{1}, {M_SQRT2});
+        auto add_const =
+            opset7::Constant::create(element::f32, Shape{1}, {1.0});
+        auto mul_const =
+            opset7::Constant::create(element::f32, Shape{1}, {0.5});
 
         auto div = std::make_shared<opset7::Divide>(data, div_const);
         auto erf = std::make_shared<opset7::Erf>(div);
@@ -119,9 +132,11 @@ TEST(TransformationTests, GeluFusionPatternThree) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data =
+            std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
+        f_ref =
+            std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);

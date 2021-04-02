@@ -5,10 +5,9 @@
 #pragma once
 
 #include <memory>
-#include <utility>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <utility>
 
 namespace ngraph {
 namespace pass {
@@ -18,40 +17,40 @@ class TRANSFORMATIONS_API GeluFusionWithErfOne;
 class TRANSFORMATIONS_API GeluFusionWithErfTwo;
 class TRANSFORMATIONS_API GeluFusionWithErfThree;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief GeluFusion transformation replaces a sub-graph (0.5 * x) * (1 + erf(x
- * / sqrt(2))) with a Gelu op.
+ * @brief GeluFusion transformation replaces a sub-graph
+ * (0.5 * x) * (1 + erf(x / sqrt(2))) with a Gelu op.
  */
 class ngraph::pass::GeluFusionWithErfOne : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
-  GeluFusionWithErfOne();
+    NGRAPH_RTTI_DECLARATION;
+    GeluFusionWithErfOne();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief GeluFusion transformation replaces a sub-graph 0.5 * (x * (1 + erf(x /
- * sqrt(2))) with a Gelu op.
+ * @brief GeluFusion transformation replaces a sub-graph
+ * 0.5 * (x * (1 + erf(x / sqrt(2))) with a Gelu op.
  */
 class ngraph::pass::GeluFusionWithErfTwo : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
-  GeluFusionWithErfTwo();
+    NGRAPH_RTTI_DECLARATION;
+    GeluFusionWithErfTwo();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief GeluFusion transformation replaces a sub-graph x * (0.5 * (1 + erf(x /
- * sqrt(2))) with a Gelu op.
+ * @brief GeluFusion transformation replaces a sub-graph
+ * x * (0.5 * (1 + erf(x / sqrt(2))) with a Gelu op.
  */
 class ngraph::pass::GeluFusionWithErfThree : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
-  GeluFusionWithErfThree();
+    NGRAPH_RTTI_DECLARATION;
+    GeluFusionWithErfThree();
 };
 
 /**
@@ -60,10 +59,10 @@ public:
  */
 class ngraph::pass::GeluFusion : public ngraph::pass::GraphRewrite {
 public:
-  NGRAPH_RTTI_DECLARATION;
-  GeluFusion() {
-    add_matcher<ngraph::pass::GeluFusionWithErfOne>();
-    add_matcher<ngraph::pass::GeluFusionWithErfTwo>();
-    add_matcher<ngraph::pass::GeluFusionWithErfThree>();
-  }
+    NGRAPH_RTTI_DECLARATION;
+    GeluFusion() {
+        add_matcher<ngraph::pass::GeluFusionWithErfOne>();
+        add_matcher<ngraph::pass::GeluFusionWithErfTwo>();
+        add_matcher<ngraph::pass::GeluFusionWithErfThree>();
+    }
 };
