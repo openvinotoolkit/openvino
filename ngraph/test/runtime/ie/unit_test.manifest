@@ -1060,6 +1060,14 @@ rnn_cell_zero_bias_default_attrs
 # Activation function hardsigmoid is not supported
 gru_cell_hardsigmoid_activation_function
 
+# Roll is not implemented yet for CPU, GPU 
+roll_2d_input
+roll_2d_input_negative_shift
+roll_repeated_axes
+roll_3d_input
+roll_3d_input_negative_shift
+roll_negative_axes
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
