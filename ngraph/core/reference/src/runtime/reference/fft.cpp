@@ -476,7 +476,8 @@ namespace ngraph
                             {
                                 const auto outer_fft_coords =
                                     coords_from_index(outer_fft_idx, outer_fft_strides);
-                                int64_t outer_fft_offset = offset_from_coords_and_strides(outer_fft_coords, fft_strides_for_outer_fft_axes);
+                                int64_t outer_fft_offset = offset_from_coords_and_strides(
+                                    outer_fft_coords, fft_strides_for_outer_fft_axes);
                                 fft1d(current_fft_length,
                                       outer_fft_offset,
                                       current_fft_stride,
