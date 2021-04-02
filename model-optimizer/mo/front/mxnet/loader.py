@@ -98,6 +98,7 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     # as mxnet contain input layers as index of layer, for correct set up edges, we need provide index of layer with name of  graph node
     index_node_keys = {}
     node_id_map = {}
+    all_nodes = set()
     for i, node in enumerate(model_nodes):
         if node['name'] in model_params._arg_params and node['name'] not in input_names:
             node['value'] = np.array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
@@ -109,7 +110,9 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
         graph.add_node(node_name, **symbol_attrs(node))
         graph.node[node_name].update(common_mxnet_fields(Node(graph, node_name)))
         index_node_keys[i] = node_name
-        node_id_map[node['name']] = node_name
+        if node['name'] != '':
+            node_id_map[node['name']] = node_name
+            all_nodes.add(node['name'])
 
     used_nodes = set()
     for i, attrs in enumerate(model_nodes):
@@ -119,8 +122,6 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
             graph.add_edges_from(edges)
         for edge in edges:
             used_nodes.add(edge[0])
-
-    all_nodes = set([(node['name']) for node in model_nodes])
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
