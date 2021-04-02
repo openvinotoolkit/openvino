@@ -3193,6 +3193,174 @@ TEST(DISABLED_eltwise_gpu, generic_random) {
     }
 }
 
+//
+struct eltwise_same_input_test_params {
+    data_types  input_type;
+    tensor      input_size;
+
+    format::type in_format;
+    format::type out_format;
+};
+
+struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_params>
+{
+    bool enable_profiling = false;
+
+    template <typename T>
+    void fill_random_typed(memory& mem, int min, int max, int k) {
+        auto size = mem.get_layout().size;
+        size_t b = size.batch[0];
+        size_t f = size.feature[0];
+        size_t x = size.spatial[0];
+        size_t y = size.spatial[1];
+
+        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto ptr = mem.pointer<T>();
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem.get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory& mem) {
+        auto dt = mem.get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127, 2);
+            break;
+        case data_types::f16:
+            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            break;
+        case data_types::i8:
+            fill_random_typed<int8_t>(mem, -127, 127, 1);
+            break;
+        case data_types::u8:
+            fill_random_typed<uint8_t>(mem, 0, 255, 1);
+            break;
+        default:
+            break;
+        }
+    }
+
+    template <typename T>
+    bool compare_outputs(const memory& out_ref, const memory& input_ref) {
+        auto output_lay = out_ref.get_layout();
+        auto opt_output_lay = input_ref.get_layout();
+
+        size_t b = output_lay.size.batch[0];
+        size_t f = output_lay.size.feature[0];
+        size_t x = output_lay.size.spatial[0];
+        size_t y = output_lay.size.spatial[1];
+        auto ref_ptr = out_ref.pointer<T>();
+        auto input_ptr = input_ref.pointer<T>();
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
+                        auto ref_out_val = ref_ptr[ref_out_offset];
+
+                        auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
+                        auto input_out_val = input_ptr[opt_out_offset];
+
+                        EXPECT_EQ((input_out_val+input_out_val), ref_out_val);
+                        // EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    cldnn::engine_configuration get_engine_config(bool enable_profiling = false, const std::string& dump_dir = "") {
+        this->enable_profiling = enable_profiling;
+        cldnn::engine_configuration cfg {enable_profiling, false, false, "", "", true, "", dump_dir};
+        return cfg;
+    }
+
+    void execute_same_input(const eltwise_same_input_test_params& params, bool check_result) {
+        auto eng = cldnn::engine();
+
+        auto in_layout = layout(params.input_type, params.in_format, params.input_size);
+        auto input = memory::allocate(eng, in_layout);
+        fill_random(input);
+
+        cldnn::topology topo;
+        topo.add(input_layout("input1", input.get_layout()));
+        topo.add(input_layout("input2", input.get_layout()));
+        auto prim = eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum);
+        topo.add(prim);
+
+        auto build_ops = build_options();
+        build_ops.set_option(build_option::outputs({"eltwise"}));
+
+        auto net = network(eng, topo, build_ops);
+        net.set_input_data("input1", input);
+        net.set_input_data("input2", input);
+
+        auto result = net.execute();
+        auto output = result.at("eltwise").get_memory();
+
+        std::string kernel = "";
+        for (auto& info : net.get_primitives_info()) {
+            if (info.original_id == "eltwise")
+                kernel = info.kernel_id;
+        }
+
+        if (check_result == true) {
+            // Check data_types
+            if (params.input_type == data_types::f32) {
+                compare_outputs<float>(output, input);
+            } else if (params.input_type == data_types::f16) {
+                compare_outputs<FLOAT16>(output, input);
+            } else if (params.input_type == data_types::i8) {
+                compare_outputs<int8_t>(output, input);
+            } else if (params.input_type == data_types::u8) {
+                compare_outputs<uint8_t>(output, input);
+            } else {
+                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+            }
+        }
+    }
+};
+
+struct eltwise_random_test_param_generator : std::vector<eltwise_same_input_test_params> {
+    eltwise_random_test_param_generator& add(eltwise_same_input_test_params params) {
+        push_back(params);
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_same_input_test_params{ type, {1, 40, 4, 4}, input_format, output_format});
+        push_back(eltwise_same_input_test_params{ type, {1, 5, 4, 4}, input_format, output_format});
+        return *this;
+    }
+};
+
+TEST_P(eltwise_same_input_test, random) {
+    auto param = GetParam();
+    execute_same_input(param, true);
+}
+
+INSTANTIATE_TEST_CASE_P(eltwise_same_input,
+                        eltwise_same_input_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::f32, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                        ), );
+
 // mode, input type, input sizes
 using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<int32_t>>>;
 
