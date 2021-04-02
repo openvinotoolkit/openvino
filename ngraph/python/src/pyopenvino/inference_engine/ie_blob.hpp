@@ -1,6 +1,5 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 #include <vector>
 
@@ -20,7 +19,8 @@ namespace py = pybind11;
 void regclass_Blob(py::module m);
 
 template <typename T>
-void regclass_TBlob(py::module m, std::string typestring) {
+void regclass_TBlob(py::module m, std::string typestring)
+{
     auto pyclass_name = py::detail::c_str((std::string("TBlob") + typestring));
 
     py::class_<InferenceEngine::TBlob<T>, std::shared_ptr<InferenceEngine::TBlob<T>>> cls(
@@ -42,7 +42,6 @@ void regclass_TBlob(py::module m, std::string typestring) {
         return py::array_t<T>(shape, &blob_ptr[0], py::cast(self));
     });
 
-    cls.def_property_readonly("tensor_desc",  [](InferenceEngine::TBlob<T>& self) {
-        return self.getTensorDesc();
-    });
+    cls.def_property_readonly("tensor_desc",
+                              [](InferenceEngine::TBlob<T>& self) { return self.getTensorDesc(); });
 }
