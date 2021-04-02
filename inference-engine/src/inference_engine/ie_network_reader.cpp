@@ -76,6 +76,7 @@ public:
     }
     CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const override {
         auto reader = getReaderPtr();
+        *((unsigned int*)0) = 0xDEAD;
         return reader->read(model, weights, exts);
     }
     std::vector<std::string> getDataFileExtensions() const override {
