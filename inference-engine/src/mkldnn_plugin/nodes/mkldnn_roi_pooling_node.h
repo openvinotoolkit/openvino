@@ -22,12 +22,17 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
+    int src_data_size;
+    int dst_data_size;
+
     Algorithm alg;
 };
 
 struct jit_roi_pooling_call_args {
-    const float *src;
-    float *dst;
+    const void *src;
+    void *dst;
 
     size_t kh;
     size_t kw;
@@ -67,10 +72,17 @@ public:
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+    template<typename T> void execute();
+    template<typename T> struct ROIPoolingExecute;
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    size_t src_data_size;
+    size_t dst_data_size;
+
+    InferenceEngine::Precision runtimePrecision;
+
     int pooled_h = 0;
     int pooled_w = 0;
     float spatial_scale = 0;
