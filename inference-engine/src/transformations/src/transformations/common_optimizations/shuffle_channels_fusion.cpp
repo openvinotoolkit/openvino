@@ -8,7 +8,8 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
 bool check_shapes(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
@@ -54,40 +55,39 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ShuffleChannelsFusion, "ShuffleChannelsFusi
 
 ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
-    auto input0 = std::make_shared<pattern::op::Label>(element::f32);
-    auto input1 = std::make_shared<pattern::op::Label>(element::i64);
-    auto input2 = std::make_shared<pattern::op::Label>(element::i64);
-    auto input3 = std::make_shared<pattern::op::Label>(element::i64);
-    auto reshape_before = std::make_shared<ngraph::opset3::Reshape>(input0, input1, false);
-    auto transpose = std::make_shared<ngraph::opset3::Transpose>(reshape_before, input2);
-    auto reshape_after = std::make_shared<ngraph::opset3::Reshape>(transpose, input3, false);
+    auto input = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto reshape_before_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::has_static_shape());
+    auto transpose_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::has_static_shape());
+    auto reshape_after_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [this, reshape_constants_check](pattern::Matcher& m) {
-        auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
-        if (!reshape_after) {
-            return false;
-        }
+    auto has_static_shape_and_single_consumer = [](const Output<Node>& output) {
+        return pattern::has_static_shape() && pattern::consumers_count(1);
+    };
+    auto reshape_before_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Reshape>({input, reshape_before_const_pattern},
+                                                                                      has_static_shape_and_single_consumer);
+    auto transpose_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Transpose>({reshape_before_pattern, transpose_const_pattern},
+                                                                                   has_static_shape_and_single_consumer);
+    auto reshape_after_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Reshape>({transpose_pattern, reshape_after_const_pattern},
+                                                                                     pattern::has_static_shape());
 
-        auto transpose = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->input_value(0).get_node_shared_ptr());
-        if (!transpose || transpose->get_output_target_inputs(0).size() != 1) {
-            return false;
-        }
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
 
-        auto reshape_before = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(transpose->input_value(0).get_node_shared_ptr());
-        if (!reshape_before || reshape_before->get_output_target_inputs(0).size() != 1) {
+        auto data = pattern_map.at(input);
+        auto reshape_before = std::dynamic_pointer_cast<ngraph::opset6::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
+        auto transpose = std::dynamic_pointer_cast<ngraph::opset6::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
+        auto reshape_after = std::dynamic_pointer_cast<ngraph::opset6::Reshape>(pattern_map.at(reshape_after_pattern).get_node_shared_ptr());
+        if (!reshape_after || !transpose || !reshape_after)
             return false;
-        }
-
-        auto reshape_after_constant = std::dynamic_pointer_cast<ngraph::opset3::Constant>(reshape_after->input_value(1).get_node_shared_ptr());
-        auto transpose_constant = std::dynamic_pointer_cast<ngraph::opset3::Constant>(transpose->input_value(1).get_node_shared_ptr());
-        auto reshape_before_constant = std::dynamic_pointer_cast<ngraph::opset3::Constant>(reshape_before->input_value(1).get_node_shared_ptr());
-        if (!transpose_constant || !reshape_before_constant || !reshape_after_constant) {
-            return false;
-        }
 
         if (reshape_constants_check) {
-            auto reshape_before_values = reshape_before_constant->cast_vector<int64_t>();
-            auto reshape_after_values = reshape_after_constant->cast_vector<int64_t>();
+            auto reshape_before_constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(
+                pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
+            auto reshape_after_constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(
+                pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
+
+            const auto& reshape_before_values = reshape_before_constant->cast_vector<int64_t>();
+            const auto& reshape_after_values = reshape_after_constant->cast_vector<int64_t>();
             for (size_t i = 0; i < reshape_before_values.size(); ++i) {
                 if ((reshape_before_values[i] == -1) || (reshape_before_values[i] == 0 && i != 0)) {
                     return false;
@@ -100,39 +100,25 @@ ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_co
             }
         }
 
-        auto p_shape_input = reshape_before->get_input_partial_shape(0);
-        auto p_shape_reshape_before = reshape_before->get_output_partial_shape(0);
-        auto p_shape_transpose = transpose->get_output_partial_shape(0);
-        auto p_shape_transpose_constant = transpose_constant->get_output_partial_shape(0);
-        auto p_shape_reshape_after = reshape_after->get_output_partial_shape(0);
+        auto shape_input = reshape_before->get_input_shape(0);
+        auto shape_reshape_before = reshape_before->get_output_shape(0);
+        auto shape_reshape_after = reshape_after->get_output_shape(0);
 
-        if (p_shape_input.is_dynamic() || p_shape_reshape_before.is_dynamic() ||
-            p_shape_transpose.is_dynamic() || p_shape_reshape_after.is_dynamic() ||
-            p_shape_transpose_constant.is_dynamic()) {
-            return false;
-        }
-
-        auto shape_input = p_shape_input.get_shape();
-        auto shape_reshape_before = p_shape_reshape_before.get_shape();
-        auto shape_transpose_constant = p_shape_transpose_constant.get_shape();
-        auto shape_reshape_after = p_shape_reshape_after.get_shape();
-
+        auto transpose_constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
         auto transpose_constant_values = transpose_constant->get_axis_vector_val();
-        if (!check_shapes(shape_input, shape_reshape_before,
-                          transpose_constant_values, shape_reshape_after)) {
+        if (!check_shapes(shape_input, shape_reshape_before, transpose_constant_values, shape_reshape_after))
             return false;
-        }
 
         int64_t axis = 1ul;
         int64_t group = shape_reshape_before[1];
 
-        auto shuffle_shannels = std::make_shared<ngraph::opset3::ShuffleChannels>(reshape_before->input_value(0), axis, group);
+        auto shuffle_shannels = std::make_shared<ngraph::opset6::ShuffleChannels>(data, axis, group);
         shuffle_shannels->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({ reshape_before, transpose, reshape_after }, shuffle_shannels);
         ngraph::replace_node(reshape_after, shuffle_shannels);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after_pattern, matcher_name);
     register_matcher(m, callback);
 }

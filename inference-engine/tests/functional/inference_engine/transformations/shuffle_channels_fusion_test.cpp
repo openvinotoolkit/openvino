@@ -9,7 +9,7 @@
 #include <memory>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -48,14 +48,14 @@ public:
     void SetUp() override {
         const auto values = GetParam();
         {
-            auto input0 = std::make_shared<opset3::Parameter>(element::f32, Shape{ values.batch_size, 128, 720, 480 });
-            auto shape_reshape_before = opset3::Constant::create(element::i64, Shape{ values.reshape_before_val.size() }, values.reshape_before_val);
-            auto permutation = opset3::Constant::create(element::i64, Shape{ values.transpose_val.size() }, values.transpose_val);
-            auto shape_reshape_after = opset3::Constant::create(element::i64, Shape{ values.reshape_after_val.size() }, values.reshape_after_val);
+            auto input0 = std::make_shared<opset6::Parameter>(element::f32, Shape{ values.batch_size, 128, 720, 480 });
+            auto shape_reshape_before = opset6::Constant::create(element::i64, Shape{ values.reshape_before_val.size() }, values.reshape_before_val);
+            auto permutation = opset6::Constant::create(element::i64, Shape{ values.transpose_val.size() }, values.transpose_val);
+            auto shape_reshape_after = opset6::Constant::create(element::i64, Shape{ values.reshape_after_val.size() }, values.reshape_after_val);
 
-            auto reshape_before = std::make_shared<ngraph::opset3::Reshape>(input0, shape_reshape_before, false);
-            auto permute = std::make_shared<ngraph::opset3::Transpose>(reshape_before, permutation);
-            auto reshape_after = std::make_shared<ngraph::opset3::Reshape>(permute, shape_reshape_after, false);
+            auto reshape_before = std::make_shared<ngraph::opset6::Reshape>(input0, shape_reshape_before, false);
+            auto permute = std::make_shared<ngraph::opset6::Transpose>(reshape_before, permutation);
+            auto reshape_after = std::make_shared<ngraph::opset6::Reshape>(permute, shape_reshape_after, false);
             f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape_after }, ngraph::ParameterVector{ input0 });
 
             ngraph::pass::Manager manager;
@@ -67,8 +67,8 @@ public:
         }
 
         if (values.fuse_happened) {
-            auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{ values.batch_size, 128, 720, 480 });
-            auto shuffle_channels = std::make_shared<ngraph::opset3::ShuffleChannels>(input0, 1, values.reshape_before_val[1]);
+            auto input0 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ values.batch_size, 128, 720, 480 });
+            auto shuffle_channels = std::make_shared<ngraph::opset6::ShuffleChannels>(input0, 1, values.reshape_before_val[1]);
             f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ shuffle_channels }, ngraph::ParameterVector{ input0 });
         } else {
             f_ref = f;
