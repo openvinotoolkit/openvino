@@ -202,8 +202,8 @@ void op::v7::Gather::validate_and_infer_types()
     {
         NODE_VALIDATION_CHECK(
             this,
-            batch_dims < indices_rank.get_length(),
-            "The batch_dims must be < indices_rank. But instead got: batch_dims = ",
+            batch_dims <= indices_rank.get_length(),
+            "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
             batch_dims,
             ", indices_rank = ",
             indices_rank.get_length());
@@ -316,27 +316,9 @@ namespace gather
                   const HostTensorPtr& arg1,
                   const HostTensorPtr& out,
                   size_t axis,
-                  size_t batch_dims = 0)
+                  size_t batch_dims)
     {
         using T = typename element_type_traits<ET>::value_type;
-        Shape params_shape = arg0->get_shape();
-        Shape indices_shape = arg1->get_shape();
-        Shape out_shape(params_shape.size() + indices_shape.size() - 1);
-        uint64_t i = 0;
-        for (; i < axis; i++)
-        {
-            out_shape[i] = params_shape[i];
-        }
-        for (uint64_t j = 0; j < indices_shape.size(); i++, j++)
-        {
-            out_shape[i] = indices_shape[j];
-        }
-        for (uint64_t j = axis + 1; j < params_shape.size(); i++, j++)
-        {
-            out_shape[i] = params_shape[j];
-        }
-
-        //        out->set_shape(out_shape);
 
         if (arg1->get_element_type() == element::i64)
         {
