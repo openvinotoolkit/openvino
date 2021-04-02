@@ -83,22 +83,22 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] Reading the network: models\alexnet.xml
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image images\cat.jpg is resized from (300, 300) to (227, 227)
+[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (227, 227)
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Top 10 results: 
-[ INFO ] ---------------------
-[ INFO ] probability | classid
-[ INFO ] ---------------------
-[ INFO ] 0.099689044 | 435
-[ INFO ] 0.090024225 | 876
-[ INFO ] 0.069144860 | 999
-[ INFO ] 0.039018910 | 587
-[ INFO ] 0.036039289 | 666
-[ INFO ] 0.030830737 | 419
-[ INFO ] 0.030628702 | 285
-[ INFO ] 0.029300876 | 700
-[ INFO ] 0.020270746 | 696
-[ INFO ] 0.019912610 | 631
+[ INFO ] Image path: images\cat.bmp
+[ INFO ] Top 10 results:
+[ INFO ] classid probability
+[ INFO ] -------------------
+[ INFO ] 435     0.0996890
+[ INFO ] 876     0.0900242
+[ INFO ] 999     0.0691449
+[ INFO ] 587     0.0390189
+[ INFO ] 666     0.0360393
+[ INFO ] 419     0.0308307
+[ INFO ] 285     0.0306287
+[ INFO ] 700     0.0293009
+[ INFO ] 696     0.0202707
+[ INFO ] 631     0.0199126
 [ INFO ]
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```

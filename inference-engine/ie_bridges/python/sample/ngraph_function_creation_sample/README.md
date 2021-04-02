@@ -37,14 +37,15 @@ python3 ngraph_function_creation_sample.py -h
 Usage message:
 
 ```
-usage: ngraph_function_creation_sample.py [-h] -m MODEL -i INPUT [-d DEVICE]
-                                          [--labels LABELS] [-nt NUMBER_TOP]
+usage: ngraph_function_creation_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
+                                          [-d DEVICE] [--labels LABELS]
+                                          [-nt NUMBER_TOP]
 
 Options:
   -h, --help            Show this help message and exit.
   -m MODEL, --model MODEL
                         Required. Path to a file with network weights.
-  -i INPUT, --input INPUT
+  -i INPUT [INPUT ...], --input INPUT [INPUT ...]
                         Required. Path to an image file.
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
@@ -70,7 +71,7 @@ To run the sample, you need specify a model weights and image:
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-python3 ngraph_function_creation_sample.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp -d GPU
+python3 ngraph_function_creation_sample.py -m <path_to_model>/alexnet.xml -i <path_to_image>/car.bmp -d GPU
 ```
 
 ## Sample Output
@@ -82,22 +83,22 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] Loading the network using ngraph function with weights from models\lenet.bin
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image images\cat.jpg is resized from (300, 300) to (28, 28)
+[ WARNING ] Image images\car.bmp is resized from (259, 787) to (28, 28)
 [ INFO ] Starting inference in synchronous mode
+[ INFO ] Image path: images\car.bmp
 [ INFO ] Top 10 results:
-[ INFO ] ---------------------
-[ INFO ] probability | classid
-[ INFO ] ---------------------
-[ INFO ] 1.000000000 | 0
-[ INFO ] 0.000000000 | 9
-[ INFO ] 0.000000000 | 8
-[ INFO ] 0.000000000 | 7
-[ INFO ] 0.000000000 | 6
-[ INFO ] 0.000000000 | 5
-[ INFO ] 0.000000000 | 4
-[ INFO ] 0.000000000 | 3
-[ INFO ] 0.000000000 | 2
-[ INFO ] 0.000000000 | 1
+[ INFO ] classid probability
+[ INFO ] -------------------
+[ INFO ] 3       0.9974672
+[ INFO ] 5       0.0025328
+[ INFO ] 9       0.0000000
+[ INFO ] 8       0.0000000
+[ INFO ] 7       0.0000000
+[ INFO ] 6       0.0000000
+[ INFO ] 4       0.0000000
+[ INFO ] 2       0.0000000
+[ INFO ] 1       0.0000000
+[ INFO ] 0       0.0000000
 [ INFO ]
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```

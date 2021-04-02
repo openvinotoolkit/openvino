@@ -93,42 +93,40 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] Reading the network: models\alexnet.xml
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image images\cat.jpg is resized from (300, 300) to (227, 227)
-[ WARNING ] Image images\car.png is resized from (259, 787) to (227, 227)
+[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (227, 227)
+[ WARNING ] Image images\car.bmp is resized from (259, 787) to (227, 227)
 [ INFO ] Starting inference in asynchronous mode
 [ INFO ] Infer request 0 returned 0
-[ INFO ] Image path: images\cat.jpg
+[ INFO ] Image path: images\cat.bmp
 [ INFO ] Top 10 results:
-[ INFO ] ---------------------
-[ INFO ] probability | classid
-[ INFO ] ---------------------
-[ INFO ] 0.099689044 | 435
-[ INFO ] 0.090024225 | 876
-[ INFO ] 0.069144860 | 999
-[ INFO ] 0.039018910 | 587
-[ INFO ] 0.036039289 | 666
-[ INFO ] 0.030830737 | 419
-[ INFO ] 0.030628702 | 285
-[ INFO ] 0.029300876 | 700
-[ INFO ] 0.020270746 | 696
-[ INFO ] 0.019912610 | 631
+[ INFO ] classid probability
+[ INFO ] -------------------
+[ INFO ] 435     0.0996898
+[ INFO ] 876     0.0900239
+[ INFO ] 999     0.0691452
+[ INFO ] 587     0.0390186
+[ INFO ] 666     0.0360390
+[ INFO ] 419     0.0308306
+[ INFO ] 285     0.0306287
+[ INFO ] 700     0.0293007
+[ INFO ] 696     0.0202707
+[ INFO ] 631     0.0199126
 [ INFO ]
 [ INFO ] Infer request 1 returned 0
-[ INFO ] Image path: images\car.png
+[ INFO ] Image path: images\car.bmp
 [ INFO ] Top 10 results:
-[ INFO ] ---------------------
-[ INFO ] probability | classid
-[ INFO ] ---------------------
-[ INFO ] 0.756178558 | 479
-[ INFO ] 0.075569794 | 511
-[ INFO ] 0.073027283 | 436
-[ INFO ] 0.046027526 | 817
-[ INFO ] 0.030379366 | 656
-[ INFO ] 0.005528264 | 661
-[ INFO ] 0.003129612 | 581
-[ INFO ] 0.002987558 | 468
-[ INFO ] 0.002279181 | 717
-[ INFO ] 0.001629688 | 627
+[ INFO ] classid probability
+[ INFO ] -------------------
+[ INFO ] 479     0.7561803
+[ INFO ] 511     0.0755696
+[ INFO ] 436     0.0730265
+[ INFO ] 817     0.0460268
+[ INFO ] 656     0.0303792
+[ INFO ] 661     0.0055282
+[ INFO ] 581     0.0031296
+[ INFO ] 468     0.0029875
+[ INFO ] 717     0.0022792
+[ INFO ] 627     0.0016297
 [ INFO ]
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```

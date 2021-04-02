@@ -92,10 +92,10 @@ The sample application logs each step in a standard output stream and creates an
 [ INFO ] Configuring input and output blobs
 [ INFO ] Reshaping the network to the height and width of the input image
 [ INFO ] Input shape before reshape: [1, 3, 300, 300]
-[ INFO ] Input shape after reshape: [1, 3, 183, 276]
+[ INFO ] Input shape after reshape: [1, 3, 300, 300]
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Found: label = 8, confidence = 0.99, coords = (70, 0), (198, 184)
+[ INFO ] Found: label = 8, confidence = 1.00, coords = (115, 64), (189, 182)
 [ INFO ] Image out.bmp was created!
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```

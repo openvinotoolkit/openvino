@@ -95,7 +95,7 @@ The sample application logs each step in a standard output stream and creates an
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Found: label = 8, confidence = 1.00, coords = (115, 64), (189, 182)
-[ INFO ] Image out.bmp was created!
+[ INFO ] Image out.bmp created!
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 

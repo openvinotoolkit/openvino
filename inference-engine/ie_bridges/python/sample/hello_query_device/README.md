@@ -31,6 +31,7 @@ python3 hello_query_device.py
 For example:
 
 ```
+[ INFO ] Creating Inference Engine
 [ INFO ] CPU :
 [ INFO ]        AVAILABLE_DEVICES: 
 [ INFO ]        FULL_DEVICE_NAME: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz

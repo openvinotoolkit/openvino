@@ -39,9 +39,9 @@ python3 style_transfer_sample.py -h
 Usage message:
 
 ```
-usage: style_transfer_sample.py [-h] -m MODEL -i INPUT [-l EXTENSION]
-                                [-c CONFIG] [-d DEVICE]
-                                [--mean_val_r MEAN_VAL_R]
+usage: style_transfer_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
+                                [-l EXTENSION] [-c CONFIG] [-d DEVICE]
+                                [--original_size] [--mean_val_r MEAN_VAL_R]
                                 [--mean_val_g MEAN_VAL_G]
                                 [--mean_val_b MEAN_VAL_B]
 
@@ -50,7 +50,7 @@ Options:
   -m MODEL, --model MODEL
                         Required. Path to an .xml or .onnx file with a trained
                         model.
-  -i INPUT, --input INPUT
+  -i INPUT [INPUT ...], --input INPUT [INPUT ...]
                         Required. Path to an image file.
   -l EXTENSION, --extension EXTENSION
                         Optional. Required by the CPU Plugin for executing the
@@ -65,6 +65,8 @@ Options:
                         GPU, MYRIAD, HDDL or HETERO: is acceptable. The sample
                         will look for a suitable plugin for device specified.
                         Default value is CPU.
+  --original_size       Optional. Resize an output image to original image
+                        size.
   --mean_val_r MEAN_VAL_R
                         Optional. Mean value of red channel for mean value
                         subtraction in postprocessing.
@@ -103,8 +105,8 @@ The sample application logs each step in a standard output stream and creates an
 [ INFO ] Reading the network: models\fast-neural-style-mosaic-onnx.onnx
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image images\car.png is resized from (259, 787) to (224, 224)
-[ WARNING ] Image images\cat.jpg is resized from (300, 300) to (224, 224)
+[ WARNING ] Image images\car.bmp is resized from (259, 787) to (224, 224)
+[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (224, 224)
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Image out_0.bmp created!
 [ INFO ] Image out_1.bmp created!
