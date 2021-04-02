@@ -1134,87 +1134,64 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_output_c
     const Strides dilations{1, 1};
 
     const Shape inputs_shape{1, 1, 4, 4};
-    const std::vector<float> inputs{
-                                    1.0f, 3.0f, 5.0f, 7.0f,
-                                    7.0f, 5.0f, 3.0f, 1.0f,
-                                    2.0f, 4.0f, 6.0f, 8.0f,
-                                    8.0f, 6.0f, 4.0f, 2.0f};
+    const std::vector<float> inputs{1.0f, 2.0f, 3.0f, 4.0f,
+                                    5.0f, 6.0f, 7.0f, 8.0f,
+                                    9.0f, 10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f, 16.0f};
 
-    const Shape filter_shape{2, 1, 3, 3};
-    const std::vector<float> filter{
-                                    // channel 1
-                                    5.0f, 3.0f, 5.0f,
-                                    1.0f, 3.0f, 1.0f,
-                                    4.0f, 2.0f, 4.0f,
-                                    // channel 2
-                                   -5.0f, 3.0f, 5.0f,
-                                    1.0f, -3.0f, 1.0f,
-                                    4.0f, 2.0f, -4.0f};
+    const Shape filter_shape{2, 1, 2, 2};
+    const std::vector<float> filter{ // filter 1
+                                     1.0f, 2.0f,
+                                    -1.0f, -2.0f,
+                                    // filter 2
+                                     3.0f, 4.0f,
+                                    -3.0f, -4.0f};
 
-    const Shape offsets_shape{1, 18, 3, 3};
-    const std::vector<float> offsets{1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 2.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f};
+    const Shape offsets_shape{1, 8, 3, 3};
+    const std::vector<float> offsets{//channel 1: Y offsets
+                                     1.0f, 1.0f, 1.0f, // out1 .. out 3
+                                     1.0f, 1.0f, 1.0f, // out4 .. out 6
+                                     1.0f, 1.0f, 1.0f, // out7 .. out 9
+                                     //channel 1: X offsets
+                                     1.0f, 1.0f, 1.0f, // out1 .. out 3
+                                     1.0f, 1.0f, 1.0f, // out4 .. out 6
+                                     1.0f, 1.0f, 1.0f, // out7 .. out 9
+                                     //channel 2: Y offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 2: X offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 3: Y offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 3: X offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 4: Y offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     //channel 4: X offsets
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                    };
 
-    const Shape outputs_shape{1, 2, 2, 2};
+    const Shape outputs_shape{1, 2, 3, 3};
     const std::vector<float> outputs{
-                                     // channel 1
-                                     106.0f, 71.0f,
-                                     110.0f, 61.0f,
-                                     // channel 2
-                                     26.0f, -27.0f,
-                                     4.0f, 21.0f};
+                                     // output 1
+                                     -12.0f, -12.0f, -4.0f,
+                                     -12.0f, -12.0f, -4.0f,
+                                     44.0f, 47.0f, 16.0f,
+                                     // output 2
+                                     -28.0f, -28.0f, -12.0f,
+                                     -28.0f, -28.0f, -12.0f,
+                                     102.0f, 109.0f, 48.0f, };
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
@@ -1227,150 +1204,101 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_batch)
     const Strides dilations{1, 1};
 
     const Shape inputs_shape{2, 1, 4, 4};
-    const std::vector<float> inputs{
-                                    // batch 1
-                                    1.0f, 3.0f, 2.0f, 1.0f,
-                                    1.0f, 3.0f, 3.0f, 1.0f,
-                                    2.0f, 1.0f, 1.0f, 3.0f,
-                                    3.0f, 2.0f, 3.0f, 3.0f,
-                                    // batch 2
-                                    -1.0f, 3.0f, 2.0f, -1.0f,
-                                    1.0f, 3.0f, -3.0f, 1.0f,
-                                    -2.0f, -1.0f, 1.0f, 3.0f,
-                                    3.0f, 2.0f, 3.0f, -3.0f};
+    const std::vector<float> inputs{//batch 1
+                                    1.0f, 2.0f, 3.0f, 4.0f,
+                                    5.0f, 6.0f, 7.0f, 8.0f,
+                                    9.0f, 10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f, 16.0f,
+                                    //batch 2
+                                    17.0f, 18.0f, 19.0f, 20.0f,
+                                    21.0f, 22.0f, 23.0f, 24.0f,
+                                    25.0f, 26.0f, 27.0f, 28.0f,
+                                    29.0f, 30.0f, 31.0f, 32.0f};
 
-    const Shape filter_shape{1, 1, 3, 3};
-    const std::vector<float> filter{-5.0f, 3.0f, 5.0f,
-                                    1.0f, -3.0f, 1.0f,
-                                    4.0f, 2.0f, -4.0f};
+    const Shape filter_shape{1, 1, 2, 2};
+    const std::vector<float> filter{1.0f, 2.0f,
+                                    -1.0f, -2.0f};
 
-    const Shape offsets_shape{2, 18, 3, 3};
-    const std::vector<float> offsets{
-                                               // batch 1
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               // batch 2
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 1.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f,
-                                               1.0f, 2.0f, 0.0f,
-                                               0.0f, 2.0f, 0.0f,
-                                               1.0f, 0.0f, 1.0f};
+    const Shape offsets_shape{2, 8, 3, 3};
+    const std::vector<float> offsets{// batch1
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
 
-    const Shape outputs_shape{2, 1, 2, 2};
-    const std::vector<float> outputs{
-                                    // batch 1
-                                    -3.0f, -14.0f,
-                                    13.0f, 7.0f,
-                                    // batch 2
-                                    21.0f, -14.0f,
-                                    -5.0f,-17.0f};
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
 
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     // batch2
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                     0.0f, 0.0f, 0.0f,
+                                    };
+
+    const Shape outputs_shape{2, 1, 3, 3};
+    const std::vector<float> outputs{// batch 1
+                                     -12.0f, -12.0f, -4.0f,
+                                     -12.0f, -12.0f, -4.0f,
+                                     44.0f, 47.0f, 16.0f,
+                                     // batch 2
+                                     -12.0f, -12.0f, -12.0f,
+                                     -12.0f, -12.0f, -12.0f,
+                                     -12.0f, -12.0f, -12.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
 }
-
 // TODO: group & deformable_group attributes (integral offsets)
 
 // TODO: deformable convolution atrributes (real offsets)
