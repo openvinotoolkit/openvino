@@ -96,6 +96,22 @@ NGRAPH_TEST(${BACKEND_NAME}, mod_scalars)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, mod_negative_numbers)
+{
+    Shape shape{2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v1::Mod>(A, B), ParameterVector{A, B});
+
+    vector<float> a{-57, -14, -12, -6};
+    vector<float> b{13, -7, 5, -5};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape, {-5, 0, -2, -1});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, mod_vector_and_scalar)
 {
     Shape shape_a{2, 2};
