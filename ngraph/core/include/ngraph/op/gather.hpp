@@ -91,8 +91,6 @@ namespace ngraph
 
             private:
                 int64_t m_batch_dims = 0;
-                bool evaluate_gather(const HostTensorVector& outputs,
-                                     const HostTensorVector& inputs) const;
             };
         } // namespace v7
     }     // namespace op
