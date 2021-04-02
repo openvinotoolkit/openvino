@@ -34,133 +34,84 @@ ngraph::Node* ngraph::OpSet::create_insensitive(const std::string& name) const
 
 const ngraph::OpSet& ngraph::get_opset1()
 {
-    static std::mutex init_mutex;
-    static bool opset_is_initialized = false;
     static OpSet opset;
-    if (!opset_is_initialized)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (!opset_is_initialized)
-        {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset1_tbl.hpp"
 #undef NGRAPH_OP
-            opset_is_initialized = true;
-        }
-    }
+    });
     return opset;
 }
 
 const ngraph::OpSet& ngraph::get_opset2()
 {
-    static std::mutex init_mutex;
-    static bool opset_is_initialized = false;
     static OpSet opset;
-    if (!opset_is_initialized)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (!opset_is_initialized)
-        {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset2_tbl.hpp"
 #undef NGRAPH_OP
-            opset_is_initialized = true;
-        }
-    }
+    });
     return opset;
 }
 
 const ngraph::OpSet& ngraph::get_opset3()
 {
-    static std::mutex init_mutex;
-    static bool opset_is_initialized = false;
     static OpSet opset;
-    if (!opset_is_initialized)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (!opset_is_initialized)
-        {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset3_tbl.hpp"
 #undef NGRAPH_OP
-            opset_is_initialized = true;
-        }
-    }
+    });
     return opset;
 }
 
 const ngraph::OpSet& ngraph::get_opset4()
 {
-    static std::mutex init_mutex;
-    static bool opset_is_initialized = false;
     static OpSet opset;
-    if (!opset_is_initialized)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (!opset_is_initialized)
-        {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset4_tbl.hpp"
 #undef NGRAPH_OP
-            opset_is_initialized = true;
-        }
-    }
+    });
     return opset;
 }
 
 const ngraph::OpSet& ngraph::get_opset5()
 {
-    static std::mutex init_mutex;
-    static bool opset_is_initialized = false;
     static OpSet opset;
-    if (!opset_is_initialized)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (!opset_is_initialized)
-        {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset5_tbl.hpp"
 #undef NGRAPH_OP
-            opset_is_initialized = true;
-        }
-    }
+    });
     return opset;
 }
 
 const ngraph::OpSet& ngraph::get_opset6()
 {
-    static std::mutex init_mutex;
-    static bool opset_is_initialized = false;
     static OpSet opset;
-    if (!opset_is_initialized)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (!opset_is_initialized)
-        {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset6_tbl.hpp"
 #undef NGRAPH_OP
-            opset_is_initialized = true;
-        }
-    }
+    });
     return opset;
 }
 
 const ngraph::OpSet& ngraph::get_opset7()
 {
-    static std::mutex init_mutex;
-    static bool opset_is_initialized = false;
     static OpSet opset;
-    if (!opset_is_initialized)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (!opset_is_initialized)
-        {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset7_tbl.hpp"
 #undef NGRAPH_OP
-            opset_is_initialized = true;
-        }
-    }
+    });
     return opset;
 }
