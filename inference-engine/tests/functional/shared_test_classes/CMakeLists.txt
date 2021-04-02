@@ -9,6 +9,8 @@ list(APPEND EXPORT_DEPENDENCIES
         ngraphFunctions
         )
 
+option(PERFORMACE_BENCHMARK "Use to build benchmark from ie targets" OFF)
+
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -27,6 +29,10 @@ addIeTarget(
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )
+
+if (PERFORMACE_BENCHMARK)
+    target_compile_definitions(${TARGET_NAME} PRIVATE PERFORMACE_BENCHMARK)
+endif()
 
 ie_faster_build(${TARGET_NAME}
         PCH PRIVATE "src/precomp.hpp"

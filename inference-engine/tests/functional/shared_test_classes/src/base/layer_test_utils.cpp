@@ -19,6 +19,7 @@
 #include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "shared_test_classes/base/benchmark.hpp"
 
 namespace LayerTestsUtils {
 
@@ -253,7 +254,8 @@ void LayerTestsCommon::Infer() {
         auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
         inferRequest.SetBatch(batchSize);
     }
-    inferRequest.Infer();
+
+    BENCHMARK_BURDEN(GetTestName()) inferRequest.Infer();
 }
 
 std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
