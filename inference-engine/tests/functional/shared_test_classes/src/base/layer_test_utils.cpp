@@ -30,14 +30,6 @@ void LayerTestsCommon::Run() {
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
 
-    auto crashHandler = [](int errCode) {
-        auto &s = Summary::getInstance();
-        s.saveReport();
-        std::cout << "Unexpected application crash!" << std::endl;
-        std::abort();
-    };
-    signal(SIGSEGV, crashHandler);
-
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
         s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
