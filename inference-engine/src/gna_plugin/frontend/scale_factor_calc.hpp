@@ -17,6 +17,7 @@
 #include "gna_plugin_log.hpp"
 #include "gna_slope_scale.h"
 #include "runtime/pwl.h"
+#include "gna_data_types.hpp"
 
 namespace GNAPluginNS {
 namespace frontend {
@@ -1080,9 +1081,8 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             double weights_reducer = 1.0;
             auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
             if (conv) {
-                auto dims = conv->insData.front().lock()->getDims();
-
-                weights_reducer = MAX_VAL_2B_FEAT * scaleRange * dims[1] / std::numeric_limits<int32_t>::max();
+                auto channels_num = GetDataDimSize(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
+                weights_reducer = MAX_VAL_2B_FEAT * scaleRange * channels_num / std::numeric_limits<int32_t>::max();
                 weights_reducer = std::max(1.0, weights_reducer);
             }
             quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);

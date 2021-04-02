@@ -393,13 +393,12 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
             << "cannot copy weights for layer :"<< conv->name << " of size" << intWeights->byteSize();
     }
 
-    auto getBiasSizeForLayer = [](InferenceEngine::WeightableLayer *wl) {
+    auto getBiasSizeForLayer = [](InferenceEngine::WeightableLayer *wl) -> size_t {
         if (wl->_biases) {
             return wl->_biases->size();
         }
-        // calculating biases len using outdata dims
-        auto & dims = wl->outData.front()->getDims();
-        return dims[1];
+        // calculating biases len using outdata dims: biases number should be equal to output channels number
+        return InferenceEngine::GetDataDimSize(wl->outData.front(), InferenceEngine::DataDimName::C);
     };
 
     using BiasesPrecision = typename QuantDesc::BiasesPrecision;

@@ -677,16 +677,6 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         }
 
         nhwc_layout_patterns.push_back({prev, next});
-
-        auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
-        if (!convolution) {
-            THROW_GNA_EXCEPTION << "Invalid type of convolution layer";
-        }
-        if (convolution->_kernel_y != 1) {
-            THROW_GNA_LAYER_EXCEPTION(l) << "this case is not implemented yet";
-        }
-        auto in_channels = convolution->input()->getDims()[1];
-        convolution->_kernel_y = in_channels;
     }
 
     for (const auto& layers : nhwc_layout_patterns) {
@@ -2286,8 +2276,8 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
             // Transpose all constant inputs
             for (auto && input : constInputs) {
-                auto rows = FROM_IR_DIM(input->outData[0], 3);
-                auto columns = FROM_IR_DIM(input->outData[0], 1) * FROM_IR_DIM(input->outData[0], 2);
+                auto rows = GetDataDimSize(input->outData[0], DataDimName::C);
+                auto columns = GetDataDimSize(input->outData[0], DataDimName::H) * GetDataDimSize(input->outData[0], DataDimName::W);
                 auto blob = input->blobs["custom"];
                 // A constant should have the same number of channels since concatenation will be in height/weight dimension
                 TranspositionInfo concatTranspositionInfo{true, rows, columns};
