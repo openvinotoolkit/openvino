@@ -1582,7 +1582,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         res->params["no_trans"] = node->get_input_size() == 2 ? "1" : "0";
-        // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
+        // v1::DeformablePRSOIPooling treats group_size attribute as pooled sizes
         res->params["pooled_height"] = params.at("group_size");
         res->params["pooled_width"] = params.at("group_size");
         return res;
