@@ -30,5 +30,5 @@ TEST(attributes, mod_op)
     NodeBuilder builder(mod);
     auto g_mod = as_type_ptr<opset1::Mod>(builder.create());
 
-    EXPECT_EQ(g_mod->get_auto_broadcast(), mod->get_auto_broadcast());
+    EXPECT_EQ(g_mod->get_autob(), mod->get_autob());
 }
