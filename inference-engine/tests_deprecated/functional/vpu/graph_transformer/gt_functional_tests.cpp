@@ -18,6 +18,7 @@
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
 #include <vpu/configuration/options/perf_report_mode.hpp>
+#include <vpu/configuration/options/perf_count.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -66,6 +67,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<WatchdogIntervalOption>();
     _configuration.registerOption<EnableReceivingTensorTimeOption>();
     _configuration.registerOption<PerfReportModeOption>();
+    _configuration.registerOption<PerfCountOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

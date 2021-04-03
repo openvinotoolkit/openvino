@@ -69,6 +69,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER}},
         {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE}},
 
+        {{KEY_PERF_COUNT, CONFIG_VALUE(YES)}},
+        {{KEY_PERF_COUNT, CONFIG_VALUE(NO)}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
@@ -102,6 +105,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER},
+            {KEY_PERF_COUNT, CONFIG_VALUE(YES)},
         },
     };
 
@@ -138,6 +142,10 @@ const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() 
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, YES}
+        },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {KEY_PERF_COUNT, YES}
         },
 
         // Deprecated
@@ -177,6 +185,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_WATCHDOG, {std::chrono::milliseconds(1000)}},
         {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, {false}},
         {InferenceEngine::MYRIAD_PERF_REPORT_MODE, {InferenceEngine::MYRIAD_PER_LAYER}},
+        {KEY_PERF_COUNT, {false}},
     };
     return defaultEntries;
 }
@@ -245,6 +254,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER, InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_LAYER}),
         std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE, InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_STAGE}),
+
+        std::make_tuple(KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }
@@ -264,7 +276,8 @@ const std::vector<std::string>& getPublicOptions() {
         InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
         VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
         InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
-        VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME)
+        VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
+        KEY_PERF_COUNT,
     };
     return publicOptions;
 }
@@ -334,6 +347,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, "PER_LAYER"}},
         {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, "STAGE"}},
 
+        {{KEY_PERF_COUNT, "ON"}},
+        {{KEY_PERF_COUNT, "OFF"}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"}},
 
@@ -368,6 +384,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_WATCHDOG, "OFF"},
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"},
             {InferenceEngine::MYRIAD_PERF_REPORT_MODE, "PER_LAYER"},
+            {KEY_PERF_COUNT, "ON"},
         },
     };
     return incorrectConfigs;
@@ -397,6 +414,10 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}
+        },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {KEY_PERF_COUNT, "ON"}
         },
 
         // Deprecated

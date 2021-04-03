@@ -94,9 +94,7 @@ IE_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& ParsedConfig::getRunTimeOptions() const {
 IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getRunTimeOptions(), {
-        CONFIG_KEY(PERF_COUNT)
-    });
+    static const std::unordered_set<std::string> options = ParsedConfigBase::getRunTimeOptions();
 IE_SUPPRESS_DEPRECATED_END
 
     return options;
@@ -210,7 +208,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 
-    setOption(_perfCount,                                    switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_compileConfig.enableMemoryTypesAnnotation,    switches, config, ie::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
 
 IE_SUPPRESS_DEPRECATED_START

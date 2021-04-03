@@ -17,6 +17,7 @@
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
 #include <vpu/configuration/options/perf_report_mode.hpp>
+#include <vpu/configuration/options/perf_count.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -369,6 +370,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<WatchdogIntervalOption>();
     configuration.registerOption<EnableReceivingTensorTimeOption>();
     configuration.registerOption<PerfReportModeOption>();
+    configuration.registerOption<PerfCountOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

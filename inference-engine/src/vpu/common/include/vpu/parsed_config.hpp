@@ -41,10 +41,6 @@ public:
         return _compileConfig;
     }
 
-    bool perfCount() const {
-        return _perfCount;
-    }
-
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -54,7 +50,6 @@ protected:
 private:
     std::string _compilerLogFilePath;
     CompilationConfig _compileConfig;
-    bool _perfCount              = false;
 };
 
 }  // namespace vpu
