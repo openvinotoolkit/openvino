@@ -15,7 +15,6 @@
 namespace vpu {
 
 struct CompilationConfig {
-    int numSHAVEs = -1;
     int numCMXSlices = -1;
     int numExecutors = -1;
 

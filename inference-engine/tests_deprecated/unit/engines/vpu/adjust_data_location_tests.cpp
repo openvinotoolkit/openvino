@@ -25,7 +25,7 @@ using VPU_AdjustDataLocationTest = GraphTransformerTest;
 //
 
 TEST_F(VPU_AdjustDataLocationTest, FlushCMX_TwoSpecialConsumers) {
-    config.compileConfig().numSHAVEs = 1;
+    config.set(InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "1");
     config.compileConfig().numCMXSlices = 1;
     InitCompileEnv();
 

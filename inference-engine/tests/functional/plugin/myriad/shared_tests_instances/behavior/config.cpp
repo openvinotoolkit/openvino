@@ -103,6 +103,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_WATCHDOG, CONFIG_VALUE(YES)},
+            {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "10"},
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10"},
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},
@@ -191,6 +192,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_PERF_REPORT_MODE, {InferenceEngine::MYRIAD_PER_LAYER}},
         {KEY_PERF_COUNT, {false}},
         {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, {true}},
+        {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES_AUTO}},
     };
     return defaultEntries;
 }
@@ -248,6 +250,10 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "1", InferenceEngine::Parameter{"1"}),
         std::make_tuple(InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10", InferenceEngine::Parameter{"10"}),
 
+        std::make_tuple(InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "0", InferenceEngine::Parameter{"0"}),
+        std::make_tuple(InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "1", InferenceEngine::Parameter{"1"}),
+        std::make_tuple(InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "10", InferenceEngine::Parameter{"10"}),
+
         std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{std::chrono::milliseconds(1000)}),
         std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{std::chrono::milliseconds(0)}),
 
@@ -302,6 +308,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_POWER_MANAGEMENT,
         InferenceEngine::MYRIAD_HW_EXTRA_SPLIT,
         InferenceEngine::MYRIAD_HW_BLACK_LIST,
+        InferenceEngine::MYRIAD_NUMBER_OF_SHAVES,
         InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB,
         InferenceEngine::MYRIAD_WATCHDOG,
         InferenceEngine::MYRIAD_PERF_REPORT_MODE,
@@ -334,6 +341,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
 
         {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"}},
         {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "OFF"}},
+
+        {{InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "-1"}},
+        {{InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "-10"}},
 
         {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-1"}},
         {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-10"}},
@@ -389,6 +399,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, "ON"},
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"},
+            {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "-10"},
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-10"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "OFF"},
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},

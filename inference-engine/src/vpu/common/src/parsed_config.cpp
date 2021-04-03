@@ -41,7 +41,6 @@ IE_SUPPRESS_DEPRECATED_START
         // Private options
         //
 
-        ie::MYRIAD_NUMBER_OF_SHAVES,
         ie::MYRIAD_NUMBER_OF_CMX_SLICES,
 
         ie::MYRIAD_TENSOR_STRIDES,
@@ -195,14 +194,8 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
         throw std::invalid_argument("Value must be positive or default(-1).");
     };
 
-    setOption(_compileConfig.numSHAVEs,        config, ie::MYRIAD_NUMBER_OF_SHAVES, preprocessCompileOption);
     setOption(_compileConfig.numCMXSlices,     config, ie::MYRIAD_NUMBER_OF_CMX_SLICES, preprocessCompileOption);
     setOption(_compileConfig.numExecutors,     config, ie::MYRIAD_THROUGHPUT_STREAMS, preprocessCompileOption);
-
-    if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
-        (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {
-        IE_THROW() << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
-    }
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 
@@ -225,9 +218,6 @@ IE_SUPPRESS_DEPRECATED_END
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
         _compileConfig.dumpAllPasses = std::stoi(envVar) != 0;
-    }
-    if (const auto envVar = std::getenv("IE_VPU_NUMBER_OF_SHAVES_AND_CMX_SLICES")) {
-        _compileConfig.numSHAVEs = _compileConfig.numCMXSlices = preprocessCompileOption(envVar);
     }
 #endif
 }

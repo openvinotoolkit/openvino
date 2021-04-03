@@ -55,6 +55,11 @@ DECLARE_VPU_CONFIG(MYRIAD_USB);
 DECLARE_VPU_CONFIG(MYRIAD_TILING_CMX_LIMIT_KB_AUTO);
 
 /**
+ * @brief Default key definition for InferenceEngine::MYRIAD_NUMBER_OF_SHAVES option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_NUMBER_OF_SHAVES_AUTO);
+
+/**
  * @brief Optimize vpu plugin execution to maximize throughput.
  * This option should be used with integer value which is the requested number of streams.
  * The only possible values are:

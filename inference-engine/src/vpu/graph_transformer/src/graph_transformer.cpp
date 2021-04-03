@@ -47,6 +47,7 @@
 
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
+#include <vpu/configuration/options/number_of_shaves.hpp>
 
 namespace vpu {
 
@@ -88,10 +89,6 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
         g_compileEnv->config.set(ie::MYRIAD_ENABLE_HW_ACCELERATION, ie::PluginConfigParams::NO);
     }
 
-    VPU_THROW_UNLESS(g_compileEnv->config.compileConfig().numSHAVEs <= g_compileEnv->config.compileConfig().numCMXSlices,
-        R"(Value of configuration option ("{}") must be not greater than value of configuration option ("{}"), but {} > {} are provided)",
-        ie::MYRIAD_NUMBER_OF_SHAVES, ie::MYRIAD_NUMBER_OF_CMX_SLICES, config.compileConfig().numSHAVEs, config.compileConfig().numCMXSlices);
-
     const auto numExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(platform, config);
     VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
@@ -112,8 +109,8 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
         R"(Value of configuration option ("{}") must be greater than {}, actual is "{}")",
         ie::MYRIAD_TILING_CMX_LIMIT_KB, 0, tilingCMXLimit);
 
-    const auto numShaves = config.compileConfig().numSHAVEs != -1
-        ? config.compileConfig().numSHAVEs
+    const auto numShaves = config.get<NumberOfSHAVEsOption>().hasValue()
+        ? config.get<NumberOfSHAVEsOption>().get()
         : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
     VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",

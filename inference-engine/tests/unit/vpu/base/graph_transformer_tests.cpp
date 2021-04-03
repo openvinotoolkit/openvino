@@ -19,6 +19,7 @@
 #include <vpu/configuration/options/perf_report_mode.hpp>
 #include <vpu/configuration/options/perf_count.hpp>
 #include <vpu/configuration/options/pack_data_in_cmx.hpp>
+#include <vpu/configuration/options/number_of_shaves.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -373,6 +374,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<PerfReportModeOption>();
     configuration.registerOption<PerfCountOption>();
     configuration.registerOption<PackDataInCMXOption>();
+    configuration.registerOption<NumberOfSHAVEsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
