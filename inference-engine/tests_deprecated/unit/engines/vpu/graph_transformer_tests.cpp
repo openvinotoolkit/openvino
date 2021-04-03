@@ -20,6 +20,7 @@
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
 #include <vpu/configuration/options/perf_report_mode.hpp>
 #include <vpu/configuration/options/perf_count.hpp>
+#include <vpu/configuration/options/pack_data_in_cmx.hpp>
 
 namespace vpu {
 
@@ -184,6 +185,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableReceivingTensorTimeOption>();
     configuration.registerOption<PerfReportModeOption>();
     configuration.registerOption<PerfCountOption>();
+    configuration.registerOption<PackDataInCMXOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

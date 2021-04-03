@@ -51,7 +51,6 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_COPY_OPTIMIZATION,
         ie::MYRIAD_HW_INJECT_STAGES,
         ie::MYRIAD_HW_POOL_CONV_MERGE,
-        ie::MYRIAD_PACK_DATA_IN_CMX,
         ie::MYRIAD_HW_DILATION,
         ie::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION,
         ie::MYRIAD_DISABLE_REORDER,
@@ -151,7 +150,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.dumpAllPasses,                  switches, config, ie::MYRIAD_DUMP_ALL_PASSES);
 
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
-    setOption(_compileConfig.packDataInCmx,                  switches, config, ie::MYRIAD_PACK_DATA_IN_CMX);
     setOption(_compileConfig.ignoreUnknownLayers,            switches, config, ie::MYRIAD_IGNORE_UNKNOWN_LAYERS);
     setOption(_compileConfig.injectSwOps,                    switches, config, ie::MYRIAD_HW_INJECT_STAGES);
     setOption(_compileConfig.mergeHwPoolToConv,              switches, config, ie::MYRIAD_HW_POOL_CONV_MERGE);

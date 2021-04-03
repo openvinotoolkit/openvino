@@ -15,6 +15,7 @@
 #include <vpu/middleend/hw/utility.hpp>
 
 #include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/pack_data_in_cmx.hpp>
 
 namespace vpu {
 
@@ -50,7 +51,7 @@ void PassImpl::run(const Model& model) {
     allocNonIntermediateData(model);
     adjustModelForMemReqs(model);
     copyHwMisalignedInput(model);
-    if (env.config.compileConfig().packDataInCmx.getOrDefault(true)) {
+    if (env.config.get<PackDataInCMXOption>()) {
         packDataInCmx(model);
     }
 }

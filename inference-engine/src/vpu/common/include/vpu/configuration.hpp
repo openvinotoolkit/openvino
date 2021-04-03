@@ -26,7 +26,6 @@ struct CompilationConfig {
     bool detectBatch = true;
 
     Optional<bool> injectSwOps;
-    Optional<bool> packDataInCmx;
     bool mergeHwPoolToConv = true;
     bool hwDilation = false;
     bool forceDeprecatedCnnConversion = false;
