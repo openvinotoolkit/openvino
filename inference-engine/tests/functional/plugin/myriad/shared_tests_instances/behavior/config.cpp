@@ -200,6 +200,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, {true}},
         {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, {false}},
         {InferenceEngine::MYRIAD_HW_BLACK_LIST, {std::string()}},
+        {InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, {true}},
         {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB_AUTO}},
         {InferenceEngine::MYRIAD_WATCHDOG, {std::chrono::milliseconds(1000)}},
         {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, {false}},
@@ -209,6 +210,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES_AUTO}},
         {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS_AUTO}},
         {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES_AUTO}},
+        {InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, {std::string()}},
     };
     return defaultEntries;
 }
