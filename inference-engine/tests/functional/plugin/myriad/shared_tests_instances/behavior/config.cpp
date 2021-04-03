@@ -66,6 +66,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_WATCHDOG, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_WATCHDOG, CONFIG_VALUE(NO)}},
 
+        {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER}},
+        {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
@@ -98,6 +101,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(YES)},
+            {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER},
         },
     };
 
@@ -172,6 +176,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB_AUTO}},
         {InferenceEngine::MYRIAD_WATCHDOG, {std::chrono::milliseconds(1000)}},
         {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, {false}},
+        {InferenceEngine::MYRIAD_PERF_REPORT_MODE, {InferenceEngine::MYRIAD_PER_LAYER}},
     };
     return defaultEntries;
 }
@@ -237,6 +242,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
         std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER, InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_LAYER}),
+        std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE, InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_STAGE}),
     };
     return customEntries;
 }
@@ -275,6 +283,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_HW_BLACK_LIST,
         InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB,
         InferenceEngine::MYRIAD_WATCHDOG,
+        InferenceEngine::MYRIAD_PERF_REPORT_MODE,
     };
     return privateOptions;
 }
@@ -322,6 +331,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_WATCHDOG, "ON"}},
         {{InferenceEngine::MYRIAD_WATCHDOG, "OFF"}},
 
+        {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, "PER_LAYER"}},
+        {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, "STAGE"}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"}},
 
@@ -355,6 +367,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "ON"},
             {InferenceEngine::MYRIAD_WATCHDOG, "OFF"},
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"},
+            {InferenceEngine::MYRIAD_PERF_REPORT_MODE, "PER_LAYER"},
         },
     };
     return incorrectConfigs;

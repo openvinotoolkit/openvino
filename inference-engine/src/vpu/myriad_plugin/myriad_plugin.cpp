@@ -29,6 +29,7 @@
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
+#include <vpu/configuration/options/perf_report_mode.hpp>
 
 #include "myriad_plugin.h"
 
@@ -164,6 +165,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<TilingCMXLimitKBOption>();
     _parsedConfig.registerOption<WatchdogIntervalOption>();
     _parsedConfig.registerOption<EnableReceivingTensorTimeOption>();
+    _parsedConfig.registerOption<PerfReportModeOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

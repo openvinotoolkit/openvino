@@ -16,6 +16,7 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/shape_io.hpp>
 #include "vpu/configuration/options/enable_receiving_tensor_time.hpp"
+#include "vpu/configuration/options/perf_report_mode.hpp"
 
 #include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
@@ -310,5 +311,5 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRe
     return vpu::parsePerformanceReport(
         _stagesMetaData,
         perfInfo.data(), static_cast<int>(perfInfo.size()),
-        _config.perfReport(), _config.get<EnableReceivingTensorTimeOption>());
+        _config.get<PerfReportModeOption>(), _config.get<EnableReceivingTensorTimeOption>());
 }

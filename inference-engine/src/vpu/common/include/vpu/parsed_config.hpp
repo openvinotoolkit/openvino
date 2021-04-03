@@ -45,10 +45,6 @@ public:
         return _perfCount;
     }
 
-    PerfReport perfReport() const {
-        return _perfReport;
-    }
-
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -59,7 +55,6 @@ private:
     std::string _compilerLogFilePath;
     CompilationConfig _compileConfig;
     bool _perfCount              = false;
-    PerfReport _perfReport = PerfReport::PerLayer;
 };
 
 }  // namespace vpu

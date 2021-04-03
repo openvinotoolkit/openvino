@@ -95,8 +95,7 @@ IE_SUPPRESS_DEPRECATED_END
 const std::unordered_set<std::string>& ParsedConfig::getRunTimeOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getRunTimeOptions(), {
-        CONFIG_KEY(PERF_COUNT),
-        ie::MYRIAD_PERF_REPORT_MODE,
+        CONFIG_KEY(PERF_COUNT)
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -114,11 +113,6 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
-    static const std::unordered_map<std::string, PerfReport> perfReports {
-        { ie::MYRIAD_PER_LAYER, PerfReport::PerLayer },
-        { ie::MYRIAD_PER_STAGE, PerfReport::PerStage },
-    };
-
     static const auto parseStrides = [](const std::string& src) {
         auto configStrides = src;
         configStrides.pop_back();
@@ -217,7 +211,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 
     setOption(_perfCount,                                    switches, config, CONFIG_KEY(PERF_COUNT));
-    setOption(_perfReport,                                perfReports, config, ie::MYRIAD_PERF_REPORT_MODE);
     setOption(_compileConfig.enableMemoryTypesAnnotation,    switches, config, ie::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
 
 IE_SUPPRESS_DEPRECATED_START

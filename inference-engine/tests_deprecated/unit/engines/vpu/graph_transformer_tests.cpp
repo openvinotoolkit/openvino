@@ -18,6 +18,7 @@
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
+#include <vpu/configuration/options/perf_report_mode.hpp>
 
 namespace vpu {
 
@@ -180,6 +181,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<TilingCMXLimitKBOption>();
     configuration.registerOption<WatchdogIntervalOption>();
     configuration.registerOption<EnableReceivingTensorTimeOption>();
+    configuration.registerOption<PerfReportModeOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
