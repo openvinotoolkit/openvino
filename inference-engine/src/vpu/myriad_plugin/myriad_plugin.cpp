@@ -25,6 +25,7 @@
 #include <vpu/configuration/options/protocol.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
@@ -33,7 +34,9 @@
 #include <vpu/configuration/options/perf_count.hpp>
 #include <vpu/configuration/options/pack_data_in_cmx.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
 
 #include "myriad_plugin.h"
 
@@ -64,24 +67,6 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     }
 
 #ifndef NDEBUG
-    auto isPositive = [](int value) {
-        return value >= 0;
-    };
-
-    auto isDefaultValue = [](int value) {
-        return value == -1;
-    };
-
-    auto preprocessCompileOption = [&](const std::string& src) {
-        int value = std::stoi(src);
-
-        if (isPositive(value) || isDefaultValue(value)) {
-            return value;
-        }
-
-        throw std::invalid_argument("Value must be positive or default(-1).");
-    };
-
     if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
         _parsedConfig.set(LogLevelOption::key(), envVar);
     }
@@ -93,7 +78,7 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     }
     if (const auto envVar = std::getenv("IE_VPU_NUMBER_OF_SHAVES_AND_CMX_SLICES")) {
         _parsedConfig.set(NumberOfSHAVEsOption::key(), envVar);
-        _parsedConfig.compileConfig().numCMXSlices = preprocessCompileOption(envVar);
+        _parsedConfig.set(NumberOfCMXSlicesOption::key(), envVar);
     }
 #endif
 }
@@ -185,6 +170,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<ProtocolOption>();
     _parsedConfig.registerOption<HwAccelerationOption>();
     _parsedConfig.registerOption<HwExtraSplitOption>();
+    _parsedConfig.registerOption<HwPoolConvMergeOption>();
     _parsedConfig.registerOption<HwBlackListOption>();
     _parsedConfig.registerOption<TilingCMXLimitKBOption>();
     _parsedConfig.registerOption<WatchdogIntervalOption>();
@@ -193,7 +179,9 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<PerfCountOption>();
     _parsedConfig.registerOption<PackDataInCMXOption>();
     _parsedConfig.registerOption<NumberOfSHAVEsOption>();
+    _parsedConfig.registerOption<NumberOfCMXSlicesOption>();
     _parsedConfig.registerOption<ThroughputStreamsOption>();
+    _parsedConfig.registerOption<IRWithScalesDirectoryOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

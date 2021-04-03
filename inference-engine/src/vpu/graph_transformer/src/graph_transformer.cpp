@@ -49,6 +49,8 @@
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
+#include <vpu/configuration/options/number_of_cmx_slices.hpp>
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
 
 namespace vpu {
 
@@ -96,8 +98,8 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
         ie::MYRIAD_THROUGHPUT_STREAMS, 1, DeviceResources::numStreams(), numExecutors);
 
-    const auto numSlices  = config.compileConfig().numCMXSlices != -1
-        ? config.compileConfig().numCMXSlices
+    const auto numSlices  = config.get<NumberOfCMXSlicesOption>().hasValue()
+        ? config.get<NumberOfCMXSlicesOption>().get()
         : DefaultAllocation::numSlices(platform, numExecutors);
     VPU_THROW_UNLESS(numSlices >= 1 && numSlices <= DeviceResources::numSlices(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
@@ -175,9 +177,9 @@ CompiledGraph::Ptr compileImpl(const ie::CNNNetwork& network, const std::shared_
 
     middleEnd->run(model);
 
-    if (!env.config.compileConfig().irWithVpuScalesDir.empty()) {
-        network.serialize(env.config.compileConfig().irWithVpuScalesDir + "/" + network.getName() + "_scales.xml",
-                          env.config.compileConfig().irWithVpuScalesDir + "/" + network.getName() + "_scales.bin");
+    if (!env.config.get<IRWithScalesDirectoryOption>().empty()) {
+        network.serialize(env.config.get<IRWithScalesDirectoryOption>() + "/" + network.getName() + "_scales.xml",
+                          env.config.get<IRWithScalesDirectoryOption>() + "/" + network.getName() + "_scales.bin");
     }
 
     return backEnd->build(model, frontEnd->origLayers());

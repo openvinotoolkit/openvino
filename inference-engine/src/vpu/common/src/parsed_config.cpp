@@ -40,11 +40,8 @@ IE_SUPPRESS_DEPRECATED_START
         // Private options
         //
 
-        ie::MYRIAD_NUMBER_OF_CMX_SLICES,
-
         ie::MYRIAD_TENSOR_STRIDES,
 
-        ie::MYRIAD_IR_WITH_SCALES_DIRECTORY,
         ie::MYRIAD_DETECT_NETWORK_BATCH,
         ie::MYRIAD_COPY_OPTIMIZATION,
         ie::MYRIAD_HW_INJECT_STAGES,
@@ -150,7 +147,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
     setOption(_compileConfig.ignoreUnknownLayers,            switches, config, ie::MYRIAD_IGNORE_UNKNOWN_LAYERS);
     setOption(_compileConfig.injectSwOps,                    switches, config, ie::MYRIAD_HW_INJECT_STAGES);
-    setOption(_compileConfig.mergeHwPoolToConv,              switches, config, ie::MYRIAD_HW_POOL_CONV_MERGE);
     setOption(_compileConfig.hwDilation,                     switches, config, ie::MYRIAD_HW_DILATION);
     setOption(_compileConfig.forceDeprecatedCnnConversion,   switches, config, ie::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION);
     setOption(_compileConfig.disableReorder,                 switches, config, ie::MYRIAD_DISABLE_REORDER);
@@ -165,7 +161,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
     setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
-    setOption(_compileConfig.irWithVpuScalesDir,                       config, ie::MYRIAD_IR_WITH_SCALES_DIRECTORY);
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
     setOption(_compileConfig.hwWhiteList,                              config, ie::MYRIAD_HW_WHITE_LIST, parseStringSet);
 
@@ -192,8 +187,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
         throw std::invalid_argument("Value must be positive or default(-1).");
     };
-
-    setOption(_compileConfig.numCMXSlices,     config, ie::MYRIAD_NUMBER_OF_CMX_SLICES, preprocessCompileOption);
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 

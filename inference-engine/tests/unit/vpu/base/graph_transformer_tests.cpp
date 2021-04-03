@@ -12,6 +12,7 @@
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
@@ -20,7 +21,9 @@
 #include <vpu/configuration/options/perf_count.hpp>
 #include <vpu/configuration/options/pack_data_in_cmx.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -368,6 +371,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<PowerConfigOption>();
     configuration.registerOption<HwAccelerationOption>();
     configuration.registerOption<HwExtraSplitOption>();
+    configuration.registerOption<HwPoolConvMergeOption>();
     configuration.registerOption<HwBlackListOption>();
     configuration.registerOption<TilingCMXLimitKBOption>();
     configuration.registerOption<WatchdogIntervalOption>();
@@ -376,7 +380,9 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<PerfCountOption>();
     configuration.registerOption<PackDataInCMXOption>();
     configuration.registerOption<NumberOfSHAVEsOption>();
+    configuration.registerOption<NumberOfCMXSlicesOption>();
     configuration.registerOption<ThroughputStreamsOption>();
+    configuration.registerOption<IRWithScalesDirectoryOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

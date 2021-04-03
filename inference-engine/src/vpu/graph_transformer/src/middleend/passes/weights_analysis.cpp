@@ -9,6 +9,8 @@
 #include <vpu/model/data_contents/replicated_data_content.hpp>
 #include <vpu/model/data_contents/scaled_content.hpp>
 
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+
 #include <precision_utils.h>
 
 #include <cmath>
@@ -258,7 +260,7 @@ void PassImpl::run(const Model& model) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
             }
 
-            if (!env.config.compileConfig().irWithVpuScalesDir.empty()) {
+            if (!env.config.get<IRWithScalesDirectoryOption>().empty()) {
                 stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }

@@ -15,16 +15,11 @@
 namespace vpu {
 
 struct CompilationConfig {
-    int numCMXSlices = -1;
-
-    std::string irWithVpuScalesDir;
-
     std::string customLayers;
 
     bool detectBatch = true;
 
     Optional<bool> injectSwOps;
-    bool mergeHwPoolToConv = true;
     bool hwDilation = false;
     bool forceDeprecatedCnnConversion = false;
     bool enableEarlyEltwiseReLUFusion = true;

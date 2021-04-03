@@ -13,6 +13,7 @@
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
@@ -21,7 +22,9 @@
 #include <vpu/configuration/options/perf_count.hpp>
 #include <vpu/configuration/options/pack_data_in_cmx.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -65,6 +68,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<PowerConfigOption>();
     _configuration.registerOption<HwAccelerationOption>();
     _configuration.registerOption<HwExtraSplitOption>();
+    _configuration.registerOption<HwPoolConvMergeOption>();
     _configuration.registerOption<HwBlackListOption>();
     _configuration.registerOption<TilingCMXLimitKBOption>();
     _configuration.registerOption<WatchdogIntervalOption>();
@@ -73,7 +77,9 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<PerfCountOption>();
     _configuration.registerOption<PackDataInCMXOption>();
     _configuration.registerOption<NumberOfSHAVEsOption>();
+    _configuration.registerOption<NumberOfCMXSlicesOption>();
     _configuration.registerOption<ThroughputStreamsOption>();
+    _configuration.registerOption<IRWithScalesDirectoryOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

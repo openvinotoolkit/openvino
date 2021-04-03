@@ -4,14 +4,14 @@
 
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/utils/containers.hpp"
-#include "vpu/configuration/options/number_of_shaves.hpp"
 #include "vpu/configuration/options/number_of_cmx_slices.hpp"
+#include "vpu/configuration/options/number_of_shaves.hpp"
 #include "vpu/configuration/parse_numeric.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
 
 namespace vpu {
 
-void NumberOfSHAVEsOption::validate(const std::string& value) {
+void NumberOfCMXSlicesOption::validate(const std::string& value) {
     if (value == defaultValue()) {
         return;
     }
@@ -27,40 +27,40 @@ void NumberOfSHAVEsOption::validate(const std::string& value) {
         R"(unexpected {} option value "{}", only not negative numbers are supported)", key(), value);
 }
 
-void NumberOfSHAVEsOption::validate(const PluginConfiguration& configuration) {
+void NumberOfCMXSlicesOption::validate(const PluginConfiguration& configuration) {
     validate(configuration[key()]);
     VPU_THROW_UNLESS((configuration[key()] == defaultValue() &&
-        configuration[NumberOfCMXSlicesOption::key()] == NumberOfCMXSlicesOption::defaultValue()) ||
+        configuration[NumberOfSHAVEsOption::key()] == NumberOfSHAVEsOption::defaultValue()) ||
         (configuration[key()] != defaultValue() &&
-        configuration[NumberOfCMXSlicesOption::key()] != NumberOfCMXSlicesOption::defaultValue()),
-        R"(should set both options for resource management: {} and {})", key(), NumberOfCMXSlicesOption::key());
+        configuration[NumberOfSHAVEsOption::key()] != NumberOfSHAVEsOption::defaultValue()),
+        R"(should set both options for resource management: {} and {})", NumberOfSHAVEsOption::key(), key());
     if (configuration[key()] != defaultValue()) {
-        VPU_THROW_UNLESS(parse(configuration[key()]).get() <= configuration.get<NumberOfCMXSlicesOption>().get(),
+        VPU_THROW_UNLESS(configuration.get<NumberOfSHAVEsOption>().get() <= parse(configuration[key()]).get(),
             R"(Value of option {} must be not greater than value of option {}, but {} > {} are provided)",
-            key(), NumberOfCMXSlicesOption::key(),
-            parse(configuration[key()]).get(), configuration.get<NumberOfCMXSlicesOption>().get());
+            NumberOfSHAVEsOption::key(), key(),
+            configuration.get<NumberOfSHAVEsOption>().get(), parse(configuration[key()]).get());
     }
 }
 
-std::string NumberOfSHAVEsOption::key() {
-    return InferenceEngine::MYRIAD_NUMBER_OF_SHAVES;
+std::string NumberOfCMXSlicesOption::key() {
+    return InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES;
 }
 
-details::Access NumberOfSHAVEsOption::access() {
+details::Access NumberOfCMXSlicesOption::access() {
     return details::Access::Private;
 }
 
-details::Category NumberOfSHAVEsOption::category() {
+details::Category NumberOfCMXSlicesOption::category() {
     return details::Category::CompileTime;
 }
 
-std::string NumberOfSHAVEsOption::defaultValue() {
-    return InferenceEngine::MYRIAD_NUMBER_OF_SHAVES_AUTO;
+std::string NumberOfCMXSlicesOption::defaultValue() {
+    return InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES_AUTO;
 }
 
-NumberOfSHAVEsOption::value_type NumberOfSHAVEsOption::parse(const std::string& value) {
+NumberOfCMXSlicesOption::value_type NumberOfCMXSlicesOption::parse(const std::string& value) {
     if (value == defaultValue()) {
-        return NumberOfSHAVEsOption::value_type();
+        return NumberOfCMXSlicesOption::value_type();
     }
 
     int intValue;
