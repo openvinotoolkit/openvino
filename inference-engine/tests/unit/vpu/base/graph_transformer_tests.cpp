@@ -20,6 +20,7 @@
 #include <vpu/configuration/options/perf_count.hpp>
 #include <vpu/configuration/options/pack_data_in_cmx.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/throughput_streams.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -375,6 +376,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<PerfCountOption>();
     configuration.registerOption<PackDataInCMXOption>();
     configuration.registerOption<NumberOfSHAVEsOption>();
+    configuration.registerOption<ThroughputStreamsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

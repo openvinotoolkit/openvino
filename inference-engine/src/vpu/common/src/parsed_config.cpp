@@ -29,7 +29,6 @@ IE_SUPPRESS_DEPRECATED_START
         CONFIG_KEY(CONFIG_FILE),
 
         ie::MYRIAD_CUSTOM_LAYERS,
-        ie::MYRIAD_THROUGHPUT_STREAMS,
 
         //
         // Public deprecated
@@ -195,7 +194,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     };
 
     setOption(_compileConfig.numCMXSlices,     config, ie::MYRIAD_NUMBER_OF_CMX_SLICES, preprocessCompileOption);
-    setOption(_compileConfig.numExecutors,     config, ie::MYRIAD_THROUGHPUT_STREAMS, preprocessCompileOption);
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 

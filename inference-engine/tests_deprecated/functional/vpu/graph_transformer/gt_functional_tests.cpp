@@ -21,6 +21,7 @@
 #include <vpu/configuration/options/perf_count.hpp>
 #include <vpu/configuration/options/pack_data_in_cmx.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/throughput_streams.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -72,6 +73,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<PerfCountOption>();
     _configuration.registerOption<PackDataInCMXOption>();
     _configuration.registerOption<NumberOfSHAVEsOption>();
+    _configuration.registerOption<ThroughputStreamsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

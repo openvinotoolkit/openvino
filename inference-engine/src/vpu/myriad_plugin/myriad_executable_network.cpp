@@ -16,6 +16,7 @@
 #include <legacy/net_pass.h>
 #include <vpu/compile_env.hpp>
 #include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/throughput_streams.hpp>
 
 using namespace InferenceEngine;
 

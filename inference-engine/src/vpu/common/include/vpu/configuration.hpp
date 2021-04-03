@@ -16,7 +16,6 @@ namespace vpu {
 
 struct CompilationConfig {
     int numCMXSlices = -1;
-    int numExecutors = -1;
 
     std::string irWithVpuScalesDir;
 

@@ -152,6 +152,10 @@ const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() 
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {KEY_PERF_COUNT, YES}
         },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"}
+        },
 
         // Deprecated
         {
@@ -193,6 +197,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {KEY_PERF_COUNT, {false}},
         {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, {true}},
         {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES_AUTO}},
+        {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS_AUTO}},
     };
     return defaultEntries;
 }
@@ -254,6 +259,10 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "1", InferenceEngine::Parameter{"1"}),
         std::make_tuple(InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "10", InferenceEngine::Parameter{"10"}),
 
+        std::make_tuple(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1", InferenceEngine::Parameter{"1"}),
+        std::make_tuple(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "2", InferenceEngine::Parameter{"2"}),
+        std::make_tuple(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "3", InferenceEngine::Parameter{"3"}),
+
         std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{std::chrono::milliseconds(1000)}),
         std::make_tuple(InferenceEngine::MYRIAD_WATCHDOG, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{std::chrono::milliseconds(0)}),
 
@@ -292,6 +301,7 @@ const std::vector<std::string>& getPublicOptions() {
         InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
         VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
         KEY_PERF_COUNT,
+        InferenceEngine::MYRIAD_THROUGHPUT_STREAMS,
     };
     return publicOptions;
 }
@@ -402,7 +412,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "-10"},
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-10"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "OFF"},
-            {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},
+            {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "Two"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "ON"},
             {InferenceEngine::MYRIAD_WATCHDOG, "OFF"},
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"},
@@ -442,6 +452,10 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {KEY_PERF_COUNT, "ON"}
+        },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "ONE"}
         },
 
         // Deprecated

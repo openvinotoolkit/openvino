@@ -48,6 +48,7 @@
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/throughput_streams.hpp>
 
 namespace vpu {
 
@@ -89,7 +90,8 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
         g_compileEnv->config.set(ie::MYRIAD_ENABLE_HW_ACCELERATION, ie::PluginConfigParams::NO);
     }
 
-    const auto numExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(platform, config);
+    const auto numExecutors = config.get<ThroughputStreamsOption>().hasValue()
+        ? config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(platform, config);
     VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
         ie::MYRIAD_THROUGHPUT_STREAMS, 1, DeviceResources::numStreams(), numExecutors);

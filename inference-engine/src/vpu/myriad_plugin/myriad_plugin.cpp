@@ -33,6 +33,7 @@
 #include <vpu/configuration/options/perf_count.hpp>
 #include <vpu/configuration/options/pack_data_in_cmx.hpp>
 #include <vpu/configuration/options/number_of_shaves.hpp>
+#include <vpu/configuration/options/throughput_streams.hpp>
 
 #include "myriad_plugin.h"
 
@@ -166,7 +167,6 @@ IE_SUPPRESS_DEPRECATED_START
     _config = {
         { MYRIAD_CUSTOM_LAYERS, "" },
         { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
-        { MYRIAD_THROUGHPUT_STREAMS, "-1" },
 
         // Deprecated
         { KEY_VPU_CUSTOM_LAYERS, "" },
@@ -193,6 +193,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<PerfCountOption>();
     _parsedConfig.registerOption<PackDataInCMXOption>();
     _parsedConfig.registerOption<NumberOfSHAVEsOption>();
+    _parsedConfig.registerOption<ThroughputStreamsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
