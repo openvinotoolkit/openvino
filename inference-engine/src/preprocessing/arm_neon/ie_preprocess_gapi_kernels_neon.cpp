@@ -291,8 +291,8 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 v_store_low(&dst[c][2][x], q5);
                 v_store_high(&dst[c][3][x], q5);
 #else
-                int16x8x2_t p1 = vzipq_s16(r0.val, r1.val);
-                int16x8x2_t p2 = vzipq_s16(r2.val, r3.val);
+                int16x8x2_t p1 = vzipq_s16(r0.val, r2.val);
+                int16x8x2_t p2 = vzipq_s16(r1.val, r3.val);
 
                 int16x8_t p1lo = p1.val[0];
                 int16x8_t p1hi = p1.val[1];
@@ -300,8 +300,8 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 int16x8_t p2lo = p2.val[0];
                 int16x8_t p2hi = p2.val[1];
 
-                int16x8x2_t p3 = vzipq_s16(p1lo, p1hi);
-                int16x8x2_t p4 = vzipq_s16(p2lo, p2hi);
+                int16x8x2_t p3 = vzipq_s16(p1lo, p2lo);
+                int16x8x2_t p4 = vzipq_s16(p1hi, p2hi);
 
                 int16x8_t p3lo = p3.val[0];
                 int16x8_t p3hi = p3.val[1];
@@ -309,25 +309,13 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 int16x8_t p4lo = p4.val[0];
                 int16x8_t p4hi = p4.val[1];
 
-                uint8x8_t p3lopac = vqmovun_s16(p3lo);
-                uint8x8_t p4lopac = vqmovun_s16(p4lo);
-                uint8x8_t p3hipac = vqmovun_s16(p3hi);
-                uint8x8_t p4hipac = vqmovun_s16(p4hi);
+                int16x8x2_t p5 = vzipq_s16(p3lo, p4lo);
+                int16x8x2_t p6 = vzipq_s16(p3hi, p4hi);
 
-                int32x2_t p3lopacRe32 = vreinterpret_s32_u8(p3lopac);
-                int32x2_t p4lopacRe32 = vreinterpret_s32_u8(p4lopac);
-
-                int32x2x2_t p5 = vzip_s32(p3lopacRe32, p4lopacRe32);
-
-                int32x2_t p3hipacRe32 = vreinterpret_s32_u8(p3hipac);
-                int32x2_t p4hipacRe32 = vreinterpret_s32_u8(p4hipac);
-
-                int32x2x2_t p6 = vzip_s32(p3hipacRe32, p4hipacRe32);
-
-                uint8x8_t line1 = vreinterpret_u8_s32(p5.val[0]);
-                uint8x8_t line2 = vreinterpret_u8_s32(p5.val[1]);
-                uint8x8_t line3 = vreinterpret_u8_s32(p6.val[0]);
-                uint8x8_t line4 = vreinterpret_u8_s32(p6.val[1]);
+                uint8x8_t line1 = vqmovun_s16(p5.val[0]);
+                uint8x8_t line2 = vqmovun_s16(p5.val[1]);
+                uint8x8_t line3 = vqmovun_s16(p6.val[0]);
+                uint8x8_t line4 = vqmovun_s16(p6.val[1]);
 
                 vst1_u8(&dst[c][0][x], line1);
                 vst1_u8(&dst[c][1][x], line2);
