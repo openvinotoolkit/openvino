@@ -240,7 +240,7 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
     const int shift = static_cast<int>(half_nlanes / 4);
 
     //uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15 };
-    v_uint8 hmask = vx_load(_mask_horizontal);
+    //v_uint8 hmask = vx_load(_mask_horizontal);
 
     v_uint8 val_0, val_1, val_2, val_3;
     int x = 0;
@@ -276,7 +276,7 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 v_int16 r1 = v_add_wrap(val1_1, t1);
                 v_int16 r2 = v_add_wrap(val1_2, t2);
                 v_int16 r3 = v_add_wrap(val1_3, t3);
-
+#if 0
                 v_uint8 q0 = v_pack_u(r0, r1);
                 v_uint8 q1 = v_pack_u(r2, r3);
 
@@ -290,6 +290,49 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 v_store_high(&dst[c][1][x], q4);
                 v_store_low(&dst[c][2][x], q5);
                 v_store_high(&dst[c][3][x], q5);
+#else
+                int16x8x2_t p1 = vzipq_s16(r0.val, r1.val);
+                int16x8x2_t p2 = vzipq_s16(r2.val, r3.val);
+
+                int16x8_t p1lo = p1.val[0];
+                int16x8_t p1hi = p1.val[1];
+
+                int16x8_t p2lo = p2.val[0];
+                int16x8_t p2hi = p2.val[1];
+
+                int16x8x2_t p3 = vzipq_s16(p1lo, p1hi);
+                int16x8x2_t p4 = vzipq_s16(p2lo, p2hi);
+
+                int16x8_t p3lo = p3.val[0];
+                int16x8_t p3hi = p3.val[1];
+
+                int16x8_t p4lo = p4.val[0];
+                int16x8_t p4hi = p4.val[1];
+
+                int64x2_t p3loRe64 = vreinterpretq_s64_s16(p3lo);
+                int64x2_t p3hiRe64 = vreinterpretq_s64_s16(p3hi);
+                int64x2_t p4loRe64 = vreinterpretq_s64_s16(p4lo);
+                int64x2_t p4hiRe64 = vreinterpretq_s64_s16(p4hi);
+
+                int64x2_t comblolo34 = vcombine_s64(vget_low_s64(p3loRe64), vget_low_s64(p4loRe64));
+                int64x2_t combhilo34 = vcombine_s64(vget_high_s64(p3loRe64), vget_high_s64(p4loRe64));
+                int64x2_t comblohi34 = vcombine_s64(vget_low_s64(p3hiRe64), vget_low_s64(p4hiRe64));
+                int64x2_t combhihi34 = vcombine_s64(vget_high_s64(p3hiRe64), vget_high_s64(p4hiRe64));
+
+                int16x8_t p5lo = vreinterpretq_s16_s64(comblolo34);
+                int16x8_t p5hi = vreinterpretq_s16_s64(combhilo34);
+                int16x8_t p6lo = vreinterpretq_s16_s64(comblohi34);
+                int16x8_t p6hi = vreinterpretq_s16_s64(combhihi34);
+
+                uint8x8_t line1 = vqmovun_s16(p5lo);
+                uint8x8_t line2 = vqmovun_s16(p5hi);
+                uint8x8_t line3 = vqmovun_s16(p6lo);
+                uint8x8_t line4 = vqmovun_s16(p6hi);
+                vst1_u8(&dst[c][0][x], line1);
+                vst1_u8(&dst[c][1][x], line2);
+                vst1_u8(&dst[c][2][x], line3);
+                vst1_u8(&dst[c][3][x], line4);
+#endif
             }
         }
 
@@ -336,7 +379,7 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
 
             //uchar _mask_vertical[nlanes] = { 0, 8, 4, 12, 1, 9, 5, 13,
             //                                2, 10, 6, 14, 3, 11, 7, 15 };
-            v_uint8 vmask = vx_load(_mask_vertical);
+            //v_uint8 vmask = vx_load(_mask_vertical);
 
             int w = 0;
             for (;;) {
