@@ -309,25 +309,26 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 int16x8_t p4lo = p4.val[0];
                 int16x8_t p4hi = p4.val[1];
 
-                int64x2_t p3loRe64 = vreinterpretq_s64_s16(p3lo);
-                int64x2_t p3hiRe64 = vreinterpretq_s64_s16(p3hi);
-                int64x2_t p4loRe64 = vreinterpretq_s64_s16(p4lo);
-                int64x2_t p4hiRe64 = vreinterpretq_s64_s16(p4hi);
+                uint8x8_t p3lopac = vqmovun_s16(p3lo);
+                uint8x8_t p4lopac = vqmovun_s16(p4lo);
+                uint8x8_t p3hipac = vqmovun_s16(p3hi);
+                uint8x8_t p4hipac = vqmovun_s16(p4hi);
 
-                int64x2_t comblolo34 = vcombine_s64(vget_low_s64(p3loRe64), vget_low_s64(p4loRe64));
-                int64x2_t combhilo34 = vcombine_s64(vget_high_s64(p3loRe64), vget_high_s64(p4loRe64));
-                int64x2_t comblohi34 = vcombine_s64(vget_low_s64(p3hiRe64), vget_low_s64(p4hiRe64));
-                int64x2_t combhihi34 = vcombine_s64(vget_high_s64(p3hiRe64), vget_high_s64(p4hiRe64));
+                int32x2_t p3lopacRe32 = vreinterpret_s32_u8(p3lopac);
+                int32x2_t p4lopacRe32 = vreinterpret_s32_u8(p4lopac);
 
-                int16x8_t p5lo = vreinterpretq_s16_s64(comblolo34);
-                int16x8_t p5hi = vreinterpretq_s16_s64(combhilo34);
-                int16x8_t p6lo = vreinterpretq_s16_s64(comblohi34);
-                int16x8_t p6hi = vreinterpretq_s16_s64(combhihi34);
+                int32x2x2_t p5 = vzip_s32(p3lopacRe32, p4lopacRe32);
 
-                uint8x8_t line1 = vqmovun_s16(p5lo);
-                uint8x8_t line2 = vqmovun_s16(p5hi);
-                uint8x8_t line3 = vqmovun_s16(p6lo);
-                uint8x8_t line4 = vqmovun_s16(p6hi);
+                int32x2_t p3hipacRe32 = vreinterpret_s32_u8(p3hipac);
+                int32x2_t p4hipacRe32 = vreinterpret_s32_u8(p4hipac);
+
+                int32x2x2_t p6 = vzip_s32(p3hipacRe32, p4hipacRe32);
+
+                uint8x8_t line1 = vreinterpret_u8_s32(p5.val[0]);
+                uint8x8_t line2 = vreinterpret_u8_s32(p5.val[1]);
+                uint8x8_t line3 = vreinterpret_u8_s32(p6.val[0]);
+                uint8x8_t line4 = vreinterpret_u8_s32(p6.val[1]);
+
                 vst1_u8(&dst[c][0][x], line1);
                 vst1_u8(&dst[c][1][x], line2);
                 vst1_u8(&dst[c][2][x], line3);
