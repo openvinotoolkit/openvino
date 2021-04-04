@@ -29,15 +29,17 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrecisionsAttribute>::init(const
 }
 
 std::string VariantWrapper<PrecisionsAttribute>::get_string() {
+    const size_t rawPointer = (size_t)m_value.sharedPart->value.get();
+
     std::stringstream ss;
-    ss << "{";
+    ss << "{" << rawPointer << ": ";
     bool first = true;
     for (const auto& value : m_value.sharedPart->value->precisions) {
         if (!first) {
             ss << ", ";
         }
         ss << value;
-        first = true;
+        first = false;
     }
     ss << "}";
     return ss.str();
