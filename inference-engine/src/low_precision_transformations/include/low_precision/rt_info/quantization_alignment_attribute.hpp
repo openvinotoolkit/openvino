@@ -21,32 +21,28 @@ public:
     public:
         class SharedValue {
         public:
-            SharedValue(const float intervalLow, const float intervalHigh) :
+            SharedValue(const float intervalLow, const float intervalHigh, /*const ngraph::element::Type preferedPrecision,*/ const bool hasToBeAligned = false) :
                 intervalLow(intervalLow),
                 intervalHigh(intervalHigh),
-                hasToBeAligned(false) {}
+                //preferedPrecision(preferedPrecision),
+                hasToBeAligned(hasToBeAligned) {}
             float intervalLow;
             float intervalHigh;
+            //ngraph::element::Type preferedPrecision;
             bool hasToBeAligned;
-            std::vector<ngraph::element::Type> defaultPrecisions;
         };
 
         SharedPart(std::shared_ptr<SharedValue> value) : value(value) {}
-        SharedPart(const float intervalLow, const float intervalHigh) : value(std::make_shared<SharedValue>(intervalLow, intervalHigh)) {}
+        SharedPart(const float intervalLow, const float intervalHigh, /*const ngraph::element::Type preferedPrecision,*/ const bool hasToBeAligned = false) :
+            value(std::make_shared<SharedValue>(intervalLow, intervalHigh, /*preferedPrecision,*/ hasToBeAligned)) {}
         std::shared_ptr<SharedValue> value;
     };
 
-    QuantizationAlignmentAttribute(const float intervalLow, const float intervalHigh) :
-        sharedPart(std::make_shared<SharedPart>(intervalLow, intervalHigh)) {}
+    QuantizationAlignmentAttribute(const float intervalLow, const float intervalHigh, /*const ngraph::element::Type preferedPrecision,*/ const bool hasToBeAligned = false) :
+        sharedPart(std::make_shared<SharedPart>(intervalLow, intervalHigh, /*preferedPrecision,*/ hasToBeAligned)) {}
     QuantizationAlignmentAttribute(std::shared_ptr<QuantizationAlignmentAttribute::SharedPart::SharedValue> value) :
         sharedPart(std::make_shared<SharedPart>(value)) {}
     QuantizationAlignmentAttribute(std::shared_ptr<SharedPart> sharedPart) : sharedPart(sharedPart) {}
-
-    template <class Operation>
-    static QuantizationAlignmentAttribute create(const float intervalLow, const float intervalHigh) {
-        auto operationName = Operation::get_type_info_static().name;
-        return QuantizationAlignmentAttribute(intervalLow, intervalHigh);
-    }
 
     std::shared_ptr<SharedPart> sharedPart;
 };
@@ -64,7 +60,6 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    // TODO: not completed for several branches
     std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes) override;
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;

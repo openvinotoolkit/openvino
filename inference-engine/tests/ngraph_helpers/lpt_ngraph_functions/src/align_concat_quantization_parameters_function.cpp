@@ -89,31 +89,31 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
     }
     auto parent = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1));
 
-    //{
-    //    const size_t outputChannels = 9ul;
-    //    const size_t inputChannels = 6ul;
-    //    const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-    //    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
-    //        std::make_shared<opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ngraph::shape_size(shape))),
-    //        precision,
-    //        255,
-    //        {outputChannels, 1, 1, 1},
-    //        std::vector<float>(outputChannels, -1.27f),
-    //        std::vector<float>(outputChannels, 1.27f),
-    //        std::vector<float>(outputChannels, -1.27f),
-    //        std::vector<float>(outputChannels, 1.27f));
-    //    fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
+    {
+        const size_t outputChannels = 9ul;
+        const size_t inputChannels = 6ul;
+        const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
+        const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
+            std::make_shared<opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ngraph::shape_size(shape))),
+            precision,
+            255,
+            {outputChannels, 1, 1, 1},
+            std::vector<float>(outputChannels, -1.27f),
+            std::vector<float>(outputChannels, 1.27f),
+            std::vector<float>(outputChannels, -1.27f),
+            std::vector<float>(outputChannels, 1.27f));
+        fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
-    //    parent = std::make_shared<ngraph::opset1::Convolution>(
-    //        ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
-    //        ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
-    //        ngraph::Strides{ 1, 1 },
-    //        ngraph::CoordinateDiff{ 0, 0 },
-    //        ngraph::CoordinateDiff{ 0, 0 },
-    //        ngraph::Strides{ 1, 1 });
+        parent = std::make_shared<ngraph::opset1::Convolution>(
+            ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
+            ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
+            ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::Strides{ 1, 1 });
 
-    //    parent->set_friendly_name("convolution");
-    //}
+        parent->set_friendly_name("convolution");
+    }
 
     parent->set_friendly_name("output");
 

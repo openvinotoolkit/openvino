@@ -220,7 +220,10 @@ void LayerTransformation::setMinQuantizationLevels(const size_t levels) {
     this->minQuantizationLevels = levels;
 }
 
-LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) const {
+LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) {
+    const float zeroThreshold = 1.e-6f;
+    const float quantizationIntervalAsymmetryThreshold = 0.002f;
+
     const float asymmetricIntervalSideRatio256 = -128.f / 127.f;
     bool hasNegative = false;
     bool signedPrecision = true;
@@ -268,17 +271,26 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
         }
     }
 
-    if (!hasZeroPoint) {
-        if (signedPrecision && (!unsignedPrecision)) {
-            return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
-        }
+    // TODO: changed, not tested
+    //if (!hasZeroPoint) {
+    //    if (signedPrecision && (!unsignedPrecision)) {
+    //        return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
+    //    }
 
-        if ((!signedPrecision) && unsignedPrecision) {
-            return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
-        }
+    //    if ((!signedPrecision) && unsignedPrecision) {
+    //        return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
+    //    }
+    //}
+
+    if (signedPrecision && (!unsignedPrecision)) {
+        return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
     }
 
-    return LayerTransformation::PrecisionDetails(element::undefined, hasNegative, hasZeroPoint);
+    if ((!signedPrecision) && unsignedPrecision) {
+        return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
+    }
+
+    THROW_TRANSFORMATION_EXCEPTION << "unexpected interval";
 }
 
 bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {

@@ -32,7 +32,7 @@ std::string VariantWrapper<PrecisionsAttribute>::get_string() {
     std::stringstream ss;
     ss << "{";
     bool first = true;
-    for (const auto& value : m_value) {
+    for (const auto& value : m_value.sharedPart->value->precisions) {
         if (!first) {
             ss << ", ";
         }

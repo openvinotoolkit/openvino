@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -34,8 +35,12 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
             const float highInterval = *std::max_element(highIntervals.begin(), highIntervals.end());
 
             auto& rtInfo = node->get_rt_info();
+
+            const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ngraph::as_type_ptr<opset1::FakeQuantize>(node));
+            const LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(quantizationDetails);
+
             const auto attribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(
-                QuantizationAlignmentAttribute::create<opset1::FakeQuantize>(lowInterval, highInterval));
+                QuantizationAlignmentAttribute(lowInterval, highInterval/*, precisionDetailsAtOutputIntervals.precision*/));
             rtInfo[ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name] = attribute;
             continue;
         }

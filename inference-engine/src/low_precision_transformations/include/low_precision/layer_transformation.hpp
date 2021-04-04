@@ -275,7 +275,7 @@ public:
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
-    PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
+    static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise

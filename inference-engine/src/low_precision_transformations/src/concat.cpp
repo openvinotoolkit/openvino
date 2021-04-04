@@ -64,7 +64,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     }
 
 
-
+    std::shared_ptr<ngraph::Node> lastDequantization;
 
     std::shared_ptr<ngraph::Node> source = concat;
     std::shared_ptr<ngraph::Node> layer = concat;
@@ -156,7 +156,8 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             std::shared_ptr<ngraph::Node> convert =
                 convertNodes[0]->clone_with_new_inputs({ destination->get_input_source_output(sourceOutputIdx) });
             insert_new_node_between(source, destination, convert);
-            ngraph::copy_runtime_info({ layer, convert }, convert);
+            //ngraph::copy_runtime_info({ layer, convert }, convert);
+            NetworkHelper::copyInfo({ layer, convert }, convert);
             source = convert;
         }
 
@@ -169,7 +170,8 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                     subtractNodes[0] :
                     ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
             insert_new_node_between(source, destination, subtract);
-            ngraph::copy_runtime_info({ layer, subtract }, subtract);
+            //ngraph::copy_runtime_info({ layer, subtract }, subtract);
+            NetworkHelper::copyInfo({ layer, subtract }, subtract);
             source = subtract;
         }
 
@@ -183,14 +185,22 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                         ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1))),
                 layerDequantizations[0].multiply->get_output_element_type(0));
             insert_new_node_between(source, destination, multiply);
-            ngraph::copy_runtime_info({ layer, multiply }, multiply);
+            //ngraph::copy_runtime_info({ layer, multiply }, multiply);
+            NetworkHelper::copyInfo({ layer, multiply }, multiply);
             source = multiply;
+            lastDequantization = multiply;
         }
     }
 
+    // TODO: debug only
+    const auto precision1 = layerDequantizations[0].data.get_element_type();
+    const auto precision2 = layerDequantizations[1].data.get_element_type();
+
     auto newConcat = std::make_shared<opset1::Concat>(OutputVector{ layerDequantizations[0].data, layerDequantizations[1].data }, 1ul);
     replace_node(concat, newConcat);
-    ngraph::copy_runtime_info(concat, newConcat);
+    NetworkHelper::copyInfo(concat, newConcat);
+
+    updateOutput(context, lastDequantization, newConcat);
 
     return true;
 }

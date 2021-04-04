@@ -12,6 +12,7 @@
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_avg_pool_precisions.hpp"
 #include "low_precision/propagate_precisions.hpp"
+#include "low_precision/align_concat_quantization_parameters.hpp"
 
 //#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -79,6 +80,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(restrictions);
     manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
     manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+    manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
 
 
     //{

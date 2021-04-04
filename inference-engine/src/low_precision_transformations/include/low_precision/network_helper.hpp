@@ -66,6 +66,8 @@ public:
 
     static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch);
 
+    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target);
+
     static void copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target);
 
     static void cleanRunTimeInfo(const std::shared_ptr<Node>& layer);

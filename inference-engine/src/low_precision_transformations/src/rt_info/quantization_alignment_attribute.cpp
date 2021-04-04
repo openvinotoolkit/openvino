@@ -60,6 +60,14 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttribute>:
 
         auto& attributeWrapper = std::dynamic_pointer_cast<VariantWrapper<QuantizationAlignmentAttribute>>(rtIt->second);
         QuantizationAlignmentAttribute attribute = attributeWrapper->get();
+        //for (auto precision : attribute.sharedPart->value->defaultPrecisions) {
+        //    if (std::find(
+        //        resultValue->defaultPrecisions.begin(),
+        //        resultValue->defaultPrecisions.end(),
+        //        precision) != resultValue->defaultPrecisions.end()) {
+        //            // TODO: remove here
+        //    }
+        //}
         attribute.sharedPart->value = resultValue;
     }
 
@@ -73,8 +81,8 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttribute>:
 
 std::string VariantWrapper<QuantizationAlignmentAttribute>::get_string() {
     auto value = this->m_value.sharedPart->value;
-    return
-        std::string("low: ") + std::to_string(value->intervalLow) +
-        std::string(", high: ") + std::to_string(value->intervalHigh) +
-        std::string(", hasToBeAligned: ") + (value->hasToBeAligned ? "true" : "false");
+    std::stringstream ss;
+    ss << "low: " << value->intervalLow << ", high: " << value->intervalHigh <<
+        /*", preferedPrecision: " << value->preferedPrecision << */", hasToBeAligned: " << (value->hasToBeAligned ? "true" : "false");
+    return ss.str();
 }

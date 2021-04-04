@@ -20,6 +20,7 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -252,19 +253,29 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     return newMultiply;
 }
 
-void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
+void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target) {
     //// TODO: merge_runtime_info with correctly defined DEQUANTIZATION
     //const auto& sourceAttributes = source->get_rt_info();
     //auto& targetAttrubutes = target->get_rt_info();
     //for (auto attribute : sourceAttributes) {
     //    targetAttrubutes[attribute.first] = attribute.second;
     //}
-    ngraph::copy_runtime_info(source, target);
+    ngraph::copy_runtime_info(sources, target);
 
-    const std::string friendlyName = source->get_friendly_name();
+    auto& rt = target->get_rt_info();
+    if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
+        rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
+        rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name);
+    }
+
+    const std::string friendlyName = sources[0]->get_friendly_name();
     if (!friendlyName.empty()) {
         target->set_friendly_name(friendlyName);
     }
+}
+
+void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
+    copyInfo(std::vector<std::shared_ptr<Node>>{ source }, target);
 }
 
 void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {

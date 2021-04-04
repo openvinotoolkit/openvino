@@ -35,16 +35,26 @@ void setRestriction(
     const std::shared_ptr<Node>& node,
     const std::vector<std::pair<size_t, std::set<ngraph::element::Type>>>& precisionsByPort) {
     if (precisionsByPort.empty()) {
+        // if available precisions for any port is empty then mark all input ports
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
             rt.emplace(
                 ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name,
-                std::make_shared<::ngraph::VariantWrapper<PrecisionsAttribute>>(PrecisionsAttribute()));
+                std::make_shared<::ngraph::VariantWrapper<PrecisionsAttribute>>(PrecisionsAttribute(std::set<element::Type>())));
         }
     } else {
         for (const std::pair<size_t, std::set<ngraph::element::Type>>& item : precisionsByPort) {
             Input<Node> input = node->input(item.first);
             auto& rt = input.get_rt_info();
+
+            // if available precisions for any port is empty then don't update anything
+            const auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+            if (it != rt.end()) {
+                auto precisionsAttribute = std::dynamic_pointer_cast<PrecisionsAttribute>((*it).second);
+                if (precisionsAttribute->sharedPart->value->precisions.empty()) {
+                    return;
+                }
+            }
             rt.emplace(
                 ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name,
                 std::make_shared<::ngraph::VariantWrapper<PrecisionsAttribute>>(item.second));
@@ -102,7 +112,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isDisabled(const std::shared
 
         auto precisionAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
         assert(precisionAttribute != nullptr);
-        const std::set<ngraph::element::Type>& precisionRestrictions = precisionAttribute->get();
+        const std::set<ngraph::element::Type>& precisionRestrictions = precisionAttribute->get().sharedPart->value->precisions;
         if (precisionRestrictions.empty()) {
             return true;
         }

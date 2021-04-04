@@ -62,42 +62,42 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     layer = NetworkHelper::fuseConvert(layer);
     if (NetworkHelper::isConstantPath(layer)) {
-        // fold fq if constant just before fq and child layers aren't supported in LPT
-        if (as_type<opset1::Constant>(layer->get_input_node_ptr(0))) {
-            bool nextOpearionsWillBeNotHandled = true;
-            for (auto output : layer->outputs()) {
-                for (auto input : output.get_target_inputs()) {
-                    const auto node = input.get_node();
+        //// fold fq if constant just before fq and child layers aren't supported in LPT
+        //if (as_type<opset1::Constant>(layer->get_input_node_ptr(0))) {
+        //    bool nextOpearionsWillBeNotHandled = true;
+        //    for (auto output : layer->outputs()) {
+        //        for (auto input : output.get_target_inputs()) {
+        //            const auto node = input.get_node();
 
-                    if (as_type<ngraph::opset1::Reshape>(node)) {
-                        for (const auto& child : NetworkHelper::consumers(node->shared_from_this())) {
-                            if ((as_type_ptr<ngraph::opset1::GroupConvolution>(child)) &&
-                                (paramsManager->getPrecisionsOnActivations(*child).size() != 0ul)) {
-                                nextOpearionsWillBeNotHandled = false;
-                                break;
-                            }
-                        }
-                    }
+        //            if (as_type<ngraph::opset1::Reshape>(node)) {
+        //                for (const auto& child : NetworkHelper::consumers(node->shared_from_this())) {
+        //                    if ((as_type_ptr<ngraph::opset1::GroupConvolution>(child)) &&
+        //                        (paramsManager->getPrecisionsOnActivations(*child).size() != 0ul)) {
+        //                        nextOpearionsWillBeNotHandled = false;
+        //                        break;
+        //                    }
+        //                }
+        //            }
 
-                    if (paramsManager->getPrecisionsOnActivations(*input.get_node()).size() != 0ul) {
-                        nextOpearionsWillBeNotHandled = false;
-                        break;
-                    }
-                }
+        //            if (paramsManager->getPrecisionsOnActivations(*input.get_node()).size() != 0ul) {
+        //                nextOpearionsWillBeNotHandled = false;
+        //                break;
+        //            }
+        //        }
 
-                if (!nextOpearionsWillBeNotHandled) {
-                    break;
-                }
-            }
+        //        if (!nextOpearionsWillBeNotHandled) {
+        //            break;
+        //        }
+        //    }
 
-            if (nextOpearionsWillBeNotHandled) {
-                const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(layer);
-                if (as_type_ptr<opset1::Constant>(resultConstant)) {
-                    replace_node(layer, resultConstant);
-                    return true;
-                }
-            }
-        }
+        //    if (nextOpearionsWillBeNotHandled) {
+        //        const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(layer);
+        //        if (as_type_ptr<opset1::Constant>(resultConstant)) {
+        //            replace_node(layer, resultConstant);
+        //            return true;
+        //        }
+        //    }
+        //}
         return false;
     }
 
@@ -159,13 +159,55 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
 
+    //std::shared_ptr<QuantizationAlignmentAttribute::SharedPart::SharedValue> alignValue;
+    //element::Type preferedPrecision;
+    //{
+    //    auto& rt = layer->get_rt_info();
+    //    auto it = rt.find(ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name);
+    //    if (it != rt.end()) {
+    //        auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(it->second);
+    //        const QuantizationAlignmentAttribute attribute = attributeWrapper->get();
+    //        alignValue = attribute.sharedPart->value->hasToBeAligned ? attribute.sharedPart->value : nullptr;
+    //        preferedPrecision = attribute.sharedPart->value->preferedPrecision;
+    //    }
+    //}
+
+    //DataPrecision dataPrecision;
+    //{
+    //    auto& rt = layer->output(0).get_rt_info();
+    //    auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+    //    if (it != rt.end()) {
+    //        auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
+    //        const PrecisionsAttribute precisions = attribute->get();
+    //        if (precisions.size() == 1ul) {
+    //            //const bool ngraph::element::Type precision = *precisions.begin();
+
+    //            if ((preferedPrecision == element::undefined) || (precisions.find(preferedPrecision) == precisions.end())) {
+    //                // if prefered precisions are not supported then
+    //                preferedPrecision = *precisions.begin();
+    //            }
+    //        }
+    //    }
+    //}
+
+    //{
+    //    PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
+    //    //const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
+    //    dataPrecision = DataPrecision(
+    //        preferedPrecision,
+    //        DataPrecision::getMinValue(preferedPrecision, quantizationDetails.levels),
+    //        DataPrecision::getMaxValue(preferedPrecision, quantizationDetails.levels),
+    //        // foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true
+    //        precisionDetailsAtOutputIntervals.precision == preferedPrecision ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+    //}
+
     DataPrecision dataPrecision;
     {
         auto& rt = layer->output(0).get_rt_info();
         auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
         if (it != rt.end()) {
             auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
-            const PrecisionsAttribute precisions = attribute->get();
+            const std::set<element::Type> precisions = attribute->get().sharedPart->value->precisions;
             if (precisions.size() == 1ul) {
                 //const bool ngraph::element::Type precision = *precisions.begin();
                 const auto precision = *precisions.begin();
@@ -237,6 +279,17 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
         ngraph::copy_runtime_info(sourceNodes, targetNodes);
     } else {
+        //if (preferedPrecision == element::undefined) {
+        //    if (dataPrecision.precision == element::undefined) {
+        //        dataPrecision = getDataPrecision(layer, quantizationDetails, false);
+        //        if (dataPrecision.precision == element::undefined) {
+        //            return false;
+        //        }
+        //    }
+        //} else {
+        //    dataPrecision = DataPrecision();;
+        //}
+
         if (dataPrecision.precision == element::undefined) {
             dataPrecision = getDataPrecision(layer, quantizationDetails, false);
             if (dataPrecision.precision == element::undefined) {
