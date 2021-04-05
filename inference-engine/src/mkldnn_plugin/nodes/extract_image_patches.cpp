@@ -6,6 +6,8 @@
 #include "list.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include <cstring>
+#include <string>
+#include <cmath>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -53,7 +55,8 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
         sub(reg_ow_work_amount, reg_w_lo_pad);
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
-        bool mayiuse_gather = (mayiuse(avx2) || mayiuse(avx512_common)) && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
+        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common))
+                              && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
         if (mayiuse_gather) {
             mov(reg_aux64, ptr[reg_params + GET_OFF(gather_idx)]);
             uni_vmovups(vmm_gather_index, ptr[reg_aux64]);;
@@ -88,6 +91,7 @@ private:
     Xbyak::Xmm xmm_aux = Xbyak::Xmm(2);
     Vmm vmm_gather_index = Vmm(3);
     Vmm vmm_gather_mask = Vmm(4);
+    Opmask k_mask = Xbyak::Opmask(1);
 
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
@@ -142,7 +146,8 @@ private:
                 vgatherdpd(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
                 break;
             case x64::avx512_common:
-                vgatherdpd(vmm_arg, ptr[mem_base + mem_offset]);
+                kxnorq(k_mask, k_mask, k_mask);
+                vgatherdpd(vmm_arg | k_mask, ptr[mem_base + Xbyak::Ymm(mem_offset.getIdx())]);
                 break;
             case x64::sse41:
                 emulate_gather(vmm_arg, mem_base);
@@ -159,7 +164,8 @@ private:
                 vgatherdps(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
                 break;
             case x64::avx512_common:
-                vgatherdps(vmm_arg, ptr[mem_base + mem_offset]);
+                kxnord(k_mask, k_mask, k_mask);
+                vgatherdps(vmm_arg | k_mask, ptr[mem_base + mem_offset]);
                 break;
             case x64::sse41:
                 emulate_gather(vmm_arg, mem_base);
@@ -363,7 +369,8 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             eximpat_kernel.reset(new jit_eximpat_kernel<x64::sse41>(jpp));
         }
         _gather_index.clear();
-        bool mayiuse_gather = (mayiuse(avx2) || mayiuse(avx512_common)) && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
+        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common))
+                                && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
         if (mayiuse_gather) {
             for (int i = 0; i < jpp.block_size; i++)
                 _gather_index.push_back(i * jpp.SW * jpp.dtype_size);

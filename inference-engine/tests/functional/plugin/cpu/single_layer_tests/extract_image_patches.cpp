@@ -65,8 +65,8 @@ TEST_P(ExtractImagePatchesLayerCPUTest, CompareWithRefs) {
 
 namespace {
     const std::vector<ngraph::op::PadType> autoPads = {ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER};
-    const std::vector<Precision> netPrecision = {Precision::FP32, Precision::I8};
-    const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
+    const std::vector<Precision> netPrecision = {Precision::I8, Precision::FP32};
+    const auto ref = CPUSpecificParams{{}, {}, {"ref"}, "ref"};
     const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
     const auto avx2 = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
     const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};

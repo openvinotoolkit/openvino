@@ -6,13 +6,7 @@
 #include "base.hpp"
 #include "caseless.hpp"
 #include "ie_parallel.hpp"
-
-#include <string>
 #include <vector>
-#include <set>
-#include <cmath>
-// algo is for debug purposes
-#include <algorithm>
 
 namespace InferenceEngine {
 namespace Extensions {
