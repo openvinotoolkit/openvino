@@ -402,6 +402,27 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                     v_uint8 q4 = v_shuffle(q2, vmask);
                     v_uint8 q5 = v_shuffle(q3, vmask);
 #else
+#if 1
+                    int16x8x2_t p1 = vzipq_s16(r0.val, r2.val);
+                    int16x8x2_t p2 = vzipq_s16(r1.val, r3.val);
+
+                    int16x8_t p1lo = p1.val[0];
+                    int16x8_t p1hi = p1.val[1];
+
+                    int16x8_t p2lo = p2.val[0];
+                    int16x8_t p2hi = p2.val[1];
+
+                    int16x8x2_t p3 = vzipq_s16(p1lo, p2lo);
+                    int16x8x2_t p4 = vzipq_s16(p1hi, p2hi);
+
+                    uint8x8_t p3lo = vqmovun_s16(p3.val[0]);
+                    uint8x8_t p3hi = vqmovun_s16(p3.val[1]);
+                    uint8x8_t p4lo = vqmovun_s16(p4.val[0]);
+                    uint8x8_t p4hi = vqmovun_s16(p4.val[1]);
+                    v_uint8 q4(vcombine_u8(p3lo, p3hi));
+                    v_uint8 q5(vcombine_u8(p4lo, p4hi));
+
+#else
                     int16x8x2_t p1 = vzipq_s16(r0.val, r1.val);
                     int16x8x2_t p2 = vzipq_s16(r2.val, r3.val);
 
@@ -428,6 +449,7 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                     uint8x8_t a2 = vqmovun_s16(p4lo);
                     uint8x8_t b2 = vqmovun_s16(p4hi);
                     v_uint8 q5(vcombine_u8(a2, b2));
+#endif
 #endif
                     vx_store(&tmp[4 * w + 0], q4);
                     vx_store(&tmp[4 * w + 2 * half_nlanes], q5);
