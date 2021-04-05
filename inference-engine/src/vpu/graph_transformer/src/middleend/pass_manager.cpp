@@ -15,6 +15,7 @@
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_inject_stages.hpp>
 #include <vpu/configuration/options/hw_dilation.hpp>
+#include <vpu/configuration/options/enable_weights_analysis.hpp>
 
 namespace vpu {
 
@@ -130,7 +131,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // To overcome fp16 limitations
     //
 
-    if (env.config.get<HwAccelerationOption>() && env.config.compileConfig().enableWeightsAnalysis) {
+    if (env.config.get<HwAccelerationOption>() && env.config.get<EnableWeightsAnalysisOption>()) {
         ADD_PASS(analyzeWeightableLayers);
         ADD_DUMP_PASS("analyzeWeightableLayers");
     }

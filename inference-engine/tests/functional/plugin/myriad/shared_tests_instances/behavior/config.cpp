@@ -136,7 +136,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "10"},
             {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"},
-            {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(YES)},
+            {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER},
             {KEY_PERF_COUNT, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, CONFIG_VALUE(NO)},
@@ -244,6 +244,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, {false}},
         {InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, {false}},
         {KEY_EXCLUSIVE_ASYNC_REQUESTS, {false}},
+        {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, {true}},
     };
     return defaultEntries;
 }
@@ -352,6 +353,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
         std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }
@@ -404,6 +408,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_TENSOR_STRIDES,
         InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS,
         InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,
+        InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS,
     };
     return privateOptions;
 }
@@ -519,7 +524,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "-10"},
             {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, "-10"},
             {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-10"},
-            {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "OFF"},
             {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "Two"},
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, "ON"},
             {InferenceEngine::MYRIAD_WATCHDOG, "OFF"},

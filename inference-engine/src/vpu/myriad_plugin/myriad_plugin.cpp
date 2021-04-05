@@ -43,6 +43,7 @@
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
+#include <vpu/configuration/options/enable_weights_analysis.hpp>
 
 #include "myriad_plugin.h"
 
@@ -193,6 +194,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<IgnoreUnknownLayersOption>();
     _parsedConfig.registerOption<ForcePureTensorIteratorOption>();
     _parsedConfig.registerOption<ExclusiveAsyncRequestsOption>();
+    _parsedConfig.registerOption<EnableWeightsAnalysisOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

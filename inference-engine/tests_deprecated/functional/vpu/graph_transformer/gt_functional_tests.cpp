@@ -31,6 +31,7 @@
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
+#include <vpu/configuration/options/enable_weights_analysis.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -92,6 +93,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<IgnoreUnknownLayersOption>();
     _configuration.registerOption<ForcePureTensorIteratorOption>();
     _configuration.registerOption<ExclusiveAsyncRequestsOption>();
+    _configuration.registerOption<EnableWeightsAnalysisOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

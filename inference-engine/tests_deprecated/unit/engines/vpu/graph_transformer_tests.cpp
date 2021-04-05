@@ -32,6 +32,7 @@
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
+#include <vpu/configuration/options/enable_weights_analysis.hpp>
 
 namespace vpu {
 
@@ -208,6 +209,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<IgnoreUnknownLayersOption>();
     configuration.registerOption<ForcePureTensorIteratorOption>();
     configuration.registerOption<ExclusiveAsyncRequestsOption>();
+    configuration.registerOption<EnableWeightsAnalysisOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
