@@ -157,12 +157,12 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         bool no_output_optimization = remove_output_reorders ?
             r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
-                    r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
+                r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
         if (r_node.has_mean() ||
-                !r_node.get_primitive()->subtract_per_feature.empty() ||
-                no_output_optimization ||
-                !r_node.get_fused_activations_funcs().empty())
+            !r_node.get_primitive()->subtract_per_feature.empty() ||
+            no_output_optimization ||
+            !r_node.get_fused_activations_funcs().empty())
             continue;
 
         auto o_layout = r_node.get_output_layout();
@@ -171,11 +171,11 @@ void remove_redundant_reorders::run(program_impl& p) {
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
-                i_layout.size.spatial[0] == 1 && i_layout.size.spatial[1] == 1 &&
-                i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
-                i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
-                o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
-                i_layout.data_type == o_layout.data_type) {
+            i_layout.size.spatial[0] == 1 && i_layout.size.spatial[1] == 1 &&
+            i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
+            i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
+            o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
+            i_layout.data_type == o_layout.data_type) {
             r_node.can_be_optimized(true);
             r_node.requires_reinterpret(true);
 
@@ -195,6 +195,7 @@ void remove_redundant_reorders::run(program_impl& p) {
             r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
             continue;
         }
+
         auto ident = program_helpers::are_layouts_identical(o_layout, i_layout);
 
         if (!ident.second)
@@ -212,7 +213,7 @@ void remove_redundant_reorders::run(program_impl& p) {
                 p.add_optimized_primitive_info(r_node.get_primitive()->id);
             }
             p.extract_and_remove(
-                    r_node);  // try to remove if possible (with respect to r_node not being marked as output)
+                r_node);  // try to remove if possible (with respect to r_node not being marked as output)
         }
     }
 
@@ -263,6 +264,7 @@ void remove_redundant_reorders::run(program_impl& p) {
             p.remove_if_dangling(*remove_reorder_node);
         }
     }
+
     // This pass removed reorder if previous node can store directly to required layout
     itr = p.get_processing_order().begin();
     if (enable_reorder_fusing) {
@@ -306,7 +308,6 @@ void remove_redundant_reorders::run(program_impl& p) {
         }
     }
     // This pass removed reorder if the next node supports reorder's input format and data type doesn't change
-
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node_ptr = *itr++;
@@ -316,9 +317,9 @@ void remove_redundant_reorders::run(program_impl& p) {
         auto& usr = node_ptr->get_users().front();
         auto& dep = node_ptr->get_dependency(0);
         if (!usr->is_type<quantize>() ||
-                (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
-                 dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
-                 dep.get_output_layout().format != format::bfyx))
+            (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
+             dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
+             dep.get_output_layout().format != format::bfyx))
             continue;
 
         auto& node = node_ptr->as<reorder>();
