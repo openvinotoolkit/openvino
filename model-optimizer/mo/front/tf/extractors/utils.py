@@ -74,7 +74,14 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
     if len(shape) == 0 or shape.prod() == 0:
         if len(value) == 1:
             # return scalar if shape is [] otherwise broadcast according to shape
-            return np.array(value[0], dtype=type_helper[0])
+            try:
+                value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+            except UnicodeDecodeError:
+                log.error(
+                    'Failed to parse a tensor with Unicode characters. Note that Inference Engine does not support '
+                    'string literals, so the string constant should be eliminated from the graph.',
+                    extra={'is_warning': True})
+                value = np.array(type_helper[1](pb_tensor))
         else:
             # no shape, return value as is
             return value
