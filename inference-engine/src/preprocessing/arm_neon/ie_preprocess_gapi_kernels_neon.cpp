@@ -127,6 +127,19 @@ void copyRow_32F(const float in[], float out[], int length) {
     copyRow_32F_impl(in, out, length);
 }
 
+// Resize (bi-linear, 32F)
+void calcRowLinear_32F(float* dst[],
+                       const float* src0[],
+                       const float* src1[],
+                       const float  alpha[],
+                       const int    mapsx[],
+                       const float  beta[],
+                       const Size& inSz,
+                       const Size& outSz,
+                       const int   lpi) {
+    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
+}
+
 template<int chanNum>
 CV_ALWAYS_INLINE void channels2planes_store(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
                                             const uchar* src, const int width,
