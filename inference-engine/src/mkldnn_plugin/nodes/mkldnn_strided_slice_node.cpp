@@ -88,15 +88,15 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
             THROW_ERROR << "should have stride vector with size equal to begin vector size";
     }
 
-    auto createMask = [&](const char* maskName, std::vector<int>& mask) {
+    auto createMask = [&](const char* maskName, std::vector<int>& mask, const int bit = 0) {
         mask = stridedSliceLayer->GetParamAsInts(maskName);
         if (strcmp(maskName, "ellipsis_mask") != 0 || mask.size() == 0) {
-            for (size_t i = mask.size(); i < dstDims.size(); ++i) mask.push_back(0);
+            for (size_t i = mask.size(); i < dstDims.size(); ++i) mask.push_back(bit);
         }
     };
 
-    createMask("begin_mask", beginMask);
-    createMask("end_mask", endMask);
+    createMask("begin_mask", beginMask, 1);
+    createMask("end_mask", endMask, 1);
     createMask("new_axis_mask", newAxisMask);
     createMask("shrink_axis_mask", shrinkAxisMask);
     createMask("ellipsis_mask", ellipsisMask);
@@ -131,7 +131,7 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
         if (beginDims.size())
             fillingInParameters(begin, BEGIN_ID, beginDims[0], 0);
         if (endDims.size())
-            fillingInParameters(end, END_ID, endDims[0], -1);
+            fillingInParameters(end, END_ID, endDims[0], 0);
         if (strideDims.size())
             fillingInParameters(stride, STRIDE_ID, strideDims[0], 1);
 
@@ -160,8 +160,8 @@ void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims) {
     addHiddenDims(begin);
     addHiddenDims(end);
     addHiddenDims(stride, 1);
-    addHiddenDims(beginMask, 1);
-    addHiddenDims(endMask, 1);
+    addHiddenDims(beginMask);
+    addHiddenDims(endMask);
     addHiddenDims(ellipsisMask);
     addHiddenDims(newAxisMask);
     addHiddenDims(shrinkAxisMask);
