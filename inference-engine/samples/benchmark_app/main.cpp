@@ -67,6 +67,14 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
     }
 
+    bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
+    bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
+    if (isNetworkCompiled && isPrecisionSet) {
+        std::string err = std::string("Cannot set precision for a compiled network. ") +
+                          std::string("Please re-compile your network with required precision using compile_tool");
+
+        throw std::logic_error(err);
+    }
     return true;
 }
 
@@ -370,16 +378,23 @@ int main(int argc, char *argv[]) {
             topology_name = cnnNetwork.getName();
             slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
 
-            // ----------------- 6. Configuring input ----------------------------------------------------------------------
+            // ----------------- 6. Configuring inputs and outputs ----------------------------------------------------------------------
             next_step();
 
-            for (auto& item : inputInfo) {
-                if (app_inputs_info.at(item.first).isImage()) {
-                    /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
+            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            for (auto& item : cnnNetwork.getInputsInfo()) {
+                // if precision for input set by user, then set it to app_inputs
+                // if it an image, set U8
+                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos) {
+                    app_inputs_info.at(item.first).precision = item.second->getPrecision();
+                } else if (app_inputs_info.at(item.first).isImage()) {
                     app_inputs_info.at(item.first).precision = Precision::U8;
                     item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
+
+
+            printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
             startTime = Time::now();
