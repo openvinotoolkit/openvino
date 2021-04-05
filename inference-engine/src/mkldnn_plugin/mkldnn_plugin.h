@@ -47,12 +47,14 @@ private:
     struct NetworkPerfStats {
         float maxMemTolerance = -1;
         float ratio_compute_convs = 0;
+        float ratio_mem_limited_convs = 0;
         float ratio_compute_deconvs = 0;
 
         // static constexpr float memComputeConvs = 0.25f;
         static constexpr float memThresholdNotLimited = 1.0f;
         static constexpr float memThresholdAssumeLimited = 0.5f;
         static constexpr float memThresholdUnknown = FLT_MAX;
+        static constexpr float memLimitedRatioThreshold = 0.05;
         static constexpr float ALL = 1.0f;
     };
     static NetworkPerfStats NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network);

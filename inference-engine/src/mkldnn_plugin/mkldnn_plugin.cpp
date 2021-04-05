@@ -556,6 +556,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
 
     NetworkPerfStats res;
     res.maxMemTolerance = worst_case;
+    res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs)/total_convs : 0;
     res.ratio_compute_convs = total_convs ? static_cast<float>(compute_convs)/total_convs : 0;
     res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
     return res;
@@ -624,9 +625,21 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 //      Hybrid specific
                 //      etc
                 int num_streams;
-                 if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdNotLimited
-                     || (NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
-                     || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
+                bool considerNonLimited = false;
+                if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdNotLimited) {
+                    std::cout << "case 1.0" <<std::endl;
+                    considerNonLimited = true;
+                }
+                if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
+                                                || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
+                    std::cout << "case 1.1" <<std::endl;
+                    considerNonLimited = true;
+                }
+                if (num_cores >= 12 && (NetworkToleranceForLowCache.ratio_mem_limited_convs <= NetworkPerfStats::memLimitedRatioThreshold)) {
+                    std::cout << "case 1.2" <<std::endl;
+                    considerNonLimited = true;
+                }
+                if (considerNonLimited) {
                     num_streams = num_cores;
                     std::cout << "case 1" <<std::endl;
 //                    if (NetworkToleranceForLowCache.ratio_compute_convs > NetworkPerfStats::memComputeConvs) {
@@ -635,8 +648,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 //                        std::cout << "ENABLING HT!!!" << std::endl;
 //                    }
                 } else if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
-                     num_streams = default_num_streams;
-                     std::cout << "case 0" <<std::endl;
+                    num_streams = default_num_streams;
+                    std::cout << "case 0" <<std::endl;
                  } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
                     num_streams = std::max(default_num_streams, num_streams_default_not_ht);
                     std::cout << "case 2" <<std::endl;
