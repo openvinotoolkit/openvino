@@ -48,6 +48,7 @@ DEFINE_string(i, "", image_message);
 /// @brief Define parameter for set model file <br>
 /// It is a required parameter
 DEFINE_string(m, "", model_message);
+DEFINE_string(m2, "", model_message);
 
 /// @brief device the target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
