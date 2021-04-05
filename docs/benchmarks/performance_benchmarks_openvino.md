@@ -211,14 +211,14 @@ Testing by Intel done on: see test date for each HW platform below.
 |                      | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                               | Intel® Core™ i3-8100               | 
 | -------------------- | --------------------------------------|-------------------------------                    |----------------------------------- |
 | Motherboard          |                                       | Intel Corporation /<br>ElkhartLake LPDDR4x T3 CRB | GIGABYTE* Z390 UD                  |
-| CPU                  | Intel Atom® Processor E3940 @ 1.60GHz | Intel Atom® x6425RE Processor @ 1.90GHz           | Intel® Core™ i3-8100 CPU @ 3.60GHz |
+| CPU                  | Intel Atom® Processor E3940 @ 1.60GHz | Intel Atom® x6425RE<br>Processor @ 1.90GHz        | Intel® Core™ i3-8100 CPU @ 3.60GHz |
 | Hyper Threading      | OFF                                   | OFF                                               | OFF                                |
 | Turbo Setting        | ON                                    | ON                                                | OFF                                |
 | Memory               | 1 x 8 GB DDR3 1600MHz                 | 2 x 4GB DDR4 3200 MHz                             | 4 x 8 GB DDR4 2400MHz              |
 | Operating System     | Ubuntu* 18.04 LTS                     | Ubuntu* 18.04 LTS                                 | Ubuntu* 18.04 LTS                  |
 | Kernel Version       | 5.3.0-24-generic                      | 5.8.0-050800-generic                              | 5.3.0-24-generic                   |
 | BIOS Vendor          | American Megatrends Inc.*             | Intel Corporation                                 | American Megatrends Inc.*          |
-| BIOS Version         | 5.12                                  | EHLSFWI1.R00.2463.A03.2011200425                  | F8                                 |
+| BIOS Version         | 5.12                                  | EHLSFWI1.R00.2463.<br>A03.2011200425              | F8                                 |
 | BIOS Release         | September 6, 2017                     | November 22, 2020                                 | May 24, 2019                       |
 | BIOS Settings        | Default settings                      | Default settings                                  | Select optimized default settings, <br> set OS type to "other", <br>save & exit |
 | Batch size           | 1                                     | 1                                                 | 1                                  |
