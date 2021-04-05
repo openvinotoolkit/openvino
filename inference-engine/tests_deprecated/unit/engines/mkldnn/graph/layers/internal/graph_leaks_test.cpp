@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,13 +16,12 @@ using namespace mkldnn;
 class MKLDNNTestExecNetwork: public MKLDNNPlugin::MKLDNNExecNetwork {
 public:
     MKLDNNPlugin::MKLDNNGraph& getGraph() {
-        return *(_graphs.begin()->get());
+        return _graphs.front();
     }
 };
 
 struct TestExecutableNetworkBase : public InferenceEngine::ExecutableNetworkBase {
     using InferenceEngine::ExecutableNetworkBase::_impl;
-    ~TestExecutableNetworkBase() override = default;
 };
 
 static MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetwork::Ptr execNetwork) {

@@ -1,24 +1,9 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#define CL_HPP_ENABLE_EXCEPTIONS
-#define CL_HPP_MINIMUM_OPENCL_VERSION 120
-#define CL_HPP_TARGET_OPENCL_VERSION 120
 #include <cl2_wrapper.h>
 #include "gpu/device_info.h"
 #include "api/device.hpp"
@@ -72,8 +57,8 @@ private:
     std::vector<allocation_type> _caps;
 
     bool does_device_support(int32_t param, const cl::Device& device) {
-        cl_unified_shared_memory_capabilities_intel capabilities;
-        auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_unified_shared_memory_capabilities_intel), &capabilities, NULL);
+        cl_device_unified_shared_memory_capabilities_intel capabilities;
+        auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, NULL);
         if (err) throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
         return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
     }

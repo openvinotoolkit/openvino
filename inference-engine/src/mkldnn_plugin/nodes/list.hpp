@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,10 +82,6 @@ public:
     }
 
     void Unload() noexcept override {}
-
-    void Release() noexcept override {
-        delete this;
-    }
 
     using LayersFactory = openvino::cc::Factory<
                                 std::string,

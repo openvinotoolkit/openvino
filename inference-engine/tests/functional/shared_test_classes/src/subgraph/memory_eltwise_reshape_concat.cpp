@@ -1,7 +1,6 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 
@@ -128,6 +127,7 @@ void MemoryEltwiseReshapeConcatTest::Run() {
                                                                             memory_init.data(), memory_init.size());
     states[0].SetState(state_values_blob);
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     Infer();
     initNgraphFriendlyModel();
     Validate();

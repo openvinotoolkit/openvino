@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "mvn_inst.h"
 #include "primitive_type_base.h"
@@ -44,6 +32,7 @@ std::string mvn_inst::to_string(mvn_node const& node) {
     auto epsilon = desc->epsilon;
     auto across_channels = desc->across_channels ? "true" : "false";
     auto normalize_variance = desc->normalize_variance ? "true" : "false";
+    auto eps_inside_sqrt = desc->eps_inside_sqrt ? "true" : "false";
     auto& input = node.input();
 
     std::stringstream primitive_description;
@@ -53,6 +42,7 @@ std::string mvn_inst::to_string(mvn_node const& node) {
     mvn_info.add("epsilon", epsilon);
     mvn_info.add("across_channels region", across_channels);
     mvn_info.add("normalize_variance region", normalize_variance);
+    mvn_info.add("eps_inside_sqrt region", eps_inside_sqrt);
 
     node_info->add("mvn info", mvn_info);
     node_info->dump(primitive_description);

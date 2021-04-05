@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ namespace SubgraphTestsDefinitions {
 
 TEST_P(EltwiseAfterConvTest, CompareWithRefImpl) {
     LoadNetwork();
+    GenerateInputs();
     Infer();
     // Create another copy of function for validation since some data will be changed by GNA plugin
     SetUp();
@@ -18,6 +19,7 @@ TEST_P(EltwiseAfterConvTest, CompareWithRefImpl) {
 
 TEST_P(EltwiseBeforeConvTest, CompareWithRefImpl) {
     LoadNetwork();
+    GenerateInputs();
     Infer();
     // Create another copy of function for validation since some data will be changed by GNA plugin
     SetUp();

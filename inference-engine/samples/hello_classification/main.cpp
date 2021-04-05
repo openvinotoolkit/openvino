@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@
 #include <inference_engine.hpp>
 #include <samples/ocv_common.hpp>
 #include <samples/classification_results.h>
+#include <frontend_manager/frontend_manager.hpp>
+
 
 using namespace InferenceEngine;
 
@@ -88,7 +90,14 @@ int main(int argc, char *argv[]) {
 
         // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
-        if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
+//        ngraph::frontend::FrontEndManager manager;
+//        auto FE = manager.loadByFramework("pdpd");
+//        auto inputModel = FE->loadFromFile(input_model);
+//        //inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
+//        auto ngFunc = FE->convert(inputModel);
+//        CNNNetwork network(ngFunc);
+
+        //if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
         if (network.getInputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 input only");
         // -----------------------------------------------------------------------------------------------------
 
@@ -105,10 +114,14 @@ int main(int argc, char *argv[]) {
         input_info->setPrecision(Precision::U8);
 
         // --------------------------- Prepare output blobs ----------------------------------------------------
-        DataPtr output_info = network.getOutputsInfo().begin()->second;
-        std::string output_name = network.getOutputsInfo().begin()->first;
+        std::vector<DataPtr> output_info;
+        std::vector<std::string> output_name;
+        for (auto &out : network.getOutputsInfo()) {
+            out.second->setPrecision(Precision::FP32);
+            output_info.push_back(out.second);
+            output_name.push_back(out.first);
+        }
 
-        output_info->setPrecision(Precision::FP32);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 4. Loading model to the device ------------------------------------------
@@ -132,10 +145,12 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 8. Process output ------------------------------------------------------
-        Blob::Ptr output = infer_request.GetBlob(output_name);
-        // Print classification results
-        ClassificationResult_t classificationResult(output, {input_image_path});
-        classificationResult.print();
+        for (auto name : output_name) {
+            Blob::Ptr output = infer_request.GetBlob(name);
+            // Print classification results
+            ClassificationResult_t classificationResult(output, {input_image_path});
+            classificationResult.print();
+        }
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception & ex) {
         std::cerr << ex.what() << std::endl;

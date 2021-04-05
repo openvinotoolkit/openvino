@@ -21,7 +21,7 @@ CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
     uint32_t plane,
     BlobType mem_type) :
     m_context(context), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr) {
+    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
 }
 
 ParamMap CLDNNRemoteBlobImpl::getParams() const {
@@ -62,7 +62,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(VA_PLANE),  params.plane }
         };
     default:
-        THROW_IE_EXCEPTION << "Unsupported shared object type " << m_mem_type;
+        IE_THROW() << "Unsupported shared object type " << m_mem_type;
     }
 }
 
@@ -110,7 +110,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_image(*eng, m_layout, m_mem)));
             break;
         default:
-            THROW_IE_EXCEPTION << unsupported_str << m_mem_type;
+            IE_THROW() << unsupported_str << m_mem_type;
         }
     }
 
@@ -151,7 +151,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
 
 const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
     if (!_allocator) {
-        _allocator = shared_from_irelease(reinterpret_cast<IAllocator*>(&m_allocator));
+        _allocator = std::shared_ptr<IAllocator>(&m_allocator, [] (IAllocator*) {});
     }
     return _allocator;
 };
@@ -240,7 +240,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
             m_va_display = _va_device = _ObjFromParamSimple<gpu_handle_param>(params, GPU_PARAM_KEY(VA_DEVICE));
             m_type = ContextType::DEV_SHARED;
         } else {
-            THROW_IE_EXCEPTION << "Invalid execution context type" << contextTypeStr;
+            IE_THROW() << "Invalid execution context type" << contextTypeStr;
         }
     }
 
@@ -267,7 +267,8 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
                 m_config.queueThrottle,
                 m_config.memory_pool_on,
                 m_config.throughput_streams,
-                m_config.kernels_cache_dir));
+                m_config.kernels_cache_dir,
+                m_config.n_threads));
     }
 }
 
@@ -283,7 +284,7 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
         ret[GPU_PARAM_KEY(VA_DEVICE)] = m_va_display;
         break;
     default:
-        THROW_IE_EXCEPTION << "Unsupported shared context type " << m_type;
+        IE_THROW() << "Unsupported shared context type " << m_type;
     }
 
     return ret;

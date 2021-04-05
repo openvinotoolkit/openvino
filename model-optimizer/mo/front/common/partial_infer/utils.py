@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 from typing import Iterable, List, Union
@@ -20,16 +7,16 @@ from typing import Iterable, List, Union
 import numpy as np
 
 
-def int64_array(l: Iterable):
-    return np.array(l, dtype=np.int64)
+def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.int64)
 
 
-def float_array(l: list):
-    return np.array(l, dtype=np.float64)
+def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.float64)
 
 
-def float32_array(l: list):
-    return np.array(l, dtype=np.float32)
+def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.float32)
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
@@ -132,7 +119,7 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
             in_idx += 1
         elif s is np.newaxis:
             output_shape.append(1)
-        elif isinstance(s, int):  # shrink_axis
+        elif type(s) in [int, np.int, np.int32, np.int64]:  # shrink_axis
             in_idx += 1
         elif s is Ellipsis:
             for idx in range(num_ellipsis_inserts):

@@ -34,6 +34,9 @@ add_library(ngraph::frontend_manager ALIAS frontend_manager)
 target_include_directories(frontend_manager
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/../tensorflow/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_editor/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_import/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/include
             ${CMAKE_CURRENT_SOURCE_DIR}/../paddlepaddle/include)
 
 MESSAGE("HERE4: " ${CMAKE_CURRENT_SOURCE_DIR})
@@ -45,7 +48,7 @@ endif()
 
 # TODO: Add other frontends to the list of dependencies temporary; in the produce version they should be discovered
 # TODO: in runtime.
-target_link_libraries(frontend_manager PRIVATE onnx_importer tensorflow_frontend paddlepaddle_frontend PUBLIC ngraph)
+target_link_libraries(frontend_manager PRIVATE onnx_importer onnx_editor onnx_common tensorflow_frontend paddlepaddle_frontend PUBLIC ngraph)
 
 set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
 target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>

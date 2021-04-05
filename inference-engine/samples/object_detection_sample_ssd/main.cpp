@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include <vpu/vpu_tools_common.hpp>
 #include <vpu/vpu_plugin_config.hpp>
 
 #include "object_detection_sample_ssd.h"
@@ -87,7 +86,7 @@ int main(int argc, char *argv[]) {
 
         if (!FLAGS_l.empty()) {
             // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-            IExtensionPtr extension_ptr = make_so_pointer<IExtension>(FLAGS_l);
+            IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
             slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
         }

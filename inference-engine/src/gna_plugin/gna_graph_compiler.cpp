@@ -264,6 +264,17 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         std::swap(convolution._dilation_x, convolution._dilation_y);
     }
 
+    // Map 2d convolution to 1d if it's possible
+    if (in_height > 1 && in_width > 1 && in_width == convolution._kernel_x && convolution._stride_x == 1) {
+        in_width *= in_height;
+        in_height = 1;
+        out_width *= out_height;
+        out_height = 1;
+        convolution._stride_x *= (convolution._stride_y * convolution._kernel_x);
+        convolution._kernel_x *= convolution._kernel_y;
+        convolution._kernel_y = 1;
+    }
+
     if (in_batch != 1 || out_batch != 1) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
@@ -313,6 +324,12 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     const auto inputs = convolution.insData.front().lock();
     const auto outputs = convolution.outData.front();
+
+    if (layer->GetParamAsString("auto_pad", "explicit") != "valid" &&
+        (convolution._padding[0] != 0 || convolution._padding[0] != 0 ||
+         convolution._pads_end[0] != 0 || convolution._pads_end[1] != 0)) {
+        THROW_GNA_LAYER_EXCEPTION(&convolution) << "Padding isn't supported by GNA";
+    }
 
     std::size_t calculated_out_width = (in_width * in_height - convolution._kernel_x + 2 * convolution._padding_x) / convolution._stride_x + 1;
     if (out_width * in_height != calculated_out_width) {
@@ -523,8 +540,26 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     // TODO add function
     // printConvolution2DLayer(convolution);
 
-    if (convolution._kernel_x > in_width ||
-        convolution._kernel_y > in_height) {
+    auto effectiveInputWidth = in_width;
+    auto effectiveInputHeight = in_height;
+
+    if (policy.cnn2dInputPaddingSupported) {
+        effectiveInputWidth += convolution._padding_x * 2;
+        effectiveInputHeight += convolution._padding_y * 2;
+    } else if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
+        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
+    }
+
+    if (convolution._padding_x != convolution._pads_end.at(X_AXIS)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along X axis";
+    }
+    if (convolution._padding_y != convolution._pads_end.at(Y_AXIS)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along Y axis";
+    }
+
+    if (convolution._kernel_x > effectiveInputWidth ||
+        convolution._kernel_y > effectiveInputHeight) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions XY (" << convolution._kernel_x << ", " << convolution._kernel_y << ")"
             << " are bigger than input dimensions WH (" << in_width << "," << in_height << ")";
     }
@@ -582,7 +617,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         { {out_batch, out_height, out_width, out_channels}, outputPrec, {} },
         { {filter_n, convolution._kernel_y, convolution._kernel_x, in_channels}, weightPrec, {} },
         { {filter_n}, biasPrec, {} },
-        { convolution._stride_x , convolution._stride_y},
+        { convolution._stride_y, convolution._stride_x},
+        { convolution._padding_y, convolution._padding_x },
         weight_scale_factor,
         output_scale_factor,
         ptr_inputs,
@@ -618,31 +654,6 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     }
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
-
-    // When there's a NCHW convolution as a last layer, the output needs to be transposed back to NCHW
-    // TODO: Jira: 43659 - the issue also appears when after conv there's an eltwise or activation
-    // For last layer or when next ones are only non functional, the data can be reordered when exporting scores
-    // For other cases inserting permute is required if data are reordered
-    auto isNonFunctional = [](CNNLayerPtr l) {
-        return LayerInfo(l).isNonFunctional();
-    };
-    if (getInputTo(outputs).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
-        // if height dim and width dim both equal 1, the permute is not needed to return correct results
-        // if height dim doesn't equal 1, the case requires additional permute
-        // auto inputDimsCheck = (in_channels != 1 ||
-        //     (in_height == 1 && in_width == 1) ||
-        //     in_height != 1);
-        const auto outputNeedsTranspose = out_channels > 1 && out_height * out_width > 1;
-
-        //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
-        // auto kernelCheck = convolution._kernel_x > 15 && !(convolution._kernel_x & (convolution._kernel_x - 1));
-        // if (!inputDimsCheck && !kernelCheck) {
-        if (outputNeedsTranspose) {
-            dnn->do_rotate_output = true;
-            dnn->num_rotate_output_rows = out_height * out_width;
-            dnn->num_rotate_output_columns = out_channels;
-        }
-    }
 
     const auto kernelHW = convolution._kernel_y * convolution._kernel_x;
 
@@ -680,7 +691,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     IE_ASSERT(gnaFlags->sw_fp32 ? (quantized == nullptr) : (quantized != nullptr));
 
     if (power.power < 0.0f || power.power > 2.8f) {
-        THROW_IE_EXCEPTION << "[GNA plugin] unsupported power factor, expected be in <0, 2.8> range but was " << power.power;
+        IE_THROW() << "[GNA plugin] unsupported power factor, expected be in <0, 2.8> range but was " << power.power;
     }
 
     auto input = layer->insData[0].lock();
@@ -746,6 +757,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto orientation = kDnnInterleavedOrientation;
 
         auto activation_type = DnnActivation::fromType(kActPow);
+        activation_type.fqParams.set = false;
+        activation_type.srcFQParams.set = false;
         activation_type.args.pow.exponent = power.power;
         activation_type.args.pow.scale = power.scale;
         activation_type.args.pow.offset = power.offset;
@@ -774,7 +787,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                 PwlDesignOpt16(activation_type,
                     ptr_pwl_segments,
                     input_pwl_scale_factor,
-                    output_pwl_scale_factor);
+                    output_pwl_scale_factor,
+                    gnaFlags->pwlMaxErrorPercent);
             }
         }
 
@@ -819,27 +833,21 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
+    const auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
     uint32_t w_dim_in = FROM_IR_DIM(inputs, in_order[3]);
     uint32_t h_dim_in = FROM_IR_DIM(inputs, in_order[2]);
-    uint32_t c_dim_in = FROM_IR_DIM(inputs, in_order[1]);
+    const uint32_t c_dim_in = FROM_IR_DIM(inputs, in_order[1]);
 
-    auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
+    const auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
     uint32_t w_dim_out = FROM_IR_DIM(outputs, out_order[3]);
     uint32_t h_dim_out = FROM_IR_DIM(outputs, out_order[2]);
-    uint32_t c_dim_out = FROM_IR_DIM(outputs, out_order[1]);
+    const uint32_t c_dim_out = FROM_IR_DIM(outputs, out_order[1]);
 
     if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
         swap(h_dim_in, w_dim_in);
         swap(h_dim_out, w_dim_out);
         swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
     }
-
-    uint32_t num_rows_in = w_dim_in;
-    uint32_t num_columns_in = c_dim_in;
-    uint32_t num_rows_out = w_dim_out;
-    uint32_t num_columns_out = c_dim_out;
-    uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
@@ -856,16 +864,12 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     dnn->InitMaxpoolComponent(currentComponent,
-        1,
-        num_columns_in * num_rows_in,
-        1,
-        num_columns_out * num_rows_out,
+        { c_dim_in, h_dim_in, w_dim_in },
+        { c_dim_out, h_dim_out, w_dim_out },
         inputs->getPrecision().size(),
         outputs->getPrecision().size(),
-        pooling._kernel[X_AXIS],
-        pooling._kernel[X_AXIS],
-        num_columns_in,
-        false,
+        { pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS] },
+        { pooling._stride[X_AXIS], pooling._stride[Y_AXIS] },
         quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
         ptr_inputs,
         ptr_outputs);
@@ -873,7 +877,11 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
 
-    size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * inputs->getPrecision().size();
+    const auto hw_in = h_dim_in * w_dim_in;
+
+    // TODO: Is this really needed?, find out why
+    uint32_t num_padding = ALIGN(hw_in, 8) - hw_in;
+    size_t num_data_bytes_in = c_dim_in * (hw_in + num_padding) * inputs->getPrecision().size();
 
     connectInput(layer, ptr_inputs, num_data_bytes_in);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
@@ -1345,7 +1353,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         // direct order is 0, 1, 2, 3, supported order is only 0,3,2,1 where dim 2 is usually equals to 1
         auto permuteOrder = connectionInfo.permute->GetParamAsInts("order");
         if (permuteOrder != vector<int>({ 0, 3, 2, 1 })) {
-            THROW_IE_EXCEPTION << "[GNA plugin] Unsupported permute order: was " << layer->GetParamAsString("order") <<
+            IE_THROW() << "[GNA plugin] Unsupported permute order: was " << layer->GetParamAsString("order") <<
                 ", but only support 0, 3, 2, 1";
         }
 
@@ -1353,7 +1361,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
          * TODO: weights transpose happened after quantisation might result in poor quality for in 8 - move this to passes
          */
         if (weightable._weights->getTensorDesc().getPrecision() == Precision::I8) {
-            THROW_IE_EXCEPTION << "[GNA plugin] Unsupported permute operation for 8 bit weights for layer: " << layer->name;
+            IE_THROW() << "[GNA plugin] Unsupported permute operation for 8 bit weights for layer: " << layer->name;
         }
 
         // this affine connected to convolution via pool or activation
@@ -1372,7 +1380,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 64);
         } else {
             gnamem->readonly().push_initializer(ptr_weights, weightable._weights->byteSize(), [=](void* data, size_t size) {
-                for (int k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
+                for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
                     auto rowOffset = k * transposedRows * transposedCols * weightable.precision.size();
                     auto cbuffer = weightable._weights->cbuffer().as<const uint8_t*>() + rowOffset;
                     auto u8Data = reinterpret_cast<uint8_t*>(data) + rowOffset;
@@ -1401,7 +1409,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         auto paddedWeightsSize = paddedWeights * weightable.precision.size();
 
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
-            for (int i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
+            for (uint32_t i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
                 ie_memcpy(data, size,
                     weightable._weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * weightable.precision.size(),
                     num_rows_in * weightable.precision.size());
@@ -1655,7 +1663,7 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
 
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
             size_t offset = 0;
-            for (int i = 0; i < num_rows_out && size >= offset; i++) {
+            for (uint32_t i = 0; i < num_rows_out && size >= offset; i++) {
                 ie_memcpy(reinterpret_cast<uint8_t*>(data) + offset, size - offset,
                     filterLayer->_weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * filterLayer->precision.size(),
                     num_rows_in* filterLayer->precision.size());
@@ -1671,14 +1679,6 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
             64);
     } else {
         gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
-    }
-}
-
-void GNAGraphCompiler::FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr layer) {
-    // in FP32 mode lets use special form of activation that satisfies fakeQuantize formula
-    if (gnaFlags->sw_fp32) {
-        PWLPrimitive(layer);
-        return;
     }
 }
 
@@ -1774,6 +1774,24 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         THROW_GNA_EXCEPTION << "Activation function type not yet supported: " << type;
     }
     auto activation_type = DnnActivation::fromType(it->second);
+    activation_type.fqParams.set = false;
+    if (quantized != nullptr && quantized->_dst_quant.IsStatsSet()) {
+        activation_type.fqParams.set = true;
+        activation_type.fqParams.levels = quantized->_dst_quant.GetLevels();
+        activation_type.fqParams.inputPerChannel = false;
+        activation_type.fqParams.input_low = &(quantized->_dst_quant.GetMinValues(true).front());
+        activation_type.fqParams.input_high = &(quantized->_dst_quant.GetMaxValues(true).front());
+    }
+
+    activation_type.srcFQParams.set = false;
+    if (quantized != nullptr && quantized->_src_quant.IsStatsSet()) {
+        activation_type.srcFQParams.set = true;
+        activation_type.srcFQParams.levels = quantized->_src_quant.GetLevels();
+        activation_type.srcFQParams.inputPerChannel = false;
+        activation_type.srcFQParams.input_low = &(quantized->_src_quant.GetMinValues(true).front());
+        activation_type.srcFQParams.input_high = &(quantized->_src_quant.GetMaxValues(true).front());
+    }
+
     if (it->second == kActRelu) {
         auto reluLayer = dynamic_cast<ReLULayer*>(layer.get());
         activation_type.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
@@ -1781,11 +1799,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type.args.lrelu.negative_slope = 0.0f;
     }
 
-    if (it->second == kActFakeQuantize) {
+    if (quantized == nullptr && it->second == kActFakeQuantize) {
         activation_type = GNAFakeQuantizeLayer(layer).parseAsActivation();
-    }
-
-    if (it->second == kActKaldiLstmClipping) {
+    } else if (it->second == kActKaldiLstmClipping) {
         auto clamp_layer = dynamic_cast<ClampLayer*>(layer.get());
         if (clamp_layer) {
             if (clamp_layer->min_value == 0 && clamp_layer->max_value == 0) {
@@ -1862,7 +1878,8 @@ case name:\
             PwlDesignOpt16(activation_type,
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                output_pwl_scale_factor,
+                gnaFlags->pwlMaxErrorPercent);
         }
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
     }
@@ -2007,7 +2024,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{DelayedCopyLayerName}, CREATE(CopyPrimitive)},
         {{"TensorIterator"}, SKIP},
         {{"LSTMCell"}, SKIP},
-        {{"FakeQuantize"}, CREATE(FakeQuantizePrimitive)}  // TODO: fakequantize layer should be properly converted to GNA scale factors for integer case
+        {{"FakeQuantize"}, CREATE(PWLPrimitive)}
     };
     (void)layersBuilder;
     auto it = LayersBuilder::getStorage().find(layer->type);

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 
 #include "ngraph_ops/type_relaxed.hpp"
 #include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 // branch specific transformations
 #include "low_precision/concat.hpp"
@@ -217,10 +218,12 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
         add<InterpolateTransformation, opset1::Interpolate>(params).
+        add<InterpolateTransformation, opset4::Interpolate>(params).
         add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
         add<MVNTransformation, op::MVN>(params).
+        add<MVNTransformation, opset6::MVN>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
         add<PReluTransformation, opset1::PRelu>(params).
         add<ReluTransformation, opset1::Relu>(params).
@@ -229,7 +232,6 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<StridedSliceTransformation, opset1::StridedSlice>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
-        add<InterpolateTransformation, opset4::Interpolate>(params).
 
         addCleanup<FoldConvertTransformation, opset1::Subtract>(params).
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
@@ -331,6 +333,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Interpolate>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
     make_matcher_type_relaxed<op::MVN>(this);
+    make_matcher_type_relaxed<opset6::MVN>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
     make_matcher_type_relaxed<opset4::Interpolate>(this);
 }

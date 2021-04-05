@@ -196,11 +196,19 @@ std::shared_ptr<ngraph::Function>
             } else if (op.type() == "fetch") {
                 auto input_node = inputs_dict["X"][0];
                 MY_ASSERT(nodes_dict.find(input_node) != nodes_dict.end());
-                result_nodes.push_back(std::make_shared<ngraph::opset6::Result>(nodes_dict[input_node]));
+                auto result = std::make_shared<ngraph::opset6::Result>(nodes_dict[input_node]);
+                result->set_friendly_name(input_node);
+                result_nodes.push_back(result);
             } else {
                 auto node = make_ng_node(inputs_dict, nodes_dict, op, block, CREATORS_MAP);
-                std::cerr << "Node created: " << node << "\n";
-                node->set_friendly_name(op.outputs()[0].parameter());
+                std::string layer_name;
+                for (const auto& outs : outputs_dict) {
+                    for (const auto& fieldName : outs.second) {
+                        layer_name += fieldName;
+                    }
+                }
+                node->set_friendly_name(layer_name);
+
                 std::cerr << "Named with " << node->get_friendly_name() << "\n";
                 for (const auto &item : outputs_dict) {
                     MY_ASSERT(item.second.size() <= 1);

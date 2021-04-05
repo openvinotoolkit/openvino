@@ -1,14 +1,8 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(X86_64)
-    set(ENABLE_MKL_DNN_DEFAULT ON)
-else()
-    set(ENABLE_MKL_DNN_DEFAULT OFF)
-endif()
-
-ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ${ENABLE_MKL_DNN_DEFAULT})
+ie_dependent_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON "X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
@@ -26,6 +20,14 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
                ALLOWED_VALUES ON OFF COLLECT)
 
 ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" OFF)
+
+
+#
+# enable or disable output from NGRAPH_DEBUG statements
+#
+if(NGRAPH_DEBUG_ENABLE)
+    add_definitions(-DNGRAPH_DEBUG_ENABLE)
+endif()
 
 #
 # Process options

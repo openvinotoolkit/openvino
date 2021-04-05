@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "include/fetch.cl"
 #include "include/imad.cl"
@@ -225,8 +215,11 @@ KERNEL(mvn_var_1)(const __global INPUT0_TYPE* input,
 #elif MVN_KERNEL_VAR_2
 
 DECLARE_PACKED_ACCUMULATE(accumulate_sum, MEAN_TYPE, MEAN_TYPE, FSV, INPUT_SLICE_PITCH, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
-
-#define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+#if defined EPS_OUTSIDE_SQRT
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr(native_sqrt((sum_diff_sq) / ITEMS_NUM) + (MEAN_TYPE)EPSILON, -1.f);
+#elif defined EPS_INSIDE_SQRT
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+#endif
 #if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_var_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC_INVERSE_VARIANCE)
 #else
@@ -281,7 +274,11 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
 #define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, next - intel_sub_group_shuffle(mean, idx), idx)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
-#define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+#if defined EPS_OUTSIDE_SQRT
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr(native_sqrt((sum_diff_sq) / ITEMS_NUM) + (MEAN_TYPE)EPSILON, -1.f);
+#elif defined EPS_INSIDE_SQRT
+    #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+#endif
 #if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, SG_NUM, CALC_INVERSE_VARIANCE)
 #else

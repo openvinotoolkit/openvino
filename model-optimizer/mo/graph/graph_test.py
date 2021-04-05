@@ -1,25 +1,12 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
 import numpy as np
 from generator import generator, generate
 
-from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs
+from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
 from mo.ops.const import Const
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
@@ -1628,3 +1615,57 @@ class TestDictIncludesCompareAttrs(unittest.TestCase):
     def test_regular_string(self):
         self.assertTrue(dict_includes_compare_attrs("abc", "abc"))
         self.assertFalse(dict_includes_compare_attrs("abc", "abd"))
+
+
+class TestGetSetAttributeBetweenNodes(unittest.TestCase):
+    nodes = {
+        'A': {'id': 0, 'kind': 'op'},
+        'B': {'id': 1, 'kind': 'op'},
+        'C': {'id': 2, 'kind': 'op'},
+        'D': {'id': 3, 'kind': 'op'},
+        'E': {'id': 4, 'kind': 'op'},
+        'F': {'id': 5, 'kind': 'op'},
+    }
+
+    def build_test_graph(self):
+        graph = build_graph(self.nodes, [
+            ('A', 'D', {'in': 0, 'out': 0, 'Attr': "A-D"}),
+            ('A', 'E', {'in': 0, 'out': 1, 'Attr': "A-E"}),
+            ('A', 'F', {'in': 0, 'out': 2, 'Attr': "A-F"}),
+            ('B', 'D', {'in': 1, 'out': 0, 'Attr': "B-D"}),
+            ('B', 'F', {'in': 2, 'out': 1, 'Attr': "B-F"}),
+        ])
+        return graph
+
+    def test_get_attribute_between_nodes(self):
+        graph = self.build_test_graph()
+        a_node = Node(graph, 'A')
+        b_node = Node(graph, 'B')
+        d_node = Node(graph, 'D')
+        e_node = Node(graph, 'E')
+        f_node = Node(graph, 'F')
+        self.assertTrue(get_edge_attribute_between_nodes(a_node, d_node, 'Attr') == "A-D")
+        self.assertTrue(get_edge_attribute_between_nodes(a_node, e_node, 'Attr') == "A-E")
+        self.assertTrue(get_edge_attribute_between_nodes(a_node, f_node, 'Attr') == "A-F")
+        self.assertTrue(get_edge_attribute_between_nodes(b_node, d_node, 'Attr') == "B-D")
+        self.assertTrue(get_edge_attribute_between_nodes(b_node, f_node, 'Attr') == "B-F")
+
+    def test_set_attribute_between_nodes(self):
+        graph = self.build_test_graph()
+        a_node = Node(graph, 'A')
+        b_node = Node(graph, 'B')
+        d_node = Node(graph, 'D')
+        e_node = Node(graph, 'E')
+        f_node = Node(graph, 'F')
+
+        set_edge_attribute_between_nodes(a_node, d_node, 'Attr', 'new_value_1')
+        set_edge_attribute_between_nodes(a_node, e_node, 'Attr', 'new_value_2')
+        set_edge_attribute_between_nodes(a_node, f_node, 'Attr', 'new_value_3')
+        set_edge_attribute_between_nodes(b_node, d_node, 'Attr', 'new_value_4')
+        set_edge_attribute_between_nodes(b_node, f_node, 'Attr', 'new_value_5')
+
+        self.assertTrue(get_edge_attribute_between_nodes(a_node, d_node, 'Attr') == "new_value_1")
+        self.assertTrue(get_edge_attribute_between_nodes(a_node, e_node, 'Attr') == "new_value_2")
+        self.assertTrue(get_edge_attribute_between_nodes(a_node, f_node, 'Attr') == "new_value_3")
+        self.assertTrue(get_edge_attribute_between_nodes(b_node, d_node, 'Attr') == "new_value_4")
+        self.assertTrue(get_edge_attribute_between_nodes(b_node, f_node, 'Attr') == "new_value_5")

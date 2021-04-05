@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -893,7 +893,7 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
 
     auto* binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(getCnnLayer().get());
     if (binConvLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
+        IE_THROW() << "Cannot convert convolution layer.";
 
     std::string errorPrefix = "BinaryConvolution layer with name '" + getName() + "' ";
 
@@ -910,29 +910,29 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
 
     group = binConvLayer->_group;
     if (group != 1) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support parameter group != 1";
+        IE_THROW() << errorPrefix << "doesn't support parameter group != 1";
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of input edges";
+        IE_THROW() << errorPrefix << "has incorrect number of input edges";
 
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errorPrefix << "has incorrect number of output edges";
+        IE_THROW() << errorPrefix << "has incorrect number of output edges";
 
     if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
     if (getParentEdgeAt(1)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
 
     if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
     }
 
     if ((getParentEdgeAt(0)->getDims().ndims() < 4) || (getParentEdgeAt(0)->getDims().ndims() > 5)) {
-        THROW_IE_EXCEPTION << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
+        IE_THROW() << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
     }
 
     pad_value = binConvLayer->_pad_value;
@@ -991,13 +991,17 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNBinaryConvolutionNode::createPrimitive() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcDims = config.inConfs[0].desc.getDims();
     auto weiDims = config.inConfs[1].desc.getDims();
     auto dstDims = config.outConfs[0].desc.getDims();
 
-    auto implType = getSelectedPrimitiveDescriptor()->getImplementationType();
+    auto implType = selectedPrimitiveDescriptor->getImplementationType();
 
     jcp.ngroups = group;
     jcp.mb = srcDims[0];
@@ -1059,7 +1063,7 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
     bool args_ok = jcp.l_pad <= jcp.ur_w && (r_pad_no_tail <= jcp.ur_w) && (jcp.l_pad <= jcp.ur_w) &&
                    IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok)
-        THROW_IE_EXCEPTION << "BinaryConvolution with name '" << getName() << "' has unsupported parameters";
+        IE_THROW() << "BinaryConvolution with name '" << getName() << "' has unsupported parameters";
 
     if (implType == impl_desc_type::jit_avx512) {
         bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_common>(jcp, jcp_dw_conv, *attr.get()));
@@ -1092,12 +1096,12 @@ bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
     if (node->getType() == Quantize) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
         if (quantizeNode == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get quantize node " << node->getName();
+            IE_THROW() << "Cannot get quantize node " << node->getName();
         return quantizeNode->isBinarization();
     } else if (node->getType() == Eltwise) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
         if (eltwiseNode == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get eltwise node " << node->getName();
+            IE_THROW() << "Cannot get eltwise node " << node->getName();
 
         // Only one Add operation can be fused since it is implemented via output blob reuse
         if (eltwiseNode->isSum()) {
@@ -1136,7 +1140,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
             continue;
         }
 
-        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
@@ -1295,7 +1299,11 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
     auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->GetPtr());
     auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcBlockDesc = config.inConfs[0].desc.getBlockingDesc();
     std::vector<size_t> srcStride(srcBlockDesc.getStrides().size());
@@ -1315,7 +1323,7 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
         dstStride[dstBlockDesc.getOrder()[i]] = dstBlockDesc.getStrides()[i];
     }
 
-    auto implType = getSelectedPrimitiveDescriptor()->getImplementationType();
+    auto implType = selectedPrimitiveDescriptor->getImplementationType();
     if (implType != impl_desc_type::ref) {
         executeOptimized(src, weights, dst, srcStride, weightsStride, dstStride);
     } else {

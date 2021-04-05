@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,10 @@ public:
     void createInputs(std::vector<DataDesc> inputDescs = {});
     void createOutputs(std::vector<DataDesc> outputDescs = {});
 
-    Stage addStage(const std::vector<InputInfo>& curInputInfos, const std::vector<OutputInfo>& curOutputInfos);
+    Stage addStage(
+            const std::vector<InputInfo>& curInputInfos,
+            const std::vector<OutputInfo>& curOutputInfos,
+            StageType stageType = StageType::None);
 
     void setStageDataOrderInfo(
             int stageInd,
