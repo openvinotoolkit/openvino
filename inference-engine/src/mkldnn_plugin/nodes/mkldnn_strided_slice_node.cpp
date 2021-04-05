@@ -160,8 +160,8 @@ void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims) {
     addHiddenDims(begin);
     addHiddenDims(end);
     addHiddenDims(stride, 1);
-    addHiddenDims(beginMask);
-    addHiddenDims(endMask);
+    addHiddenDims(beginMask, 1);
+    addHiddenDims(endMask, 1);
     addHiddenDims(ellipsisMask);
     addHiddenDims(newAxisMask);
     addHiddenDims(shrinkAxisMask);
