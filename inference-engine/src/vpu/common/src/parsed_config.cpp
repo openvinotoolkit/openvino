@@ -60,8 +60,6 @@ IE_SUPPRESS_DEPRECATED_START
         // Debug options
         //
 
-        ie::MYRIAD_HW_WHITE_LIST,
-
         ie::MYRIAD_NONE_LAYERS,
 
         ie::MYRIAD_COMPILER_LOG_FILE_PATH,
@@ -155,7 +153,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
-    setOption(_compileConfig.hwWhiteList,                              config, ie::MYRIAD_HW_WHITE_LIST, parseStringSet);
 
     // Priority is set to VPU configuration file over plug-in config.
     setOption(_compileConfig.customLayers,                             config, ie::MYRIAD_CUSTOM_LAYERS);

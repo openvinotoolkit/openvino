@@ -27,8 +27,6 @@ struct CompilationConfig {
     // Debug options
     //
 
-    InferenceEngine::details::caseless_set<std::string> hwWhiteList;
-
     InferenceEngine::details::caseless_set<std::string> noneLayers;
 
     bool skipAllLayers() const {
