@@ -309,8 +309,7 @@ namespace ngraph
                     {
                         int64_t idx = indices[indices_offset + i];
                         float score = refined_scores[rois_num * c + idx];
-                        conf_index_class_map.push_back(
-                            std::make_pair(score, std::make_pair(c, idx)));
+                        conf_index_class_map.emplace_back(score, std::make_pair(c, idx));
                     }
                     indices_offset += n;
                 }
