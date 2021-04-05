@@ -50,11 +50,12 @@ private:
         float ratio_mem_limited_convs = 0;
         float ratio_compute_deconvs = 0;
 
-        // static constexpr float memComputeConvs = 0.25f;
         static constexpr float memThresholdNotLimited = 1.0f;
         static constexpr float memThresholdAssumeLimited = 0.5f;
+        static constexpr float memThresholdAssumeLimitedAVX512 = memThresholdAssumeLimited/2;
         static constexpr float memThresholdUnknown = FLT_MAX;
-        static constexpr float memLimitedRatioThreshold = 0.05;
+
+        static constexpr float memLimitedRatioThresholdAVX512 = 0.10;
         static constexpr float ALL = 1.0f;
     };
     static NetworkPerfStats NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network);

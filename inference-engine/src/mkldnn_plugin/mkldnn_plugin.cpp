@@ -558,7 +558,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
     return res;
 }
-
+static bool hasAVX512();
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
@@ -624,16 +624,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 int num_streams;
                 bool considerNonLimited = false;
                 if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdNotLimited) {
-                    std::cout << "case 1.0" <<std::endl;
+                    std::cout << "  case 1.0" <<std::endl;
                     considerNonLimited = true;
                 }
                 if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
                                                 || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
-                    std::cout << "case 1.1" <<std::endl;
+                    std::cout << "  case 1.1" <<std::endl;
                     considerNonLimited = true;
                 }
-                if (num_cores >= 12 && (NetworkToleranceForLowCache.ratio_mem_limited_convs <= NetworkPerfStats::memLimitedRatioThreshold)) {
-                    std::cout << "case 1.2" <<std::endl;
+                if (hasAVX512() && NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimitedAVX512
+                        && (NetworkToleranceForLowCache.ratio_mem_limited_convs <= NetworkPerfStats::memLimitedRatioThresholdAVX512)) {
+                    std::cout << "  case 1.2" <<std::endl;
                     considerNonLimited = true;
                 }
                 if (considerNonLimited) {
