@@ -40,8 +40,6 @@ IE_SUPPRESS_DEPRECATED_START
         // Private options
         //
 
-        ie::MYRIAD_TENSOR_STRIDES,
-
         ie::MYRIAD_DETECT_NETWORK_BATCH,
         ie::MYRIAD_COPY_OPTIMIZATION,
         ie::MYRIAD_HW_INJECT_STAGES,
@@ -186,8 +184,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
         throw std::invalid_argument("Value must be positive or default(-1).");
     };
-
-    setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 
     setOption(_compileConfig.enableMemoryTypesAnnotation,    switches, config, ie::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
 

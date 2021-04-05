@@ -24,8 +24,6 @@ struct CompilationConfig {
     bool forceDeprecatedCnnConversion = false;
     bool enableEarlyEltwiseReLUFusion = true;
 
-    std::map<std::string, std::vector<int>> ioStrides;
-
     //
     // Debug options
     //

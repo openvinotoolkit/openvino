@@ -81,7 +81,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {
             {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "2"},
             {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, "2"},
-        }
+        },
+
+        {{InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]"}},
 
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
@@ -121,6 +123,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER},
             {KEY_PERF_COUNT, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, CONFIG_VALUE(NO)},
+            {InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]"},
         },
     };
 
@@ -211,6 +214,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS_AUTO}},
         {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES_AUTO}},
         {InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, {std::string()}},
+        {InferenceEngine::MYRIAD_TENSOR_STRIDES, {std::map<std::string, std::vector<int>>()}},
     };
     return defaultEntries;
 }
@@ -302,6 +306,8 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, "/.", InferenceEngine::Parameter{"/."}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]", InferenceEngine::Parameter{std::map<std::string, std::vector<int>>{{"tensor", {4, 3, 2, 1}}}}),
     };
     return customEntries;
 }
@@ -348,6 +354,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_PERF_REPORT_MODE,
         InferenceEngine::MYRIAD_PACK_DATA_IN_CMX,
         InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY,
+        InferenceEngine::MYRIAD_TENSOR_STRIDES,
     };
     return privateOptions;
 }
@@ -413,6 +420,8 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, "ON"}},
         {{InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, "OFF"}},
 
+        {{InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor(1,2,3,4)"}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"}},
 
@@ -452,6 +461,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_PERF_REPORT_MODE, "PER_LAYER"},
             {KEY_PERF_COUNT, "ON"},
             {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, "OFF"},
+            {InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor(1,2,3,4)"},
         },
     };
     return incorrectConfigs;

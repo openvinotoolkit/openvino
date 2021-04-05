@@ -24,6 +24,7 @@
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/tensor_strides.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -383,6 +384,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<NumberOfCMXSlicesOption>();
     configuration.registerOption<ThroughputStreamsOption>();
     configuration.registerOption<IRWithScalesDirectoryOption>();
+    configuration.registerOption<TensorStridesOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

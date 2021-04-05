@@ -37,6 +37,7 @@
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/tensor_strides.hpp>
 
 #include "myriad_plugin.h"
 
@@ -182,6 +183,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<NumberOfCMXSlicesOption>();
     _parsedConfig.registerOption<ThroughputStreamsOption>();
     _parsedConfig.registerOption<IRWithScalesDirectoryOption>();
+    _parsedConfig.registerOption<TensorStridesOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

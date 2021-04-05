@@ -25,6 +25,7 @@
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/tensor_strides.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -80,6 +81,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<NumberOfCMXSlicesOption>();
     _configuration.registerOption<ThroughputStreamsOption>();
     _configuration.registerOption<IRWithScalesDirectoryOption>();
+    _configuration.registerOption<TensorStridesOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
