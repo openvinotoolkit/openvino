@@ -80,7 +80,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str):
             logger.error(f" {folder_path} is not a directory!")
             continue
 
-        xml_reports = glob.glob(os.path.join(folder_path, '**/report*.xml'))
+        xml_reports = glob.glob(os.path.join(folder_path, 'report*.xml'))
 
         xml_root = ET.parse(xml_reports[0]).getroot()
         for op in xml_root.find("ops_list"):
