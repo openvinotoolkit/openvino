@@ -238,20 +238,11 @@ namespace ngraph
                                          const std::vector<int64_t>& fft_strides,
                                          const std::vector<int64_t>& output_fft_strides)
                 {
-                    //int64_t num_of_fft_axes = static_cast<int64_t>(fft_strides.size()) - 1;
-                    //
                     for (int64_t idx = 0; idx < fft_size; ++idx)
                     {
                         auto coords = coords_from_index(idx, fft_strides);
                         complex_type value = data[idx];
                         int64_t offset = offset_from_coords_and_strides(coords, output_fft_strides);
-                        //
-                        // int64_t offset = 0;
-                        // for (int64_t i = 0; i < num_of_fft_axes; ++i)
-                        // {
-                        //     int64_t coord = coords[i];
-                        //     offset += coord * output_fft_strides[i];
-                        // }
 
                         output[dst_index + offset] = value;
                     }
