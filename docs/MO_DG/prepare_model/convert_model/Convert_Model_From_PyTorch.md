@@ -26,10 +26,11 @@ It is not a full list of models that can be converted to ONNX\* and to IR.
 * QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using [instruction](pytorch_specific/Convert_QuartzNet.md)
 * YOLACT topology can be converted using [instruction](pytorch_specific/Convert_YOLACT.md)
 
-## Export PyTorch\* model to ONNX\* format <a name="export-to-onnx"></a>
+## Export PyTorch\* Model to ONNX\* Format <a name="export-to-onnx"></a>
 
-PyTorch models are defined in a Python\* code, to export such models `torch.onnx.export()` method should be used.
-We will cover only the basics here, the step to export to ONNX\* is crucial but it is covered by PyTorch\* framework, for more information, please refer to [PyTorch\* documentation](https://pytorch.org/docs/stable/onnx.html).
+PyTorch models are defined in a Python\* code, to export such models use `torch.onnx.export()` method.
+Only the basics will be covered here, the step to export to ONNX\* is crucial but it is covered by PyTorch\* framework.
+For more information, please refer to [PyTorch\* documentation](https://pytorch.org/docs/stable/onnx.html).
 
 To export a PyTorch\* model you basically need to obtain the model as an instance of `torch.nn.Module` class and call the export function.
 ```python
@@ -45,8 +46,8 @@ dummy_input = torch.randn(1, 3, 224, 224)
 torch.onnx.export(model, (dummy_input, ), 'model.onnx')
 ```
 
-## Known issues
+## Known Issues
 
 * Not all PyTorch\* operations can be exported to ONNX\* opset 9 which is used by default, as of version 1.8.1.
-We recommend to export models to opset 11 when export to default opset 9 is not working. For that case, use `opset_version`
-option of the `torch.onnx.export`.
+It is recommended to export models to opset 11 when export to default opset 9 is not working. In that case, use `opset_version`
+option of the `torch.onnx.export`. For more information about ONNX* opset, refer to the [Operator Schemas](https://github.com/onnx/onnx/blob/master/docs/Operators.md).
