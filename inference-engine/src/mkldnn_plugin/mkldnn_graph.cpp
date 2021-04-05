@@ -42,6 +42,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
+#include <transformations/utils/utils.hpp>
 
 /*****************************************************
  * Debug capability
@@ -239,15 +240,16 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
-            auto prev = op->get_input_node_shared_ptr(0);
-            std::string inputID;
-            inputID = prev->get_friendly_name();
-            if (prev->get_output_size() > 1) {
-                inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
+            const auto &input = op->input_value(0);
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            auto name = input.get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
+            if (name.empty()) {
+                name = ngraph::op::util::create_ie_output_name(input);
             }
 
-            if (outputsInfo.count(inputID) != 0) {
-                outputNodesMap[inputID] = node;
+            if (outputsInfo.count(name) != 0) {
+                outputNodesMap[name] = node;
             }
         }
 
