@@ -126,6 +126,189 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
 
+NGRAPH_RTTI_DEFINITION(op::v7::Gather, "Gather", 7);
+
+op::v7::Gather::Gather(const Output<Node>& data,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis,
+                       const int64_t batch_dims)
+    : Op({data, indices, axis})
+    , m_batch_dims(batch_dims)
+{
+    constructor_validate_and_infer_types();
+}
+
+bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v7_Gather_visit_attributes);
+    visitor.on_attribute("batch_dims", m_batch_dims);
+    return true;
+}
+
+void op::v7::Gather::validate_and_infer_types()
+{
+    NGRAPH_OP_SCOPE(v7_Gather_validate_and_infer_types);
+    const auto& data_type = get_input_element_type(0);
+    const auto& indices_type = get_input_element_type(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          indices_type == element::Type_t::i32 ||
+                              indices_type == element::Type_t::i64,
+                          "indices must be of int32 or int64 type. But instead got: ",
+                          indices_type);
+
+    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& indices_pshape = get_input_partial_shape(1);
+    const auto& axis_pshape = get_input_partial_shape(2);
+    auto data_rank = data_pshape.rank();
+    auto indices_rank = indices_pshape.rank();
+    auto axis_rank = axis_pshape.rank();
+
+    if (axis_rank.is_static() && axis_pshape.is_static())
+    {
+        const auto axis_is_scalar = axis_rank.get_length() == 0;
+        const auto axis_has_one_elem =
+            axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
+        NODE_VALIDATION_CHECK(
+            this,
+            axis_is_scalar || axis_has_one_elem,
+            "Axes input must be scalar or have 1 element. But instead got axis_shape = ",
+            axis_pshape);
+    }
+
+    int64_t batch_dims = get_batch_dims(); // will not be converted to positive if axis is not set
+    if (is_axis_set())
+    {
+        int64_t axis = get_axis();
+        NODE_VALIDATION_CHECK(this,
+                              batch_dims <= axis,
+                              "The batch_dims <= axis. But instead got: batch_dims = ",
+                              batch_dims,
+                              ", axis = ",
+                              axis);
+
+        if (data_rank.is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  axis >= 0 && axis < data_rank.get_length(),
+                                  "The axis must be => 0 and < data_rank. But instead got axis = ",
+                                  axis,
+                                  " data_rank = ",
+                                  data_rank.get_length());
+        }
+    }
+
+    if (indices_rank.is_static() && batch_dims >= 0)
+    {
+        NODE_VALIDATION_CHECK(
+            this,
+            batch_dims < indices_rank.get_length(),
+            "The batch_dims must be < indices_rank. But instead got: batch_dims = ",
+            batch_dims,
+            ", indices_rank = ",
+            indices_rank.get_length());
+    }
+
+    if (data_rank.is_static() && indices_rank.is_static())
+    {
+        if (batch_dims >= 0)
+        {
+            auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
+            PartialShape output_pshape = PartialShape::dynamic(out_rank);
+
+            // implementation of out_shape formula
+            // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
+            // data.shape[axis + 1:]
+            int i = 0;
+            for (; i < batch_dims; i++)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      data_pshape[i].compatible(indices_pshape[i]),
+                                      "Shapes ",
+                                      data_pshape,
+                                      " and ",
+                                      indices_pshape,
+                                      " are not consistent. data and indices must have equal or "
+                                      "intersecting sizes until batch_dims");
+
+                output_pshape[i] = data_pshape[i] & indices_pshape[i];
+            }
+
+            if (is_axis_set())
+            {
+                int64_t axis = get_axis();
+                for (; i < axis; i++)
+                {
+                    output_pshape[i] = data_pshape[i];
+                }
+                for (; i < axis + indices_rank.get_length() - batch_dims; i++)
+                {
+                    output_pshape[i] = indices_pshape[batch_dims - axis + i];
+                }
+                for (; i < out_rank; i++)
+                {
+                    output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
+                }
+            }
+
+            set_output_type(0, data_type, output_pshape);
+        }
+        else if (batch_dims < 0)
+        {
+            // batch_dims < 0 could be only if axis is not set
+            // as soon as axis value will arrive negative batch_dims should be resolved
+            // batch_dims value will be within [0, data_rank] && [0, indices_rank]
+            int64_t max_rank = data_rank.get_length() + indices_rank.get_length() - 1;
+            int64_t min_rank = max_rank - max(data_rank.get_length(), indices_rank.get_length());
+
+            set_output_type(0, data_type, PartialShape::dynamic(Dimension(min_rank, max_rank)));
+        }
+    }
+    else
+    {
+        set_output_type(0, data_type, PartialShape::dynamic());
+    }
+}
+
+int64_t op::v7::Gather::get_axis() const
+{
+    const auto& const_op = get_constant_from_source(input_value(2));
+    int64_t axis = const_op->cast_vector<int64_t>()[0];
+    if (axis < 0)
+    {
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        if (data_rank.is_static())
+        {
+            axis += data_rank.get_length();
+        }
+    }
+    return axis;
+}
+
+int64_t op::v7::Gather::get_batch_dims() const
+{
+    if (m_batch_dims < 0 && is_axis_set())
+        return get_axis() + m_batch_dims;
+    else
+        return m_batch_dims;
+}
+
+bool op::v7::Gather::is_axis_set() const
+{
+    const auto& axes_constant = get_constant_from_source(input_value(2));
+    if (axes_constant)
+        return true;
+    else
+        return false;
+}
+
+shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    NGRAPH_OP_SCOPE(v7_Gather_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v7::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
+}
+
 namespace gather
 {
     template <element::Type_t ET>
