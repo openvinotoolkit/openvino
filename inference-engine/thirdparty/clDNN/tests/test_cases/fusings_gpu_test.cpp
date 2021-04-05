@@ -5943,7 +5943,7 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
     create_topologies(input_layout("input", get_input_layout(p)),
         data("scatter_elements_update_indices", get_repeatless_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)) - 1)),
         data("scatter_elements_update_updates", get_mem(get_updates_layout(p), 0, 100)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -3, 3)),
+        data("scale_data", get_mem(get_per_channel_layout(p), -1, 1)),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.input_shape})),
         scatter_elements_update("scatter_elements_update_prim", "input", "scatter_elements_update_indices", "scatter_elements_update_updates", p.axis),
         activation("activation", "scatter_elements_update_prim", activation_func::abs),
@@ -5951,7 +5951,7 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
         eltwise("eltwise", {"scale", "eltwise_data"}, eltwise_mode::sum, p.data_type),
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
-    tolerance = 1.0f;
+    tolerance = 1e-5f;
     execute(p);
 }
 
