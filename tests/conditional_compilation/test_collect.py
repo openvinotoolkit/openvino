@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (C) 2021 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Test conditional compilation statistics collection.
@@ -12,21 +13,25 @@ import sys
 from proc_utils import cmd_exec  # pylint: disable=import-error
 
 
-def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, artifacts):
+def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, artifacts, test_info):
     """ Test conditional compilation statistics collection
+    :param test_info: custom `test_info` field of built-in `request` pytest fixture.
+                      contain a dictionary to store test metadata.
     """
     out = artifacts / test_id
+    test_info["test_id"] = test_id
     # cleanup old data if any
-    prev_results = glob.glob(f"{out}.pid*.csv")
-    for path in prev_results:
+    prev_result = glob.glob(f"{out}.pid*.csv")
+    for path in prev_result:
         os.remove(path)
     # run use case
-    returncode, output = cmd_exec(
+    return_code, output = cmd_exec(
         [
             sys.executable,
             str(sea_runtool),
-            f"-o={out}",
+            f"--output={out}",
             f"--bindir={collector_dir}",
+            "--app_status",
             "!",
             str(benchmark_app),
             "-d=CPU",
@@ -35,7 +40,8 @@ def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, a
             "-nireq=1",
         ]
     )
-    assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
-    assert (
-        len(glob.glob(f"{out}.pid*.csv")) == 1
-    ), f'Multiple or none "{out}.pid*.csv" files'
+    out_csv = glob.glob(f"{out}.pid*.csv")
+    test_info["out_csv"] = out_csv
+
+    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+    assert (len(out_csv) == 1), f'Multiple or none "{out}.pid*.csv" files'

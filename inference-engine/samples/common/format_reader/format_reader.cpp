@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ Reader *Registry::CreateReader(const char *filename) {
     for (auto maker : _data) {
         Reader *ol = maker(filename);
         if (ol != nullptr && ol->size() != 0) return ol;
-        if (ol != nullptr) ol->Release();
+        if (ol != nullptr) delete ol;
     }
     return nullptr;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,21 +40,12 @@ protected:
     MockInferencePluginInternal2 engine;
 };
 
-TEST_F(PluginTest, canCreatePlugin) {
-    auto ptr = make_std_function<IInferencePlugin*
-        (IInferencePlugin*)>("CreatePluginEngineProxy");
-
-    unique_ptr<IInferencePlugin, std::function<void(IInferencePlugin*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
-        p->Release();
-    });
-}
-
 TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
     ASSERT_NO_THROW(InferenceEnginePluginPtr ptr(get_mock_engine_name()));
 }
 
 TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
-    EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), InferenceEngineException);
+    EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), Exception);
 }
 
 InferenceEnginePluginPtr PluginTest::getPtr() {
@@ -66,11 +57,11 @@ TEST_F(PluginTest, canSetConfiguration) {
     InferenceEnginePluginPtr ptr = getPtr();
     // TODO: dynamic->reinterpret because of clang/gcc cannot
     // dynamically cast this MOCK object
-    ASSERT_TRUE(reinterpret_cast<MockPlugin*>(*ptr)->config.empty());
+    ASSERT_TRUE(dynamic_cast<MockPlugin*>(ptr.operator->())->config.empty());
 
     std::map<std::string, std::string> config = { { "key", "value" } };
     ASSERT_NO_THROW(ptr->SetConfig(config));
     config.clear();
 
-    ASSERT_STREQ(reinterpret_cast<MockPlugin*>(*ptr)->config["key"].c_str(), "value");
+    ASSERT_STREQ(dynamic_cast<MockPlugin*>(ptr.operator->())->config["key"].c_str(), "value");
 }

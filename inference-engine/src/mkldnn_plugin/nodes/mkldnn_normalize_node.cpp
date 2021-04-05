@@ -15,8 +15,8 @@
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/jit_uni_quantization_injector.hpp>
-#include "bf16transformer.h"
 #include "common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
 #include <mkldnn_selective_build.h>
 
 using namespace mkldnn;
@@ -207,7 +207,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && emu_vcvtneps2bf16 != nullptr)
             emu_vcvtneps2bf16->emit_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -249,7 +249,7 @@ private:
     Vmm vmm_d_bias = Vmm(6);
     Vmm vmm_zero = Vmm(7);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -731,59 +731,60 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
 
     std::string errPrefix = "Normalize node with name '" + getName() + "' ";
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << errPrefix << " has incorrect number of input edges: " << getParentEdges().size();
+        IE_THROW() << errPrefix << " has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << errPrefix << " has incorrect number of output edges: " << getChildEdges().size();
+        IE_THROW() << errPrefix << " has incorrect number of output edges: " << getChildEdges().size();
 
     if (getParentEdgeAt(0)->getDims().ndims() > 4 || getParentEdgeAt(0)->getDims().ndims() < 2) {
-        THROW_IE_EXCEPTION << errPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
+        IE_THROW() << errPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
     }
 
     auto *layer = getCnnLayer().get();
     if (layer == nullptr)
-        THROW_IE_EXCEPTION << errPrefix << " has nullable CnnLayer.";
+        IE_THROW() << errPrefix << " has nullable CnnLayer.";
     across_spatial = layer->GetParamAsBool("across_spatial", false);
     channel_shared = layer->GetParamAsBool("channel_shared", false);
     eps = layer->GetParamAsFloat("eps");
 
     MemoryBlob::Ptr tweights = as<MemoryBlob>(layer->blobs.at("weights"));
     if (!tweights) {
-        THROW_IE_EXCEPTION << errPrefix << "has not initialized weights or they cannot be casted to MemoryBlob.";
+        IE_THROW() << errPrefix << "has not initialized weights or they cannot be casted to MemoryBlob.";
     }
 
     auto inData = getCnnLayer()->insData[0].lock();
     if (inData == nullptr) {
-        THROW_IE_EXCEPTION << errPrefix << "has nullable input data.";
+        IE_THROW() << errPrefix << "has nullable input data.";
     }
     const auto& inDims = inData->getDims();
     if (inDims.size() < 2)
-        THROW_IE_EXCEPTION << errPrefix << "has unsupported layout: '" << inData->getLayout() << "'.";
+        IE_THROW() << errPrefix << "has unsupported layout: '" << inData->getLayout() << "'.";
     const size_t channels = inDims[1];
     const auto weightsSize = tweights->size();
     if (weightsSize != channels) {
         if (weightsSize == 1) {
             channel_shared = true;
         } else {
-            THROW_IE_EXCEPTION << errPrefix << "has unsupported broadcast type. Channels size: " << channels << "; Weights size: " << weightsSize;
+            IE_THROW() << errPrefix << "has unsupported broadcast type. Channels size: " << channels << "; Weights size: " << weightsSize;
         }
     }
 
     weights_prec = tweights->getTensorDesc().getPrecision();
+    if (weights_prec != Precision::FP32 && weights_prec != Precision::BF16) {
+        // Unknown non supported data type, return an error
+        IE_THROW() << layer->name << "Weights for layer Normalize with name '" << layer->name <<
+            "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
+    }
 
+    TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
+    weights_blob = make_shared_blob<float>(td);
+    weights_blob->allocate();
+    float* dst = weights_blob->wmap();
     if (weights_prec == Precision::FP32) {
-        TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
-        weights_blob = make_shared_blob<float>(td);
-        weights_blob->allocate();
         float* src = layer->blobs.at("weights")->buffer();
-        float* dst = weights_blob->wmap();
         cpu_memcpy(dst, src, layer->blobs.at("weights")->byteSize());
     } else if (weights_prec == Precision::BF16) {
-        MKLDNNPlugin::BF16Transformer transformer;
-        weights_blob = transformer.convertBF16ToFloat(tweights);
-    } else {
-        // Unknown non supported data type, return an error
-        THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize with name '" << layer->name <<
-            "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
+        short* bf16src = tweights->rmap().as<short*>();
+        cpu_convert(bf16src, dst, Precision::BF16, Precision::FP32, weights_blob->size());
     }
 }
 
@@ -819,13 +820,13 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
         return false;
     };
     if (!isOneOf(inputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
-        THROW_IE_EXCEPTION << "Unsupported input precision. " << getName();
+        IE_THROW() << "Unsupported input precision. " << getName();
     }
     if (!isOneOf(outputPrecision, {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8})) {
-        THROW_IE_EXCEPTION << "Unsupported output precision. " << getName();
+        IE_THROW() << "Unsupported output precision. " << getName();
     }
     if (!isOneOf(weights_prec, {Precision::FP32, Precision::BF16})) {
-        THROW_IE_EXCEPTION << "Unsupported wights precision. " << getName();
+        IE_THROW() << "Unsupported wights precision. " << getName();
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
@@ -887,7 +888,7 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
             continue;
         }
 
-        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
@@ -897,11 +898,11 @@ void MKLDNNNormalizeNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor is not set.";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
@@ -1468,13 +1469,13 @@ void MKLDNNNormalizeNode::normalize_function(const in_data_t* src_data, out_data
         } else if (jcp.is_blk) {
             normalize_blk(src_data, dst_data, dims);
         } else {
-            THROW_IE_EXCEPTION << "The selected layout is not supported.";
+            IE_THROW() << "The selected layout is not supported.";
         }
     } else {
         if (jcp.is_nchw) {
             normalize_nchw_ref(src_data, dst_data, dims);
         } else {
-            THROW_IE_EXCEPTION << "Only support plain layout on machine w/o sse42.";
+            IE_THROW() << "Only support plain layout on machine w/o sse42.";
         }
     }
 }

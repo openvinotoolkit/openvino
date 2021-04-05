@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -410,6 +410,9 @@ class StageNode :
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageOutputVector, outputEdges)
 
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageTempBufferVector, tempBufferEdges)
+
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, parentDependencyEdges)
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, childDependencyEdges)
 
     VPU_MODEL_ATTRIBUTE(Injection, parentStageEdge, nullptr)
     VPU_MODEL_ATTRIBUTE(Injection, injectedStageEdge, nullptr)

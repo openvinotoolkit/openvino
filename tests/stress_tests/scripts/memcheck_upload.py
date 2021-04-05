@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
+
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
 """
 Upload metrics gathered by MemCheckTests into Mongo DB
@@ -123,10 +123,8 @@ def parse_memcheck_log(log_path):
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
                 test_name=test_name,
-                model_name=os.path.splitext(
-                    os.path.basename(model['path']))[0],
-                precision=next(pr for pr in PRECISSIONS if pr.upper()
-                               in model['path'].upper()),
+                model_name=os.path.splitext(os.path.basename(model['path']))[0],
+                precision=next(pr for pr in PRECISSIONS if pr.upper() in model['precision'].upper()),
                 model=model['path'],
                 device=model['device'].upper(),
                 status='passed' if passed_match else 'failed' if failed_match else 'started'

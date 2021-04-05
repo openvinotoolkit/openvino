@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -126,7 +126,7 @@ if (THREADING STREQUAL "OMP")
     log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
     
-    ie_cpack_add_component(omp)
+    ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list} 
             DESTINATION "deployment_tools/inference_engine/external/omp/lib"
@@ -247,7 +247,7 @@ if (ENABLE_OPENCV)
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu18")
                 set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04" AND X86_64)
+            elseif ((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
                 set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
             elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,29 +16,29 @@ void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blo
         && tensDesc.getPrecision() != InferenceEngine::Precision::FP32
         && tensDesc.getPrecision()!= InferenceEngine::Precision::U8
         && tensDesc.getPrecision()!= InferenceEngine::Precision::I16) {
-        THROW_IE_EXCEPTION << "loadImage error: Input must have FP16, FP32 or U8 precision";
+        IE_THROW() << "loadImage error: Input must have FP16, FP32 or U8 precision";
     }
 
     if (tensDesc.getLayout() != NHWC && tensDesc.getLayout() != NCHW) {
-        THROW_IE_EXCEPTION << "loadImage error: Input must have NHWC or NHWC layout";
+        IE_THROW() << "loadImage error: Input must have NHWC or NHWC layout";
     }
 
     FormatReader::ReaderPtr reader(imageFilename.c_str());
     if (reader.get() == nullptr) {
-        THROW_IE_EXCEPTION << "loadImage error: image " << imageFilename << " cannot be read!";
+        IE_THROW() << "loadImage error: image " << imageFilename << " cannot be read!";
     }
 
     size_t w = tensDesc.getDims()[3];
     size_t h = tensDesc.getDims()[2];
     if (reader->width() != w || reader->height() != h) {
-        THROW_IE_EXCEPTION << "loadImage error: Input sizes mismatch, got " << reader->width() << "x" << reader->height()
+        IE_THROW() << "loadImage error: Input sizes mismatch, got " << reader->width() << "x" << reader->height()
                   << " expecting " << w << "x" << h;
     }
 
     auto numBlobChannels = tensDesc.getDims()[1];
     size_t numImageChannels = reader->size() / (reader->width() * reader->height());
     if (numBlobChannels != numImageChannels && numBlobChannels != 1) {
-        THROW_IE_EXCEPTION << "loadImage error: Input channels mismatch: image channels " << numImageChannels << ", "
+        IE_THROW() << "loadImage error: Input channels mismatch: image channels " << numImageChannels << ", "
                   << "network channels " << numBlobChannels << ", expecting count of image channels are equal "
                   << "to count if network channels or count of network channels are equal to 1";
     }
@@ -77,7 +77,7 @@ void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blo
                 break;
             }
             default:
-                THROW_IE_EXCEPTION << "Unsupported precision!";
+                IE_THROW() << "Unsupported precision!";
             }
         }
     }

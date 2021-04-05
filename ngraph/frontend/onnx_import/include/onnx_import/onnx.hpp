@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -22,9 +10,13 @@
 #include <set>
 #include <string>
 
-#include "editor/editor.hpp"
 #include "ngraph/function.hpp"
 #include "utils/onnx_importer_visibility.hpp"
+
+namespace ONNX_NAMESPACE
+{
+    class ModelProto;
+}
 
 /// \brief              Top level nGraph namespace.
 namespace ngraph
@@ -86,15 +78,12 @@ namespace ngraph
         ONNX_IMPORTER_API
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path, bool decode_only = false);
 
-        /// \brief     Imports an ONNX model modified by the ONNXModelEditor wrapper.
-        ///
-        /// \note      Refer to the ONNXModelEditor documentation for available modifications.
-        ///
-        /// \param[in] model_editor  Reference to the model editor object instance.
-        ///
-        /// \return    An nGraph function representing the previously modified ONNX model.
-        ONNX_IMPORTER_API
-        std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor, bool decode_only = false);
+        // TODO: Hide behind an appropriate API; Exposes ONNX_NAMESPACE; provide correct importer -> editor dependency
+        namespace detail {
+            ONNX_IMPORTER_API
+            std::shared_ptr<Function>
+            convert_to_ng_function(std::shared_ptr<const ONNX_NAMESPACE::ModelProto> model_proto, bool decode_only);
+        }
 
         ONNX_IMPORTER_API
         void convert_onnx_nodes (std::shared_ptr<Function> f);

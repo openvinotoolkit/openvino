@@ -28,8 +28,8 @@
 
   * **Description**: *flip* is a flag that denotes that each *aspect_ratio* is duplicated and flipped. For example, *flip* equals 1 and *aspect_ratio* equals to "4.0,2.0" mean that aspect_ratio is equal to "4.0,2.0,0.25,0.5".
   * **Range of values**:
-    * false - each *aspect_ratio* is flipped
-    * true  - each *aspect_ratio* is not flipped
+    * false or 0 - each *aspect_ratio* is flipped
+    * true or 1  - each *aspect_ratio* is not flipped
   * **Type**: boolean
   * **Default value**: false
   * **Required**: *no*
@@ -38,8 +38,8 @@
 
   * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped to [0,1] interval.
   * **Range of values**:
-    * false - clipping is not performed
-    * true - each value in the output tensor is clipped to [0,1] interval.
+    * false or 0 - clipping is not performed
+    * true or 1 - each value in the output tensor is clipped to [0,1] interval.
   * **Type**: boolean
   * **Default value**: false
   * **Required**: *no*

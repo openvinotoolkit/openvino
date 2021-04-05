@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <fstream>
 #include <memory>
@@ -23,9 +11,9 @@
 #include "core/model.hpp"
 #include "core/transform.hpp"
 #include "ngraph/except.hpp"
+#include "onnx_common/parser.hpp"
 #include "onnx_import/onnx.hpp"
 #include "ops_bridge.hpp"
-#include "utils/parser.hpp"
 
 namespace ngraph
 {
@@ -73,8 +61,7 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path, bool decode_only)
         {
-            auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(parse_from_istream(stream));
-
+            auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
             return detail::import_onnx_model(model_proto, model_path, decode_only);
         }
 
@@ -89,15 +76,6 @@ namespace ngraph
             };
 
             return import_onnx_model(model_stream, file_path, decode_only);
-        }
-
-        std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor, bool decode_only)
-        {
-            //throw false; // TODO: Migrate ONNX Model Editor to shared_ptr's to keep model
-            return detail::import_onnx_model(
-                    std::make_shared<ONNX_NAMESPACE::ModelProto>(model_editor.model()),
-                    model_editor.model_path(),
-                    decode_only);
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

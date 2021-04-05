@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include <gna_plugin_log.hpp>
 #include <cstdint>
 #include <backend/dnn_types.h>
@@ -59,6 +58,10 @@ void FP::infer() {
             }
             case kDnnConvolutional1dOp: {
                 ApplyConvolutional1DTransform(comp);
+                break;
+            }
+            case kDnnConvolutional2dOp: {
+                ApplyConvolutional2DTransform(comp);
                 break;
             }
             case kDnnPiecewiselinearOp: {

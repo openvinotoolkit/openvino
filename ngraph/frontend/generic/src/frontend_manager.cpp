@@ -16,7 +16,7 @@
 
 #include <ngraph/except.hpp>
 #include "onnx_import/onnx.hpp"
-#include "onnx_import/editor/editor.hpp"
+#include "onnx_editor/editor.hpp"
 #include "tensorflow_frontend/tensorflow.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 #include "paddlepaddle_frontend/frontend.hpp"
@@ -28,6 +28,8 @@ namespace ngraph
     {
 
         #define FRONT_END_NOT_IMPLEMENTED(NAME) throw #NAME " is not implemented for this FrontEnd class";
+        #define FRONT_END_ASSERT(EXPRESSION) \
+            { if (!(EXPRESSION)) throw "AssertionFailed"; }
 
         std::vector<Place::Ptr> InputModel::getInputs () const
         {
@@ -224,7 +226,7 @@ namespace ngraph
         {
         public:
 
-            onnx_import::InputEdge edge;
+            onnx_editor::InputEdge edge;
 
             PlaceInputEdgeONNX (const std::string& _sourceTensorName, int _operationNodeIndex) :
                     edge(_operationNodeIndex, _sourceTensorName)
@@ -235,7 +237,7 @@ namespace ngraph
         {
         public:
 
-            onnx_import::OutputEdge edge;
+            onnx_editor::OutputEdge edge;
 
             PlaceOutputEdgeONNX (int _operationNodeIndex, const std::string& _targetTensorName) :
                     edge(_operationNodeIndex, _targetTensorName)
@@ -269,7 +271,7 @@ namespace ngraph
 
         public:
             // TODO: Move to private
-            onnx_import::ONNXModelEditor editor;
+            onnx_editor::ONNXModelEditor editor;
 
             InputModelONNX (const std::string& model_path) : editor(model_path) {}
 
@@ -306,7 +308,7 @@ namespace ngraph
                 std::cerr << "inputs.size() = " << inputs.size() << "\n";
                 // Current implementation is limited by tensor places only, each input tensor should be consumed by a single op only
                 // TODO Extend to non tensor inputs/outputs and remove other limitations
-                std::vector<onnx_import::InputEdge> onnx_inputs;
+                std::vector<onnx_editor::InputEdge> onnx_inputs;
                 onnx_inputs.reserve(inputs.size());
                 for(const auto& input: inputs)
                 {
@@ -324,7 +326,7 @@ namespace ngraph
                 }
                 std::cerr << "{4}\n";
 
-                std::vector<onnx_import::OutputEdge> onnx_outputs;
+                std::vector<onnx_editor::OutputEdge> onnx_outputs;
                 onnx_outputs.reserve(outputs.size());
                 for(const auto& output: outputs)
                 {
@@ -370,12 +372,18 @@ namespace ngraph
 
             virtual std::shared_ptr<ngraph::Function> convert (InputModel::Ptr model) const override
             {
-                return import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor);
+                const auto& model_editor = std::dynamic_pointer_cast<InputModelONNX>(model)->editor;
+                return onnx_import::detail::convert_to_ng_function(
+                        model_editor.model(),
+                        false);
             }
 
             virtual std::shared_ptr<ngraph::Function> decode (InputModel::Ptr model) const override
             {
-                return import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor, true);
+                const auto& model_editor = std::dynamic_pointer_cast<InputModelONNX>(model)->editor;
+                return onnx_import::detail::convert_to_ng_function(
+                        model_editor.model(),
+                        true);
             }
 
             virtual std::shared_ptr<ngraph::Function> convert (std::shared_ptr<ngraph::Function> f) const override
@@ -440,26 +448,64 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(normalize);
         }
 
-        FrontEnd::Ptr FrontEndManager::loadByFramework (const std::string& framework, FrontEndCapabilities fec)
+        //////////////////////////////////////////////////////////////
+        class FrontEndManager::Impl
         {
-            if (framework == "onnx")
-                return std::make_shared<FrontEndONNX>();
-            else if (framework == "pdpd")
-                return std::make_shared<FrontEndPDPD>();
-            else if (framework == "tf")
-                return std::make_shared<FrontEndTensorflow>();
-            else
-                throw "Framework " + framework + " is unknown for FrontEnd manager; cannot load it.";
+            std::map<std::string, FrontEndFactory> m_factories;
+
+            void registerDefault() {
+                registerFrontEnd("onnx", [](FrontEndCapabilities){return std::make_shared<FrontEndONNX>();});
+                registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
+                registerFrontEnd("tf", [](FrontEndCapabilities){return std::make_shared<FrontEndTensorflow>();});
+            }
+        public:
+            Impl() {
+                registerDefault();
+            }
+            ~Impl() = default;
+            FrontEnd::Ptr loadByFramework(const std::string& framework, FrontEndCapabilities fec) {
+                FRONT_END_ASSERT(m_factories.count(framework))
+                return m_factories[framework](fec);
+            }
+
+            std::vector<std::string> availableFrontEnds() const {
+                std::vector<std::string> keys;
+
+                std::transform(m_factories.begin(), m_factories.end(),
+                               std::back_inserter(keys),
+                               [](const std::pair<std::string, FrontEndFactory>& item) {
+                                   return item.first;
+                               });
+                return keys;
+            }
+
+            FrontEnd::Ptr loadByModel (const std::string& path, FrontEndCapabilities fec)
+            {
+                FRONT_END_NOT_IMPLEMENTED(loadByModel);
+            }
+
+            void registerFrontEnd(const std::string& name, FrontEndFactory creator) {
+                m_factories.insert({name, creator});
+            }
+        };
+
+        FrontEndManager::FrontEndManager(): m_impl(new Impl()) {
+        }
+        FrontEndManager::~FrontEndManager() = default;
+
+        FrontEnd::Ptr FrontEndManager::loadByFramework(const std::string& framework, FrontEndCapabilities fec)
+        {
+            return m_impl->loadByFramework(framework, fec);
         }
 
-        FrontEnd::Ptr FrontEndManager::loadByModel (const std::string& path, FrontEndCapabilities fec)
+        FrontEnd::Ptr FrontEndManager::loadByModel(const std::string& path, FrontEndCapabilities fec)
         {
-            FRONT_END_NOT_IMPLEMENTED(loadByModel);
+            return m_impl->loadByModel(path, fec);
         }
 
-        std::vector<std::string> FrontEndManager::availableFrontEnds () const
+        std::vector<std::string> FrontEndManager::availableFrontEnds() const
         {
-            return {"onnx", "pdpd", "tf"};
+            return m_impl->availableFrontEnds();
         }
     } // namespace frontend
 

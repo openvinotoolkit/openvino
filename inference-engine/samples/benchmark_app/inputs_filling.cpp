@@ -54,7 +54,7 @@ void fillBlobImage(Blob::Ptr& inputBlob,
                   const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImage, " <<
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImage, " <<
             "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
@@ -114,7 +114,7 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
                     const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobBinary, " <<
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobBinary, " <<
             "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
@@ -127,17 +127,17 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
         slog::info << "Prepare binary file " << filePaths[inputIndex] << slog::endl;
         std::ifstream binaryFile(filePaths[inputIndex], std::ios_base::binary | std::ios_base::ate);
         if (!binaryFile) {
-            THROW_IE_EXCEPTION << "Cannot open " << filePaths[inputIndex];
+            IE_THROW() << "Cannot open " << filePaths[inputIndex];
         }
 
         auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
         binaryFile.seekg(0, std::ios_base::beg);
         if (!binaryFile.good()) {
-            THROW_IE_EXCEPTION << "Can not read " << filePaths[inputIndex];
+            IE_THROW() << "Can not read " << filePaths[inputIndex];
         }
         auto inputSize = inputBlob->size()*sizeof(T)/batchSize;
         if (fileSize != inputSize) {
-            THROW_IE_EXCEPTION << "File " << filePaths[inputIndex] << " contains " << std::to_string(fileSize) << " bytes "
+            IE_THROW() << "File " << filePaths[inputIndex] << " contains " << std::to_string(fileSize) << " bytes "
                                             "but the network expects " << std::to_string(inputSize);
         }
         binaryFile.read(&inputBlobData[i*inputSize], inputSize);
@@ -145,19 +145,33 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
 }
 
 template<typename T>
-void fillBlobRandom(Blob::Ptr& inputBlob) {
+using uniformDistribution =
+    typename std::conditional<
+        std::is_floating_point<T>::value,
+        std::uniform_real_distribution<T>,
+        typename std::conditional<
+            std::is_integral<T>::value,
+            std::uniform_int_distribution<T>,
+            void>::type
+    >::type;
+
+template<typename T, typename T2>
+void fillBlobRandom(Blob::Ptr& inputBlob,
+        T rand_min = std::numeric_limits<T>::min(),
+        T rand_max = std::numeric_limits<T>::max()) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobRandom, "
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobRandom, "
             << "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
     auto minputHolder = minput->wmap();
 
     auto inputBlobData = minputHolder.as<T *>();
+    std::mt19937 gen(0);
+    uniformDistribution<T2> distribution(rand_min, rand_max);
     for (size_t i = 0; i < inputBlob->size(); i++) {
-        auto rand_max = RAND_MAX;
-        inputBlobData[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+        inputBlobData[i] = static_cast<T>(distribution(gen));
     }
 }
 
@@ -167,7 +181,7 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
                     std::pair<size_t, size_t> image_size) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
-        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImInfo, " <<
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImInfo, " <<
             "but by fact we were not able to cast inputBlob to MemoryBlob";
     }
     // locked memory holder should be alive all time while access to its buffer happens
@@ -283,10 +297,10 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                         fillBlobBinary<int32_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else if (precision == InferenceEngine::Precision::I64) {
                         fillBlobBinary<int64_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (precision == InferenceEngine::Precision::U8) {
+                    } else if ((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::BOOL)) {
                         fillBlobBinary<uint8_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else {
-                        THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
+                        IE_THROW() << "Input precision is not supported for " << item.first;
                     }
                     continue;
                 }
@@ -305,7 +319,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                     } else if (precision == InferenceEngine::Precision::I64) {
                         fillBlobImInfo<int64_t>(inputBlob, batchSize, image_size);
                     } else {
-                        THROW_IE_EXCEPTION << "Input precision is not supported for image info!";
+                        IE_THROW() << "Input precision is not supported for image info!";
                     }
                     continue;
                 }
@@ -315,23 +329,27 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                        << std::string((app_info.isImage() ? "image" : "some binary data"))
                        << " is expected)" << slog::endl;
             if (precision == InferenceEngine::Precision::FP32) {
-                fillBlobRandom<float>(inputBlob);
+                fillBlobRandom<float, float>(inputBlob);
             } else if (precision == InferenceEngine::Precision::FP16) {
-                fillBlobRandom<short>(inputBlob);
+                fillBlobRandom<short, short>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I32) {
-                fillBlobRandom<int32_t>(inputBlob);
+                fillBlobRandom<int32_t, int32_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I64) {
-                fillBlobRandom<int64_t>(inputBlob);
+                fillBlobRandom<int64_t, int64_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::U8) {
-                fillBlobRandom<uint8_t>(inputBlob);
+                // uniform_int_distribution<uint8_t> is not allowed in the C++17 standard and vs2017/19
+                fillBlobRandom<uint8_t, uint32_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I8) {
-                fillBlobRandom<int8_t>(inputBlob);
+                // uniform_int_distribution<int8_t> is not allowed in the C++17 standard and vs2017/19
+                fillBlobRandom<int8_t, int32_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::U16) {
-                fillBlobRandom<uint16_t>(inputBlob);
+                fillBlobRandom<uint16_t, uint16_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I16) {
-                fillBlobRandom<int16_t>(inputBlob);
+                fillBlobRandom<int16_t, int16_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::BOOL) {
+                fillBlobRandom<uint8_t, uint32_t>(inputBlob, 0, 1);
             } else {
-                THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
+                IE_THROW() << "Input precision is not supported for " << item.first;
             }
         }
     }

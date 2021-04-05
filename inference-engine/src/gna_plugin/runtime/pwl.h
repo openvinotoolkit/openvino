@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,4 +103,5 @@ void PwlDesign16(const DnnActivation activation_type,
 void PwlDesignOpt16(const DnnActivation activation_type,
                 std::vector<gna_pwl_segment_t> &ptr_segment,
                 const float scale_in,
-                const float scale_out);
+                const float scale_out,
+                const float pwlMaxErrorPercent);

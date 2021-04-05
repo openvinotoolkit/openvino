@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import ast
 import logging as log
 import re
@@ -37,6 +25,7 @@ def restore_edges(graph: Graph, get_edges: callable):
     n1 --> n2 edge with attributes attrs.
     It is possible that two nodes n1 and n2 have more than one n1 --> n2 edges, so the resulting graph is Graph.
     """
+    used_tensors = set()
     for node in list(graph.nodes()):
         edges = get_edges(Node(graph, node))
         for u, v, d in edges:
@@ -49,7 +38,10 @@ def restore_edges(graph: Graph, get_edges: callable):
                     ' and '.join(undefined) +
                     refer_to_faq_msg(25)
                 )
+            used_tensors.add(u)
+
         graph.add_edges_from(edges)
+    return used_tensors
 
 
 def remove_control_dependency_inputs(graph: Graph):
@@ -58,6 +50,8 @@ def remove_control_dependency_inputs(graph: Graph):
     :param graph: graph to operate on 
     """
     for _, attrs in list(graph.nodes(data=True)):
+        if 'pb' not in attrs:
+            continue
         pb = attrs['pb']
         ind = 0
         while ind < len(pb.input):
@@ -132,7 +126,7 @@ def attr_getter(node: Node, name: str):
 
 
 def bool_to_str(node: Node, attr: str):
-    # Function converts 0/1 or bool False/True values to str 'false'/'true' which need to appear in IR
+    # Function converts 0/1 or bool False/True or '0'/'1' values to str 'false'/'true' which need to appear in IR
     attribute_name = node.soft_get(attr, None)
     if attribute_name is None:
         return None
@@ -140,6 +134,8 @@ def bool_to_str(node: Node, attr: str):
         return str(attribute_name).lower()
     elif attribute_name in [0, 1]:
         return str(bool(attribute_name)).lower()
+    elif attribute_name in ['0', '1']:
+        return str(bool(int(attribute_name))).lower()
     else:
         raise Error('Wrong value {} for boolean attribute {} in node {}'.format(
             attribute_name, attr, node.soft_get('name')))
@@ -794,6 +790,24 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
                 else:
                     sinks.append(add_opoutput(graph, node, 0))
     return sinks
+
+
+def add_outputs_identity(graph: Graph, outputs: list, add_edge: callable, params: dict = {}):
+    """
+    Adds identity nodes marked with needs_removal=True attribute after each output of the graph.
+    These nodes are used for storing tensor names information at the incoming edge
+    and are removed with the OutputCut transformation.
+    :param graph: graph to operate on.
+    :param outputs: list of output node ids.
+    :param add_edge: method which adds an edge to the graph with the following signature:
+     f(src_node_id: str, dst_node_id: str, in_port: int).
+    :param params: extra parameters for add_edge method.
+    """
+    for output in outputs:
+        fake_node_name = graph.unique_id(output)
+        graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
+                       infer=None, needs_removal=True)
+        add_edge(graph, output, fake_node_name, **params)
 
 
 def set_is_input(graph: Graph, placeholders: list, is_input: bool):

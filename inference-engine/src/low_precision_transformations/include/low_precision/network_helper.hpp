@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,6 +78,13 @@ public:
 
     static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 
+    static int getConstantInputIndex(std::shared_ptr<Node> node);
+
+    static std::vector<size_t> updateReshapeValues(
+        const Shape& elementwiseConstantShape,
+        const Shape& elementwiseShape,
+        const std::vector<size_t>& reshapeValues);
+
     // Optimizes the series of multiplies after a given output port
     static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
@@ -91,7 +98,8 @@ public:
         const float min,
         const float max,
         const bool hasZeroPoint,
-        const bool updatePrecision);
+        const bool updatePrecision,
+        const element::Type deqPrecision = element::f32);
 
     static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -105,8 +113,7 @@ public:
         const ngraph::element::Type originalPrecision,
         const ngraph::Shape dataNodeOutputShape,
         element::Type precision,
-        float min,
-        float max);
+        const element::Type deqPrecision = element::f32);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -114,7 +121,8 @@ public:
         float min,
         float max,
         const bool hasZeroPoint,
-        const bool updatePrecision);
+        const bool updatePrecision,
+        const element::Type deqPrecision = element::f32);
 
     static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node);
 
@@ -127,6 +135,8 @@ public:
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node);
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
+
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
@@ -154,8 +164,6 @@ public:
     static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
     static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
-
-    static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
 
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
