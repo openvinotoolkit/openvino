@@ -589,7 +589,7 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable <a href="#setup-host">set up steps</a> and <a href="#ovsa-install">installation steps</a> before beginning this section.
 
-This document uses the [face-detection-retail-0004](@ref omz_models_intel_face_detection_retail_0004_description_face_detection_retail_0004) model as an example. 
+This document uses the [face-detection-retail-0004](@ref omz_models_model_face_detection_retail_0044) model as an example. 
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 

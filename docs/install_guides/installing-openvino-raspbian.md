@@ -18,7 +18,7 @@ The OpenVINO toolkit for Raspbian OS is an archive with pre-installed header fil
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                  |
 | :-------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                               |
 | [OpenCV\*](https://docs.opencv.org/master/)                                                         | OpenCV\* community version compiled for Intel® hardware. |
 | [Sample Applications](../IE_DG/Samples_Overview.md)                                             | A set of simple console applications demonstrating how to use Intel's Deep Learning Inference Engine in your applications.               |
 
@@ -94,12 +94,12 @@ CMake is installed. Continue to the next section to set the environment variable
 
 You must update several environment variables before you can compile and run OpenVINO toolkit applications. Run the following script to temporarily set the environment variables:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 
 **(Optional)** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
 ```sh
-echo "source /opt/intel/openvino/bin/setupvars.sh" >> ~/.bashrc
+echo "source /opt/intel/openvino_2021/bin/setupvars.sh" >> ~/.bashrc
 ```
 
 To test your change, open a new terminal. You will see the following:
@@ -118,11 +118,11 @@ Continue to the next section to add USB rules for Intel® Neural Compute Stick 2
    Log out and log in for it to take effect.
 2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
    ```sh
-   source /opt/intel/openvino/bin/setupvars.sh
+   source /opt/intel/openvino_2021/bin/setupvars.sh
    ```
 3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
    ```sh
-   sh /opt/intel/openvino/install_dependencies/install_NCS_udev_rules.sh
+   sh /opt/intel/openvino_2021/install_dependencies/install_NCS_udev_rules.sh
    ```
 4. Plug in your Intel® Neural Compute Stick 2.
 
@@ -138,7 +138,7 @@ Follow the next steps to run pre-trained Face Detection network using Inference 
    ```
 2. Build the Object Detection Sample:
    ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino/deployment_tools/inference_engine/samples/cpp
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/deployment_tools/inference_engine/samples/cpp
    ```
    ```sh
    make -j2 object_detection_sample_ssd
