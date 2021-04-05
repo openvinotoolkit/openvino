@@ -53,8 +53,11 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
         sub(reg_ow_work_amount, reg_w_lo_pad);
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
-        if (mayiuse_gather) fill_gather_index(vmm_gather_index);
-
+        bool mayiuse_gather = (mayiuse(avx2) || mayiuse(avx512_common)) && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
+        if (mayiuse_gather) {
+            mov(reg_aux64, ptr[reg_params + GET_OFF(gather_idx)]);
+            uni_vmovups(vmm_gather_index, ptr[reg_aux64]);;
+        }
         loop();
 
         this->postamble();
@@ -64,9 +67,7 @@ private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
-    bool mayiuse_gather = mayiuse(avx2) && ( (jpp.dtype_size == 4) || (jpp.dtype_size == 8) );
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
-
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
     reg64_t reg_oh_count = r10;
@@ -74,7 +75,6 @@ private:
     reg64_t reg_num_pads = r12;
     reg64_t reg_src_h_incr = r13;
     reg64_t reg_aux64 = rax;
-    reg32_t reg_aux32 = eax;
     reg64_t reg_w_hi_pad = r14;
     reg64_t reg_w_lo_pad = r15;
     reg64_t reg_h_hi_pad = rbp;
@@ -88,31 +88,6 @@ private:
     Xbyak::Xmm xmm_aux = Xbyak::Xmm(2);
     Vmm vmm_gather_index = Vmm(3);
     Vmm vmm_gather_mask = Vmm(4);
-
-    inline void fill_gather_index(Vmm &vmm_arg) {
-        Xbyak::Xmm low_xmm = Xbyak::Xmm(vmm_arg.getIdx());
-        for (int i = 0; i < 4; i++) {
-            mov(reg_aux32, i * jpp.SW * jpp.dtype_size);
-            uni_vpinsrd(low_xmm, low_xmm, reg_aux32, i);
-        }
-        int num_xmms = 0;
-        if ( isa == x64::avx2 ) num_xmms = 2;
-        else if ( isa == x64::avx512_common ) num_xmms = 4;
-
-        for (int xmm_pos = 1; xmm_pos < num_xmms; xmm_pos++) {
-            for (int i = 0; i < 4; i++) {
-                mov(reg_aux32, (i + 4 * xmm_pos) * jpp.SW * jpp.dtype_size);
-                uni_vpinsrd(xmm_aux, xmm_aux, reg_aux32, i);
-            }
-            if ( isa == x64::avx2 ) {
-                Xbyak::Ymm vmm_is_ymm = Xbyak::Ymm(vmm_arg.getIdx());
-                vinserti128(vmm_is_ymm, vmm_is_ymm, xmm_aux, xmm_pos);
-            } else if ( isa == x64::avx512_common ) {
-                Xbyak::Zmm vmm_is_zmm = Xbyak::Zmm(vmm_arg.getIdx());
-                vinserti64x2(vmm_is_zmm, vmm_is_zmm, xmm_aux, xmm_pos);
-            }
-        }
-    }
 
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
@@ -387,6 +362,12 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
             eximpat_kernel.reset(new jit_eximpat_kernel<x64::sse41>(jpp));
         }
+        _gather_index.clear();
+        bool mayiuse_gather = (mayiuse(avx2) || mayiuse(avx512_common)) && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
+        if (mayiuse_gather) {
+            for (int i = 0; i < jpp.block_size; i++)
+                _gather_index.push_back(i * jpp.SW * jpp.dtype_size);
+        }
 
         if (eximpat_kernel)
             eximpat_kernel->create_ker();
@@ -454,6 +435,7 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
             args.h_hi_pad = ih_hpad;
             args.w_lo_pad = iw_lpad;
             args.w_hi_pad = iw_hpad;
+            args.gather_idx = _gather_index.data();
             (*eximpat_kernel)(&args);
         };
         parallel_for4d(OB, KH, KW, IC, thread_body);

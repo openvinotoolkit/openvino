@@ -32,6 +32,7 @@ struct jit_eximpat_args {
     int64_t h_hi_pad;
     int64_t w_lo_pad;
     int64_t w_hi_pad;
+    const int32_t* gather_idx;
     const void* src;
     void* dst;
 };
@@ -58,6 +59,7 @@ private:
     std::vector<int64_t> _rates;
     int64_t _pad_left;
     int64_t _pad_top;
+    std::vector<int32_t> _gather_index;
     std::shared_ptr<jit_uni_eximpat_kernel> eximpat_kernel;
     static const std::set<size_t> _supported_precisions_sizes;
 };
