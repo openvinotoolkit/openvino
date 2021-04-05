@@ -46,7 +46,7 @@ namespace minop
     }
 } // namespace minop
 
-constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceMin, "ReduceMin", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceMin::ReduceMin(const Output<Node>& arg,
                              const Output<Node>& reduction_axes,

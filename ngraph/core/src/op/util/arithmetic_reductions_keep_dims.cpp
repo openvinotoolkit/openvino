@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReductionKeepDims, "ArithmeticReductionKeepDims", 0);
+
 op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
     const ngraph::Output<ngraph::Node>& arg,
     const ngraph::Output<ngraph::Node>& reduction_axes,

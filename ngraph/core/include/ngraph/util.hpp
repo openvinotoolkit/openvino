@@ -216,7 +216,13 @@ namespace ngraph
     AxisVector get_default_order(size_t rank);
 
     NGRAPH_API
+    AxisVector get_default_order(const Rank& rank);
+
+    NGRAPH_API
     AxisVector get_default_order(const Shape& shape);
+
+    NGRAPH_API
+    AxisVector get_default_order(const PartialShape& shape);
 
     //
     // EnumMask is intended to work with a scoped enum type. It's used to store
