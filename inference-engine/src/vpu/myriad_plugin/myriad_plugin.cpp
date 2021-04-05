@@ -42,6 +42,7 @@
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/enable_tensor_iterator_unrolling.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 
@@ -193,6 +194,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<TensorStridesOption>();
     _parsedConfig.registerOption<IgnoreUnknownLayersOption>();
     _parsedConfig.registerOption<ForcePureTensorIteratorOption>();
+    _parsedConfig.registerOption<EnableTensorIteratorUnrollingOption>();
     _parsedConfig.registerOption<ExclusiveAsyncRequestsOption>();
     _parsedConfig.registerOption<EnableWeightsAnalysisOption>();
 

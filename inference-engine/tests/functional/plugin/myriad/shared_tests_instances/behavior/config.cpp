@@ -97,6 +97,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, CONFIG_VALUE(NO)}},
 
+        {{InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, CONFIG_VALUE(YES)}},
+        {{InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, CONFIG_VALUE(NO)}},
+
         {{KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(YES)}},
         {{KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO)}},
 
@@ -143,6 +146,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]"},
             {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, CONFIG_VALUE(NO)},
+            {InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, CONFIG_VALUE(NO)},
             {KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(YES)},
         },
     };
@@ -243,6 +247,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_TENSOR_STRIDES, {std::map<std::string, std::vector<int>>()}},
         {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, {false}},
         {InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, {false}},
+        {InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, {false}},
         {KEY_EXCLUSIVE_ASYNC_REQUESTS, {false}},
         {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, {true}},
     };
@@ -351,6 +356,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
 
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+
         std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
         std::make_tuple(KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
 
@@ -408,6 +416,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_TENSOR_STRIDES,
         InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS,
         InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,
+        InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING,
         InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS,
     };
     return privateOptions;
@@ -488,6 +497,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, "ON"}},
         {{InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, "OFF"}},
 
+        {{InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, "ON"}},
+        {{InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, "OFF"}},
+
         {{KEY_EXCLUSIVE_ASYNC_REQUESTS, "ON"}},
         {{KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF"}},
 
@@ -534,6 +546,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor(1,2,3,4)"},
             {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, "OFF"},
             {InferenceEngine::MYRIAD_FORCE_PURE_TENSOR_ITERATOR, "OFF"},
+            {InferenceEngine::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING, "OFF"},
             {KEY_EXCLUSIVE_ASYNC_REQUESTS, "ON"},
         },
     };

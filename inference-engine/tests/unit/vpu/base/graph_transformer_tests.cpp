@@ -29,6 +29,7 @@
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/enable_tensor_iterator_unrolling.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 
@@ -395,6 +396,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<TensorStridesOption>();
     configuration.registerOption<IgnoreUnknownLayersOption>();
     configuration.registerOption<ForcePureTensorIteratorOption>();
+    configuration.registerOption<EnableTensorIteratorUnrollingOption>();
     configuration.registerOption<ExclusiveAsyncRequestsOption>();
     configuration.registerOption<EnableWeightsAnalysisOption>();
 

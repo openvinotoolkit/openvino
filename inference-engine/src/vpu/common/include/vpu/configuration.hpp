@@ -48,7 +48,6 @@ struct CompilationConfig {
     bool enablePermuteMerging = true;
     bool enableReplWithSCRelu = false;
     bool enableReplaceWithReduceMean = true;
-    bool enableTensorIteratorUnrolling = false;
     bool enableMemoryTypesAnnotation = false;
     bool checkPreprocessingInsideModel = true;
     bool enableCustomReshapeParam = false;

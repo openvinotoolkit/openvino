@@ -13,6 +13,7 @@
 
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/enable_tensor_iterator_unrolling.hpp>
 
 namespace vpu {
 
@@ -37,7 +38,7 @@ void FrontEnd::unrollLoops(ie::CNNNetwork& network) {
         return;
     }
 
-    if (env.config.compileConfig().enableTensorIteratorUnrolling) {
+    if (env.config.get<EnableTensorIteratorUnrollingOption>()) {
         ie::NetPass::UnrollTI(network);
     } else {
         // Try to convert network to a RNN sequence due to performance reasons

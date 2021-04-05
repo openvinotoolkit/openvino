@@ -30,6 +30,7 @@
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/enable_tensor_iterator_unrolling.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 
@@ -92,6 +93,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<TensorStridesOption>();
     _configuration.registerOption<IgnoreUnknownLayersOption>();
     _configuration.registerOption<ForcePureTensorIteratorOption>();
+    _configuration.registerOption<EnableTensorIteratorUnrollingOption>();
     _configuration.registerOption<ExclusiveAsyncRequestsOption>();
     _configuration.registerOption<EnableWeightsAnalysisOption>();
 
