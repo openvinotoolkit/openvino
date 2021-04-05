@@ -42,7 +42,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_DETECT_NETWORK_BATCH,
         ie::MYRIAD_COPY_OPTIMIZATION,
-        ie::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION,
         ie::MYRIAD_DISABLE_REORDER,
         ie::MYRIAD_ENABLE_PERMUTE_MERGING,
         ie::MYRIAD_ENABLE_REPL_WITH_SCRELU,
@@ -136,7 +135,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.dumpAllPasses,                  switches, config, ie::MYRIAD_DUMP_ALL_PASSES);
 
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
-    setOption(_compileConfig.forceDeprecatedCnnConversion,   switches, config, ie::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION);
     setOption(_compileConfig.disableReorder,                 switches, config, ie::MYRIAD_DISABLE_REORDER);
     setOption(_compileConfig.enablePermuteMerging,           switches, config, ie::MYRIAD_ENABLE_PERMUTE_MERGING);
     setOption(_compileConfig.enableReplWithSCRelu,           switches, config, ie::MYRIAD_ENABLE_REPL_WITH_SCRELU);

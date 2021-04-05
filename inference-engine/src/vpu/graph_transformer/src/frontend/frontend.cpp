@@ -496,10 +496,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
-        if (network.getFunction() && env.config.compileConfig().forceDeprecatedCnnConversion) {
-            network = convertNetwork(network);
-        }
-
         detectNetworkBatch(network, model);
 
         if (network.getFunction()) {
