@@ -41,6 +41,7 @@
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
 
 #include "myriad_plugin.h"
 
@@ -190,6 +191,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<IRWithScalesDirectoryOption>();
     _parsedConfig.registerOption<TensorStridesOption>();
     _parsedConfig.registerOption<IgnoreUnknownLayersOption>();
+    _parsedConfig.registerOption<ForcePureTensorIteratorOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

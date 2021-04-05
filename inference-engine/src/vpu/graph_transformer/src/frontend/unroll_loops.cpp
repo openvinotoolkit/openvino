@@ -12,6 +12,7 @@
 #include <vpu/compile_env.hpp>
 
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
 
 namespace vpu {
 
@@ -32,7 +33,7 @@ void FrontEnd::unrollLoops(ie::CNNNetwork& network) {
         }
     }
 
-    if (env.config.compileConfig().forcePureTensorIterator) {
+    if (env.config.get<ForcePureTensorIteratorOption>()) {
         return;
     }
 

@@ -29,6 +29,7 @@
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -88,6 +89,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<IRWithScalesDirectoryOption>();
     _configuration.registerOption<TensorStridesOption>();
     _configuration.registerOption<IgnoreUnknownLayersOption>();
+    _configuration.registerOption<ForcePureTensorIteratorOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

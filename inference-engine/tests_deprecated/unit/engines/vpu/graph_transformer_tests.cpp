@@ -30,6 +30,7 @@
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
 
 namespace vpu {
 
@@ -204,6 +205,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<IRWithScalesDirectoryOption>();
     configuration.registerOption<TensorStridesOption>();
     configuration.registerOption<IgnoreUnknownLayersOption>();
+    configuration.registerOption<ForcePureTensorIteratorOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

@@ -48,7 +48,6 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_ENABLE_REPL_WITH_SCRELU,
         ie::MYRIAD_ENABLE_REPLACE_WITH_REDUCE_MEAN,
         ie::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING,
-        ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,
         ie::MYRIAD_DISABLE_CONVERT_STAGES,
         ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS,
         ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL,
@@ -143,7 +142,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableReplWithSCRelu,           switches, config, ie::MYRIAD_ENABLE_REPL_WITH_SCRELU);
     setOption(_compileConfig.enableReplaceWithReduceMean,    switches, config, ie::MYRIAD_ENABLE_REPLACE_WITH_REDUCE_MEAN);
     setOption(_compileConfig.enableTensorIteratorUnrolling,  switches, config, ie::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING);
-    setOption(_compileConfig.forcePureTensorIterator,        switches, config, ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR);
     setOption(_compileConfig.disableConvertStages,           switches, config, ie::MYRIAD_DISABLE_CONVERT_STAGES);
     setOption(_compileConfig.enableWeightsAnalysis,          switches, config, ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
     setOption(_compileConfig.checkPreprocessingInsideModel,  switches, config, ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);

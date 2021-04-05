@@ -50,7 +50,6 @@ struct CompilationConfig {
     bool enableReplWithSCRelu = false;
     bool enableReplaceWithReduceMean = true;
     bool enableTensorIteratorUnrolling = false;
-    bool forcePureTensorIterator = false;
     bool enableMemoryTypesAnnotation = false;
     bool enableWeightsAnalysis = true;
     bool checkPreprocessingInsideModel = true;
