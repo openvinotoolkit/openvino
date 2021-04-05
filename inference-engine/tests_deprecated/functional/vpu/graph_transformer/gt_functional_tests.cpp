@@ -30,6 +30,7 @@
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/exclusive_async_requests.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -90,6 +91,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<TensorStridesOption>();
     _configuration.registerOption<IgnoreUnknownLayersOption>();
     _configuration.registerOption<ForcePureTensorIteratorOption>();
+    _configuration.registerOption<ExclusiveAsyncRequestsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

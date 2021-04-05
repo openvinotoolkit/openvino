@@ -25,11 +25,6 @@ VPU_DECLARE_ENUM(ConfigMode,
 
 class ParsedConfigBase {
 public:
-    bool exclusiveAsyncRequests() const {
-        return _exclusiveAsyncRequests;
-    }
-
-public:
     ParsedConfigBase();
     virtual ~ParsedConfigBase();
 
@@ -122,9 +117,6 @@ protected:
     static const std::unordered_map<std::string, bool> switches;
 
     Logger::Ptr _log;
-
-private:
-    bool _exclusiveAsyncRequests = false;
 };
 
 }  // namespace vpu

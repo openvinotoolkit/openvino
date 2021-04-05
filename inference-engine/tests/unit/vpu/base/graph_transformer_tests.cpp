@@ -29,6 +29,7 @@
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
+#include <vpu/configuration/options/exclusive_async_requests.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -393,6 +394,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<TensorStridesOption>();
     configuration.registerOption<IgnoreUnknownLayersOption>();
     configuration.registerOption<ForcePureTensorIteratorOption>();
+    configuration.registerOption<ExclusiveAsyncRequestsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

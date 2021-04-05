@@ -65,9 +65,7 @@ const std::unordered_set<std::string>& ParsedConfigBase::getCompileOptions() con
 
 const std::unordered_set<std::string>& ParsedConfigBase::getRunTimeOptions() const {
 IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_set<std::string> options = {
-        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-    };
+    static const std::unordered_set<std::string> options;
 IE_SUPPRESS_DEPRECATED_END
 
     return options;
@@ -78,9 +76,7 @@ const std::unordered_set<std::string>& ParsedConfigBase::getDeprecatedOptions() 
     return options;
 }
 
-void ParsedConfigBase::parse(const std::map<std::string, std::string>& config) {
-    setOption(_exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
-}
+void ParsedConfigBase::parse(const std::map<std::string, std::string>& config) {}
 
 std::unordered_set<std::string> ParsedConfigBase::merge(
             const std::unordered_set<std::string>& set1,
