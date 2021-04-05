@@ -14,6 +14,7 @@
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_inject_stages.hpp>
+#include <vpu/configuration/options/hw_dilation.hpp>
 
 namespace vpu {
 
@@ -165,7 +166,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         ADD_PASS(replaceDeconvByConv);
         ADD_DUMP_PASS("replaceDeconvByConv");
 
-        if (env.config.compileConfig().hwDilation) {
+        if (env.config.get<HwDilationOption>()) {
             ADD_PASS(reshapeDilationConv);
             ADD_DUMP_PASS("reshapeDilationConv");
         }

@@ -15,6 +15,7 @@
 #include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
 #include <vpu/configuration/options/hw_inject_stages.hpp>
+#include <vpu/configuration/options/hw_dilation.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
@@ -377,6 +378,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<HwPoolConvMergeOption>();
     configuration.registerOption<HwBlackListOption>();
     configuration.registerOption<HwInjectStagesOption>();
+    configuration.registerOption<HwDilationOption>();
     configuration.registerOption<TilingCMXLimitKBOption>();
     configuration.registerOption<WatchdogIntervalOption>();
     configuration.registerOption<EnableReceivingTensorTimeOption>();

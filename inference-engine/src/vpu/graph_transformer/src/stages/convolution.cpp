@@ -18,6 +18,7 @@
 #include <vpu/stage_builder.hpp>
 #include <vpu/utils/hw_disabled.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/hw_dilation.hpp>
 
 namespace vpu {
 
@@ -166,7 +167,7 @@ void parseConv2D(const Model      & model,
                           dilationX,
                           dilationY,
                           env.config.get<HwAccelerationOption>(),
-                          env.config.compileConfig().hwDilation,
+                          env.config.get<HwDilationOption>(),
                           HwDisabled(env.config, layer->name));
 
     //
@@ -479,7 +480,7 @@ void parseConvND(const Model      & model,
                           dilations[0],
                           dilations[1],
                           env.config.get<HwAccelerationOption>(),
-                          env.config.compileConfig().hwDilation,
+                          env.config.get<HwDilationOption>(),
                           HwDisabled(env.config, layer->name));
 
     int try_hw = tryHW ? 1 : 0;

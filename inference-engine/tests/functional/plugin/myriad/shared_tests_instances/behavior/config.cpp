@@ -69,6 +69,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_HW_INJECT_STAGES, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_HW_INJECT_STAGES, CONFIG_VALUE(NO)}},
 
+        {{InferenceEngine::MYRIAD_HW_DILATION, CONFIG_VALUE(YES)}},
+        {{InferenceEngine::MYRIAD_HW_DILATION, CONFIG_VALUE(NO)}},
+
         {{InferenceEngine::MYRIAD_WATCHDOG, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_WATCHDOG, CONFIG_VALUE(NO)}},
 
@@ -118,6 +121,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_HW_BLACK_LIST, "deconv"},
             {InferenceEngine::MYRIAD_HW_INJECT_STAGES, CONFIG_VALUE(YES)},
+            {InferenceEngine::MYRIAD_HW_DILATION, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_WATCHDOG, CONFIG_VALUE(YES)},
@@ -213,6 +217,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_HW_BLACK_LIST, {std::string()}},
         {InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, {true}},
         {InferenceEngine::MYRIAD_HW_INJECT_STAGES, {InferenceEngine::MYRIAD_HW_INJECT_STAGES_AUTO}},
+        {InferenceEngine::MYRIAD_HW_DILATION, {false}},
         {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, {InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB_AUTO}},
         {InferenceEngine::MYRIAD_WATCHDOG, {std::chrono::milliseconds(1000)}},
         {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, {false}},
@@ -280,6 +285,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "deconv", InferenceEngine::Parameter{"deconv"}),
         std::make_tuple(InferenceEngine::MYRIAD_HW_BLACK_LIST, "conv,pool",   InferenceEngine::Parameter{"conv,pool"}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_HW_DILATION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_HW_DILATION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_HW_INJECT_STAGES, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{InferenceEngine::PluginConfigParams::YES}),
         std::make_tuple(InferenceEngine::MYRIAD_HW_INJECT_STAGES, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{InferenceEngine::PluginConfigParams::NO}),
@@ -364,6 +372,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE,
         InferenceEngine::MYRIAD_HW_BLACK_LIST,
         InferenceEngine::MYRIAD_HW_INJECT_STAGES,
+        InferenceEngine::MYRIAD_HW_DILATION,
         InferenceEngine::MYRIAD_NUMBER_OF_SHAVES,
         InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES,
         InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB,
@@ -429,6 +438,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_HW_INJECT_STAGES, "ON"}},
         {{InferenceEngine::MYRIAD_HW_INJECT_STAGES, "OFF"}},
 
+        {{InferenceEngine::MYRIAD_HW_DILATION, "ON"}},
+        {{InferenceEngine::MYRIAD_HW_DILATION, "OFF"}},
+
         {{InferenceEngine::MYRIAD_WATCHDOG, "ON"}},
         {{InferenceEngine::MYRIAD_WATCHDOG, "OFF"}},
 
@@ -474,6 +486,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, "ON"},
             {InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, "ON"},
             {InferenceEngine::MYRIAD_HW_INJECT_STAGES, "ON"},
+            {InferenceEngine::MYRIAD_HW_DILATION, "ON"},
             {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"},
             {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "-10"},
             {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, "-10"},
