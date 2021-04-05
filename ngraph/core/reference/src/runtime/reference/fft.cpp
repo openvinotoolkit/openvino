@@ -219,6 +219,18 @@ namespace ngraph
                     return true;
                 }
 
+                int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords,
+                                                       const std::vector<int64_t>& strides)
+                {
+                    int64_t offset = 0;
+                    int64_t num_of_axes = coords.size();
+                    for (int64_t i = 0; i < num_of_axes; ++i)
+                    {
+                        offset += coords[i] * strides[i];
+                    }
+                    return offset;
+                }
+
                 void copy_data_to_output(complex_type* output,
                                          const complex_type* data,
                                          int64_t dst_index,
@@ -226,19 +238,20 @@ namespace ngraph
                                          const std::vector<int64_t>& fft_strides,
                                          const std::vector<int64_t>& output_fft_strides)
                 {
-                    int64_t num_of_fft_axes = static_cast<int64_t>(fft_strides.size()) - 1;
-
+                    //int64_t num_of_fft_axes = static_cast<int64_t>(fft_strides.size()) - 1;
+                    //
                     for (int64_t idx = 0; idx < fft_size; ++idx)
                     {
                         auto coords = coords_from_index(idx, fft_strides);
                         complex_type value = data[idx];
-
-                        int64_t offset = 0;
-                        for (int64_t i = 0; i < num_of_fft_axes; ++i)
-                        {
-                            int64_t coord = coords[i];
-                            offset += coord * output_fft_strides[i];
-                        }
+                        int64_t offset = offset_from_coords_and_strides(coords, output_fft_strides);
+                        //
+                        // int64_t offset = 0;
+                        // for (int64_t i = 0; i < num_of_fft_axes; ++i)
+                        // {
+                        //     int64_t coord = coords[i];
+                        //     offset += coord * output_fft_strides[i];
+                        // }
 
                         output[dst_index + offset] = value;
                     }
@@ -371,18 +384,6 @@ namespace ngraph
                     {
                         naive_fft1d(length, fft_offset, stride, data, buffer, fft_kind);
                     }
-                }
-
-                int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords,
-                                                       const std::vector<int64_t>& strides)
-                {
-                    int64_t offset = 0;
-                    int64_t num_of_axes = coords.size();
-                    for (int64_t i = 0; i < num_of_axes; ++i)
-                    {
-                        offset += coords[i] * strides[i];
-                    }
-                    return offset;
                 }
             }
 
