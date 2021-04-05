@@ -805,10 +805,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (parent2->is_type<convolution>() && !conv_supports_fusings(parent2->as<convolution>()))
                 return;
 
-
-            std::cout << "///////////////////////////////////////////////////////////////////////////////" << std::endl;
-            std::cout << "//// Checking merge allowed - START " << node.id() << std::endl;
-            std::cout << "///////////////////////////////////////////////////////////////////////////////" << std::endl;
             bool merge_allowed = true;
             if (fused_node->is_type<convolution>() && fused_node->get_users().size() > 1) {
                 std::list<cldnn::program_node*> fused_node_users = fused_node->get_users();
@@ -824,7 +820,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                     return (!n->is_type<eltwise>());
                 });
                 if (iter_not_eltwise != fused_node_users.end()) {
-                    std::cout << "multiple fused nodes should be allowed for eltwise type" << std::endl;
+                    std::cout << "Warning: multiple fused nodes should be allowed for eltwise type" << std::endl;
                     return;
                 }
 
@@ -838,12 +834,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                     std::function<void(cldnn::program_node*, std::list<cldnn::program_node*>&)> find_path_to_fused_node_users;
                     find_path_to_fused_node_users = [&](cldnn::program_node* p_node, std::list<cldnn::program_node*>& fused_node_user_list) -> void {
                         if (!p_node->is_type<eltwise>()) {
-                            std::cout << "Not allowed eltwise fusing for " << p_node->id() << std::endl;
+                            std::cout << "Warning: Not allowed eltwise fusing for " << p_node->id() << std::endl;
                             return;
                         }
 
                         if (p_node->is_output() || p_node->get_primitive()->input.size() != 2) {   // if curr node is output, the size of users will be zero.
-                            std::cout << p_node->id() << " should not be output and have only 2 inputs" << std::endl;
+                            std::cout << "Warning: " << p_node->id() << " should not be output and have only 2 inputs" << std::endl;
                             return;
                         }
 
@@ -863,51 +859,41 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
                     while (!fused_node_users.empty()) {
                         auto prev_node = curr_node;
-                        for (auto user_node : prev_node->get_users()) {
-                            curr_node = user_node;
-                            if (curr_node->is_output() || curr_node->get_primitive()->input.size() != 2) {
-                                return;
-                            }
+                        if (prev_node->get_users().size() != 1) {
+                            return;
+                        }
 
-                            // If the current node is in fused_node_users list, remove it from the list
-                            // After the deleting the node, if fused_node_users is empty, the current sub graphs are available to fuse
-                            auto iter = std::find(fused_node_users.begin(), fused_node_users.end(), curr_node);
-                            if (iter != fused_node_users.end()) {
-                                fused_node_users.erase(iter);
-                                if (fused_node_users.empty()) {
-                                    std::cout << "Find all nodes in fused_node_users" << std::endl;
-                                    break;
-                                } else {
-                                    continue;
-                                }
-                            }
+                        curr_node = prev_node->get_users().front();
+                        if (curr_node->is_output() || curr_node->get_primitive()->input.size() != 2) {
+                            return;
+                        }
 
-                            
-                            // If the current node is not eltwise and fused_node_users is not empty,
-                            // intermediate node is diverged to non eltwise layer and it cannot be fused.
-                            if (!curr_node->is_type<eltwise>()) {
-                                if (!fused_node_users.empty())
-                                    return;
-                                else
-                                    break;
-                            }
+                        // If the current node is not eltwise and fused_node_users is not empty,
+                        // intermediate node is diverged to non eltwise layer and it cannot be fused.
+                        if (!curr_node->is_type<eltwise>()) {
+                            return;
+                        }
 
-                            for (auto& parent_node : curr_node->get_dependencies()) {
-                                std::cout << "Node " << curr_node->id() << " <-- " << parent_node->id() << std::endl;
-                                if (parent_node->id() == prev_node->id()) {
-                                    continue;
-                                }
-                                if (!parent_node->is_type<eltwise>())
-                                    continue;
-                                find_path_to_fused_node_users(parent_node, fused_node_users);
+                        // If the current node is in fused_node_users list, remove it from the list
+                        // After the deleting the node, if fused_node_users is empty, the current sub graphs are available to fuse
+                        auto iter = std::find(fused_node_users.begin(), fused_node_users.end(), curr_node);
+                        if (iter != fused_node_users.end()) {
+                            fused_node_users.erase(iter);
+                            if (fused_node_users.empty()) {
+                                break;
                             }
+                        }
+
+                        for (auto& parent_node : curr_node->get_dependencies()) {
+                            if (parent_node->id() == prev_node->id()) {
+                                continue;
+                            }
+                            if (!parent_node->is_type<eltwise>())
+                                continue;
+                            find_path_to_fused_node_users(parent_node, fused_node_users);
                         }
                     }
                 }
-
-                std::cout << "///////////////////////////////////////////////////////////////////////////////" << std::endl;
-                std::cout << "//// Checking merge allowed - END " << node.id() << std::endl;
-                std::cout << "///////////////////////////////////////////////////////////////////////////////" << std::endl;
             } else {
                 merge_allowed = fused_node->get_users().size() == 1;
             }
@@ -930,10 +916,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                 recalc_processing_order = true;
             }
 
-
-            std::cout << "*******************************************************************************" << std::endl;
             std::cout << "***** " << node.id() << " will be fused to " << fused_node->id() << " !!!! " <<  std::endl;
-            std::cout << "*******************************************************************************" << std::endl;
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
