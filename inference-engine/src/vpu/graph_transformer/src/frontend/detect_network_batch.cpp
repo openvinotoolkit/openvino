@@ -52,15 +52,15 @@ void FrontEnd::detectNetworkBatch(
 
     size_t inputBatch = 0;
 
-    for (const auto& p : inputsInfo) {
+    for (const auto& inputInfo : inputsInfo) {
         VPU_LOGGER_SECTION(env.log);
-        const auto info = p.second;
+        const auto info = inputInfo.second;
         IE_ASSERT(info != nullptr);
 
         const auto ieData = info->getInputData();
         IE_ASSERT(ieData != nullptr);
         auto ieShapes = ieData->getTensorDesc().getDims();
-        env.log->trace("Input [%s] : %v", p.first, ieShapes);
+        env.log->trace("Input [%s] : %v", inputInfo.first, ieShapes);
         // assume only 4D and 5D inputs have batch
         if (ieShapes.size() == 4 || ieShapes.size() == 5) {
             auto batch = ieShapes[0];
@@ -68,7 +68,7 @@ void FrontEnd::detectNetworkBatch(
                 inputBatch = batch;
 
             if (inputBatch != batch) {
-                env.log->trace("Network input with name %s has different batch dim then previous inputs, aborting batch detection", p.first);
+                env.log->trace("Network input with name %s has different batch dim compared to previous inputs, aborting batch detection", inputInfo.first);
                 return;
             }
         }
@@ -86,10 +86,14 @@ void FrontEnd::detectNetworkBatch(
 
     ShapesMap inputShapes;
 
-    for (const auto& p : inputsInfo) {
-        const auto info = p.second;
+    for (const auto& inputInfo : inputsInfo) {
+        const auto info = inputInfo.second;
         const auto ieData = info->getInputData();
         auto ieShapes = ieData->getTensorDesc().getDims();
+        if (ieShapes[0] != inputBatch) {
+            env.log->trace("Network input with name %s has different batch dim compared to previous inputs, aborting batch detection", inputInfo.first);
+            return;
+        }
         ieShapes[0] = 1;
         inputShapes[ieData->getName()] = ieShapes;
     }
