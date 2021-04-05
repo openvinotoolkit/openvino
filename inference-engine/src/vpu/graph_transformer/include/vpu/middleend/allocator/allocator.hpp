@@ -109,7 +109,6 @@ private:
 
     void extractDatas(MemoryType memType, const DataSet& from, DataVector& out) const;
 
-    std::size_t freeDDRMemoryAmount() const;
     void updateChildDataAllocation(const Data& data);
 
 private:

@@ -57,6 +57,7 @@ Allocator::Allocator(): _allocatorOfShaves(_cmxMemoryPool) {
     _memPools.emplace(MemoryType::DDR, &_ddrMemoryPool);
     _memPools.emplace(MemoryType::CMX, &_cmxMemoryPool);
 }
+
 void Allocator::updateChildDataAllocation(const Data& data) {
     for (const auto& edge : data->childDataToDataEdges()) {
         auto parent = edge->parent();
@@ -525,8 +526,7 @@ allocator::MemChunk* Allocator::allocateMem(MemoryType memType, int size, int in
     // Check free space
     //
 
-    const auto freeSpace = (memType == MemoryType::CMX ? freeCMXMemoryAmount() : -1);
-    if (static_cast<std::size_t>(size) > freeSpace) {
+    if (memType == MemoryType::CMX && static_cast<std::size_t>(size) > freeCMXMemoryAmount()) {
         return nullptr;
     }
 
