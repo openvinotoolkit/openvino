@@ -37,10 +37,10 @@ public:
     std::shared_ptr<SharedPart> sharedPart;
 };
 
-extern template class TRANSFORMATIONS_API ngraph::VariantImpl<PrecisionsAttribute>;
+extern template class TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
 
 template<>
-class TRANSFORMATIONS_API ngraph::VariantWrapper<PrecisionsAttribute> : public ngraph::VariantImpl<PrecisionsAttribute> {
+class TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>> : public ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>> {
 public:
     static constexpr ngraph::VariantTypeInfo type_info{ "PRECISIONS", 0 };
 
@@ -52,9 +52,11 @@ public:
 
     std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes) override;
 
+    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes);
+
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
-    PrecisionsAttribute get() { return this->m_value; };
+    std::shared_ptr<PrecisionsAttribute> get() { return this->m_value; };
 
     virtual std::string get_string();
 };

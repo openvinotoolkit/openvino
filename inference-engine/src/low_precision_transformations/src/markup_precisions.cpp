@@ -38,9 +38,13 @@ void setRestriction(
         // if available precisions for any port is empty then mark all input ports
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
+
+            auto attribute = std::make_shared<PrecisionsAttribute>(std::set<element::Type>());
+            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
+
             rt.emplace(
-                ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name,
-                std::make_shared<::ngraph::VariantWrapper<PrecisionsAttribute>>(PrecisionsAttribute(std::set<element::Type>())));
+                ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name,
+                attributeWrapper);
         }
     } else {
         for (const std::pair<size_t, std::set<ngraph::element::Type>>& item : precisionsByPort) {
@@ -48,16 +52,19 @@ void setRestriction(
             auto& rt = input.get_rt_info();
 
             // if available precisions for any port is empty then don't update anything
-            const auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+            const auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
             if (it != rt.end()) {
-                auto precisionsAttribute = std::dynamic_pointer_cast<PrecisionsAttribute>((*it).second);
+                auto var = (*it).second;
+                auto precisionsAttribute = std::dynamic_pointer_cast<PrecisionsAttribute>(var);
                 if (precisionsAttribute->sharedPart->value->precisions.empty()) {
                     return;
                 }
             }
-            rt.emplace(
-                ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name,
-                std::make_shared<::ngraph::VariantWrapper<PrecisionsAttribute>>(item.second));
+
+            auto attribute = std::make_shared<PrecisionsAttribute>(item.second);
+            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
+
+            rt.emplace(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name, attributeWrapper);
         }
     }
 }
@@ -105,14 +112,14 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
 bool ngraph::pass::low_precision::MarkupPrecisions::isDisabled(const std::shared_ptr<Node>& node) {
     for (const auto& input : node->inputs()) {
         auto& rtInfo = input.get_rt_info();
-        auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+        auto it = rtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
         if (it == rtInfo.end()) {
             continue;
         }
 
-        auto precisionAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
+        auto precisionAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
         assert(precisionAttribute != nullptr);
-        const std::set<ngraph::element::Type>& precisionRestrictions = precisionAttribute->get().sharedPart->value->precisions;
+        const std::set<ngraph::element::Type>& precisionRestrictions = precisionAttribute->get()->sharedPart->value->precisions;
         if (precisionRestrictions.empty()) {
             return true;
         }

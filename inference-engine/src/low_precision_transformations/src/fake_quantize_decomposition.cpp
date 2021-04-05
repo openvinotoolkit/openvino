@@ -204,10 +204,10 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     DataPrecision dataPrecision;
     {
         auto& rt = layer->output(0).get_rt_info();
-        auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+        auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
         if (it != rt.end()) {
-            auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
-            const std::set<element::Type> precisions = attribute->get().sharedPart->value->precisions;
+            auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+            const std::set<element::Type> precisions = attribute->get()->sharedPart->value->precisions;
             if (precisions.size() == 1ul) {
                 //const bool ngraph::element::Type precision = *precisions.begin();
                 const auto precision = *precisions.begin();

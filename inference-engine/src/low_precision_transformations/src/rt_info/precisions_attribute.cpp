@@ -16,25 +16,50 @@
 
 using namespace ngraph;
 
-template class ngraph::VariantImpl<PrecisionsAttribute>;
+template class ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
 
-constexpr VariantTypeInfo VariantWrapper<PrecisionsAttribute>::type_info;
+constexpr VariantTypeInfo VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info;
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<PrecisionsAttribute>::merge(const ngraph::NodeVector& nodes) {
+std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(const ngraph::NodeVector& nodes) {
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<PrecisionsAttribute>::init(const std::shared_ptr<ngraph::Node>& node) {
+void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes) {
+    //// TODO: not completed
+    //if (attributes.empty()) {
+    //    return;
+    //}
+
+    //this->get()->sharedPart->value->precisions = attributes[0]->get()->sharedPart->value->precisions;
+
+    auto my = this->get()->sharedPart->value->precisions;
+
+    for (auto attribute : attributes) {
+        auto attributeValues = attribute->get()->sharedPart->value->precisions;
+        std::set<element::Type> result;
+        set_intersection(
+            attributeValues.begin(),
+            attributeValues.end(),
+            my.begin(),
+            my.end(),
+            std::inserter(result, result.begin()));
+        my = result;
+    }
+
+    this->get()->sharedPart->value->precisions = my;
+}
+
+std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::init(const std::shared_ptr<ngraph::Node>& node) {
     return nullptr;
 }
 
-std::string VariantWrapper<PrecisionsAttribute>::get_string() {
-    const size_t rawPointer = (size_t)m_value.sharedPart->value.get();
+std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::get_string() {
+    const size_t rawPointer = (size_t)m_value->sharedPart->value.get();
 
     std::stringstream ss;
     ss << "{" << rawPointer << ": ";
     bool first = true;
-    for (const auto& value : m_value.sharedPart->value->precisions) {
+    for (const auto& value : m_value->sharedPart->value->precisions) {
         if (!first) {
             ss << ", ";
         }

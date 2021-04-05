@@ -198,24 +198,24 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
 
 #elif TYPE == 2
 
-std::vector<std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>>> getParentInputRestrictions(const std::shared_ptr<ngraph::Node> node) {
-    std::vector<std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>>> parentAttributes;
+std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentInputRestrictions(const std::shared_ptr<ngraph::Node> node) {
+    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentAttributes;
     for (Input<Node>& input : node->inputs()) {
         const auto& inputNode = input.get_source_output().get_node()->shared_from_this();
         if (isPrecisionPreserved(inputNode)) {
             for (const Input<Node>& input : inputNode->inputs()) {
                 auto& inputRtInfo = input.get_rt_info();
-                auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+                auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
                 if (inputAttributeIt != inputRtInfo.end()) {
-                    const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(inputAttributeIt->second);
+                    const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(inputAttributeIt->second);
                     parentAttributes.push_back(attribute);
                 }
             }
         } else if (is_type<opset1::FakeQuantize>(inputNode)) {
             const auto& outputPortRtInfo = inputNode->outputs()[0].get_rt_info();
-            auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+            auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
             if (attributeIt != outputPortRtInfo.end()) {
-                const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(attributeIt->second);
+                const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attributeIt->second);
                 parentAttributes.push_back(attribute);
             }
         }
@@ -223,16 +223,31 @@ std::vector<std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>>> getPar
     return parentAttributes;
 }
 
-std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>> getParentInputRestriction(const std::shared_ptr<ngraph::Node> node, const size_t parentIndex) {
+std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getChildrenInputRestrictions(const std::shared_ptr<ngraph::Node> node) {
+    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> childAttributes;
+    for (Output<Node>& output : node->outputs()) {
+        for (const Input<Node>& input : output.get_target_inputs()) {
+            auto& inputRtInfo = input.get_rt_info();
+            auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
+            if (inputAttributeIt != inputRtInfo.end()) {
+                const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(inputAttributeIt->second);
+                childAttributes.push_back(attribute);
+            }
+        }
+    }
+    return childAttributes;
+}
+
+std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> getParentInputRestriction(const std::shared_ptr<ngraph::Node> node, const size_t parentIndex) {
     const auto& inputs = node->inputs();
     Input<Node> input = inputs[parentIndex];
     const auto& inputNode = input.get_source_output().get_node()->shared_from_this();
     if (isPrecisionPreserved(inputNode)) {
         for (const Input<Node>& input : inputNode->inputs()) {
             auto& inputRtInfo = input.get_rt_info();
-            auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+            auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
             if (inputAttributeIt != inputRtInfo.end()) {
-                const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(inputAttributeIt->second);
+                const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(inputAttributeIt->second);
                 return attribute;
             }
         }
@@ -240,9 +255,9 @@ std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>> getParentInputRestr
 
     if (is_type<opset1::FakeQuantize>(inputNode)) {
         const auto& outputPortRtInfo = inputNode->outputs()[0].get_rt_info();
-        auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+        auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
         if (attributeIt != outputPortRtInfo.end()) {
-            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(attributeIt->second);
+            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attributeIt->second);
             return attribute;
         }
     }
@@ -251,144 +266,175 @@ std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>> getParentInputRestr
 }
 
 
-std::vector<std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>>> getParentOutputRestrictions(const std::shared_ptr<ngraph::Node> node) {
-    std::vector<std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>>> parentOutputAttributes;
+std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentOutputRestrictions(const std::shared_ptr<ngraph::Node> node) {
+    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentOutputAttributes;
     for (Input<Node>& input : node->inputs()) {
         const auto& inputNode = input.get_source_output().get_node()->shared_from_this();
         const auto& parentOutput = input.get_source_output();
 
         auto& parentOutputRtInfo = parentOutput.get_rt_info();
-        auto outputAttributeIt = parentOutputRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+        auto outputAttributeIt = parentOutputRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
         if (outputAttributeIt != parentOutputRtInfo.end()) {
-            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(outputAttributeIt->second);
+            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(outputAttributeIt->second);
             parentOutputAttributes.push_back(attribute);
         }
     }
     return parentOutputAttributes;
 }
 
-void handle(const std::shared_ptr<ngraph::Node>& node) {
+void replace(
+    std::shared_ptr<ngraph::Function> f,
+    const std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> newAttribute,
+    const std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> oldAttribute,
+    const std::shared_ptr<ngraph::Node>& node) {
+    const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
+
+    std::set<std::shared_ptr<Node>> visited;
+    std::deque<std::shared_ptr<Node>> nodes;
+    nodes.emplace_back(node);
+
+    while (!nodes.empty()) {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+
+        if (visited.count(curr_node) || is_type<op::Constant>(curr_node)) {
+            continue;
+        }
+
+        visited.insert(curr_node);
+
+        bool wasFound = false;
+        if (is_type<opset1::FakeQuantize>(curr_node)) {
+            for (auto& output : curr_node->outputs()) {
+                auto& rt = output.get_rt_info();
+                auto it = rt.find(name);
+                if (it != rt.end()) {
+                    const auto currentAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+                    const ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>* raw1 = oldAttribute.get();
+                    const ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>* raw2 = currentAttribute.get();
+                    if (raw1 == raw2) {
+                        rt[name] = newAttribute;
+                    }
+                    wasFound = true;
+                }
+            }
+        } else {
+            for (auto& input : curr_node->inputs()) {
+                auto& rt = input.get_rt_info();
+                auto it = rt.find(name);
+                if (it != rt.end()) {
+                    const auto currentAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+                    const ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>* raw1 = oldAttribute.get();
+                    const ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>* raw2 = currentAttribute.get();
+                    if (raw1 == raw2) {
+                        rt[name] = newAttribute;
+                    }
+                    wasFound = true;
+                }
+            }
+        }
+
+        if (!wasFound) {
+            continue;
+        }
+
+        //auto currentAttribute = std::dynamic_pointer_cast<std::shared_ptr<PrecisionsAttribute>>(it->second);
+
+        //auto currentAttributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+        //auto currentAttribute = currentAttributeWrapper->get();
+        //if (oldAttribute.get() != currentAttribute.get()) {
+        //    continue;
+        //}
+
+        if (!is_type<opset1::FakeQuantize>(curr_node)) {
+            for (auto& input : curr_node->inputs()) {
+                const auto& input_node = input.get_source_output().get_node_shared_ptr();
+                if (visited.count(input_node) || is_type<op::Constant>(input_node)) {
+                    continue;
+                }
+
+                nodes.push_front(input_node);
+            }
+        }
+
+        for (auto& output : curr_node->outputs()) {
+            for (auto& input_value : output.get_target_inputs()) {
+                const auto& output_node = input_value.get_node()->shared_from_this();
+                if (visited.count(output_node) || is_type<op::Constant>(output_node)) {
+                    continue;
+                }
+
+                nodes.push_front(output_node);
+            }
+        }
+    }
+}
+
+void handle(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::Node>& node) {
     // TODO: possible need to add validation here to avoid not neccaassary actions for not preserved operations without precision limitations
     const bool precisionPreserved = isPrecisionPreserved(node);
 
     if (precisionPreserved) {
         const auto parentRestrictions = getParentInputRestrictions(node);
+        //const auto parentRestrictions = getChildrenInputRestrictions(node);
+        if (parentRestrictions.empty()) {
+            return;
+        }
 
         // TODO: there is limitation here: one operation - one output precision
-        // 1. manual merge parent inputs to one current input
-        auto resultAttribute = std::make_shared<ngraph::VariantWrapper<PrecisionsAttribute>>(parentRestrictions[0]->get().sharedPart->value);
+        // 1. manual merge parent inputs to one current output
+
+        //auto attribute = std::make_shared<PrecisionsAttribute>(parentRestrictions[0]->get()->sharedPart);
+        //auto resultAttribute = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
+
+        auto resultAttribute = parentRestrictions[0];
+
+        std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> toMerge = parentRestrictions;
+        toMerge.erase(toMerge.begin());
+        resultAttribute->merge(toMerge);
+
+        //auto resultAttribute = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(parentRestrictions[0]->get()->sharedPart->value);
+
         for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
-            // TODO: not correct: intersection is needed here
-            parentRestrictions[index]->get().sharedPart->value = resultAttribute->get().sharedPart->value;
-        }
+            //const auto newAttribute = resultAttribute->get();
+            //const auto oldAttribute = parentRestrictions[index]->get();
 
-        // 2. propagate
-        for (auto& input : node->inputs()) {
-            auto& rt = input.get_rt_info();
-            rt.emplace(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name, resultAttribute);
-        }
-    } else {
-        // manual merge parent input separatelly
-        for (Input<Node>& input : node->inputs()) {
-            const auto& rt = input.get_rt_info();
-            auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
-            if (it == rt.end()) {
-                continue;
-            }
-
-            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
-            const auto& value = attribute->get().sharedPart->value;
-
-            const auto& inputNode = input.get_source_output().get_node()->shared_from_this();
-            if (isPrecisionPreserved(inputNode)) {
-                for (const Input<Node>& input : inputNode->inputs()) {
-                    auto& inputRtInfo = input.get_rt_info();
-                    auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
-                    if (inputAttributeIt != inputRtInfo.end()) {
-                        const auto& inputAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(inputAttributeIt->second);
-                        inputAttribute->get().sharedPart->value->precisions = value->precisions;
-                    }
-                }
-            }
-
-            ////const auto& inputNode = input.get_source_output().get_node()->shared_from_this();
-
-            //const auto& parentOutput = input.get_source_output();
-            //auto& parentOutputRtInfo = parentOutput.get_rt_info();
-            //auto outputAttributeIt = parentOutputRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
-            //if (outputAttributeIt != parentOutputRtInfo.end()) {
-            //    const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(outputAttributeIt->second);
-            //    parentOutputAttributes.push_back(attribute);
+            //for (auto& output : node->inputs()) {
+            //    auto& nodeRt = output.get_rt_info();
+            //    nodeRt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = oldAttribute;
             //}
+
+            //replace(f, newAttribute, oldAttribute, node);
+
+            // TODO: not correct: intersection is needed here
+            // parentRestrictions[index]->get()->sharedPart = resultAttribute->get()->sharedPart;
+
+            const auto oldAttribute = parentRestrictions[index]->get();
+
+            for (auto& input : node->inputs()) {
+                auto& rt = input.get_rt_info();
+                rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = parentRestrictions[index];
+            }
+
+            replace(f, resultAttribute, parentRestrictions[index], node);
+        }
+
+        if (is_type<opset1::FakeQuantize>(node)) {
+            auto& outputPortRtInfo = node->outputs()[0].get_rt_info();
+            //auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
+            //if (attributeIt != outputPortRtInfo.end()) {
+            //    const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(attributeIt->second);
+            //    childAttributes.push_back(attribute);
+            //}
+            outputPortRtInfo[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
+        } else {
+            // 2. propagate
+            for (auto& input : node->inputs()) {
+                auto& rt = input.get_rt_info();
+                rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
+            }
         }
     }
-
-
-    //// propagate from parent input[s] to current one input:
-    //for (Input<Node>& input : node->inputs()) {
-    //    std::vector<std::shared_ptr<ngraph::VariantWrapper<PrecisionsAttribute>>> parentAttributes;
-    //    const auto& inputNode = input.get_source_output().get_node()->shared_from_this();
-    //    if (isPrecisionPreserved(inputNode)) {
-    //        for (const Input<Node>& input : inputNode->inputs()) {
-    //            auto& inputRtInfo = input.get_rt_info();
-    //            auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
-    //            if (inputAttributeIt != inputRtInfo.end()) {
-    //                const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(inputAttributeIt->second);
-    //                parentAttributes.push_back(attribute);
-    //            }
-    //        }
-    //    } else if (is_type<opset1::FakeQuantize>(inputNode)) {
-    //        const auto& outputPortRtInfo = inputNode->outputs()[0].get_rt_info();
-    //        auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
-    //        if (attributeIt != outputPortRtInfo.end()) {
-    //            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(attributeIt->second);
-    //            parentAttributes.push_back(attribute);
-    //        }
-    //    }
-
-    //    if (!parentAttributes.empty()) {
-    //        // manual merge for parent inputs
-    //        const auto resultAttribute = std::make_shared<ngraph::VariantWrapper<PrecisionsAttribute>>(parentAttributes[0]->get().sharedPart->value);
-    //        for (size_t index = 1ul; index < parentAttributes.size(); index++) {
-    //            // TODO: not correct: intersection is needed here
-    //            parentAttributes[index]->get().sharedPart->value = resultAttribute->get().sharedPart->value;
-    //        }
-
-    //        if (precisionPreserved) {
-    //            // propagation for current node: define inputs
-    //            for (Input<Node>& input : node->inputs()) {
-    //                auto& outputRtInfo = input.get_rt_info();
-    //                outputRtInfo.emplace(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name, resultAttribute);
-    //            }
-
-    //            if (parentAttributes.size() >= 2ul) {
-    //                // TODO: debug only
-    //                const auto& value1 = parentAttributes[0]->get().sharedPart->value;
-    //                const auto& value2 = parentAttributes[1]->get().sharedPart->value;
-    //                const auto& value3 = resultAttribute->get().sharedPart->value;
-    //            }
-    //        } else {
-    //            // manual merge with current input limitation
-    //            const auto& rt = input.get_rt_info();
-    //            const auto it = rt.find(ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name);
-    //            if (it != rt.end()) {
-    //                // TODO: not correct: intersection is needed here
-    //                const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionsAttribute>>(it->second);
-
-    //                // TODO: debug only
-    //                const auto value1 = resultAttribute->get().sharedPart->value;
-    //                const auto value2 = attribute->get().sharedPart->value;
-
-    //                resultAttribute->get().sharedPart->value = attribute->get().sharedPart->value;
-    //            }
-    //        }
-    //    }
-    //}
-
-    //// merge
-    //if (is_type<opset1::Concat>(node)) {
-
-    //}
 }
 
 bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
@@ -397,7 +443,7 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
         const std::shared_ptr<Node> node = *it;
 
         // TODO: debug only
-        std::cout << "PropagatePrecisions::run_on_function: " << node->get_type_name() << ": " << node->get_friendly_name() << std::endl;
+        std::cout << "PropagatePrecisions::run_on_function: " << node->get_type_name() << ": " << node->get_friendly_name() << ": BEGIN" << std::endl;
 
         if (is_type<opset1::FakeQuantize>(node)) {
             // define
@@ -405,14 +451,71 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
             assert(outputs.size() == 1ul);
             Output<Node>& output = outputs[0];
             auto& outputRtInfo = output.get_rt_info();
-            outputRtInfo.emplace(
-                ngraph::VariantWrapper<PrecisionsAttribute>::type_info.name,
-                std::make_shared<ngraph::VariantWrapper<PrecisionsAttribute>>(std::set<element::Type>{element::u8, element::i8}));
-            continue;
 
+            auto attribute = std::make_shared<PrecisionsAttribute>(std::set<element::Type>{element::u8, element::i8});
+            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
+            outputRtInfo[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = attributeWrapper;
+            continue;
         }
 
-        handle(node);
+        if (!isPrecisionPreserved(node)) {
+            for (auto& input : node->inputs()) {
+                auto parentNode = input.get_source_output().get_node_shared_ptr();
+
+                const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
+
+                std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentAttributes;
+                for (auto parentNodeInput : parentNode->inputs()) {
+                    auto& parentNodeRt = parentNodeInput.get_rt_info();
+                    auto parentIt = parentNodeRt.find(name);
+                    if (parentIt == parentNodeRt.end()) {
+                        continue;
+                    }
+                    const auto& parentAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(parentIt->second);
+                    parentAttributes.push_back(parentAttribute);
+                }
+
+                if (parentAttributes.empty()) {
+                    continue;
+                }
+
+                auto& nodeRt = input.get_rt_info();
+
+                const auto it = nodeRt.find(name);
+                if (it == nodeRt.end()) {
+                    continue;
+                }
+
+                const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+                std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes{ attribute};
+
+                for (auto& parentAttribute : parentAttributes) {
+                    parentAttribute->merge(attributes);
+                    auto precisions1 = parentAttribute->get()->sharedPart->value->precisions;
+                    auto precisions2 = parentAttributes[0]->get()->sharedPart->value->precisions;
+                }
+
+                nodeRt[name] = parentAttributes[0];
+            }
+            //continue;
+        }
+
+        if (isPrecisionPreserved(node)) {
+            handle(f, node);
+        }
+
+        std::cout << "PropagatePrecisions::run_on_function: " << node->get_type_name() << ": " << node->get_friendly_name() << ": END" << std::endl;
+        for (auto& input : node->inputs()) {
+            const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
+            auto& nodeRt = input.get_rt_info();
+            const auto it = nodeRt.find(name);
+            if (it == nodeRt.end()) {
+                continue;
+            }
+
+            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+            std::cout << name << ": " << attribute->get_string() << std::endl;
+        }
     }
     return true;
 }

@@ -94,7 +94,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getOriginalWithN
         fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
         result2 = std::make_shared<ngraph::opset1::Convolution>(
-            ngraph::op::TemporaryReplaceOutputType(concat2, precision).get(),
+            ngraph::op::TemporaryReplaceOutputType(result2, precision).get(),
             ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
