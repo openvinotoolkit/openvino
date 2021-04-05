@@ -88,15 +88,9 @@ ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_co
 
             const auto& reshape_before_values = reshape_before_constant->cast_vector<int64_t>();
             const auto& reshape_after_values = reshape_after_constant->cast_vector<int64_t>();
-            for (size_t i = 0; i < reshape_before_values.size(); ++i) {
-                if ((reshape_before_values[i] == -1) || (reshape_before_values[i] == 0 && i != 0)) {
-                    return false;
-                }
-            }
-            for (size_t i = 0; i < reshape_after_values.size(); ++i) {
-                if ((reshape_after_values[i] == -1) || (reshape_after_values[i] == 0 && i != 0)) {
-                    return false;
-                }
+            if (std::any_of(reshape_before_values.cbegin(), reshape_before_values.cend(), [](const int64_t& value) { return value == -1; }) ||
+                std::any_of(reshape_after_values.cbegin(), reshape_after_values.cend(), [](const int64_t& value) { return value == -1; })) {
+                return false;
             }
         }
 
