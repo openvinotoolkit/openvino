@@ -13,6 +13,7 @@
 #include <vpu/configuration/options/copy_optimization.hpp>
 #include <vpu/configuration/options/hw_acceleration.hpp>
 #include <vpu/configuration/options/hw_extra_split.hpp>
+#include <vpu/configuration/options/hw_inject_stages.hpp>
 
 namespace vpu {
 
@@ -337,7 +338,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
     // HW/SW injection
 
-    if (env.config.get<HwAccelerationOption>() && env.config.compileConfig().injectSwOps.getOrDefault(true)) {
+    if (env.config.get<HwAccelerationOption>() && env.config.get<HwInjectStagesOption>().getOrDefault(true)) {
         ADD_PASS(injectSw);
         ADD_DUMP_PASS("injectSw");
     }

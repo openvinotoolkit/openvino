@@ -19,7 +19,6 @@ struct CompilationConfig {
 
     bool detectBatch = true;
 
-    Optional<bool> injectSwOps;
     bool hwDilation = false;
     bool forceDeprecatedCnnConversion = false;
     bool enableEarlyEltwiseReLUFusion = true;

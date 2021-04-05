@@ -15,6 +15,7 @@
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
+#include <vpu/configuration/options/hw_inject_stages.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
@@ -71,6 +72,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<HwExtraSplitOption>();
     _configuration.registerOption<HwPoolConvMergeOption>();
     _configuration.registerOption<HwBlackListOption>();
+    _configuration.registerOption<HwInjectStagesOption>();
     _configuration.registerOption<TilingCMXLimitKBOption>();
     _configuration.registerOption<WatchdogIntervalOption>();
     _configuration.registerOption<EnableReceivingTensorTimeOption>();

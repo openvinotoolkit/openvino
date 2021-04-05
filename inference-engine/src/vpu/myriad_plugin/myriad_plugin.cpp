@@ -27,6 +27,7 @@
 #include <vpu/configuration/options/hw_extra_split.hpp>
 #include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 #include <vpu/configuration/options/hw_black_list.hpp>
+#include <vpu/configuration/options/hw_inject_stages.hpp>
 #include <vpu/configuration/options/tiling_cmx_limit_kb.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/enable_receiving_tensor_time.hpp>
@@ -173,6 +174,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<HwExtraSplitOption>();
     _parsedConfig.registerOption<HwPoolConvMergeOption>();
     _parsedConfig.registerOption<HwBlackListOption>();
+    _parsedConfig.registerOption<HwInjectStagesOption>();
     _parsedConfig.registerOption<TilingCMXLimitKBOption>();
     _parsedConfig.registerOption<WatchdogIntervalOption>();
     _parsedConfig.registerOption<EnableReceivingTensorTimeOption>();
