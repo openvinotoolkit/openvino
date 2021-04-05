@@ -146,7 +146,7 @@ void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims) {
     size_t afterDims = ellipsisMask.size() - params.ellipsisPos1 - 1;
     size_t ellipsisPos2 = nSrcDims - afterDims - 1;
 
-    auto addHiddenDims = [&](std::vector<int>& data, const int bit) {
+    auto addHiddenDims = [&](std::vector<int>& data, const int bit = 0) {
         std::vector<int> temp;
         for (size_t i = 0; i < params.ellipsisPos1; i++)
             temp.push_back(data[i]);
@@ -157,14 +157,14 @@ void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims) {
         data = temp;
     };
 
-    addHiddenDims(begin, 0);
-    addHiddenDims(end, 0);
+    addHiddenDims(begin);
+    addHiddenDims(end);
     addHiddenDims(stride, 1);
-    addHiddenDims(beginMask, 1);
-    addHiddenDims(endMask, 1);
-    addHiddenDims(ellipsisMask, 0);
-    addHiddenDims(newAxisMask, 0);
-    addHiddenDims(shrinkAxisMask, 0);
+    addHiddenDims(beginMask);
+    addHiddenDims(endMask);
+    addHiddenDims(ellipsisMask);
+    addHiddenDims(newAxisMask);
+    addHiddenDims(shrinkAxisMask);
 }
 
 void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
@@ -273,6 +273,8 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts() {
         begin.push_back(0);
         end.push_back(0);
         stride.push_back(1);
+        beginMask.push_back(0);
+        endMask.push_back(0);
         ellipsisMask.push_back(0);
         newAxisMask.push_back(0);
         shrinkAxisMask.push_back(0);
