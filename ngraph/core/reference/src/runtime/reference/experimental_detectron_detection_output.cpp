@@ -16,9 +16,8 @@
 
 #include "ngraph/op/experimental_detectron_detection_output.hpp"
 #include <algorithm>
-#include <cmath>
-#include <queue>
-#include <vector>
+#include <cassert>
+#include <utility>
 #include "ngraph/runtime/reference/experimental_detectron_detection_output.hpp"
 #include "ngraph/shape.hpp"
 
