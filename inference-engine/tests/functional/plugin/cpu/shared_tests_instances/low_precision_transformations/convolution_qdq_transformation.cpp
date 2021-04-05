@@ -72,7 +72,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "FP32"
     },
 
@@ -126,7 +126,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -177,7 +177,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "FP32"
     },
 
@@ -228,7 +228,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 };

@@ -16,8 +16,8 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
@@ -29,14 +29,14 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(testing::T
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
+    ngraph::Shape inputShape;
+    ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-        FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
+        netPrecision,
         inputShape,
         testValues.fqOnData,
         testValues.convertOnData,
@@ -52,7 +52,7 @@ void FakeQuantizeWithNotOptimalTransformation::Run() {
     LayerTestsCommon::Run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecision("output_original");
+    const auto actualType = getRuntimePrecisionByType("Convolution");
     EXPECT_EQ(actualType, params.expectedPrecision);
 }
 

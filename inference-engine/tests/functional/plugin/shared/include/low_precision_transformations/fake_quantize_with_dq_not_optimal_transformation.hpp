@@ -49,8 +49,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOpti
 
 // ngraph::builder::subgraph::FakeQuantizeOnData
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeTransformationParams;

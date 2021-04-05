@@ -79,6 +79,7 @@ public:
     std::map<std::string, std::string>& GetConfiguration();
 
     std::string getRuntimePrecision(const std::string& layerName);
+    std::string getRuntimePrecisionByType(const std::string& layerType);
 
     template<class T>
     static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {

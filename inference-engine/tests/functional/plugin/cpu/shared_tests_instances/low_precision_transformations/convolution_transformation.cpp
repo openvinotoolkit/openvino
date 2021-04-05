@@ -27,7 +27,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         {},
         false,
-        "output",
+        "Convolution",
         "FP32"
     },
     {
@@ -35,7 +35,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
-        "output",
+        "Convolution",
         "FP32"
     },
     {
@@ -43,7 +43,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
-        "output_original",
+        "Convolution",
         "U8"
     },
     {
@@ -51,7 +51,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
-        "output",
+        "Convolution",
         "FP32"
     },
     {
@@ -59,7 +59,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } },
         false,
-        "output",
+        "Convolution",
         "FP32"
     },
     {
@@ -67,7 +67,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
-        "output",
+        "Convolution",
         "FP32"
     },
     {
@@ -75,7 +75,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         true,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
-        "output_original",
+        "Convolution",
         "U8"
     },
     {
@@ -83,7 +83,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         true,
         { 255ul, ngraph::Shape { 1 }, { 0.f }, { 254.f }, { -18.7f }, { 18.7f } },
         false,
-        "output_original",
+        "Convolution",
         "U8"
     },
 };

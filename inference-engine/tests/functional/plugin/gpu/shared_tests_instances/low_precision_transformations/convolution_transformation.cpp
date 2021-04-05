@@ -13,7 +13,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -27,30 +27,32 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         {},
         false,
-        "output",
-        ""
+        "Convolution",
+        "FP32"
     },
     {
         {},
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
-        "output",
-        ""
+        "Convolution",
+        "FP32"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
-        "output_original",
+        "Convolution",
         "U8"
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.75f }, { 6.375f } },
         true,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false
+        false,
+        "Convolution",
+        "U8"
     }
 };
 

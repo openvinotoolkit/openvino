@@ -14,7 +14,7 @@ using namespace ngraph::opset1;
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
