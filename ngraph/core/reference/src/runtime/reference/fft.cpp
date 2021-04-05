@@ -16,6 +16,7 @@
 
 #include "ngraph/runtime/reference/fft.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <complex>
 #include <cstring>
@@ -118,6 +119,7 @@ namespace ngraph
                     int64_t fft_axes_as_bitset = 0;
                     for (int64_t axis : inner_axes)
                     {
+                        assert(axis < 64);
                         fft_axes_as_bitset |= static_cast<int64_t>(1) << axis;
                     }
 
