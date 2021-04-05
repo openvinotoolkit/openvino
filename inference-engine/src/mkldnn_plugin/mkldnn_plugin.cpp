@@ -20,7 +20,6 @@
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
 #include <ie_ngraph_utils.hpp>
-// #include <cpu/x64/cpu_isa_traits.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -71,6 +70,8 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/type/element_type.hpp>
+#include <ngraph_ops/convolution_ie.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
@@ -82,7 +83,7 @@
 #include <low_precision/group_convolution.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
-
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_quantize_node.h"
 
@@ -92,10 +93,6 @@
 #  include <windows.h>
 # else
 #  include <cpuid.h>
-#include <ngraph/type/element_type.hpp>
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ngraph_ops/convolution_ie.hpp>
-
 # endif
 #endif
 
@@ -593,7 +590,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     auto config = orig_config;
 
     CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(network);
-    const auto& lptProp = config.find(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool useLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES)
             || (conf.lpTransformsMode == Config::LPTransformsMode::On);
     bool is_transformed = false;
