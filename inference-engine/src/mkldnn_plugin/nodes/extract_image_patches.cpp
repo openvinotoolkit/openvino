@@ -53,6 +53,7 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
         sub(reg_ow_work_amount, reg_w_lo_pad);
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        if (mayiuse_gather) fill_gather_index(vmm_gather_index);
 
         loop();
 
@@ -63,6 +64,7 @@ private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
+    bool mayiuse_gather = mayiuse(avx2) && ( (jpp.dtype_size == 4) || (jpp.dtype_size == 8) );
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     reg64_t reg_src = r8;
@@ -72,6 +74,7 @@ private:
     reg64_t reg_num_pads = r12;
     reg64_t reg_src_h_incr = r13;
     reg64_t reg_aux64 = rax;
+    reg32_t reg_aux32 = eax;
     reg64_t reg_w_hi_pad = r14;
     reg64_t reg_w_lo_pad = r15;
     reg64_t reg_h_hi_pad = rbp;
@@ -83,6 +86,33 @@ private:
     Xmm xmm = Xmm(0);
     Vmm vmm_zero = Vmm(1); // reserved for pad
     Xbyak::Xmm xmm_aux = Xbyak::Xmm(2);
+    Vmm vmm_gather_index = Vmm(3);
+    Vmm vmm_gather_mask = Vmm(4);
+
+    inline void fill_gather_index(Vmm &vmm_arg) {
+        Xbyak::Xmm low_xmm = Xbyak::Xmm(vmm_arg.getIdx());
+        for (int i = 0; i < 4; i++) {
+            mov(reg_aux32, i * jpp.SW * jpp.dtype_size);
+            uni_vpinsrd(low_xmm, low_xmm, reg_aux32, i);
+        }
+        int num_xmms = 0;
+        if ( isa == x64::avx2 ) num_xmms = 2;
+        else if ( isa == x64::avx512_common ) num_xmms = 4;
+
+        for (int xmm_pos = 1; xmm_pos < num_xmms; xmm_pos++) {
+            for (int i = 0; i < 4; i++) {
+                mov(reg_aux32, (i + 4 * xmm_pos) * jpp.SW * jpp.dtype_size);
+                uni_vpinsrd(xmm_aux, xmm_aux, reg_aux32, i);
+            }
+            if ( isa == x64::avx2 ) {
+                Xbyak::Ymm vmm_is_ymm = Xbyak::Ymm(vmm_arg.getIdx());
+                vinserti128(vmm_is_ymm, vmm_is_ymm, xmm_aux, xmm_pos);
+            } else if ( isa == x64::avx512_common ) {
+                Xbyak::Zmm vmm_is_zmm = Xbyak::Zmm(vmm_arg.getIdx());
+                vinserti64x2(vmm_is_zmm, vmm_is_zmm, xmm_aux, xmm_pos);
+            }
+        }
+    }
 
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
@@ -130,11 +160,58 @@ private:
         L(exit);
     }
 
-    inline void read_src2vmm(const Xbyak::Xmm &xmm_arg, reg64_t &reg_src_arg) {
+    inline void custom_uni_vgatherdpd(const Vmm &vmm_arg, const Xbyak::Reg64 mem_base, const Vmm &mem_offset, Vmm &vmm_mask) {
+        switch (isa) {
+            case x64::avx2:
+                uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+                vgatherdpd(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
+                break;
+            case x64::avx512_common:
+                vgatherdpd(vmm_arg, ptr[mem_base + mem_offset]);
+                break;
+            case x64::sse41:
+                emulate_gather(vmm_arg, mem_base);
+                break;
+            default:
+                assert(!"unsupported instruction set in custom_uni_vgatherdpd");
+        }
+    }
+
+    inline void custom_uni_vgatherdps(const Vmm &vmm_arg, reg64_t &mem_base, const Vmm &mem_offset, Vmm &vmm_mask) {
+        switch (isa) {
+            case x64::avx2:
+                uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+                vgatherdps(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
+                break;
+            case x64::avx512_common:
+                vgatherdps(vmm_arg, ptr[mem_base + mem_offset]);
+                break;
+            case x64::sse41:
+                emulate_gather(vmm_arg, mem_base);
+                break;
+            default:
+                assert(!"unsupported instruction set in custom_uni_vgatherdps");
+        }
+    }
+
+    inline void gather_src2vmm(const Vmm &vmm_arg, reg64_t &mem_base) {
+        switch (jpp.dtype_size) {
+            case 8: custom_uni_vgatherdpd(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
+            case 4: custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
+            case 2:
+            case 1: emulate_gather(vmm_arg, mem_base); break;
+            default:
+                assert(!"unknown dtype size for gather");
+        }
+        add(mem_base, jpp.SW * jpp.dtype_size * jpp.block_size);
+    }
+
+    inline void emulate_gather(const Xbyak::Xmm &xmm_arg, reg64_t &mem_base, int xmm_offset = 0) {
         const int xmm_size = 16; // bytes
         const int xmm_block_size = xmm_size / jpp.dtype_size;
+        const int offset = xmm_offset * jpp.SW * jpp.dtype_size * xmm_block_size;
         for (int i = 0; i < xmm_block_size; i++) {
-            Xbyak::Address addr = ptr[reg_src_arg + i * jpp.SW * jpp.dtype_size];
+            Xbyak::Address addr = ptr[mem_base + i * jpp.SW * jpp.dtype_size + offset];
             switch (jpp.dtype_size) {
                 case 8: uni_vpinsrq(xmm_arg, xmm_arg, addr, i); break;
                 case 4: uni_vpinsrd(xmm_arg, xmm_arg, addr, i); break;
@@ -144,20 +221,19 @@ private:
                     assert(!"unknown dtype size");
             }
         }
-        add(reg_src_arg, jpp.SW * jpp.dtype_size * xmm_block_size);
     }
-    inline void read_src2vmm(const Xbyak::Ymm &ymm_arg, reg64_t &reg_src_arg) {
-        Xbyak::Xmm low_xmm = Xmm(ymm_arg.getIdx());
-        read_src2vmm(low_xmm, reg_src_arg);
-        read_src2vmm(xmm_aux, reg_src_arg);
+    inline void emulate_gather(const Xbyak::Ymm &ymm_arg, reg64_t &mem_base) {
+        Xbyak::Xmm low_xmm = Xbyak::Xmm(ymm_arg.getIdx());
+        emulate_gather(low_xmm, mem_base, 0);
+        emulate_gather(xmm_aux, mem_base, 1);
         vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
     }
 
-    inline void read_src2vmm(const Xbyak::Zmm &zmm_arg, reg64_t &reg_src_arg) {
-        Xbyak::Xmm low_xmm = Xmm(zmm_arg.getIdx());
-        read_src2vmm(low_xmm, reg_src_arg);
+    inline void emulate_gather(const Xbyak::Zmm &zmm_arg, reg64_t &mem_base) {
+        Xbyak::Xmm low_xmm = Xbyak::Xmm(zmm_arg.getIdx());
+        emulate_gather(low_xmm, mem_base, 0);
         for (int i = 1; i < 4; i++) {
-            read_src2vmm(xmm_aux, reg_src_arg);
+            emulate_gather(xmm_aux, mem_base, i);
             vinserti64x2(zmm_arg, zmm_arg, xmm_aux, i);
         }
     }
@@ -182,7 +258,7 @@ private:
             {
                 cmp(reg_ow_count, jpp.block_size);
                 jle(iw_tail, T_NEAR);
-                read_src2vmm(vmm, reg_src);
+                gather_src2vmm(vmm, reg_src);
                 uni_vmovups(ptr[reg_dst], vmm);
                 add(reg_dst, jpp.dtype_size * jpp.block_size);
                 sub(reg_ow_count, jpp.block_size);
