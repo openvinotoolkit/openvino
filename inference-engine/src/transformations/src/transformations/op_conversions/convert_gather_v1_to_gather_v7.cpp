@@ -3,14 +3,9 @@
 //
 
 #include "transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp"
-
 #include <ngraph/rt_info.hpp>
-
-#include <numeric>
-
 #include <ngraph/op/gather.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather1ToGather7, "ConvertGather1ToGather7", 0);
@@ -22,6 +17,18 @@ ngraph::pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
     auto gather_v1 = pattern::wrap_type<ngraph::op::v1::Gather>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto gather_v1_node = std::dynamic_pointer_cast<ngraph::op::v1::Gather>(m.get_match_root());
+        if (!gather_v1_node)
+            return false;
+
+        auto data_input = gather_v1_node->input_value(0);
+        auto indices_input = gather_v1_node->input_value(1);
+        auto axis_input = gather_v1_node->input_value(2);
+
+        auto gather_v7  = std::make_shared<ngraph::op::v7::Gather>(data_input, indices_input, axis_input);
+        gather_v7->set_friendly_name(gather_v1_node->get_friendly_name());
+        ngraph::copy_runtime_info(gather_v1_node, gather_v7);
+        ngraph::replace_node(gather_v1_node, gather_v7);
         return true;
     };
 
