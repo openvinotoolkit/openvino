@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::ReduceSum::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceSum, "ReduceSum", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceSum::ReduceSum(const Output<Node>& arg,
                              const Output<Node>& reduction_axes,
