@@ -18,11 +18,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cstdint>
 #include <cstring>
 #include <numeric>
-#include <queue>
-#include <vector>
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/shape.hpp"
 
@@ -51,7 +48,7 @@ namespace
                 area = std::log2(area + 1e-6f);
                 target_level = static_cast<int64_t>(std::floor(area + canonical_level));
                 target_level =
-                    (std::max)(static_cast<int64_t>(0), (std::min)(levels_num - 1, target_level));
+                    std::max(static_cast<int64_t>(0), std::min(levels_num - 1, target_level));
             }
 
             level_ids[i] = target_level;
@@ -182,7 +179,7 @@ namespace
                         if (x_low >= width - 1)
                         {
                             x_high = x_low = width - 1;
-                            x = (T)x_low;
+                            x = static_cast<T>(x_low);
                         }
                         else
                         {
@@ -243,8 +240,8 @@ namespace
             T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
 
             // Force malformed ROIs to be 1x1
-            T roi_width = (std::max)(roi_end_w - roi_start_w, (T)1.0);
-            T roi_height = (std::max)(roi_end_h - roi_start_h, (T)1.0);
+            T roi_width = std::max(roi_end_w - roi_start_w, (T)1.0);
+            T roi_height = std::max(roi_end_h - roi_start_h, (T)1.0);
             T bin_size_h = static_cast<T>(roi_height) / static_cast<T>(pooled_height);
             T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
@@ -252,7 +249,7 @@ namespace
             int64_t roi_bin_grid_h =
                 (sampling_ratio > 0)
                     ? sampling_ratio
-                    : static_cast<int64_t>(ceil(roi_height / pooled_height)); // e.g., = 2
+                    : static_cast<int64_t>(std::ceil(roi_height / pooled_height)); // e.g., = 2
             int64_t roi_bin_grid_w =
                 (sampling_ratio > 0) ? sampling_ratio
                                      : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
@@ -292,9 +289,9 @@ namespace
                         int64_t index = index_n_c + ph * pooled_width + pw;
 
                         T output_val = 0.;
-                        for (int iy = 0; iy < roi_bin_grid_h; iy++)
+                        for (int64_t iy = 0; iy < roi_bin_grid_h; iy++)
                         {
-                            for (int ix = 0; ix < roi_bin_grid_w; ix++)
+                            for (int64_t ix = 0; ix < roi_bin_grid_w; ix++)
                             {
                                 PreCalc<T> pc = pre_calc[pre_calc_index];
                                 output_val += pc.w1 * offset_bottom_data[pc.pos1] +
