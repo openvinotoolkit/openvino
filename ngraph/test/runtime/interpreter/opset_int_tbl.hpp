@@ -88,3 +88,5 @@ NGRAPH_OP(ExperimentalDetectronPriorGridGenerator, op::v6)
 NGRAPH_OP(ExperimentalDetectronROIFeatureExtractor, op::v6)
 NGRAPH_OP(GatherElements, op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
+
+NGRAPH_OP(Roll, ngraph::op::v7)
