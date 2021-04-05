@@ -39,6 +39,7 @@
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
 
 #include "myriad_plugin.h"
 
@@ -186,6 +187,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<ThroughputStreamsOption>();
     _parsedConfig.registerOption<IRWithScalesDirectoryOption>();
     _parsedConfig.registerOption<TensorStridesOption>();
+    _parsedConfig.registerOption<IgnoreUnknownLayersOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

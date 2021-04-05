@@ -51,6 +51,8 @@
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
+
 namespace vpu {
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
     : _stageBuilder(std::move(stageBuilder)),
@@ -436,7 +438,7 @@ void FrontEnd::processTrivialCases(const Model& model) {
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
-    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.compileConfig().ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
+    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.get<IgnoreUnknownLayersOption>(), "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 

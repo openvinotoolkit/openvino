@@ -63,7 +63,6 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_HW_WHITE_LIST,
 
         ie::MYRIAD_NONE_LAYERS,
-        ie::MYRIAD_IGNORE_UNKNOWN_LAYERS,
 
         ie::MYRIAD_COMPILER_LOG_FILE_PATH,
 
@@ -141,7 +140,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.dumpAllPasses,                  switches, config, ie::MYRIAD_DUMP_ALL_PASSES);
 
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
-    setOption(_compileConfig.ignoreUnknownLayers,            switches, config, ie::MYRIAD_IGNORE_UNKNOWN_LAYERS);
     setOption(_compileConfig.hwDilation,                     switches, config, ie::MYRIAD_HW_DILATION);
     setOption(_compileConfig.forceDeprecatedCnnConversion,   switches, config, ie::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION);
     setOption(_compileConfig.disableReorder,                 switches, config, ie::MYRIAD_DISABLE_REORDER);

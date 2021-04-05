@@ -27,6 +27,7 @@
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -84,6 +85,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<ThroughputStreamsOption>();
     _configuration.registerOption<IRWithScalesDirectoryOption>();
     _configuration.registerOption<TensorStridesOption>();
+    _configuration.registerOption<IgnoreUnknownLayersOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

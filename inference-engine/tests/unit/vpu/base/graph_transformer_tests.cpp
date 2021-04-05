@@ -26,6 +26,7 @@
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -387,6 +388,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<ThroughputStreamsOption>();
     configuration.registerOption<IRWithScalesDirectoryOption>();
     configuration.registerOption<TensorStridesOption>();
+    configuration.registerOption<IgnoreUnknownLayersOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

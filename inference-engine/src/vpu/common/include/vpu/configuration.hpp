@@ -42,7 +42,6 @@ struct CompilationConfig {
     bool skipLayerType(const std::string& layerType) const {
         return noneLayers.count(layerType) != 0;
     }
-    bool ignoreUnknownLayers = false;
 
     std::string dumpInternalGraphFileName;
     std::string dumpInternalGraphDirectory;
