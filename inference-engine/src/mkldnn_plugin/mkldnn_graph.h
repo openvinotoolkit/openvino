@@ -206,9 +206,6 @@ protected:
     void ExecuteConstantNodesOnly();
     void SetOriginalLayerNames();
 
-    void do_before(const std::string &dir, const MKLDNNNodePtr &node);
-    void do_after(const std::string &dir, const MKLDNNNodePtr &node);
-
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
     friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);

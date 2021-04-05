@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <memory>
 #include <utility>
+#include <regex>
 
 #include "mkldnn_graph.h"
 #include "mkldnn_graph_dumper.h"
@@ -36,29 +37,9 @@
 #include "precision_utils.h"
 #include <ie_plugin_config.hpp>
 
-#include "utils/blob_dump.h"
 #include "utils/general_utils.h"
-
-/*****************************************************
- * Debug capability
- *  - BLOB_DUMP_PATH : Specify with existing folder name
- *    to dump intermediate blobs into it
- *  - PRINT_GRAPH_INFO : Define it to enable printing
- *    additional information to std output.
- *
- *****************************************************/
-// #define BLOB_DUMP_PATH "mkldnn_dump"
-// #define PRINT_GRAPH_INFO
-// #define DUMP_AS_TEXT
-// #define DUMP_INTERNAL_BLOBS
-
-#ifdef BLOB_DUMP_PATH
-#   define DUMP_DIR        BLOB_DUMP_PATH
-#   define ENABLE_DUMP(_x) { _x ;}
-#else
-#   define DUMP_DIR ""
-#   define ENABLE_DUMP(_x)
-#endif
+#include "utils/debug_capabilities.h"
+#include "utils/node_dumper.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -853,6 +834,8 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     mkldnn::stream stream(eng);
 
+    ENABLE_CPU_DEBUG_CAP(NodeDumper nd(infer_count));
+
     for (int i = 0; i < graphNodes.size(); i++) {
         if (request != nullptr) {
             request->ThrowIfCanceled();
@@ -863,13 +846,14 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
         if (batch > 0)
             graphNodes[i]->setDynamicBatchLim(batch);
 
-        ENABLE_DUMP(do_before(DUMP_DIR, graphNodes[i]));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(graphNodes[i]));
 
         if (!graphNodes[i]->isConstant()) {
             OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
             graphNodes[i]->execute(stream);
         }
-        ENABLE_DUMP(do_after(DUMP_DIR, graphNodes[i]));
+
+        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(graphNodes[i]));
     }
 
     if (infer_count != -1) infer_count++;
@@ -1197,106 +1181,6 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     return newReorder;
 }
 
-void MKLDNNGraph::dumpToDotFile(std::string file) const {
-    std::ofstream dot;
-    dot.open(file);
-    if (!dot.is_open()) IE_THROW() << "CPU Plugin cannot create dot file " << file << ".";
-
-    dump_graph_as_dot(*this, dot);
-    dot.close();
-}
-
-void MKLDNNGraph::do_before(const std::string &dir, const MKLDNNNodePtr &node) {
-    auto exec_order = std::to_string(node->execIndex);
-    std::string nodeName = node->name;
-    std::replace(nodeName.begin(), nodeName.end(), '\\', '_');
-    std::replace(nodeName.begin(), nodeName.end(), '/', '_');
-    std::replace(nodeName.begin(), nodeName.end(), ' ', '_');
-    std::replace(nodeName.begin(), nodeName.end(), ':', '-');
-
-    auto num_ports = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size();
-    for (size_t i = 0; i < num_ports; i++) {
-        auto prEdge = node->getParentEdgeAt(i);
-        auto pr = prEdge->getParent();
-
-        std::string file_name = nodeName;
-        if (infer_count != -1) file_name += "_iter" + std::to_string(infer_count);
-        file_name += "_in" + std::to_string(i) + ".ieb";
-        if (file_name.size() > 240)
-            file_name = file_name.substr(file_name.size() - 240);
-
-
-        auto dump_file = dir + "/#" + exec_order + "_" + file_name;
-        TensorDesc desc = prEdge->getDesc();
-        if (desc.getPrecision() == Precision::BIN)
-            continue;
-
-        BlobDumper dumper(prEdge->getBlob());
-        if (pr->ext_scales) dumper.withScales(pr->ext_scales);
-#ifdef DUMP_AS_TEXT
-        dumper.dumpAsTxt(dump_file);
-#else
-        dumper.dump(dump_file);
-#endif
-    }
-
-#ifdef DUMP_INTERNAL_BLOBS
-    for (size_t i = 0; i < node->internalBlobs.size(); i++) {
-        const auto& blb = node->internalBlobs[i];
-        auto dump_file = dir + "/#" + exec_order + "_" +  nodeName + "_blb" + std::to_string(i) + ".ieb";
-        TensorDesc desc = blb->getTensorDesc();
-        if (desc.getPrecision() == Precision::BIN)
-            continue;
-        BlobDumper dumper(blb);
-#ifdef DUMP_AS_TEXT
-        dumper.dumpAsTxt(dump_file);
-#else
-        dumper.dump(dump_file);
-#endif
-    }
-#endif
-}
-
-void MKLDNNGraph::do_after(const std::string &dir, const MKLDNNNodePtr &node) {
-    auto exec_order = std::to_string(node->execIndex);
-    auto nodeName = node->name;
-    std::replace(nodeName.begin(), nodeName.end(), '\\', '_');
-    std::replace(nodeName.begin(), nodeName.end(), '/', '_');
-    std::replace(nodeName.begin(), nodeName.end(), ' ', '_');
-    std::replace(nodeName.begin(), nodeName.end(), ':', '-');
-
-    auto num_ports = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size();
-    for (size_t i = 0; i < num_ports; i++) {
-        auto childEdge = node->getChildEdgeAt(i);
-
-        std::string file_name = nodeName;
-        if (infer_count != -1) file_name += "_iter" + std::to_string(infer_count);
-        file_name += "_out" + std::to_string(i) + ".ieb";
-        if (file_name.size() > 240)
-            file_name = file_name.substr(file_name.size() - 240);
-
-        auto dump_file = dir + "/#" + exec_order + "_" + file_name;
-        std::cout << "try : " << dump_file << std::endl;
-
-        TensorDesc desc = childEdge->getDesc();
-        if (desc.getPrecision() == Precision::BIN)
-            continue;
-
-        BlobDumper dumper(childEdge->getBlob());
-        if (node->ext_scales) dumper.withScales(node->ext_scales);
-
-#ifdef DUMP_AS_TEXT
-        dumper.dumpAsTxt(dump_file);
-#else
-        dumper.dump(dump_file);
-#endif
-    }
-}
-
-InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
-    return dump_graph_as_ie_ngraph_net(*this);
-}
-
 bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
@@ -1334,4 +1218,18 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
     graphEdges.push_back(afterNode);
     graphNodes.push_back(node);
     return true;
+}
+
+
+InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
+    return dump_graph_as_ie_ngraph_net(*this);
+}
+
+void MKLDNNGraph::dumpToDotFile(std::string file) const {
+    std::ofstream dot;
+    dot.open(file);
+    if (!dot.is_open()) IE_THROW() << "CPU Plugin cannot create dot file " << file << ".";
+
+    dump_graph_as_dot(*this, dot);
+    dot.close();
 }
