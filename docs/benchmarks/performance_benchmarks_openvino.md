@@ -29,73 +29,73 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 
 \htmlonly
-<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-3.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-3"></script>
+<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-4.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="deeplabv3-tf-ov-2021-3-338-3.js" id="deeplabv3-tf-ov-2021-3-338-3"></script>
+<script src="deeplabv3-tf-ov-2021-3-338-4.js" id="deeplabv3-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="densenet-121-tf-ov-2021-3-338-3.js" id="densenet-121-tf-ov-2021-3-338-3"></script>
+<script src="densenet-121-tf-ov-2021-3-338-4.js" id="densenet-121-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-3.js" id="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-3"></script>
+<script src="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-4.js" id="faster-rcnn-resnet50-coco-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="googlenet-v1-tf-ov-2021-3-338-3.js" id="googlenet-v1-tf-ov-2021-3-338-3"></script>
+<script src="googlenet-v1-tf-ov-2021-3-338-4.js" id="googlenet-v1-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="inception-v3-tf-ov-2021-3-338-3.js" id="inception-v3-tf-ov-2021-3-338-3"></script>
+<script src="inception-v3-tf-ov-2021-3-338-4.js" id="inception-v3-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-ssd-cf-ov-2021-3-338-3.js" id="mobilenet-ssd-cf-ov-2021-3-338-3"></script>
+<script src="mobilenet-ssd-cf-ov-2021-3-338-4.js" id="mobilenet-ssd-cf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-v1-1-0-224-tf-ov-2021-3-338-3.js" id="mobilenet-v1-1-0-224-tf-ov-2021-3-338-3"></script>
+<script src="mobilenet-v1-1-0-224-tf-ov-2021-3-338-4.js" id="mobilenet-v1-1-0-224-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-v2-pytorch-ov-2021-3-338-3.js" id="mobilenet-v2-pytorch-ov-2021-3-338-3"></script>
+<script src="mobilenet-v2-pytorch-ov-2021-3-338-4.js" id="mobilenet-v2-pytorch-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="resnet-18-pytorch-ov-2021-3-338-3.js" id="resnet-18-pytorch-ov-2021-3-338-3"></script>
+<script src="resnet-18-pytorch-ov-2021-3-338-4.js" id="resnet-18-pytorch-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="resnet-50-tf-ov-2021-3-338-3.js" id="resnet-50-tf-ov-2021-3-338-3"></script>
-\endhtmlonly
-
-
-\htmlonly
-<script src="se-resnext-50-cf-ov-2021-3-338-3.js" id="se-resnext-50-cf-ov-2021-3-338-3"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="squeezenet1-1-cf-ov-2021-3-338-3.js" id="squeezenet1-1-cf-ov-2021-3-338-3"></script>
+<script src="resnet-50-tf-ov-2021-3-338-4.js" id="resnet-50-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 
 \htmlonly
-<script src="ssd300-cf-ov-2021-3-338-3.js" id="ssd300-cf-ov-2021-3-338-3"></script>
+<script src="se-resnext-50-cf-ov-2021-3-338-4.js" id="se-resnext-50-cf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="yolo-v3-tf-ov-2021-3-338-3.js" id="yolo-v3-tf-ov-2021-3-338-3"></script>
+<script src="squeezenet1-1-cf-ov-2021-3-338-4.js" id="squeezenet1-1-cf-ov-2021-3-338-4"></script>
+\endhtmlonly
+
+
+\htmlonly
+<script src="ssd300-cf-ov-2021-3-338-4.js" id="ssd300-cf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="yolo-v4-tf-ov-2021-3-338-3.js" id="yolo-v4-tf-ov-2021-3-338-3"></script>
+<script src="yolo-v3-tf-ov-2021-3-338-4.js" id="yolo-v3-tf-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="unet-camvid-onnx-0001-ov-2021-3-338-3.js" id="unet-camvid-onnx-0001-ov-2021-3-338-3"></script>
+<script src="yolo-v4-tf-ov-2021-3-338-4.js" id="yolo-v4-tf-ov-2021-3-338-4"></script>
+\endhtmlonly
+
+\htmlonly
+<script src="unet-camvid-onnx-0001-ov-2021-3-338-4.js" id="unet-camvid-onnx-0001-ov-2021-3-338-4"></script>
 \endhtmlonly
 
 
@@ -139,25 +139,25 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                                 | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | 
-| ------------------------------- | ----------------------------            | ----------------------------             |
-| Motherboard                     | Intel® Server Board S2600STB            | Intel® Server Board S2600STB             |
-| CPU                             | Intel® Xeon® Gold 5218T CPU @ 2.10GHz   | Intel® Xeon® Platinum 8270 CPU @ 2.70GHz |
-| Hyper Threading                 | ON                                      | ON                                       |
-| Turbo Setting                   | ON                                      | ON                                       |
-| Memory                          | 12 x 32 GB DDR4 2666MHz                 | 12 x 32 GB DDR4 2933MHz                  |
-| Operating System                | Ubuntu* 18.04 LTS                       | Ubuntu* 18.04 LTS                        |
-| Kernel Version                  | 5.3.0-24-generic                        | 5.3.0-24-generic                         |
-| BIOS Vendor                     | Intel Corporation                       | Intel Corporation                        |
-| BIOS Version                    | SE5C620.86B.02.01.<br>0009.092820190230 | SE5C620.86B.02.01.<br>0009.092820190230  |
-| BIOS Release                    | September 28, 2019                      | September 28, 2019                       |
-| BIOS Settings                   | Select optimized default settings, <br>change power policy to "performance", <br>save & exit | Select optimized default settings, <br>change power policy to "performance", <br>save & exit |
-| Batch size                      | 1                                       | 1                                        |
-| Precision                       | INT8                                    | INT8                                     |
-| Number of concurrent inference requests |32                               | 52                                       |
-| Test Date                       | March 15, 2021                          | March 15, 2021                           |
-| Power dissipation, TDP in Watt  | [105](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1)             | [205](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html#tab-blade-1-0-1)                          |
-| CPU Price on Mach 15th, 2021, USD<br>Prices may vary  | [1,349](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html)                        | [7,405](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html)                        |
+|                                 | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | Intel® Xeon® Platinum 8380               |
+| ------------------------------- | ----------------------------            | ----------------------------             | -----------------------------------------|
+| Motherboard                     | Intel® Server Board S2600STB            | Intel® Server Board S2600STB             | Intel Corporation / WilsonCity           |
+| CPU                             | Intel® Xeon® Gold 5218T CPU @ 2.10GHz   | Intel® Xeon® Platinum 8270 CPU @ 2.70GHz | Intel® Xeon® Platinum 8380 CPU @ 2.30GHz |
+| Hyper Threading                 | ON                                      | ON                                       | ON                                       |
+| Turbo Setting                   | ON                                      | ON                                       | ON                                       |
+| Memory                          | 12 x 32 GB DDR4 2666MHz                 | 12 x 32 GB DDR4 2933MHz                  | 16 x 16 GB DDR4 3200MHz                  |
+| Operating System                | Ubuntu* 18.04 LTS                       | Ubuntu* 18.04 LTS                        | Ubuntu* 18.04 LTS                        |
+| Kernel Version                  | 5.3.0-24-generic                        | 5.3.0-24-generic                         | 5.3.0-24-generic                         |
+| BIOS Vendor                     | Intel Corporation                       | Intel Corporation                        | Intel Corporation                        |
+| BIOS Version                    | SE5C620.86B.02.01.<br>0009.092820190230 | SE5C620.86B.02.01.<br>0009.092820190230  | WLYDCRB1.SYS.0020.<br>P86.2103050636     |
+| BIOS Release                    | September 28, 2019                      | September 28, 2019                       | March 5, 2021                            |
+| BIOS Settings                   | Select optimized default settings, <br>change power policy to "performance", <br>save & exit | Select optimized default settings, <br>change power policy to "performance", <br>save & exit | Select optimized default settings, <br>change power policy to "performance", <br>save & exit |
+| Batch size                      | 1                                       | 1                                        | 1                                        |
+| Precision                       | INT8                                    | INT8                                     | INT8                                     |
+| Number of concurrent inference requests |32                               | 52                                       | 80                                       |
+| Test Date                       | March 15, 2021                          | March 15, 2021                           | March 22, 2021                           |
+| Power dissipation, TDP in Watt  | [105](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1)           | [205](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html#tab-blade-1-0-1)          | [270](https://mark.intel.com/content/www/us/en/secure/mark/products/212287/intel-xeon-platinum-8380-processor-60m-cache-2-30-ghz.html#tab-blade-1-0-1) |
+| CPU Price, USD<br>Prices may vary  | [1,349](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html) (on Mach 15th, 2021) | [7,405](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html) (on Mach 15th, 2021)   | [8,099](https://mark.intel.com/content/www/us/en/secure/mark/products/212287/intel-xeon-platinum-8380-processor-60m-cache-2-30-ghz.html#tab-blade-1-0-0) (on March 26th, 2021) |
 
 
 **CPU Inference Engines (continue)**
@@ -226,7 +226,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Number of concurrent inference requests | 4                  | 4                                                 | 4                                  |
 | Test Date            | March 15, 2021                        | March 15, 2021                                    | March 15, 2021                     |
 | Power dissipation, TDP in Watt | [9.5](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html)  | [12](https://ark.intel.com/content/www/us/en/ark/products/207899/intel-atom-x6425re-processor-1-5m-cache-1-90-ghz.html) | [65](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html#tab-blade-1-0-1)|
-| CPU Price, USD<br>Prices may vary  | [34](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html)(on March 15th, 2021) | [59](https://ark.intel.com/content/www/us/en/ark/products/207899/intel-atom-x6425re-processor-1-5m-cache-1-90-ghz.html) (on March 26th, 2021) | [117](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html) (on March 15th, 2021)       |
+| CPU Price, USD<br>Prices may vary  | [34](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html) (on March 15th, 2021) | [59](https://ark.intel.com/content/www/us/en/ark/products/207899/intel-atom-x6425re-processor-1-5m-cache-1-90-ghz.html) (on March 26th, 2021) | [117](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html) (on March 15th, 2021)  |
 
 
 
