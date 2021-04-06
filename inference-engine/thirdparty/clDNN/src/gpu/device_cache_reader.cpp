@@ -55,13 +55,7 @@ std::shared_ptr<kernel_selector::TuningCache> get_cache_from_file(std::string tu
 
 device_cache_reader::device_cache_reader(const std::string tuning_file_path) {
     {
-        try {
-            _dev_cache = get_cache_from_file(tuning_file_path);
-        }
-        catch (...) {
-            std::cout << "[WARNING] error during parsing cache file, tuning data won't be used" << std::endl;
-            _dev_cache = std::make_shared<kernel_selector::TuningCache>();
-        }
+        _dev_cache = std::make_shared<kernel_selector::TuningCache>();
     }
 }
 
