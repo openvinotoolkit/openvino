@@ -34,6 +34,7 @@
 #include <vpu/configuration/options/enable_tensor_iterator_unrolling.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
+#include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 
 namespace vpu {
 
@@ -212,6 +213,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableTensorIteratorUnrollingOption>();
     configuration.registerOption<ExclusiveAsyncRequestsOption>();
     configuration.registerOption<EnableWeightsAnalysisOption>();
+    configuration.registerOption<EnableReplWithSCReluOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

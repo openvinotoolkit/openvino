@@ -16,6 +16,7 @@
 #include <vpu/configuration/options/hw_inject_stages.hpp>
 #include <vpu/configuration/options/hw_dilation.hpp>
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
+#include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 
 namespace vpu {
 
@@ -215,7 +216,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(adjustDataBatch);
     ADD_DUMP_PASS("adjustDataBatch");
 
-    if (env.config.compileConfig().enableReplWithSCRelu) {
+    if (env.config.get<EnableReplWithSCReluOption>()) {
         ADD_PASS(replaceWithSCReLU);
         ADD_DUMP_PASS("replaceWithSCReLU");
     }
