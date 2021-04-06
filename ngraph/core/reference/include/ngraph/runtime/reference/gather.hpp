@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "ngraph/shape.hpp"
 #include "utils/span.hpp"
 
 namespace ngraph
