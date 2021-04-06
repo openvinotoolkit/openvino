@@ -101,7 +101,9 @@ Also notice that no demos are (yet) fully optimized for the multi-device, by mea
 
 ## Video: MULTI Plugin
 [![](https://img.youtube.com/vi/xbORYFEmrqU/0.jpg)](https://www.youtube.com/watch?v=xbORYFEmrqU)
+\htmlonly
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xbORYFEmrqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)

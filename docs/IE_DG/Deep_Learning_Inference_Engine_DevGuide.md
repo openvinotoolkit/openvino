@@ -113,7 +113,9 @@ The common workflow contains the following steps:
 
 ## Video: Inference Engine Concept
 [![](https://img.youtube.com/vi/e6R13V8nbak/0.jpg)](https://www.youtube.com/watch?v=e6R13V8nbak)
+\htmlonly
 <iframe width="560" height="315" src="https://www.youtube.com/embed/e6R13V8nbak" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+\endhtmlonly
 
 ## Further Reading
 
