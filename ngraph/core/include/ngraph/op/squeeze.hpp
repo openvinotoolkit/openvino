@@ -23,6 +23,7 @@ namespace ngraph
 
                 Squeeze();
                 Squeeze(const Output<Node>& data, const Output<Node>& axes);
+                Squeeze(const Output<Node>& data);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -37,6 +38,9 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool is_dynamic() const override;
+
+            private:
+                Output<Node> get_default_axes_input() const;
             };
         }
         using v0::Squeeze;

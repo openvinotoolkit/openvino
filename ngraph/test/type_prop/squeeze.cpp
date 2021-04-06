@@ -26,6 +26,21 @@ TEST(type_prop, squeeze)
     ASSERT_EQ(squeeze_default_axes->get_shape(), (Shape{4, 4, 8}));
 }
 
+TEST(type_prop, squeeze_no_axes)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
+    auto squeeze = make_shared<op::Squeeze>(param);
+
+    ASSERT_EQ(squeeze->get_element_type(), element::f32);
+    ASSERT_EQ(squeeze->get_shape(), (Shape{4, 4, 8}));
+
+    auto axes_node = make_shared<ngraph::op::Constant>(element::u64, Shape{0}, vector<int64_t>{});
+    auto squeeze_default_axes = make_shared<op::Squeeze>(param, axes_node);
+
+    ASSERT_EQ(squeeze_default_axes->get_element_type(), element::f32);
+    ASSERT_EQ(squeeze_default_axes->get_shape(), (Shape{4, 4, 8}));
+}
+
 TEST(type_prop, squeeze_dynamic_static_rank)
 {
     auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(6));
