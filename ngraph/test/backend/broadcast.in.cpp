@@ -456,6 +456,14 @@ NGRAPH_TEST(${BACKEND_NAME}, broadcast_algo_3d_stride_2)
     broadcast_test_helper(shape_a, shape_r, axis);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, broadcast_algo_3d_diffrent_rank)
+{
+    Shape shape_a{3, 1};
+    Shape shape_r{2, 3, 3};
+    AxisSet axis{1, 2};
+    broadcast_test_helper(shape_a, shape_r, axis);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, broadcast_algo_4d_same_rank)
 {
     Shape shape_a{2, 3, 1, 1};
