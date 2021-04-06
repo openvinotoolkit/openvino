@@ -402,7 +402,7 @@ namespace ngraph
                         }
                     }
 
-                    std::sort(
+                    std::stable_sort(
                         scoreIndexVec.begin(), scoreIndexVec.end(), SortScorePairDescend<int>);
 
                     if (topK > -1 && topK < scoreIndexVec.size())
