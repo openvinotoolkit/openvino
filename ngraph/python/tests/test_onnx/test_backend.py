@@ -190,7 +190,7 @@ tests_expected_to_fail = [
     (xfail_issue_38091,
      "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu"),
     (xfail_issue_52463,
-         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_singleton_broadcast_cpu",),
+     "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_singleton_broadcast_cpu"),
     (xfail_issue_47323,
      "OnnxBackendPyTorchOperatorModelTest.test_operator_add_broadcast_cpu",
      "OnnxBackendPyTorchOperatorModelTest.test_operator_addconstant_cpu",
