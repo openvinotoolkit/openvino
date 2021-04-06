@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
         /** This sample covers certain topology and cannot be generalized for any object detection one **/
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << "\n";
 
-        // --------------------------- Parsing and validation of input args ---------------------------------
+        // --------------------------- Parsing and validation of input arguments ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }

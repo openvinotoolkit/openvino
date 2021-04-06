@@ -34,11 +34,8 @@ static const char custom_plugin_cfg_message[] = "Required for GPU, MYRIAD, HDDL 
 static const char custom_ex_library_message[] = "Required for CPU plugin custom layers. " \
 "Absolute path to a shared library with the kernels implementations.";
 
-/// @brief message for plugin messages
-static const char plugin_err_message[] = "Optional. Enables messages from a plugin";
-
 /// @brief message for config argument
-static constexpr char config_message[] = "Path to the configuration file. Default value: \"config\".";
+static constexpr char config_message[] = "Path to the configuration file.";
 
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
