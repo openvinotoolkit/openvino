@@ -463,10 +463,8 @@ namespace ngraph
                     reinterpret_cast<const complex_type*>(input_data);
                 complex_type* complex_output_ptr = reinterpret_cast<complex_type*>(fft_result);
 
-                const auto info = get_info_for_calculation(input_data_shape,
-                                                           axes_data,
-                                                           axes_data_shape,
-                                                           output_shape);
+                const auto info = get_info_for_calculation(
+                    input_data_shape, axes_data, axes_data_shape, output_shape);
                 const auto& fft_axes = info.fft_axes;
                 const int64_t fft_rank = info.fft_rank;
                 const auto& fft_lengths = info.fft_lengths;
