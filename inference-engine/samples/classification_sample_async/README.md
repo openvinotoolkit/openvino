@@ -8,7 +8,7 @@ Image Classification C++ sample application demonstrates how to use the followin
 |:---     |:--- |:---
 |Inference Engine Version| `InferenceEngine::GetInferenceEngineVersion` | Get Inference Engine API version
 |Available Devices|`InferenceEngine::Core::GetAvailableDevices`| Get version information of the devices for inference
-| Asynchronous Infer | `InferenceEngine::InferRequest::StartAsync`, `InferenceEngine::InferRequest::SetCompletionCallback<lambda`, `` | Do asynchronous inference
+| Asynchronous Infer | `InferenceEngine::InferRequest::StartAsync`, `InferenceEngine::InferRequest::SetCompletionCallback` | Do asynchronous inference
 |Custom Extension Kernels|`InferenceEngine::Core::AddExtension`, `InferenceEngine::Core::SetConfig`| Load extension library and config to the device
 | Network Operations | `InferenceEngine::CNNNetwork::setBatchSize`, `InferenceEngine::CNNNetwork::getBatchSize`, `InferenceEngine::CNNNetwork::getFunction` |  Managing of network, operate with its batch size. Setting batch size using input image count.
 
