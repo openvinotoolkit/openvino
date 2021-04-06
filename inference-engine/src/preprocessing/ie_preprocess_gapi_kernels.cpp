@@ -1120,6 +1120,17 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
             return;
         }
     }
+
+    if (std::is_same<T, float>::value) {
+        neon::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                reinterpret_cast<const float**>(src0),
+                                reinterpret_cast<const float**>(src1),
+                                reinterpret_cast<const float*>(alpha),
+                                reinterpret_cast<const int*>(mapsx),
+                                reinterpret_cast<const float*>(beta),
+                                inSz, outSz, lpi);
+        return;
+    }
 #endif
 
     for (int l = 0; l < lpi; l++) {
