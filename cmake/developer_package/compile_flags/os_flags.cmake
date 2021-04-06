@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,9 +38,10 @@ endmacro()
 macro(ie_deprecated_no_errors)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(ie_c_cxx_deprecated "/Qdiag-warning:1478,1786")
+            set(ie_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            set(ie_c_cxx_deprecated "/wd4996")
+            # show 4996 only for /w4
+            set(ie_c_cxx_deprecated_no_errors "/w44996")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")

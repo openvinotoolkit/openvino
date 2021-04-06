@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,21 +16,21 @@ public:
         std::string errPrefix = std::string("EmbeddingSegmentsSum layer with name '") + _layerName + "' ";
         auto indicesData = layer->insData[INDICES_IDX].lock();
         if (indicesData == nullptr)
-            THROW_IE_EXCEPTION << errPrefix << "has nullable indices data.";
+            IE_THROW() << errPrefix << "has nullable indices data.";
         if (indicesData->getTensorDesc().getDims().size() != 1)
-            THROW_IE_EXCEPTION << errPrefix << "has indices data with invalid shape: "
+            IE_THROW() << errPrefix << "has indices data with invalid shape: "
                 << indicesData->getTensorDesc().getDims().size();
 
         auto segmentIdData = layer->insData[SEGMENT_ID_IDX].lock();
         if (segmentIdData == nullptr)
-            THROW_IE_EXCEPTION << errPrefix << "has invalid segmentID data.";
+            IE_THROW() << errPrefix << "has invalid segmentID data.";
         if (segmentIdData->getTensorDesc().getDims().size() != 1)
-            THROW_IE_EXCEPTION << errPrefix << "has invalid segmentID data shape: "
+            IE_THROW() << errPrefix << "has invalid segmentID data shape: "
                 << segmentIdData->getTensorDesc().getDims().size();
 
         auto numSegmentData = layer->insData[NUM_SEGMENTS_IDX].lock();
         if (numSegmentData == nullptr)
-            THROW_IE_EXCEPTION << errPrefix << "has nullable numSegmentID data.";
+            IE_THROW() << errPrefix << "has nullable numSegmentID data.";
 
         if (_supportedIndicesTypeSize.find(indicesData->getTensorDesc().getPrecision().size())
                     == _supportedIndicesTypeSize.end()
@@ -38,7 +38,7 @@ public:
                     == _supportedIndicesTypeSize.end()
                 || _supportedIndicesTypeSize.find(numSegmentData->getTensorDesc().getPrecision().size())
                     == _supportedIndicesTypeSize.end())
-            THROW_IE_EXCEPTION << errPrefix << "has unsupported input data type.";
+            IE_THROW() << errPrefix << "has unsupported input data type.";
 
         _indices = std::vector<size_t>(indicesData->getTensorDesc().getDims()[0], 0lu);
         _segmentIds = std::vector<size_t>(segmentIdData->getTensorDesc().getDims()[0], 0lu);
@@ -90,7 +90,7 @@ public:
 
     void getIndices(size_t embIndex, const size_t*& indices, size_t& size, size_t& weightsIdx, bool& withWeight) override {
         if (embIndex >= _numSegments)
-            THROW_IE_EXCEPTION << "Invalid embedding bag index.";
+            IE_THROW() << "Invalid embedding bag index.";
 
         indices = nullptr;
         size = 0lu;

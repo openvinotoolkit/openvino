@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,12 @@ void ConvolutionTransformation::Run() {
     LayerTestsCommon::Run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
-    EXPECT_EQ(actualType, params.expectedKernelType);
+    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    auto expectedPrecision = params.expectedKernelType;
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+        expectedPrecision = "FP16";
+    }
+    EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 void ConvolutionTransformation::validate() {

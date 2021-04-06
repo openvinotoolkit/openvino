@@ -1,23 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include <iterator>
 #include <limits>
+#include <stdexcept>
 #include <type_traits>
 
 namespace ngraph
@@ -93,15 +82,62 @@ namespace ngraph
                 constexpr Element& front() const noexcept { return *m_data; }
                 constexpr Element& back() const noexcept { return *(m_data + (m_size - 1)); }
                 constexpr Element& operator[](std::size_t idx) const { return *(m_data + idx); }
-                Element& at(std::size_t idx) const { return *(m_data + idx); }
+                Element& at(std::size_t idx) const
+                {
+                    if (idx >= m_size)
+                    {
+                        throw std::out_of_range{"index out of range"};
+                    }
+                    return *(m_data + idx);
+                }
+
+                /**
+                 * @brief return sub part of span starting from offset and not greater than size
+                 *
+                 */
                 Span subspan(std::size_t offset,
-                             std::size_t size = std::numeric_limits<std::size_t>::max())
+                             std::size_t size = std::numeric_limits<std::size_t>::max()) const
                 {
                     if (offset > m_size)
                     {
                         return {};
                     }
                     return {m_data + offset, std::min(size, m_size - offset)};
+                }
+
+                /**
+                 * @brief drop number of elements from front
+                 *
+                 */
+                Span& drop_front(std::size_t number_of_elements)
+                {
+                    if (number_of_elements < m_size)
+                    {
+                        m_data += number_of_elements;
+                        m_size -= number_of_elements;
+                    }
+                    else
+                    {
+                        m_size = 0;
+                    }
+                    return *this;
+                }
+
+                /**
+                 * @brief drop number of elements from back
+                 *
+                 */
+                Span& drop_back(std::size_t number_of_elements)
+                {
+                    if (number_of_elements < m_size)
+                    {
+                        m_size -= number_of_elements;
+                    }
+                    else
+                    {
+                        m_size = 0;
+                    }
+                    return *this;
                 }
 
             private:
