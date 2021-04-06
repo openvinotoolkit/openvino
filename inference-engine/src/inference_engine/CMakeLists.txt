@@ -94,10 +94,6 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
-if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE ${TBBBIND_2_4_IMPORTED_TARGETS})
-endif()
 
 file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
                                  "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
@@ -132,8 +128,8 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME}_obj PUBLIC ${TBBBIND_2_4_IMPORTED_TARGETS})
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
@@ -151,8 +147,8 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME} PUBLIC -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME} PUBLIC ${TBBBIND_2_4_IMPORTED_TARGETS})
+    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
@@ -182,8 +178,8 @@ add_library(${TARGET_NAME}_s STATIC
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME}_s PUBLIC -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME}_s PUBLIC ${TBBBIND_2_4_IMPORTED_TARGETS})
+    target_compile_definitions(${TARGET_NAME}_s ю -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
