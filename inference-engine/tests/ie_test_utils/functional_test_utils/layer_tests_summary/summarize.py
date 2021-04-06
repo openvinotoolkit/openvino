@@ -45,6 +45,7 @@ verified_operations = [
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'FloorMod-1'
     'GRUSequence-5',
     'Gather-1',
     'GatherElements-6',
