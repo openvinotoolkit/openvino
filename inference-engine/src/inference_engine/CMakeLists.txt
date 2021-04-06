@@ -136,6 +136,16 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
+target_compile_definitions(${TARGET_NAME} PRIVATE JUST_A_DEF)
+
+find_package(TBBBIND_2_4)
+if (TBBBIND_2_4_FOUND)
+    get_target_property(TBBBIND_2_4_LIB TBBbind::tbbbind_2_4 IMPORTED_LOCATION)
+    message(STATUS "--- TBBBIND_2_4_FOUND ${TBBBIND_2_4_LIB}")
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME} PUBLIC ${TBBBIND_2_4_IMPORTED_TARGETS})
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 

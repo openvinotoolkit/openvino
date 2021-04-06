@@ -153,10 +153,15 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     if (WIN32 AND X86_64)
         #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_20200415_tbbbind_2_4_win_v2.zip"
+                ARCHIVE_WIN "tbb2020_20200415_no_bind_win_v3.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "5cff401fdaa3708e3345de6993c37b1d61557cf4a591889b2d74dd79366bed72")
+                SHA256 "9fb6a42a2441154936409fe1681b935647c823cc1207905bdd0f527e1d462dcb")
+        RESOLVE_DEPENDENCY(TBBBIND_2_4
+                ARCHIVE_WIN "tbbbind_2_4_static_hwloc_win_v3.zip"
+                TARGET_PATH "${TEMP}/tbbbind_2_4"
+                ENVIRONMENT "TBBBIND_2_4_ROOT"
+                SHA256 "848d2966665bf89e265ca07b98760c1ee322079794fb1eae77ec87a10c0c0cbc")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -165,9 +170,13 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_20200415_tbbbind_2_4_lin_strip_v2.tgz"
+                ARCHIVE_LIN "tbb2020_20200415_no_bind_lin_strip_v3.tgz"
                 TARGET_PATH "${TEMP}/tbb"
-                SHA256 "954c9ba201a717cceff5e2d83fd6a48c84be6e1f84f26825ec305e7dcdf433ef")
+                SHA256 "ed40cfa06a6b35d168ee847b426cbb97fd9f84c921fc7615cd6304427e8fb342")
+        RESOLVE_DEPENDENCY(TBBBIND_2_4
+                ARCHIVE_LIN "tbbbind_2_4_static_hwloc_lin_v3.tgz"
+                TARGET_PATH "${TEMP}/tbbbind_2_4"
+                SHA256 "ea3e37f8393081aae491457f6e3cbb33c6b8449f5be5f285f9d3b41e0da6ba97")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -187,12 +196,17 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
     update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
+    update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
+
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/bin")
+        log_rpath_from_dir(TBBBIND_2_4 "${TBBBIND_2_4}/bin")
     else ()
         log_rpath_from_dir(TBB "${TBB}/lib")
+        log_rpath_from_dir(TBBBIND_2_4 "${TBBBIND_2_4}/lib")
     endif ()
     debug_message(STATUS "tbb=" ${TBB})
+    debug_message(STATUS "tbbbind_2_4=" ${TBBBIND_2_4})
 endif ()
 
 if (ENABLE_OPENCV)
