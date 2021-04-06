@@ -57,8 +57,7 @@ def run_cmd(args: list, log=None, verbose=True):
 
 def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
-    return {step_name: {"vals": duration_list,
-                        "avg": statistics.mean(duration_list),
+    return {step_name: {"avg": statistics.mean(duration_list),
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
 
@@ -106,7 +105,7 @@ def run_timetest(args: dict, log=None):
     aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
-    return 0, aggregated_stats
+    return 0, aggregated_stats, filtered_stats
 
 
 def check_positive_int(val):
@@ -155,16 +154,19 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, aggr_stats = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, aggr_stats, stats = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
-        # Save aggregated results to a file
+        # Save all results to a file
+        for step_name in aggr_stats:
+            aggr_stats[step_name].update({"vals": stats[step_name]})
         with open(args.stats_path, "w") as file:
             yaml.safe_dump(aggr_stats, file)
-        logging.info("Aggregated statistics saved to a file: '{}'".format(
+        logging.info("All statistics saved to a file: '{}'".format(
             args.stats_path.resolve()))
     else:
         logging.info("Aggregated statistics:")
         pprint(aggr_stats)
 
     sys.exit(exit_code)
+
