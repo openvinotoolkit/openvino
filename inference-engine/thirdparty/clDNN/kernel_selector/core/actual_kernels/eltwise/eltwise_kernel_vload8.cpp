@@ -41,10 +41,8 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
     }
     if ((ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
        (ewParams.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
+       (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.output.Feature().v % 8 != 0) ||
         ewParams.output.GetLayout() == DataLayout::fs_b_yx_fsv32)
-        return false;
-
-    if ((ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv4) && (ewParams.output.Feature().v % 8 != 0))
         return false;
 
     const auto& output = ewParams.output;
