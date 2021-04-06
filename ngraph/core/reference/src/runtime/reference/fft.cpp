@@ -443,8 +443,7 @@ namespace ngraph
                                          input_fft_lengths,
                                          input_fft_strides);
 
-                    bool input_is_zero = blob_is_zero(data.data(), fft_size);
-                    if (!input_is_zero)
+                    if (!blob_is_zero(data.data(), fft_size))
                     {
                         for (int64_t axis_idx = 0; axis_idx < fft_rank; ++axis_idx)
                         {
