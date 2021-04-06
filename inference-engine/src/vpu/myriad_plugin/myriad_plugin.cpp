@@ -46,6 +46,7 @@
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
+#include <vpu/configuration/options/enable_permute_merging.hpp>
 
 #include "myriad_plugin.h"
 
@@ -199,6 +200,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<ExclusiveAsyncRequestsOption>();
     _parsedConfig.registerOption<EnableWeightsAnalysisOption>();
     _parsedConfig.registerOption<EnableReplWithSCReluOption>();
+    _parsedConfig.registerOption<EnablePermuteMergingOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

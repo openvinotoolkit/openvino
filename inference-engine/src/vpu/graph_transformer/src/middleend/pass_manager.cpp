@@ -17,6 +17,7 @@
 #include <vpu/configuration/options/hw_dilation.hpp>
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
+#include <vpu/configuration/options/enable_permute_merging.hpp>
 
 namespace vpu {
 
@@ -285,7 +286,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     // TODO: mergePermute support for reorder stage too.
     // TODO: pass that will swap Permute and per-element operations.
-    if (env.config.compileConfig().enablePermuteMerging) {
+    if (env.config.get<EnablePermuteMergingOption>()) {
         ADD_PASS(mergePermuteStages);
         ADD_DUMP_PASS("mergePermuteStages");
     }

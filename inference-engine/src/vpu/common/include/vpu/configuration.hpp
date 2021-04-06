@@ -45,7 +45,6 @@ struct CompilationConfig {
 
     bool disableReorder = false;  // TODO: rename to enableReorder and switch logic.
     bool disableConvertStages = false;
-    bool enablePermuteMerging = true;
     bool enableMemoryTypesAnnotation = false;
     bool checkPreprocessingInsideModel = true;
     bool enableCustomReshapeParam = false;
