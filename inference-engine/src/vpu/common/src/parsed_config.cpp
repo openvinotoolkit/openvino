@@ -44,7 +44,6 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_COPY_OPTIMIZATION,
         ie::MYRIAD_DISABLE_REORDER,
         ie::MYRIAD_ENABLE_PERMUTE_MERGING,
-        ie::MYRIAD_ENABLE_REPLACE_WITH_REDUCE_MEAN,
         ie::MYRIAD_DISABLE_CONVERT_STAGES,
         ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL,
         ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION,
@@ -134,7 +133,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
     setOption(_compileConfig.disableReorder,                 switches, config, ie::MYRIAD_DISABLE_REORDER);
     setOption(_compileConfig.enablePermuteMerging,           switches, config, ie::MYRIAD_ENABLE_PERMUTE_MERGING);
-    setOption(_compileConfig.enableReplaceWithReduceMean,    switches, config, ie::MYRIAD_ENABLE_REPLACE_WITH_REDUCE_MEAN);
     setOption(_compileConfig.disableConvertStages,           switches, config, ie::MYRIAD_DISABLE_CONVERT_STAGES);
     setOption(_compileConfig.checkPreprocessingInsideModel,  switches, config, ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
     setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);

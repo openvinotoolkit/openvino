@@ -93,8 +93,6 @@ DECLARE_VPU_CONFIG(MYRIAD_ENABLE_PERMUTE_MERGING);
 
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_REPL_WITH_SCRELU);
 
-DECLARE_VPU_CONFIG(MYRIAD_ENABLE_REPLACE_WITH_REDUCE_MEAN);
-
 /**
  * @brief Used to enable Tensor Iterator unrolling to get a reference for Tensor Iterator per-layer tests.
  * Default is "NO".

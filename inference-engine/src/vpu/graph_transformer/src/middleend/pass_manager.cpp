@@ -249,10 +249,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
     // this stage should be executed after "hwPoolTiling"
     // and before "swPoolAdaptation"
-    if (env.config.compileConfig().enableReplaceWithReduceMean) {
-        ADD_PASS(replaceWithReduceMean);
-        ADD_DUMP_PASS("replaceWithReduceMean");
-    }
+    ADD_PASS(replaceWithReduceMean);
+    ADD_DUMP_PASS("replaceWithReduceMean");
+
     ADD_PASS(swPoolAdaptation);
 
     ADD_PASS(swFullyConnectedAdaptation);
