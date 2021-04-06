@@ -188,7 +188,7 @@ const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
 
 /* ============= Convolution params (GEMM layout) ============= */
-const SizeVector numOutChannels_Planar = { 6 };
+const SizeVector numOutChannels_Gemm = {6 };
 
 /* ============= Convolution params (blocked and nspc layout) ============= */
 const SizeVector numOutChannels = { 64, 63 };
@@ -211,14 +211,14 @@ const std::vector<SizeVector> inputShapes3d = { {1, 64, 7, 7, 7}, {1, 67, 7, 7, 
 /* ============= */
 
 /* INSTANCES */
-/* ============= Convolution (Planar 2D) ============= */
+/* ============= Convolution (Gemm 2D) ============= */
 const auto convParams_ExplicitPadding_GEMM_2D = ::testing::Combine(
     ::testing::ValuesIn(kernels2d),
     ::testing::ValuesIn(strides2d),
     ::testing::ValuesIn(padBegins2d),
     ::testing::ValuesIn(padEnds2d),
     ::testing::ValuesIn(dilations2d),
-    ::testing::ValuesIn(numOutChannels_Planar),
+    ::testing::ValuesIn(numOutChannels_Gemm),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
@@ -259,7 +259,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_Planar_I8, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_GEMM_2D,
@@ -282,7 +282,7 @@ const auto convParams_ExplicitPadding_GEMM_3D = ::testing::Combine(
     ::testing::ValuesIn(padBegins3d),
     ::testing::ValuesIn(padEnds3d),
     ::testing::ValuesIn(dilations3d),
-    ::testing::ValuesIn(numOutChannels_Planar),
+    ::testing::ValuesIn(numOutChannels_Gemm),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
