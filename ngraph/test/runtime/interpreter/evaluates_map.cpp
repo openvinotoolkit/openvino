@@ -890,22 +890,6 @@ namespace
             Shape output_shape;
         };
 
-//         std::vector<int64_t> canonicalize_axes(const std::vector<int64_t>& axes, int64_t input_rank)
-//         {
-//             int64_t complex_data_rank = input_rank - 1;
-//             std::vector<int64_t> result(axes.begin(), axes.end());
-//
-//             for (int64_t& axis : result)
-//             {
-//                 if (axis < 0)
-//                 {
-//                     axis += complex_data_rank;
-//                 }
-//             }
-//
-//             return result;
-//         }
-
         std::vector<int64_t> get_signal_size(
             const std::vector<std::shared_ptr<HostTensor>>& inputs, size_t num_of_axes)
         {
@@ -930,7 +914,6 @@ namespace
 
             int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
             int64_t complex_data_rank = input_rank - 1;
-            // auto canonicalized_axes = canonicalize_axes(result.axes_data, input_rank);
             auto canonicalized_axes = runtime::reference::canonicalize_axes(result.axes_data.data(),
                                                                             result.axes_data_shape,
                                                                             complex_data_rank);
