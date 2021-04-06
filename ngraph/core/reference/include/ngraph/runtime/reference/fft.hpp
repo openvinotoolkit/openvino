@@ -53,6 +53,10 @@ namespace ngraph
             void fft_postprocessing(const HostTensorVector& outputs,
                                     const ngraph::element::Type output_type,
                                     const std::vector<float>& fft_result);
+
+            std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
+                                                   const Shape& axes_data_shape,
+                                                   int64_t complex_data_rank);
         }
     }
 }

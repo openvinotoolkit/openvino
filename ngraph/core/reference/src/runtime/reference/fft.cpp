@@ -34,6 +34,24 @@ namespace ngraph
     {
         namespace reference
         {
+
+            std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
+                                                   const Shape& axes_data_shape,
+                                                   int64_t complex_data_rank)
+            {
+                size_t num_of_fft_axes = axes_data_shape[0];
+
+                std::vector<int64_t> result(axes_data, axes_data + num_of_fft_axes);
+                for (int64_t& axis : result)
+                {
+                    if (axis < 0)
+                    {
+                        axis += complex_data_rank;
+                    }
+                }
+                return result;
+            }
+
             namespace
             {
                 using complex_type = std::complex<float>;
@@ -61,23 +79,6 @@ namespace ngraph
                         reversed_shape[i] = static_cast<int64_t>(shape[complex_data_rank - i - 1]);
                     }
                     return reversed_shape;
-                }
-
-                std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
-                                                       const Shape& axes_data_shape,
-                                                       int64_t complex_data_rank)
-                {
-                    size_t num_of_fft_axes = axes_data_shape[0];
-
-                    std::vector<int64_t> result(axes_data, axes_data + num_of_fft_axes);
-                    for (int64_t& axis : result)
-                    {
-                        if (axis < 0)
-                        {
-                            axis += complex_data_rank;
-                        }
-                    }
-                    return result;
                 }
 
                 std::vector<int64_t> get_axes(const int64_t* axes_data,
