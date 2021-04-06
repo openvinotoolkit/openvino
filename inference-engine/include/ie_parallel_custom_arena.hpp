@@ -28,6 +28,9 @@
 #ifndef TBB_PREVIEW_NUMA_SUPPORT
 # define TBB_PREVIEW_NUMA_SUPPORT 1
 #endif
+#ifndef TBBBIND_2_4_AVAILABLE
+# define TBBBIND_2_4_AVAILABLE 0
+#endif
 
 #include <mutex>
 
