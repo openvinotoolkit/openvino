@@ -24,9 +24,9 @@ using deformablePSROISpecificParams = std::tuple<
                                int64_t,                        // output_dim
                                int64_t,                        // group_size
                                float,                          // spatial_scale
-                               std::vector<size_t>,            // spatial_bins_x_y
+                               std::vector<int64_t>,           // spatial_bins_x_y
                                float,                          // trans_std
-                               int64_t>;                        // part_size
+                               int64_t>;                       // part_size
 
 using deformablePSROILayerTestParams = std::tuple<
                                deformablePSROISpecificParams,
