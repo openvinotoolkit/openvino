@@ -87,7 +87,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
 
 std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
                                const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);
@@ -163,7 +163,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
 std::string NetworkCompilationContext::computeHash(const std::string& modelName,
                                const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
     size_t seed {};
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));

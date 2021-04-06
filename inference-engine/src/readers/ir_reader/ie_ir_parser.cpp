@@ -547,7 +547,7 @@ void XmlDeserializer::on_adapter(
 
 std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
-    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
         ngraph::ParameterVector parameters;
@@ -606,7 +606,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphNodes");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphNodes");
 
     FunctionNodes func_nodes;
 
@@ -667,7 +667,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         func_nodes.all.emplace_back(node);
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphFunction");
 
     auto function = std::make_shared<ngraph::Function>(
         func_nodes.results, func_nodes.sinks, func_nodes.parameters, GetStrAttr(root, "name", ""));

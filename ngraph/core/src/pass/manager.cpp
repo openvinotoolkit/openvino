@@ -97,7 +97,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             continue;
         }
 
-        OV_ITT_SCOPED_TASK(itt::domains::nGraphPass_LT,
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::nGraphPass_LT,
                            pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();

@@ -46,7 +46,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     _cfg{cfg},
     _name{network.getName()},
     _numaNodesWeights(numaNodesWeights) {
-    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "MKLDNNExecNetwork", "cloneNet");
 
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNetwork(network);
@@ -100,7 +100,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         }
     }
 
-    OV_ITT_TASK_SKIP(taskChain);
+    OV_ITT_SCOPE_SKIP(FIRST_INFERENCE, taskChain);
 
     CreateConstInputs(_clonedNetwork);
 
