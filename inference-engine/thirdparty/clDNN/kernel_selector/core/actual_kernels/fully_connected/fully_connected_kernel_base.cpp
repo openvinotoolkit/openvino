@@ -87,7 +87,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     const DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     uint32_t fused_deps_total = 0;
     for (auto& fused_dep : newParams.fused_ops) {

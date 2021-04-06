@@ -169,7 +169,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT_BLOCK_ND", GetInputBlockND(newParams)));
         }
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+        std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         clKernelData& kernel = kd.kernels[i];
 
