@@ -257,20 +257,17 @@ namespace ngraph
                     return (fft_kind == FFTKind::Inverse) ? std::conj(result) : result;
                 }
 
-                bool gather_to_buffer(const complex_type* data,
+                void gather_to_buffer(const complex_type* data,
                                       int64_t length,
                                       int64_t start,
                                       int64_t stride,
                                       complex_type* buffer)
                 {
-                    bool input_is_zero = true;
                     for (int64_t k = 0; k < length; ++k)
                     {
                         complex_type value = data[start + k * stride];
                         buffer[k] = value;
-                        input_is_zero = input_is_zero && (value == complex_type(0.0f, 0.0f));
                     }
-                    return input_is_zero;
                 }
 
                 std::vector<complex_type> generate_twiddles(int64_t length, FFTKind fft_kind)
@@ -283,6 +280,12 @@ namespace ngraph
                     return twiddles;
                 }
 
+                // Non-recursive implementation of the Cooley-Tukey radix-2 decimation in
+                // time. Performs 1D FFT transform for the lengths, which are powers of 2.
+                // Runs in O(length * log(length)) time. Uses the same parameters as the naive
+                // implementation above, except that the preallocated buffer must be at least
+                // twice as big as the length of the transform, because the buffer is used to
+                // hold both input and output values for each stage of the transform.
                 void optimized_fft1d(int64_t length,
                                      int64_t fft_offset,
                                      int64_t stride,
@@ -290,8 +293,8 @@ namespace ngraph
                                      complex_type* buffer,
                                      FFTKind fft_kind)
                 {
-                    bool input_is_zero = gather_to_buffer(data, length, fft_offset, stride, buffer);
-                    if (input_is_zero)
+                    gather_to_buffer(data, length, fft_offset, stride, buffer);
+                    if (blob_is_zero(buffer, length))
                     {
                         return;
                     }
@@ -339,8 +342,8 @@ namespace ngraph
                                  complex_type* buffer,
                                  FFTKind fft_kind)
                 {
-                    bool input_is_zero = gather_to_buffer(data, length, fft_offset, stride, buffer);
-                    if (input_is_zero)
+                    gather_to_buffer(data, length, fft_offset, stride, buffer);
+                    if (blob_is_zero(buffer, length))
                     {
                         return;
                     }
