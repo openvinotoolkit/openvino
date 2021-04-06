@@ -23,16 +23,11 @@
 #include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
-
-/**
- * @brief A collection that contains string as key, and const Data smart pointer as value
- */
-using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
-
 /**
  * @brief This is an interface of an executable network
  */
-class IExecutableNetwork : public std::enable_shared_from_this<IExecutableNetwork> {
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork instead") IExecutableNetwork
+    : public std::enable_shared_from_this<IExecutableNetwork> {
 public:
     /**
      * @brief A smart pointer to the current IExecutableNetwork object

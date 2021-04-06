@@ -8,6 +8,9 @@
 #include <ie_version.hpp>
 #include <ie_plugin_cpp.hpp>
 
+#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_default.hpp"
@@ -48,7 +51,7 @@ protected:
     }
 
     void getInferRequestWithMockImplInside(IInferRequest::Ptr &request) {
-        ExecutableNetwork exeNetwork;
+        IExecutableNetworkInternal::Ptr exeNetwork;
         InputsDataMap inputsInfo;
         mockNotEmptyNet->getInputsInfo(inputsInfo);
         OutputsDataMap outputsInfo;
@@ -58,7 +61,7 @@ protected:
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
         ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(InferenceEngine::CNNNetwork(mockNotEmptyNet), {}));
-        ASSERT_NO_THROW(request = exeNetwork.CreateInferRequest());
+        ASSERT_NO_THROW(request = exeNetwork->CreateInferRequest());
     }
 };
 
