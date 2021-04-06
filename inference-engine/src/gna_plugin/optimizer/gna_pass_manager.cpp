@@ -826,6 +826,34 @@ void InsertIdentityLayerPass::run() {
             }
 
             CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), activationLayerWithQuant);
+
+            bool restart = true;
+            // if we added identity - we should reconnect others
+            // we can't leave 16bit output & 32bit output active in parallel
+            // due to GNA HW limitations
+            while (restart) {
+                restart = false;
+                for (auto prev_layer_output : prev->outData) {
+                    // prev ---> identity -+-> layer XYZ
+                    //                     |
+                    //                     |  <= here we want to inject identity
+                    //                     |
+                    //                     +--> l layer
+                    // but we may just connect l layer with existing identity
+                    for (auto&& next_layer : getInputTo(prev_layer_output)) {
+                        auto child_of_prev_layer = next_layer.second;
+                        if (child_of_prev_layer.get() == activationLayerWithQuant.get()) {
+                            continue;
+                        }
+                        else {
+                            CNNNetworkReconnectLayer(prev, activationLayerWithQuant, child_of_prev_layer);
+                            // the iterator aquired by getInputTo is invalid, we need to restart
+                            restart = true;
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 }
