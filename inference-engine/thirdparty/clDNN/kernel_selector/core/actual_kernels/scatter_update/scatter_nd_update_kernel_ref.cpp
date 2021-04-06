@@ -59,6 +59,7 @@ ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, con
 
     if (!is_second) {
         const auto& scope = params.output;
+        dispatchData.indicesLastDim = 1;
         dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
     } else {
         auto indices_rank = params.indices_rank;
