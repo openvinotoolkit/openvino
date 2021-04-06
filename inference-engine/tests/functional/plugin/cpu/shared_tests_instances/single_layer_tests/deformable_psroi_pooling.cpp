@@ -9,7 +9,6 @@
 
 using namespace LayerTestsDefinitions;
 
-const size_t group_size = 2;
 const auto deformablePSROIParams = ::testing::Combine(
     ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3, 8, 16, 16}, {1, 8, 67, 32}}), // data input shape
     ::testing::Values(std::vector<size_t>{10, 5}),                                         // rois input shape
@@ -34,10 +33,10 @@ INSTANTIATE_TEST_CASE_P(smoke_TestsDeformablePSROIPooling, DeformablePSROIPoolin
 
 
 const auto deformablePSROIParams_model = ::testing::Combine(
-    ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 7938, 63, 38}}), // data input shape
+    ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 441, 63, 38}}),  // data input shape
     ::testing::Values(std::vector<size_t>{300, 5}),                           // rois input shape
     ::testing::Values(std::vector<size_t>{300, 2, 3, 3}),                     // offsets input shape
-    ::testing::Values(882),                                                   // output_dim
+    ::testing::Values(49),                                                    // output_dim
     ::testing::Values(3),                                                     // group_size
     ::testing::ValuesIn(std::vector<float>{0.0625}),                          // spatial scale
     ::testing::ValuesIn(std::vector<std::vector<size_t>>{{4, 4}}),            // spatial_bins_x_y

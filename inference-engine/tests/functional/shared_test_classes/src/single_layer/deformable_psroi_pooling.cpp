@@ -64,7 +64,7 @@ namespace LayerTestsDefinitions {
             } else {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                std::vector<float> offset_data = CommonTestUtils::generate_float_numbers(blob->size(), 0.01, 0.5);
+                std::vector<float> offset_data = CommonTestUtils::generate_float_numbers(blob->size(), -0.9, 0.9);
                 CommonTestUtils::fill_data_float_array<InferenceEngine::Precision::FP32>(blob, &offset_data[0], blob->size());
             }
             inputs.push_back(blob);
