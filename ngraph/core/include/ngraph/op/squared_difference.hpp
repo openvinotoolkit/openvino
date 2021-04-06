@@ -6,8 +6,6 @@
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -43,5 +41,3 @@ namespace ngraph
         using v0::SquaredDifference;
     } // namespace op
 } // namespace ngraph
-
-NGRAPH_SUPPRESS_DEPRECATED_END
