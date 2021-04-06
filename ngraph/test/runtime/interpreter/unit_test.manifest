@@ -152,8 +152,8 @@ quantize_clamp_int32
 minimum_u16
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronDetectionOutpu
-INTERPRETER.onnx_model_experimental_detectron_detection_output
-INTERPRETER.onnx_model_experimental_detectron_detection_output_most_attrs_default
+# INTERPRETER.onnx_model_experimental_detectron_detection_output
+# INTERPRETER.onnx_model_experimental_detectron_detection_output_most_attrs_default
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronTopKROIs
 INTERPRETER.onnx_model_experimental_detectron_topk_rios
