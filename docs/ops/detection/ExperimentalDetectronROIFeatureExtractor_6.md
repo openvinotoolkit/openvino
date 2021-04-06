@@ -30,7 +30,7 @@ For more details please see the following source:
 
 * *output_size*
 
-    * **Description**: *output_size* attribute specifies the width and height of the output tensor.
+    * **Description**: The *output_size* attribute specifies the width and height of the output tensor.
     * **Range of values**: a positive integer number
     * **Type**: int
     * **Default value**: None
@@ -38,7 +38,7 @@ For more details please see the following source:
 
 * *sampling_ratio*
 
-    * **Description**: *sampling_ratio* attribute specifies the number of sampling points per the output value. If 0, 
+    * **Description**: The *sampling_ratio* attribute specifies the number of sampling points per the output value. If 0, 
     then use adaptive number computed as `ceil(roi_width / output_width)`, and likewise for height.
     * **Range of values**: a non-negative integer number
     * **Type**: int
@@ -47,7 +47,7 @@ For more details please see the following source:
 
 * *pyramid_scales*
 
-    * **Description**: *pyramid_scales* enlists `image_size / layer_size[l]` ratios for pyramid layers `l=1,...,L`, 
+    * **Description**: The *pyramid_scales* enlists `image_size / layer_size[l]` ratios for pyramid layers `l=1,...,L`, 
     where `L` is the number of pyramid layers, and `image_size` refers to network's input image. Note that pyramid's 
     largest layer may have smaller size than input image, e.g. `image_size` is `800 x 1344` in the XML example below.
     * **Range of values**: a list of positive integer numbers
@@ -57,7 +57,7 @@ For more details please see the following source:
 
 * *aligned*
 
-    * **Description**: *aligned* attribute specifies add offset (`-0.5`) to ROIs sizes or not.
+    * **Description**: The *aligned* attribute specifies add offset (`-0.5`) to ROIs sizes or not.
     * **Range of values**:
       * `true` - add offset to ROIs sizes
       * `false` - do not add offset to ROIs sizes
@@ -67,7 +67,7 @@ For more details please see the following source:
 
 **Inputs**:
 
-*   **1**: 2D input tensor of type *T* with shape `[number_of_ROIs, 4]` describing the ROIs as 4-tuples: 
+*   **1**: 2D input tensor of type *T* with shape `[number_of_ROIs, 4]` providing the ROIs as 4-tuples: 
 [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Coordinates *x* and *y* are refer to the network's input 
 *image_size*. **Required**.
 
