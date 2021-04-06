@@ -49,8 +49,8 @@ namespace ngraph
                                           const Shape& output_shape,
                                           const std::string& mode_str,
                                           const float spatial_scale,
-                                          const size_t spatial_bins_x,
-                                          const size_t spatial_bins_y,
+                                          const int64_t spatial_bins_x,
+                                          const int64_t spatial_bins_y,
                                           const float trans_std,
                                           const int64_t part_size)
             {
@@ -160,7 +160,7 @@ namespace ngraph
                                     bin_height / static_cast<float>(spatial_bins_y);
 
                                 T sub_bins_val_sum = 0;
-                                int legit_sub_bin_count = 0;
+                                int64_t legit_sub_bin_count = 0;
                                 for (size_t sub_bin_h_idx = 0; sub_bin_h_idx < spatial_bins_y;
                                      ++sub_bin_h_idx)
                                 {

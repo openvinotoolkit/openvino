@@ -12,12 +12,12 @@ namespace LayerTestsDefinitions {
         std::vector<size_t> dataShape;
         std::vector<size_t> roisShape;
         std::vector<size_t> offsetsShape;
-        size_t outputDim;
-        size_t groupSize;
+        int64_t outputDim;
+        int64_t groupSize;
         float spatialScale;
         std::vector<size_t> spatialBinsXY;
         float trans_std;
-        size_t part_size;
+        int64_t part_size;
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         deformablePSROISpecificParams opParams;
@@ -76,12 +76,12 @@ namespace LayerTestsDefinitions {
         std::vector<size_t> dataShape;
         std::vector<size_t> roisShape;
         std::vector<size_t> offsetsShape;
-        size_t outputDim;
-        size_t groupSize;
+        int64_t outputDim;
+        int64_t groupSize;
         std::string mode = "bilinear_deformable";
         std::vector<size_t> spatialBinsXY;
         float trans_std;
-        size_t part_size;
+        int64_t part_size;
         InferenceEngine::Precision netPrecision;
         deformablePSROISpecificParams opParams;
 

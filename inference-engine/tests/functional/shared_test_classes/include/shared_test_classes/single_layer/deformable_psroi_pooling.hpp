@@ -21,12 +21,12 @@ using deformablePSROISpecificParams = std::tuple<
                                std::vector<size_t>,            // data input shape
                                std::vector<size_t>,            // rois input shape
                                std::vector<size_t>,            // trans input shape
-                               size_t,                         // output_dim
-                               size_t,                         // group_size
+                               int64_t,                        // output_dim
+                               int64_t,                        // group_size
                                float,                          // spatial_scale
                                std::vector<size_t>,            // spatial_bins_x_y
                                float,                          // trans_std
-                               size_t>;                        // part_size
+                               int64_t>;                        // part_size
 
 using deformablePSROILayerTestParams = std::tuple<
                                deformablePSROISpecificParams,
