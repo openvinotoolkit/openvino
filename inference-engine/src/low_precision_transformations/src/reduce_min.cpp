@@ -45,10 +45,6 @@ bool ReduceMinTransformation::getUpdatePrecision(const std::shared_ptr<Node>& re
     return true;
 }
 
-bool ReduceMinTransformation::getKeepDims(const std::shared_ptr<Node>& reduce) const {
-    return as_type_ptr<opset1::ReduceMin>(reduce)->get_keep_dims();
-}
-
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

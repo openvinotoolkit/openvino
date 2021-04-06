@@ -37,10 +37,6 @@ bool ReduceMeanTransformation::getUpdatePrecision(const std::shared_ptr<Node>& r
     }
 }
 
-bool ReduceMeanTransformation::getKeepDims(const std::shared_ptr<Node>& reduce) const {
-    return as_type_ptr<opset1::ReduceMean>(reduce)->get_keep_dims();
-}
-
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

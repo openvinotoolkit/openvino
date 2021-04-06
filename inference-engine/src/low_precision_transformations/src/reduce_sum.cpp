@@ -24,9 +24,9 @@ bool ReduceSumTransformation::canBeTransformed(const TransformationContext& cont
 }
 
 void ReduceSumTransformation::changeDequantizationValues(
-    FakeQuantizeDequantization& dequantization,
-    const std::shared_ptr<Node>& reduce) const {
-    ReduceBaseTransformation::changeDequantizationValues(dequantization, reduce);
+    const std::shared_ptr<Node>& reduce,
+    FakeQuantizeDequantization& dequantization) const {
+    ReduceBaseTransformation::changeDequantizationValues(reduce, dequantization);
 
     if (dequantization.subtract) {
         const auto reduceSum = as_type_ptr<opset1::ReduceSum>(reduce);
@@ -54,10 +54,6 @@ bool ReduceSumTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce)
 
 bool ReduceSumTransformation::getUpdatePrecision(const std::shared_ptr<Node>& reduce) const {
     return false;
-}
-
-bool ReduceSumTransformation::getKeepDims(const std::shared_ptr<Node>& reduce) const {
-    return as_type_ptr<opset1::ReduceSum>(reduce)->get_keep_dims();
 }
 
 } // namespace low_precision

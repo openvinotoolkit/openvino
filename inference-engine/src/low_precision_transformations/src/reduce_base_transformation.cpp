@@ -22,7 +22,7 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph:
     auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce));
 
     // prepare dequantization to propagate
-    changeDequantizationValues(dequantization, reduce);
+    changeDequantizationValues(reduce, dequantization);
 
     // updatePrecision depends on type and parameters of the reduce
     const bool updatePrecision = getUpdatePrecision(reduce);
@@ -32,7 +32,7 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph:
 
 bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
     const auto dequantization = NetworkHelper::getDequantization(reduce);
-    if (dequantization.multiply == nullptr) {
+    if (dequantization.empty()) {
         return false;
     }
 
@@ -72,54 +72,22 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     return true;
 }
 
-std::shared_ptr<opset1::Constant> ReduceBaseTransformation::RemoveDimsOfDequantizationConstant(
-    const std::shared_ptr<opset1::Constant>& constant,
-    std::vector<size_t> reducedAxes) const {
-    const auto constantShape = constant->get_shape();
-    if (ngraph::shape_size(constantShape) == 1ul) {
-        return NetworkHelper::toScalar(constant);
-    } else {
-        Shape reducedConstantShape(constantShape);
-        // sort in descending order for easy removal of constant shape elements
-        std::sort(reducedAxes.begin(), reducedAxes.end(), std::greater<uint64_t>());
-        for (const auto& axis : reducedAxes) {
-            reducedConstantShape.erase(reducedConstantShape.begin() + axis);
-        }
-        return opset1::Constant::create(constant->get_element_type(), reducedConstantShape, constant->cast_vector<float>());
-    }
-}
-
 void ReduceBaseTransformation::changeDequantizationValues(
-    FakeQuantizeDequantization& dequantization,
-    const std::shared_ptr<Node>& reduce) const {
-    // keepDims depends on type and parameters of the reduce
-    const auto keepDims = getKeepDims(reduce);
-
-    // get reduced axes in normal form (without negative values)
-    const auto constData = as_type_ptr<ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
-    const auto inputRank = reduce->get_input_partial_shape(0).rank();
-    const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
-
-    if (!keepDims) {
-        if (dequantization.subtract) {
-            const auto newSubConstant = RemoveDimsOfDequantizationConstant(dequantization.subtractConstant, axes);
-            replace_node(dequantization.subtractConstant, newSubConstant);
-            dequantization.subtractConstant = newSubConstant;
-        }
-
-        const auto newMulConstant = RemoveDimsOfDequantizationConstant(dequantization.multiplyConstant, axes);
-        replace_node(dequantization.multiplyConstant, newMulConstant);
-        dequantization.multiplyConstant = newMulConstant;
+    const std::shared_ptr<Node>& reduce,
+    FakeQuantizeDequantization& dequantization) const {
+    if (dequantization.subtract) {
+        const auto newSubConstant = NetworkHelper::foldDequantizationConstant(dequantization.subtractConstant, reduce);
+        replace_node(dequantization.subtractConstant, newSubConstant);
+        dequantization.subtractConstant = newSubConstant;
     }
+
+    const auto newMulConstant = NetworkHelper::foldDequantizationConstant(dequantization.multiplyConstant, reduce);
+    replace_node(dequantization.multiplyConstant, newMulConstant);
+    dequantization.multiplyConstant = newMulConstant;
 }
 
 bool ReduceBaseTransformation::getUpdatePrecision(const std::shared_ptr<Node>& reduce) const {
     return true;
-}
-
-bool ReduceBaseTransformation::getKeepDims(const std::shared_ptr<Node>& reduce) const {
-    // default value in specification
-    return false;
 }
 
 } // namespace low_precision

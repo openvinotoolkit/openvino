@@ -23,7 +23,6 @@ public:
 
 protected:
     bool getUpdatePrecision(const std::shared_ptr<Node>& reduce) const override;
-    bool getKeepDims(const std::shared_ptr<Node>& reduce) const override;
 };
 
 } // namespace low_precision

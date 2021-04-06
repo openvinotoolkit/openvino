@@ -45,10 +45,6 @@ bool ReduceMaxTransformation::getUpdatePrecision(const std::shared_ptr<Node>& re
     return true;
 }
 
-bool ReduceMaxTransformation::getKeepDims(const std::shared_ptr<Node>& reduce) const {
-    return as_type_ptr<opset1::ReduceMax>(reduce)->get_keep_dims();
-}
-
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

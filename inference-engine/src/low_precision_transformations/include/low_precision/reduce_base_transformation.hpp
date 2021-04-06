@@ -19,14 +19,10 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
 
 protected:
-    std::shared_ptr<opset1::Constant> RemoveDimsOfDequantizationConstant(
-        const std::shared_ptr<opset1::Constant>& constant,
-        std::vector<size_t> reducedAxes) const;
     virtual void changeDequantizationValues(
-        FakeQuantizeDequantization& dequantization,
-        const std::shared_ptr<Node>& reduce) const;
+        const std::shared_ptr<Node>& reduce,
+        FakeQuantizeDequantization& dequantization) const;
     virtual bool getUpdatePrecision(const std::shared_ptr<Node>& reduce) const;
-    virtual bool getKeepDims(const std::shared_ptr<Node>& reduce) const;
 };
 
 } // namespace low_precision
