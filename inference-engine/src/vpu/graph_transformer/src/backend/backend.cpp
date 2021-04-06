@@ -11,6 +11,7 @@
 #include <iomanip>
 
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
+#include <vpu/configuration/options/dump_all_passes_directory.hpp>
 
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/file_system.hpp>
@@ -89,10 +90,10 @@ void BackEnd::dumpModel(
 
     if (!env.config.get<DumpInternalGraphFileNameOption>().empty()) {
         fileName = fileNameNoExt(env.config.get<DumpInternalGraphFileNameOption>());
-    } else if (!env.config.compileConfig().dumpInternalGraphDirectory.empty()) {
+    } else if (!env.config.get<DumpAllPassesDirectoryOption>().empty()) {
         fileName = formatString(
             "%s/vpu_graph_%f%f%i_%s",
-            env.config.compileConfig().dumpInternalGraphDirectory,
+            env.config.get<DumpAllPassesDirectoryOption>(),
             std::setw(2), std::setfill('0'),
             model->attrs().get<int>("index"),
             replaceBadCharacters(model->name()));

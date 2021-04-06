@@ -39,7 +39,6 @@ struct CompilationConfig {
         return noneLayers.count(layerType) != 0;
     }
 
-    std::string dumpInternalGraphDirectory;
     bool dumpAllPasses;
 
     bool disableReorder = false;  // TODO: rename to enableReorder and switch logic.

@@ -266,6 +266,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, {true}},
         {InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, {false}},
         {InferenceEngine::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME, {std::string()}},
+        {InferenceEngine::MYRIAD_DUMP_ALL_PASSES_DIRECTORY, {std::string()}},
     };
     return defaultEntries;
 }
@@ -391,6 +392,8 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME, "filename", InferenceEngine::Parameter{"filename"}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_DUMP_ALL_PASSES_DIRECTORY, "/.", InferenceEngine::Parameter{"/."}),
     };
     return customEntries;
 }
@@ -449,6 +452,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING,
         InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION,
         InferenceEngine::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME,
+        InferenceEngine::MYRIAD_DUMP_ALL_PASSES_DIRECTORY,
     };
     return privateOptions;
 }

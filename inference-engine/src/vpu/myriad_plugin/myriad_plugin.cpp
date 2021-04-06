@@ -49,6 +49,7 @@
 #include <vpu/configuration/options/enable_permute_merging.hpp>
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
+#include <vpu/configuration/options/dump_all_passes_directory.hpp>
 
 #include "myriad_plugin.h"
 
@@ -94,6 +95,9 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
         _parsedConfig.set(DumpInternalGraphFileNameOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_DIRECTORY")) {
+        _parsedConfig.set(DumpAllPassesDirectoryOption::key(), envVar);
     }
 #endif
 }
@@ -208,6 +212,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<EnablePermuteMergingOption>();
     _parsedConfig.registerOption<EnableMemoryTypesAnnotationOption>();
     _parsedConfig.registerOption<DumpInternalGraphFileNameOption>();
+    _parsedConfig.registerOption<DumpAllPassesDirectoryOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
