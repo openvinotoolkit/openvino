@@ -4,6 +4,6 @@
 
 #include "arithmetic_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::SquareDifference>;
+using Type = ::testing::Types<ngraph::op::SquaredDifference>;
 
 INSTANTIATE_TYPED_TEST_CASE_P(type_prop_squared_difference, ArithmeticOperator, Type); 
