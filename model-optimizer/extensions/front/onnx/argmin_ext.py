@@ -18,7 +18,7 @@ class ArgMinFrontExtractor(FrontExtractorOp):
         attrs = {
             'axis': axis,
             'top_k': 1,
-            'out_max_val': 0,
+            'out_min_val': 0,
             'keepdims': keepdims,
             'remove_values_output': True
         }

@@ -12,20 +12,20 @@ class ArgMaxToTopK(MiddleReplacementPattern):
     """
         The transformation replaces ArgMax with the TopK layer.
     """
-    op = "ArgMax"
+
     enabled = True
     force_clean_up = True
 
     def pattern(self):
         return dict(
             nodes=[
-                ('argmax', dict(op='ArgMax')),
+                ('node', dict(op=lambda x: x in ['ArgMax', 'ArgMin'])),
             ],
             edges=[]
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        node = match['argmax']
+        node = match['node']
         node_name = node.soft_get('name', node.id)
 
         connected_ports = [port for port in node.in_ports().values() if not port.disconnected()]
@@ -36,11 +36,13 @@ class ArgMaxToTopK(MiddleReplacementPattern):
 
         assert axis is not None, 'The "axis" should be defined for node "{}"'.format(node_name)
         assert node.has_and_set('output_type'), 'The data type is not set for node "{}"'.format(node_name)
-        topk_node = TopK(graph, {'axis': axis, 'mode': 'max', 'sort': 'index',
+
+        topk_mode = 'max' if node['op'] == 'ArgMax' else 'min'
+        topk_node = TopK(graph, {'axis': axis, 'mode': topk_mode, 'sort': 'index',
                                  'remove_values_output': node.has_and_set('remove_values_output'),
                                  'index_element_type': node.output_type}).create_node()
         node.in_port(0).get_connection().set_destination(topk_node.in_port(0))
-        if node.has_and_set('out_max_val'):  # in this mode the ArgMax produces tuples (max_ind, max_value)
+        if node.has_and_set('out_max_val') or node.has_and_set('out_min_val'):  # in this mode the ArgMax produces tuples (max_ind, max_value)
             concat_node = Concat(graph, {'axis': 1, 'name': node.name + '/Concat'}).create_node()
             concat_node.add_input_port(0, skip_if_exist=True)
             concat_node.add_input_port(1, skip_if_exist=True)

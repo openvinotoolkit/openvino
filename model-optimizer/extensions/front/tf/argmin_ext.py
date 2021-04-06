@@ -15,7 +15,7 @@ class ArgMinFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'out_max_val': 0,
+            'out_min_val': 0,
             'top_k': 1,
             'axis': None,
             'keepdims': 0,
