@@ -13,6 +13,7 @@ using namespace ngraph::pass::low_precision;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::Shape> dimensions = {

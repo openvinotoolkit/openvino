@@ -130,6 +130,18 @@ bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max
     return true;
 }
 
+std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node) {
+    const auto& num_outputs = node->get_output_size();
+    NGRAPH_CHECK(num_outputs == 1, "Unary has unexpected number of outputs:" + std::to_string(num_outputs));
+    OutputVector output(num_outputs);
+    return node->constant_fold(output, node->input_values()) ? output[0].get_node_shared_ptr() : node;
+}
+
+std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs) {
+    auto unary_output_node = node->clone_with_new_inputs(inputs);
+    return try_fold_unary_output(unary_output_node);
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph
