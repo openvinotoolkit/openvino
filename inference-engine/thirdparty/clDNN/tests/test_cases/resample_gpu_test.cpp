@@ -782,8 +782,6 @@ struct caffe_resample_random_test_params {
 
 struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random_test_params>
 {
-    bool enable_profiling = false;
-
     template <typename T>
     void fill_random_typed(memory& mem, int min, int max, int k) {
         auto size = mem.get_layout().size;
@@ -860,15 +858,8 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         return true;
     }
 
-    cldnn::engine_configuration get_engine_config(bool enable_profiling = false, const std::string& dump_dir = "") {
-        this->enable_profiling = enable_profiling;
-        cldnn::engine_configuration cfg {enable_profiling, false, false, "", "", true, "", dump_dir};
-        return cfg;
-    }
-
     void execute_compare(const caffe_resample_random_test_params& params, bool check_result) {
-        auto cfg = get_engine_config(false, "");
-        auto eng = cldnn::engine(cfg);
+        auto eng = cldnn::engine();
 
         auto in_layout = layout(params.input_type, params.in_format, params.input_size);
         auto in_mem = memory::allocate(eng, in_layout);
@@ -892,25 +883,8 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         auto result = net.execute();
         auto output = result.at("resample").get_memory();
 
-        std::string kernel = "";
-        for (auto& info : net.get_primitives_info()) {
-            if (info.original_id == "resample")
-                kernel = info.kernel_id;
-        }
-
-        double ref_exec_time = 0;
-        for (auto& pri : net.get_executed_primitives()) {
-            if (pri.first == "resample") {
-                for (auto& pi : pri.second.get_profiling_info()) {
-                    if (pi.name == "executing") {
-                        ref_exec_time = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
-                    }
-                }
-            }
-        }
-
         // Execute resample_opt
-        auto eng_opt = cldnn::engine(cfg);
+        auto eng_opt = cldnn::engine();
 
         cldnn::topology topo_opt;
         topo_opt.add(input_layout("in", in_layout));
@@ -931,28 +905,6 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
 
         auto result_opt = net_opt.execute();
         auto output_opt = result_opt.at("resample_opt").get_memory();
-
-        std::string kernel_opt = "";
-        for (auto& info : net_opt.get_primitives_info()) {
-            if (info.original_id == "resample_opt")
-                kernel_opt = info.kernel_id;
-        }
-
-        double opt_exec_time = 0;
-        for (auto& pri : net_opt.get_executed_primitives()) {
-            if (pri.first == "resample_opt") {
-                for (auto& pi : pri.second.get_profiling_info()) {
-                    if (pi.name == "executing") {
-                        opt_exec_time = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
-                    }
-                }
-            }
-        }
-
-        if (enable_profiling) {
-            std::cout << "ref: " << ref_exec_time << ", " << "opt: " << opt_exec_time
-                    << ", " << std::setprecision(3) << ref_exec_time/opt_exec_time << std::endl;
-        }
 
         if (check_result == true) {
             // Check data_types
