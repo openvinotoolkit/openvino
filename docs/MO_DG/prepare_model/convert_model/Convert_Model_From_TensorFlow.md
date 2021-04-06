@@ -369,8 +369,9 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 
 ## Video: Converting a TensorFlow Model
 [![](https://img.youtube.com/vi/QW6532LtiTc/0.jpg)](https://www.youtube.com/watch?v=QW6532LtiTc)
+\htmlonly
 <iframe width="560" height="315" src="https://www.youtube.com/embed/QW6532LtiTc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
+\endhtmlonly
 
 ## Summary
 In this document, you learned:
