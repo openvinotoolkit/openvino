@@ -56,7 +56,7 @@ void setRestriction(
             if (it != rt.end()) {
                 auto var = (*it).second;
                 auto precisionsAttribute = std::dynamic_pointer_cast<PrecisionsAttribute>(var);
-                if (precisionsAttribute->sharedPart->value->precisions.empty()) {
+                if (precisionsAttribute->precisions.empty()) {
                     return;
                 }
             }
@@ -119,7 +119,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isDisabled(const std::shared
 
         auto precisionAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
         assert(precisionAttribute != nullptr);
-        const std::set<ngraph::element::Type>& precisionRestrictions = precisionAttribute->get()->sharedPart->value->precisions;
+        const std::set<ngraph::element::Type>& precisionRestrictions = precisionAttribute->get()->precisions;
         if (precisionRestrictions.empty()) {
             return true;
         }

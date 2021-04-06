@@ -25,7 +25,9 @@ class TRANSFORMATIONS_API AlignConcatQuantizationParamters;
 }  // namespace pass
 }  // namespace ngraph
 
-// Transformation is used to add customization options runtime
+// Transformation creates `QuantizationAlignmentAttribute` attribute for FakeQuantize operations and
+// forward propagate the attribute throught precision preserved operations. If `opset1::Convolution` operation is achieved then
+// the transformation marks `QuantizationAlignmentAttribute` attribute as actual.
 class ngraph::pass::low_precision::AlignConcatQuantizationParamters : public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;

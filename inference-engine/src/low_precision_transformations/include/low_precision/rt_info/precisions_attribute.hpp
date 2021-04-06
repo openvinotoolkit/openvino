@@ -17,24 +17,8 @@
 
 class PrecisionsAttribute {
 public:
-    class SharedPart {
-    public:
-        class SharedValue {
-        public:
-            SharedValue(const std::set<ngraph::element::Type>& precisions) : precisions(precisions) {}
-            std::set<ngraph::element::Type> precisions;
-        };
-
-        SharedPart(const std::shared_ptr<SharedValue>& value) : value(value) {}
-        SharedPart(const std::set<ngraph::element::Type>& precisions) : value(std::make_shared<SharedValue>(precisions)) {}
-        std::shared_ptr<SharedValue> value;
-    };
-
-    PrecisionsAttribute(const std::set<ngraph::element::Type>& precisions) : sharedPart(std::make_shared<SharedPart>(precisions)) {}
-    PrecisionsAttribute(const std::shared_ptr<PrecisionsAttribute::SharedPart::SharedValue>& value) : sharedPart(std::make_shared<SharedPart>(value)) {}
-    PrecisionsAttribute(const std::shared_ptr<SharedPart>& sharedPart) : sharedPart(sharedPart) {}
-
-    std::shared_ptr<SharedPart> sharedPart;
+    PrecisionsAttribute(const std::set<ngraph::element::Type>& precisions) : precisions(precisions) {}
+    std::set<ngraph::element::Type> precisions;
 };
 
 extern template class TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;

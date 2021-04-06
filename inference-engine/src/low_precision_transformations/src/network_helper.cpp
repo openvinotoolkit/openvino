@@ -265,7 +265,7 @@ void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, 
     auto& rt = target->get_rt_info();
     if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
         rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
-        rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name);
+        rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
     }
 
     const std::string friendlyName = sources[0]->get_friendly_name();
@@ -561,14 +561,15 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
     return newFakeQuantize;
 }
 
-bool NetworkHelper::isPrecisionPreserved(std::shared_ptr<ngraph::Node> node) {
-    auto& rtInfo = node->get_rt_info();
-    auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
-    if (it == rtInfo.end()) {
+bool NetworkHelper::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node) {
+    auto& rt = node->get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
+    if (it == rt.end()) {
         return false;
     }
-    auto tmpAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
-    return tmpAttribute->get().sharedValue->value;
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
+    assert(attribute != nullptr);
+    return attribute->get().sharedValue->value;
 }
 
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(

@@ -207,7 +207,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
         if (it != rt.end()) {
             auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
-            const std::set<element::Type> precisions = attribute->get()->sharedPart->value->precisions;
+            const std::set<element::Type> precisions = attribute->get()->precisions;
             if (precisions.size() == 1ul) {
                 //const bool ngraph::element::Type precision = *precisions.begin();
                 const auto precision = *precisions.begin();
@@ -222,14 +222,14 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    std::shared_ptr<QuantizationAlignmentAttribute::SharedPart::SharedValue> alignValue;
+    std::shared_ptr<QuantizationAlignmentAttribute> alignValue;
     {
         auto& rt = layer->get_rt_info();
-        auto it = rt.find(ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name);
+        auto it = rt.find(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
         if (it != rt.end()) {
-            auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(it->second);
-            const QuantizationAlignmentAttribute attribute = attributeWrapper->get();
-            alignValue = attribute.sharedPart->value->hasToBeAligned ? attribute.sharedPart->value : nullptr;
+            auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(it->second);
+            const std::shared_ptr<QuantizationAlignmentAttribute> attribute = attributeWrapper->get();
+            alignValue = attribute->hasToBeAligned ? attribute : nullptr;
         }
     }
 

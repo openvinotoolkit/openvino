@@ -25,17 +25,10 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttrib
 }
 
 void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes) {
-    //// TODO: not completed
-    //if (attributes.empty()) {
-    //    return;
-    //}
-
-    //this->get()->sharedPart->value->precisions = attributes[0]->get()->sharedPart->value->precisions;
-
-    auto my = this->get()->sharedPart->value->precisions;
+    auto my = this->get()->precisions;
 
     for (auto attribute : attributes) {
-        auto attributeValues = attribute->get()->sharedPart->value->precisions;
+        auto attributeValues = attribute->get()->precisions;
         std::set<element::Type> result;
         set_intersection(
             attributeValues.begin(),
@@ -46,7 +39,7 @@ void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(std::vector<std
         my = result;
     }
 
-    this->get()->sharedPart->value->precisions = my;
+    this->get()->precisions = my;
 }
 
 std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::init(const std::shared_ptr<ngraph::Node>& node) {
@@ -54,12 +47,14 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttrib
 }
 
 std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::get_string() {
-    const size_t rawPointer = (size_t)m_value->sharedPart->value.get();
-
     std::stringstream ss;
-    ss << "{" << rawPointer << ": ";
+
+    // TODO: debug only
+    const size_t rawPointer = (size_t)m_value.get();
+    ss << rawPointer << ": ";
+
     bool first = true;
-    for (const auto& value : m_value->sharedPart->value->precisions) {
+    for (const auto& value : m_value->precisions) {
         if (!first) {
             ss << ", ";
         }

@@ -184,7 +184,7 @@ public:
 
     static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
-    static bool isPrecisionPreserved(std::shared_ptr<ngraph::Node> node);
+    static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);

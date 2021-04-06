@@ -16,73 +16,57 @@
 
 using namespace ngraph;
 
-template class ngraph::VariantImpl<QuantizationAlignmentAttribute>;
+template class ngraph::VariantImpl<QuantizationAlignmentAttributePtr>;
 
-constexpr VariantTypeInfo VariantWrapper<QuantizationAlignmentAttribute>::type_info;
+constexpr VariantTypeInfo VariantWrapper<QuantizationAlignmentAttributePtr>::type_info;
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttribute>::merge(const ngraph::NodeVector& nodes) {
-    std::shared_ptr<QuantizationAlignmentAttribute::SharedPart> resultSharedPart;
-    std::shared_ptr<QuantizationAlignmentAttribute::SharedPart::SharedValue> resultValue;
+std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttributePtr>::merge(const ngraph::NodeVector& nodes) {
+    std::shared_ptr<::ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>> resultAttributeWrapper;
+    std::shared_ptr<QuantizationAlignmentAttribute> resultAttribute;
 
     // update
     for (const std::shared_ptr<ngraph::Node>& node : nodes) {
         auto& rt = node->get_rt_info();
-        auto rtIt = rt.find(VariantWrapper<QuantizationAlignmentAttribute>::type_info.name);
+        auto rtIt = rt.find(VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
         if (rtIt == rt.end()) {
             continue;
         }
 
-        auto& attribute = std::dynamic_pointer_cast<VariantWrapper<QuantizationAlignmentAttribute>>(rtIt->second);
-        QuantizationAlignmentAttribute expectedOperation = attribute->get();
-        std::shared_ptr<QuantizationAlignmentAttribute::SharedPart>& sharedPart = expectedOperation.sharedPart;
+        auto attributeWrapper = std::dynamic_pointer_cast<VariantWrapper<QuantizationAlignmentAttributePtr>>(rtIt->second);
+        auto attribute = attributeWrapper->get();
 
-        if (resultValue == nullptr) {
-            resultSharedPart = sharedPart;
-            resultValue = sharedPart->value;
-        } else {
-            if (resultValue->intervalLow > sharedPart->value->intervalLow) {
-                resultValue->intervalLow = sharedPart->value->intervalLow;
-            }
-
-            if (resultValue->intervalHigh < sharedPart->value->intervalHigh) {
-                resultValue->intervalHigh = sharedPart->value->intervalHigh;
-            }
-        }
-    }
-
-    // assign
-    for (const std::shared_ptr<ngraph::Node>& node : nodes) {
-        auto& rt = node->get_rt_info();
-        auto rtIt = rt.find(VariantWrapper<QuantizationAlignmentAttribute>::type_info.name);
-        if (rtIt == rt.end()) {
+        if (resultAttributeWrapper == nullptr) {
+            resultAttributeWrapper = attributeWrapper;
+            resultAttribute = attribute;
             continue;
         }
 
-        auto& attributeWrapper = std::dynamic_pointer_cast<VariantWrapper<QuantizationAlignmentAttribute>>(rtIt->second);
-        QuantizationAlignmentAttribute attribute = attributeWrapper->get();
-        //for (auto precision : attribute.sharedPart->value->defaultPrecisions) {
-        //    if (std::find(
-        //        resultValue->defaultPrecisions.begin(),
-        //        resultValue->defaultPrecisions.end(),
-        //        precision) != resultValue->defaultPrecisions.end()) {
-        //            // TODO: remove here
-        //    }
-        //}
-        attribute.sharedPart->value = resultValue;
+
+        if (resultAttribute->intervalLow > attribute->intervalLow) {
+            resultAttribute->intervalLow = attribute->intervalLow;
+        }
+
+        if (resultAttribute->intervalHigh < attribute->intervalHigh) {
+            resultAttribute->intervalHigh = attribute->intervalHigh;
+        }
+
+        resultAttribute->hasToBeAligned = resultAttribute->hasToBeAligned || attribute->hasToBeAligned;
     }
 
-    auto newAttribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(resultSharedPart);
-    return newAttribute;
+    return resultAttributeWrapper;
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttribute>::init(const std::shared_ptr<ngraph::Node>& node) {
+std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttributePtr>::init(const std::shared_ptr<ngraph::Node>& node) {
     return nullptr;
 }
 
-std::string VariantWrapper<QuantizationAlignmentAttribute>::get_string() {
-    auto value = this->m_value.sharedPart->value;
+std::string VariantWrapper<QuantizationAlignmentAttributePtr>::get_string() {
     std::stringstream ss;
-    ss << "low: " << value->intervalLow << ", high: " << value->intervalHigh <<
-        /*", preferedPrecision: " << value->preferedPrecision << */", hasToBeAligned: " << (value->hasToBeAligned ? "true" : "false");
+
+    // TODO: debug only
+    const size_t rawPointer = (size_t)m_value.get();
+    ss << rawPointer << ": ";
+
+    ss << "low: " << m_value->intervalLow << ", high: " << m_value->intervalHigh << ", hasToBeAligned: " << (m_value->hasToBeAligned ? "true" : "false");
     return ss.str();
 }

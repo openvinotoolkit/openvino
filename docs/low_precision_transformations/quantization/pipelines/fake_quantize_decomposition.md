@@ -4,6 +4,7 @@
 2. [Pipeline #1: FakeQuantize decomposition](#pipeline-1-fakequantize-decomposition)
 3. [Pipeline #2: Concat per-tensor quantization](#pipeline-2-concat-per-tensor-quantization)
 4. [Pipeline #3: Concat multi-channels quantization](#pipeline-3-concat-multi-channels-quantization)
+5. [Pipeline #4: FakeQuantize connects neighbor cascade Concat operations](#pipeline-4-fakequantize-connects-neighbor-cascade-concat-operations)
 
 ## Introduction
 `FakeQuantizeDecompositionTransformation` decomposes `FakeQuantize` operation on quantize (`FakeQuantize` with low precision output) and dequantization operations (`Convert`, `Subtract` and `Multiply`). `FakeQuantize` result output precision depends on:
@@ -81,7 +82,7 @@ Features:
 ![Markup precisions result](img/pipeline3/step1_markup_precisions.svg)
 
 ### Markup AvgPool precisions (CPU/GPU specific)
-![Markup AvgPool precisions (CPU/GPU specific) result](img/pipeline2/step2_markup_avg_pool_precisions.svg)
+![Markup AvgPool precisions (CPU/GPU specific) result](img/pipeline3/step2_markup_avg_pool_precisions.svg)
 
 ### Propagate precisions
 ![Propagate precisions result](img/pipeline3/step3_propagate_precisions.svg)
@@ -91,3 +92,28 @@ Features:
 
 ### Transformations
 ![Transformations result](img/pipeline3/transformed.svg)
+
+## Pipeline #4: FakeQuantize connects neighbor cascade Concat operations
+Features:
+1. Quantize and dequantize operations on activations are presented by one `Fakequantize` operation. 
+2. There is `FakeQuantize` between two `Concat` subgraphs. The first is multi-channel, the second is per-tensor.
+
+### Original model
+![Original model](img/pipeline4/actual.svg)
+
+### Markup precisions
+![Markup precisions result](img/pipeline4/step1_markup_precisions.svg)
+
+### Markup AvgPool precisions (CPU/GPU specific)
+![Markup AvgPool precisions (CPU/GPU specific) result](img/pipeline4/step2_markup_avg_pool_precisions.svg)
+
+### Propagate precisions
+![Propagate precisions result](img/pipeline4/step3_propagate_precisions.svg)
+
+### Align concatization quantization
+[WIP]
+![Align concatization quantization result](img/pipeline4/step4_align_concat_quantization.svg)
+
+### Transformations
+[WIP]
+![Transformations result](img/pipeline4/transformed.svg)

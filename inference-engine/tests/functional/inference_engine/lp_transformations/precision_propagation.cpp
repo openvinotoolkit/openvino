@@ -20,7 +20,9 @@
 #include <low_precision/propagate_precisions.hpp>
 
 #include <low_precision/concat.hpp>
+#include <low_precision/convolution.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
+#include <low_precision/max_pool.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/precision_propagation_function.hpp"
@@ -135,8 +137,11 @@ public:
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>();
-        manager.register_pass<ngraph::pass::low_precision::ConcatTransformation>();
+        std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
+        common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>();
+        common->add_matcher<ngraph::pass::low_precision::ConvolutionTransformation>();
+        common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>();
+        common->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>();
         manager.run_passes(actualFunction);
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
 

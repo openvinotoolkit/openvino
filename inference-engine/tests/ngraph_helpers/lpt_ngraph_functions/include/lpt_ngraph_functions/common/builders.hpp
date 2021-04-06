@@ -129,6 +129,12 @@ std::shared_ptr<Variant> make_shared_attribute(Args&& ... args) {
     return attribute;
 }
 
+template <typename T, typename ... Args>
+std::shared_ptr<Variant> make_shared_attribute_ptr(Args&& ... args) {
+    const auto attribute = std::make_shared<::ngraph::VariantWrapper<std::shared_ptr<T>>>(std::make_shared<T>(std::forward<Args>(args)...));
+    return attribute;
+}
+
 } // namespace subgraph
 } // namespace builder
 } // namespace ngraph

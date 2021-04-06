@@ -155,7 +155,7 @@ public:
             testValues.result.dequantization2,
             {
                 make_shared_attribute<PrecisionPreservedAttribute>(true),
-                make_shared_attribute<QuantizationAlignmentAttribute>(0.f, 2.55f, /*element::u8,*/ false)
+                make_shared_attribute_ptr<QuantizationAlignmentAttribute>(0.f, 2.55f, /*element::u8,*/ false)
             },
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter);
