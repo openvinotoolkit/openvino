@@ -622,33 +622,22 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 //      Hybrid specific
                 //      etc
                 int num_streams;
-                bool considerNonLimited = false;
-                if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdNotLimited) {
-                    std::cout << "  case 1.0" <<std::endl;
-                    considerNonLimited = true;
-                }
-                if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
-                                                || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
-                    std::cout << "  case 1.1" <<std::endl;
-                    considerNonLimited = true;
-                }
-                if (hasAVX512() && NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimitedAVX512
-                        && (NetworkToleranceForLowCache.ratio_mem_limited_convs <= NetworkPerfStats::memLimitedRatioThresholdAVX512)) {
-                    std::cout << "  case 1.2" <<std::endl;
-                    considerNonLimited = true;
-                }
-                if (considerNonLimited) {
-                    num_streams = num_cores;
-                    std::cout << "case 1" <<std::endl;
-//                    if (NetworkToleranceForLowCache.ratio_compute_convs > NetworkPerfStats::memComputeConvs) {
-//                        config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(
-//                                std::thread::hardware_concurrency());
-//                        std::cout << "ENABLING HT!!!" << std::endl;
-//                    }
-                } else if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
-                    num_streams = default_num_streams;
-                    std::cout << "case 0" <<std::endl;
-                 } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
+                if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
+                     if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
+                         || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
+                         std::cout << "  case 1.1" <<std::endl;
+                         num_streams = num_cores;
+                     } else {
+                         num_streams = default_num_streams;
+                         std::cout << "case 0" <<std::endl;
+                     }
+                 } else if ((NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdNotLimited)
+                         || (hasAVX512()
+                                && NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimitedAVX512
+                                && NetworkToleranceForLowCache.ratio_mem_limited_convs <= NetworkPerfStats::memLimitedRatioThresholdAVX512)) {
+                     std::cout << "  case 1.0 or 1.2" <<std::endl;
+                     num_streams = num_cores;
+                } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
                     num_streams = std::max(default_num_streams, num_streams_default_not_ht);
                     std::cout << "case 2" <<std::endl;
                 } else {
