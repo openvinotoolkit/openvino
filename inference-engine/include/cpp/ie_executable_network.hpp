@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file that provides wrapper classes for IExecutableNetwork
- * 
+ *
  * @file ie_executable_network.hpp
  */
 #pragma once
@@ -95,7 +95,7 @@ public:
      * Wraps IExecutableNetwork::CreateInferRequest.
      * @return shared pointer on InferenceEngine::InferRequest object
      */
-    INFERENCE_ENGINE_DEPRECATED("Use CreateInferRequest")
+    INFERENCE_ENGINE_DEPRECATED("Use CreateInferRequest instead")
     InferRequest::Ptr CreateInferRequestPtr();
 
     /**

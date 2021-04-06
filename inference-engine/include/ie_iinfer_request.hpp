@@ -25,7 +25,7 @@ namespace InferenceEngine {
  * @brief This is an interface of asynchronous infer request
  *
  */
-class IInferRequest : public std::enable_shared_from_this<IInferRequest> {
+class INFERENCE_ENGINE_DEPRECATED("Do not use IInferRequest API") IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
      * @enum WaitMode
