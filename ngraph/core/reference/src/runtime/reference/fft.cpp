@@ -469,7 +469,7 @@ namespace ngraph
                 const int64_t fft_rank = info.fft_rank;
                 const auto& fft_lengths = info.fft_lengths;
                 const auto& fft_strides = info.fft_strides;
-                const int64_t fft_size = info.size;
+                const int64_t fft_size = info.fft_size;
 
                 if (fft_size <= 0)
                 {
