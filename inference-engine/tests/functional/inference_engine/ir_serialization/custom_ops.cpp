@@ -7,6 +7,7 @@
 #include <file_utils.h>
 #include <ie_api.h>
 #include <ie_iextension.h>
+#include <ie_network_reader.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
@@ -102,6 +103,26 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     std::string message;
     std::tie(success, message) =
         compare_functions(result.getFunction(), expected.getFunction(), true);
+
+    ASSERT_TRUE(success) << message;
+}
+
+TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
+    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
+
+    auto expected = InferenceEngine::details::ReadNetworkWithoutExtensions(model);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(
+            m_out_xml_path, m_out_bin_path,
+            ngraph::pass::Serialize::Version::IR_V10);
+    manager.run_passes(expected.getFunction());
+
+    auto result = InferenceEngine::details::ReadNetworkWithoutExtensions(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+            compare_functions(result.getFunction(), expected.getFunction(), true);
 
     ASSERT_TRUE(success) << message;
 }
