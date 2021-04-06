@@ -64,6 +64,17 @@ TEST(type_prop, squeeze_dynamic_dynamic_rank)
         squeeze_default_axes->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
+TEST(type_prop, squeeze_axes_dynamic)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
+    auto axes_node =
+        make_shared<ngraph::op::Parameter>(element::u64, PartialShape::dynamic());
+    auto squeeze = make_shared<op::Squeeze>(param, axes_node);
+
+    ASSERT_EQ(squeeze->get_element_type(), element::f32);
+    ASSERT_TRUE(squeeze->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
+}
+
 TEST(type_prop, squeeze_axes_invalid_value)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
