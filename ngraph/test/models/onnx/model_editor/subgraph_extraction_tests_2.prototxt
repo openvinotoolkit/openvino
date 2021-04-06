@@ -20,12 +20,14 @@ graph {
     input: "in2"
     output: "relu4"
     op_type: "Relu"
+    name: "relu4_name"
   }
   node {
     input: "relu1"
     input: "relu2"
     output: "add1"
     op_type: "Add"
+    name: "add1_name"
   }
   node {
     input: "relu2"

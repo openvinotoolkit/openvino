@@ -13,6 +13,7 @@
 #include "onnx_editor/editor.hpp"
 
 using namespace ngraph;
+using namespace ngraph::onnx_editor;
 
 namespace
 {
@@ -216,6 +217,7 @@ struct onnx_editor::ONNXModelEditor::Impl
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
+    , m_is_mapper_updated{false}
     , m_model_path{model_path}
 {
 }
@@ -306,6 +308,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     editor.extract_subgraph(outputs);
 
     m_pimpl->remove_shape_inference_info();
+    m_is_mapper_updated = false;
 }
 
 std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
@@ -361,6 +364,7 @@ void onnx_editor::ONNXModelEditor::set_input_values(
     }
 }
 
+#if 0
 namespace {
     const auto is_equal_to =
             +[](const std::string& other) { return [&](const std::string& s) { return s == other; }; };
@@ -385,23 +389,29 @@ int onnx_editor::ONNXModelEditor::find_producing_node_idx(const std::string& ten
     throw ngraph::ngraph_error{"Source node not found in the graph for tensor name: " +
                                tensorName};
 }
+#endif
 
 
-std::vector<int> onnx_editor::ONNXModelEditor::find_consumeing_node_idxs(const std::string& tensorName) const {
+std::vector<InputEdge> onnx_editor::ONNXModelEditor::find_consuming_input_edges(const std::string& tensorName) const {
     const auto &graph = m_pimpl->m_model_proto.graph();
-    std::vector<int> result;
+    std::vector<InputEdge> result;
     for (int i = 0; i < graph.node_size(); ++i) {
         const auto &inputs = graph.node(i).input();
-        const auto input_found =
-                std::any_of(std::begin(inputs), std::end(inputs), is_equal_to(tensorName));
-
-        if (input_found) {
-            result.push_back(i);
+        size_t candidate_count = 0;
+        for(size_t input_index = 0; input_index < inputs.size(); ++input_index)
+        {
+            if(inputs[input_index] == tensorName) {
+                // TODO: What if a node consume the same tensor on multiple input ports? They cannot be differentiated with InputEdge
+                result.push_back(InputEdge(i, tensorName));
+                ++candidate_count;
+            }
         }
+        NGRAPH_CHECK(candidate_count <= 1, "Operation node consumes the same tensor on multiple ports; currently unsupported");
     }
     return result;
 }
 
+#if 0
 bool onnx_editor::ONNXModelEditor::validate_tensor_name(const std::string& tensorName) const {
     const auto &graph = m_pimpl->m_model_proto.graph();
     for (int i = 0; i < graph.node_size(); ++i) {
@@ -423,3 +433,34 @@ bool onnx_editor::ONNXModelEditor::validate_tensor_name(const std::string& tenso
     }
     return false;
 }
+#endif
+
+void onnx_editor::ONNXModelEditor::update_mapper_if_needed() const
+{
+    if (!m_is_mapper_updated)
+    {
+        m_edge_mapper.update(m_pimpl->m_model_proto.graph());
+    }
+    m_is_mapper_updated = true;
+}
+
+InputEdge onnx_editor::ONNXModelEditor::find_input_edge(const EditorNode& node,
+                                                        const EditorInput& input) const
+{
+    update_mapper_if_needed();
+    return m_edge_mapper.find_input_edge(node, input);
+}
+
+OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const EditorNode& node,
+                                                          const EditorOutput& input) const
+{
+    update_mapper_if_needed();
+    return m_edge_mapper.find_output_edge(node, input);
+}
+
+OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& output_name) const
+{
+    update_mapper_if_needed();
+    return m_edge_mapper.find_output_edge(output_name);
+}
+

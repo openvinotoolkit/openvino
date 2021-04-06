@@ -228,8 +228,8 @@ namespace ngraph
 
             onnx_editor::InputEdge edge;
 
-            PlaceInputEdgeONNX (const std::string& _sourceTensorName, int _operationNodeIndex) :
-                    edge(_operationNodeIndex, _sourceTensorName)
+            PlaceInputEdgeONNX (onnx_editor::InputEdge _edge) :
+                    edge(_edge)
             {}
         };
 
@@ -239,11 +239,9 @@ namespace ngraph
 
             onnx_editor::OutputEdge edge;
 
-            PlaceOutputEdgeONNX (int _operationNodeIndex, const std::string& _targetTensorName) :
-                    edge(_operationNodeIndex, _targetTensorName)
+            PlaceOutputEdgeONNX (onnx_editor::OutputEdge _edge) :
+                    edge(_edge)
             {}
-
-
         };
 
         class InputModelONNX;
@@ -262,8 +260,9 @@ namespace ngraph
                 return std::vector<std::string>(1, tensorName);
             }
 
-            virtual std::vector<Place::Ptr> getConsumingPorts () const override;
+            //virtual std::vector<Place::Ptr> getConsumingPorts () const override;
             virtual Place::Ptr getProducingPort () const override;
+            virtual Ptr getInputPort (int inputPortIndex = -1) const override;
         };
 
         class InputModelONNX : public InputModel
@@ -277,10 +276,11 @@ namespace ngraph
 
             Place::Ptr getPlaceByTensorName (const std::string& tensorName) override
             {
-                if(!editor.validate_tensor_name(tensorName)) {
-                    std::cerr << " [ ERROR ] Node with name " << tensorName << " is not valid for a given model\n";
-                    return nullptr;
-                }
+                // TODO: Validate name here. Cannot simply do that because I have to differentiate between inputs and outputs
+                //if(!editor.validate_tensor_name(tensorName)) {
+                //    std::cerr << " [ ERROR ] Node with name " << tensorName << " is not valid for a given model\n";
+                //    return nullptr;
+                //}
                 return std::make_shared<PlaceTensorONNX>(tensorName, this);
             }
 
@@ -302,7 +302,7 @@ namespace ngraph
                 editor.set_input_shapes(m);
             }
 
-            void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs)
+            void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override
             {
                 std::cerr << "\nTTTTTTTTTTTTT\n";
                 std::cerr << "inputs.size() = " << inputs.size() << "\n";
@@ -312,6 +312,20 @@ namespace ngraph
                 onnx_inputs.reserve(inputs.size());
                 for(const auto& input: inputs)
                 {
+                    if(auto inputPort = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input))
+                    {
+                        onnx_inputs.push_back(inputPort->edge);
+                    }
+                    else if(auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(input))
+                    {
+                        // Have to replace by a single node, NOT multiple nodes (per each consumer)
+                        // TODO: Extend to multiple consumers; currently cannot be implemented due to limitations in the editor API
+                        auto consumers = editor.find_consuming_input_edges(tensor->getNames()[0]);   // at least single name should be available
+                        NGRAPH_CHECK(consumers.size() <= 1, "Multiple consumers cutting are not supported, use separate input port for each consumer");
+                        NGRAPH_CHECK(consumers.size() >= 1, "Tensor that doesn't have consumer is not supported to be specified as a new input");
+                        onnx_inputs.push_back(consumers[0]);
+                    }
+                    /*
                     std::cerr << "[] = " << input.get() << "\n";
                     // TODO check if input is a tensor
                     auto inputPorts = input->getConsumingPorts();
@@ -323,6 +337,7 @@ namespace ngraph
                     auto onnxInputEdge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(inputPort);
                     NGRAPH_CHECK(onnxInputEdge);
                     onnx_inputs.push_back(onnxInputEdge->edge);
+                     */
                 }
                 std::cerr << "{4}\n";
 
@@ -341,20 +356,31 @@ namespace ngraph
             }
         };
 
+#if 0
         std::vector<Place::Ptr> PlaceTensorONNX::getConsumingPorts () const
         {
+
             // ONNX specific code to find a node indices for all operations that consume a given tensor name
             std::vector<Place::Ptr> result;
-            for(int i: model->editor.find_consumeing_node_idxs(tensorName))
+
+            for(int i: model->editor.find_input_edge(onnx_editor::EditorNode(onnx_editor::EditorOutput(tensorName))).find_consumeing_node_idxs(tensorName))
             {
                 result.push_back(std::make_shared<PlaceInputEdgeONNX>(tensorName, i));
             }
             return result;
         }
+#endif
 
         Place::Ptr PlaceTensorONNX::getProducingPort () const
         {
-            return std::make_shared<PlaceOutputEdgeONNX>(model->editor.find_producing_node_idx(tensorName), tensorName);
+            return std::make_shared<PlaceOutputEdgeONNX>(model->editor.find_output_edge(tensorName));
+        }
+
+        Place::Ptr PlaceTensorONNX::getInputPort (int index) const
+        {
+            return std::make_shared<PlaceInputEdgeONNX>(model->editor.find_input_edge(
+                    onnx_editor::EditorOutput(tensorName),
+                    onnx_editor::EditorInput(index)));
         }
 
         class FrontEndONNX : public FrontEnd
