@@ -46,6 +46,10 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     // precisions can be different
     ngraph::Node& quantizationLayer = *subgraph.quantizationLayers[0];
     std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(quantizationLayer.shared_from_this());
+    if (!NetworkHelper::isQuantizeSupported(fq)) {
+        return false;
+    }
+
     DataPrecision dataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
     if (dataPrecision.precision == ngraph::element::undefined) {
         return false;
