@@ -18,6 +18,9 @@ using namespace InferenceEngine;
 
 namespace {
 
+/**
+* @brief Overload output stream operator to print vectors in pretty form [value1, value2, ...]
+*/
 template <typename T>
 std::ostream & operator << (std::ostream & stream, const std::vector<T> & v) {
     stream << "[ ";
@@ -26,6 +29,11 @@ std::ostream & operator << (std::ostream & stream, const std::vector<T> & v) {
     return stream << "]";
 }
 
+/**
+* @brief Print IE Parameters
+* @param reference on IE Parameter
+* @return void
+*/
 void printParameterValue(const Parameter & value) {
     if (value.empty()) {
         std::cout << "EMPTY VALUE" << std::endl;
@@ -72,21 +80,21 @@ void printParameterValue(const Parameter & value) {
 
 int main(int argc, char *argv[]) {
     try {
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (argc != 1) {
             std::cout << "Usage : "<< argv[0] << std::endl;
             return EXIT_FAILURE;
         }
 
-        // --------------------------- 1. Load Inference engine instance -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
 
         Core ie;
 
-        // --------------------------- 2. Get list of available devices  -------------------------------------
+        // --------------------------- Get list of available devices  -------------------------------------
 
         std::vector<std::string> availableDevices = ie.GetAvailableDevices();
 
-        // --------------------------- 3. Query and print supported metrics and config keys--------------------
+        // --------------------------- Query and print supported metrics and config keys--------------------
 
         std::cout << "Available devices: " << std::endl;
         for (auto && device : availableDevices) {
