@@ -178,7 +178,7 @@ add_library(${TARGET_NAME}_s STATIC
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME}_s -DTBBBIND_2_4_AVAILABLE)
+    target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_4_AVAILABLE)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
