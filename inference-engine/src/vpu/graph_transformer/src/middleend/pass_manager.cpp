@@ -18,6 +18,7 @@
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
+#include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 
 namespace vpu {
 
@@ -368,7 +369,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(markFastStages);
     ADD_DUMP_PASS("markFastStages");
 
-    if (env.config.compileConfig().enableMemoryTypesAnnotation) {
+    if (env.config.get<EnableMemoryTypesAnnotationOption>()) {
         ADD_PASS(annotateMemoryTypes);
         ADD_DUMP_PASS("annotateMemoryTypes");
     }

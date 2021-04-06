@@ -162,8 +162,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
         throw std::invalid_argument("Value must be positive or default(-1).");
     };
 
-    setOption(_compileConfig.enableMemoryTypesAnnotation,    switches, config, ie::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
-
 IE_SUPPRESS_DEPRECATED_START
     setOption(_compileConfig.customLayers,                             config, VPU_CONFIG_KEY(CUSTOM_LAYERS));
     setOption(_compileConfig.detectBatch,                    switches, config, VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));

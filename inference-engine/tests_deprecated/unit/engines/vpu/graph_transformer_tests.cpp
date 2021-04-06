@@ -36,6 +36,7 @@
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
+#include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 
 namespace vpu {
 
@@ -216,6 +217,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableWeightsAnalysisOption>();
     configuration.registerOption<EnableReplWithSCReluOption>();
     configuration.registerOption<EnablePermuteMergingOption>();
+    configuration.registerOption<EnableMemoryTypesAnnotationOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

@@ -109,6 +109,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, CONFIG_VALUE(NO)}},
 
+        {{InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, CONFIG_VALUE(YES)}},
+        {{InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, CONFIG_VALUE(NO)}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
@@ -156,6 +159,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(YES)},
             {InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, CONFIG_VALUE(NO)},
+            {InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, CONFIG_VALUE(NO)},
         },
     };
 
@@ -260,6 +264,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, {true}},
         {InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU, {false}},
         {InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, {true}},
+        {InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, {false}},
     };
     return defaultEntries;
 }
@@ -380,6 +385,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }
@@ -436,6 +444,7 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS,
         InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU,
         InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING,
+        InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION,
     };
     return privateOptions;
 }
@@ -527,6 +536,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, "ON"}},
         {{InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, "OFF"}},
 
+        {{InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, "ON"}},
+        {{InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, "OFF"}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"}},
 
@@ -574,6 +586,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {KEY_EXCLUSIVE_ASYNC_REQUESTS, "ON"},
             {InferenceEngine::MYRIAD_ENABLE_REPL_WITH_SCRELU, "OFF"},
             {InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, "OFF"},
+            {InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, "OFF"},
         },
     };
     return incorrectConfigs;

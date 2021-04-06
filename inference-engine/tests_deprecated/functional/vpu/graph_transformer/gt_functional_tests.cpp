@@ -35,6 +35,7 @@
 #include <vpu/configuration/options/enable_weights_analysis.hpp>
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
+#include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -100,6 +101,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<EnableWeightsAnalysisOption>();
     _configuration.registerOption<EnableReplWithSCReluOption>();
     _configuration.registerOption<EnablePermuteMergingOption>();
+    _configuration.registerOption<EnableMemoryTypesAnnotationOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
