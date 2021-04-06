@@ -4,6 +4,12 @@
 
 set (TARGET_NAME "inference_engine")
 
+find_package(TBBBIND_2_4)
+if (TBBBIND_2_4_FOUND)
+    get_target_property(TBBBIND_2_4_LIB TBBbind::tbbbind_2_4 IMPORTED_LOCATION)
+    message(STATUS "--- TBBBIND_2_4_FOUND ${TBBBIND_2_4_LIB}")
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
@@ -87,6 +93,10 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
+if (TBBBIND_2_4_FOUND)
+    target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE ${TBBBIND_2_4_IMPORTED_TARGETS})
+endif()
 
 file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
                                  "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
@@ -120,6 +130,10 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
+if (TBBBIND_2_4_FOUND)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_obj PUBLIC ${TBBBIND_2_4_IMPORTED_TARGETS})
+endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
@@ -135,14 +149,8 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
-
-target_compile_definitions(${TARGET_NAME} PRIVATE JUST_A_DEF)
-
-find_package(TBBBIND_2_4)
 if (TBBBIND_2_4_FOUND)
-    get_target_property(TBBBIND_2_4_LIB TBBbind::tbbbind_2_4 IMPORTED_LOCATION)
-    message(STATUS "--- TBBBIND_2_4_FOUND ${TBBBIND_2_4_LIB}")
-    target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DTBBBIND_2_4_AVAILABLE)
+    target_compile_definitions(${TARGET_NAME} PUBLIC -DTBBBIND_2_4_AVAILABLE)
     target_link_libraries(${TARGET_NAME} PUBLIC ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
@@ -172,6 +180,10 @@ add_library(${TARGET_NAME}_s STATIC
             ${IE_STATIC_DEPENDENT_FILES})
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
+if (TBBBIND_2_4_FOUND)
+    target_compile_definitions(${TARGET_NAME}_s PUBLIC -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_s PUBLIC ${TBBBIND_2_4_IMPORTED_TARGETS})
+endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
