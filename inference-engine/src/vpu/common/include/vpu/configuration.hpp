@@ -39,7 +39,6 @@ struct CompilationConfig {
         return noneLayers.count(layerType) != 0;
     }
 
-    std::string dumpInternalGraphFileName;
     std::string dumpInternalGraphDirectory;
     bool dumpAllPasses;
 

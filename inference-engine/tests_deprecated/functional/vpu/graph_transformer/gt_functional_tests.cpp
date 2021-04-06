@@ -36,6 +36,7 @@
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
+#include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -102,6 +103,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<EnableReplWithSCReluOption>();
     _configuration.registerOption<EnablePermuteMergingOption>();
     _configuration.registerOption<EnableMemoryTypesAnnotationOption>();
+    _configuration.registerOption<DumpInternalGraphFileNameOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

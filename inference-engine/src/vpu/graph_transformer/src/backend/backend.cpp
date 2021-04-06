@@ -10,6 +10,8 @@
 #include <utility>
 #include <iomanip>
 
+#include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
+
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/file_system.hpp>
 #include <vpu/utils/io.hpp>
@@ -85,8 +87,8 @@ void BackEnd::dumpModel(
 
     std::string fileName;
 
-    if (!env.config.compileConfig().dumpInternalGraphFileName.empty()) {
-        fileName = fileNameNoExt(env.config.compileConfig().dumpInternalGraphFileName);
+    if (!env.config.get<DumpInternalGraphFileNameOption>().empty()) {
+        fileName = fileNameNoExt(env.config.get<DumpInternalGraphFileNameOption>());
     } else if (!env.config.compileConfig().dumpInternalGraphDirectory.empty()) {
         fileName = formatString(
             "%s/vpu_graph_%f%f%i_%s",

@@ -56,7 +56,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_COMPILER_LOG_FILE_PATH,
 
-        ie::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME,
         ie::MYRIAD_DUMP_INTERNAL_GRAPH_DIRECTORY,
         ie::MYRIAD_DUMP_ALL_PASSES,
 
@@ -125,7 +124,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     ParsedConfigBase::parse(config);
 
     setOption(_compilerLogFilePath,                                    config, ie::MYRIAD_COMPILER_LOG_FILE_PATH);
-    setOption(_compileConfig.dumpInternalGraphFileName,                config, ie::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME);
     setOption(_compileConfig.dumpInternalGraphDirectory,               config, ie::MYRIAD_DUMP_INTERNAL_GRAPH_DIRECTORY);
     setOption(_compileConfig.dumpAllPasses,                  switches, config, ie::MYRIAD_DUMP_ALL_PASSES);
 
@@ -170,9 +168,6 @@ IE_SUPPRESS_DEPRECATED_END
 #ifndef NDEBUG
     if (const auto envVar = std::getenv("IE_VPU_COMPILER_LOG_FILE_PATH")) {
         _compilerLogFilePath = envVar;
-    }
-    if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
-        _compileConfig.dumpInternalGraphFileName = envVar;
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_DIRECTORY")) {
         _compileConfig.dumpInternalGraphDirectory = envVar;

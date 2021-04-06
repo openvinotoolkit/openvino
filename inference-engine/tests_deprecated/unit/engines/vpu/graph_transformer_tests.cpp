@@ -37,6 +37,7 @@
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
+#include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 
 namespace vpu {
 
@@ -218,6 +219,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableReplWithSCReluOption>();
     configuration.registerOption<EnablePermuteMergingOption>();
     configuration.registerOption<EnableMemoryTypesAnnotationOption>();
+    configuration.registerOption<DumpInternalGraphFileNameOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
@@ -259,7 +261,7 @@ void GraphTransformerTest::TearDown() {
 
 void GraphTransformerTest::InitCompileEnv() {
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
-        config.compileConfig().dumpInternalGraphFileName = envVar;
+        config.set(InferenceEngine::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME, envVar);
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_DIRECTORY")) {
         config.compileConfig().dumpInternalGraphDirectory = envVar;

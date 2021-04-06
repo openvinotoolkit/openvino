@@ -48,6 +48,7 @@
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
+#include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 
 #include "myriad_plugin.h"
 
@@ -90,6 +91,9 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     if (const auto envVar = std::getenv("IE_VPU_NUMBER_OF_SHAVES_AND_CMX_SLICES")) {
         _parsedConfig.set(NumberOfSHAVEsOption::key(), envVar);
         _parsedConfig.set(NumberOfCMXSlicesOption::key(), envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_DUMP_INTERNAL_GRAPH_FILE_NAME")) {
+        _parsedConfig.set(DumpInternalGraphFileNameOption::key(), envVar);
     }
 #endif
 }
@@ -203,6 +207,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<EnableReplWithSCReluOption>();
     _parsedConfig.registerOption<EnablePermuteMergingOption>();
     _parsedConfig.registerOption<EnableMemoryTypesAnnotationOption>();
+    _parsedConfig.registerOption<DumpInternalGraphFileNameOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
