@@ -59,13 +59,9 @@ def run(args):
 
         # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
         next_step(step_id=2)
-        run_start_time = datetime.utcnow()
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type)
-
-        duration_ms = "{:.2f}".format((datetime.utcnow() - run_start_time).total_seconds() * 1000)
-        logger.info("Init of Inference Engine took {} ms".format(duration_ms))
 
         ## CPU (MKLDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
@@ -81,10 +77,7 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
-        getver_start_time = datetime.utcnow();
         version = benchmark.get_version_info()
-        duration_ms = "{:.2f}".format((datetime.utcnow() - getver_start_time).total_seconds() * 1000)
-        logger.info("Getting device versions took {} ms".format(duration_ms))
 
         logger.info(version)
 
@@ -204,8 +197,8 @@ def run(args):
 
             start_time = datetime.utcnow()
             exe_network = benchmark.load_network(args.path_to_model)
-            duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
-            logger.info("Load network took {} ms".format(duration_ms))
+            duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            logger.info(f"Load network took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -347,15 +340,12 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        duration_ms =  f"{benchmark.first_infer(exe_network):.2f}"
+        duration_ms = f"{benchmark.first_infer(exe_network):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
-        duration_since_startup_ms = f"{((datetime.utcnow() - run_start_time).total_seconds() * 1000):.2f}"
-        logger.info(f"Total time for first inference since startup {duration_since_startup_ms} ms")
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
-                                        ('first inference time (ms)', duration_ms),
-                                        ('first inference time since startup (ms)', duration_since_startup_ms)
+                                        ('first inference time (ms)', duration_ms)
                                     ])
         fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
 
