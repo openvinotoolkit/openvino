@@ -39,10 +39,10 @@ int main(int argc, char* argv[]) {
         showUsage();
         return 0;
     }
-    if (FLAGS_extend_report && FLAGS_report_unique_name) {
-        std::cout << "Using mutually exclusive arguments: --extend_report and --report_unique_name" << std::endl;
-        return -1;
-    }
+//    if (FLAGS_extend_report && FLAGS_report_unique_name) {
+//        std::cout << "Using mutually exclusive arguments: --extend_report and --report_unique_name" << std::endl;
+//        return -1;
+//    }
 
     if (!FLAGS_disable_test_config) {
         FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
