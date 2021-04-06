@@ -34,11 +34,12 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_scheduler_observer.h"
 
-namespace custom {
-#define TBB_NUMA_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 11100 || defined(TBBBIND_2_4_AVAILABLE)
-#define TBB_HYBRID_CPUS_SUPPORT_PRESENT defined(TBBBIND_2_4_AVAILABLE)
+#define TBB_NUMA_SUPPOTR_PRESENT TBB_INTERFACE_VERSION >= 11100 || TBBBIND_2_4_AVAILABLE
+#define TBB_HYBRID_CPUS_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 12020 || TBBBIND_2_4_AVAILABLE
 
-#if defined(TBBBIND_2_4_AVAILABLE)
+namespace custom {
+
+#if TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020
 using numa_node_id = int;
 using core_type_id = int;
 
@@ -136,7 +137,7 @@ namespace info {
 
 inline tbb::task_arena& get_arena_ref(task_arena& ta) { return ta.my_task_arena; }
 
-#else /*defined(TBBBIND_2_4_AVAILABLE)*/
+#else /*TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020*/
 
 using task_arena = tbb::task_arena;
 inline tbb::task_arena& get_arena_ref(task_arena& ta) { return ta; }
@@ -148,6 +149,6 @@ namespace info {
 } // namespace info
 #endif /*TBB_NUMA_SUPPORT_PRESENT*/
 
-#endif /*defined(TBBBIND_2_4_AVAILABLE)*/
+#endif /*TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020*/
 } // namespace custom
 #endif /*(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)*/
