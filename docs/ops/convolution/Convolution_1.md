@@ -37,7 +37,7 @@ The receptive field in each layer is calculated using the formulas:
 
   * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(z, y, x)` axes for 3D convolutions and `(y, x)` axes for 2D convolutions. For example, *strides* equal `4,2,1` means sliding the filter 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from 0
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
 
@@ -45,7 +45,7 @@ The receptive field in each layer is calculated using the formulas:
 
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal `1,2` means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from 0
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
@@ -54,7 +54,7 @@ The receptive field in each layer is calculated using the formulas:
 
   * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal `1,2` means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from 0
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
@@ -63,7 +63,7 @@ The receptive field in each layer is calculated using the formulas:
 
   * **Description**: *dilations* denotes the distance in width and height between elements (weights) in the filter. For example, *dilation* equal `1,1` means that all the elements in the filter are neighbors, so it is the same as for the usual convolution. *dilation* equal `2,2` means that all the elements in the filter are matched not to adjacent elements in the input matrix, but to those that are adjacent with distance 1.
   * **Range of values**: integer value starting from 0
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
 
@@ -74,15 +74,15 @@ The receptive field in each layer is calculated using the formulas:
     * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
     * *valid* - do not use padding.
-  * **Type**: string
+  * **Type**: `string`
   * **Default value**: explicit
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is NCZYX (number of batches, number of channels, spatial axes Z, Y, X). Required.
-*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is OIZYX (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `[C_OUT, C_IN, Z, Y, X]` (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
@@ -90,11 +90,11 @@ The receptive field in each layer is calculated using the formulas:
 
 **Outputs**:
 
-*   **1**: Output tensor of type *T* and rank 3, 4 or 5. Layout is NOZYX (number of batches, number of kernel output channels, spatial axes Z, Y, X).
+*   **1**: Output tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_OUT, Z, Y, X]` (number of batches, number of kernel output channels, spatial axes Z, Y, X).
 
 **Types**:
 
-* *T*: any floating point type.
+* *T*: any numeric type.
 
 **Example**:
 

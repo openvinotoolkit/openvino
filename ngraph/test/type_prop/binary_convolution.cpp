@@ -176,7 +176,7 @@ TEST(type_prop, bin_convolution_invalid_inputs_et)
     const auto auto_pad = op::PadType::EXPLICIT;
     try
     {
-        const auto data_batch = make_shared<op::Parameter>(element::i32, PartialShape{1, 1, 5, 5});
+        const auto data_batch = make_shared<op::Parameter>(element::boolean, PartialShape{1, 1, 5, 5});
         const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
@@ -192,7 +192,7 @@ TEST(type_prop, bin_convolution_invalid_inputs_et)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Data batch element type must be float point");
+        EXPECT_HAS_SUBSTRING(error.what(), "Data batch element type must be numeric");
     }
     catch (...)
     {
@@ -261,8 +261,7 @@ TEST(type_prop, bin_convolution_invalid_input_ranks)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Shapes for data batch and filters must have same rank.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Data batch and filters inputs must have same rank");
     }
     catch (...)
     {
@@ -290,8 +289,7 @@ TEST(type_prop, bin_convolution_invalid_input_ranks)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Shapes for data batch and filters must have same rank.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Data batch and filters inputs must have same rank");
     }
     catch (...)
     {
