@@ -844,8 +844,7 @@ void InsertIdentityLayerPass::run() {
                         auto child_of_prev_layer = next_layer.second;
                         if (child_of_prev_layer.get() == activationLayerWithQuant.get()) {
                             continue;
-                        }
-                        else {
+                        } else {
                             CNNNetworkReconnectLayer(prev, activationLayerWithQuant, child_of_prev_layer);
                             // the iterator aquired by getInputTo is invalid, we need to restart
                             restart = true;
