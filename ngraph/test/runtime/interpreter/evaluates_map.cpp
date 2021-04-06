@@ -20,6 +20,7 @@
 #include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
+#include <ngraph/runtime/reference/deformable_psroi_pooling.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
 #include <ngraph/runtime/reference/elu.hpp>
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
@@ -2124,6 +2125,48 @@ namespace
                                              op->get_spatial_bins_x(),
                                              op->get_spatial_bins_y());
 
+        return true;
+    }
+  template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::DeformablePSROIPooling>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        if (inputs.size() == 2)  // no offset input
+        {   
+            runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_data_ptr<T>(),
+                                                inputs[1]->get_shape(),
+                                                nullptr,
+                                                ngraph::Shape(),
+                                                outputs[0]->get_data_ptr<T>(),
+                                                outputs[0]->get_shape(),
+                                                op->get_mode(),
+                                                op->get_spatial_scale(),
+                                                op->get_spatial_bins_x(),
+                                                op->get_spatial_bins_y(),
+                                                op->get_trans_std(),
+                                                op->get_part_size());
+        }
+        else
+        {   
+            runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_data_ptr<T>(),
+                                                inputs[1]->get_shape(),
+                                                inputs[2]->get_data_ptr<T>(),
+                                                inputs[2]->get_shape(),
+                                                outputs[0]->get_data_ptr<T>(),
+                                                outputs[0]->get_shape(),
+                                                op->get_mode(),
+                                                op->get_spatial_scale(),
+                                                op->get_spatial_bins_x(),
+                                                op->get_spatial_bins_y(),
+                                                op->get_trans_std(),
+                                                op->get_part_size());
+        }
         return true;
     }
 
