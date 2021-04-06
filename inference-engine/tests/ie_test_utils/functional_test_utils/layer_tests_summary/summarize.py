@@ -85,6 +85,7 @@ verified_operations = [
     'ReorgYOLO-0',
     'GRUSequence-5',
     'Round-5',
+    'ScatterNDUpdate-3',
     'ShapeOf-0',
     'ShapeOf-3',
     'Sigmoid-0',
