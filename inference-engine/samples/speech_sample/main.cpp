@@ -898,10 +898,10 @@ int main(int argc, char *argv[]) {
 
                 int i = 0;
                 for (auto &ptrInputBlob : ptrInputBlobs) {
-                    if (ptrInputBlob->size() != numFrameElementsInput[i++] * batchSize) {
+                    if (ptrInputBlob->size() != numFrameElementsInput[i++] * batchSize * (FLAGS_cw_l + 1 + FLAGS_cw_r)) {
                         throw std::logic_error("network input size(" + std::to_string(ptrInputBlob->size()) +
                                                ") mismatch to ark file size (" +
-                                               std::to_string(numFrameElementsInput[i - 1] * batchSize) + ")");
+                                               std::to_string(numFrameElementsInput[i - 1] * batchSize * (FLAGS_cw_l + 1 + FLAGS_cw_r)) + ")");
                     }
                 }
 
