@@ -266,6 +266,19 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
     return node;
 }
 
+template <typename T>
+std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<Node>& inputNode) {
+    auto& rt = inputNode->get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    if (it == rt.end()) {
+        return nullptr;
+    }
+
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    assert(attribute != nullptr);
+    return attribute;
+};
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

@@ -101,14 +101,6 @@ public:
 
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
 
-        //SimpleLowPrecisionTransformer transform;
-        //if (testValues.multiChannels) {
-        //    transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
-        //} else {
-        //    transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        //}
-        //transform.transform(actualFunction);
-
         auto supportedPrecisionsOnActivation = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
@@ -192,9 +184,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         LayerTransformation::createParamsI8I8(),
         false,
         {
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-1.28f / 3.f}, {1.27f / 3.f} },
             { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-1.28f / 3.f}, {1.27f / 3.f} }
+            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
         },
         {
             { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-128.f}, {127.f} },

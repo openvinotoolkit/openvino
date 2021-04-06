@@ -10,7 +10,8 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_intervals_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_value_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -159,7 +160,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
 
-    //std::shared_ptr<QuantizationAlignmentAttribute::SharedPart::SharedValue> alignValue;
+    //std::shared_ptr<QuantizationAlignmentAttribute::SharedPart::SharedValue> intervalsAlignment;
     //element::Type preferedPrecision;
     //{
     //    auto& rt = layer->get_rt_info();
@@ -167,7 +168,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     //    if (it != rt.end()) {
     //        auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(it->second);
     //        const QuantizationAlignmentAttribute attribute = attributeWrapper->get();
-    //        alignValue = attribute.sharedPart->value->hasToBeAligned ? attribute.sharedPart->value : nullptr;
+    //        intervalsAlignment = attribute.sharedPart->value->hasToBeAligned ? attribute.sharedPart->value : nullptr;
     //        preferedPrecision = attribute.sharedPart->value->preferedPrecision;
     //    }
     //}
@@ -222,25 +223,39 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    std::shared_ptr<QuantizationAlignmentAttribute> alignValue;
-    {
-        auto& rt = layer->get_rt_info();
-        auto it = rt.find(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
-        if (it != rt.end()) {
-            auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(it->second);
-            const std::shared_ptr<QuantizationAlignmentAttribute> attribute = attributeWrapper->get();
-            alignValue = attribute->hasToBeAligned ? attribute : nullptr;
+    std::shared_ptr<QuantizationAlignmentIntervalsAttribute> intervalsAlignment;
+
+    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentValueAttribute>>> alignmentValue;
+    for (const auto& input : layer->output(0).get_target_inputs()) {
+        alignmentValue = low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentValueAttribute>>(input.get_node()->shared_from_this());
+        if ((alignmentValue != nullptr) && (alignmentValue->get()->hasToBeAligned)) {
+            break;
         }
     }
 
-    if (alignValue != nullptr) {
-        const float maxOutputInterval = alignValue->intervalHigh - alignValue->intervalLow;
+    if ((alignmentValue != nullptr) && alignmentValue->get()->hasToBeAligned) {
+        //auto& rt = layer->get_rt_info();
+        //auto it = rt.find(ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>::type_info.name);
+        //if (it != rt.end()) {
+        //    auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>>(it->second);
+        //    const std::shared_ptr<QuantizationAlignmentIntervalsAttribute> attribute = attributeWrapper->get();
+        //    intervalsAlignment = attribute->hasToBeAligned ? attribute : nullptr;
+        //}
+
+        auto intervalsAlignmentWrapper = low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>>(layer);
+        if (intervalsAlignmentWrapper != nullptr) {
+            intervalsAlignment = intervalsAlignmentWrapper->get();
+        }
+    }
+
+    if (intervalsAlignment != nullptr) {
+        const float maxOutputInterval = intervalsAlignment->intervalHigh - intervalsAlignment->intervalLow;
         // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
         const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
         const float dequantizationMul = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
 
         // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
-        const float quantizationSub = alignValue->intervalLow - dataPrecision.min * dequantizationMul;
+        const float quantizationSub = intervalsAlignment->intervalLow - dataPrecision.min * dequantizationMul;
         const float dequantizationSub = std::round(-quantizationSub * quantizationMul);
 
 

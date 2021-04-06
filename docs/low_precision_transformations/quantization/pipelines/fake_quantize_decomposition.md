@@ -111,9 +111,7 @@ Features:
 ![Propagate precisions result](img/pipeline4/step3_propagate_precisions.svg)
 
 ### Align concatization quantization
-[WIP]
 ![Align concatization quantization result](img/pipeline4/step4_align_concat_quantization.svg)
 
 ### Transformations
-[WIP]
 ![Transformations result](img/pipeline4/transformed.svg)

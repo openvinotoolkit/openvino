@@ -11,7 +11,8 @@
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include "low_precision/common/dequantization_op.hpp"
-#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_intervals_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_value_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/add.hpp"
@@ -98,9 +99,9 @@ std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op
 
 template <typename ... Args>
 void addAttribute(std::vector<std::shared_ptr<ngraph::Node>> nodes, Args&& ... args) {
-    const auto attribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAlignmentAttribute>>(QuantizationAlignmentAttribute(std::forward<Args>(args)...));
+    const auto attribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttribute>>(QuantizationAlignmentIntervalsAttribute(std::forward<Args>(args)...));
     for (const auto& node : nodes) {
-        node->get_rt_info()[ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name] = attribute;
+        node->get_rt_info()[ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttribute>::type_info.name] = attribute;
     }
 }
 

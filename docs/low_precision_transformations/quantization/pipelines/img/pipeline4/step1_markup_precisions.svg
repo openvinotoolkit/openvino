@@ -16,8 +16,8 @@
 <text text-anchor="middle" x="2117" y="-201.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: convolution</text>
 <text text-anchor="middle" x="2117" y="-186.8" font-family="Times New Roman,serif" font-size="14.00">name: Convolution_106</text>
 <text text-anchor="middle" x="2117" y="-171.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Convolution</text>
-<text text-anchor="middle" x="2117" y="-156.8" font-family="Times New Roman,serif" font-size="14.00">in0: {f32}[1,6,7,7]: MaxPool_99: out0 PRECISIONS(2568398223120: u8}) </text>
-<text text-anchor="middle" x="2117" y="-141.8" font-family="Times New Roman,serif" font-size="14.00">in1: {f32}[9,6,1,1]: FakeQuantize_105: out0 PRECISIONS(2568398225024: i8}) </text>
+<text text-anchor="middle" x="2117" y="-156.8" font-family="Times New Roman,serif" font-size="14.00">in0: {f32}[1,6,7,7]: MaxPool_99: out0 PRECISIONS(2588780584112: u8}) </text>
+<text text-anchor="middle" x="2117" y="-141.8" font-family="Times New Roman,serif" font-size="14.00">in1: {f32}[9,6,1,1]: FakeQuantize_105: out0 PRECISIONS(2588780584336: i8}) </text>
 <text text-anchor="middle" x="2117" y="-126.8" font-family="Times New Roman,serif" font-size="14.00">out0: {f32}[1,9,7,7]</text>
 </g>
 <!-- Result_108 -->
@@ -267,7 +267,7 @@
 <text text-anchor="middle" x="2091" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_92</text>
 <text text-anchor="middle" x="2091" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="2091" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="2091" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;0.426667]</text>
+<text text-anchor="middle" x="2091" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;1.28]</text>
 </g>
 <!-- CLONE_6&#45;&gt;FakeQuantize_96 -->
 <g id="edge13" class="edge">
@@ -283,7 +283,7 @@
 <text text-anchor="middle" x="2282" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_93</text>
 <text text-anchor="middle" x="2282" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="2282" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="2282" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [0.423333]</text>
+<text text-anchor="middle" x="2282" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [1.27]</text>
 </g>
 <!-- CLONE_7&#45;&gt;FakeQuantize_96 -->
 <g id="edge14" class="edge">
@@ -299,7 +299,7 @@
 <text text-anchor="middle" x="2473" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_94</text>
 <text text-anchor="middle" x="2473" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="2473" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="2473" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;0.426667]</text>
+<text text-anchor="middle" x="2473" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;1.28]</text>
 </g>
 <!-- CLONE_8&#45;&gt;FakeQuantize_96 -->
 <g id="edge15" class="edge">
@@ -315,7 +315,7 @@
 <text text-anchor="middle" x="2664" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_95</text>
 <text text-anchor="middle" x="2664" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="2664" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="2664" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [0.423333]</text>
+<text text-anchor="middle" x="2664" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [1.27]</text>
 </g>
 <!-- CLONE_9&#45;&gt;FakeQuantize_96 -->
 <g id="edge16" class="edge">
@@ -464,7 +464,7 @@
 <text text-anchor="middle" x="245" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_80</text>
 <text text-anchor="middle" x="245" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="245" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="245" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;1.28]</text>
+<text text-anchor="middle" x="245" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;0.426667]</text>
 </g>
 <!-- CLONE_16&#45;&gt;FakeQuantize_84 -->
 <g id="edge26" class="edge">
@@ -480,7 +480,7 @@
 <text text-anchor="middle" x="436" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_81</text>
 <text text-anchor="middle" x="436" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="436" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="436" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [1.27]</text>
+<text text-anchor="middle" x="436" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [0.423333]</text>
 </g>
 <!-- CLONE_17&#45;&gt;FakeQuantize_84 -->
 <g id="edge27" class="edge">
@@ -496,7 +496,7 @@
 <text text-anchor="middle" x="627" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_82</text>
 <text text-anchor="middle" x="627" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="627" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="627" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;1.28]</text>
+<text text-anchor="middle" x="627" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [&#45;0.426667]</text>
 </g>
 <!-- CLONE_18&#45;&gt;FakeQuantize_84 -->
 <g id="edge28" class="edge">
@@ -512,7 +512,7 @@
 <text text-anchor="middle" x="818" y="-887.8" font-family="Times New Roman,serif" font-size="14.00">friendly_name: Constant_83</text>
 <text text-anchor="middle" x="818" y="-872.8" font-family="Times New Roman,serif" font-size="14.00">type_name: Constant</text>
 <text text-anchor="middle" x="818" y="-857.8" font-family="Times New Roman,serif" font-size="14.00">{f32}[]</text>
-<text text-anchor="middle" x="818" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [1.27]</text>
+<text text-anchor="middle" x="818" y="-842.8" font-family="Times New Roman,serif" font-size="14.00">value: [0.423333]</text>
 </g>
 <!-- CLONE_19&#45;&gt;FakeQuantize_84 -->
 <g id="edge29" class="edge">
