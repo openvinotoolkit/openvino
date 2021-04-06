@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from extensions.ops.argmax import ArgMaxOp
+from extensions.ops.arg_ops import ArgMaxOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 
@@ -15,7 +15,6 @@ class ArgMinFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'out_min_val': 0,
             'top_k': 1,
             'axis': None,
             'keepdims': 0,

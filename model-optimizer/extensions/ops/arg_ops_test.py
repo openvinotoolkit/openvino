@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.argmax import ArgMaxOp
+from extensions.ops.arg_ops import arg_ops_infer
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
@@ -33,7 +33,7 @@ class TestArgMaxOp(unittest.TestCase):
                              })
 
         argmax_node = Node(graph, 'argmax')
-        ArgMaxOp.argmax_infer(argmax_node)
+        arg_ops_infer(argmax_node)
         exp_shape = np.array([1, 3, 100, 2049])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
@@ -55,7 +55,7 @@ class TestArgMaxOp(unittest.TestCase):
                              })
 
         argmax_node = Node(graph, 'argmax')
-        ArgMaxOp.argmax_infer(argmax_node)
+        arg_ops_infer(argmax_node)
         exp_shape = np.array([1, 3, 1025, 100])
         res_shape = graph.node['node_3']['shape']
         self.assertEqual(argmax_node.axis, 3)
@@ -77,7 +77,7 @@ class TestArgMaxOp(unittest.TestCase):
                              })
 
         argmax_node = Node(graph, 'argmax')
-        ArgMaxOp.argmax_infer(argmax_node)
+        arg_ops_infer(argmax_node)
         exp_shape = np.array([1, 2, 100, 1])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
@@ -98,7 +98,7 @@ class TestArgMaxOp(unittest.TestCase):
                              })
 
         argmax_node = Node(graph, 'argmax')
-        ArgMaxOp.argmax_infer(argmax_node)
+        arg_ops_infer(argmax_node)
         exp_shape = np.array([1, 2, 100])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
@@ -119,7 +119,7 @@ class TestArgMaxOp(unittest.TestCase):
                              })
 
         argmax_node = Node(graph, 'argmax')
-        ArgMaxOp.argmax_infer(argmax_node)
+        arg_ops_infer(argmax_node)
         exp_shape = np.array([1, 1, 100])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
@@ -140,6 +140,6 @@ class TestArgMaxOp(unittest.TestCase):
                              })
 
         argmax_node = Node(graph, 'argmax')
-        ArgMaxOp.argmax_infer(argmax_node)
+        arg_ops_infer(argmax_node)
         res_shape = graph.node['node_3']['shape']
         self.assertIsNone(res_shape)

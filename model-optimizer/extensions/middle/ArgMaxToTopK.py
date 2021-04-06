@@ -42,7 +42,7 @@ class ArgMaxToTopK(MiddleReplacementPattern):
                                  'remove_values_output': node.has_and_set('remove_values_output'),
                                  'index_element_type': node.output_type}).create_node()
         node.in_port(0).get_connection().set_destination(topk_node.in_port(0))
-        if node.has_and_set('out_max_val') or node.has_and_set('out_min_val'):  # in this mode the ArgMax produces tuples (max_ind, max_value)
+        if node.has_and_set('out_max_val'):  # in this mode the ArgMax produces tuples (max_ind, max_value)
             concat_node = Concat(graph, {'axis': 1, 'name': node.name + '/Concat'}).create_node()
             concat_node.add_input_port(0, skip_if_exist=True)
             concat_node.add_input_port(1, skip_if_exist=True)
