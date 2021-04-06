@@ -235,9 +235,8 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
     };
 
     if (params.inputs.size()) {
+        no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
         for (const auto& layout : block_layouts) {
-            no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
-
             if (params.fused_ops.size()) {
                 for (auto fused_op : params.fused_ops) {
                     for (size_t in = 0; in < fused_op.tensors.size(); in++) {
