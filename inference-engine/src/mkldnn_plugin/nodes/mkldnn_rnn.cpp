@@ -483,62 +483,61 @@ void MKLDNNRNN::createPrimitive() {
     verifyWeights();
     verifyBiases();
 
-    {   /*
-         *   Gate order
-         *   ====== LSTM ======
-         *   Caffe - IFOC, ONNX   - IOFC
-         *   IE    - FICO, mkldnn - IFCO
-         *
-         *   ====== GRU ======
-         *   IE - URO, mkldnn - URO
-         */
-        const int gate_map_lstm[] = {1, 0, 2, 3};  // FICO -> IFCO
-        const int gate_map_gru[]  = {0, 1, 2, 3};
-        const int gate_map_rnn[]  = {0};
-        const int *gate_map;
-        const int gate_map_lstm_size = sizeof(gate_map_lstm) / sizeof(int);
-        const int gate_map_gru_size = sizeof(gate_map_gru) / sizeof(int);
-        const int gate_map_rnn_size = sizeof(gate_map_rnn) / sizeof(int);
-        if (cell_type == algorithm::vanilla_lstm) {
-            gate_map = gate_map_lstm;
-            if (G > gate_map_lstm_size) {
-                IE_THROW() << "G isn't equal to the size of gate_map";
-            }
-        } else if (cell_type == algorithm::vanilla_gru) {
-            gate_map = gate_map_gru;
-            if (G > gate_map_gru_size) {
-                IE_THROW() << "G isn't equal to the size of gate_map";
-            }
-        } else if (cell_type == algorithm::lbr_gru) {
-            gate_map = gate_map_gru;
-            if (G > gate_map_gru_size) {
-                IE_THROW() << "G isn't equal to the size of gate_map";
-            }
-        } else if (cell_type == algorithm::vanilla_rnn) {
-            gate_map = gate_map_rnn;
-            if (G > gate_map_rnn_size) {
-                IE_THROW() << "G isn't equal to the size of gate_map";
-            }
-        } else {
-            gate_map = gate_map_gru;
-            if (G > gate_map_gru_size) {
-                IE_THROW() << "G isn't equal to the size of gate_map";
-            }
+    /*
+     *   Gate order
+     *   ====== LSTM ======
+     *   Caffe - IFOC, ONNX   - IOFC
+     *   IE    - FICO, mkldnn - IFCO
+     *
+     *   ====== GRU ======
+     *   IE - URO, mkldnn - URO
+     */
+    const int gate_map_lstm[] = {1, 0, 2, 3};  // FICO -> IFCO
+    const int gate_map_gru[]  = {0, 1, 2, 3};
+    const int gate_map_rnn[]  = {0};
+    const int *gate_map;
+    const int gate_map_lstm_size = sizeof(gate_map_lstm) / sizeof(int);
+    const int gate_map_gru_size = sizeof(gate_map_gru) / sizeof(int);
+    const int gate_map_rnn_size = sizeof(gate_map_rnn) / sizeof(int);
+    if (cell_type == algorithm::vanilla_lstm) {
+        gate_map = gate_map_lstm;
+        if (G > gate_map_lstm_size) {
+            IE_THROW() << "G isn't equal to the size of gate_map";
         }
-
-        auto runtimePrecision = getCnnLayer()->outData[0]->getPrecision();
-
-        if (runtimePrecision == Precision::BF16)
-            fillWeights<bfloat16_t>(gate_map);
-        else if (runtimePrecision == Precision::FP32)
-            fillWeights<float>(gate_map);
-        else // TODO FP16 and INT8 support
-            IE_THROW() << "Unsupported data type";
-
-        if (runtimePrecision == Precision::BF16 ||
-            runtimePrecision == Precision::FP32)
-            fillBiases<float>(gate_map);
+    } else if (cell_type == algorithm::vanilla_gru) {
+        gate_map = gate_map_gru;
+        if (G > gate_map_gru_size) {
+            IE_THROW() << "G isn't equal to the size of gate_map";
+        }
+    } else if (cell_type == algorithm::lbr_gru) {
+        gate_map = gate_map_gru;
+        if (G > gate_map_gru_size) {
+            IE_THROW() << "G isn't equal to the size of gate_map";
+        }
+    } else if (cell_type == algorithm::vanilla_rnn) {
+        gate_map = gate_map_rnn;
+        if (G > gate_map_rnn_size) {
+            IE_THROW() << "G isn't equal to the size of gate_map";
+        }
+    } else {
+        gate_map = gate_map_gru;
+        if (G > gate_map_gru_size) {
+            IE_THROW() << "G isn't equal to the size of gate_map";
+        }
     }
+
+    auto runtimePrecision = getCnnLayer()->outData[0]->getPrecision();
+
+    if (runtimePrecision == Precision::BF16)
+        fillWeights<bfloat16_t>(gate_map);
+    else if (runtimePrecision == Precision::FP32)
+        fillWeights<float>(gate_map);
+    else // TODO FP16 and INT8 support
+        IE_THROW() << "Unsupported data type";
+
+    if (runtimePrecision == Precision::BF16 ||
+        runtimePrecision == Precision::FP32)
+        fillBiases<float>(gate_map);
 
     auto pd = descs[0].createPrimitiveDescriptorIterator(getEngine());
     prim.reset(new mkldnn::primitive(pd));
