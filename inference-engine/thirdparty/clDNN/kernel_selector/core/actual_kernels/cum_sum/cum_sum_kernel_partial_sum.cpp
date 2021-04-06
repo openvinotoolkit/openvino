@@ -53,7 +53,7 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
         // Final
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
         auto cldnn_jit = GetJitConstants(newParams, dispatchData.stage_final);
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[1];
 
