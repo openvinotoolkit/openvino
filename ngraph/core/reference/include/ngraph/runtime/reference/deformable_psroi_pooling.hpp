@@ -184,14 +184,14 @@ namespace ngraph
                                             sub_bin_y1_idx, 0.f, height_in - 1.f);
 
                                         // Calculate value for sub-bin by bilinear interpolation
-                                        const int left_x =
-                                            static_cast<int>(std::floor(sub_bin_x1_idx));
-                                        const int right_x =
-                                            static_cast<int>(std::ceil(sub_bin_x1_idx));
-                                        const int top_y =
-                                            static_cast<int>(std::floor(sub_bin_y1_idx));
-                                        const int bottom_y =
-                                            static_cast<int>(std::ceil(sub_bin_y1_idx));
+                                        const int64_t left_x =
+                                            static_cast<int64_t>(std::floor(sub_bin_x1_idx));
+                                        const int64_t right_x =
+                                            static_cast<int64_t>(std::ceil(sub_bin_x1_idx));
+                                        const int64_t top_y =
+                                            static_cast<int64_t>(std::floor(sub_bin_y1_idx));
+                                        const int64_t bottom_y =
+                                            static_cast<int64_t>(std::ceil(sub_bin_y1_idx));
 
                                         const T* data_channel_ptr =
                                             data_input +

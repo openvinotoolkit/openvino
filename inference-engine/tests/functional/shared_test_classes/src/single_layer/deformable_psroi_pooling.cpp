@@ -15,7 +15,7 @@ namespace LayerTestsDefinitions {
         int64_t outputDim;
         int64_t groupSize;
         float spatialScale;
-        std::vector<size_t> spatialBinsXY;
+        std::vector<int64_t> spatialBinsXY;
         float trans_std;
         int64_t part_size;
         InferenceEngine::Precision netPrecision;
@@ -79,7 +79,7 @@ namespace LayerTestsDefinitions {
         int64_t outputDim;
         int64_t groupSize;
         std::string mode = "bilinear_deformable";
-        std::vector<size_t> spatialBinsXY;
+        std::vector<int64_t> spatialBinsXY;
         float trans_std;
         int64_t part_size;
         InferenceEngine::Precision netPrecision;
