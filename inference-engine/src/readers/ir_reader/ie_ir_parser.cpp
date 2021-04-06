@@ -12,6 +12,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/op/util/variable.hpp>
+#include <ngraph/op/util/framework_node.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -167,6 +168,8 @@ public:
         adapter.set(value);
     }
 
+    void use_framework_node(bool flag) { m_use_framework_node = flag; }
+
 private:
     struct IoMap {
         using NodeIdToIoIndex =
@@ -219,6 +222,8 @@ private:
     /// it will be used during Inputs/Outputs Description creation in SubGraph processing
     ///
     IoMap io_map;
+
+    bool m_use_framework_node{false};
 };
 
 XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& node) {
@@ -520,6 +525,26 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
             a->set(buffer);
         }
+    } else if (auto a = ngraph::as_type<
+                        ngraph::AttributeAdapter<ngraph::op::util::FrameworkNodeAttrs>>(&adapter)) {
+        const auto & type = XMLParseUtils::GetStrAttr(node, "type");
+        const auto & version = XMLParseUtils::GetStrAttr(node, "version");
+
+        ngraph::op::util::FrameworkNodeAttrs node_attrs;
+        node_attrs.set_opset_name(version);
+        node_attrs.set_type_name(type);
+
+        pugi::xml_node dn = node.child("data");
+
+        if (!dn.empty()) {
+            std::vector<std::pair<std::string, std::string>> attrs;
+            for (const auto & data_attr : dn.attributes()) {
+                attrs.emplace_back(std::make_pair(data_attr.name(), data_attr.as_string()));
+            }
+            node_attrs.set_attrs(attrs);
+        }
+
+        a->set(node_attrs);
     } else {
         IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name
                            << " parameter";
@@ -823,6 +848,19 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
     }
 
+    if (!ngraphNode && m_use_framework_node) {
+        // TODO: pass output shapes
+        ngraphNode = std::make_shared<ngraph::op::util::FrameworkNode>(inputs);
+        XmlDeserializer visitor(node, weights, opsets, variables);
+        ngraphNode->visit_attributes(visitor);
+
+        size_t index{0};
+        for (const auto & output_params : params.outputPorts) {
+            ngraphNode->set_output_type(index, output_params.precision, ngraph::Shape(output_params.dims));
+            ++index;
+        }
+    }
+
     if (!ngraphNode) {
         IE_THROW() << "Cannot create " << params.type << " layer " << params.name
                            << " id:" << params.layerId
@@ -889,6 +927,25 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(
     parsePreProcess(net, root, weights);
 
     return net;
+}
+
+std::shared_ptr<ICNNNetwork> V10Parser::parse_without_extensions(
+        const pugi::xml_node &root, const Blob::CPtr &weights) {
+    std::shared_ptr<ngraph::Function> function;
+    XmlDeserializer visitor(root, weights, opsets, variables);
+    visitor.use_framework_node(true);
+    visitor.on_attribute("net", function);
+
+    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
+
+    CNNNetwork net(function);
+    parsePreProcess(net, root, weights);
+
+    return net;
+}
+
+void CreateV10Parser(std::shared_ptr<V10Parser> &parser) {
+    parser = std::make_shared<V10Parser>();
 }
 
 void V10Parser::parsePreProcess(

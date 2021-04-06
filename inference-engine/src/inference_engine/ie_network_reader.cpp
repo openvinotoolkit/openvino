@@ -8,6 +8,7 @@
 #include <details/ie_so_pointer.hpp>
 #include <file_utils.h>
 #include <ie_reader.hpp>
+#include <ie_ir_parser.hpp>
 #include <ie_ir_version.hpp>
 
 #include <fstream>
@@ -29,6 +30,18 @@ public:
      * @brief A name of the fabric for creating IReader object in DLL
      */
     static constexpr auto name = "CreateReader";
+};
+
+/**
+ * @brief This class defines the name of the fabric for creating an IRReader object in DLL
+ */
+template <>
+class SOCreatorTrait<V10Parser> {
+public:
+    /**
+     * @brief A name of the fabric for creating V10Parser object in DLL
+     */
+    static constexpr auto name = "CreateV10Parser";
 };
 
 }  // namespace details
@@ -227,6 +240,75 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
     }
     IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath <<
         ". Please check that reader library exists in your PATH.";
+}
+
+CNNNetwork details::ReadNetworkWithoutExtensions(const std::string& modelPath, const std::string& binPath) {
+    const auto ir_reader_path = std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX);
+
+    FileUtils::FilePath libraryName = FileUtils::toFilePath(ir_reader_path);
+    FileUtils::FilePath readersLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
+
+    if (!FileUtils::fileExist(readersLibraryPath)) {
+        IE_THROW() << "Please, make sure that Inference Engine IR reader library "
+                   << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
+                   << getIELibraryPath();
+    }
+    auto ptr = InferenceEngine::details::SOPointer<V10Parser>(readersLibraryPath);
+
+    // Try to open model file
+    std::ifstream modelStream(modelPath, std::ios::binary);
+    // save path in extensible array of stream
+    // notice: lifetime of path pointed by pword(0) is limited by current scope
+    const std::string path_to_save_in_stream = modelPath;
+    modelStream.pword(0) = const_cast<char*>(path_to_save_in_stream.c_str());
+    if (!modelStream.is_open())
+        IE_THROW() << "Model file " << modelPath << " cannot be opened!";
+
+    std::string bPath = binPath;
+    if (bPath.empty()) {
+        auto pathWoExt = modelPath;
+        auto pos = modelPath.rfind('.');
+        if (pos != std::string::npos) pathWoExt = modelPath.substr(0, pos);
+        bPath = pathWoExt + ".bin";
+        if (!FileUtils::fileExist(bPath)) {
+            bPath.clear();
+        }
+    }
+
+    Blob::Ptr weights = nullptr;
+
+    if (!bPath.empty()) {
+        // Open weights file
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        std::wstring weights_path = FileUtils::multiByteCharToWString(bPath.c_str());
+#else
+        std::string weights_path = bPath;
+#endif
+        std::ifstream binStream;
+        binStream.open(weights_path, std::ios::binary);
+        if (!binStream.is_open())
+            IE_THROW() << "Weights file " << bPath << " cannot be opened!";
+
+        binStream.seekg(0, std::ios::end);
+        size_t fileSize = binStream.tellg();
+        binStream.seekg(0, std::ios::beg);
+
+        weights = make_shared_blob<uint8_t>({Precision::U8, { fileSize }, C });
+        weights->allocate();
+
+        binStream.read(weights->buffer(), fileSize);
+        binStream.close();
+    }
+
+    pugi::xml_document xmlDoc;
+    pugi::xml_parse_result res = xmlDoc.load(modelStream);
+    if (res.status != pugi::status_ok) {
+        IE_THROW() << res.description() << "at offset " << res.offset;
+    }
+
+    pugi::xml_node root = xmlDoc.document_element();
+
+    return CNNNetwork(ptr->parse_without_extensions(root, weights));
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {

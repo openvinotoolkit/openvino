@@ -13,6 +13,7 @@
 #include <ngraph/variant.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
+#include "ngraph/op/util/framework_node.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
 
@@ -318,6 +319,24 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::util::FrameworkNodeAttrs>>(&adapter)) {
+            const auto & attrs = a->get();
+
+            // Update type and version attributes
+            pugi::xml_node layer = m_xml_node.parent();
+
+            auto type_attr = layer.attribute("type");
+            auto version_attr = layer.attribute("version");
+
+            type_attr.set_value(attrs.get_type_name().c_str());
+            version_attr.set_value(attrs.get_opset_name().c_str());
+
+            // Update node attributes in data field
+            for (const auto & attr : attrs.get_attrs()) {
+                m_xml_node.append_attribute(attr.first.c_str()).set_value(attr.second.c_str());
+            }
+        } else {
+            throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
     }
 
@@ -673,6 +692,9 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         pugi::xml_node data = layer.append_child("data");
         std::string node_type_name{node->get_type_name()};
 
+        // must be executed before visit_attributes which can change values
+        layer_type_attribute.set_value(translate_type_name(node_type_name).c_str());
+
         // <layers/data> general attributes
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
@@ -682,8 +704,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                          "Visitor API is not supported in ", node);
             rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
         }
-        layer_type_attribute.set_value(
-            translate_type_name(node_type_name).c_str());
 
         const bool data_attr_size =
             data.attributes().begin() == data.attributes().end();
