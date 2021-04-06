@@ -135,7 +135,7 @@ const std::vector<ReduceSumTransformationTestValues> addTransformationTestValues
             {{}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         }
     },
-    // U8: keep dims, per-channel quantization with subtract, reduction by batch
+    // U8: keep dims, per-channel quantization with subtract, reduction by channel
     {
         LayerTransformation::createParamsU8I8(),
         {1},

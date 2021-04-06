@@ -20,7 +20,21 @@ void ReduceMinTransformation::registerMatcherIn(GraphRewrite& pass, Transformati
 }
 
 bool ReduceMinTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    return is_type<opset1::ReduceMin>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce) : false;
+    if (!is_type<opset1::ReduceMin>(reduce)) {
+        return false;
+    }
+    
+    if (!ReduceBaseTransformation::canBeTransformed(context, reduce)) {
+        return false;
+    }
+
+    const auto dequantization = NetworkHelper::getDequantization(reduce);
+    const std::vector<float> scales = as_type_ptr<opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
+    if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
+        return false;
+    }
+
+    return true;
 }
 
 bool ReduceMinTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept {

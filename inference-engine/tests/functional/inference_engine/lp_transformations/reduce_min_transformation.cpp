@@ -175,6 +175,22 @@ const std::vector<ReduceMinTransformationTestValues> addTransformationTestValues
             {}
         }
     },
+    // U8: don't keep dims, per-channel quantization with negative values, reduction by special dimensions
+    {
+        LayerTransformation::createParamsU8I8(),
+        {2, 3},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
     // U8: don't keep dims, per-tensor quantization, reduction by channel (reduction constant with negative values)
     {
         LayerTransformation::createParamsU8I8(),
@@ -269,6 +285,22 @@ const std::vector<ReduceMinTransformationTestValues> addTransformationTestValues
             {},
             ngraph::element::i8,
             {{ngraph::element::f32}, {64.f}, {0.1f}}
+        }
+    },
+    // I8: don't keep dims, per-channel quantization with negative values, reduction by special dimensions
+    {
+        LayerTransformation::createParamsU8I8(),
+        {2, 3},
+        false,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
         }
     },
     // I8: don't keep dims, per-channel quantization, reduction by special dimensions
