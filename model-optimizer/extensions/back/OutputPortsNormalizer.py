@@ -57,3 +57,33 @@ class TopKNormalizer(BackReplacementPattern):
         if node.out_port(1).disconnected():
             output = Result(node.graph, {'name': node.name + '/Result_port_1/'}).create_node()
             node.out_port(1).get_connection().set_destination(output.in_port(0))
+
+
+class SplitOutputNormalizer(BackReplacementPattern):
+    """
+    The transformation adds the Result Op if there are no consumers of Split outputs. However the Result for output
+    with values is not added if the node has attribute 'remove_values_output'.
+    """
+    enabled = True
+
+    def run_after(self):
+        return [ScalarNormalize]
+
+    def run_before(self):
+        return [Reshape0DToSqueeze]
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[('result', {'type': 'Split'})],
+            edges=[],
+        )
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        node = match['result']
+        for ind, port in node.out_ports().items():
+            if port.disconnected():
+                output = Result(node.graph, {'name': node.name + '/Result_port_' + str(ind) + '/',
+                                             'remove_from_xml': node.has_and_set('remove_values_output')}).create_node()
+                port.get_connection().set_destination(output.in_port(0))

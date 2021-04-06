@@ -6,7 +6,7 @@ import os
 
 import numpy as np
 
-from extensions.back.TopKNormalizer import TopKNormalizer
+from extensions.back.OutputPortsNormalizer import TopKNormalizer
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation

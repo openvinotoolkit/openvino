@@ -138,7 +138,8 @@ class RemoveConstToResult(BackReplacementPattern):
 
         # in case only const data consumer that is the result node, remove the whole sub-graph
         parent_node = result_node.in_port(0).get_source().node
-        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
+        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1 and \
+            parent_node.soft_get('remove_from_xml') != 'remove_values_output':
             nodes_to_remove.append(parent_node.id)
             nodes_to_remove.append(const_data_node.id)
 

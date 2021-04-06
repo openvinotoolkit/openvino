@@ -39,6 +39,7 @@ extensions/back/MaxPool.py
 extensions/back/NormalizeToNormalizeL2.py
 extensions/back/op_versioning.py
 extensions/back/OptimizeTransposeReshapeSequence.py
+extensions/back/OutputPortsNormalizer.py
 extensions/back/PackBinaryWeights.py
 extensions/back/pass_separator.py
 extensions/back/priorbox_mutation.py
@@ -59,7 +60,6 @@ extensions/back/ShuffleChannelPatternOptimization.py
 extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
 extensions/back/StridedSliceMasksNormalizer.py
-extensions/back/TopKNormalizer.py
 extensions/back/TransposeReduceFusing.py
 extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
