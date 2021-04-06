@@ -46,14 +46,12 @@ void op::Squeeze::validate_and_infer_types()
                                       ? axes_constant->cast_vector<int64_t>().empty()
                                       : false;
 
-    NODE_VALIDATION_CHECK(
-                          this,
+    NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
                           "Second input (axes) is expected to be of integer type. Got: ",
                           get_input_element_type(1));
 
-    NODE_VALIDATION_CHECK(
-                          this,
+    NODE_VALIDATION_CHECK(this,
                           axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
                           "Second input (axes) should not be of rank higher than 1. Got: ",
                           axes_pshape.rank().get_length());
@@ -61,9 +59,8 @@ void op::Squeeze::validate_and_infer_types()
     if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
         (data_has_dynamic_shape && axes_is_empty_constant))
     {
-        set_output_type(0,
-            get_input_element_type(0),
-            PartialShape::dynamic(data.get_partial_shape().rank()));
+        set_output_type(
+            0, get_input_element_type(0), PartialShape::dynamic(data.get_partial_shape().rank()));
         return;
     }
 
