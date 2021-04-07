@@ -123,7 +123,8 @@ class RemoveConstToResult(BackReplacementPattern):
         return dict(
             nodes=[
                 ('const_data', {'kind': 'data', 'value': lambda value: value is not None}),
-                ('result_node', {'type': 'Result', 'kind': 'op'}),
+                ('result_node', {'type': 'Result', 'kind': 'op',
+                                 'keep_output_port': lambda attr: attr is False or attr is None}),
             ],
             edges=[
                 ('const_data', 'result_node')

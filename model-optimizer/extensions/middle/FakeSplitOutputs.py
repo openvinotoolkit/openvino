@@ -37,7 +37,8 @@ class AddFakeOutputsToSplit(MiddleReplacementPattern):
                 if p not in node.out_ports():
                     node.add_output_port(p)
                 if node.out_port(p).disconnected():
-                    res_node = Result(graph, {'name': node.name + '/Fake_output_{}/'.format(p)}).create_node()
+                    res_node = Result(graph, {'name': node.name + '/Fake_output_{}/'.format(p),
+                                              'keep_output_port': True}).create_node()
                     node.out_port(p).connect(res_node.in_port(0))
 
 
