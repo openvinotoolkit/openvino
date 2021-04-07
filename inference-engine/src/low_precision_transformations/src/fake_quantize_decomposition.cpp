@@ -208,18 +208,42 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
         if (it != rt.end()) {
             auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
-            const std::set<element::Type> precisions = attribute->get()->precisions;
-            if (precisions.size() == 1ul) {
-                //const bool ngraph::element::Type precision = *precisions.begin();
-                const auto precision = *precisions.begin();
+            std::set<element::Type>& precisions = attribute->get()->precisions;
+            //if (precisions.size() > 1ul) {
+            //    attribute->get()->precisions = { *precisions.begin() };
+            //    precisions = attribute->get()->precisions;
+            //}
+            //if (precisions.size() == 1ul) {
+            //    //const bool ngraph::element::Type precision = *precisions.begin();
+            //    const auto precision = *precisions.begin();
+
+            //}
+
+            ngraph::element::Type precision;
+            bool hasZeroPoint;
+            if (precisions.size() > 1ul) {
                 PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
                 const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
-                dataPrecision = DataPrecision(
-                    precision,
-                    DataPrecision::getMinValue(precision, quantizationDetails.levels),
-                    DataPrecision::getMaxValue(precision, quantizationDetails.levels),
-                    foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+
+                if (foundIt == precisions.end()) {
+                    precision = *precisions.begin();
+                    hasZeroPoint = true;
+                } else {
+                    precision = precisionDetailsAtOutputIntervals.precision;
+                    hasZeroPoint = precisionDetailsAtOutputIntervals.hasZeroPoint;
+                }
+                attribute->get()->precisions = { precision };
+            } else {
+                precision = *precisions.begin();
+                PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
+                hasZeroPoint = precisionDetailsAtOutputIntervals.precision != precision;
             }
+
+            dataPrecision = DataPrecision(
+                precision,
+                DataPrecision::getMinValue(precision, quantizationDetails.levels),
+                DataPrecision::getMaxValue(precision, quantizationDetails.levels),
+                hasZeroPoint);
         }
     }
 
