@@ -169,4 +169,3 @@ if __name__ == "__main__":
         pprint(aggr_stats)
 
     sys.exit(exit_code)
-
