@@ -159,6 +159,15 @@ namespace ngraph
             ///
             std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
 
+            /// \brief Returns a vector of InputEdges which consume an output of a node
+            ///        determined by provided output name.
+            ///
+            /// \note  The output name is deterministic in the ONNX standard.
+            ///
+            /// \param output_name A node output name.
+            ///
+            bool is_correct_and_unambiguous_node(const EditorNode& node) const;
+
         private:
             void update_mapper_if_needed() const;
 

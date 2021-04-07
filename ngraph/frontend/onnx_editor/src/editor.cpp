@@ -399,3 +399,9 @@ std::vector<InputEdge>
     update_mapper_if_needed();
     return m_pimpl->m_edge_mapper.find_output_consumers(output_name);
 }
+
+bool onnx_editor::ONNXModelEditor::is_correct_and_unambiguous_node(const EditorNode& node) const
+{
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.is_correct_and_unambiguous_node(node);
+}

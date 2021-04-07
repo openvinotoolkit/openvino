@@ -49,22 +49,16 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
             return std::vector<int>{index_iter->second};
         }
     }
+    std::vector<int> result;
     if (!node_name.empty())
     {
         const auto matched_nodes_range = m_node_name_to_index.equal_range(node_name);
-        std::vector<int> result;
         std::transform(matched_nodes_range.first,
                        matched_nodes_range.second,
                        std::back_inserter(result),
                        [](const std::pair<std::string, int>& iter) { return iter.second; });
-        if (!result.empty())
-        {
-            return result;
-        }
     }
-    throw ngraph_error("Node with name: " + (node_name.empty() ? "not_given" : node_name) +
-                       " and output_name: " + (output_name.empty() ? "not_given" : output_name) +
-                       " was not found");
+    return result;
 };
 
 std::string onnx_editor::EdgeMapper::get_node_output_name(int node_index, int output_index) const
@@ -108,6 +102,13 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
     if (node_indexes.size() == 1)
     {
         node_index = node_indexes[0];
+    }
+    else if (node_indexes.empty())
+    {
+        throw ngraph_error(
+            "Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+            " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+            " was not found");
     }
     else if (!in.m_input_name
                   .empty()) // input indexes are not deterministic if a node name is ambiguous
@@ -166,6 +167,13 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node,
     if (node_indexes.size() == 1)
     {
         node_index = node_indexes[0];
+    }
+    else if (node_indexes.empty())
+    {
+        throw ngraph_error(
+            "Node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+            " and output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+            " was not found");
     }
     else if (!out.m_output_name
                   .empty()) // output indexes are not deterministic if a node name is ambiguous
@@ -227,4 +235,9 @@ std::vector<InputEdge>
                        return InputEdge{iter.second, output_name};
                    });
     return input_edges;
+}
+
+bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& node) const
+{
+    return find_node_indexes(node.m_node_name, node.m_output_name).size() == 1;
 }

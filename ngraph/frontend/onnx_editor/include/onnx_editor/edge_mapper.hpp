@@ -87,6 +87,15 @@ namespace ngraph
             ///
             std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
 
+            /// \brief Returns true if a provided node is correct (exists in a graph)
+            ///        and is not ambiguous (identification of an ONNX node can be ambiguous
+            ///        if an only tensor name is provided).
+            ///
+            /// \param node An EditorNode helper structure created based on a node name
+            ///             or a node output name.
+            ///
+            bool is_correct_and_unambiguous_node(const EditorNode& node) const;
+
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,
                                                const std::string& output_name) const;

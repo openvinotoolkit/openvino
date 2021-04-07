@@ -1088,6 +1088,33 @@ NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers_empty_result)
     EXPECT_EQ(output_consumers.size(), 0);
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    bool is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{EditorOutput{"relu1"}});
+    EXPECT_EQ(is_correct_node, true);
+
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{EditorOutput{"mul2"}});
+    EXPECT_EQ(is_correct_node, true);
+
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{EditorOutput{"split2"}});
+    EXPECT_EQ(is_correct_node, true);
+
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{"relu1_name"});
+    EXPECT_EQ(is_correct_node, true);
+
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{EditorOutput{"in3"}});
+    EXPECT_EQ(is_correct_node, false);
+
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{"add_ambiguous_name"});
+    EXPECT_EQ(is_correct_node, false);
+
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{"not_exist"});
+    EXPECT_EQ(is_correct_node, false);
+}
+
 using TestEngine = test::INTERPRETER_Engine;
 
 NGRAPH_TEST(onnx_editor, values__append_one_initializer)
