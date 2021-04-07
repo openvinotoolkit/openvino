@@ -876,7 +876,7 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(
     XmlDeserializer visitor(root, weights, opsets, variables);
     visitor.on_attribute("net", function);
 
-    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::V10Reader_RT, "ConstructCNNNetwork");
 
     CNNNetwork net(function, _exts);
     parsePreProcess(net, root, weights);

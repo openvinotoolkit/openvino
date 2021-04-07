@@ -228,7 +228,7 @@ class Core::Impl : public ICore {
                                       const std::string& blobID,
                                       const std::string& modelPath = std::string(),
                                       bool forceDisableCache = false) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::Impl::LoadNetworkImpl");
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetworkImpl");
         ExecutableNetwork execNetwork;
         execNetwork = context ? plugin.LoadNetwork(network, context, parsedConfig) :
                                 plugin.LoadNetwork(network, parsedConfig);
@@ -434,12 +434,12 @@ public:
     }
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork from file");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from file");
         return details::ReadNetwork(modelPath, binPath, extensions);
     }
 
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork from memory");
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from memory");
         return details::ReadNetwork(model, weights, extensions);
     }
 
