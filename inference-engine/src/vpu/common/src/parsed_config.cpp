@@ -42,7 +42,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_DETECT_NETWORK_BATCH,
         ie::MYRIAD_COPY_OPTIMIZATION,
-        ie::MYRIAD_DISABLE_CONVERT_STAGES,
         ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL,
         ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION,
         ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM,
@@ -122,7 +121,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compilerLogFilePath,                                    config, ie::MYRIAD_COMPILER_LOG_FILE_PATH);
 
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
-    setOption(_compileConfig.disableConvertStages,           switches, config, ie::MYRIAD_DISABLE_CONVERT_STAGES);
     setOption(_compileConfig.checkPreprocessingInsideModel,  switches, config, ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
     setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
     setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);

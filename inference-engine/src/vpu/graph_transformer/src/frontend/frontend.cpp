@@ -51,6 +51,7 @@
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 
 namespace vpu {
@@ -543,7 +544,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         processTrivialCases(model);
 
-        if (!CompileEnv::get().config.compileConfig().disableConvertStages) {
+        if (!CompileEnv::get().config.get<DisableConvertStagesOption>()) {
             addDataTypeConvertStages(model);
         }
 

@@ -39,7 +39,6 @@ struct CompilationConfig {
         return noneLayers.count(layerType) != 0;
     }
 
-    bool disableConvertStages = false;
     bool checkPreprocessingInsideModel = true;
     bool enableCustomReshapeParam = false;
 

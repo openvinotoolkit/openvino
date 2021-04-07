@@ -51,6 +51,7 @@
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
 #include <vpu/configuration/options/dump_all_passes.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
 
 #include "myriad_plugin.h"
@@ -222,6 +223,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<DumpAllPassesOption>();
 
 IE_SUPPRESS_DEPRECATED_START
+    _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
     _parsedConfig.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
     _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     _parsedConfig.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
