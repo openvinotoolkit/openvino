@@ -218,9 +218,10 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     std::map<std::shared_ptr<ngraph::Node>, MKLDNNNodePtr> op2node;
     std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
 
-    auto getParentPort = [](const std::shared_ptr<ngraph::Node> op, const std::shared_ptr<ngraph::Node> parentOp, const size_t port) -> int {
+    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+                                  const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
-            if (op->input(port).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
+            if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
                 return static_cast<int>(parentPort);
             }
         }
@@ -240,6 +241,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
+            // [NM] TODO: Several network has model outputs which mismatch with result node name
             const auto &input = op->input_value(0);
             NGRAPH_SUPPRESS_DEPRECATED_START
             auto name = input.get_tensor().get_name();
@@ -264,7 +266,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
             auto parentNode = op2node[parentOp];
 
-            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentPort(op, parentOp, port), static_cast<int>(port)));
+            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
             node->addEdge(edge);
             graphEdges.push_back(edge);
         }

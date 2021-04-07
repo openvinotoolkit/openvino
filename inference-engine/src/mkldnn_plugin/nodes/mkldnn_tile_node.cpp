@@ -58,9 +58,10 @@ MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op, const mk
                 break;
             }
         }
-        if (axis >= tile->get_input_shape(TILE_INPUT).size())
+        noTiling = axis == -1;
+        if (axis >= static_cast<int>(tile->get_input_shape(TILE_INPUT).size()))
             IE_THROW() << errorPrefix << " has incorrect tiling axis: " << axis;
-        if (tiles < 1)
+        if (tiles < 1 && !noTiling)
             IE_THROW() << errorPrefix << " has incorrect 'repeats' value: " << tiles;
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -96,6 +97,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[TILE_INPUT].desc = MKLDNNMemoryDesc(getParentEdgeAt(TILE_INPUT)->getDims(), inputDataType, fmt);
     config.inConfs[TILE_REPEATS].desc = MKLDNNMemoryDesc(getParentEdgeAt(TILE_REPEATS)->getDims(), memory::data_type::s32, memory::format_tag::x);
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), inputDataType, fmt);
+    config.outConfs[0].inPlace = noTiling ? 0 : -1;
     supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
 }
 
@@ -111,6 +113,10 @@ void MKLDNNTileNode::createPrimitive() {
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {
+    if (noTiling) {
+        return;
+    }
+
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
     const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());

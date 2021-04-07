@@ -8,7 +8,6 @@
 #include <vector>
 #include <string>
 
-#include "test_utils/node_types.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"

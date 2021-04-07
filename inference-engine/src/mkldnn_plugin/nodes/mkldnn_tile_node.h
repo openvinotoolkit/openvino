@@ -27,8 +27,9 @@ private:
     static const size_t TILE_INPUT = 0;
     static const size_t TILE_REPEATS = 1;
 
-    int axis = 0;
+    int axis = -1;
     int tiles = 0;
+    bool noTiling = false;
 
     std::string errorPrefix;
 };

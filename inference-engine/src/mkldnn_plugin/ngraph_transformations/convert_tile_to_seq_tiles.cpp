@@ -44,6 +44,12 @@ MKLDNNPlugin::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         }
 
         if (num_of_tile_dims == 0) {
+            auto outputs = tile->get_output_target_inputs(0);
+            for (const auto &out : outputs) {
+                if (std::dynamic_pointer_cast<ngraph::opset1::Result>(out.get_node()->shared_from_this())) {
+                    return false;
+                }
+            }
             ngraph::replace_node(tile, {last_node});
             return true;
         }

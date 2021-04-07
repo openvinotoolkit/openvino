@@ -122,11 +122,7 @@ enum Algorithm {
     MathSinh,
     MathSoftPlus,
     MathSoftsign,
-    MathTan,
-
-    // Split algorithms
-    SplitDefault,
-    SplitVariadic
+    MathTan
 };
 
 } // namespace MKLDNNPlugin

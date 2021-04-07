@@ -27,7 +27,7 @@ bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::N
             return false;
         }
         size_t ndims = op->get_input_shape(0).size();
-        if ((ndims < 3) || (ndims > 5)) {
+        if ((ndims < 4) || (ndims > 5)) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(ndims);
             return false;
         }

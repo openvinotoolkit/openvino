@@ -12,9 +12,9 @@ endif()
 
 add_subdirectory(inference_engine)
 
-# if (ENABLE_MKL_DNN)
-#     add_subdirectory(cpu)
-# endif ()
+if (ENABLE_MKL_DNN)
+    add_subdirectory(cpu)
+endif ()
 
 if (ENABLE_GNA)
     add_subdirectory(gna)

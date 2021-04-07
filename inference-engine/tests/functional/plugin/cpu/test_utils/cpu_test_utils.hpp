@@ -44,6 +44,29 @@ namespace CPUTestUtils {
         std::string                       // selected primitive type
     >;
 
+    enum class nodeType {
+        convolution,
+        convolutionBackpropData,
+        groupConvolution,
+        groupConvolutionBackpropData
+    };
+
+    inline std::string nodeType2PluginType(nodeType nt) {
+        if (nt == nodeType::convolution) return "Convolution";
+        if (nt == nodeType::convolutionBackpropData) return "Deconvolution";
+        if (nt == nodeType::groupConvolution) return "Convolution";
+        if (nt == nodeType::groupConvolutionBackpropData) return "Deconvolution";
+        throw std::runtime_error("Undefined node type to convert to plug-in type node!");
+    }
+
+    inline std::string nodeType2str(nodeType nt) {
+        if (nt == nodeType::convolution) return "Convolution";
+        if (nt == nodeType::convolutionBackpropData) return "ConvolutionBackpropData";
+        if (nt == nodeType::groupConvolution) return "GroupConvolution";
+        if (nt == nodeType::groupConvolutionBackpropData) return "GroupConvolutionBackpropData";
+        throw std::runtime_error("Undefined node type to convert to string!");
+    }
+
 class CPUTestsBase {
 public:
     typedef std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUInfo;

@@ -89,10 +89,8 @@ MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const 
     }
 
     if (ngraph::as_type_ptr<const ngraph::op::v1::Split>(op)) {
-        algorithm = SplitDefault;
         INPUTS_NUM = 2;
     } else if (ngraph::as_type_ptr<const ngraph::op::v1::VariadicSplit>(op)) {
-        algorithm = SplitVariadic;
         INPUTS_NUM = 3;
     }
 
