@@ -54,10 +54,10 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttributePt
 std::string VariantWrapper<QuantizationAlignmentAttributePtr>::get_string() {
     std::stringstream ss;
 
-    // TODO: debug only
+#ifdef _DEBUG
     const size_t rawPointer = (size_t)m_value.get();
     ss << rawPointer << ": ";
-
+#endif
     ss << "value: " << (m_value->hasToBeAligned ? "true" : "false");
     return ss.str();
 }

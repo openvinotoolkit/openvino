@@ -99,8 +99,6 @@ public:
             testValues.actual.fakeQuantize2,
             testValues.actual.fakeQuantize3);
 
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
-
         auto supportedPrecisionsOnActivation = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
@@ -108,34 +106,19 @@ public:
             })
         });
 
-        ngraph::pass::Manager manager1;
-        manager1.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
-        manager1.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
-
-        ngraph::pass::Manager manager2;
-        manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
-        manager2.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
-
-        ngraph::pass::Manager manager3;
-        manager3.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-        manager3.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
-
-        ngraph::pass::Manager manager4;
-        manager4.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
-        manager4.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
-
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
+        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+        manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+        manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
+
         std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
         common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>();
         common->add_matcher<ngraph::pass::low_precision::ConvolutionTransformation>();
         common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>();
         common->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>();
+
         manager.run_passes(actualFunction);
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getReferenceWithNeighbors(
             precision,
@@ -148,8 +131,6 @@ public:
             testValues.result.precisionAfterOp,
             testValues.result.dequantizationAfter1,
             testValues.result.dequantizationAfter2);
-
-        ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.reference").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatWithNeighborsWithConvolutionParams> obj) {
@@ -169,7 +150,7 @@ public:
 
 TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -189,21 +170,21 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
         },
         {
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-128.f}, {127.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-64}, {64.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-43}, {42.f} },
-            ngraph::element::i8,
+            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f} },
+            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f} },
+            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f} },
+            ngraph::element::u8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.01f } },
-            { ngraph::element::f32, {}, { 0.01f } }
+            ngraph::element::u8,
+            { ngraph::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
+            { {}, {}, {{ 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f }} }
         }
     }
 };
 
 const std::vector<ngraph::Shape> shapes = {
     { 1, 3, 9, 9 },
-    //{ 4, 3, 9, 9 }
+    { 4, 3, 9, 9 }
 };
 
 INSTANTIATE_TEST_CASE_P(

@@ -49,9 +49,10 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttrib
 std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::get_string() {
     std::stringstream ss;
 
-    // TODO: debug only
+#ifdef _DEBUG
     const size_t rawPointer = (size_t)m_value.get();
     ss << rawPointer << ": ";
+#endif
 
     bool first = true;
     for (const auto& value : m_value->precisions) {
@@ -61,6 +62,5 @@ std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::get_string() {
         ss << value;
         first = false;
     }
-    ss << "}";
     return ss.str();
 }

@@ -61,9 +61,10 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<IntervalsAlignmentAttributePtr>:
 std::string VariantWrapper<IntervalsAlignmentAttributePtr>::get_string() {
     std::stringstream ss;
 
-    // TODO: debug only
+#ifdef _DEBUG
     const size_t rawPointer = (size_t)m_value.get();
     ss << rawPointer << ": ";
+#endif
 
     ss << "low: " << m_value->intervalLow << ", high: " << m_value->intervalHigh;
     return ss.str();

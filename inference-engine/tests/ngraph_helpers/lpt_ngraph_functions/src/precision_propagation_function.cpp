@@ -84,7 +84,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getOriginalWithN
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
         const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
-            std::make_shared<opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ngraph::shape_size(shape))),
+            std::make_shared<opset1::Constant>(element::f32, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
             precision,
             255,
             { outputChannels, 1, 1, 1 },
@@ -169,11 +169,64 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
     auto& rtInfo2 = concat2->get_rt_info();
     rtInfo2["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat2");
 
-    const std::shared_ptr<ngraph::Node> lastDequantization1 = makeDequantization(concat1, dequantizationOperations1);
+    std::shared_ptr<ngraph::Node> result1 = concat1;
+    std::shared_ptr<ngraph::Node> result2 = concat2;
+    {
+        const std::vector<size_t> kernel = { 3, 3 };
+        const std::vector<size_t> stride = { 1, 1 };
+        const std::vector<size_t> padBegin = { 0, 0 };
+        const std::vector<size_t> padEnd = { 0, 0 };
+        const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
+        const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+
+        result2 = std::make_shared<ngraph::opset1::MaxPool>(
+            result2,
+            stride,
+            padBegin,
+            padEnd,
+            kernel,
+            roundingType,
+            padType);
+        result2->set_friendly_name("MaxPool");
+
+        const size_t outputChannels = 9ul;
+        const size_t inputChannels = 6ul;
+
+        {
+            const auto shape = Shape{ 1, inputChannels, 1, 1 };
+            std::shared_ptr<Node> subtractConst = std::make_shared<ngraph::opset1::Constant>(
+                element::u8,
+                shape,
+                std::vector<float>(ngraph::shape_size(shape), 128.f));
+
+            auto subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(
+                std::vector<element::Type>{element::f32, element::f32},
+                std::vector<element::Type>{ element::f32 },
+                ngraph::op::TemporaryReplaceOutputType(result2, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
+            result2 = subtract;
+        }
+
+        const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
+        const auto fakeQuantizeOnWeights = std::make_shared<opset1::Constant>(element::i8, shape, std::vector<float>(ngraph::shape_size(shape), 100.f));
+        fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
+
+        result2 = std::make_shared<ngraph::opset1::Convolution>(
+            ngraph::op::TemporaryReplaceOutputType(result2, precision).get(),
+            ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
+            ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::CoordinateDiff{ 0, 0 },
+            ngraph::Strides{ 1, 1 });
+
+        result2->set_friendly_name("convolution");
+    }
+
+    const std::shared_ptr<ngraph::Node> lastDequantization1 = makeDequantization(result1, dequantizationOperations1);
     lastDequantization1->set_friendly_name("concat1");
 
-    const std::shared_ptr<ngraph::Node> lastDequantization2 = makeDequantization(concat2, dequantizationOperations2);
-    lastDequantization2->set_friendly_name("concat2");
+    const std::shared_ptr<ngraph::Node> lastDequantization2 = makeDequantization(result2, dequantizationOperations2);
+    lastDequantization2->set_friendly_name("convolution");
 
     const ngraph::ResultVector results {
         std::make_shared<ngraph::opset1::Result>(lastDequantization1),
