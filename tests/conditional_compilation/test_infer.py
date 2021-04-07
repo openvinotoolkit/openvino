@@ -6,19 +6,22 @@
 """
 
 import sys
-import os
 from inspect import getsourcefile
 from pathlib import Path
 from proc_utils import cmd_exec  # pylint: disable=import-error
 from install_pkg import get_openvino_environment  # pylint: disable=import-error
 
 
-def run_infer(artifacts, test_id, model, out):
-    install_prefix = artifacts / test_id / "install_pkg"
+def run_infer(model, out, install_dir):
+    """ Function running inference
+    """
+
     returncode, output = cmd_exec(
-        [sys.executable, str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve()),
-         "-d=CPU", f"-m={model}", f"-r={out}"],
-        env=get_openvino_environment(install_prefix),
+        [sys.executable,
+         str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve()),
+         "-d=CPU", f"-m={model}", f"-r={out}"
+         ],
+        env=get_openvino_environment(install_dir),
     )
     return returncode, output
 
@@ -26,14 +29,8 @@ def run_infer(artifacts, test_id, model, out):
 def test_infer(test_id, model, artifacts, openvino_root_dir, openvino_cc):
     """ Test inference with conditional compiled binaries
     """
-    tmp = os.environ["PATH"]
     out = artifacts / test_id
-    os.environ["PATH"] = tmp.replace(os.path.join(*list(openvino_cc.parts)),
-                                     os.path.join(*list(openvino_root_dir.parts)))
-    returncode, output = run_infer(artifacts, test_id, model, out)
+    returncode, output = run_infer(model, out, openvino_root_dir)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
-    tmp = os.environ["PATH"]
-    os.environ["PATH"] = tmp.replace(os.path.join(*list(openvino_root_dir.parts)),
-                                     os.path.join(*list(openvino_cc.parts)))
-    returncode, output = run_infer(artifacts, test_id, model, f"{out}_cc")
+    returncode, output = run_infer(model, f"{out}_cc", openvino_cc)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
