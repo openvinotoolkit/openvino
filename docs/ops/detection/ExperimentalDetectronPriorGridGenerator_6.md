@@ -4,34 +4,33 @@
 
 **Category**: Object detection
 
-**Short description**: An operation *ExperimentalDetectronPriorGridGenerator* generates prior grids of 
-specified sizes.
+**Short description**: The *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of specified sizes.
 
-**Detailed description**: Operation takes coordinates of centres of boxes and add strides with offset `0.5` to them to 
+**Detailed description**: The operation takes coordinates of centres of boxes and adds strides with offset `0.5` to them to 
 calculate coordinates of prior grids.
 
-Numbers of generated cells is `featmap_height` and `featmap_width` if *h* and *w* are zeroes, otherwise *h* and *w* 
+Numbers of generated cells is `featmap_height` and `featmap_width` if *h* and *w* are zeroes; otherwise, *h* and *w*, 
 respectively. Steps of generated grid are `image_height` / `layer_height` and `image_width` / `layer_width` if 
-*stride_h* and *stride_w* are zeroes, otherwise *stride_h* and *stride_w* respectively.
+*stride_h* and *stride_w* are zeroes; otherwise, *stride_h* and *stride_w*, respectively.
 
 `featmap_height`, `featmap_width`, `image_height` and `image_width` are spatial dimensions values from second and third 
-inputs respectively.
+inputs, respectively.
 
 **Attributes**:
 
 * *flatten*
 
-    * **Description**: *flatten* attribute specifies whether the output tensor should be 2D or 4D.
+    * **Description**: The *flatten* attribute specifies whether the output tensor should be 2D or 4D.
     * **Range of values**:
-      * `true` - the output tensor should be 2D tensor
-      * `false` - the output tensor should be 4D tensor
+      * `true` - the output tensor should be a 2D tensor
+      * `false` - the output tensor should be a 4D tensor
     * **Type**: boolean
     * **Default value**: true
     * **Required**: *no*
 
 * *h*
 
-    * **Description**: *h* attribute specifies number of cells of the generated grid with respect to height.
+    * **Description**: The *h* attribute specifies number of cells of the generated grid with respect to height.
     * **Range of values**: non-negative integer number less or equal than `featmap_height`
     * **Type**: int
     * **Default value**: 0
@@ -39,7 +38,7 @@ inputs respectively.
     
 * *w*
 
-    * **Description**: *w* attribute specifies number of cells of the generated grid with respect to width.
+    * **Description**: The *w* attribute specifies number of cells of the generated grid with respect to width.
     * **Range of values**: non-negative integer number less or equal than `featmap_width`
     * **Type**: int
     * **Default value**: 0
@@ -47,7 +46,7 @@ inputs respectively.
 
 * *stride_x*
 
-    * **Description**: *stride_x* attribute specifies the step of generated grid with respect to x coordinate.
+    * **Description**: The *stride_x* attribute specifies the step of generated grid with respect to x coordinate.
     * **Range of values**: non-negative float number
     * **Type**: float
     * **Default value**: 0.0
@@ -55,7 +54,7 @@ inputs respectively.
     
 * *stride_y*
 
-    * **Description**: *stride_y* attribute specifies the step of generated grid with respect to y coordinate.
+    * **Description**: The *stride_y* attribute specifies the step of generated grid with respect to y coordinate.
     * **Range of values**: non-negative float number
     * **Type**: float
     * **Default value**: 0.0
@@ -75,8 +74,8 @@ not its data. **Required.**
 **Outputs**
 
 * **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` 
-if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]` otherwise.
-In case then 0 < *h* < `featmap_height` and/or 0 < *w* < `featmap_width` the output data size is less than 
+if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]`, otherwise.
+If 0 < *h* < `featmap_height` and/or 0 < *w* < `featmap_width` the output data size is less than 
 `featmap_height` * `featmap_width` * `number_of_priors` * 4 and the output tensor is filled with undefined values for 
 rest output tensor elements.
 

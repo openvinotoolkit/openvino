@@ -434,6 +434,11 @@ void splitRow(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length) {
 
 namespace {
 
+struct fp_16_t {
+    int16_t v;
+};
+
+
 template<typename type>
 struct cv_type_to_depth;
 
@@ -443,6 +448,7 @@ template<> struct cv_type_to_depth<std::uint16_t>   { enum { depth = CV_16U }; }
 template<> struct cv_type_to_depth<std::int16_t>    { enum { depth = CV_16S }; };
 template<> struct cv_type_to_depth<std::int32_t>    { enum { depth = CV_32S }; };
 template<> struct cv_type_to_depth<float>           { enum { depth = CV_32F }; };
+template<> struct cv_type_to_depth<fp_16_t>         { enum { depth = CV_16F }; };
 
 template<typename ... types>
 struct typelist {};
@@ -500,7 +506,7 @@ bool is_cv_type_in_list(const int type_id) {
 
 namespace {
 
-using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float>;
+using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
 template<int chs>
 struct typed_merge_row {
@@ -508,6 +514,12 @@ struct typed_merge_row {
 
     template <typename type>
     p_f operator()(type_to_type<type> ) { return mergeRow<type, chs>; }
+
+    p_f operator()(type_to_type<fp_16_t> ) {
+        static_assert(sizeof(fp_16_t) == sizeof(fp_16_t::v),
+                "fp_16_t should be a plain wrap over FP16 implementation type");
+        return mergeRow<decltype(fp_16_t::v), chs>;
+    }
 };
 
 }  // namespace
@@ -562,8 +574,7 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
 
 
 namespace {
-
-using split_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float>;
+using split_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float, fp_16_t>;
 
 template<int chs>
 struct typed_split_row {
@@ -571,6 +582,12 @@ struct typed_split_row {
 
     template <typename type>
     p_f operator()(type_to_type<type> ) { return splitRow<type, chs>; }
+
+    p_f operator()(type_to_type<fp_16_t> ) {
+        static_assert(sizeof(fp_16_t) == sizeof(fp_16_t::v),
+                "fp_16_t should be a plain wrap over FP16 implementation type");
+        return splitRow<decltype(fp_16_t::v), chs>;
+    }
 };
 
 }  // namespace
@@ -1119,6 +1136,17 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
                                      inSz, outSz, lpi);
             return;
         }
+    }
+
+    if (std::is_same<T, float>::value) {
+        neon::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                reinterpret_cast<const float**>(src0),
+                                reinterpret_cast<const float**>(src1),
+                                reinterpret_cast<const float*>(alpha),
+                                reinterpret_cast<const int*>(mapsx),
+                                reinterpret_cast<const float*>(beta),
+                                inSz, outSz, lpi);
+        return;
     }
 #endif
 
