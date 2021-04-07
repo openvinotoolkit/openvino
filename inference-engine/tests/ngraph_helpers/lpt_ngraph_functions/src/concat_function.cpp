@@ -752,7 +752,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const DequantizationOperations::Convert& convert2,
     const DequantizationOperations& dequantization2,
     const ngraph::element::Type precisionAfterOperation,
-    const DequantizationOperations& dequantizationAfter) {
+    const DequantizationOperations& dequantizationAfter,
+    const std::int64_t& axis) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input1->set_friendly_name("input1");
 
@@ -775,7 +776,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
         parent2 = makeDequantization(parent2, dequantization2);
     }
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1);
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, axis);
 
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
@@ -989,6 +990,13 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
+    replace_node(
+        fakeQuantize2->get_input_node_shared_ptr(3),
+        ngraph::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(3)));
+    replace_node(
+        fakeQuantize2->get_input_node_shared_ptr(4),
+        ngraph::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(4)));
+
     fakeQuantize2->set_friendly_name("fakeQuantize2");
     low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionAfterOperation);
     const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore1);
