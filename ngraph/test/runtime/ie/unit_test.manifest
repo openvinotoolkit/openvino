@@ -1169,11 +1169,15 @@ IE_CPU.dft2d_eval
 IE_CPU.dft3d_eval
 IE_CPU.dft1d_eval_i32
 IE_CPU.dft2d_eval_i32
+IE_CPU.dft3d_eval_i32
 
 # IDFT is not implemented yet in plugins
 IE_CPU.idft1d_eval
 IE_CPU.idft2d_eval
 IE_CPU.idft3d_eval
+IE_CPU.idft1d_eval_i32
+IE_CPU.idft2d_eval_i32
+IE_CPU.idft3d_eval_i32
 
 #-------------------------------------------------------------------------------
 #
