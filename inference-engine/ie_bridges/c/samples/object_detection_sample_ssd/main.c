@@ -167,7 +167,7 @@ void parseInputFilesArguments(int argc, char **argv) {
         readInputFilesArgument(argv[i]);
     }
 
-    if (file_num) {
+    if (file_num < 20) {
         printf("%sFiles were added: %d\n", info, file_num);
         for (i = 0; i < file_num; ++i) {
             printf("%s    %s\n", info, file_paths[i]);

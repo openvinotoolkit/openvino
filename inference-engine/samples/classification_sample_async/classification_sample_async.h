@@ -47,17 +47,19 @@ DEFINE_string(i, "", image_message);
 DEFINE_string(m, "", model_message);
 
 /// @brief device the target device to infer on <br>
+/// It is an optional parameter
 DEFINE_string(d, "CPU", target_device_message);
 
 /// @brief Top results number (default 10) <br>
+/// It is an optional parameter
 DEFINE_uint32(nt, 10, ntop_message);
 
 /// @brief Define parameter for plugin custom kernels path <br>
-/// It is a optional parameter
+/// It is an optional parameter
 DEFINE_string(c, "", custom_plugin_cfg_message);
 
 /// @brief Absolute path to CPU library with user layers <br>
-/// It is a optional parameter
+/// It is an optional parameter
 DEFINE_string(l, "", custom_ex_library_message);
 
 /**

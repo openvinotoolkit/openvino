@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
         Core ie;
         // ------------------------------ Get Available Devices ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;
-        std::cout << ie.GetVersions(FLAGS_d);
+        std::cout << ie.GetVersions(FLAGS_d) << std::endl;
 
         if (!FLAGS_l.empty()) {
             // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
@@ -96,9 +96,7 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
-        slog::info << "Loading network files:"
-            "\n\t" << FLAGS_m <<
-            slog::endl;
+        slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
 
         /** Read network model **/
         CNNNetwork network = ie.ReadNetwork(FLAGS_m);
