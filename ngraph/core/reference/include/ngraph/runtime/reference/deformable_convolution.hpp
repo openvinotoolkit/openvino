@@ -61,6 +61,41 @@ namespace ngraph
                     return s;
                 }
 
+                template <typename inputType>
+                inline float bilinearInterp(const inputType* data,
+                                            const float x_idx,
+                                            const float y_idx,
+                                            const int x_size,
+                                            const int y_size)
+                {
+                    int x1 = static_cast<int>(std::floor(x_idx));
+                    int x2 = static_cast<int>(std::ceil(x_idx));
+                    int y1 = static_cast<int>(std::floor(y_idx));
+                    int y2 = static_cast<int>(std::ceil(y_idx));
+
+                    if (x1 < 0)
+                        x1 = 0;
+                    if (x2 >= x_size)
+                        x2 = x_size - 1;
+                    if (y1 < 0)
+                        y1 = 0;
+                    if (y2 >= y_size)
+                        y2 = y_size - 1;
+
+                    float distX = x_idx - x1;
+                    float distY = y_idx - y1;
+
+                    float value11 = data[y1 * x_size + x1];
+                    float value12 = data[y2 * x_size + x1];
+                    float value21 = data[y1 * x_size + x2];
+                    float value22 = data[y2 * x_size + x2];
+
+                    float value = (1 - distX) * (1 - distY) * value11 +
+                                  (1 - distX) * distY * value12 + distX * (1 - distY) * value21 +
+                                  distX * distY * value22;
+                    return value;
+                }
+
                 template <typename T>
                 void convolve_2D_channels(const ConvolutionParams& p,
                                           const int64_t deformable_groups,
@@ -111,13 +146,11 @@ namespace ngraph
                                     {
                                         for (int f_x = 0; f_x < filter_size_x; ++f_x)
                                         {
-                                            int y_offset = offsets_channel[out_idx];
-                                            int x_offset =
+                                            T y_offset = offsets_channel[out_idx];
+                                            T x_offset =
                                                 offsets_channel[offsets_spatial_size + out_idx];
-                                            int rel_i_y = i_y + (f_y * p.dilation[0]) + y_offset;
-                                            int rel_i_x = i_x + (f_x * p.dilation[1]) + x_offset;
-
-                                            int f_buf_idx = (f_y * filter_size_x) + f_x;
+                                            T rel_i_y = i_y + (f_y * p.dilation[0]) + y_offset;
+                                            T rel_i_x = i_x + (f_x * p.dilation[1]) + x_offset;
 
                                             offsets_channel += offsets_channel_size;
                                             bool padding = !(in_range(rel_i_x, {0, input_size_x}) &&
@@ -125,8 +158,12 @@ namespace ngraph
                                             if (padding)
                                                 continue;
 
-                                            int i_buf_idx = (rel_i_y * input_size_x) + rel_i_x;
-                                            sum += input_channel[i_buf_idx] *
+                                            int f_buf_idx = (f_y * filter_size_x) + f_x;
+                                            sum += bilinearInterp(input_channel,
+                                                                  rel_i_x,
+                                                                  rel_i_y,
+                                                                  input_size_x,
+                                                                  input_size_y) *
                                                    filter_channel[f_buf_idx];
                                         }
                                     }
