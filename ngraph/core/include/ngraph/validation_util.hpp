@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -46,6 +34,28 @@ namespace ngraph
                                                        const Strides& window_dilation,
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
+
+    /// \brief      Validates input shape ranks and infers convolution forward output shape.
+    ///
+    /// \param[in] node              Node with convolution operation.
+    /// \param[in] data_batch_pshape Partial shape of data batch input.
+    /// \param[in] filters_pshape    Partial shape of filters input.
+    /// \param[in] auto_pad          Type of padding.
+    /// \param     strides           Strides.
+    /// \param     dilations         Dilations.
+    /// \param     pads_begin        Pads begin.
+    /// \param     pads_end          Pads end.
+    ///
+    /// \return Partial shape of the output.
+    PartialShape
+        validate_and_infer_convolution_forward_output_shape(const Node* node,
+                                                            const PartialShape& data_batch_pshape,
+                                                            const PartialShape& filters_pshape,
+                                                            const op::PadType auto_pad,
+                                                            Strides& strides,
+                                                            Strides& dilations,
+                                                            CoordinateDiff& pads_begin,
+                                                            CoordinateDiff& pads_end);
 
     NGRAPH_API
     PartialShape infer_convolution_forward(const Node* node,

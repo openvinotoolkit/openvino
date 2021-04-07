@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "scatter_nd_update_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -71,6 +59,7 @@ ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, con
 
     if (!is_second) {
         const auto& scope = params.output;
+        dispatchData.indicesLastDim = 1;
         dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
     } else {
         auto indices_rank = params.indices_rank;
@@ -180,7 +169,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT_BLOCK_ND", GetInputBlockND(newParams)));
         }
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+        std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         clKernelData& kernel = kd.kernels[i];
 

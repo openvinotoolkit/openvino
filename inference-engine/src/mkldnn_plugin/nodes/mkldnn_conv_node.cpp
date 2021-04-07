@@ -44,7 +44,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr&
         auto ois = layer->blobs.find("oi-scale");
         if ((getCnnLayer()->outData[0]->getPrecision() == Precision::I8 || getCnnLayer()->outData[0]->getPrecision() == Precision::U8)
             && ois == layer->blobs.end()) {
-            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
+            IE_THROW() << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
                 << getCnnLayer()->name;
         }
         if (ois != layer->blobs.end()) {
@@ -69,7 +69,7 @@ mkldnn::memory::data_type MKLDNNConvolutionNode::precisionToDataType(InferenceEn
 bool MKLDNNConvolutionNode::canBeExecutedInInt8() {
     auto * convLayer = dynamic_cast<ConvolutionLayer*>(getCnnLayer().get());
     if (convLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
+        IE_THROW() << "Cannot convert convolution layer.";
 
     if (baseInputsNumber > 1) {
         auto inputDataType = precisionToDataType(getCnnLayer()->insData[0].lock()->getPrecision());
@@ -106,7 +106,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
     auto * convLayer = dynamic_cast<ConvolutionLayer*>(getCnnLayer().get());
     if (convLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
+        IE_THROW() << "Cannot convert convolution layer.";
 
     withSum = false;
     int expectedInputEdgesNum = baseInputsNumber;
@@ -156,18 +156,18 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     if ((getParentEdgeAt(0)->getDims().ndims() < 4) || (getParentEdgeAt(0)->getDims().ndims() > 5)) {
-        THROW_IE_EXCEPTION << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
+        IE_THROW() << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
     }
 
     isMerged = (!getMergeWith().empty());  // grouped convolution was constructed from split->concat subgraph
     isGrouped = convLayer->_group != 1;    // group info available from IR
     if (isMerged && isGrouped)
-        THROW_IE_EXCEPTION << "Convolution initialization. Group splitted mode are used together with direct group specification.";
+        IE_THROW() << "Convolution initialization. Group splitted mode are used together with direct group specification.";
 
     // default values. Can be replaced in next steps
     groupNum = convLayer->_group;
@@ -301,6 +301,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 // bofore the fused convolution. This behaviour might be more correct regarding expected markup
                 // of the graph but performance of first and second approaches might be different. Need to verify
                 outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
+                eltwisePrecision = MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType);
             }
         }
         // correction for cases of FP32 input - we do not have FP32 convolution supported BF16 output
@@ -419,31 +420,31 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                     PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
                     PostOpsIntBlobMemory[blob_idx + 1]->SetData(biasPrc, memory::format_tag::x, biases->buffer(),
                                                                 dwBiasesDims.size() * MKLDNNExtensionUtils::sizeOfDataType(biasPrc));
-                    // rewrite onto append_dw_k3s2p1
-//                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-//                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
-//                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
-//                                       (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-//                                       (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+                    // todo: rewrite onto append_dw_k3s2p1
+                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
+                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
+                                       static_cast<const float *>(PostOpsIntBlobMemory[blob_idx]->GetData()),
+                                       static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData()));
 
                     blob_idx += 2;
                 } else {
-                    // rewrite onto append_dw_k3s2p1
-//                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-//                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
-//                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
-//                                       static_cast<float *>(getParentEdgeAt(
-//                                               baseInputsNumber + 0)->getMemory().GetData()),
-//                                       static_cast<float *>(getParentEdgeAt(
-//                                               baseInputsNumber + 1)->getMemory().GetData()));
+                    // todo: rewrite onto append_dw_k3s2p1
+                    ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
+                                       dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                       mkldnn::memory::convert_to_c(dw_conv_in_dt),
+                                       static_cast<const float *>(getParentEdgeAt(
+                                               baseInputsNumber + 0)->getMemory().GetData()),
+                                       static_cast<const float *>(getParentEdgeAt(
+                                               baseInputsNumber + 1)->getMemory().GetData()));
                 }
             } else {
-                // rewrite onto append_dw_k3s2p1
-//                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-//                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
-//                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
-//                                   nullptr,
-//                                   nullptr);
+                // todo: rewrite onto append_dw_k3s2p1
+                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
+                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
+                                   nullptr,
+                                   nullptr);
             }
 
             if (convolutionNode->wScale != nullptr) {
@@ -481,18 +482,15 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                                                             oShiftDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                 ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift,
-                                     (const float *)PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                     (const float *)PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+                                     static_cast<const float *>(PostOpsIntBlobMemory[blob_idx]->GetData()),
+                                     static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData()));
 
                 blob_idx += 2;
             }
-
-            THROW_IE_EXCEPTION << "append_dw_conv is not ported";
-
             continue;
         }
 
-        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
@@ -675,7 +673,7 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
 
             descs.emplace_back(conv_desc);
         } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot create convolution forward descriptor for layer: " << getName();
+            IE_THROW() << "Cannot create convolution forward descriptor for layer: " << getName();
         }
     }
 }
@@ -802,7 +800,7 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
 
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
-                    THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
+                    IE_THROW() << "Cannot get the original layer configuration!";
                 }
                 rightConfig = cfg;
             }
@@ -828,7 +826,7 @@ void MKLDNNConvolutionNode::filterSupportedPrimitiveDescriptors() {
 void MKLDNNConvolutionNode::filterSupportedDescriptors() {
     if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
         if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1) {
-            THROW_IE_EXCEPTION << "Incorrect number of input or output memory formats for Convolution node";
+            IE_THROW() << "Incorrect number of input or output memory formats for Convolution node";
         }
         auto itd = descs.begin();
         while (itd != descs.end()) {

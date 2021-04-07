@@ -1,6 +1,10 @@
 FROM ubuntu:20.04
 
-LABEL version=2020.07.09.1
+LABEL version=2021.03.30.1
+
+# Build configuration arguments
+ARG BUILD_TYPE=Release
+ARG PROTOBUF_LITE=OFF
 
 ARG http_proxy
 ARG https_proxy
@@ -51,7 +55,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 COPY . /openvino/
 WORKDIR /openvino/build
 RUN cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DENABLE_VPU=OFF \
     -DENABLE_GNA=OFF \
     -DENABLE_OPENCV=OFF \
@@ -68,12 +72,13 @@ RUN cmake .. \
     -DNGRAPH_INTERPRETER_ENABLE=ON \
     -DNGRAPH_DEBUG_ENABLE=OFF \
     -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
-    -DCMAKE_INSTALL_PREFIX=/openvino/dist
+    -DCMAKE_INSTALL_PREFIX=/openvino/dist \
+    -DNGRAPH_USE_PROTOBUF_LITE=${PROTOBUF_LITE}
 RUN make -j $(nproc) install
 
 # Run tests via tox
 WORKDIR /openvino/ngraph/python
-ENV NGRAPH_CPP_BUILD_PATH=/openvino/dist/deployment_tools/ngraph
+ENV ngraph_DIR=/openvino/dist/deployment_tools/ngraph
 ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
-ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
+ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
 CMD tox

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from collections import deque
 from copy import deepcopy
@@ -119,7 +106,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph, match: dict):
         # Here we will found all parts of TI: condition, inputs/outputs, back edges, body and create TensorIterator Op
-        # and make all checks needed for TensorIteator work
+        # and make all checks needed for TensorIterator work
         cond_data = match['condition'].out_node(0) if not match['condition'].out_port(0).disconnected() else None
         time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) >= 1 else None
         name = match['condition'].name
@@ -342,6 +329,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
             ext_out['external_port_id'] = internal_id_count
             internal_id_count += 1
 
+        # create TensorIterator layer with pre-computed components
         ti_op = TensorIterator(graph, {
             'name': name + '/TensorIterator',
             'body': body,

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import os
@@ -247,10 +234,11 @@ def test_plugin_accessible_after_deletion(device):
     del ie_core
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") == "ARM",
-                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}")
 def test_exec_graph(device):
     ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     img = read_image()
@@ -307,9 +295,11 @@ def test_get_metric(device):
     assert network_name == "test_model"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_get_config(device):
     ie_core = ie.IECore()
+    if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     config = exec_net.get_config("PERF_COUNT")

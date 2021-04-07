@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ TEST_F(SharedObjectLoaderTests, canLoadExistedPlugin) {
 }
 
 TEST_F(SharedObjectLoaderTests, loaderThrowsIfNoPlugin) {
-    EXPECT_THROW(loadDll("wrong_name"), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(loadDll("wrong_name"), InferenceEngine::Exception);
 }
 
 TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
@@ -55,9 +55,7 @@ TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
 
 TEST_F(SharedObjectLoaderTests, throwIfMethodNofFoundInLibrary) {
     loadDll(get_mock_engine_name());
-
-    EXPECT_THROW(make_std_function("wrong_function"),
-                 InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_std_function("wrong_function"), InferenceEngine::Exception);
 }
 
 TEST_F(SharedObjectLoaderTests, canCallExistedMethod) {
