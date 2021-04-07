@@ -210,7 +210,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
 }
 
 void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::Replicate_CNNNetwork");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::MKLDNN_LT, "MKLDNNGraph::Replicate", "CNNNetwork");
     InputsDataMap inputs = network.getInputsInfo();
 
     this->_name = network.getName();
@@ -234,6 +234,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
                 return i;
         return -1;
     };
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "AllNodes");
 
     // Replicate All Nodes in topological order
     for (const auto layer : CNNNetSortTopologically(network)) {
@@ -272,6 +274,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
     }
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "Outputs");
+
     OutputsDataMap outputs = network.getOutputsInfo();
     for (const auto &output : outputs) {
         const auto data = output.second;
@@ -294,6 +298,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         unused_data.erase(data);
     }
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "AddStubs");
+
     // Add stub output node for unused data
     for (auto to_stub_data : unused_data) {
         auto parent_layer = getCreatorLayer(to_stub_data).lock();
@@ -309,6 +315,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         graphEdges.push_back(edge);
         graphNodes.push_back(node);
     }
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "Inputs");
 
     // Replicate input nodes
     for (const auto& input : inputs) {

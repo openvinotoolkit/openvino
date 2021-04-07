@@ -16,6 +16,7 @@ namespace itt {
 namespace domains {
     OV_ITT_DOMAIN(IE);
     OV_ITT_DOMAIN(IE_LT);
+    OV_ITT_DOMAIN(IE_RT);
 }
 }
 }
