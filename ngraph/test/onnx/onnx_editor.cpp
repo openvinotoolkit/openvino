@@ -1070,6 +1070,42 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter)
     EXPECT_EQ(output_edge_3.m_tensor_name, "mul2");
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    std::vector<InputEdge> output_consumers = editor.find_output_consumers("relu1");
+    EXPECT_EQ(output_consumers.size(), 3);
+    EXPECT_EQ(output_consumers[0].m_node_idx, 1);
+    EXPECT_EQ(output_consumers[0].m_tensor_name, "relu1");
+    EXPECT_EQ(output_consumers[1].m_node_idx, 3);
+    EXPECT_EQ(output_consumers[1].m_tensor_name, "relu1");
+    EXPECT_EQ(output_consumers[2].m_node_idx, 6);
+    EXPECT_EQ(output_consumers[2].m_tensor_name, "relu1");
+
+    output_consumers = editor.find_output_consumers("add1");
+    EXPECT_EQ(output_consumers.size(), 2);
+    EXPECT_EQ(output_consumers[0].m_node_idx, 3);
+    EXPECT_EQ(output_consumers[0].m_tensor_name, "add1");
+    EXPECT_EQ(output_consumers[1].m_node_idx, 4);
+    EXPECT_EQ(output_consumers[1].m_tensor_name, "add1");
+
+    output_consumers = editor.find_output_consumers("in3");
+    EXPECT_EQ(output_consumers.size(), 1);
+    EXPECT_EQ(output_consumers[0].m_node_idx, 2);
+    EXPECT_EQ(output_consumers[0].m_tensor_name, "in3");
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers_empty_result)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    const std::vector<InputEdge> output_consumers = editor.find_output_consumers("not_existed");
+    EXPECT_EQ(output_consumers.size(), 0);
+}
+
 using TestEngine = test::INTERPRETER_Engine;
 
 NGRAPH_TEST(onnx_editor, values__append_one_initializer)

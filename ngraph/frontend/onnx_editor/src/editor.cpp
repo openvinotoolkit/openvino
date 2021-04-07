@@ -389,3 +389,10 @@ OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& out
     update_mapper_if_needed();
     return m_edge_mapper.find_output_edge(output_name);
 }
+
+std::vector<InputEdge>
+    onnx_editor::ONNXModelEditor::find_output_consumers(const std::string& output_name)
+{
+    update_mapper_if_needed();
+    return m_edge_mapper.find_output_consumers(output_name);
+}

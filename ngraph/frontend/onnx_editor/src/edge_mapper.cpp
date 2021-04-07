@@ -32,11 +32,13 @@ void onnx_editor::EdgeMapper::update(const ONNX_NAMESPACE::GraphProto& graph_pro
         {
             // node output name is unique
             m_node_name_to_index.emplace(out_name, topological_index);
+            std::cout << out_name << " -- " << topological_index << "\n";
             m_node_outputs[topological_index].push_back(out_name);
         }
         for (const auto& in_name : node_proto.input())
         {
             m_node_inputs[topological_index].push_back(in_name);
+            m_output_consumers_index.emplace(in_name, topological_index);
         }
         if (!node_proto.name().empty())
         {
@@ -222,4 +224,18 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node,
 OutputEdge onnx_editor::EdgeMapper::find_output_edge(const std::string& output_name) const
 {
     return find_output_edge(EditorNode{EditorOutput{output_name}}, EditorOutput{output_name});
+}
+
+std::vector<InputEdge>
+    onnx_editor::EdgeMapper::find_output_consumers(const std::string& output_name) const
+{
+    const auto matched_nodes_range = m_output_consumers_index.equal_range(output_name);
+    std::vector<InputEdge> input_edges;
+    std::transform(matched_nodes_range.first,
+                   matched_nodes_range.second,
+                   std::back_inserter(input_edges),
+                   [&output_name](const std::pair<std::string, int>& iter) {
+                       return InputEdge{iter.second, output_name};
+                   });
+    return input_edges;
 }

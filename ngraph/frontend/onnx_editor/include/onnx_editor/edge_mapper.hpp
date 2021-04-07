@@ -84,6 +84,15 @@ namespace ngraph
             ///
             void update(const ONNX_NAMESPACE::GraphProto& graph_proto);
 
+            /// \brief Returns a vector of InputEdges which consume an output of a node
+            ///        determined by provided output name.
+            ///
+            /// \note  The output name is deterministic in the ONNX standard.
+            ///
+            /// \param output_name A node output name.
+            ///
+            std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
+
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,
                                                const std::string& output_name) const;
@@ -93,6 +102,7 @@ namespace ngraph
             std::vector<std::vector<std::string>> m_node_inputs;
             std::vector<std::vector<std::string>> m_node_outputs;
             std::multimap<std::string, int> m_node_name_to_index;
+            std::multimap<std::string, int> m_output_consumers_index;
         };
     }
 }
