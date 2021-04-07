@@ -7,12 +7,14 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 
 #include <ngraph/variant.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
+#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
@@ -498,8 +500,7 @@ std::string get_opset_name(
     return "experimental";
 }
 
-std::string get_output_precision_name(ngraph::Output<Node>& o) {
-    auto elem_type = o.get_element_type();
+std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
         return "UNSPECIFIED";
@@ -532,8 +533,9 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     case ::ngraph::element::Type_t::boolean:
         return "BOOL";
     default:
-        NGRAPH_CHECK(false, "Unsupported precision in ", o);
-        return "";
+        std::stringstream msg;
+        msg << "Unsupported precision: " << elem_type;
+        throw ngraph_error(msg.str());
     }
 }
 
@@ -715,21 +717,20 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/input>
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
-            for (auto i : node->inputs()) {
+            for (const auto & i : node->inputs()) {
                 NGRAPH_CHECK(i.get_partial_shape().is_static(),
                              "Unsupported dynamic input shape in ", node);
 
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6) {
-                    auto type_info = node->get_type_info();
-                    if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
-                        port_id++;
-                        continue;
-                    }
+                if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
+                    port_id++;
+                    continue;
                 }
 
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
+                port.append_attribute("precision")
+                        .set_value(get_precision_name(i.get_element_type()).c_str());
                 for (auto d : i.get_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
@@ -744,14 +745,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         // <layers/output>
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
-            for (auto o : node->outputs()) {
+            for (const auto & o : node->outputs()) {
                 NGRAPH_CHECK(o.get_partial_shape().is_static(),
                              "Unsupported dynamic output shape in ", node);
 
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
-                    .set_value(get_output_precision_name(o).c_str());
+                    .set_value(get_precision_name(o.get_element_type()).c_str());
                 std::string names;
                 for (const auto& name : o.get_tensor().get_names()) {
                     if (!names.empty())

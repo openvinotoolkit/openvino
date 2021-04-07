@@ -5,6 +5,7 @@
 #include "ie_api_impl.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
+#include "ie_network_reader.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map <std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
@@ -470,6 +471,20 @@ std::string InferenceEnginePython::get_version() {
     return version_str;
 }
 
+InferenceEnginePython::IENetwork InferenceEnginePython::read_network(const std::string & path_to_xml,
+                                                                     const std::string & path_to_bin,
+                                                                     const std::vector<std::string> & extensions) {
+    std::vector<InferenceEngine::IExtensionPtr> ext;
+    // TODO: create vector of extensions
+    auto net = InferenceEngine::details::ReadNetwork(path_to_xml, path_to_bin, {});
+    return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
+}
+
+InferenceEnginePython::IENetwork InferenceEnginePython::read_network_without_extensions(const std::string & path_to_xml,
+                                                                                        const std::string & path_to_bin) {
+    auto net = InferenceEngine::details::ReadNetworkWithoutExtensions(path_to_xml, path_to_bin);
+    return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
+}
 
 InferenceEnginePython::IECore::IECore(const std::string &xmlConfigFile) {
     actual = InferenceEngine::Core(xmlConfigFile);

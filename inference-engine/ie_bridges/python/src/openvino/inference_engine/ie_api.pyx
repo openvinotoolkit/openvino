@@ -60,6 +60,19 @@ cdef c_map_to_dict(map[string, string] c_map):
 def get_version():
     return C.get_version().decode()
 
+
+def read_network(path_to_xml : str, path_to_bin : str, vector[string] extensions):
+    cdef IENetwork net = IENetwork()
+    net.impl = C.read_network(path_to_xml.encode(), path_to_bin.encode(), extensions)
+    return net
+
+
+def read_network_without_extensions(path_to_xml : str, path_to_bin : str):
+    cdef IENetwork net = IENetwork()
+    net.impl = C.read_network_without_extensions(path_to_xml.encode(), path_to_bin.encode())
+    return net
+
+
 ## This class defines Tensor description
 cdef class TensorDesc:
     def __eq__(self, other : TensorDesc):

@@ -25,7 +25,7 @@ if __name__ == "__main__":
     path_to_model = args.path_to_model
 
     try:
-        from openvino.inference_engine import IECore # pylint: disable=import-error
+        from openvino.inference_engine import IECore, read_network, read_network_without_extensions # pylint: disable=import-error
         from openvino.offline_transformations import ApplyMOCTransformations, GenerateMappingFile, CheckAPI # pylint: disable=import-error
     except Exception as e:
         print("[ WARNING ] {}".format(e))
@@ -33,9 +33,11 @@ if __name__ == "__main__":
 
     CheckAPI()
 
-    ie = IECore()
-    net = ie.read_network(model=path_to_model + "_tmp.xml", weights=path_to_model + "_tmp.bin")
+    net = read_network_without_extensions(path_to_model + "_tmp.xml", path_to_model + "_tmp.bin")
+    print("ok1")
     net.serialize(path_to_model + ".xml", path_to_model + ".bin")
+    print("ok2")
     path_to_mapping = path_to_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'))
+    print("ok3")
 
