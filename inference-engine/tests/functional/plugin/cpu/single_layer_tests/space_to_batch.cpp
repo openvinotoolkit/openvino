@@ -80,22 +80,19 @@ const std::vector<Precision> precisions = {
         Precision::BF16
 };
 
-const std::vector<std::vector<int64_t>> blockShape4D = {{1, 2, 1, 1}, {1, 2, 1, 2}, {1, 1, 2, 1}, {1, 2, 2, 2}};
+const std::vector<std::vector<int64_t>> blockShape4D = {{1, 2, 1, 2}, {1, 1, 2, 2}, {1, 2, 2, 1}, {1, 2, 2, 2}};
 
-const std::vector<std::vector<int64_t>> cropsBegin4D = {{0, 1, 0, 1}, {0, 3, 2, 1}, {0, 1, 4, 1}, {0, 1, 4, 3}};
+const std::vector<std::vector<int64_t>> cropsBegin4D = {{0, 0, 0, 1}, {0, 0, 2, 1}, {0, 0, 4, 1}, {0, 0, 4, 3}};
 
-const std::vector<std::vector<int64_t>> cropsEnd4D   = {{0, 3, 0, 1}, {0, 1, 2, 1}, {0, 1, 4, 1}, {0, 3, 2, 3}};
+const std::vector<std::vector<int64_t>> cropsEnd4D   = {{0, 0, 0, 1}, {0, 0, 2, 1}, {0, 0, 4, 1}, {0, 0, 2, 3}};
 
-const std::vector<std::vector<size_t>> inputShapes4D = {{1, 4, 8, 8}, {1, 2, 4, 2}, {1, 6, 4, 4}, {2, 8, 2, 4}};
+const std::vector<std::vector<size_t>> inputShapes4D = {{1, 16, 8, 8}, {1, 32, 8, 8}, {1, 16, 4, 4}, {2, 32, 16, 8}};
 
 const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nchw}, {nchw}, {}, {})
-};
-
-const std::vector<CPUSpecificParams> cpuParamsBlock_4D = {
-        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
-        CPUSpecificParams({nChw8c}, {nChw8c}, {}, {})
 };
 
 const auto spaceToBatchParamsSet4D = ::testing::Combine(
@@ -112,44 +109,22 @@ const auto spaceToBatchParamsSet4D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(cpuParams_4D));
 
-const  std::vector<std::vector<size_t>> inputShapesBlock4D = {{1, 4, 8, 8}, {1, 8, 4, 2}, {1, 6, 4, 4}, {2, 16, 2, 4}, {1, 20, 6, 6}, {2, 32, 4, 4}};
-
-const auto spaceToBatchParamsSetBlock4D = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(std::vector<std::vector<int64_t>>({blockShape4D})),
-                ::testing::ValuesIn(std::vector<std::vector<int64_t>>({cropsBegin4D})),
-                ::testing::ValuesIn(std::vector<std::vector<int64_t>>({cropsEnd4D})),
-                ::testing::ValuesIn(std::vector<std::vector<size_t>> ({inputShapesBlock4D})),
-                ::testing::ValuesIn(precisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(cpuParamsBlock_4D));
-
 INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTest_4D, SpaceToBatchCPULayerTest,
                         spaceToBatchParamsSet4D, SpaceToBatchCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestBlock_4D, SpaceToBatchCPULayerTest,
-                        spaceToBatchParamsSetBlock4D, SpaceToBatchCPULayerTest::getTestCaseName);
+const std::vector<std::vector<int64_t>> blockShape5D = {{1, 1, 4, 3, 1}, {1, 1, 2, 1, 3}, {1, 2, 4, 1, 1}, {1, 2, 2, 3, 3}};
 
-const std::vector<std::vector<int64_t>> blockShape5D = {{1, 1, 4, 3, 1}, {1, 2, 2, 1, 3}, {1, 2, 4, 1, 1}, {1, 2, 2, 3, 3}};
+const std::vector<std::vector<int64_t>> cropsBegin5D = {{0, 0, 1, 0, 0}, {0, 0, 1, 0, 3}, {0, 0, 5, 3, 3}, {0, 0, 5, 6, 3}};
 
-const std::vector<std::vector<int64_t>> cropsBegin5D = {{0, 1, 1, 0, 0}, {0, 1, 1, 0, 3}, {0, 5, 5, 3, 3}, {0, 3, 5, 6, 3}};
+const std::vector<std::vector<int64_t>> cropsEnd5D   = {{0, 0, 1, 0, 0}, {0, 0, 1, 0, 3}, {0, 0, 5, 3, 3}, {0, 0, 5, 6, 3}};
 
-const std::vector<std::vector<int64_t>> cropsEnd5D   = {{0, 1, 1, 0, 0}, {0, 3, 1, 0, 3}, {0, 1, 5, 3, 3}, {0, 3, 5, 6, 3}};
-
-const std::vector<std::vector<size_t>> inputShapes5D = {{2, 6, 10, 3, 3}, {3, 8, 30, 6, 9}, {5, 2, 10, 12, 12}, {7, 8, 30, 12, 12}};
+const std::vector<std::vector<size_t>> inputShapes5D = {{2, 16, 6, 6, 6}, {2, 16, 10, 9, 9}, {1, 32, 10, 6, 6}, {1, 32, 6, 9, 6}};
 
 const std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({nCdhw8c}, {nCdhw8c}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
-};
-
-const std::vector<CPUSpecificParams> cpuParamsBlock_5D = {
-        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
-        CPUSpecificParams({nCdhw8c}, {nCdhw8c}, {}, {})
 };
 
 const auto spaceToBatchParamsSet5D = ::testing::Combine(
@@ -166,27 +141,9 @@ const auto spaceToBatchParamsSet5D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(cpuParams_5D));
 
-const  std::vector<std::vector<size_t>> inputShapesBlock5D = {{2, 6, 10, 3, 3}, {3, 8, 30, 6, 9}, {5, 14, 10, 12, 12},
-                                                              {7, 16, 30, 12, 12}, {4, 20, 10, 3, 3}};
-
-const auto spaceToBatchParamsSetBlock5D = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(blockShape5D),
-                ::testing::ValuesIn(cropsBegin5D),
-                ::testing::ValuesIn(cropsEnd5D),
-                ::testing::ValuesIn(inputShapesBlock5D),
-                ::testing::ValuesIn(precisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)), ::testing::ValuesIn(cpuParamsBlock_5D));
 
 INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTest_5D, SpaceToBatchCPULayerTest,
                         spaceToBatchParamsSet5D, SpaceToBatchCPULayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestBlock_5D, SpaceToBatchCPULayerTest,
-                        spaceToBatchParamsSetBlock5D, SpaceToBatchCPULayerTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
