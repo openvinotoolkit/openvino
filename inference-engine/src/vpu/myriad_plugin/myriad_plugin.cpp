@@ -55,6 +55,7 @@
 #include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/detect_network_batch.hpp>
 
 #include "myriad_plugin.h"
 
@@ -224,6 +225,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<DumpAllPassesOption>();
     _parsedConfig.registerOption<DeviceIDOption>();
     _parsedConfig.registerOption<DeviceConnectTimeoutOption>();
+    _parsedConfig.registerOption<DetectNetworkBatchOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
@@ -232,6 +234,7 @@ IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     _parsedConfig.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
     _parsedConfig.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
+    _parsedConfig.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
 IE_SUPPRESS_DEPRECATED_END
 }
 

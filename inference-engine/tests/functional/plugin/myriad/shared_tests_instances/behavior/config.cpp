@@ -126,6 +126,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "15"}},
         {{InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "20"}},
 
+        {{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(YES)}},
+        {{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
@@ -144,6 +147,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}},
 
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
+
+        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(YES)}},
+        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)}},
 
         {
             {KEY_LOG_LEVEL, LOG_INFO},
@@ -179,6 +185,7 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_DISABLE_REORDER, CONFIG_VALUE(NO)},
             {KEY_DEVICE_ID, ""},
             {InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "10"},
+            {InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)},
         },
     };
 
@@ -295,6 +302,7 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_DISABLE_REORDER, {false}},
         {KEY_DEVICE_ID, {std::string()}},
         {InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, {std::chrono::seconds(15)}},
+        {InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, {true}},
     };
     return defaultEntries;
 }
@@ -434,6 +442,12 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
 
         std::make_tuple(InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "10", InferenceEngine::Parameter{std::chrono::seconds(10)}),
         std::make_tuple(InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "20", InferenceEngine::Parameter{std::chrono::seconds(20)}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::YES, InferenceEngine::Parameter{true}),
+        std::make_tuple(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::NO, InferenceEngine::Parameter{false}),
+
+        std::make_tuple(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
+        std::make_tuple(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
     };
     return customEntries;
 }
@@ -498,6 +512,8 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES,
         InferenceEngine::MYRIAD_DISABLE_REORDER,
         InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT,
+        InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH,
+        VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),
     };
     return privateOptions;
 }
@@ -604,6 +620,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "-1"}},
         {{InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "-10"}},
 
+        {{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, "ON"}},
+        {{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, "OFF"}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"}},
 
@@ -622,6 +641,9 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}},
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}},
+
+        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), "ON"}},
+        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), "OFF"}},
 
         {
             {KEY_LOG_LEVEL, LOG_INFO},
@@ -656,6 +678,7 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
             {InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES, "OFF"},
             {InferenceEngine::MYRIAD_DISABLE_REORDER, "OFF"},
             {InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "-10"},
+            {InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, "OFF"},
         },
     };
     return incorrectConfigs;

@@ -43,6 +43,7 @@
 #include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/detect_network_batch.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -114,6 +115,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<DumpAllPassesOption>();
     _configuration.registerOption<DeviceIDOption>();
     _configuration.registerOption<DeviceConnectTimeoutOption>();
+    _configuration.registerOption<DetectNetworkBatchOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
@@ -122,6 +124,7 @@ IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     _configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
     _configuration.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
+    _configuration.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
 IE_SUPPRESS_DEPRECATED_END
 
     _inputsInfo.clear();
