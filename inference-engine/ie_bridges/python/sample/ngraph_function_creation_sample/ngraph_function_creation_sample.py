@@ -223,6 +223,7 @@ def main():
 
     for i in range(n):
         probs = res[i]
+        # Get an array of args.number_top class IDs in descending order of probability
         top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 
         header = 'classid probability'

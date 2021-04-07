@@ -135,6 +135,7 @@ def main():
             res = exec_net.requests[i].output_blobs[out_blob].buffer
             # Change a shape of a numpy.ndarray with results to get another one with one dimension
             probs = res.reshape(num_of_classes)
+            # Get an array of args.number_top class IDs in descending order of probability
             top_n_idexes = np.argsort(probs)[-args.number_top:][::-1]
 
             header = 'classid probability'
