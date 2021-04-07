@@ -38,6 +38,7 @@
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
 #include <vpu/configuration/options/dump_all_passes.hpp>
+#include <vpu/configuration/options/disable_reorder.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -414,6 +415,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<DumpAllPassesOption>();
 
 IE_SUPPRESS_DEPRECATED_START
+    configuration.registerDeprecatedOption<DisableReorderOption>(InferenceEngine::MYRIAD_DISABLE_REORDER);
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
     configuration.registerDeprecatedOption<ProtocolOption>(VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     configuration.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));

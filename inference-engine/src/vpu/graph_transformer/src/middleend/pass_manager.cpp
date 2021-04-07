@@ -19,6 +19,7 @@
 #include <vpu/configuration/options/enable_repl_with_screlu.hpp>
 #include <vpu/configuration/options/enable_permute_merging.hpp>
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
+#include <vpu/configuration/options/disable_reorder.hpp>
 
 namespace vpu {
 
@@ -102,7 +103,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(convertShapeNotation);
     ADD_DUMP_PASS("convertShapeNotation");
 
-    if (!env.config.compileConfig().disableReorder && !env.config.get<HwAccelerationOption>()) {
+    if (!env.config.get<DisableReorderOption>() && !env.config.get<HwAccelerationOption>()) {
         ADD_PASS(reorderInputsToChannelMinor);
         ADD_DUMP_PASS("reorderInputsToChannelMinor");
     }
