@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -126,9 +114,16 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                 // Check that this is not input layout
                 if (!eltw_node.get_dependency(1).is_type<input_layout>()) {
                     // We should check a case with reshape / reorder nodes before bias constant data
-                    bias_depth = eltw_node.get_dependency(1).is_type<data>() ? 1 :
-                                 eltw_node.get_dependency(1).get_dependency(0).is_type<data>() ? 2 :
-                                 eltw_node.get_dependency(1).get_dependency(0).get_dependency(0).is_type<data>() ? 3 : 0;
+                    if (eltw_node.get_dependency(1).is_type<data>()) {
+                        bias_depth = 1;
+                    } else if (eltw_node.get_dependency(1).get_dependencies().size()) {
+                        if (eltw_node.get_dependency(1).get_dependency(0).is_type<data>()) {
+                            bias_depth = 2;
+                        } else if (eltw_node.get_dependency(1).get_dependency(0).get_dependencies().size()) {
+                            if (eltw_node.get_dependency(1).get_dependency(0).get_dependency(0).is_type<data>())
+                                bias_depth = 3;
+                        }
+                    }
 
                     auto& dep = bias_depth == 1 ? eltw_node.get_dependency(1) :
                                 bias_depth == 2 ? eltw_node.get_dependency(1).get_dependency(0) :

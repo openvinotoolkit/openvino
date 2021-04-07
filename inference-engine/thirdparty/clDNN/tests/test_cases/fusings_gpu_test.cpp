@@ -1531,7 +1531,6 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
     );
 
     tolerance = 1e-4f;
-    // tolerance = 1e-3f;
     execute(p);
 }
 
@@ -4542,7 +4541,6 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
     );
 
     tolerance = 1.0f;
-    // tolerance = 2.f;
     execute(p);
 }
 
