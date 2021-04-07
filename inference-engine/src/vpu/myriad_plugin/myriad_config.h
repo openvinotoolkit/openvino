@@ -43,10 +43,6 @@ public:
         return _platform;
     }
 
-    const std::chrono::seconds& deviceConnectTimeout() const {
-        return _deviceConnectTimeout;
-    }
-
     MovidiusDdrType memoryType() const {
         return _memoryType;
     }
@@ -62,7 +58,6 @@ private:
     bool _forceReset = false;
     bool _enableAsyncDma = true;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
-    std::chrono::seconds _deviceConnectTimeout = std::chrono::seconds(15);
     MovidiusDdrType _memoryType = MovidiusDdrType::AUTO;
 };
 

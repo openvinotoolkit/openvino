@@ -54,6 +54,7 @@
 #include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/device_id.hpp>
+#include <vpu/configuration/options/device_connect_timeout.hpp>
 
 #include "myriad_plugin.h"
 
@@ -222,6 +223,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<DumpAllPassesDirectoryOption>();
     _parsedConfig.registerOption<DumpAllPassesOption>();
     _parsedConfig.registerOption<DeviceIDOption>();
+    _parsedConfig.registerOption<DeviceConnectTimeoutOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

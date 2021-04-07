@@ -84,17 +84,6 @@ protected:
         }
     }
 
-    static std::chrono::seconds parseSeconds(const std::string& src) {
-        try {
-            return std::chrono::seconds(std::stoi(src));
-        } catch (const std::exception& e) {
-            IE_THROW()
-                        << "Can not convert string:"
-                        << src << " to seconds. "
-                        << "Message : " << e.what();
-        }
-    }
-
     static int parseInt(const std::string& src) {
         const auto val = std::stoi(src);
 

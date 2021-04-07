@@ -31,7 +31,6 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_ENABLE_FORCE_RESET,
 
         ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
-        ie::MYRIAD_DEVICE_CONNECT_TIMEOUT,
 
         ie::MYRIAD_DDR_TYPE,
 
@@ -86,7 +85,6 @@ IE_SUPPRESS_DEPRECATED_END
 
     setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
     setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
-    setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
     setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);
     setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
 

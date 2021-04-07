@@ -42,6 +42,7 @@
 #include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
 #include <vpu/configuration/options/device_id.hpp>
+#include <vpu/configuration/options/device_connect_timeout.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -112,6 +113,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<DumpAllPassesDirectoryOption>();
     _configuration.registerOption<DumpAllPassesOption>();
     _configuration.registerOption<DeviceIDOption>();
+    _configuration.registerOption<DeviceConnectTimeoutOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

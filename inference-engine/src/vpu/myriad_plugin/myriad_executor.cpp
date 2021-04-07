@@ -23,6 +23,7 @@
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/device_id.hpp>
+#include <vpu/configuration/options/device_connect_timeout.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
@@ -136,7 +137,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
         configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
     }
 
-    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.deviceConnectTimeout().count()));
+    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.get<DeviceConnectTimeoutOption>().count()));
     if (statusOpen) {
         return statusOpen;
     }
