@@ -36,14 +36,12 @@ void ReduceMinTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceMinTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
-    std::string reduceType = "Min";
 
-    function = ngraph::builder::subgraph::ReduceFunction::getOriginal(
+    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::opset1::ReduceMin>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
         param.constantValues,
-        reduceType,
         param.keepDims);
 }
 

@@ -36,14 +36,12 @@ void ReduceSumTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
-    std::string reduceType = "Sum";
 
-    function = ngraph::builder::subgraph::ReduceFunction::getOriginal(
+    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::opset1::ReduceSum>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
         param.constantValues,
-        reduceType,
         param.keepDims);
 }
 

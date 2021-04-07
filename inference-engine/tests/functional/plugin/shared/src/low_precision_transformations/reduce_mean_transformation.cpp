@@ -36,14 +36,12 @@ void ReduceMeanTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceMeanTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
-    std::string reduceType = "Mean";
 
-    function = ngraph::builder::subgraph::ReduceFunction::getOriginal(
+    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::opset1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
         param.constantValues,
-        reduceType,
         param.keepDims);
 }
 

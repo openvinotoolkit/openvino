@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
+#include "reduce_transformation.hpp"
 
 #include <string>
 #include <sstream>
@@ -21,89 +21,21 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/constant.hpp"
 
+namespace {
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
-class ReduceSumTransformationTestValues {
-public:
-    class Actual {
-    public:
-        ngraph::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-    };
-
-    class Expected {
-    public:
-        ngraph::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
-    };
-
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::vector<int64_t> constantValues;
-    bool keepDims;
-    Actual actual;
-    Expected expected;
-};
-
-typedef std::tuple <
-    ngraph::Shape,
-    ReduceSumTransformationTestValues
-> ReduceSumTransformationParams;
-
-class ReduceSumTransformation : public LayerTransformation, public testing::WithParamInterface<ReduceSumTransformationParams> {
-public:
+class ReduceSumTransformation : public ReduceTransformation<opset1::ReduceSum> {
     void SetUp() override {
-        const ngraph::Shape inputShape = std::get<0>(GetParam());
-        const ReduceSumTransformationTestValues& testValues = std::get<1>(GetParam());
-        const std::string reduceType = "Sum";
-
-        actualFunction = ngraph::builder::subgraph::ReduceFunction::getOriginal(
-            testValues.actual.inputPrecision,
-            inputShape,
-            testValues.actual.dequantization,
-            testValues.constantValues,
-            reduceType,
-            testValues.keepDims);
+        ReduceTransformation::SetUp();
+        const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ReduceSumTransformation, ngraph::opset1::ReduceSum>(
-                low_precision::LayerTransformation::Params(testValues.params));
+            low_precision::LayerTransformation::Params(transformationParams));
         transform.transform(actualFunction);
-
-        referenceFunction = ngraph::builder::subgraph::ReduceFunction::getReference(
-            testValues.expected.inputPrecision,
-            inputShape,
-            testValues.expected.dequantizationBefore,
-            testValues.constantValues,
-            reduceType,
-            testValues.keepDims,
-            testValues.expected.preicsionAfterOperation,
-            testValues.expected.dequantizationAfter);
-    }
-
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceSumTransformationParams> obj) {
-        const ngraph::Shape inputShape = std::get<0>(obj.param);
-        const ReduceSumTransformationTestValues testValues = std::get<1>(obj.param);
-
-        std::ostringstream result;
-        result <<
-            testValues.actual.inputPrecision << "_" <<
-            LayerTransformation::getTestCaseNameByParams(testValues.actual.inputPrecision, inputShape, testValues.params) << "_" <<
-            testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore << "_" <<
-            testValues.expected.preicsionAfterOperation << "_" <<
-            testValues.expected.dequantizationAfter << "_" <<
-            (testValues.keepDims ? "_keep_dims_" : "_") <<
-            "reduction_axes_";
-        for (const auto& elem : testValues.constantValues) {
-            result << "_" << elem << "_";
-        }
-
-        return result.str();
     }
 };
 
@@ -118,7 +50,7 @@ const std::vector<ngraph::Shape> inputShapes = {
     {4, 3, 16, 16}
 };
 
-const std::vector<ReduceSumTransformationTestValues> addTransformationTestValues = {
+const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestValues = {
     // U8: keep dims, per-channel quantization, reduction by batch
     {
         LayerTransformation::createParamsU8I8(),
@@ -366,5 +298,6 @@ INSTANTIATE_TEST_CASE_P(
     ReduceSumTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(addTransformationTestValues)),
+        ::testing::ValuesIn(reduceSumTransformationTestValues)),
     ReduceSumTransformation::getTestCaseName);
+} // namespace
