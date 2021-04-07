@@ -58,9 +58,7 @@ NGRAPH_TEST(onnx_editor, types__single_input_type_substitution)
 
     editor.set_input_types({{"A", element::i64}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     const auto float_inputs_count = std::count_if(
@@ -83,8 +81,7 @@ NGRAPH_TEST(onnx_editor, types__all_inputs_type_substitution)
 
     editor.set_input_types({{"A", element::i8}, {"B", element::i8}, {"C", element::i8}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
 
     const auto graph_inputs = function->get_parameters();
 
@@ -141,8 +138,7 @@ NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input)
     // the "elem_type" is missing in the model but it should be possible to set the type anyway
     EXPECT_NO_THROW(editor.set_input_types({{"A", element::i64}}));
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
 
     const auto graph_inputs = function->get_parameters();
 
@@ -164,9 +160,7 @@ NGRAPH_TEST(onnx_editor, shapes__modify_single_input)
 
     editor.set_input_shapes({{"B", new_shape}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     EXPECT_TRUE(find_input(graph_inputs, "B")->get_partial_shape().same_scheme(new_shape));
@@ -181,9 +175,7 @@ NGRAPH_TEST(onnx_editor, shapes__modify_all_inputs)
 
     editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     for (const auto& input : graph_inputs)
@@ -202,9 +194,7 @@ NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
     const auto expected_shape_of_A = PartialShape{1, 2};
     EXPECT_NO_THROW(editor.set_input_shapes({{"A", expected_shape_of_A}}));
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     EXPECT_TRUE(
@@ -220,9 +210,7 @@ NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension)
 
     editor.set_input_shapes({{"A", new_shape}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     EXPECT_TRUE(find_input(graph_inputs, "A")->get_partial_shape().same_scheme(new_shape));
@@ -238,9 +226,7 @@ NGRAPH_TEST(onnx_editor, shapes__set_mixed_dimensions)
 
     editor.set_input_shapes({{"A", new_shape_A}, {"B", new_shape_B}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     const auto input_A = find_input(graph_inputs, "A");
@@ -259,9 +245,7 @@ NGRAPH_TEST(onnx_editor, shapes__set_scalar_inputs)
 
     editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     const auto input_A = find_input(graph_inputs, "A");
@@ -280,9 +264,7 @@ NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
 
     editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
-
+    const auto function = editor.get_function();
     const auto graph_inputs = function->get_parameters();
 
     for (const auto& input : graph_inputs)
@@ -1117,8 +1099,7 @@ NGRAPH_TEST(onnx_editor, values__append_one_initializer)
     in_vals.emplace("A", op::Constant::create(element::i64, Shape{2}, {1, 2}));
     editor.set_input_values(in_vals);
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int64_t>(Shape{2}, {5, 6});
     test_case.add_expected_output<int64_t>(Shape{2}, {6, 8});
@@ -1135,8 +1116,7 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_to_invalid)
     in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {1, 3}));
     editor.set_input_values(in_vals);
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {5, 5});
     test_case.run();
@@ -1151,8 +1131,7 @@ NGRAPH_TEST(onnx_editor, values__modify_one_initializer)
     in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {3, 4}));
     editor.set_input_values(in_vals);
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {4, 6});
     test_case.run();
@@ -1168,8 +1147,7 @@ NGRAPH_TEST(onnx_editor, values__modify_two_initializers)
     in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {2, 1}));
     editor.set_input_values(in_vals);
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {5, 7});
     test_case.run();
@@ -1185,8 +1163,7 @@ NGRAPH_TEST(onnx_editor, values__no_inputs_modify_two_initializers)
     in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {11, 22}));
     editor.set_input_values(in_vals);
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {12, 24});
     test_case.run();
@@ -1202,8 +1179,7 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_change_shape_type)
     in_vals.emplace("B", op::Constant::create(element::i8, Shape{2, 1}, {-2, 2}));
     editor.set_input_values(in_vals);
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int8_t>(Shape{2, 1}, {-3, 3});
     test_case.run();
@@ -1220,8 +1196,7 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_mixed_types)
     in_vals.emplace("indices", op::Constant::create(element::i32, Shape{2, 2, 1}, {0, 1, 0, 1}));
     editor.set_input_values(in_vals);
 
-    std::istringstream model_stream(editor.model_string());
-    const auto function = onnx_import::import_onnx_model(model_stream);
+    const auto function = editor.get_function();
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<int16_t>(Shape{2, 2, 1}, {1, 4, 5, 8});
     test_case.run();
