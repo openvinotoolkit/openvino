@@ -41,6 +41,7 @@
 #include <vpu/configuration/options/dump_all_passes.hpp>
 #include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
+#include <vpu/configuration/options/device_id.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -110,6 +111,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<DumpInternalGraphFileNameOption>();
     _configuration.registerOption<DumpAllPassesDirectoryOption>();
     _configuration.registerOption<DumpAllPassesOption>();
+    _configuration.registerOption<DeviceIDOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

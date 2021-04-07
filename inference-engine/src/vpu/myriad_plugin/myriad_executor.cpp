@@ -22,6 +22,7 @@
 #include <vpu/configuration/options/protocol.hpp>
 #include <vpu/configuration/options/power_config.hpp>
 #include <vpu/configuration/options/watchdog_interval.hpp>
+#include <vpu/configuration/options/device_id.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
@@ -89,7 +90,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 
     const ncDevicePlatform_t& configPlatform = config.platform();
     const ncDeviceProtocol_t& configProtocol = config.get<ProtocolOption>();
-    const std::string& configDevName = config.deviceName();
+    const std::string& configDevName = config.get<DeviceIDOption>();
     PowerConfig powerConfig = config.get<PowerConfigOption>();
     int enableAsyncDma = config.asyncDma();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
@@ -240,7 +241,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
         return device;
     }
 
-    if (!config.deviceName().empty()) {
+    if (!config.get<DeviceIDOption>().empty()) {
         auto firstBootedBySpecificName = std::find_if(devicePool.begin(), devicePool.end(),
             [&](const DevicePtr& device) {
                 return device->isBooted() && device->isSuitableForConfig(config);
@@ -252,7 +253,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
                 device->_graphNum++;
                 return device;
             } else {
-                IE_THROW() << "Maximum number of networks reached for device: " << config.deviceName();
+                IE_THROW() << "Maximum number of networks reached for device: " << config.get<DeviceIDOption>();
             }
         }
     }

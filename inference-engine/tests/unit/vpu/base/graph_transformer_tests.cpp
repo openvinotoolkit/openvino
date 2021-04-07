@@ -40,6 +40,7 @@
 #include <vpu/configuration/options/dump_all_passes.hpp>
 #include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
+#include <vpu/configuration/options/device_id.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -414,6 +415,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<DumpInternalGraphFileNameOption>();
     configuration.registerOption<DumpAllPassesDirectoryOption>();
     configuration.registerOption<DumpAllPassesOption>();
+    configuration.registerOption<DeviceIDOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

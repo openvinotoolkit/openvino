@@ -15,6 +15,7 @@
 #include "myriad_mvnc_wrapper.h"
 #include "configuration/myriad_configuration.hpp"
 #include "vpu/configuration/options/protocol.hpp"
+#include "vpu/configuration/options/device_id.hpp"
 
 #include <ie_parameter.hpp>
 
@@ -56,8 +57,8 @@ struct DeviceDesc {
 
     bool isSuitableForConfig(const MyriadConfiguration& config) const {
         bool isSuitableByName = true;
-        if (!config.deviceName().empty()) {
-            isSuitableByName = config.deviceName() == _name;
+        if (!config.get<DeviceIDOption>().empty()) {
+            isSuitableByName = config.get<DeviceIDOption>() == _name;
         }
 
         return isSuitableByName &&

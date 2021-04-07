@@ -28,8 +28,6 @@ IE_SUPPRESS_DEPRECATED_END
 const std::unordered_set<std::string>& MyriadConfig::getRunTimeOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getRunTimeOptions(), {
-        CONFIG_KEY(DEVICE_ID),
-
         ie::MYRIAD_ENABLE_FORCE_RESET,
 
         ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
@@ -87,7 +85,6 @@ IE_SUPPRESS_DEPRECATED_END
     ParsedConfig::parse(config);
 
     setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
-    setOption(_deviceName,                              config, CONFIG_KEY(DEVICE_ID));
     setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
     setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
     setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);

@@ -53,6 +53,7 @@
 #include <vpu/configuration/options/dump_all_passes.hpp>
 #include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/disable_reorder.hpp>
+#include <vpu/configuration/options/device_id.hpp>
 
 #include "myriad_plugin.h"
 
@@ -134,7 +135,7 @@ QueryNetworkResult Engine::QueryNetwork(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.from(config);
 
-    const auto deviceName = parsedConfigCopy.deviceName();
+    const auto deviceName = parsedConfigCopy.get<DeviceIDOption>();
     if (!deviceName.empty()) {
         const auto deviceIDs = GetMetric(METRIC_KEY(AVAILABLE_DEVICES), {}).as<std::vector<std::string>>();
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
@@ -185,7 +186,6 @@ IE_SUPPRESS_DEPRECATED_START
         { KEY_VPU_MYRIAD_PLATFORM, "" },
 
         { KEY_CONFIG_FILE, "" },
-        { KEY_DEVICE_ID, "" },
     };
 IE_SUPPRESS_DEPRECATED_END
 
@@ -221,6 +221,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<DumpInternalGraphFileNameOption>();
     _parsedConfig.registerOption<DumpAllPassesDirectoryOption>();
     _parsedConfig.registerOption<DumpAllPassesOption>();
+    _parsedConfig.registerOption<DeviceIDOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
