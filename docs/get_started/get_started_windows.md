@@ -482,6 +482,24 @@ Below you can find basic guidelines for executing the OpenVINO™ workflow using
 
 ## <a name="syntax-examples"></a> Typical Code Sample and Demo Application Syntax Examples
 
+This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.10 or later and Microsoft Visual Studio 2017 or 2019 installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md#build_samples_linux) and [Demo Applications](https://docs.openvinotoolkit.org/latest/omz_demos.html) pages.
+
+To build all the demos and samples:
+
+```sh
+cd $INTEL_OPENVINO_DIR\inference_engine_samples\cpp
+# to compile C samples, go here also: cd <INSTALL_DIR>\inference_engine\samples\c
+build_samples_msvc.bat
+cd $INTEL_OPENVINO_DIR\deployment_tools\open_model_zoo\demos
+build_demos_msvc.bat
+```
+
+Depending on what you compiled, executables are in the directories below:
+
+* `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`
+* `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`
+* `C:\Users\<username>\Documents\Intel\OpenVINO\omz_demos_build\intel64\Release`
+
 Template to call sample code or a demo application:
 
 ```bat

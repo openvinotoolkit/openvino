@@ -522,6 +522,24 @@ source /opt/intel/openvino_2021/bin/setupvars.sh
 
 ## <a name="syntax-examples"></a> Typical Code Sample and Demo Application Syntax Examples
 
+This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.10 or later installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md#build_samples_linux) and [Demo Applications](https://docs.openvinotoolkit.org/latest/omz_demos.html) pages.
+
+To build all the demos and samples:
+
+```sh
+cd $INTEL_OPENVINO_DIR/inference_engine_samples/cpp
+# to compile C samples, go here also: cd <INSTALL_DIR>/inference_engine/samples/c
+build_samples.sh
+cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos
+build_demos.sh
+```
+
+Depending on what you compiled, executables are in the directories below:
+
+* `~/inference_engine_samples_build/intel64/Release`
+* `~/inference_engine_cpp_samples_build/intel64/Release`
+* `~/inference_engine_demos_build/intel64/Release`
+
 Template to call sample code or a demo application:
 
 ```sh
