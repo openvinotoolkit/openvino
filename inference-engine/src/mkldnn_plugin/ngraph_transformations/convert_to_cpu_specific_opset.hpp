@@ -15,6 +15,8 @@ namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
+    manager.register_pass<Reshape1DConvolution>();
+    manager.register_pass<Reshape1DGroupConvolution>();
     manager.register_pass<Reshape1DAvgPool>();
     manager.register_pass<Reshape1DMaxPool>();
     manager.register_pass<ConvertBroadcastToTiles>();

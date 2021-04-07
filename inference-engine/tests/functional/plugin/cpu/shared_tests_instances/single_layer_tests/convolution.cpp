@@ -103,6 +103,8 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     ConvolutionLayerTest::getTestCaseName);
 
+// weight for this convolution have Acdb16a layout
+// for [96,1,7,7] shape strides for 1 and 3 dimensions equals, but not default order
 namespace specificWeightLayout {
     const std::vector<size_t> kernels = {7, 7};
     const std::vector<size_t> strides = {2, 2};
