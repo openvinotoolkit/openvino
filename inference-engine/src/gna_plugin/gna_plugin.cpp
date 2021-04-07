@@ -413,7 +413,6 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
         auto data = input.second->getInputData();
         for (auto && nextToInputLayer : getInputTo(data)) {
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
-                inputIdx++;
                 continue;
             }
             // replacing scale factor from this fq layer
@@ -448,9 +447,8 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
 
             config.inputScaleFactors[inputIdx] = scaleInput;
             inputsDesc->inputScaleFactors[inputIdx] = scaleInput;
-
-            inputIdx++;
         }
+        inputIdx++;
     }
 }
 

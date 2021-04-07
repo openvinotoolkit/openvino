@@ -931,7 +931,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     gnalog() << "[UFS] from : " << concatLayer->name << " reached: " << layer->name;
                     // found that direct input to concat is a indirect parent of align filter - so no link required
                     auto info = LayerInfo(layer);
-                    if (!info.isWeightable() && !info.isActivation() && !info.isConst()) {
+                    if (!info.isWeightable() && !info.isActivation() && !info.isConst() && !info.isMemory()) {
                         gnalog() << "... skipped\n";
                         return;
                     }
@@ -983,7 +983,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 }
 
                 quantDataForConCatInput->_dst_quant.SetScale(newScaleFactor);
-            } else if (restarLayerInfo.isConst()) {
+            } else if (restarLayerInfo.isConst() || restarLayerInfo.isMemory()) {
                 gnalog() << "... warning const layer will be requantized\n";
                 quantDataForConCatInput->_src_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
                 quantDataForConCatInput->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
