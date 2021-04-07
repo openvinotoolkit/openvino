@@ -8,9 +8,9 @@ from mo.ops.concat import Concat
 from mo.ops.const import Const
 
 
-class ArgMaxToTopK(MiddleReplacementPattern):
+class ArgOpsToTopK(MiddleReplacementPattern):
     """
-        The transformation replaces ArgMax with the TopK layer.
+        The transformation replaces ArgMax/ArgMin with the TopK layer.
     """
 
     enabled = True

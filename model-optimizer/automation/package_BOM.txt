@@ -543,7 +543,7 @@ extensions/middle/AddIsCyclicAttribute.py
 extensions/middle/AddMeanScaleValues.py
 extensions/middle/ApplyNHWCtoNCHWpermutation.py
 extensions/middle/ApplyPermutations.py
-extensions/middle/ArgMaxToTopK.py
+extensions/middle/ArgOpsToTopK.py
 extensions/middle/AttributedTileNormalizer.py
 extensions/middle/BiasAddBroadcasting.py
 extensions/middle/BinarizeWeightsM1P1.py
