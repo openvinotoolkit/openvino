@@ -39,6 +39,7 @@ verified_operations = [
     'ConvertLike-1',
     'Convolution-1',
     'DetectionOutput-0',
+    'DeformablePSROIPooling-1',
     'Divide-1',
     'ExperimentalDetectronDetectionOutput-6',
     'ExperimentalDetectronGenerateProposalsSingleImage-6',
