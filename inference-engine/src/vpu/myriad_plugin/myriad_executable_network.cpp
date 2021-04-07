@@ -41,7 +41,7 @@ ExecutableNetwork::ExecutableNetwork(
         logLevel,
         defaultOutput(_config.pluginLogFilePath()));
 
-    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), std::move(mvnc), logLevel, _log);
+    _executor = std::make_shared<MyriadExecutor>(false, std::move(mvnc), logLevel, _log);
 
     _supportedMetrics = {
         METRIC_KEY(NETWORK_NAME),

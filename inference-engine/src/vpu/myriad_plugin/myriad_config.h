@@ -22,10 +22,6 @@ public:
         return _pluginLogFilePath;
     }
 
-    bool forceReset() const {
-        return _forceReset;
-    }
-
     bool asyncDma() const {
         return _enableAsyncDma;
     }
@@ -42,7 +38,6 @@ protected:
 
 private:
     std::string _pluginLogFilePath;
-    bool _forceReset = false;
     bool _enableAsyncDma = true;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
 };

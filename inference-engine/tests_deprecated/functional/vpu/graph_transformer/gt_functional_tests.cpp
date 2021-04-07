@@ -47,6 +47,7 @@
 #include <vpu/configuration/options/custom_layers.hpp>
 #include <vpu/configuration/options/config_file.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
+#include <vpu/configuration/options/enable_force_reset.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -122,6 +123,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<CustomLayersOption>();
     _configuration.registerOption<ConfigFileOption>();
     _configuration.registerOption<MemoryTypeOption>();
+    _configuration.registerOption<EnableForceResetOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
@@ -133,6 +135,7 @@ IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
     _configuration.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
     _configuration.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
+    _configuration.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
 IE_SUPPRESS_DEPRECATED_END
 
     _inputsInfo.clear();

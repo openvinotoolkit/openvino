@@ -28,12 +28,9 @@ IE_SUPPRESS_DEPRECATED_END
 const std::unordered_set<std::string>& MyriadConfig::getRunTimeOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getRunTimeOptions(), {
-        ie::MYRIAD_ENABLE_FORCE_RESET,
-
         ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
 
         // Deprecated
-        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
         VPU_MYRIAD_CONFIG_KEY(PLATFORM),
     });
 IE_SUPPRESS_DEPRECATED_END
@@ -44,7 +41,6 @@ IE_SUPPRESS_DEPRECATED_END
 const std::unordered_set<std::string>& MyriadConfig::getDeprecatedOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getDeprecatedOptions(), {
-        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
         VPU_MYRIAD_CONFIG_KEY(PLATFORM),
     });
 IE_SUPPRESS_DEPRECATED_END
@@ -64,20 +60,15 @@ IE_SUPPRESS_DEPRECATED_END
     ParsedConfig::parse(config);
 
     setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
-    setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
     setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
 
 IE_SUPPRESS_DEPRECATED_START
-    setOption(_forceReset,       switches,              config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
     setOption(_platform,         platformsDeprecated,   config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
 IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG
     if (const auto envVar = std::getenv("IE_VPU_MYRIAD_PLUGIN_LOG_FILE_PATH")) {
         _pluginLogFilePath = envVar;
-    }
-    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_FORCE_RESET")) {
-        _forceReset = std::stoi(envVar);
     }
 #endif
 }

@@ -59,6 +59,7 @@
 #include <vpu/configuration/options/custom_layers.hpp>
 #include <vpu/configuration/options/config_file.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
+#include <vpu/configuration/options/enable_force_reset.hpp>
 
 #include "myriad_plugin.h"
 
@@ -110,6 +111,10 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
         _parsedConfig.set(DumpAllPassesOption::key(), std::stoi(envVar) != 0
+            ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_FORCE_RESET")) {
+        _parsedConfig.set(EnableForceResetOption::key(), std::stoi(envVar) != 0
             ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
     }
 #endif
@@ -182,10 +187,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     // TODO: remove once all options are migrated
 IE_SUPPRESS_DEPRECATED_START
     _config = {
-        { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
-
         // Deprecated
-        { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
     };
 IE_SUPPRESS_DEPRECATED_END
@@ -228,6 +230,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<CustomLayersOption>();
     _parsedConfig.registerOption<ConfigFileOption>();
     _parsedConfig.registerOption<MemoryTypeOption>();
+    _parsedConfig.registerOption<EnableForceResetOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
@@ -239,6 +242,7 @@ IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
     _parsedConfig.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
     _parsedConfig.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
+    _parsedConfig.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
 IE_SUPPRESS_DEPRECATED_END
 }
 

@@ -46,6 +46,7 @@
 #include <vpu/configuration/options/custom_layers.hpp>
 #include <vpu/configuration/options/config_file.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
+#include <vpu/configuration/options/enable_force_reset.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -426,6 +427,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<CustomLayersOption>();
     configuration.registerOption<ConfigFileOption>();
     configuration.registerOption<MemoryTypeOption>();
+    configuration.registerOption<EnableForceResetOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
@@ -437,6 +439,7 @@ IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
     configuration.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
     configuration.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
+    configuration.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
 IE_SUPPRESS_DEPRECATED_END
 
     return configuration;
