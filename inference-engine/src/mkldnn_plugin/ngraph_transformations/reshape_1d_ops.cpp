@@ -10,11 +10,58 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 
 #include "transformations/utils/utils.hpp"
 
-template <class T>
-std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<T> node, ngraph::NodeVector &new_ops);
+template <class BaseOp>
+std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<BaseOp> node, ngraph::NodeVector &new_ops) {
+    auto new_strides = node->get_strides();
+    auto new_dilations = node->get_dilations();
+    auto new_pads_begin = node->get_pads_begin();
+    auto new_pad_end = node->get_pads_end();
+
+    new_strides.insert(new_strides.begin(), 1);
+    new_dilations.insert(new_dilations.begin(), 1);
+    new_pads_begin.insert(new_pads_begin.begin(), 0);
+    new_pad_end.insert(new_pad_end.begin(), 0);
+
+    ngraph::Shape new_weights_shape(node->input_value(1).get_shape());
+    new_weights_shape.insert(new_weights_shape.begin() + new_weights_shape.size() - 1, 1);
+    auto weights = ngraph::op::util::reshapeTo(node->input_value(1), new_weights_shape);
+
+    new_ops.push_back(weights);
+
+    if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(node)) {
+        std::vector<ngraph::element::Type> inputPrecisions;
+        for (auto& inputs : node->inputs()) {
+            inputPrecisions.push_back(inputs.get_element_type());
+        }
+
+        std::vector<ngraph::element::Type> outputPrecisions;
+        for (auto& output : node->outputs()) {
+            outputPrecisions.push_back(output.get_element_type());
+        }
+
+        return std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(std::vector<ngraph::element::Type>{ngraph::element::f32, ngraph::element::f32},
+                                                                 std::vector<ngraph::element::Type>{ngraph::element::f32},
+                                                                 ngraph::op::TemporaryReplaceOutputType(data, ngraph::element::f32).get(),
+                                                                 ngraph::op::TemporaryReplaceOutputType(weights, ngraph::element::f32).get(),
+                                                                 new_strides,
+                                                                 new_pads_begin,
+                                                                 new_pad_end,
+                                                                 new_dilations,
+                                                                 node->get_auto_pad());
+    } else {
+        return std::make_shared<BaseOp>(data,
+                                        weights,
+                                        new_strides,
+                                        new_pads_begin,
+                                        new_pad_end,
+                                        new_dilations,
+                                        node->get_auto_pad());
+    }
+}
 
 template <>
 std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<ngraph::opset1::MaxPool> node, ngraph::NodeVector & new_ops) {
@@ -80,7 +127,11 @@ ngraph::matcher_pass_callback get_callback() {
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
         new_ops.push_back(last.get_node_shared_ptr());
 
-        if (auto max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(node)) {
+        if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node)) {
+            last = convert(last, conv, new_ops);
+        } else if (auto group_conv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
+            last = convert(last, group_conv, new_ops);
+        } else if (auto max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(node)) {
             last = convert(last, max_pool, new_ops);
         } else if (auto avg_pool = std::dynamic_pointer_cast<ngraph::opset1::AvgPool>(node)) {
             last = convert(last, avg_pool, new_ops);
@@ -99,6 +150,22 @@ ngraph::matcher_pass_callback get_callback() {
         node->output(0).replace(last);
         return true;
     };
+}
+
+NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DConvolution, "Reshape1DConvolution", 0);
+
+MKLDNNPlugin::Reshape1DConvolution::Reshape1DConvolution() {
+    auto conv = ngraph::pattern::wrap_type<ngraph::opset1::Convolution>(ngraph::pattern::has_static_shape());
+    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
+    this->register_matcher(m, get_callback());
+}
+
+NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DGroupConvolution, "Reshape1DGroupConvolution", 0);
+
+MKLDNNPlugin::Reshape1DGroupConvolution::Reshape1DGroupConvolution() {
+    auto group_conv = ngraph::pattern::wrap_type<ngraph::opset1::GroupConvolution>(ngraph::pattern::has_static_shape());
+    auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv, "Reshape1DGroupConvolution");
+    this->register_matcher(m, get_callback());
 }
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DAvgPool, "Reshape1DAvgPool", 0);

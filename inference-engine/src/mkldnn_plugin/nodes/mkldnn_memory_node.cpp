@@ -28,7 +28,7 @@ bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ng
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
                 ngraph::op::v3::Assign::type_info,
                 ngraph::op::v6::Assign::type_info)) {
-            errorMessage = "Node is not an instance of Assign.";
+            errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
             return false;
         }
     } catch (...) {
@@ -82,7 +82,7 @@ bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngr
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
                 ngraph::op::v3::ReadValue::type_info,
                 ngraph::op::v6::ReadValue::type_info)) {
-            errorMessage = "Node is not an instance of ReadValue.";
+            errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
             return false;
         }
     } catch (...) {

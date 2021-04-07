@@ -4,10 +4,11 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "test_utils/node_types.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
+using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
 
