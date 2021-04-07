@@ -1,4 +1,4 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
@@ -23,10 +23,10 @@ import os
 import shutil
 import sys
 import tempfile
-from pathlib import Path
-
 import pytest
 import yaml
+
+from pathlib import Path
 from jsonschema import validate, ValidationError
 
 from scripts.run_timetest import check_positive_int

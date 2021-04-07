@@ -26,7 +26,7 @@ Parameter MockPlugin::GetMetric(const std::string& name, const std::map<std::str
     if (_target) {
         return _target->GetMetric(name, options);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -36,7 +36,7 @@ MockPlugin::LoadNetwork(const CNNNetwork &network,
     if (_target) {
         return _target->LoadNetwork(network, config);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -46,7 +46,7 @@ MockPlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, s
     if (_target) {
         return _target->LoadNetwork(network, config, context);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -62,7 +62,7 @@ MockPlugin::ImportNetworkImpl(std::istream& networkModel,
     if (_target) {
         return _target->ImportNetwork(networkModel, config);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -73,7 +73,7 @@ MockPlugin::ImportNetworkImpl(std::istream& networkModel,
     if (_target) {
         return _target->ImportNetwork(networkModel, context, config);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -81,7 +81,7 @@ InferenceEngine::RemoteContext::Ptr MockPlugin::GetDefaultContext(const Inferenc
     if (_target) {
         return _target->GetDefaultContext(params);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 
@@ -91,7 +91,7 @@ MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
     if (_target) {
         return _target->QueryNetwork(network, config);
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 }
 

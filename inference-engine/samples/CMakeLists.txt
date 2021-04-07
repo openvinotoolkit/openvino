@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -141,6 +141,10 @@ if(IE_NOT_FOUND_MESSAGE)
     endif()
 else()
     find_package(InferenceEngine 2.1 REQUIRED)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
+    add_subdirectory(common/utils)
 endif()
 
 # format reader must be added after find_package(InferenceEngine) to get

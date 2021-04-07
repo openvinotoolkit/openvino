@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <deque>
@@ -413,9 +401,23 @@ AxisVector ngraph::get_default_order(const Shape& shape)
     return get_default_order(shape.size());
 }
 
+AxisVector ngraph::get_default_order(const PartialShape& shape)
+{
+    return get_default_order(shape.rank());
+}
+
 AxisVector ngraph::get_default_order(size_t rank)
 {
     AxisVector default_order(rank);
+    std::iota(begin(default_order), end(default_order), 0);
+    return default_order;
+}
+
+AxisVector ngraph::get_default_order(const Rank& rank)
+{
+    NGRAPH_CHECK(rank.is_static(), "Can not calculate default order for dynamic rank");
+
+    AxisVector default_order(rank.get_length());
     std::iota(begin(default_order), end(default_order), 0);
     return default_order;
 }

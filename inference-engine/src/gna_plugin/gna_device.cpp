@@ -235,7 +235,7 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
                                         ? errorReasons.at(reason)
                                         : "Unknown Error Reason";
         ss << "   Reason (" << std::to_string(reason) << "): " << errorReason << "\n";
-        ss << "   Value (0x" << std::hex << std::to_string(error.Value) << ")";
+        ss << "   Value (0x" << std::hex << error.Value << ")";
 
         THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " <<
             gna2StatusBuffer.data() << ss.str() <<

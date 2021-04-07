@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,9 +81,10 @@ inline int get_cv_depth(const TensorDesc &ie_desc) {
     case Precision::U8:   return CV_8U;
     case Precision::FP32: return CV_32F;
     case Precision::U16:  return CV_16U;
-    case Precision::FP16: return CV_16U;
+    case Precision::I16:  return CV_16S;
+    case Precision::FP16: return CV_16F;
 
-    default: THROW_IE_EXCEPTION << "Unsupported data type";
+    default: IE_THROW() << "Unsupported data type";
     }
 }
 
@@ -103,7 +104,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
 
     uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
     if (blob_ptr == nullptr) {
-        THROW_IE_EXCEPTION << "Blob buffer is nullptr";
+        IE_THROW() << "Blob buffer is nullptr";
     }
     blob_ptr += blob->element_size()*ie_desc_blk.getOffsetPadding();
 
@@ -116,7 +117,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
                 curr_data_ptr, stride);
         } else {  // NCHW
             if (desc.d.C <= 0) {
-                THROW_IE_EXCEPTION << "Invalid number of channels in blob tensor descriptor, "
+                IE_THROW() << "Invalid number of channels in blob tensor descriptor, "
                                       "expected >0, actual: " << desc.d.C;
             }
             const auto planeType = CV_MAKETYPE(cv_depth, 1);
@@ -223,7 +224,7 @@ std::vector<cv::GMat> merge(const std::vector<cv::GMat>& inputs,
     case 2: interleaved.emplace_back(gapi::Merge2::on(inputs[0], inputs[1])); break;
     case 3: interleaved.emplace_back(gapi::Merge3::on(inputs[0], inputs[1], inputs[2])); break;
     case 4: interleaved.emplace_back(gapi::Merge4::on(inputs[0], inputs[1], inputs[2], inputs[3])); break;
-    default: THROW_IE_EXCEPTION << "output channels value " << channels
+    default: IE_THROW() << "output channels value " << channels
                                 << " is not supported for HWC [by G-API]."
                                 << " Expected range (inclusive): [1;4].";
     }
@@ -240,7 +241,7 @@ void validateColorFormats(const G::Desc &in_desc,
                           ColorFormat output_color_format) {
     const auto verify_desc = [] (const G::Desc& desc, ColorFormat fmt, const std::string& desc_prefix) {
         const auto throw_invalid_number_of_channels = [&](){
-            THROW_IE_EXCEPTION << desc_prefix << " tensor descriptor "
+            IE_THROW() << desc_prefix << " tensor descriptor "
                                << "has invalid number of channels "
                                << desc.d.C << " for " << fmt
                                << "color format";
@@ -271,7 +272,7 @@ void validateColorFormats(const G::Desc &in_desc,
 
     const auto verify_layout = [] (Layout layout, const std::string& layout_prefix) {
         if (layout != NHWC && layout != NCHW) {
-            THROW_IE_EXCEPTION << layout_prefix << " layout " << layout
+            IE_THROW() << layout_prefix << " layout " << layout
                                << " is not supported by pre-processing [by G-API]";
         }
     };
@@ -279,11 +280,11 @@ void validateColorFormats(const G::Desc &in_desc,
     // verify inputs/outputs and throw on error
     const bool color_conv_required = !((output_color_format == input_color_format) || (input_color_format == ColorFormat::RAW));
     if (color_conv_required && (output_color_format == ColorFormat::RAW)) {
-        THROW_IE_EXCEPTION << "Network's expected color format is unspecified";
+        IE_THROW() << "Network's expected color format is unspecified";
     }
 
     if (output_color_format == ColorFormat::NV12 || output_color_format == ColorFormat::I420) {
-        THROW_IE_EXCEPTION << "NV12/I420 network's color format is not supported [by G-API]";
+        IE_THROW() << "NV12/I420 network's color format is not supported [by G-API]";
     }
 
     verify_layout(in_layout, "Input blob");
@@ -292,7 +293,7 @@ void validateColorFormats(const G::Desc &in_desc,
     if (!color_conv_required) {
         // verify input and output have the same number of channels
         if (in_desc.d.C != out_desc.d.C) {
-            THROW_IE_EXCEPTION << "Input and network expected blobs have different number of "
+            IE_THROW() << "Input and network expected blobs have different number of "
                                << "channels: expected " << out_desc.d.C << " channels but provided "
                                << in_desc.d.C << " channels";
         }
@@ -302,7 +303,7 @@ void validateColorFormats(const G::Desc &in_desc,
     // planar 4-channel input is not supported, user can easily pass 3 channels instead of 4
     if (in_layout == NCHW
         && (input_color_format == ColorFormat::RGBX || input_color_format == ColorFormat::BGRX)) {
-        THROW_IE_EXCEPTION << "Input blob with NCHW layout and BGRX/RGBX color format is "
+        IE_THROW() << "Input blob with NCHW layout and BGRX/RGBX color format is "
                            << "explicitly not supported, use NCHW + BGR/RGB color format "
                            << "instead (3 image planes instead of 4)";
     }
@@ -323,10 +324,10 @@ void validateTensorDesc(const TensorDesc& desc) {
     if (!supports_layout(layout)
         || dims.size() != 4
         || desc.getBlockingDesc().getStrides().size() != 4) {
-        THROW_IE_EXCEPTION << "Preprocess support NCHW/NHWC only";
+        IE_THROW() << "Preprocess support NCHW/NHWC only";
     }
     if (has_zeros(dims)) {
-        THROW_IE_EXCEPTION << "Invalid input data dimensions: "
+        IE_THROW() << "Invalid input data dimensions: "
                            << details::dumpVec(dims);
     }
 }
@@ -337,7 +338,7 @@ void validateBlob(const NV12Blob::Ptr &inBlob) {
     const auto& y_blob = inBlob->y();
     const auto& uv_blob = inBlob->uv();
     if (!y_blob || !uv_blob) {
-        THROW_IE_EXCEPTION << "Invalid underlying blobs in NV12Blob";
+        IE_THROW() << "Invalid underlying blobs in NV12Blob";
     }
 
     validateTensorDesc(uv_blob->getTensorDesc());
@@ -349,7 +350,7 @@ void validateBlob(const I420Blob::Ptr &inBlob) {
     const auto& v_blob = inBlob->v();
 
     if (!y_blob || !u_blob || !v_blob) {
-        THROW_IE_EXCEPTION << "Invalid underlying blobs in I420Blob";
+        IE_THROW() << "Invalid underlying blobs in I420Blob";
     }
 
     validateTensorDesc(u_blob->getTensorDesc());
@@ -505,7 +506,7 @@ public:
     const CvtFunction& at(ColorFormat in_fmt, ColorFormat out_fmt) const {
         auto cvtFunc = m_conversions.find(std::make_pair(in_fmt, out_fmt));
         if (cvtFunc == m_conversions.cend()) {
-            THROW_IE_EXCEPTION << "Color conversion " << in_fmt << " -> " << out_fmt
+            IE_THROW() << "Color conversion " << in_fmt << " -> " << out_fmt
                                << " is not supported";
         }
         return cvtFunc->second;
@@ -537,7 +538,7 @@ convertColorPlanar(const std::vector<cv::GMat>& inputs,
     const auto& convert = conversions.at(input_color_format, output_color_format);
     auto planes = convert(inputs, in_layout, out_layout, algorithm);
     if (planes.empty()) {
-        THROW_IE_EXCEPTION << "[G-API] internal error: failed to convert input data into planar "
+        IE_THROW() << "[G-API] internal error: failed to convert input data into planar "
                            << "format";
     }
 
@@ -624,7 +625,7 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
 
     const int number_of_planes = static_cast<int>(planes.size());
     if (number_of_planes != out_desc.d.C) {
-        THROW_IE_EXCEPTION << "[G-API] internal error: number of channels after color conversion "
+        IE_THROW() << "[G-API] internal error: number of channels after color conversion "
                            << "!= network's expected number of channels: "
                            << number_of_planes << " != " << out_desc.d.C;
     }
@@ -643,7 +644,7 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
             switch (ar) {
             case RESIZE_AREA:     return cv::INTER_AREA;
             case RESIZE_BILINEAR: return cv::INTER_LINEAR;
-            default: THROW_IE_EXCEPTION << "Unsupported resize operation";
+            default: IE_THROW() << "Unsupported resize operation";
             }
         } (algorithm);
 
@@ -764,12 +765,12 @@ void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr
     // src is either a memory blob, an NV12, or an I420 blob
     const bool yuv420_blob = src->is<NV12Blob>() || src->is<I420Blob>();
     if (!src->is<MemoryBlob>() && !yuv420_blob) {
-        THROW_IE_EXCEPTION  << "Unsupported input blob type: expected MemoryBlob, NV12Blob or I420Blob";
+        IE_THROW()  << "Unsupported input blob type: expected MemoryBlob, NV12Blob or I420Blob";
     }
 
     // dst is always a memory blob
     if (!dst->is<MemoryBlob>()) {
-        THROW_IE_EXCEPTION  << "Unsupported network's input blob type: expected MemoryBlob";
+        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
     }
 
     const auto &src_dims = src->getTensorDesc().getDims();
@@ -777,32 +778,32 @@ void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr
 
     // dimensions sizes must be equal if both blobs are memory blobs
     if (!yuv420_blob && src_dims.size() != dst_dims.size()) {
-        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Source and destination blobs "
+        IE_THROW() << "Preprocessing is not applicable. Source and destination blobs "
                               "have different number of dimensions.";
     }
     if (dst_dims.size() != 4) {
-        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Only 4D tensors are supported.";
+        IE_THROW() << "Preprocessing is not applicable. Only 4D tensors are supported.";
     }
 
     // dimensions must not have values that are equal to 0
     if (has_zeros(src_dims)) {
-        THROW_IE_EXCEPTION << "Invalid input data dimensions: " << details::dumpVec(src_dims);
+        IE_THROW() << "Invalid input data dimensions: " << details::dumpVec(src_dims);
     }
 
     if (has_zeros(dst_dims)) {
-        THROW_IE_EXCEPTION << "Invalid network's input dimensions: " << details::dumpVec(dst_dims);
+        IE_THROW() << "Invalid network's input dimensions: " << details::dumpVec(dst_dims);
     }
 }
 
 int PreprocEngine::getCorrectBatchSize(int batch, const Blob::Ptr& blob) {
     if (batch == 0) {
-        THROW_IE_EXCEPTION << "Input pre-processing is called with invalid batch size " << batch;
+        IE_THROW() << "Input pre-processing is called with invalid batch size " << batch;
     }
 
     if (blob->is<CompoundBlob>()) {
         // batch size must always be 1 in compound blob case
         if (batch > 1) {
-            THROW_IE_EXCEPTION  << "Provided input blob batch size " << batch
+            IE_THROW()  << "Provided input blob batch size " << batch
                                 << " is not supported in compound blob pre-processing";
         }
         batch = 1;
@@ -922,13 +923,13 @@ void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
     // according to the IE's current design, input blob batch size _must_ match networks's expected
     // batch size, even if the actual processing batch size (set on infer request) is different.
     if (in_desc.d.N != out_desc.d.N) {
-        THROW_IE_EXCEPTION  << "Input blob batch size is invalid: (input blob) "
+        IE_THROW()  << "Input blob batch size is invalid: (input blob) "
                             << in_desc.d.N << " != " << out_desc.d.N << " (expected by network)";
     }
 
     // sanity check batch size
     if (batch_size > out_desc.d.N) {
-        THROW_IE_EXCEPTION  << "Provided batch size is invalid: (provided)"
+        IE_THROW()  << "Provided batch size is invalid: (provided)"
                             << batch_size << " > " << out_desc.d.N << " (expected by network)";
     }
 
@@ -944,7 +945,7 @@ void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
 
     if (algorithm == NO_RESIZE && std::get<0>(thisCall) == std::get<1>(thisCall)) {
         //if requested output parameters match input blob no need to do anything
-        THROW_IE_EXCEPTION  << "No job to do in the PreProcessing ?";
+        IE_THROW()  << "No job to do in the PreProcessing ?";
     }
 
     const Update update = needUpdate(thisCall);
@@ -983,7 +984,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
     // output is always a memory blob
     auto outMemoryBlob = as<MemoryBlob>(outBlob);
     if (!outMemoryBlob) {
-        THROW_IE_EXCEPTION  << "Unsupported network's input blob type: expected MemoryBlob";
+        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
     }
 
     // FIXME: refactor the code below. there must be a better way to handle the difference
@@ -993,7 +994,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
     case ColorFormat::NV12: {
         auto inNV12Blob = as<NV12Blob>(inBlob);
         if (!inNV12Blob) {
-            THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
+            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected NV12Blob";
         }
         return preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
@@ -1002,7 +1003,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
     case ColorFormat::I420: {
         auto inI420Blob = as<I420Blob>(inBlob);
         if (!inI420Blob) {
-            THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
+            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected I420Blob";
         }
         return preprocessBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
@@ -1012,7 +1013,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
     default:
         auto inMemoryBlob = as<MemoryBlob>(inBlob);
         if (!inMemoryBlob) {
-            THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
+            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected MemoryBlob";
         }
         return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
