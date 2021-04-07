@@ -12,6 +12,7 @@
 
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
+#include <vpu/configuration/options/dump_all_passes.hpp>
 
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/file_system.hpp>
@@ -102,7 +103,7 @@ void BackEnd::dumpModel(
     }
 
     if (!postfix.empty()) {
-        if (!env.config.compileConfig().dumpAllPasses) {
+        if (!env.config.get<DumpAllPassesOption>()) {
             return;
         }
 

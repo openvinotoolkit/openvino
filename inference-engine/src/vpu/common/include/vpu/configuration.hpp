@@ -39,8 +39,6 @@ struct CompilationConfig {
         return noneLayers.count(layerType) != 0;
     }
 
-    bool dumpAllPasses;
-
     bool disableReorder = false;  // TODO: rename to enableReorder and switch logic.
     bool disableConvertStages = false;
     bool checkPreprocessingInsideModel = true;

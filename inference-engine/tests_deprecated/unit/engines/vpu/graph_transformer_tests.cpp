@@ -39,6 +39,7 @@
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
+#include <vpu/configuration/options/dump_all_passes.hpp>
 
 namespace vpu {
 
@@ -222,6 +223,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableMemoryTypesAnnotationOption>();
     configuration.registerOption<DumpInternalGraphFileNameOption>();
     configuration.registerOption<DumpAllPassesDirectoryOption>();
+    configuration.registerOption<DumpAllPassesOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
@@ -269,7 +271,8 @@ void GraphTransformerTest::InitCompileEnv() {
         config.set(InferenceEngine::MYRIAD_DUMP_ALL_PASSES_DIRECTORY, envVar);
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
-        config.compileConfig().dumpAllPasses = std::stoi(envVar) != 0;
+        config.set(InferenceEngine::MYRIAD_DUMP_ALL_PASSES, std::stoi(envVar) != 0
+            ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
     }
 
     CompileEnv::init(platform, config, _log);

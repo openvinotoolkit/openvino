@@ -38,6 +38,7 @@
 #include <vpu/configuration/options/enable_memory_types_annotation.hpp>
 #include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
 #include <vpu/configuration/options/dump_all_passes_directory.hpp>
+#include <vpu/configuration/options/dump_all_passes.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -106,6 +107,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<EnableMemoryTypesAnnotationOption>();
     _configuration.registerOption<DumpInternalGraphFileNameOption>();
     _configuration.registerOption<DumpAllPassesDirectoryOption>();
+    _configuration.registerOption<DumpAllPassesOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));

@@ -56,8 +56,6 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_COMPILER_LOG_FILE_PATH,
 
-        ie::MYRIAD_DUMP_ALL_PASSES,
-
         //
         // Private deprecated options
         //
@@ -123,7 +121,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     ParsedConfigBase::parse(config);
 
     setOption(_compilerLogFilePath,                                    config, ie::MYRIAD_COMPILER_LOG_FILE_PATH);
-    setOption(_compileConfig.dumpAllPasses,                  switches, config, ie::MYRIAD_DUMP_ALL_PASSES);
 
     setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
     setOption(_compileConfig.disableReorder,                 switches, config, ie::MYRIAD_DISABLE_REORDER);
@@ -166,9 +163,6 @@ IE_SUPPRESS_DEPRECATED_END
 #ifndef NDEBUG
     if (const auto envVar = std::getenv("IE_VPU_COMPILER_LOG_FILE_PATH")) {
         _compilerLogFilePath = envVar;
-    }
-    if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
-        _compileConfig.dumpAllPasses = std::stoi(envVar) != 0;
     }
 #endif
 }
