@@ -62,6 +62,7 @@ usage: benchmark_app.py [-h] [-i PATH_TO_INPUT] -m PATH_TO_MODEL
                         [-nthreads NUMBER_THREADS] [-pin {YES,NO}]
                         [--exec_graph_path EXEC_GRAPH_PATH]
                         [-pc [PERF_COUNTS]]
+                        [-mode {cython, pybind}]
 
 Options:
   -h, --help            Show this help message and exit.
@@ -142,6 +143,9 @@ Options:
                         parameters. Please note, command line parameters have
                         higher priority then parameters from configuration
                         file.
+  -mode {cython, pybind}
+                        Optional. Choose between old and new python api.
+                        Default: cython
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
