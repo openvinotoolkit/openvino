@@ -10,8 +10,7 @@ Sample usage:
 python3 -m pytest --test_conf=<path to test config> \
     --sea_runtool=./thirdparty/itt_collector/runtool/sea_runtool.py --artifacts ./compiled test_collect.py \
     --collector_dir=./bin/intel64/Release --artifacts=<path to directory where tests write output or read input> \
-    --openvino_ref=<Path to root directory with installed OpenVINO> \
-    --openvino_cc=<Path to openvino installation dir after conditional compilation>
+    --openvino_ref=<Path to root directory with installed OpenVINO>
 """
 
 import sys
@@ -51,7 +50,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "-A",
         "--artifacts",
-        required=False,
+        required=True,
         type=Path,
         help="Artifacts directory where tests write output or read input",
     )
@@ -59,11 +58,6 @@ def pytest_addoption(parser):
         "--openvino_ref",
         type=Path,
         help="Path to root directory with installed OpenVINO",
-    )
-    parser.addoption(
-        "--openvino_cc",
-        type=Path,
-        help="Path to openvino installation dir after conditional compilation",
     )
 
 
@@ -110,9 +104,3 @@ def artifacts(request):
 def openvino_root_dir(request):
     """Fixture function for command-line option."""
     return request.config.getoption("openvino_ref")
-
-
-@pytest.fixture(scope="session")
-def openvino_cc(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption("openvino_cc")

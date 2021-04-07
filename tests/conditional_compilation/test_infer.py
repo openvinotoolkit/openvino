@@ -26,11 +26,12 @@ def run_infer(model, out, install_dir):
     return returncode, output
 
 
-def test_infer(test_id, model, artifacts, openvino_root_dir, openvino_cc):
+def test_infer(test_id, model, artifacts, openvino_root_dir):
     """ Test inference with conditional compiled binaries
     """
+    install_prefix = artifacts / test_id / "install_pkg"
     out = artifacts / test_id
     returncode, output = run_infer(model, out, openvino_root_dir)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
-    returncode, output = run_infer(model, f"{out}_cc", openvino_cc)
+    returncode, output = run_infer(model, f"{out}_cc", install_prefix)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"

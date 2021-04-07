@@ -27,12 +27,13 @@ def run_infer(model, out, install_dir):
     )
 
 
-def test_verify(test_id, model, artifacts, openvino_root_dir, openvino_cc, tolerance=0.000001):  # pylint: disable=too-many-arguments
+def test_verify(test_id, model, artifacts, openvino_root_dir, tolerance=0.000001):  # pylint: disable=too-many-arguments
     """ Test verifying that inference results are equal
     """
     out = artifacts / test_id
+    install_prefix = artifacts / test_id / "install_pkg"
     run_infer(model, out, openvino_root_dir)
-    run_infer(model, f"{out}_cc", openvino_cc)
+    run_infer(model, f"{out}_cc", install_prefix)
     results = glob.glob(f"{out}*.npz")
     assert len(results) == 2, f"Too much or too few .npz files: {len(results)}"
     reference_results = np.load(results[0])
