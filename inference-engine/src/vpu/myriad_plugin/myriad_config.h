@@ -16,15 +16,6 @@
 namespace vpu {
 namespace MyriadPlugin {
 
-// Must be synchronized with firmware side.
-VPU_DECLARE_ENUM(MovidiusDdrType,
-    AUTO        = 0,
-    MICRON_2GB  = 1,
-    SAMSUNG_2GB = 2,
-    HYNIX_2GB   = 3,
-    MICRON_1GB  = 4,
-)
-
 class MyriadConfig : public virtual ParsedConfig {
 public:
     const std::string& pluginLogFilePath() const {
@@ -43,10 +34,6 @@ public:
         return _platform;
     }
 
-    MovidiusDdrType memoryType() const {
-        return _memoryType;
-    }
-
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -58,7 +45,6 @@ private:
     bool _forceReset = false;
     bool _enableAsyncDma = true;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
-    MovidiusDdrType _memoryType = MovidiusDdrType::AUTO;
 };
 
 }  // namespace MyriadPlugin

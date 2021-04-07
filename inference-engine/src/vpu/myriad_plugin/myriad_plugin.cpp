@@ -58,6 +58,7 @@
 #include <vpu/configuration/options/detect_network_batch.hpp>
 #include <vpu/configuration/options/custom_layers.hpp>
 #include <vpu/configuration/options/config_file.hpp>
+#include <vpu/configuration/options/memory_type.hpp>
 
 #include "myriad_plugin.h"
 
@@ -226,6 +227,7 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<DetectNetworkBatchOption>();
     _parsedConfig.registerOption<CustomLayersOption>();
     _parsedConfig.registerOption<ConfigFileOption>();
+    _parsedConfig.registerOption<MemoryTypeOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
@@ -236,6 +238,7 @@ IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
     _parsedConfig.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
     _parsedConfig.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
+    _parsedConfig.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
 IE_SUPPRESS_DEPRECATED_END
 }
 

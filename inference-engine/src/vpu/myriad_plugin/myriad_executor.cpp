@@ -24,6 +24,7 @@
 #include <vpu/configuration/options/watchdog_interval.hpp>
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/memory_type.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
@@ -145,7 +146,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     ncDeviceOpenParams_t deviceOpenParams = {};
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
     deviceOpenParams.watchdogInterval = static_cast<int>(config.get<WatchdogIntervalOption>().count());
-    deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
+    deviceOpenParams.memoryType = static_cast<char>(config.get<MemoryTypeOption>());
     deviceOpenParams.customFirmwareDirectory = dirName.c_str();
 
     // Open new device with specific path to FW folder

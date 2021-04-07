@@ -32,12 +32,9 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
 
-        ie::MYRIAD_DDR_TYPE,
-
         // Deprecated
         VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
         VPU_MYRIAD_CONFIG_KEY(PLATFORM),
-        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -49,7 +46,6 @@ IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getDeprecatedOptions(), {
         VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
         VPU_MYRIAD_CONFIG_KEY(PLATFORM),
-        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -63,35 +59,17 @@ IE_SUPPRESS_DEPRECATED_START
         { VPU_MYRIAD_CONFIG_VALUE(2480), NC_MYRIAD_X },
         { std::string(),                 NC_ANY_PLATFORM }
     };
-
-    static const std::unordered_map<std::string, MovidiusDdrType> memoryTypesDeprecated = {
-         { VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),     MovidiusDdrType::AUTO },
-         { VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),   MovidiusDdrType::MICRON_2GB },
-         { VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),  MovidiusDdrType::SAMSUNG_2GB },
-         { VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),    MovidiusDdrType::HYNIX_2GB },
-         { VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),   MovidiusDdrType::MICRON_1GB }
-    };
 IE_SUPPRESS_DEPRECATED_END
-
-    static const std::unordered_map<std::string, MovidiusDdrType> memoryTypes = {
-        { ie::MYRIAD_DDR_AUTO,         MovidiusDdrType::AUTO },
-        { ie::MYRIAD_DDR_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
-        { ie::MYRIAD_DDR_SAMSUNG_2GB,  MovidiusDdrType::SAMSUNG_2GB },
-        { ie::MYRIAD_DDR_HYNIX_2GB,    MovidiusDdrType::HYNIX_2GB },
-        { ie::MYRIAD_DDR_MICRON_1GB,   MovidiusDdrType::MICRON_1GB }
-    };
 
     ParsedConfig::parse(config);
 
     setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
     setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
-    setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);
     setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
 
 IE_SUPPRESS_DEPRECATED_START
     setOption(_forceReset,       switches,              config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
     setOption(_platform,         platformsDeprecated,   config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
-    setOption(_memoryType,       memoryTypesDeprecated, config, VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
 IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG
