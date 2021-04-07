@@ -49,7 +49,7 @@ endfunction()
 
 python_disable_deprecated_warnings()
 
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
 target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier

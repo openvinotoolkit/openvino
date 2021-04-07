@@ -537,9 +537,9 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         pugi::xml_node dn = node.child("data");
 
         if (!dn.empty()) {
-            std::vector<std::pair<std::string, std::string>> attrs;
+            std::map<std::string, std::string> attrs;
             for (const auto & data_attr : dn.attributes()) {
-                attrs.emplace_back(std::make_pair(data_attr.name(), data_attr.as_string()));
+                attrs[data_attr.name()] = data_attr.as_string();
             }
             node_attrs.set_attrs(attrs);
         }

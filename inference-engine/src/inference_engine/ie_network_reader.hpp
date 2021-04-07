@@ -20,7 +20,7 @@ namespace details {
  * @param exts vector with extensions
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts);
+CNNNetwork INFERENCE_ENGINE_API_CPP(ReadNetwork) (const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts);
 
 CNNNetwork INFERENCE_ENGINE_API_CPP(ReadNetworkWithoutExtensions) (const std::string& modelPath, const std::string& binPath = "");
 

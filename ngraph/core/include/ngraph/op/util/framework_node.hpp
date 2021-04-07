@@ -26,12 +26,12 @@ namespace ngraph
 
                 const std::string& get_type_name() const { return m_type_name; }
 
-                const std::vector<std::pair<std::string, std::string>>& get_attrs() const
+                const std::map<std::string, std::string>& get_attrs() const
                 {
                     return m_attrs;
                 }
 
-                void set_attrs(const std::vector<std::pair<std::string, std::string>>& attrs)
+                void set_attrs(const std::map<std::string, std::string>& attrs)
                 {
                     m_attrs = attrs;
                 }
@@ -40,7 +40,7 @@ namespace ngraph
                 std::string m_type_name;
                 std::string m_opset_name;
 
-                std::vector<std::pair<std::string, std::string>> m_attrs;
+                std::map<std::string, std::string> m_attrs;
             };
 
             class NGRAPH_API FrameworkNode : public Op
