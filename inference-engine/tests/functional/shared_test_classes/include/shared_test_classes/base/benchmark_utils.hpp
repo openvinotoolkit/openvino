@@ -175,11 +175,13 @@ public:
     }
 
     void testDurations(const std::vector<Clock::Duration>& durations) override {
-        file << durations.size();
+        file << durations.size() << ",\"";
+        const char* glue = "";
         for (const auto& d : durations) {
-            file << "," << microseconds(d);
+            file << glue << microseconds(d);
+            glue = ",";
         }
-        file << "\n";
+        file << "\"\n";
     }
 
     void flush() override {
