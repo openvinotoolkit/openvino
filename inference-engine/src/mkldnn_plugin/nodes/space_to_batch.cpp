@@ -31,7 +31,7 @@ public:
 
             auto data = spaceToBatchLayer->insData[0].lock();
             if (!data)
-                THROW_IE_EXCEPTION << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has nullable input data";
+                IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has nullable input data";
 
             inDims = data->getTensorDesc().getDims();
             if (inDims.size() < 4)
