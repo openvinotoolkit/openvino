@@ -217,40 +217,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { ngraph::element::f32, {}, { 0.005f } }
         }
     },
-    // U8: concat multi channels with per-channel quantization
-    {
-        { 1, 6, 10, 10 },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, {2.55f / 2.f} },
-            {
-                256ul,
-                ngraph::Shape({ 1, 6, 1, 1 }),
-                {0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-                {255.f, 25.5f, 2.55f, 25.5f, 255.f, 2.55f},
-                {0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-                {255.f, 25.5f, 2.55f, 25.5f, 255.f, 2.55f}
-            }
-        },
-        {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, {255.f}},
-            {
-                256ul,
-                ngraph::Shape({ 1, 6, 1, 1 }),
-                {0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-                {255.f, 25.5f, 2.55f, 25.5f, 255.f, 2.55f},
-                {0.f},
-                {255.f}
-            },
-            ngraph::element::u8,
-            {{}, {}, {}},
-            {{}, {}, {}},
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 1.f, 0.1f, 0.01f }} },
-            { ngraph::element::f32, {}, {{ 0.1f, 1.f, 0.01f }} }
-        }
-    },
     // I8: concat multi channels
     {
         { 1, 6, 10, 10 },
@@ -293,8 +259,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
+// TODO: Split/VariadicSplit operations are not supported in ConcatTransformation
 INSTANTIATE_TEST_CASE_P(
-    smoke_LPT,
+    DISABLED_smoke_LPT,
     ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
