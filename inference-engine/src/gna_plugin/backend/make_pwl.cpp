@@ -18,6 +18,7 @@ void make_gna_pwl(const DnnActivation  fun,
                   const double u_bound,
                   const double in_scale,
                   const double out_scale,
+                  const bool low_precision,
                   std::vector<gna_pwl_segment_t> &gna_pwl) {
     pwl_gna_slope_scale_t s;
     uint32_t pwl_size = static_cast<int32_t>(pwl.size());
@@ -230,7 +231,7 @@ void make_gna_pwl(const DnnActivation  fun,
                 gnalog() << "=========================== LeakyReLU Segments ======================\n";
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
-            int16_t y_lower = INT16_MIN;
+            int16_t y_lower = low_precision ? INT8_MIN : INT16_MIN;
             int16_t y_upper = INT16_MAX;
             if (fun.fqParams.set) {
                 x_lower = FLOAT_TO_INT32(*fun.fqParams.input_low * 1.25 * in_scale);

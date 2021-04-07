@@ -15,4 +15,5 @@ void make_gna_pwl(const DnnActivation  fun,
                   const double u_bound,
                   const double in_scale,
                   const double out_scale,
+                  const bool low_precision,
                   std::vector<gna_pwl_segment_t> &gna_pwl);
