@@ -28,7 +28,10 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                 const auto& inputs = node.get_node()->input_values();
                 const auto& node_type_info = inputs[0].get_node()->get_type_info();
                 return node_type_info != opset5::Convolution::type_info &&
-                       node_type_info != opset5::GroupConvolution::type_info;
+                       node_type_info != opset5::GroupConvolution::type_info &&
+                       node_type_info != opset5::ConvolutionBackpropData::type_info &&
+                       node_type_info != opset5::GroupConvolutionBackpropData::type_info &&
+                       node_type_info != opset5::MatMul::type_info;
             });
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({add_pattern,
                                                                         ngraph::pattern::any_input(),
