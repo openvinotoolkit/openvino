@@ -20,17 +20,17 @@ The following Inference Engine Python API is used in the application:
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to Inference Engine plugin, performs synchronous inference and processes output data, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
-Run the application with the -h option to see the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
 
 ```
-python3 hello_classification.py -h
+python hello_classification.py -h
 ```
 
 Usage message:
@@ -71,7 +71,7 @@ To run the sample, you need specify a model and image:
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-python3 hello_classification.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp -d GPU
+python hello_classification.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp -d GPU
 ```
 
 ## Sample Output

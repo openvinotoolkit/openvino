@@ -21,7 +21,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to Inference Engine plugin, performs synchronous inference and processes output data.  
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin, performs synchronous inference, and processes output data.  
 As a result, the program creates an output image, logging each step in a standard output stream.
 
 You can see the explicit description of
@@ -29,10 +29,10 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the -h option to see the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
 
 ```
-python3 object_detection_sample_ssd.py -h
+python object_detection_sample_ssd.py -h
 ```
 
 Usage message:
@@ -80,7 +80,7 @@ To run the sample, you need specify a model and image:
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-python3 object_detection_sample_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/cat.bmp -d GPU
+python object_detection_sample_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/cat.bmp -d GPU
 ```
 
 ## Sample Output

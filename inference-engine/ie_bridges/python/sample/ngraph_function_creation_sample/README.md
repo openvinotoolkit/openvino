@@ -1,6 +1,6 @@
 # nGraph Function Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an inference using ngraph::Function to create a network, which uses weights from LeNet classification network.  
+This sample demonstrates how to execute an inference using [nGraph function feature](../../../../../docs/nGraph_DG/build_function.md) to create a network, which uses weights from LeNet classification network.  
 In addition to regular images, the sample also supports single-channel ubyte images as an input.
 
 You do not need an XML file to create a network. The API of ngraph::Function allows to create a network on the fly from the source code.
@@ -9,7 +9,7 @@ The following Inference Engine Python API is used in the application:
 
 | Feature            | API                                                                                                                                                                                                                                        | Description                                           |
 | :----------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| Network Operations | [IENetwork]                                                                                                | Managing of network |
+| Network Operations | [IENetwork], [IENetwork.batch_size]                                                                                                | Managing of network |
 | nGraph Functions   | [ngraph.impl.Function], [ngraph.parameter], [ngraph.constant], [ngraph.convolution], [ngraph.add], [ngraph.max_pool], [ngraph.reshape], [ngraph.matmul], [ngraph.relu], [ngraph.softmax], [ngraph.result], ngraph.impl.Function.to_capsule | Description of a network using nGraph Python API      |
 
 Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
@@ -21,17 +21,17 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, creates a network using the ngraph::Function API and passed weights file, loads the network and image to Inference Engine plugin, performs synchronous inference and processes output data, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, creates a network using [nGraph function feature](../../../../../docs/nGraph_DG/build_function.md) and passed weights file, loads the network and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
-Run the application with the -h option to see the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
 
 ```
-python3 ngraph_function_creation_sample.py -h
+python ngraph_function_creation_sample.py -h
 ```
 
 Usage message:
@@ -71,7 +71,7 @@ To run the sample, you need specify a model weights and image:
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-python3 ngraph_function_creation_sample.py -m <path_to_model>/alexnet.xml -i <path_to_image>/car.bmp -d GPU
+python ngraph_function_creation_sample.py -m <path_to_model>/lenet.bin -i <path_to_image>/car.bmp -d GPU
 ```
 
 ## Sample Output
@@ -130,6 +130,7 @@ The sample application logs each step in a standard output stream and outputs to
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
 [IENetwork]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html
+[IENetwork.batch_size]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#a79a647cb1b49645616eaeb2ca255ef2e
 [IENetwork.input_info]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
 [IENetwork.outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
 [InputInfoPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields

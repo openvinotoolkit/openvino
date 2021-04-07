@@ -22,18 +22,18 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to Inference Engine plugin, performs synchronous inference and processes output data.  
-As a result, the program creates an output image, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data.  
+As a result, the program creates an output image(s), logging each step in a standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
-Run the application with the -h option to see the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
 
 ```
-python3 style_transfer_sample.py -h
+python style_transfer_sample.py -h
 ```
 
 Usage message:
@@ -93,12 +93,12 @@ To run the sample, you need specify a model and image:
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-python3 style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.png <path_to_image>/cat.jpg -d GPU
+python style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.png <path_to_image>/cat.jpg -d GPU
 ```
 
 ## Sample Output
 
-The sample application logs each step in a standard output stream and creates an output image.
+The sample application logs each step in a standard output stream and creates an output image (`out_0.bmp`) or a sequence of images (`out_0.bmp`, .., `out_<n>.bmp`) that are redrawn in the style of the style transfer model used.
 
 ```
 [ INFO ] Creating Inference Engine

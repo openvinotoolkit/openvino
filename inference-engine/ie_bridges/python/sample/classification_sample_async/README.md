@@ -7,7 +7,7 @@ The following Inference Engine Python API is used in the application:
 
 | Feature                  | API                                                                                                                         | Description                                           |
 | :----------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| Asynchronous Infer       | [InferRequest.async_infer]                                                                                                  | Do asynchronous inference                             |
+| Asynchronous Infer       | [InferRequest.async_infer], [InferRequest.wait], [Blob.buffer]                                                                                                  | Do asynchronous inference                             |
 | Custom Extension Kernels | [IECore.add_extension], [IECore.set_config]                                                                                 | Load extension library and config to the device       |
 
 Basic Inference Engine API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
@@ -21,17 +21,17 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to Inference Engine plugin, performs synchronous inference and processes output data, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image(s) to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
-Run the application with the -h option to see the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
 
 ```
-python3 classification_sample_async.py -h
+python classification_sample_async.py -h
 ```
 
 Usage message:
@@ -81,7 +81,7 @@ To run the sample, you need specify a model and image:
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-python3 classification_sample_async.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp <path_to_image>/car.bmp -d GPU
+python classification_sample_async.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp <path_to_image>/car.bmp -d GPU
 ```
 
 ## Sample Output
@@ -149,3 +149,6 @@ The sample application logs each step in a standard output stream and outputs to
 [IECore.load_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
 [InputInfoPtr.input_data.shape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
 [InferRequest.async_infer]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InferRequest.html#a95ebe0368cdf4d5d64f9fddc8ee1cd0e
+[InferRequest.wait]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InferRequest.html#a936fa50a7531e2f9a9e9c3d45afc9b43
+<!-- TODO replace by python API link -->
+[Blob.buffer]:https://docs.openvinotoolkit.org/latest/classInferenceEngine_1_1Blob.html#a0cad47b43204b115b4017b6b2564fa7e
