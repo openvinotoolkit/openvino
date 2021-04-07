@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -609,6 +609,52 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {},
             ngraph::element::f32,
             { {element::f32}, {}, { 0.01f } },
+        }
+    },
+    // unexpected quantization levels, concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            ngraph::element::f32,
+            {},
+        }
+    },
+    // unexpected quantization levels, concat multi channels
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            ngraph::element::f32,
+            {},
         }
     }
 };

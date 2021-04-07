@@ -32,6 +32,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -113,7 +114,7 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
         if (device_map.find(val) == device_map.end()) {
-            THROW_IE_EXCEPTION << "Invalid device ID: " << val;
+            IE_THROW() << "Invalid device ID: " << val;
         }
         device_info = device_map.at(val).get_info();
     }
@@ -148,7 +149,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
             }
 
             manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -180,6 +181,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     {ngraph::element::u16, ngraph::element::i32},
                     {ngraph::element::u32, ngraph::element::i32},
                     {ngraph::element::boolean, ngraph::element::u8},
+                    {ngraph::element::i4, ngraph::element::i8},
+                    {ngraph::element::u4, ngraph::element::u8},
             };
 
             for (auto& precision : convert_precision_list) {
@@ -321,6 +324,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return false;
                 });
 
+            pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+                [](const_node_ptr &node) -> bool {
+                    return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+                });
+
             // List of enabled/disabled transformations
             pass_config->disable<ngraph::pass::ConvertGELU>();
             pass_config->disable<ngraph::pass::ConvertMod>();
@@ -441,7 +449,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
             input_precision != InferenceEngine::Precision::I32 &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
-            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
+            IE_THROW(NotImplemented)
                 << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -486,7 +494,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
-               context_config.device_id == current_config.device_id;
+               context_config.device_id == current_config.device_id &&
+               context_config.n_threads == current_config.n_threads;
     };
 
     {
@@ -514,7 +523,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     auto casted = std::dynamic_pointer_cast<ClContext>(context);
     if (nullptr == casted) {
-        THROW_IE_EXCEPTION << "Invalid context";
+        IE_THROW() << "Invalid context";
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
@@ -539,7 +548,7 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
 #endif
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
-        THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;
+        IE_THROW() << "Invalid remote context type" << contextTypeStr;
     }
 }
 
@@ -569,7 +578,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     auto function = network.getFunction();
     if (function == nullptr) {
-        THROW_IE_EXCEPTION << "CNNetworkImpl representation is not supported anymore";
+        IE_THROW() << "CNNetworkImpl representation is not supported anymore";
     }
 
     std::unordered_set<std::string> originalOpNames;
@@ -781,7 +790,7 @@ Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::st
     if (option != _impl->m_config.key_config_map.end()) {
         result = option->second;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported config key : " << name;
+        IE_THROW() << "Unsupported config key : " << name;
     }
     return result;
 }
@@ -856,7 +865,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported metric key " << name;
+        IE_THROW() << "Unsupported metric key " << name;
     }
 }
 

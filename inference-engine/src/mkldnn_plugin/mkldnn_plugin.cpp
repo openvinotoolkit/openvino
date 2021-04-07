@@ -35,6 +35,7 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -104,6 +105,7 @@ Engine::Engine() {
 }
 
 Engine::~Engine() {
+    ExecutorManager::getInstance()->clear("CPU");
     ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
@@ -119,7 +121,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
 
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
@@ -147,6 +149,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             {ngraph::element::f64,     ngraph::element::f32},
             {ngraph::element::f16,     ngraph::element::f32},
             {ngraph::element::boolean, ngraph::element::u8},
+            {ngraph::element::i4, ngraph::element::i8},
+            {ngraph::element::u4, ngraph::element::u8},
     };
 
     for (auto &precision : convert_precision_list) {
@@ -255,6 +259,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
                 return MKLDNNMVNNode::checkAxesSuitability(node);
+            });
+
+    pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+            [](const_node_ptr &node) -> bool {
+                return node->input_value(0).get_partial_shape().rank().get_length() > 5;
             });
 
     // List of enabled/disabled transformations
@@ -383,7 +392,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             input_precision != InferenceEngine::Precision::BOOL &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::U64) {
-            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
+            IE_THROW(NotImplemented)
                                << "Input image format " << input_precision << " is not supported yet...";
         }
     }
@@ -441,7 +450,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     if (option != engConfig._config.end()) {
         result = option->second;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported config key " << name;
+        IE_THROW() << "Unsupported config key " << name;
     }
     return result;
 }
@@ -517,7 +526,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported metric key " << name;
+        IE_THROW() << "Unsupported metric key " << name;
     }
 }
 

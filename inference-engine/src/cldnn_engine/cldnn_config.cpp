@@ -11,6 +11,7 @@
 #include "ie_api.h"
 #include "file_utils.h"
 #include "cldnn_itt.h"
+#include <thread>
 
 #ifdef _WIN32
 # include <direct.h>
@@ -35,7 +36,7 @@ static void createDirectory(std::string _path) {
 
     auto err = mkdir(path, 0755);
     if (err != 0 && errno != EEXIST) {
-        THROW_IE_EXCEPTION << "Couldn't create directory! (err=" << err << "; errno=" << errno << ")";
+        IE_THROW() << "Couldn't create directory! (err=" << err << "; errno=" << errno << ")";
     }
 }
 
@@ -51,7 +52,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 useProfiling = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
         } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
@@ -59,7 +60,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 enableDynamicBatch = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
         } else if (key.compare(PluginConfigParams::KEY_DUMP_KERNELS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
@@ -67,14 +68,14 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 dumpCustomKernels = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY) == 0) {
             std::stringstream ss(val);
             uint32_t uVal(0);
             ss >> uVal;
             if (ss.fail()) {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
             switch (uVal) {
                 case 0:
@@ -90,7 +91,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                     queuePriority = cldnn::priority_mode_types::high;
                     break;
                 default:
-                    THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Unsupported queue priority value: " << uVal;
+                    IE_THROW(ParameterMismatch) << "Unsupported queue priority value: " << uVal;
             }
 
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) == 0) {
@@ -98,7 +99,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             uint32_t uVal(0);
             ss >> uVal;
             if (ss.fail()) {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
             switch (uVal) {
                 case 0:
@@ -114,7 +115,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                     queueThrottle = cldnn::throttle_mode_types::high;
                     break;
                 default:
-                    THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch) << "Unsupported queue throttle value: " << uVal;
+                    IE_THROW(ParameterMismatch) << "Unsupported queue throttle value: " << uVal;
             }
         } else if (key.compare(PluginConfigParams::KEY_CONFIG_FILE) == 0) {
             std::stringstream ss(val);
@@ -136,7 +137,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::TUNING_RETUNE) == 0) {
                 tuningConfig.mode = cldnn::tuning_mode::tuning_retune_and_cache;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported tuning mode value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported tuning mode value by plugin: " << val;
             }
         } else if (key.compare(PluginConfigParams::KEY_TUNING_FILE) == 0) {
             tuningConfig.cache_file_path = val;
@@ -146,7 +147,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 memory_pool_on = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported memory pool flag value: " << val;
+                IE_THROW(NotFound) << "Unsupported memory pool flag value: " << val;
             }
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR) == 0) {
             if (!val.empty()) {
@@ -169,7 +170,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 exclusiveAsyncRequests = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0) {
@@ -179,7 +180,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 try {
                     val_i = std::stoi(val);
                 } catch (const std::exception&) {
-                    THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS
+                    IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS
                                        << ". Expected only positive numbers (#streams) or "
                                        << "PluginConfigParams::GPU_THROUGHPUT_AUTO";
                 }
@@ -192,7 +193,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 int val_i = std::stoi(val);
                 (void)val_i;
             } catch (const std::exception&) {
-                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_DEVICE_ID
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DEVICE_ID
                     << ". DeviceIDs are only represented by positive numbers";
             }
             // Set this value.
@@ -203,7 +204,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 enableInt8 = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property value by plugin: " << val;
+                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
@@ -211,7 +212,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 nv12_two_inputs = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported NV12 flag value: " << val;
+                IE_THROW(NotFound) << "Unsupported NV12 flag value: " << val;
             }
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
@@ -219,10 +220,24 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 enable_fp16_for_quantized_models = false;
             } else {
-                THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
+                IE_THROW(NotFound) << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
+            }
+        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS) == 0) {
+            int max_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+            try {
+                int val_i = std::stoi(val);
+                if (val_i <= 0 || val_i > max_threads) {
+                    n_threads = max_threads;
+                } else {
+                    n_threads = val_i;
+                }
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS << ": " << val
+                                   << "\nSpecify the number of threads use for build as an integer."
+                                   << "\nOut of range value will be set as a default value, maximum concurrent threads.";
             }
         } else {
-            THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Unsupported property key by plugin: " << key;
+            IE_THROW(NotFound) << "Unsupported property key by plugin: " << key;
         }
 
         adjustKeyMapValues();
@@ -306,5 +321,6 @@ void Config::adjustKeyMapValues() {
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
     key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
+    key_config_map[CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS] = std::to_string(n_threads);
 }
 }  // namespace CLDNNPlugin

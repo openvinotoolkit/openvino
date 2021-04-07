@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/interpolate.hpp"
 #include <algorithm>
@@ -175,6 +163,18 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
 
 static constexpr float epsilon = 1.0e-6f;
 
+namespace
+{
+    int64_t multiply_bound_and_scale(int64_t bound, float scale)
+    {
+        if (bound == -1)
+        {
+            return bound;
+        }
+        return static_cast<int64_t>(static_cast<float>(bound) * scale);
+    }
+}
+
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<float>& scales,
@@ -183,12 +183,15 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
     size_t i = 0;
     for (auto axis : axes)
     {
-        if (padded_input_shape[axis].is_static())
-        {
-            float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>(padded_len * (scales[i] + epsilon));
-            output_shape[axis] = Dimension(new_dim);
-        }
+        const auto& current_dim = padded_input_shape[axis];
+        float multiplier = scales[i] + epsilon;
+
+        int64_t new_lower_bound =
+            multiply_bound_and_scale(current_dim.get_min_length(), multiplier);
+        int64_t new_upper_bound =
+            multiply_bound_and_scale(current_dim.get_max_length(), multiplier);
+
+        output_shape[axis] = Dimension(new_lower_bound, new_upper_bound);
         ++i;
     }
 }

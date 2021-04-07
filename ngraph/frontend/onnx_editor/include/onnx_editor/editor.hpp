@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -20,6 +8,7 @@
 #include <map>
 #include <memory>
 
+#include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -98,14 +87,11 @@ namespace ngraph
             void set_input_values(
                 const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 
-            /// \brief Returns a non-const reference to the underlying ModelProto object, possibly
-            ///        modified by the editor's API calls
-            ///
-            /// \return A reference to ONNX ModelProto object containing the in-memory model
-            ONNX_NAMESPACE::ModelProto& model() const;
-
             /// \brief Returns a serialized ONNX model, possibly modified by the editor.
             std::string model_string() const;
+
+            /// \brief     Converts an edited ONNX model to an nGraph Function representation.
+            std::shared_ptr<Function> get_function() const;
 
             /// \brief Returns a list of all inputs of the in-memory model, including initializers.
             ///        The returned value might depend on the previous operations executed on an

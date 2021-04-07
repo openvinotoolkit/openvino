@@ -1,62 +1,21 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <fstream>
 #include <memory>
+#include <onnx/onnx_pb.h>
 
-#include "core/graph.hpp"
-#include "core/model.hpp"
-#include "core/transform.hpp"
 #include "ngraph/except.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_import/onnx.hpp"
+#include "onnx_import/utils/onnx_internal.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph
 {
     namespace onnx_import
     {
-        namespace detail
-        {
-            std::shared_ptr<Function>
-                convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
-            {
-                Model model{model_proto};
-                Graph graph{model_proto.graph(), model};
-                auto function = std::make_shared<Function>(
-                    graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
-                for (std::size_t i{0}; i < function->get_output_size(); ++i)
-                {
-                    function->get_output_op(i)->set_friendly_name(
-                        graph.get_outputs().at(i).get_name());
-                }
-                return function;
-            }
-
-            std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
-                                                        const std::string& model_path)
-            {
-                transform::expand_onnx_functions(model_proto);
-                transform::fixup_legacy_operators(model_proto);
-                transform::update_external_data_paths(model_proto, model_path);
-
-                return detail::convert_to_ng_function(model_proto);
-            }
-        } // namespace detail
-
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {

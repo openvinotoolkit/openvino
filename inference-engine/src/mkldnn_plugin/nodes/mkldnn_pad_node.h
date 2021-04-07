@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,7 @@ private:
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
         InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
+        int nThreads = 0;
         size_t nDimsForWork = 0lu;
         size_t workAmount = 0lu;
         size_t lastDstDim = 1lu;
