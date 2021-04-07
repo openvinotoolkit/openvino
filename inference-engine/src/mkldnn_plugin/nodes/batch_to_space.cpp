@@ -88,7 +88,7 @@ public:
                                   DataConfigurator(ConfLayout::ANY, batchToSpaceLayer->insData[3].lock()->getPrecision())},
                           {DataConfigurator(conf.second, precision)});
             }
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
