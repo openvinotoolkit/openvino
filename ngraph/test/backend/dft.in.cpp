@@ -444,18 +444,18 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_signal_size_eval)
     handle->call({dft_output}, {backend_data});
 
     auto result = read_vector<float>(dft_output);
-    std::cout << "Actual result: ";
-    for (auto x : result)
-    {
-        std::cout << x << ", ";
-    }
-    std::cout << "\n";
-    EXPECT_TRUE(test::all_close_f(expected_dft1d_signal_size_results, result));
-    // size_t num_of_elems = result.size();
-    // for (std::size_t j = 0; j < num_of_elems; ++j)
+    // std::cout << "Actual result: ";
+    // for (auto x : result)
     // {
-    //     EXPECT_NEAR(result[j], expected_dft1d_results[j], 0.00001);
+    //     std::cout << x << ", ";
     // }
+    std::cout << "\n";
+    // EXPECT_TRUE(test::all_close_f(expected_dft1d_signal_size_results, result));
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
+    {
+        EXPECT_NEAR(result[j], expected_dft1d_signal_size_results[j], 0.00001);
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_i32)
