@@ -7,6 +7,7 @@
 #include "include/data_types.cl"
 
 #define FEATURE_SLICE_SIZE 16
+#define unroll_for  __attribute__((opencl_unroll_hint())) for
 
 #define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE)
 #define TO_TYPE(type, val)              CAT(convert_, type)(val)
@@ -17,6 +18,12 @@
 #else
     #define READ_FUNC(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
     #define WRITE_FUNC(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
+#endif
+
+#if ELTWISE_BROADCAST
+    #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
+#else
+    #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
 __attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
@@ -84,3 +91,11 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
     }
 
 }
+
+#undef FEATURE_SLICE_SIZE
+#undef unroll_for
+#undef OUTPUT_TYPE_BLOCK
+#undef TO_TYPE
+#undef READ_FUNC
+#undef WRITE_FUNC
+#undef GET_INDEX
