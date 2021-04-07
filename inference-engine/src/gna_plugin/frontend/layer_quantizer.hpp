@@ -25,6 +25,7 @@ namespace frontend {
 /**
  * @brief description of quantisation precision
  * @tparam Ip - input precision
+ * @tparam Op - output precision
  * @tparam Wp - weights precision
  * @tparam Bp - biases precision
  * @tparam Np - network precision - can be auto generated in future
@@ -79,6 +80,12 @@ struct QuantI16 : public QuantDescTmpl<PRECISION_TYPE(I16, I32, I16, I32, MIXED)
 };
 struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), gna_compound_bias_t, P_TYPE(MIXED)> {
     QuantI8() {
+        _Np = InferenceEngine::Precision::MIXED;
+    }
+};
+// Low precision path quantizer (I8 inputs, weights, biases)
+struct QuantI8_I8 : public QuantDescTmpl<PRECISION_TYPE(I8, I32, I8, I8, MIXED)> {
+    QuantI8_I8() {
         _Np = InferenceEngine::Precision::MIXED;
     }
 };
@@ -150,6 +157,17 @@ class Quant<QuantI8> {
     template<class ...Args>
     void operator()(Args && ... args) const {
         QuantizationCallback<int8_t, gna_compound_bias_t> {
+            std::forward<Args>(args)...
+        }.runQuantize();
+    }
+};
+
+template<>
+class Quant<QuantI8_I8> {
+public:
+    template<class ...Args>
+    void operator()(Args && ... args) const {
+        QuantizationCallback<int8_t, int8_t> {
             std::forward<Args>(args)...
         }.runQuantize();
     }
@@ -650,8 +668,8 @@ template<class Desc>
 class DataQuantizer<Desc, InferenceEngine::ConvolutionLayer *> : public DataQuantizerBase {
  public:
     explicit DataQuantizer(float scaleFactor) : DataQuantizerBase(scaleFactor) {}
-    bool operator()(InferenceEngine::WeightableLayer *wl) const {
-        quantizeWeightsBiasesConv<typename Desc::OptionalType>(Desc::optional(), wl, Quant<typename Desc::OptionalType>());
+    bool operator()(InferenceEngine::ConvolutionLayer *cl) const {
+        quantizeWeightsBiasesConv<typename Desc::OptionalType>(Desc::optional(), cl, Quant<typename Desc::OptionalType>());
         return true;
     }
 };
@@ -660,8 +678,8 @@ template<class Desc>
 class DataQuantizer<Desc, InferenceEngine::ScaleShiftLayer *> : public DataQuantizerBase {
  public:
     explicit DataQuantizer(float scaleFactor) : DataQuantizerBase(scaleFactor) {}
-    bool operator()(InferenceEngine::ScaleShiftLayer *wl) const {
-        quantizeWeightsBiases<typename Desc::OptionalType>(Desc::optional(), wl, Quant<typename Desc::OptionalType>(), true);
+    bool operator()(InferenceEngine::ScaleShiftLayer *ssl) const {
+        quantizeWeightsBiases<typename Desc::OptionalType>(Desc::optional(), ssl, Quant<typename Desc::OptionalType>(), true);
         return true;
     }
 };
@@ -680,6 +698,7 @@ class LayersQuantizer : public frontend::DataQuantizerBase {
 
 using QuantI16 = frontend::QuantPair<frontend::QuantI16, frontend::QuantI16>;
 using QuantI8 = frontend::QuantPair<frontend::QuantI8, frontend::QuantI16>;
+using QuantI8_I8 = frontend::QuantPair<frontend::QuantI8_I8, frontend::QuantI8_I8>;
 
 
 using FakeQuantI16 = frontend::QuantPair<frontend::FakeQuantI16, frontend::FakeQuantI16>;
