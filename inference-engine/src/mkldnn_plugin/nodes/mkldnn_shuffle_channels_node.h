@@ -11,8 +11,6 @@
 #include <vector>
 #include "common/permute_utils.h"
 
-using namespace InferenceEngine;
-
 namespace MKLDNNPlugin {
 
 class MKLDNNShuffleChannelsNode : public MKLDNNNode, PermuteUtils {
@@ -28,7 +26,7 @@ public:
 
     void executeRef(const float* srcData, float* dstData);
 
-    SizeVector dataDims;
+    InferenceEngine::SizeVector dataDims;
     int dataRank;
     int axis;
     size_t group;

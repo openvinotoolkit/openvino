@@ -66,7 +66,7 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto srcDims = getParentEdgeAt(0)->getDims();
-    int nDims = srcDims.ToSizeVector().size();
+    int nDims = srcDims.ndims();
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
@@ -134,19 +134,26 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat();
 
     int batchRank = axis;
-    int sptialRank = dataRank - axis - 1;
+    int spatialRank = dataRank - axis - 1;
 
     // 2 for decompose axis dim, 1 for composed spatial dim
-    int reshapedRank = batchRank + 2 + static_cast<int>(sptialRank != 0) + static_cast<int>(isBlocked && (sptialRank == 0));
+    int reshapedRank = batchRank + 2 + static_cast<int>(spatialRank != 0) + static_cast<int>(isBlocked && (spatialRank == 0));
     order.resize(reshapedRank);
     optimizedParams.src_block_dims.resize(reshapedRank);
 
     size_t spatialShapeSize = 1;
-    if (sptialRank != 0) {
+    if (spatialRank != 0) {
         for (int i = batchRank + 1; i < dataRank; i++) {
             spatialShapeSize *= dataDims[i];
         }
     }
+
+    auto decomposeAndTranpose = [&](int axis){
+        optimizedParams.src_block_dims[axis] = group;
+        optimizedParams.src_block_dims[axis + 1] = groupSize;
+        order[axis] = axis + 1;
+        order[axis + 1] = axis;
+    };
 
     const int channelDim = 1;
     if (isBlocked) {
@@ -158,19 +165,12 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
                 order[i] = i;
                 optimizedParams.src_block_dims[i] = srcBlockedDims[i];
             }
-            optimizedParams.src_block_dims[batchRank] = group;
-            optimizedParams.src_block_dims[batchRank + 1] = groupSize;
-            order[batchRank] = batchRank + 1;
-            order[batchRank + 1] = batchRank;
+            decomposeAndTranpose(batchRank);
 
             order[batchRank + 2] = batchRank + 2;
             optimizedParams.src_block_dims[batchRank + 2] = spatialShapeSize * blkSize;
         } else { // axis on batch
-            order[0] = 1;
-            optimizedParams.src_block_dims[0] = group;
-            order[1] = 0;
-            optimizedParams.src_block_dims[1] = groupSize;
-
+            decomposeAndTranpose(0);
             size_t spatialShapeSize = CB * blkSize;
             for (int i = 2; i < dataRank; i++) {
                 spatialShapeSize *= dataDims[i];
@@ -184,10 +184,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
             optimizedParams.src_block_dims[0] = dataDims[0];
             order[1] = 1;
             optimizedParams.src_block_dims[1] = spatialShapeSize;
-            order[2] = 3;
-            optimizedParams.src_block_dims[2] = group;
-            order[3] = 2;
-            optimizedParams.src_block_dims[3] = groupSize;
+            decomposeAndTranpose(2);
         } else if (axis > channelDim) {  // axis on spatial
             for (int i = 0; i < batchRank; i++) {
                 if (i == 0) {
@@ -201,20 +198,14 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
                     optimizedParams.src_block_dims[i - 1] = dataDims[i];
                 }
             }
-            optimizedParams.src_block_dims[batchRank - 1] = group;
-            optimizedParams.src_block_dims[batchRank] = groupSize;
-            order[batchRank - 1] = batchRank;
-            order[batchRank] = batchRank - 1;
+            decomposeAndTranpose(batchRank - 1);
 
-            if (sptialRank != 0) {
+            if (spatialRank != 0) {
                 order[batchRank + 1] = batchRank + 1;
                 optimizedParams.src_block_dims[batchRank + 1] = spatialShapeSize;
             }
         } else { // axis on batch
-            order[0] = 1;
-            optimizedParams.src_block_dims[0] = group;
-            order[1] = 0;
-            optimizedParams.src_block_dims[1] = groupSize;
+            decomposeAndTranpose(0);
             order[2] = 2;
             optimizedParams.src_block_dims[2] = spatialShapeSize;
         }
@@ -224,12 +215,8 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
             order[i] = i;
         }
 
-        optimizedParams.src_block_dims[batchRank] = group;
-        optimizedParams.src_block_dims[batchRank + 1] = groupSize;
-        order[batchRank] = batchRank + 1;
-        order[batchRank + 1] = batchRank;
-
-        if (sptialRank != 0) {
+        decomposeAndTranpose(batchRank);
+        if (spatialRank != 0) {
             order[batchRank + 2] = batchRank + 2;
             optimizedParams.src_block_dims[batchRank + 2] = spatialShapeSize;
         }
@@ -252,29 +239,22 @@ void MKLDNNShuffleChannelsNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNShuffleChannelsNode::executeRef(const float* srcData, float* dstData) {
-    size_t dataLength = 1;
-    size_t workAmountDst;
-    size_t ownDims[CNTR_SIZE];
-    size_t ownStrides[CNTR_SIZE];
-
-    ownDims[0] = 1;
+    size_t batchNum = 1;
     for (int i = 0; i < axis; i++)
-        ownDims[0] *= dataDims[i];
+        batchNum *= dataDims[i];
 
+    size_t dataLength = 1;
     for (size_t i = axis + 1; i < dataDims.size(); i++)
         dataLength *= dataDims[i];
-
     if (dataLength == 0)
         THROW_SHCH_ERROR << "has incorrect input parameters dimension.";
+    const size_t dataSize = sizeof(float) * dataLength;
 
-    ownDims[1] = groupSize;
-    ownDims[2] = group;
-    ownStrides[0] = dataDims[axis];
-    ownStrides[1] = 1;
-    ownStrides[2] = ownDims[1];
-    workAmountDst = ownStrides[0] * ownDims[0];
+    size_t ownDims[CNTR_SIZE] = {batchNum, groupSize, group};
+    size_t ownStrides[CNTR_SIZE] = {dataDims[axis], 1, ownDims[1]};
+    size_t workAmountDst = ownStrides[0] * ownDims[0];
 
-    auto initter = [&](size_t start, size_t size, size_t* counters, size_t* ownDims, size_t* ownStrides) -> size_t {
+    auto initter = [&](size_t start, size_t size, size_t* counters) -> size_t {
         size_t i = start;
         size_t idx = 0;
         for (int j = size - 1; j >= 0; j--) {
@@ -285,7 +265,7 @@ void MKLDNNShuffleChannelsNode::executeRef(const float* srcData, float* dstData)
         return idx;
     };
 
-    auto updater = [&](size_t idx, size_t size, size_t* counters, size_t* ownDims, size_t* ownStrides) -> size_t {
+    auto updater = [&](size_t idx, size_t size, size_t* counters) -> size_t {
         size_t i = 1;
         for (int j = size - 1; j >= 0; j--) {
             counters[j]++;
@@ -307,25 +287,25 @@ void MKLDNNShuffleChannelsNode::executeRef(const float* srcData, float* dstData)
     if (dataLength > 1) {
         //  Vectorized & Parallel
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0, src_idx = 0;
+            size_t start = 0, end = 0, srcIdx = 0;
             size_t counters[CNTR_SIZE] = { 0 };
             splitter(workAmountDst, nthr, ithr, start, end);
-            src_idx = initter(start, CNTR_SIZE, counters, ownDims, ownStrides);
-            for (size_t iwork = start, dst_idx = start * dataLength; iwork < end; ++iwork, dst_idx += dataLength) {
-                cpu_memcpy(&dstData[dst_idx], &srcData[dataLength * src_idx], sizeof(float) * dataLength);
-                src_idx = updater(src_idx, CNTR_SIZE, counters, ownDims, ownStrides);
+            srcIdx = initter(start, CNTR_SIZE, counters);
+            for (size_t iwork = start, dstIdx = start * dataLength; iwork < end; ++iwork, dstIdx += dataLength) {
+                cpu_memcpy(&dstData[dstIdx], &srcData[dataLength * srcIdx], dataSize);
+                srcIdx = updater(srcIdx, CNTR_SIZE, counters);
             }
         });
     } else {
         //  Parallel
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0, src_idx = 0;
+            size_t start = 0, end = 0, srcIdx = 0;
             size_t counters[CNTR_SIZE] = { 0 };
             splitter(workAmountDst, nthr, ithr, start, end);
-            src_idx = initter(start, CNTR_SIZE, counters, ownDims, ownStrides);
+            srcIdx = initter(start, CNTR_SIZE, counters);
             for (size_t iwork = start; iwork < end; ++iwork) {
-                dstData[iwork] = srcData[src_idx];
-                src_idx = updater(src_idx, CNTR_SIZE, counters, ownDims, ownStrides);
+                dstData[iwork] = srcData[srcIdx];
+                srcIdx = updater(srcIdx, CNTR_SIZE, counters);
             }
         });
     }

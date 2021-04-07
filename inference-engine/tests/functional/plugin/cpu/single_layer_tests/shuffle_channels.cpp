@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ protected:
 
         LayerTestsDefinitions::ShuffleChannelsSpecificParams shuffleChannelsParams;
         std::vector<size_t> inputShape;
-        auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
+        Precision netPrecision;
         std::tie(shuffleChannelsParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
 
         int axis, group;
@@ -55,6 +55,12 @@ protected:
         shuffleChannels->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shuffleChannels)};
         function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
+
+        if (selectedType.empty()) {
+            selectedType = getPrimitiveType();
+        }
+        selectedType.push_back('_');
+        selectedType += netPrecision.name();
     }
 };
 
@@ -71,16 +77,16 @@ namespace {
 std::vector<CPUSpecificParams> filterCPUInfoForDevice4D() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_avx512"}, "jit_avx512_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_avx512"}, "jit_avx512"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
     } else if (with_cpu_x86_avx2()) {
-        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_avx2"}, "jit_avx2_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_avx2"}, "jit_avx2"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
     } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_sse42"}, "jit_sse42_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_sse42"}, "jit_sse42"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
     } else {
-        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"ref"}, "ref_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"ref"}, "ref"});
     }
     return resCPUParams;
 }
@@ -88,16 +94,16 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice4D() {
 std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_avx512"}, "jit_avx512_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_avx512"}, "jit_avx512"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512"}, "jit_avx512"});
     } else if (with_cpu_x86_avx2()) {
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_avx2"}, "jit_avx2_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_avx2"}, "jit_avx2"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"});
     } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_sse42"}, "jit_sse42_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_sse42"}, "jit_sse42"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"});
     } else {
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref"}, "ref_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref"}, "ref"});
     }
     return resCPUParams;
 }
@@ -105,11 +111,11 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
 std::vector<CPUSpecificParams> filterCPUInfoForDevice4DBlock() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
     } else if (with_cpu_x86_avx2()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2"}, "jit_avx2"});
     } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;
 }
@@ -117,18 +123,20 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice4DBlock() {
 std::vector<CPUSpecificParams> filterCPUInfoForDevice5DBlock() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"});
     } else if (with_cpu_x86_avx2()) {
-        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"});
     } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;
 }
 /* ========== */
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::BF16,
+        InferenceEngine::Precision::I8
 };
 
 const auto shuffleChannelsParams4D = ::testing::Combine(
