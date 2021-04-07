@@ -15,20 +15,20 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-class QuantizationAlignmentIntervalsAttribute {
+class IntervalsAlignmentAttribute {
 public:
-    QuantizationAlignmentIntervalsAttribute(const float intervalLow, const float intervalHigh) : intervalLow(intervalLow), intervalHigh(intervalHigh) {}
+    IntervalsAlignmentAttribute(const float intervalLow, const float intervalHigh) : intervalLow(intervalLow), intervalHigh(intervalHigh) {}
     float intervalLow;
     float intervalHigh;
 };
 
-using QuantizationAlignmentIntervalsAttributePtr = std::shared_ptr<QuantizationAlignmentIntervalsAttribute>;
+using IntervalsAlignmentAttributePtr = std::shared_ptr<IntervalsAlignmentAttribute>;
 
-extern template class TRANSFORMATIONS_API ngraph::VariantImpl<QuantizationAlignmentIntervalsAttributePtr>;
+extern template class TRANSFORMATIONS_API ngraph::VariantImpl<IntervalsAlignmentAttributePtr>;
 
 template<>
-class TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>> :
-    public ngraph::VariantImpl<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>> {
+class TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>> :
+    public ngraph::VariantImpl<std::shared_ptr<IntervalsAlignmentAttribute>> {
 public:
     static constexpr ngraph::VariantTypeInfo type_info{ "INTERVALS_ALIGNMENT", 0 };
 
@@ -42,7 +42,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
-    std::shared_ptr<QuantizationAlignmentIntervalsAttribute> get() { return this->m_value; };
+    std::shared_ptr<IntervalsAlignmentAttribute> get() { return this->m_value; };
 
     std::string get_string() override;
 };

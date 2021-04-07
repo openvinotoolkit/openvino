@@ -10,8 +10,8 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_intervals_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_value_attribute.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -223,11 +223,11 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    std::shared_ptr<QuantizationAlignmentIntervalsAttribute> intervalsAlignment;
+    std::shared_ptr<IntervalsAlignmentAttribute> intervalsAlignment;
 
-    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentValueAttribute>>> alignmentValue;
+    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>> alignmentValue;
     for (const auto& input : layer->output(0).get_target_inputs()) {
-        alignmentValue = low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentValueAttribute>>(input.get_node()->shared_from_this());
+        alignmentValue = low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(input.get_node()->shared_from_this());
         if ((alignmentValue != nullptr) && (alignmentValue->get()->hasToBeAligned)) {
             break;
         }
@@ -235,14 +235,14 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     if ((alignmentValue != nullptr) && alignmentValue->get()->hasToBeAligned) {
         //auto& rt = layer->get_rt_info();
-        //auto it = rt.find(ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>::type_info.name);
+        //auto it = rt.find(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
         //if (it != rt.end()) {
-        //    auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>>(it->second);
-        //    const std::shared_ptr<QuantizationAlignmentIntervalsAttribute> attribute = attributeWrapper->get();
+        //    auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(it->second);
+        //    const std::shared_ptr<IntervalsAlignmentAttribute> attribute = attributeWrapper->get();
         //    intervalsAlignment = attribute->hasToBeAligned ? attribute : nullptr;
         //}
 
-        auto intervalsAlignmentWrapper = low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>>(layer);
+        auto intervalsAlignmentWrapper = low_precision::getAttribute<std::shared_ptr<IntervalsAlignmentAttribute>>(layer);
         if (intervalsAlignmentWrapper != nullptr) {
             intervalsAlignment = intervalsAlignmentWrapper->get();
         }

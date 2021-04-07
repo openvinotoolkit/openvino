@@ -14,8 +14,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/quantization_alignment_intervals_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_value_attribute.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 using namespace ngraph;
@@ -23,10 +23,10 @@ using namespace ngraph::pass::low_precision;
 
 //void replaceAttributeInNodes(
 //    std::shared_ptr<ngraph::Function> f,
-//    const std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>>> newAttribute,
-//    const std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>>> oldAttribute,
+//    const std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> newAttribute,
+//    const std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> oldAttribute,
 //    const std::shared_ptr<ngraph::Node>& initialNode) {
-//    const std::string name = ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>>::type_info.name;
+//    const std::string name = ngraph::VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>::type_info.name;
 //
 //    std::set<std::shared_ptr<Node>> visited;
 //    std::deque<std::shared_ptr<Node>> nodes;
@@ -207,17 +207,17 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ngraph::as_type_ptr<opset1::FakeQuantize>(node));
             const LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(quantizationDetails);
 
-            const auto attribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>>(
-                std::make_shared<QuantizationAlignmentIntervalsAttribute>(lowInterval, highInterval));
-            rtInfo[ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>::type_info.name] = attribute;
+            const auto attribute = std::make_shared<::ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(
+                std::make_shared<IntervalsAlignmentAttribute>(lowInterval, highInterval));
+            rtInfo[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
             continue;
         }
 
         if (is_type<opset1::Convolution>(node)) {
             auto& rtInfo = node->get_input_node_shared_ptr(0)->get_rt_info();
-            auto it = rtInfo.find(ngraph::VariantWrapper<QuantizationAlignmentValueAttributePtr>::type_info.name);
+            auto it = rtInfo.find(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
             if (it != rtInfo.end()) {
-                auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentValueAttributePtr>>(it->second);
+                auto attributeWrapper = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(it->second);
                 assert(attributeWrapper != nullptr);
                 attributeWrapper->get()->hasToBeAligned = true;
                 continue;
@@ -229,17 +229,17 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
         }
 
         // TODO: limitation: one operation type is used
-        std::shared_ptr<ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>> firstExistingIntervalsAttribute;
-        std::shared_ptr<ngraph::VariantWrapper<QuantizationAlignmentValueAttributePtr>> firstExistingValueAttribute;
+        std::shared_ptr<ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>> firstExistingIntervalsAttribute;
+        std::shared_ptr<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>> firstExistingValueAttribute;
 
-        //auto getAttribute = [](std::shared_ptr<Node>& inputNode) -> std::shared_ptr<ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>> {
+        //auto getAttribute = [](std::shared_ptr<Node>& inputNode) -> std::shared_ptr<ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>> {
         //    auto& rtInfo = inputNode->get_rt_info();
-        //    auto it = rtInfo.find(ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>::type_info.name);
+        //    auto it = rtInfo.find(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
         //    if (it == rtInfo.end()) {
         //        return nullptr;
         //    }
 
-        //    auto tmpAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>>(it->second);
+        //    auto tmpAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(it->second);
         //    assert(tmpAttribute != nullptr);
         //    return tmpAttribute;
         //};
@@ -249,14 +249,14 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
         for (const auto& input : node->inputs()) {
             auto inputNode = input.get_source_output().get_node_shared_ptr();
 
-            auto existingIntervalsAttribute = getAttribute<QuantizationAlignmentIntervalsAttributePtr>(inputNode);
+            auto existingIntervalsAttribute = getAttribute<IntervalsAlignmentAttributePtr>(inputNode);
             if (existingIntervalsAttribute != nullptr) {
                 if (firstExistingIntervalsAttribute == nullptr) {
                     firstExistingIntervalsAttribute = existingIntervalsAttribute;
                 }
             }
 
-            auto existingValueAttribute = getAttribute<QuantizationAlignmentValueAttributePtr>(inputNode);
+            auto existingValueAttribute = getAttribute<QuantizationAlignmentAttributePtr>(inputNode);
             if (existingValueAttribute != nullptr) {
                 if (firstExistingValueAttribute == nullptr) {
                     firstExistingValueAttribute = existingValueAttribute;
@@ -265,10 +265,10 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
 
             if (is_type<opset1::FakeQuantize>(inputNode)) {
                 auto& rt = node->get_rt_info();
-                const std::string& name = ngraph::VariantWrapper<QuantizationAlignmentValueAttributePtr>::type_info.name;
+                const std::string& name = ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name;
                 if (rt.find(name) == rt.end()) {
-                    const auto attribute = std::make_shared<ngraph::VariantWrapper<QuantizationAlignmentValueAttributePtr>>(
-                        std::make_shared<QuantizationAlignmentValueAttribute>());
+                    const auto attribute = std::make_shared<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(
+                        std::make_shared<QuantizationAlignmentAttribute>());
                     rt[name] = attribute;
                 }
             }
@@ -279,26 +279,26 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
         //// merge: share between other operations - implicit backward propagation
         //if (firstExistingIntervalsAttribute != nullptr) {
         //    auto attribute = firstExistingIntervalsAttribute->merge(inputNodes);
-        //    auto newAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>>(attribute);
+        //    auto newAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(attribute);
         //    assert(newAttribute != nullptr);
 
         //    bool wasReplaced = false;
         //    for (size_t i = 1ul; i < inputNodes.size(); i++) {
-        //        auto oldAttribute = getAttribute<QuantizationAlignmentIntervalsAttributePtr>(inputNodes[i]);
+        //        auto oldAttribute = getAttribute<IntervalsAlignmentAttributePtr>(inputNodes[i]);
         //        if (oldAttribute != nullptr) {
-        //            const std::string name = ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentIntervalsAttribute>>::type_info.name;
+        //            const std::string name = ngraph::VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>::type_info.name;
         //            replaceAttributeInNodes(f, name, newAttribute, oldAttribute, node);
         //            wasReplaced = true;
         //        }
         //    }
         //    if (!wasReplaced) {
-        //        node->get_rt_info()[ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>::type_info.name] = newAttribute;
+        //        node->get_rt_info()[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = newAttribute;
         //    }
         //}
 
-        mergeAndReplace<QuantizationAlignmentIntervalsAttributePtr>(f, node, firstExistingIntervalsAttribute, inputNodes);
+        mergeAndReplace<IntervalsAlignmentAttributePtr>(f, node, firstExistingIntervalsAttribute, inputNodes);
 
-        mergeAndReplace<QuantizationAlignmentValueAttributePtr>(f, node, firstExistingValueAttribute, inputNodes);
+        mergeAndReplace<QuantizationAlignmentAttributePtr>(f, node, firstExistingValueAttribute, inputNodes);
     }
     return true;
 }

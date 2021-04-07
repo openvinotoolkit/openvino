@@ -11,8 +11,8 @@
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include "low_precision/common/dequantization_op.hpp"
-#include "low_precision/rt_info/quantization_alignment_intervals_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_value_attribute.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/add.hpp"

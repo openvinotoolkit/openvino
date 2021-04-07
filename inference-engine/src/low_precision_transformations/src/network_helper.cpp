@@ -20,8 +20,8 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_intervals_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_value_attribute.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -266,8 +266,8 @@ void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, 
     auto& rt = target->get_rt_info();
     if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
         rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
-        rt.erase(ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttributePtr>::type_info.name);
-        rt.erase(ngraph::VariantWrapper<QuantizationAlignmentValueAttributePtr>::type_info.name);
+        rt.erase(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
+        rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
     }
 
     const std::string friendlyName = sources[0]->get_friendly_name();

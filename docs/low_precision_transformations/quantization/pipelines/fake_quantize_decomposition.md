@@ -12,6 +12,7 @@
 2. Operation output intervals.
 
 ## Pipeline #1: FakeQuantize decomposition
+[NOT UPDATED]  
 Features:
 1. `FakeQuantize` on activations operation output intervals are signed, default precision should be `signed int8` which is not supported by `Convolution` bellow.
 2. Quantize and dequantize operations on activations are presented by one `Fakequantize` operation. 
@@ -38,6 +39,7 @@ Features:
 ![Transformations result](img/pipeline1/transformed.svg)
 
 ## Pipeline #2: Concat per-tensor quantization
+[NOT UPDATED]  
 Features:
 1. `FakeQuantize` on activations operations output intervals are signed, default precision should be `signed int8` which is not supported by `Convolution` bellow.
 2. `FakeQuantize` on activations operations have different output intervals which will be aligned.
@@ -71,6 +73,7 @@ Features:
 ![Transformations result](img/pipeline2/transformed.svg)
 
 ## Pipeline #3: Concat multi-channels quantization
+[NOT UPDATED]  
 Features:
 1. Quantize and dequantize operations on activations are presented by one `Fakequantize` operation. 
 2. There is no `FakeQuantize` between `AvgPool` and `Result`.
@@ -96,7 +99,9 @@ Features:
 ## Pipeline #4: FakeQuantize connects neighbor cascade Concat operations
 Features:
 1. Quantize and dequantize operations on activations are presented by one `Fakequantize` operation. 
-2. There is `FakeQuantize` between two `Concat` subgraphs. The first is multi-channel, the second is per-tensor.
+2. There is `FakeQuantize` between two `Concat` subgraphs: the first uses multi-channel quantization, the second uses per-tensor quantization.
+
+> Source: `ConcatWithNeighborsWithConvolutionTransformation` functional test.
 
 ### Original model
 ![Original model](img/pipeline4/actual.svg)

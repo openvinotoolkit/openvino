@@ -13,8 +13,8 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/rt_info/quantization_alignment_intervals_attribute.hpp>
-#include <low_precision/rt_info/quantization_alignment_value_attribute.hpp>
+#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
+#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
 #include <low_precision/rt_info/precision_preserved_attribute.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/concat.hpp>
@@ -156,8 +156,8 @@ public:
             testValues.result.dequantization2,
             {
                 make_shared_attribute<PrecisionPreservedAttribute>(true),
-                make_shared_attribute_ptr<QuantizationAlignmentIntervalsAttribute>(0.f, 2.55f),
-                make_shared_attribute_ptr<QuantizationAlignmentValueAttribute>(true)
+                make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f),
+                make_shared_attribute_ptr<QuantizationAlignmentAttribute>(true)
             },
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter);

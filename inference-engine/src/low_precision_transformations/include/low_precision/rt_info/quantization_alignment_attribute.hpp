@@ -15,19 +15,19 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-class QuantizationAlignmentValueAttribute {
+class QuantizationAlignmentAttribute {
 public:
-    QuantizationAlignmentValueAttribute(const bool hasToBeAligned = false) : hasToBeAligned(hasToBeAligned) {}
+    QuantizationAlignmentAttribute(const bool hasToBeAligned = false) : hasToBeAligned(hasToBeAligned) {}
     bool hasToBeAligned;
 };
 
-using QuantizationAlignmentValueAttributePtr = std::shared_ptr<QuantizationAlignmentValueAttribute>;
+using QuantizationAlignmentAttributePtr = std::shared_ptr<QuantizationAlignmentAttribute>;
 
-extern template class TRANSFORMATIONS_API ngraph::VariantImpl<QuantizationAlignmentValueAttributePtr>;
+extern template class TRANSFORMATIONS_API ngraph::VariantImpl<QuantizationAlignmentAttributePtr>;
 
 template<>
-class TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentValueAttribute>> :
-    public ngraph::VariantImpl<std::shared_ptr<QuantizationAlignmentValueAttribute>> {
+class TRANSFORMATIONS_API ngraph::VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>> :
+    public ngraph::VariantImpl<std::shared_ptr<QuantizationAlignmentAttribute>> {
 public:
     static constexpr ngraph::VariantTypeInfo type_info{ "QUANTIZATION_ALIGNMENT", 0 };
 
@@ -41,7 +41,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
-    std::shared_ptr<QuantizationAlignmentValueAttribute> get() { return this->m_value; };
+    std::shared_ptr<QuantizationAlignmentAttribute> get() { return this->m_value; };
 
     std::string get_string() override;
 };
