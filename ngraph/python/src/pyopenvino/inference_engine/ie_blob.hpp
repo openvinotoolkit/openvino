@@ -45,4 +45,13 @@ void regclass_TBlob(py::module m, std::string typestring)
 
     cls.def_property_readonly("tensor_desc",
                               [](InferenceEngine::TBlob<T>& self) { return self.getTensorDesc(); });
+
+    cls.def("__str__", [](InferenceEngine::TBlob<T>& self) -> std::string {
+        std::stringstream ss;
+        auto blob_ptr = self.buffer().template as<T*>();
+        auto shape = self.getTensorDesc().getDims();
+        auto py_arr = py::array_t<T>(shape, &blob_ptr[0], py::cast(self));
+        ss << py_arr;
+        return ss.str();
+    });
 }

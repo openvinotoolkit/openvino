@@ -36,9 +36,30 @@ precision_map = {'FP32': np.float32,
                  'U32': np.uint32,
                  'U64': np.uint64}
 
+
+def normalize_inputs(py_dict: dict):
+    '''Normalize a dictionary of inputs to contiguous numpy arrays.'''
+    return {k: (np.ascontiguousarray(v) if isinstance(v, np.ndarray) else v)
+            for k, v in py_dict.items()}
+
+
+def infer(request, inputs: dict = {}):
+    results = request._infer(inputs=normalize_inputs(inputs))
+    return {name: (blob.buffer.copy()) for name, blob in results.items()}
+
+
+def get_result(request, name: str):
+    return request.get_blob(name).buffer.copy()
+
+
+def async_infer(request, inputs: dict = {}, userdata=None):
+    request._async_infer(inputs=normalize_inputs(inputs),
+                         userdata=userdata)
+
+
 # Dispatch Blob types on Python side.
 class BlobWrapper:
-    def __new__(cls, tensor_desc : TensorDesc, arr : np.ndarray = None):
+    def __new__(cls, tensor_desc: TensorDesc, arr: np.ndarray = None):
         arr_size = 0
         precision = ""
         if arr is not None and tensor_desc is not None:

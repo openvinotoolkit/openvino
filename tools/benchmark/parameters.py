@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys,argparse
-from fnmatch import fnmatch
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
@@ -118,8 +117,14 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
-    args.add_argument('-mode', type=str, required=False, default='old',
+    args.add_argument('-mode', type=str, required=False, default='cython',
                       help="Optional. Choose between old and new python api.")
+    args.add_argument('-ip', '--input_precision', type=str, required=False, default='U8', choices=['U8', 'FP16', 'FP32'],
+                      help='Optional. Specifies precision for all input layers of the network.')
+    args.add_argument('-op', '--output_precision', type=str, required=False, default='FP32', choices=['U8', 'FP16', 'FP32'],
+                      help='Optional. Specifies precision for all output layers of the network.')
+    args.add_argument('-iop', '--input_output_precision', type=str, required=False,
+                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
     parsed_args = parser.parse_args()
 
     return parsed_args
