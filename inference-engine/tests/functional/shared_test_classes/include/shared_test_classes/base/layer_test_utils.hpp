@@ -49,7 +49,12 @@ enum RefMode {
     IE
 };
 
-class LayerTestsCommon : public CommonTestUtils::TestsCommon {
+class BenchmarkTest {
+public:
+    ~BenchmarkTest();
+};
+
+class LayerTestsCommon : public CommonTestUtils::TestsCommon, private BenchmarkTest {
 public:
     virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
 

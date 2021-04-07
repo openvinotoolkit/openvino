@@ -25,6 +25,28 @@
  *
  */
 #define BENCHMARK_BURDEN(name) for (::perforemace_tests::Benchmark b(name); b.nextRound(); b.endRound())
+
+// TODO provide Writers collection from configuration (which not exist now)
+// don't instantiate FileWriter here
+
+/**
+ * @brief call macro to write and drop collected data
+ */
+#define BENCHMARK_WRITE_AND_DROP                       \
+    try {                                              \
+        using namespace ::perforemace_tests;           \
+        CsvWriter writer(fileToSave(), std::ios::app); \
+        auto&& e = ExecutionTime::instance();          \
+        e.writeAll(writer);                            \
+        e.drop();                                      \
+        writer.flush();                                \
+    } catch (...) {                                    \
+    }
+
 #else
+
 #define BENCHMARK_BURDEN(name)
+
+#define BENCHMARK_WRITE_AND_DROP
+
 #endif

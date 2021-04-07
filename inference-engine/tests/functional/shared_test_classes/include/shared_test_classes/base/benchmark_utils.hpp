@@ -57,6 +57,7 @@ public:
 
     virtual void testName(const std::string& name) = 0;
     virtual void testDurations(const std::vector<Clock::Duration>& durations) = 0;
+    virtual void flush() {}
 };
 
 class ExecutionTime {
@@ -69,7 +70,7 @@ public:
     ExecutionTime& operator=(const ExecutionTime&) = delete;
 
     static ExecutionTime& instance() {
-        // QUESTION: do we need thread safety here
+        // QUESTION: do we need thread safety for access to this instance
         static ExecutionTime obj;
         return obj;
     }
@@ -109,6 +110,10 @@ public:
         writeRecord(*r, w);
     }
 
+    void drop() {
+        records = {};
+    }
+
 private:
     void writeRecord(Records::const_reference record, ExecutionTimeWriter& w) const {
         w.testName(record.first);
@@ -143,11 +148,48 @@ public:
         file << " ]\n";
     }
 
-    void flush() {
+    void flush() override {
         file.flush();
     }
 
 private:
+    std::ofstream file;
+};
+
+class CsvWriter : public ExecutionTimeWriter {
+public:
+    CsvWriter(const std::string& filename, std::ios_base::openmode mode = {}) : file(filename, mode) {
+        if (file.tellp() == 0) {
+            writeHeader();
+        }
+    }
+    ~CsvWriter() override {
+        try {
+            flush();
+        } catch (...) {
+        }
+    }
+
+    void testName(const std::string& name) override {
+        file << name << ",";
+    }
+
+    void testDurations(const std::vector<Clock::Duration>& durations) override {
+        file << durations.size();
+        for (const auto& d : durations) {
+            file << "," << microseconds(d);
+        }
+        file << "\n";
+    }
+
+    void flush() override {
+        file.flush();
+    }
+
+private:
+    void writeHeader() {
+        file << "test_name,execution_number,execution_time_-_microseconds\n";
+    }
     std::ofstream file;
 };
 
@@ -160,6 +202,9 @@ public:
     }
 
     bool shouldRunNextTest() const {
+        if (exec_counter >= max_exec_number) {
+            return false;
+        }
         return exec_counter < required_exec_number || aggregate_duration < min_exec_duration;
     }
 
@@ -167,18 +212,13 @@ private:
     int exec_counter{0};
     Clock::Duration aggregate_duration{};
     static constexpr int required_exec_number{5};
+    static constexpr int max_exec_number{100};
     static constexpr Clock::Duration min_exec_duration{std::chrono::milliseconds{100}};
 };
 
 class Benchmark {
 public:
     Benchmark(std::string name) : bench_name(std::move(name)) {}
-    ~Benchmark() {
-        try {
-            writeToFile();  // TODO remove this write from d-tor to some main/end of tests
-        } catch (...) {
-        }
-    }
 
     void endRound() {
         timer.stop();
@@ -193,12 +233,6 @@ public:
             return true;
         }
         return false;
-    }
-
-    void writeToFile(const std::string& filename = fileToSave()) {
-        FileWriter writer(fileToSave(), std::ios::app);
-        ExecutionTime::instance().write(bench_name, writer);
-        writer.flush();
     }
 
 private:

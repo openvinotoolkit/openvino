@@ -23,6 +23,11 @@
 
 namespace LayerTestsUtils {
 
+BenchmarkTest::~BenchmarkTest() {
+    //TODO move this macro to some suppervisor in gtest main
+    BENCHMARK_WRITE_AND_DROP
+}
+
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
     core = PluginCache::get().ie(targetDevice);
 }

@@ -31,6 +31,7 @@ addIeTarget(
 )
 
 if (PERFORMACE_BENCHMARK)
+    #TODO may be new target but it require changes in whole add_subdirectory tree
     target_compile_definitions(${TARGET_NAME} PRIVATE PERFORMACE_BENCHMARK)
 endif()
 
