@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,18 +30,18 @@ public:
     explicit ExperimentalDetectronTopKROIsImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                IE_THROW() << "Incorrect number of input/output edges!";
 
             if (layer->insData[INPUT_ROIS].lock()->getTensorDesc().getDims().size() != 2 ||
                 layer->insData[INPUT_PROBS].lock()->getTensorDesc().getDims().size() != 1)
-                THROW_IE_EXCEPTION << "Unsupported shape of input blobs!";
+                IE_THROW() << "Unsupported shape of input blobs!";
 
             max_rois_num_ = layer->GetParamAsInt("max_rois", 0);
 
             addConfig(layer,
                       {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
                       {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

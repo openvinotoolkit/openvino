@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace CLDNNPlugin {
 void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
     auto networkInputs = p.GetNetworkInputs();
     if (networkInputs.find(op->get_friendly_name()) == networkInputs.end()) {
-        THROW_IE_EXCEPTION << "Can't find input " << op->get_friendly_name() << " in InputsDataMap";
+        IE_THROW() << "Can't find input " << op->get_friendly_name() << " in InputsDataMap";
     }
 
     auto inputInfo = networkInputs.at(op->get_friendly_name());
@@ -50,7 +50,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
                                        cldnn::feature(inputDims[1]),
                                        cldnn::spatial(inputDims[4], inputDims[3], inputDims[2]));
         } else {
-            THROW_IE_EXCEPTION  << "Unsupported layout (" << l << ") in 5D input " << inputInfo->name();
+            IE_THROW()  << "Unsupported layout (" << l << ") in 5D input " << inputInfo->name();
         }
         break;
     case 4:
@@ -61,21 +61,21 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
             dataTensor = cldnn::tensor(batch,
                                        TensorValue(inputDims[1]), TensorValue(inputDims[3]), TensorValue(inputDims[2]));
         } else {
-            THROW_IE_EXCEPTION << "Unsupported layout (" << l << ") in 4D input " + inputInfo->name();
+            IE_THROW() << "Unsupported layout (" << l << ") in 4D input " + inputInfo->name();
         }
         break;
     case 3:
         if (Layout::CHW == l) {
             dataTensor = cldnn::tensor(TensorValue(inputDims[0]), TensorValue(inputDims[1]), 1, TensorValue(inputDims[2]));
         } else {
-            THROW_IE_EXCEPTION << "Unsupported layout (" << l << ") in 3D input " + inputInfo->name();
+            IE_THROW() << "Unsupported layout (" << l << ") in 3D input " + inputInfo->name();
         }
         break;
     case 2:
         if (Layout::NCHW == l || NC == l) {
             dataTensor = cldnn::tensor(batch, TensorValue(inputDims[1]), 1, 1);
         } else {
-            THROW_IE_EXCEPTION << "Unsupported layout (" << l << ") in 2D input " << inputInfo->name();
+            IE_THROW() << "Unsupported layout (" << l << ") in 2D input " << inputInfo->name();
         }
         break;
     case 1:
@@ -84,7 +84,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
     case 0:
         dataTensor = cldnn::tensor(1, 1, 1, 1);
         break;
-    default: THROW_IE_EXCEPTION << "Invalid data dimensions";
+    default: IE_THROW() << "Invalid data dimensions";
     }
     cldnn::layout networkInputLayout(DataTypeFromPrecision(ip),
                                      inputFormat,
@@ -103,7 +103,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
 
     if ((meanChannels > 0) &&
         (meanChannels != networkInputLayout.size.feature[0])) {
-        THROW_IE_EXCEPTION << "Mismatched mean values channels in input " << inputName;
+        IE_THROW() << "Mismatched mean values channels in input " << inputName;
     }
 
     switch (preProcess.getMeanVariant()) {
@@ -112,7 +112,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
         if (meanChannels > 0) {
             for (size_t c = 0; c < meanChannels; c++) {
                 if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                    THROW_IE_EXCEPTION << "not supporting stdScale yet in input " << inputName;
+                    IE_THROW() << "not supporting stdScale yet in input " << inputName;
                 meanValues.push_back(preProcess[c]->meanValue);
             }
         }
@@ -128,7 +128,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
         case 4: meanDims[0] = 1;
             break;
         default:
-            THROW_IE_EXCEPTION << "Missing batch dimensions in input image";
+            IE_THROW() << "Missing batch dimensions in input image";
         }
         const TensorDesc desc(Precision::FP32, meanDims, TensorDesc::getLayoutByDims(meanDims));
         TBlob<float> meanBlob(desc);
@@ -136,7 +136,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
         auto meanBlobData = meanBlob.data();
         for (size_t c = 0; c < meanChannels; c++) {
             if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                THROW_IE_EXCEPTION << "not supporting stdScale yet in input " << inputName;
+                IE_THROW() << "not supporting stdScale yet in input " << inputName;
             auto channelMeanBlob = std::dynamic_pointer_cast<TBlob<float>>(preProcess[c]->meanData);
             auto channelSize = channelMeanBlob->size();
             auto channelBlobData = channelMeanBlob->data();
@@ -170,7 +170,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
         }
         break;
     }
-    default: THROW_IE_EXCEPTION << "Invalid mean variant in input " << inputName;
+    default: IE_THROW() << "Invalid mean variant in input " << inputName;
         break;
     }
 
@@ -179,7 +179,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
         // and then would expect compound blob in inferRequest
         if (Layout::NCHW != l &&
             (Precision::I8 != ip || Precision::U8 != ip)) {
-            THROW_IE_EXCEPTION << "Unsupported layout (" << l << ") or precision "
+            IE_THROW() << "Unsupported layout (" << l << ") or precision "
                                << ip.name() << ") for NV12 input " + inputInfo->name();
         }
         int height = inputDims[2];
@@ -209,7 +209,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
             p.AddPrimitive(cldnn::reorder(preprocessPrimID, y_name, uv_name, networkInputLayout, meanBlobID));
             break;
         }
-        default: THROW_IE_EXCEPTION << "Invalid mean variant in input " + inputName;
+        default: IE_THROW() << "Invalid mean variant in input " + inputName;
             break;
         }
 
@@ -239,7 +239,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
                                         meanBlobID));
             break;
         }
-        default: THROW_IE_EXCEPTION << "Invalid mean variant in input " << inputName;
+        default: IE_THROW() << "Invalid mean variant in input " << inputName;
             break;
         }
         p.InitProfileInfo(preprocessPrimID, "reorder");

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ template<> struct FileTraits<wchar_t> {
  * @ingroup ie_dev_api_file_utils
  * @param filePath - path to file, can be relative to current working directory
  * @return Absolute path of file
- * @throw InferenceEngineException if any error occurred
+ * @throw InferenceEngine::Exception if any error occurred
  */
 INFERENCE_ENGINE_API_CPP(std::string) absoluteFilePath(const std::string& filePath);
 
@@ -94,7 +94,7 @@ INFERENCE_ENGINE_API_CPP(std::string) absoluteFilePath(const std::string& filePa
  * @brief Interface function to create directorty recursively by given path
  * @ingroup ie_dev_api_file_utils
  * @param dirPath - path to file, can be relative to current working directory
- * @throw InferenceEngineException if any error occurred
+ * @throw InferenceEngine::Exception if any error occurred
  */
 INFERENCE_ENGINE_API_CPP(void) createDirectoryRecursive(const std::string& dirPath);
 

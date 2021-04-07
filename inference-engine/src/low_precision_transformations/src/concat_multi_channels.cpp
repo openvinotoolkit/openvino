@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,6 +64,10 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
     {
         for (auto quantizationLayer : subgraph.quantizationLayers) {
             std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(quantizationLayer->shared_from_this());
+            if (!NetworkHelper::isQuantizeSupported(fq)) {
+                return false;
+            }
+
             const DataPrecision tmp = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
 
             if (dataPrecision.precision == ngraph::element::undefined) {

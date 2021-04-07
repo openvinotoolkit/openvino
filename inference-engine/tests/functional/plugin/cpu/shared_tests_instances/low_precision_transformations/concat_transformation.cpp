@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     {
         { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
-    }
+    },
+    // FQ with unexpected quantizationLevels
+    {
+        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} }
+    },
 };
 
 const std::vector<ngraph::Shape> shapes = {

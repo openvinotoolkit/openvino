@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cmath>
@@ -2792,7 +2780,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_erf_int32)
     const std::vector<std::vector<int32_t>> inputs{
         {-std::numeric_limits<int32_t>::max(), -1, 0, 1, std::numeric_limits<int32_t>::max()}};
 
-    const std::vector<int32_t> expected_output{-1, 0, 0, 0, 1};
+    const std::vector<int32_t> expected_output{-1, -1, 0, 1, 1};
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
@@ -2925,6 +2913,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization)
                      1.0739619f,  1.6918856f,  2.3098092f,  2.927733f,    3.5456567f,   4.1635804f,
                      -4.130463f,  -3.1876516f, -2.2448401f, -1.3020288f,  -0.35921717f, 0.5835942f,
                      1.5264057f,  2.469217f,   3.4120288f,  4.35484f,     5.2976513f,   6.240463f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_instance_normalization_dynamic)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_dynamic.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    std::vector<float> input_data{1.f, 2.f, 3.f};
+    test_case.add_input<float>(Shape{1, 3, 1, 1}, input_data);
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 1, 1}, {0.3341970741748809814, 0.3321160078048706055, 0.3407136797904968262});
     test_case.run();
 }
 

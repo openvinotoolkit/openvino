@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -64,5 +52,38 @@ namespace ngraph
                                      const HostTensorVector& inputs) const;
             };
         } // namespace v1
+
+        namespace v7
+        {
+            /// \brief Gather slices from axis of params according to indices
+            class NGRAPH_API Gather : public Op
+            {
+            public:
+                NGRAPH_RTTI_DECLARATION;
+                Gather() = default;
+
+                /// \param data The tensor from which slices are gathered
+                /// \param indices Tensor with indexes to gather
+                /// \param axis The tensor is a dimension index to gather data from
+                /// \param batch_dims The number of batch dimension in data and indices tensors
+                Gather(const Output<Node>& data,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis,
+                       const int64_t batch_dims = 0);
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
+
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                int64_t get_batch_dims() const;
+                int64_t get_axis() const;
+                bool is_axis_set() const;
+
+            private:
+                int64_t m_batch_dims = 0;
+            };
+        } // namespace v7
     }     // namespace op
 } // namespace ngraph

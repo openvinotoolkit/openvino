@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -154,7 +154,7 @@ protected:
             score_engine.reset();
 
             ASSERT_EQ(p.extension.use_count(), 2);
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
+        } catch (const InferenceEngine::Exception& e) {
             FAIL() << e.what();
         }
     }
@@ -178,7 +178,7 @@ protected:
             ASSERT_EQ(p.extension.use_count(), p.pluginName.find("Multi")==std::string::npos ? 3 : 4);
             score_engine1.reset();
             ASSERT_EQ(p.extension.use_count(), 2);
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
+        } catch (const InferenceEngine::Exception& e) {
             FAIL() << e.what();
         }
     }
@@ -242,8 +242,8 @@ protected:
             Blob::Ptr weights;
             CNNNetwork cnnNet1 = ie.ReadNetwork(model, weights);
             ASSERT_NO_THROW(ie.LoadNetwork(cnnNet1, device));
-            ASSERT_THROW(ie2.ReadNetwork(model, weights), details::InferenceEngineException);
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
+            ASSERT_THROW(ie2.ReadNetwork(model, weights), InferenceEngine::Exception);
+        } catch (const InferenceEngine::Exception& e) {
             FAIL() << e.what();
         }
     }

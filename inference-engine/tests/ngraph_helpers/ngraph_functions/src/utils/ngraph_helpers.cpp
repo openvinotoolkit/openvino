@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporationconvert2OutputVector
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -735,7 +735,7 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     }
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) {
+std::ostream& operator<<(std::ostream & os, const ngraph::helpers::EltwiseTypes type) {
     switch (type) {
         case ngraph::helpers::EltwiseTypes::SUBTRACT:
             os << "Sub";
@@ -760,6 +760,9 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
             break;
         case ngraph::helpers::EltwiseTypes::MOD:
             os << "Mod";
+            break;
+        case ngraph::helpers::EltwiseTypes::ERF:
+            os << "Erf";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
@@ -942,6 +945,12 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
     switch (type) {
         case SequenceTestsMode::PURE_SEQ:
             os << "PURE_SEQ";
+            break;
+        case SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST:
+            os << "PURE_SEQ_RAND_SEQ_LEN_CONST";
+            break;
+        case SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM:
+            os << "PURE_SEQ_RAND_SEQ_LEN_PARAM";
             break;
         case SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
             os << "CONVERT_TO_TI_RAND_SEQ_LEN_PARAM";

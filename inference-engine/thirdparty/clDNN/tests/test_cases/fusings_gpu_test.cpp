@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
@@ -5955,7 +5943,7 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
     create_topologies(input_layout("input", get_input_layout(p)),
         data("scatter_elements_update_indices", get_repeatless_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)) - 1)),
         data("scatter_elements_update_updates", get_mem(get_updates_layout(p), 0, 100)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -3, 3)),
+        data("scale_data", get_mem(get_per_channel_layout(p), -1, 1)),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.input_shape})),
         scatter_elements_update("scatter_elements_update_prim", "input", "scatter_elements_update_indices", "scatter_elements_update_updates", p.axis),
         activation("activation", "scatter_elements_update_prim", activation_func::abs),
@@ -5963,7 +5951,7 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
         eltwise("eltwise", {"scale", "eltwise_data"}, eltwise_mode::sum, p.data_type),
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
-    tolerance = 1.0f;
+    tolerance = 1e-5f;
     execute(p);
 }
 
@@ -6062,6 +6050,15 @@ struct permute_params {
 #define CASE_PERMUTE_TILE_8x8_4x4_6D_2 {1, 8, 5, 2, 2, 2}, {1, 2, 8, 5, 2, 2}, {0, 5, 1, 2, 3, 4}, tensor{0}, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
 #define CASE_PERMUTE_TILE_8x8_4x4_6D_3 {1, 5, 5, 2, 2, 2}, {1, 2, 5, 5, 2, 2}, {0, 5, 1, 2, 3, 4}, tensor{0}, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
 
+// permute_tile_8x8_4x4_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_0 {1, 16, 16, 2}, {1, 2, 16, 16}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::b_fs_yx_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_1 {1, 15, 16, 2}, {1, 2, 15, 16}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::b_fs_yx_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_2 {1, 16,  3, 2}, {1, 2, 16,  3}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::b_fs_yx_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_3 {1,  5,  7, 2}, {1, 2,  5,  7}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::b_fs_yx_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_0 {1, 16, 16, 2, 2}, {1, 2, 16, 16, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::b_fs_zyx_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_1 {1, 15, 16, 2, 2}, {1, 2, 15, 16, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::b_fs_zyx_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_2 {1, 16,  3, 2, 2}, {1, 2, 16,  3, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::b_fs_zyx_fsv16
+#define CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_3 {1,  5,  7, 2, 2}, {1, 2,  5,  7, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::b_fs_zyx_fsv16
 
 class PermuteFusingTest : public ::BaseFusingTest<permute_params> {
 public:
@@ -6168,6 +6165,16 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_1, 2, 5},
                             permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_2, 2, 5},
                             permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_3, 2, 5},
+
+                            // Fusing tests for permute_tile_8x8_4x4_fsv16
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_0, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_1, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_2, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_0, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_1, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_2, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_3, 2, 5},
                         }), );
 
 class permute_quant_u8: public PermuteFusingTest {};
@@ -6361,6 +6368,16 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                             permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_1, 2, 7},
                             permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_2, 2, 7},
                             permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_3, 2, 7},
+
+                            // Fusing tests for permute_tile_8x8_4x4_fsv16
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_0, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_1, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_2, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_4D_3, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_0, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_1, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_2, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_3, 2, 7},
                         }), );
 
 /* ------------------------------------------------------------------------------------------------------------ */

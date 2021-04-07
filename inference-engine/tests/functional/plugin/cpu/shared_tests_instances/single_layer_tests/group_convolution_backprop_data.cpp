@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
-};
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32};
 
 const std::vector<size_t> numOutChannels = {16, 32};
 const std::vector<size_t> numGroups = {2, 8, 16};

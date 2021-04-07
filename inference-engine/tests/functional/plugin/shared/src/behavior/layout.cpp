@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,7 +105,7 @@ TEST_P(LayoutTest, NetWithLayout) {
         ASSERT_EQ(inputBlob->getTensorDesc().getLayout(), layout);
     } else {
         ASSERT_THROW(cnnNet.getInputsInfo().begin()->second->setLayout(layout),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }
 }  // namespace BehaviorTestsDefinitions
