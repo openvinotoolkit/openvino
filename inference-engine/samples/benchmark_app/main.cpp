@@ -348,6 +348,9 @@ int main(int argc, char *argv[]) {
             auto FE = manager.loadByFramework("onnx");
             auto inputModel = FE->loadFromFile(FLAGS_m);
             //inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
+            auto new_input = inputModel->getPlaceByTensorName("resnetv17_conv0_fwd");
+            inputModel->extractSubgraph({inputModel->getPlaceByTensorName("resnetv17_conv0_fwd")}, {});
+            inputModel->setPartialShape(new_input, ngraph::PartialShape({1, 64, 112, 112}));
 #if 0
             auto ngFunc = FE->convert(inputModel);
 #else
