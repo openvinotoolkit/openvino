@@ -86,7 +86,9 @@ namespace ngraph
                     {
                         for (size_t h_idx_out = 0; h_idx_out < height_out; ++h_idx_out)
                         {
-                            for (size_t w_idx_out = 0; w_idx_out < width_out; ++w_idx_out)
+                            // Next bin is taken from the next input channel
+                            for (size_t w_idx_out = 0; w_idx_out < width_out;
+                                 ++w_idx_out, ++c_idx_in)
                             {
                                 const size_t out_value_idx =
                                     ((roi_idx * channels_out + c_idx_out) * height_out +
@@ -218,8 +220,6 @@ namespace ngraph
                                 {
                                     output[out_value_idx] = sub_bins_val_sum / legit_sub_bin_count;
                                 }
-                                // Take next ROI bin from the next input channel
-                                c_idx_in++;
                             }
                         }
                     }

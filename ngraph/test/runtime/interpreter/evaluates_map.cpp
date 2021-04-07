@@ -2133,14 +2133,15 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        if (inputs.size() == 2)  // no offset input
+        const bool has_offset_intput = inputs.size() == 3;
+        if (has_offset_intput)
         {   
             runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
                                                 inputs[0]->get_shape(),
                                                 inputs[1]->get_data_ptr<T>(),
                                                 inputs[1]->get_shape(),
-                                                nullptr,
-                                                ngraph::Shape(),
+                                                inputs[2]->get_data_ptr<T>(),
+                                                inputs[2]->get_shape(),
                                                 outputs[0]->get_data_ptr<T>(),
                                                 outputs[0]->get_shape(),
                                                 op->get_mode(),
@@ -2152,12 +2153,12 @@ namespace
         }
         else
         {   
-            runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+           runtime::reference::deformable_psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
                                                 inputs[0]->get_shape(),
                                                 inputs[1]->get_data_ptr<T>(),
                                                 inputs[1]->get_shape(),
-                                                inputs[2]->get_data_ptr<T>(),
-                                                inputs[2]->get_shape(),
+                                                nullptr,
+                                                ngraph::Shape(),
                                                 outputs[0]->get_data_ptr<T>(),
                                                 outputs[0]->get_shape(),
                                                 op->get_mode(),
