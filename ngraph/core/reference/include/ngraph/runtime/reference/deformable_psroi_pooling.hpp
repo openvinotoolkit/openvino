@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -121,8 +109,8 @@ namespace ngraph
                                     const size_t offset_channel_idx =
                                         c_idx_out / class_sub_channels;
 
-                                    const int off_bin_w_idx = w_idx_out * part_size / width_out;
-                                    const int off_bin_h_idx = h_idx_out * part_size / height_out;
+                                    const size_t off_bin_w_idx = w_idx_out * part_size / width_out;
+                                    const size_t off_bin_h_idx = h_idx_out * part_size / height_out;
 
                                     T x_offset_value =
                                         offsets_input[(((roi_idx * coords_sub_channels +
@@ -194,9 +182,8 @@ namespace ngraph
                                             static_cast<int64_t>(std::ceil(sub_bin_y1_idx));
 
                                         const T* data_channel_ptr =
-                                            data_input +
-                                            roi_batch_id * channels_in * height_in * width_in +
-                                            c_idx_in * height_in * width_in;
+                                            data_input + (roi_batch_id * channels_in + c_idx_in) *
+                                                             height_in * width_in;
 
                                         const T top_left_sample =
                                             data_channel_ptr[top_y * width_in + left_x];
@@ -208,8 +195,8 @@ namespace ngraph
                                             data_channel_ptr[bottom_y * width_in + right_x];
 
                                         const float delta_left_x =
-                                            std::abs(sub_bin_x1_idx - left_x);
-                                        const float delta_top_y = std::abs(sub_bin_y1_idx - top_y);
+                                            std::fabs(sub_bin_x1_idx - left_x);
+                                        const float delta_top_y = std::fabs(sub_bin_y1_idx - top_y);
 
                                         const T top_interp =
                                             top_left_sample +
