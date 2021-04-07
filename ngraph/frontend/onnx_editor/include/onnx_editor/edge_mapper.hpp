@@ -78,12 +78,6 @@ namespace ngraph
             ///
             OutputEdge find_output_edge(const std::string& output_name) const;
 
-            /// \brief Updates state of a EdgeMapper instance if a model was changed.
-            ///
-            /// \param graph_proto Reference to a GraphProto object.
-            ///
-            void update(const ONNX_NAMESPACE::GraphProto& graph_proto);
-
             /// \brief Returns a vector of InputEdges which consume an output of a node
             ///        determined by provided output name.
             ///

@@ -12,27 +12,16 @@ using namespace ngraph;
 using namespace ngraph::onnx_editor;
 
 onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto)
+    : m_node_inputs(graph_proto.node().size())
+    , m_node_outputs(graph_proto.node().size())
 {
-    update(graph_proto);
-}
-
-void onnx_editor::EdgeMapper::update(const ONNX_NAMESPACE::GraphProto& graph_proto)
-{
-    // reset state
-    m_node_inputs.clear();
-    m_node_outputs.clear();
-    m_node_name_to_index.clear();
-
     int topological_index = 0;
-    m_node_inputs.resize(graph_proto.node().size());
-    m_node_outputs.resize(graph_proto.node().size());
     for (const auto& node_proto : graph_proto.node())
     {
         for (const auto& out_name : node_proto.output())
         {
             // node output name is unique
             m_node_name_to_index.emplace(out_name, topological_index);
-            std::cout << out_name << " -- " << topological_index << "\n";
             m_node_outputs[topological_index].push_back(out_name);
         }
         for (const auto& in_name : node_proto.input())

@@ -125,7 +125,7 @@ namespace ngraph
             ///
             /// \param input An input helper structure created based on a input name
             ///              or a input index.
-            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input);
+            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
 
             /// \brief Returns an OutputEdge based on a node (node name or output name)
             ///        and an output (output name or output index).
@@ -142,7 +142,7 @@ namespace ngraph
             ///
             /// \param output A output helper structure created based on a output name
             ///               or a output index.
-            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output);
+            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
 
             /// \brief Returns an OutputEdge based on a output name.
             ///
@@ -150,7 +150,7 @@ namespace ngraph
             ///
             /// \param output_name A node output name.
             ///
-            OutputEdge find_output_edge(const std::string& output_name);
+            OutputEdge find_output_edge(const std::string& output_name) const;
 
             /// \brief Returns a vector of InputEdges which consume an output of a node
             ///        determined by provided output name.
@@ -159,13 +159,12 @@ namespace ngraph
             ///
             /// \param output_name A node output name.
             ///
-            std::vector<InputEdge> find_output_consumers(const std::string& output_name);
+            std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
 
         private:
-            void update_mapper_if_needed();
+            void update_mapper_if_needed() const;
 
             const std::string m_model_path;
-            bool m_is_mapper_updated;
 
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
