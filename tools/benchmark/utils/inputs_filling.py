@@ -15,7 +15,7 @@ def set_inputs(paths_to_input, batch_size, app_input_info, requests):
     inputs = requests[i].input_blobs
     for k, v in requests_input_data[i].items():
         if k not in inputs.keys():
-            raise Exception("No input with name {} found!".format(k))
+            raise Exception(f"No input with name {k} found!")
         inputs[k].buffer[:] = v
 
 def get_inputs(paths_to_input, batch_size, app_input_info, requests):
@@ -42,33 +42,34 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
     else:
         binary_to_be_used = binaries_count * batch_size * len(requests)
         if binary_to_be_used > 0 and len(binary_files) == 0:
-            logger.warning("No supported binary inputs found! Please check your file extensions: {}".format(
-                ",".join(BINARY_EXTENSIONS)))
+            logger.warning(f"No supported binary inputs found! "
+                                        f"Please check your file extensions: {','.join(BINARY_EXTENSIONS)}")
         elif binary_to_be_used > len(binary_files):
             logger.warning(
-                "Some binary input files will be duplicated: {} files are required, but only {} were provided".format(
-                    binary_to_be_used, len(binary_files)))
+                f"Some binary input files will be duplicated: "
+                                        f"{binary_to_be_used} files are required, "
+                                        f"but only {len(binary_files)} were provided")
         elif binary_to_be_used < len(binary_files):
             logger.warning(
-                "Some binary input files will be ignored: only {} files are required from {}".format(binary_to_be_used,
-                                                                                                     len(binary_files)))
+                f"Some binary input files will be ignored: only {binary_to_be_used} "
+                                        f"files are required from {len(binary_files)}")
 
         images_to_be_used = images_count * batch_size * len(requests)
         if images_to_be_used > 0 and len(image_files) == 0:
-            logger.warning("No supported image inputs found! Please check your file extensions: {}".format(
-                ",".join(IMAGE_EXTENSIONS)))
+            logger.warning(f"No supported image inputs found! Please check your "
+                                        f"file extensions: {','.join(IMAGE_EXTENSIONS)}")
         elif images_to_be_used > len(image_files):
             logger.warning(
-                "Some image input files will be duplicated: {} files are required, but only {} were provided".format(
-                    images_to_be_used, len(image_files)))
+                f"Some image input files will be duplicated: {images_to_be_used} "
+                            f"files are required, but only {len(image_files)} were provided")
         elif images_to_be_used < len(image_files):
             logger.warning(
-                "Some image input files will be ignored: only {} files are required from {}".format(images_to_be_used,
-                                                                                                    len(image_files)))
+                f"Some image input files will be ignored: only {images_to_be_used} "
+                                                    f"files are required from {len(image_files)}")
 
     requests_input_data = []
     for request_id in range(0, len(requests)):
-        logger.info("Infer Request {} filling".format(request_id))
+        logger.info(f"Infer Request {request_id} filling")
         input_data = {}
         keys = list(sorted(app_input_info.keys()))
         for key in keys:
@@ -95,8 +96,8 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
                 continue
 
             # fill with random data
-            logger.info("Fill input '{}' with random values ({} is expected)".format(key, "image"
-                if info.is_image else "some binary data"))
+            logger.info(f"Fill input '{key}' with random values "
+                                    f"({'image' if info.is_image else 'some binary data'} is expected)")
             input_data[key] = fill_blob_with_random(info)
 
         requests_input_data.append(input_data)
@@ -128,11 +129,11 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
     for b in range(batch_size):
         image_index %= len(image_paths)
         image_filename = image_paths[image_index]
-        logger.info('Prepare image {}'.format(image_filename))
+        logger.info(f'Prepare image {image_filename}')
         image = cv2.imread(image_filename)
         new_im_size = tuple((info.width, info.height))
         if image.shape[:-1] != new_im_size:
-            logger.warning("Image is resized from ({}) to ({})".format(image.shape[:-1], new_im_size))
+            logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
             image = cv2.resize(image, new_im_size)
         if info.layout in ['NCHW', 'CHW']:
             image = image.transpose((2, 0, 1))
@@ -173,7 +174,7 @@ def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_
         blob_size = dtype().nbytes * int(np.prod(shape))
         if blob_size != binary_file_size:
             raise Exception(
-                "File {} contains {} bytes but network expects {}".format(binary_filename, binary_file_size, blob_size))
+                f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")
         binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
         binary_index += input_size
 

@@ -12,7 +12,8 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 std::vector<PReluTestValues> testValues = {

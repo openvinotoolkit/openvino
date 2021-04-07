@@ -62,6 +62,11 @@ inputs7 = {'input': {'shape': int64_array([8]), 'value': int64_array([1, 2, 3, 4
           'updates': {'shape': int64_array([]), 'value': 9}}
 output7 = int64_array([1, 2, 3, 4, 9, 6, 7, 8])
 
+inputs8 = {'input': {'shape': int64_array([3]), 'value': int64_array([1, 2, 3])},
+          'indices': {'shape': int64_array([1]), 'value': int64_array([2])},
+          'updates': {'shape': int64_array([1]), 'value': int64_array([9])}}
+output8 = int64_array([1, 2, 9])
+
 class TestScatterNDUpdate(unittest.TestCase):
     def test_partial_infer1(self):
         graph = build_graph(nodes_attributes, edges, inputs1)
@@ -139,7 +144,7 @@ class TestScatterNDUpdate(unittest.TestCase):
         res_output_value = graph.node['output']['value']
 
         self.assertTrue(np.array_equal(output6, res_output_value),
-                        'values do not match expected: {} and given: {}'.format(output5, res_output_value))
+                        'values do not match expected: {} and given: {}'.format(output6, res_output_value))
 
     def test_infer7_scalar(self):
         graph = build_graph(nodes_attributes, edges, inputs7)
@@ -150,4 +155,15 @@ class TestScatterNDUpdate(unittest.TestCase):
         res_output_value = graph.node['output']['value']
 
         self.assertTrue(np.array_equal(output7, res_output_value),
-                        'values do not match expected: {} and given: {}'.format(output5, res_output_value))
+                        'values do not match expected: {} and given: {}'.format(output7, res_output_value))
+
+    def test_infer8(self):
+        graph = build_graph(nodes_attributes, edges, inputs8)
+        scatternd_node = Node(graph, 'scatternd_node')
+        ScatterNDUpdate.infer(scatternd_node)
+
+        # get the result
+        res_output_value = graph.node['output']['value']
+
+        self.assertTrue(np.array_equal(output8, res_output_value),
+                        'values do not match expected: {} and given: {}'.format(output8, res_output_value))

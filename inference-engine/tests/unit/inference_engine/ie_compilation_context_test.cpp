@@ -349,6 +349,33 @@ TEST(NetworkContext_CNNNetwork, HashWithDifferentMeanValues) {
               NetworkCompilationContext::computeHash(net3, {}));
 }
 
+// Verify all internal hash calculations are thread-safe (like ngraph::function serialization)
+TEST(NetworkContext_CNNNetwork, HashOfSameMultiThreading) {
+    auto net1 = createNetwork();
+    auto net2 = createNetwork();
+    std::atomic_bool fail{false};
+    const auto TEST_DURATION_MS = 1000;
+    auto start = high_resolution_clock::now();
+    int t1Count = 0, t2Count = 0;
+    auto threadFun = [&](int& count) {
+        do {
+            count++;
+            auto hash1 = NetworkCompilationContext::computeHash(net1, {});
+            auto hash2 = NetworkCompilationContext::computeHash(net2, {});
+            if (hash1 != hash2) {
+                fail = true;
+                break;
+            }
+        } while (!fail && duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
+    };
+    std::thread t1(threadFun, std::ref(t1Count));
+    std::thread t2(threadFun, std::ref(t2Count));
+    t1.join();
+    t2.join();
+    std::cout << "Hash threading test finished. Total runs = " << t1Count + t2Count << std::endl;
+    ASSERT_FALSE(fail);
+}
+
 ////////////////////////////////////////////
 
 TEST(NetworkContext_ModelName, HashOfSame) {
