@@ -826,34 +826,6 @@ void InsertIdentityLayerPass::run() {
             }
 
             CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), activationLayerWithQuant);
-
-            bool restart = true;
-            // if we added identity - we should reconnect others
-            // we can't leave 16bit output & 32bit output active in parallel
-            // due to GNA HW limitations
-            while (restart) {
-                restart = false;
-                for (auto prev_layer_output : prev->outData) {
-                    // prev ---> identity -+-> layer XYZ
-                    //                     |
-                    //                     |  <= here we want to inject identity
-                    //                     |
-                    //                     +--> l layer
-                    // but we may just connect l layer with existing identity
-                    for (auto&& next_layer : getInputTo(prev_layer_output)) {
-                        auto child_of_prev_layer = next_layer.second;
-                        if (child_of_prev_layer.get() == activationLayerWithQuant.get()) {
-                            continue;
-                        }
-                        else {
-                            CNNNetworkReconnectLayer(prev, activationLayerWithQuant, child_of_prev_layer);
-                            // the iterator aquired by getInputTo is invalid, we need to restart
-                            restart = true;
-                            break;
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -1909,31 +1881,8 @@ void FuseFQIntoWeightsPass::run() {
 
                 if (levels > std::numeric_limits<uint8_t>::max() && outputRange.first.size() > 1) {
                     // find min and max for input and output range
-                    bool first = true;
-                    float min_input = 0.0f;
-                    float max_input = 0.0f;
-                    float min_output = 0.0f;
-                    float max_output = 0.0f;
-                    for (auto ir : inputRange.first)
-                        min_input = first ? ir : (min_input < ir ? min_input : ir);
-
-                    first = true;
-                    for (auto ir : inputRange.second)
-                        max_input = first ? ir : (max_input > ir ? max_input : ir);
-
-                    first = true;
-                    for (auto ir : inputRange.first)
-                        min_output = first ? ir : (min_output < ir ? min_output : ir);
-
-                    first = true;
-                    for (auto ir : inputRange.second)
-                        max_output = first ? ir : (max_output > ir ? max_output : ir);
-                    inputRange.first = { min_input };
-                    inputRange.second = { max_input };
-                    outputRange.first = { min_output };
-                    outputRange.second = { max_output };
-                    //THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantization for int16 weights."
-                    //    << " Per-channel quantization ";
+                    THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantization for int16 weights."
+                        << " Per-channel quantization ";
                 }
 
                 // check if
@@ -2097,32 +2046,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         if (inputRange.first.size() != 1 || inputRange.second.size() != 1 ||
             outputRange.first.size() != 1 || outputRange.second.size() != 1) {
 
-            // find min and max for input and output range
-            bool first = true;
-            float min_input = 0.0f;
-            float max_input = 0.0f;
-            float min_output = 0.0f;
-            float max_output = 0.0f;
-            for (auto ir : inputRange.first)
-                min_input = first ? ir : (min_input < ir ? min_input : ir);
-
-            first = true;
-            for (auto ir : inputRange.second)
-                max_input = first ? ir : (max_input > ir ? max_input : ir);
-
-            first = true;
-            for (auto ir : inputRange.first)
-                min_output = first ? ir : (min_output < ir ? min_output : ir);
-
-            first = true;
-            for (auto ir : inputRange.second)
-                max_output = first ? ir : (max_output > ir ? max_output : ir);
-            inputRange.first = { min_input };
-            inputRange.second = { max_input };
-            outputRange.first = { min_output };
-            outputRange.second = { max_output };
-
-            //THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
         }
 
         if (!LayerInfo(prevLayer).isConst() &&

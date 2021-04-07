@@ -56,6 +56,7 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -634,6 +635,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
         pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
+        pass_config->disable<ngraph::pass::MulFakeQuantizeFusion>();
         // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue 52034
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
         manager.run_passes(graph);

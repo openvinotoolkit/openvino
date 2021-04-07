@@ -353,7 +353,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             auto absMin = std::min(std::abs(minOutValue), std::abs(maxOutValue));
 
             result = (quantizedParams->_dst_quant.GetLevels() - 1) / (maxOutValue - minOutValue);
-            if (0 && fp32eq(absMin, 0.0f) && !fp32eq(absMax, 0.0f)) {
+            if (fp32eq(absMin, 0.0f) && !fp32eq(absMax, 0.0f)) {
                 result = (quantizedParams->_dst_quant.GetLevels() - 1) / (2 * absMax);
             }
             //
