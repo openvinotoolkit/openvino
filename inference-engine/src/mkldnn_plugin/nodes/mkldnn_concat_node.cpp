@@ -9,7 +9,6 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 
-#include "details/ie_exception.hpp"
 #include <legacy/ie_layers.h>
 #include "mkldnn.hpp"
 #include "mkldnn/iml_type_mapper.h"

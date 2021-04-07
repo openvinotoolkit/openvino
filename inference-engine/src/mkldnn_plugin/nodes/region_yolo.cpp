@@ -310,7 +310,7 @@ public:
                 logistic_kernel->create_ker();
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN, input_prec)}, {DataConfigurator(ConfLayout::PLN, output_prec)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }

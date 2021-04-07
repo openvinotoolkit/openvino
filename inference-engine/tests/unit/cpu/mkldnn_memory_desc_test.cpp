@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include "mkldnn_memory.h"
-#include "details/ie_exception.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
