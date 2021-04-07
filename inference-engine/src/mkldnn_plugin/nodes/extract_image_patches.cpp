@@ -59,7 +59,14 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
                               && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
         if (mayiuse_gather) {
             mov(reg_aux64, ptr[reg_params + GET_OFF(gather_idx)]);
-            uni_vmovups(vmm_gather_index, ptr[reg_aux64]);;
+            if (jpp.dtype_size == 4) {
+                uni_vmovups(vmm_gather_index, ptr[reg_aux64]);
+            } else if (jpp.dtype_size == 8) {
+                switch (isa) {
+                    case x64::avx2: uni_vmovups(Xbyak::Xmm(vmm_gather_index.getIdx()), ptr[reg_aux64]); break;
+                    case x64::avx512_common: uni_vmovups(Xbyak::Ymm(vmm_gather_index.getIdx()), ptr[reg_aux64]); break;
+                }
+            }
         }
         loop();
 
@@ -143,7 +150,7 @@ private:
         switch (isa) {
             case x64::avx2:
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                vgatherdpd(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
+                vgatherdpd(vmm_arg, ptr[mem_base + Xbyak::Xmm(mem_offset.getIdx())], vmm_mask);
                 break;
             case x64::avx512_common:
                 kxnorq(k_mask, k_mask, k_mask);
