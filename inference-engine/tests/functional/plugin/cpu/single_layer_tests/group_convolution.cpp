@@ -97,9 +97,13 @@ protected:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
         //todo[mkutakov]: to add nxc support to the DW fork convolution
-        if (inFmts.front() == nhwc) {
+        if (inFmts.front() == nhwc && selectedType.find("dw") != std::string::npos) {
             if ((padBegin == std::vector<ptrdiff_t>{1, 1}) && (kernel == SizeVector{1, 1})) {
-                selectedType = "jit_gemm_FP32";
+                if (selectedType.find("avx512") != std::string::npos) {
+                    selectedType = "jit_avx512_FP32";
+                } else {
+                    selectedType = "jit_gemm_FP32";
+                }
             }
         }
 
@@ -672,9 +676,11 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_DW_GroupConvTestCas
         //  jcp.ngroups % simd_w == 0, jcp.nb_ch == 4, jcp.nb_ch_blocking == 4 (jcp.ngroups == 64)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID, 64, 1, {5, 5}, 1, 1, avx512_DW_2D),
         //  jcp.ngroups % simd_w != 0, jcp.nb_ch == 5, jcp.nb_ch_blocking == 4 (jcp.ngroups == 65)
-        makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID, 65, 1, {5, 5}, 1, 1, avx512_DW_2D),
+        makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
+                                        65, 1, {5, 5}, 1, 1, /*avx512_DW_2D*/{conv_avx512_dw_2D}), // todo [mkutakov] : add nspc support to fork dw conv
         //  jcp.ow > jcp.ur_w (jcp.ow == 7)
-        makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID, 8, 1, {5, 9}, 1, 1, avx512_DW_2D),
+        makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
+                                        8, 1, {5, 9}, 1, 1, /*avx512_DW_2D*/{conv_avx512_dw_2D}), // todo [mkutakov] : add nspc support to fork dw conv
 
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 16, 2, {129, 129}, 1, 1,
@@ -682,9 +688,9 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_DW_GroupConvTestCas
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT, 16, 1, {10, 10}, 1, 1,
                                         avx512_DW_2D),
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        16, 2, {33, 33, 33}, 1, 1, avx512_DW_3D),
+                                        16, 2, {33, 33, 33}, 1, 1, /*avx512_DW_3D*/{conv_avx512_dw_3D}), // todo [mkutakov] : add nspc support to fork dw conv
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        16, 1, {10, 10, 10}, 1, 1, avx512_DW_3D)
+                                        16, 1, {10, 10, 10}, 1, 1, /*avx512_DW_3D*/{conv_avx512_dw_3D}) // todo [mkutakov] : add nspc support to fork dw conv
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
