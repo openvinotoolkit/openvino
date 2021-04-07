@@ -154,13 +154,13 @@ namespace ngraph
                                 // Each bin is divided into sub-bins
                                 // Values of sub-bins are calculated by bilinear interpolation
                                 // Value of single bin is average of its sub-bins
-                                float sub_bin_width =
+                                const float sub_bin_width =
                                     bin_width / static_cast<float>(spatial_bins_x);
-                                float sub_bin_height =
+                                const float sub_bin_height =
                                     bin_height / static_cast<float>(spatial_bins_y);
 
                                 T sub_bins_val_sum = 0;
-                                int64_t legit_sub_bin_count = 0;
+                                size_t legit_sub_bin_count = 0;
                                 for (size_t sub_bin_h_idx = 0; sub_bin_h_idx < spatial_bins_y;
                                      ++sub_bin_h_idx)
                                 {
@@ -198,28 +198,28 @@ namespace ngraph
                                             roi_batch_id * channels_in * height_in * width_in +
                                             c_idx_in * height_in * width_in;
 
-                                        const float top_left_sample =
+                                        const T top_left_sample =
                                             data_channel_ptr[top_y * width_in + left_x];
-                                        const float top_right_sample =
+                                        const T top_right_sample =
                                             data_channel_ptr[top_y * width_in + right_x];
-                                        const float bottom_left_sample =
+                                        const T bottom_left_sample =
                                             data_channel_ptr[bottom_y * width_in + left_x];
-                                        const float bottom_right_sample =
+                                        const T bottom_right_sample =
                                             data_channel_ptr[bottom_y * width_in + right_x];
 
                                         const float delta_left_x =
                                             std::abs(sub_bin_x1_idx - left_x);
                                         const float delta_top_y = std::abs(sub_bin_y1_idx - top_y);
 
-                                        T top_interp =
+                                        const T top_interp =
                                             top_left_sample +
                                             (top_right_sample - top_left_sample) * delta_left_x;
-                                        T bottom_interp =
+                                        const T bottom_interp =
                                             bottom_left_sample +
                                             (bottom_right_sample - bottom_left_sample) *
                                                 delta_left_x;
 
-                                        const float sub_bin_value =
+                                        const T sub_bin_value =
                                             top_interp + (bottom_interp - top_interp) * delta_top_y;
 
                                         legit_sub_bin_count++;
