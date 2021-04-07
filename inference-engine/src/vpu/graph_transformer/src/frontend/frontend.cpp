@@ -53,6 +53,8 @@
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <vpu/configuration/options/disable_convert_stages.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/custom_layers.hpp>
+#include <vpu/configuration/options/config_file.hpp>
 
 namespace vpu {
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
@@ -469,15 +471,17 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     // Parse custom layers
     //
 
-    if (!env.config.compileConfig().customLayers.empty()) {
-        env.log->trace("Parse custom layers : %s", env.config.compileConfig().customLayers);
+    auto customLayers = env.config.get<CustomLayersOption>().empty()
+        ? env.config.get<ConfigFileOption>() : env.config.get<CustomLayersOption>();
+    if (!customLayers.empty()) {
+        env.log->trace("Parse custom layers : %s", customLayers);
         VPU_LOGGER_SECTION(env.log);
 
         if (env.platform != ncDevicePlatform_t::NC_MYRIAD_X) {
             VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
         }
 
-        _customLayers = CustomLayer::loadFromFile(env.config.compileConfig().customLayers);
+        _customLayers = CustomLayer::loadFromFile(customLayers);
     }
 
     //

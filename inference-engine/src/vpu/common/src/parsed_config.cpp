@@ -23,20 +23,6 @@ const std::unordered_set<std::string>& ParsedConfig::getCompileOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getCompileOptions(), {
         //
-        // Public options
-        //
-
-        CONFIG_KEY(CONFIG_FILE),
-
-        ie::MYRIAD_CUSTOM_LAYERS,
-
-        //
-        // Public deprecated
-        //
-
-        VPU_CONFIG_KEY(CUSTOM_LAYERS),
-
-        //
         // Private options
         //
 
@@ -68,9 +54,7 @@ IE_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& ParsedConfig::getDeprecatedOptions() const {
 IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getDeprecatedOptions(), {
-        VPU_CONFIG_KEY(CUSTOM_LAYERS),
-    });
+    static const std::unordered_set<std::string> options = ParsedConfigBase::getDeprecatedOptions();
 IE_SUPPRESS_DEPRECATED_END
 
     return options;
@@ -119,12 +103,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
 
-    // Priority is set to VPU configuration file over plug-in config.
-    setOption(_compileConfig.customLayers,                             config, ie::MYRIAD_CUSTOM_LAYERS);
-    if (_compileConfig.customLayers.empty()) {
-        setOption(_compileConfig.customLayers,                         config, CONFIG_KEY(CONFIG_FILE));
-    }
-
     auto isPositive = [](int value) {
         return value >= 0;
     };
@@ -142,10 +120,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
         throw std::invalid_argument("Value must be positive or default(-1).");
     };
-
-IE_SUPPRESS_DEPRECATED_START
-    setOption(_compileConfig.customLayers,                             config, VPU_CONFIG_KEY(CUSTOM_LAYERS));
-IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG
     if (const auto envVar = std::getenv("IE_VPU_COMPILER_LOG_FILE_PATH")) {

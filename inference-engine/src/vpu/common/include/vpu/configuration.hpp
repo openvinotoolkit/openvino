@@ -15,8 +15,6 @@
 namespace vpu {
 
 struct CompilationConfig {
-    std::string customLayers;
-
     bool enableEarlyEltwiseReLUFusion = true;
 
     //

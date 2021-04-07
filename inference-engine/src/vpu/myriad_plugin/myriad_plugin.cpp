@@ -56,6 +56,8 @@
 #include <vpu/configuration/options/device_id.hpp>
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/detect_network_batch.hpp>
+#include <vpu/configuration/options/custom_layers.hpp>
+#include <vpu/configuration/options/config_file.hpp>
 
 #include "myriad_plugin.h"
 
@@ -179,15 +181,11 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     // TODO: remove once all options are migrated
 IE_SUPPRESS_DEPRECATED_START
     _config = {
-        { MYRIAD_CUSTOM_LAYERS, "" },
         { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
 
         // Deprecated
-        { KEY_VPU_CUSTOM_LAYERS, "" },
         { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
-
-        { KEY_CONFIG_FILE, "" },
     };
 IE_SUPPRESS_DEPRECATED_END
 
@@ -226,6 +224,8 @@ IE_SUPPRESS_DEPRECATED_END
     _parsedConfig.registerOption<DeviceIDOption>();
     _parsedConfig.registerOption<DeviceConnectTimeoutOption>();
     _parsedConfig.registerOption<DetectNetworkBatchOption>();
+    _parsedConfig.registerOption<CustomLayersOption>();
+    _parsedConfig.registerOption<ConfigFileOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
@@ -235,6 +235,7 @@ IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<HwAccelerationOption>(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
     _parsedConfig.registerDeprecatedOption<EnableReceivingTensorTimeOption>(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
     _parsedConfig.registerDeprecatedOption<DetectNetworkBatchOption>(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
+    _parsedConfig.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
 IE_SUPPRESS_DEPRECATED_END
 }
 

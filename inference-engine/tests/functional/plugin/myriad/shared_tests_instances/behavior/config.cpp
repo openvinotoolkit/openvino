@@ -129,6 +129,10 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}},
 
+        {{InferenceEngine::MYRIAD_CUSTOM_LAYERS, ""}},
+
+        {{KEY_CONFIG_FILE, ""}},
+
         // Deprecated
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
         {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
@@ -150,6 +154,8 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
 
         {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(YES)}},
         {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)}},
+
+        {{VPU_CONFIG_KEY(CUSTOM_LAYERS), ""}},
 
         {
             {KEY_LOG_LEVEL, LOG_INFO},
@@ -186,6 +192,8 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {KEY_DEVICE_ID, ""},
             {InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, "10"},
             {InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)},
+            {InferenceEngine::MYRIAD_CUSTOM_LAYERS, ""},
+            {KEY_CONFIG_FILE, ""},
         },
     };
 
@@ -239,6 +247,15 @@ const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() 
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {KEY_DEVICE_ID, ""}
         },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {InferenceEngine::MYRIAD_CUSTOM_LAYERS, ""}
+        },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {KEY_CONFIG_FILE, ""}
+        },
+
 
         // Deprecated
         {
@@ -252,6 +269,10 @@ const std::vector<std::map<std::string, std::string>>& getCorrectMultiConfigs() 
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), YES}
+        },
+        {
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+            {VPU_CONFIG_KEY(CUSTOM_LAYERS), ""}
         },
     };
     return correctMultiConfigs;
@@ -303,6 +324,8 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {KEY_DEVICE_ID, {std::string()}},
         {InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT, {std::chrono::seconds(15)}},
         {InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, {true}},
+        {InferenceEngine::MYRIAD_CUSTOM_LAYERS, {std::string()}},
+        {KEY_CONFIG_FILE, {std::string()}},
     };
     return defaultEntries;
 }
@@ -472,6 +495,9 @@ const std::vector<std::string>& getPublicOptions() {
         InferenceEngine::MYRIAD_THROUGHPUT_STREAMS,
         KEY_EXCLUSIVE_ASYNC_REQUESTS,
         KEY_DEVICE_ID,
+        InferenceEngine::MYRIAD_CUSTOM_LAYERS,
+        VPU_CONFIG_KEY(CUSTOM_LAYERS),
+        KEY_CONFIG_FILE,
     };
     return publicOptions;
 }
