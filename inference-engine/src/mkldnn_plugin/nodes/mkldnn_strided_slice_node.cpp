@@ -12,7 +12,6 @@
 #include "caseless.hpp"
 #include "common/dnnl_thread.hpp"
 #include "common/cpu_memcpy.h"
-#include "common/dnnl_thread.hpp"
 #include "common/tensor_desc_creator.h"
 #include "utils/general_utils.h"
 
@@ -544,7 +543,7 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
         if (beginDims.size())
             fillingInParameters(begin, BEGIN_ID, beginDims[0], 0);
         if (endDims.size())
-            fillingInParameters(end, END_ID, endDims[0], -1);
+            fillingInParameters(end, END_ID, endDims[0], 0);
         if (strideDims.size())
             fillingInParameters(stride, STRIDE_ID, strideDims[0], 1);
 
