@@ -10,6 +10,7 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "onnx_editor/edge_mapper.hpp"
 #include "onnx_editor/editor.hpp"
 
 using namespace ngraph;
@@ -200,6 +201,7 @@ namespace
 struct onnx_editor::ONNXModelEditor::Impl
 {
     ONNX_NAMESPACE::ModelProto m_model_proto;
+    EdgeMapper m_edge_mapper;
 
     Impl() = delete;
 
@@ -365,7 +367,7 @@ void onnx_editor::ONNXModelEditor::update_mapper_if_needed()
 {
     if (!m_is_mapper_updated)
     {
-        m_edge_mapper.update(m_pimpl->m_model_proto.graph());
+        m_pimpl->m_edge_mapper.update(m_pimpl->m_model_proto.graph());
     }
     m_is_mapper_updated = true;
 }
@@ -374,25 +376,25 @@ InputEdge onnx_editor::ONNXModelEditor::find_input_edge(const EditorNode& node,
                                                         const EditorInput& input)
 {
     update_mapper_if_needed();
-    return m_edge_mapper.find_input_edge(node, input);
+    return m_pimpl->m_edge_mapper.find_input_edge(node, input);
 }
 
 OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const EditorNode& node,
                                                           const EditorOutput& input)
 {
     update_mapper_if_needed();
-    return m_edge_mapper.find_output_edge(node, input);
+    return m_pimpl->m_edge_mapper.find_output_edge(node, input);
 }
 
 OutputEdge onnx_editor::ONNXModelEditor::find_output_edge(const std::string& output_name)
 {
     update_mapper_if_needed();
-    return m_edge_mapper.find_output_edge(output_name);
+    return m_pimpl->m_edge_mapper.find_output_edge(output_name);
 }
 
 std::vector<InputEdge>
     onnx_editor::ONNXModelEditor::find_output_consumers(const std::string& output_name)
 {
     update_mapper_if_needed();
-    return m_edge_mapper.find_output_consumers(output_name);
+    return m_pimpl->m_edge_mapper.find_output_consumers(output_name);
 }
