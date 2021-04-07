@@ -13,7 +13,7 @@ ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pr
 ie_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
 Supported values:\
  ALL - enable all ITT counters (default value)\
- FIRST_INFERENCE - enable only first inference time counters" FIRST_INFERENCE
+ FIRST_INFERENCE - enable only first inference time counters" ALL
                ALLOWED_VALUES ALL FIRST_INFERENCE)
 
 ie_option (ENABLE_PROFILING_FIRST_INFERENCE "Build with ITT tracing of first inference time." ON)
