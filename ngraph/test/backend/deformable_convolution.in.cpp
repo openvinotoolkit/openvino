@@ -45,7 +45,8 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
                                       const CoordinateDiff& padding,
                                       const Strides& dilations,
                                       const int64_t group = 1,
-                                      const int64_t deformable_group = 1)
+                                      const int64_t deformable_group = 1,
+                                      const size_t tolerance_bits = 2)
 {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
@@ -70,7 +71,7 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
     test_case.add_input<float>(offsets);
     test_case.add_input<float>(filter);
     test_case.add_expected_output<float>(outputs_shape, outputs);
-    test_case.run(4);
+    test_case.run(tolerance_bits);
 }
 // clang-format off
 
@@ -1401,7 +1402,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_deforgro
                               dilations, group, deformable_group);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_deforgroup_complex)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_deforgroup_complex1)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -1522,7 +1523,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_deforgro
                                      0.0f, 0.0f, 0.0f,
                                      0.0f, 0.0f, 0.0f,
                                      0.0f, 0.0f, 0.0f,
-                                     
+
                                      // defgroup 3
                                      1.0f, 1.0f, 1.0f,
                                      1.0f, 1.0f, 1.0f,
@@ -1725,7 +1726,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_deforgro
 
                                      0.0f, 0.0f, 0.0f,
                                      0.0f, 0.0f, 0.0f,
-                                     0.0f, 0.0f, 0.0f,                                                                        
+                                     0.0f, 0.0f, 0.0f,
                                     };
 
     const Shape outputs_shape{1, 2, 3, 3};
@@ -1750,6 +1751,8 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_real_offsets_default)
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
     const Strides dilations{1, 1};
+    const int64_t group = 1;
+    const int64_t deformable_group = 1;
 
     const Shape inputs_shape{1, 1, 4, 4};
     const std::vector<float> inputs{1.0f, 2.0f, 3.0f, 4.0f,
@@ -1762,7 +1765,8 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_real_offsets_default)
                                     -1.0f, -2.0f};
 
     const Shape offsets_shape{1, 8, 3, 3};
-    const std::vector<float> offsets{// window 1 (Y=0, X=0) -> Y coordinate
+    const std::vector<float> offsets{
+                                    // window 1 (Y=0, X=0) -> Y coordinate
                                      1.1f, 1.1f, 1.1f, // out1 .. out 3
                                      1.1f, 1.1f, 1.1f, // out4 .. out 6
                                      1.1f, 1.1f, 1.1f, // out7 .. out 9
@@ -1797,12 +1801,14 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_real_offsets_default)
                                     };
 
     const Shape outputs_shape{1, 1, 3, 3};
-    const std::vector<float> outputs{-11.999998f, -11.999999f, -4.0f,
+    const std::vector<float> outputs{-11.999998f, -11.999999f, -4.000000f,
                                      -10.799999f, -10.800001f, -3.600004f,
-                                     44.3f, 47.1f, 16.0f};
+                                     44.300000f, 47.100000f, 16.000000f};
 
+    const size_t tolerance_bits = 6;
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
-                              filter_shape, outputs, outputs_shape,strides, padding, dilations);
+                              filter_shape, outputs, outputs_shape, strides, padding,
+                              dilations, group, deformable_group, tolerance_bits);
 }
 
 // TODO: group & deformable_group attributes (real offsets)
