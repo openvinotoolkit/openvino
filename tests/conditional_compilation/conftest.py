@@ -91,7 +91,7 @@ def test_info(request, pytestconfig):
     pytestconfig.session_info.append(request.node._request.test_info)
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def save_session_info(pytestconfig, artifacts):
     """Fixture function for saving additional attributes to configuration file."""
     yield
