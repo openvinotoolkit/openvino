@@ -16,7 +16,6 @@
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_conv_node.h>
-#include <nodes/mkldnn_crop_node.h>
 #include <nodes/mkldnn_deconv_node.h>
 #include <nodes/mkldnn_eltwise_node.h>
 #include <nodes/mkldnn_gemm_node.h>
@@ -39,6 +38,7 @@
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
+#include <nodes/mkldnn_strided_slice_node.h>
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
@@ -93,7 +93,6 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Eltwise", Eltwise },
         { "Mod", Eltwise },
         { "Power", Eltwise },
-        { "Crop", Crop },
         { "Reshape", Reshape },
         { "Tile", Tile },
         { "SimplerNMS", SimplerNMS },
@@ -103,6 +102,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Flatten", Flatten },
         { "Pad", Pad },
         { "Permute", Permute },
+        { "StridedSlice", StridedSlice },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
         { "GRUCell", RNNCell },

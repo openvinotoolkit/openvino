@@ -41,7 +41,6 @@ MKLDNN_EXTENSION_NODE(ReverseSequenceImpl, ReverseSequence);
 MKLDNN_EXTENSION_NODE(DetectionOutputImpl, DetectionOutput);
 MKLDNN_EXTENSION_NODE(ArgMaxImpl, ArgMax);
 MKLDNN_EXTENSION_NODE(UnsqueezeImpl, Unsqueeze);
-MKLDNN_EXTENSION_NODE(StridedSliceImpl, StridedSlice);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronDetectionOutputImpl, ExperimentalDetectronDetectionOutput);
 MKLDNN_EXTENSION_NODE(RegionYoloImpl, RegionYolo);
 MKLDNN_EXTENSION_NODE(LogSoftmaxImpl, LogSoftmax);
