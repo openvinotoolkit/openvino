@@ -15,8 +15,6 @@ namespace MKLDNNPlugin {
 class MKLDNNReshapeNode : public MKLDNNNode {
 public:
     MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNReshapeNode(const InferenceEngine::SizeVector &inDims, const InferenceEngine::SizeVector &outDims, const InferenceEngine::Precision &prc,
-                      const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNReshapeNode() override = default;
 
     void getSupportedDescriptors() override;
