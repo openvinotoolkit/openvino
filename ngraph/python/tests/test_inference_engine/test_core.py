@@ -6,27 +6,11 @@ import ngraph as ng
 from ngraph.impl.op import Parameter
 from ngraph.impl import Function, Shape, Type
 from openvino.inference_engine import IECore, TensorDesc, Blob, IENetwork, ExecutableNetwork
+from ..conftest import model_path, plugins_path
 import os
 import pytest
 from sys import platform
 
-
-def model_path(is_myriad=False):
-    path_to_repo = os.environ["MODELS_PATH"]
-    if not is_myriad:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp32.xml')
-        test_bin = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp32.bin')
-    else:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.xml')
-        test_bin = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.bin')
-    return (test_xml, test_bin)
-
-def plugins_path():
-    path_to_repo = os.environ["DATA_PATH"]
-    plugins_xml = os.path.join(path_to_repo, 'ie_class', 'plugins.xml')
-    plugins_win_xml = os.path.join(path_to_repo, 'ie_class', 'plugins_win.xml')
-    plugins_osx_xml = os.path.join(path_to_repo, 'ie_class', 'plugins_apple.xml')
-    return (plugins_xml, plugins_win_xml, plugins_osx_xml)
 
 test_net_xml, test_net_bin = model_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
