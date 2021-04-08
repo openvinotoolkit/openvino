@@ -1,0 +1,226 @@
+## Einsum <a name="Einsum"></a> {#openvino_docs_ops_matrix_Einsum_7}
+
+**Versioned name**: *Einsum-7*
+
+**Category**: Matrix multiplication
+
+**Short description**: *Einsum* performs the Einstein summation convention on the operands.
+
+**Detailed description**: *Einsum* can represent many common multi-dimensional linear algebraic tensor operations: matrix multiplication;
+inner (or dot), outer and cross products; transpose; trace and diagonal extraction.
+Also, the single *Einsum* operation can express complex combination of these common linear algebraic tensor operations on multiple operands,
+for example, a dot product of a diagonal extracted from a tensor with shape `[5, 5]` and 5D vector is performed by the single *Einsum* operation.
+The Einstein summation convention on input tensors is defined by `equation` that is a mandatory attribute of *Einsum* operation.
+The format of `equation` is described below.
+
+In explicit mode, the einsum `equation` has the output subscript separated from the input subscripts by `->` and has the following format for `n` operands: 
+`<subscript for input1>, <subscript for input2>, ..., <subscript for inputn> -> <subscript for output>`.
+Each input subscript `<subscript for input1>` contains a sequence of labels (lower case letters `['a',...,'z']`) where each label refers to a dimension of 
+the corresponsing operand. The appereance of labels in a subscript in alphabetical order is not needed. The subscript for a scalar input is empty.
+The input subscripts are separated with a comma `,`.
+The output subscript `<subscript for output>` is separated from the input subscripts by `->` and also represents a sequence of labels
+(lower case letters `['a',...,'z']`). A length of the input subscript matches a rank of the input. The input subscript is empty for a scalar input.
+
+*Einsum* operation on multiple inputs can be treated as several consecutive *Einsum* operations. In the first step, *Einsum* applies the first two inputs. 
+In the second step, it operates on the result of the first step and the third input and so forth.
+*Einsum* operates on two operands similar to element-wise multiplication by all pairs of batches from both operands. The batch dimensions are defined
+with labels that enter only one subscript from the corresponding two subscripts.
+For example, the intermediate result after the first step for *Einsum* with three inputs (of shapes `[2,5]`, `[5,3,6]` and `[5,3]`)
+and `equation` equal to `ab,bcd,bc->ca` will be a tensor of shape `[2,5,3,6]` with a subscript `abcd`
+where batch dimensions for the first input and the second input are represented with label sequences `a` and `cd`.
+The next step performs the same logic on input tensors (of shapes `[2,5,3,6]` and `[5,3]`) with subscripts `abcd` and `bc` and
+outputs a tensor of shape `[2,5,3,6]` with a subscript `abcd`.
+Lastly, the output subscript defines order of output dimensions and which dimensions are sum-reduced.
+Dimensions corresponding to absent labels in the output subscript are sum-reduced. The final result for the considered example is of shape equal to `[3,2]`
+where dimensions with labels `b` and `d` are reduced and the transpose is applied to get output layout `ca`.
+
+**NOTE**: *Einsum* operation can perform on the single operand and in this case the operation can transpose the input and reduce its dimensions.
+
+**NOTE**: Input ranks must be equal to a length of corresponding subscripts and dimensions to which the same labels in input subscripts 
+correspond must be equal in size.
+
+**NOTE**: A labels can repeat in the same input subscript, for example, `equation` equal to `aac,abd,ddde`. In this case the corresponding dimensions
+must match in size and the operand the operand will be replaced by its diagonal along these dimensions.
+For example, *Einsum* operation on the single 3D tensor of shape `[2,4,5,4]` with `equation` equal to `ijkj->ij`.
+
+**NOTE**: The specification considers the primitive algorithm for *Einsum* operation for better understanding of the operation
+and does not recommend it for implementation.
+
+**NOTE**: The described algorithm can be improved by immediate dimension sum-reduction in the intermediate results if the corresponding labels absent in
+the input subscripts of subsequent inputs and the output subscript. It can significantly boosts performance and reduces memory costs.
+In the considered example, after the first step we can reduce a dimension corresponding to a label `d`.
+
+The output shape can be easily computed using the output subscript. It needs to concatenate sizes of dimensions to which labels in output subscript
+correspond in the specified order.
+
+Example 1 shows how *Einsum* computes inner product of two 1D tensors:
+
+```
+a1 = [1.0, 2.0, 3.0]
+a2 = [4.0, 5.0, 6.0]
+equation = "i,i->"
+output = 32.0
+```
+
+Example 2 shows how *Einsum* computes matrix-vector multiplication:
+
+```
+A = [[1.0, 2.0, 3.0],
+     [1.0, 2.0, 3.0]])
+b = [4.0, 5.0, 6.0]
+equation = "ij,j->i"
+output = [32.0, 32.0]
+```
+
+Example 3 shows how *Einsum* computes a trace for each batch object:
+
+```
+A = [[[1.0, 2.0, 3.0],
+      [4.0, 5.0, 6.0],
+      [7.0, 8.0, 9.0]],
+     [[2.0, 4.0, 6.0],
+      [8.0, 10.0, 12.0],
+      [14.0, 16.0, 18.0]],
+     ])
+equation = "kii->k"
+output = [15.0, 30.0]
+```
+
+Example 4 shows how *Einsum* extracts a diagonal for each batch object:
+
+```
+A = [[[1.0, 2.0, 3.0],
+      [4.0, 5.0, 6.0],
+      [7.0, 8.0, 9.0]],
+     [[2.0, 4.0, 6.0],
+      [8.0, 10.0, 12.0],
+      [14.0, 16.0, 18.0]],
+     ])
+equation = "kii->ki"
+output = [[1.0, 5.0, 9.0],
+          [2.0, 10.0, 18.0]]
+```
+
+Example 5 shows how *Einsum* extracts a diagonal for each batch object:
+
+```
+A = [[[1.0, 2.0, 3.0],
+      [4.0, 5.0, 6.0],
+      [7.0, 8.0, 9.0]],
+     [[2.0, 4.0, 6.0],
+      [8.0, 10.0, 12.0],
+      [14.0, 16.0, 18.0]],
+     ])
+equation = "kii->ki"
+output = [[1.0, 5.0, 9.0],
+          [2.0, 10.0, 18.0]]
+```
+
+Example 6 shows how *Einsum* transposes input tensor:
+
+```
+A = [[[1.0, 2.0, 3.0],
+      [4.0, 5.0, 6.0],
+      [7.0, 8.0, 9.0]]]
+equation = "ijk->kij"
+output = [[[1.0, 4.0, 7.0],
+           [2.0, 5.0, 8.0],
+           [3.0, 6.0, 9.0]]])
+```
+
+In implicit mode (a classical form of Einstein summation) `equation` does not have the output subscript and has the following format:
+`<subscript for input1>, <subscript for input2>, ..., <subscript for inputn>`. The equation consists of only input subscripts for each operand.
+The output subscript can be recovered as a sequence of alphabetically sorted labels that do not -repeat in the left-hand of the equation.
+For example, `equation = "dbbc,ca"` in implicit mode is the same as `equation = "dbbc,ca->ad"`.
+The equation in implicit mode can set up only subset of Einstein summation conventions so this mode has limitations. For example,
+`equation = "kii->i"` cannot be represented in implicit mode.
+
+The *Einsum* operation has *einsum_path* attribute that can recommend an order of input contraction to plugins. In case of multiple inputs
+it can boost performance and reduce memory costs. The order of applying of *Einsum* operation to inputs makes sense in terms of performance.
+For example, *Einsum* operation on three inputs (of shapes `[2,2]`, `[2,5]` and `[5,2]`) with `equation="ij,jk,kl->il"` 
+will behave more effective if the operation performs on the second and the third inputs first to avoid a larger size dimension, i.e. the dimension 
+which size equal to `5`. So *einsum_path* can record an order of applying *Einsum* operation. For this example it will be equal to `[1,2],[0,1]`.
+
+The ellipsis `...` in subscript - TBD.
+
+**Attributes**:
+
+* *equation*
+
+  * **Description**: it defines Einstein summation convention on input operands.
+  * **Range of values**: the equation format is described above
+  * **Type**: string
+  * **Required**: *yes*
+
+* *einsum_path*
+
+  * **Description**: it recommends the pre-computed (sub-)optimal path of Einstein summation on multiple inputs. The plugin can ignore it.
+  * **Range of values**: the contraction path format is described above
+  * **Type**: string
+  * **Default value**: None
+  * **Required**: *no*
+
+**Inputs**:
+
+* **Multiple inputs**: Tensors of type *T* and different shapes.
+
+**Output**:
+
+*   **1**: Tensor of type *T*.
+
+**Types**
+
+* *T*: any numeric type.
+
+**Examples**
+
+```xml
+<layer ... type="Einsum" version="opset7">
+    <data equation="ij,ij->i"/>
+    <input>
+        <port id="0">
+            <dim>2</dim>
+            <dim>64</dim>
+        </port>
+        <port id="0">
+            <dim>2</dim>
+            <dim>64</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
+
+```xml
+<layer ... type="Einsum" version="opset7">
+    <data equation="ab...,ac...,ade->...bc" einsum_path="[1, 2], [0, 1]"/>
+    <input>
+        <port id="0">
+            <dim>2</dim>
+            <dim>3</dim>
+            <dim>4</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim>
+            <dim>7</dim>
+            <dim>1</dim>
+        </port>
+        <port id="3">
+            <dim>2</dim>
+            <dim>4</dim>
+            <dim>7</dim>
+        </port>
+    </input>
+    <output>
+        <port id="4">
+            <dim>4</dim>
+            <dim>3</dim>
+            <dim>7</dim>
+        </port>
+    </output>
+</layer>
+```
