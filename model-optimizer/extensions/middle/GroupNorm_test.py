@@ -109,6 +109,6 @@ class GroupNormToMVNTest(unittest.TestCase):
 
         GroupNormToMVN().find_and_replace_pattern(graph)
         graph.clean_up()
-        
+
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
