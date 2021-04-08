@@ -245,7 +245,7 @@ class BackEdgeSimpleInputMatcher(MiddleReplacementPattern):
 
 
 class SmartMatcherInputSlicingWithGather(MiddleReplacementPattern):
-    """
+    r"""
     The transformation matches a sub-graph where input tensor is consequently sliced along some axis
     for each time step (or index) inside TensorFlow 1.x while_loop operation.
     In the original graph StridedSlice with non-constant begin and end attributes performs this slicing.
