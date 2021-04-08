@@ -19,7 +19,7 @@ const std::vector<PadType> autoPads = {PadType::VALID, PadType::SAME_UPPER, PadT
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::I8,
     InferenceEngine::Precision::U8,
-    InferenceEngine::Precision::I16,
+    InferenceEngine::Precision::BF16,
     InferenceEngine::Precision::I32,
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::I64

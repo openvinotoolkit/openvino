@@ -65,12 +65,8 @@ TEST_P(ExtractImagePatchesLayerCPUTest, CompareWithRefs) {
 
 namespace {
     const std::vector<ngraph::op::PadType> autoPads = {ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER};
-    const std::vector<Precision> netPrecision = {Precision::I8, Precision::FP32};
-    const auto ref = CPUSpecificParams{{}, {}, {"ref"}, "ref"};
-    const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
-    const auto avx2 = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
-    const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
-    const std::vector<CPUSpecificParams> CPUParams = {ref, sse42, avx2, avx512};
+    const std::vector<Precision> netPrecision = {Precision::I8, Precision::BF16, Precision::FP32};
+    const CPUSpecificParams CPUParams = emptyCPUSpec;
 
 /* ============= 1D ============= */
 const auto Layer_params_1D = ::testing::Combine(
@@ -86,7 +82,7 @@ const auto Layer_params_1D = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_1D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_1D, ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams))),
+                        ::testing::Combine(Layer_params_1D, ::testing::Values(CPUParams)),
                         ExtractImagePatchesLayerCPUTest::getTestCaseName);
 
 /* ============= 2D ============= */
@@ -103,7 +99,7 @@ const auto Layer_params_2D = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_2D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_2D, ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams))),
+                        ::testing::Combine(Layer_params_2D, ::testing::Values(CPUParams)),
                         ExtractImagePatchesLayerCPUTest::getTestCaseName);
 
 /* ============= 3D ============= */
@@ -120,7 +116,7 @@ const auto Layer_params_3D = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_3D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_3D, ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams))),
+                        ::testing::Combine(Layer_params_3D, ::testing::Values(CPUParams)),
                         ExtractImagePatchesLayerCPUTest::getTestCaseName);
 
 /* ============= 4D ============= */
@@ -137,7 +133,7 @@ const auto Layer_params_4D = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches_CPU_4D, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params_4D, ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams))),
+                        ::testing::Combine(Layer_params_4D, ::testing::Values(CPUParams)),
                         ExtractImagePatchesLayerCPUTest::getTestCaseName);
 
 } // namespace
