@@ -186,9 +186,9 @@ endif ()
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.1")
-    set(OPENCV_BUILD "044")
-    set(OPENCV_BUILD_YOCTO "337")
+    set(OPENCV_VERSION "4.5.2")
+    set(OPENCV_BUILD "076")
+    set(OPENCV_BUILD_YOCTO "708")
 
     if (AARCH64)
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -208,7 +208,7 @@ if (ENABLE_OPENCV)
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "b5239e0e50b9009f95a29cb11f0840ec085fa07f6c4d3349adf090f1e51b0787")
+                    SHA256 "ee3e5255f381b8de5e6fffe4e43dae8c99035377d0380f9183bd7341f1d0f204")
 
             unset(IE_PATH_TO_DEPS)
         endif()
@@ -219,37 +219,37 @@ if (ENABLE_OPENCV)
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "5250bfe5860c15eb1b31963c78804ee9b301a19d8d6e920c06ef41de681cb99e")
+                    SHA256 "a14f872e6b63b6ac12c7ff47fa49e578d14c14433b57f5d85ab5dd48a079938c")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "f3ebc5cc72c86106c30cc711ac689e02281556bb43c09a89cd45cb99b6bef9a8")
+                    SHA256 "3e162f96e86cba8836618134831d9cf76df0438778b3e27e261dedad9254c514")
         elseif(LINUX)
             if (AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
             elseif (ARM)
                 set(OPENCV_SUFFIX "debian9arm")
-                set(OPENCV_HASH "0e787d6738092993bc92bb55975f52caabae45dc73473b5196d15e65e87d6b9d")
+                set(OPENCV_HASH "4274f8c40b17215f4049096b524e4a330519f3e76813c5a3639b69c48633d34e")
             elseif ((LINUX_OS_NAME STREQUAL "CentOS 7" OR
                      CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
                 set(OPENCV_SUFFIX "centos7")
-                set(OPENCV_HASH "9b813af064d463b31fa1603b11b6559532a031d59bb0782d234380955fd397e0")
+                set(OPENCV_HASH "5fa76985c84fe7c64531682ef0b272510c51ac0d0565622514edf1c88b33404a")
             elseif (LINUX_OS_NAME MATCHES "CentOS 8" AND X86_64)
                 set(OPENCV_SUFFIX "centos8")
-                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu16")
                 set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu18")
-                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif ((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
-                set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
+                set(OPENCV_HASH "2fe7bbc40e1186eb8d099822038cae2821abf617ac7a16fadf98f377c723e268")
             elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
