@@ -366,7 +366,7 @@ uint32_t test::matching_mantissa_bits(uint64_t distance)
         bool is_close_f = distances[i] <= tolerance;
         if (!is_close_f)
         {
-            if (diff_count < 50)
+            if (diff_count < 5)
             {
                 msg << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << a[i]
                     << " is not close to " << b[i] << " at index " << i << std::endl;
