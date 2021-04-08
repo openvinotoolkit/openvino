@@ -4,12 +4,14 @@
 
 #pragma once
 
+#ifdef IR_READER_V10
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/op/util/variable.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#endif  // IR_READER_V10
 
 #include <cpp/ie_cnn_network.h>
 #include <ie_blob.h>
@@ -59,7 +61,8 @@ public:
         const pugi::xml_node& root, const Blob::CPtr& weights) override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(V10Parser) : public IParser {
+#ifdef IR_READER_V10
+class V10Parser : public IParser {
 public:
     explicit V10Parser(const std::vector<IExtensionPtr>& exts = {});
 
@@ -97,6 +100,6 @@ private:
     const std::vector<IExtensionPtr> _exts;
 };
 
-INFERENCE_PLUGIN_API(void) CreateV10Parser(std::shared_ptr<V10Parser>& parser);
+#endif  // IR_READER_V10
 
 }  // namespace InferenceEngine

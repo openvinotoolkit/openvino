@@ -948,10 +948,6 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse_without_extensions(
     return net;
 }
 
-void CreateV10Parser(std::shared_ptr<V10Parser> &parser) {
-    parser = std::make_shared<V10Parser>();
-}
-
 void V10Parser::parsePreProcess(
     CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights) {
     /*

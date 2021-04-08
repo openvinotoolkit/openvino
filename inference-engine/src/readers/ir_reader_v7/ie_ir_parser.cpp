@@ -22,6 +22,10 @@ std::shared_ptr<ICNNNetwork> IRParser::parse(const pugi::xml_node& root, const B
     return parser->parse(root, weights);
 }
 
+std::shared_ptr<ICNNNetwork> IRParser::parse_without_extensions(const pugi::xml_node &root, const Blob::CPtr &weights) {
+    IE_THROW() << "Not supported!";
+}
+
 /**
  * Hold original blob in order to avoid situations when original blob is allocated on stack
  */
