@@ -188,6 +188,9 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
         }
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
+            if (!item.isString()) {
+                throw std::runtime_error("Error: Unsupported param type. Only string parameters is allowed. Config file : " + filename);
+            }
             config[device.name()][item.name()] = item.string();
         }
     }
