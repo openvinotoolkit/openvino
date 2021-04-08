@@ -33,7 +33,7 @@ PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
 **Inputs**
 
 * **1**: `data`. A tensor of type `T` and arbitrary shape. **Required**.
-* **2**: `slope`. 1D tensor of type `T`. Tensor with negative slope values, one per channel dimension of `data` input tensor. **Required**.
+* **2**: `slope`. A tensor of type `T` with the same rank as the `data` input tensor. Tensor with negative slope values, one per channel dimension of `data` input tensor. **Required**.
 * **Note**: Channels dimension corresponds to second dimension of `data` input tensor. If `data` rank is less than 2, the number of channels is 1.
 
 **Outputs**
@@ -76,6 +76,7 @@ PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
             <dim>128</dim>
         </port>
         <port id="1">
+            <dim>1</dim>
             <dim>128</dim>
         </port>
     </input>
@@ -100,7 +101,10 @@ PReLU(x) = \max(0, x) + \alpha\cdot\min(0, x)
             <dim>128</dim>
         </port>
         <port id="1">
+            <dim>1</dim>
             <dim>20</dim>
+            <dim>1</dim>
+            <dim>1</dim>
         </port>
     </input>
     <output>
