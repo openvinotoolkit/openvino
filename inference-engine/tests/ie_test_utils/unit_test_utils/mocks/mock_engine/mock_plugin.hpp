@@ -18,23 +18,25 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     LoadNetwork(const InferenceEngine::CNNNetwork &network,
                 const std::map<std::string, std::string> &config) override;
 
-    InferenceEngine::ExecutableNetwork
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     LoadNetwork(const InferenceEngine::CNNNetwork& network,
                 const std::map<std::string, std::string>& config,
                 InferenceEngine::RemoteContext::Ptr context) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr
+    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
+    ImportNetworkImpl(std::istream& networkModel,
         const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+    std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>
+    ImportNetworkImpl(std::istream& networkModel,
         const InferenceEngine::RemoteContext::Ptr& context,
         const std::map<std::string, std::string>& config) override;
 
