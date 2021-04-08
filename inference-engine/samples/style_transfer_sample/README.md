@@ -1,6 +1,6 @@
 # Style Transfer C++ Sample {#openvino_inference_engine_samples_style_transfer_sample_README}
 
-Inference of style transfer models using Synchronous Inference Request API.
+This sample demonstrates how to execute an inference of style transfer models using Synchronous Inference Request API.
 
 Style Transfer C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 
@@ -45,8 +45,8 @@ Running the application with the <code>-h</code> option yields the following usa
 ```sh
 ./style_transfer_sample -h
 [ INFO ] InferenceEngine:
-        API version ............
-        Build ..................
+        API version ............<version>
+        Build ..................<build>
         Description ....... API
 [ INFO ] Parsing input parameters
 
@@ -54,17 +54,17 @@ style_transfer_sample [OPTION]
 Options:
 
     -h                      Print a usage message.
-    -i "<path>"             Path to a folder with images or paths to an image files
+    -i "<path>"             Path to a folder with images or paths to image files.
     -m "<path>"             Required. Path to an .xml file with a trained model.
       -l "<absolute_path>"  Required for CPU plugin custom layers. Absolute path to a shared library with the kernels implementations.
           Or
       -c "<absolute_path>"  Required for GPU, MYRIAD, HDDL custom kernels. Absolute path to the .xml config file with the kernels descriptions.
-    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
+    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified.
     -mean_val_r,
     -mean_val_g,
-    -mean_val_b             Mean values. Required if the model needs mean values for preprocessing and postprocessing
+    -mean_val_b             Mean values. Required if the model needs mean values for preprocessing and postprocessing.
 
-Available target devices:
+Available target devices: <devices>
 
 ```
 
@@ -91,8 +91,8 @@ The sample application logs each step in a standard output stream and creates an
 ```sh
 style_transfer_sample -m fast-neural-style-mosaic-onnx.onnx -i car.png car_1.bmp
 [ INFO ] InferenceEngine:
-        API version ............
-        Build ..................
+        API version ............ <version>
+        Build .................. <build>
         Description ....... API
 [ INFO ] Parsing input parameters
 [ INFO ] Files were added: 2
@@ -101,8 +101,8 @@ style_transfer_sample -m fast-neural-style-mosaic-onnx.onnx -i car.png car_1.bmp
 [ INFO ] Loading Inference Engine
 [ INFO ] Device info:
         CPU
-        MKLDNNPlugin version .........
-        Build ...........
+        MKLDNNPlugin version ......... <version>
+        Build ........... <build>
 
 [ INFO ] Loading network files
 [ INFO ] fast-neural-style-mosaic-onnx.onnx

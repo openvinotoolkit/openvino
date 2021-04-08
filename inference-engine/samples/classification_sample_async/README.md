@@ -1,6 +1,8 @@
 # Image Classification C++ Sample Async {#openvino_inference_engine_samples_classification_sample_async_README}
 
-Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API.
+This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API.
+
+In addition to regular images, the sample also supports single-channel `ubyte` images as an input for LeNet model.
 
 Image Classification C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 
@@ -18,7 +20,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 |:---                              |:---
 | Validated Models                 | AlexNet and GoogLeNet (image classification networks)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
+| Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png), single-channel `ubyte` images.
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [Python](../../ie_bridges/python/sample/classification_sample_async/README.md) |
 
@@ -32,7 +34,7 @@ handling the inference request is executed again.
 
 After that, the application starts inference for the first infer request and waits of 10th inference request execution being completed. The asynchronous mode might increase the throughput of the pictures.
 
-When inference is done, the application outputs data to the standard output stream.
+When inference is done, the application outputs data to the standard output stream. You can place labels in .labels file near the model to get pretty output.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
@@ -62,7 +64,7 @@ Running the application with the `-h` option yields the following usage message:
 ./classification_sample_async -h
 InferenceEngine:
     API version ............ <version>
-    Build .................. <number>
+    Build .................. <build>
     Description ....... API
 
 classification_sample_async [OPTION]
@@ -77,7 +79,7 @@ Options:
     -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified.
     -nt "<integer>"         Optional. Number of top results. Default value is 10.
 
-    Available target devices: ...
+    Available target devices: <devices>
 
 ```
 
@@ -106,8 +108,8 @@ classification_sample_async -m alexnet_fp32/alexnet.xml -i car_1.bmp -d GPU
 [ INFO ] Creating Inference Engine
 [ INFO ] Device info:
         GPU
-        clDNNPlugin version .........
-        Build ...........
+        clDNNPlugin version ......... <version>
+        Build ........... <build>
 [ INFO ] Loading network files:
         alexnet_fp32/alexnet.xml
 [ INFO ] Preparing input blobs

@@ -1,6 +1,6 @@
 # Hello NV12 Input Classification C++ Sample {#openvino_inference_engine_samples_hello_nv12_input_classification_README}
 
-Inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API and [input reshape feature](../../../docs/IE_DG/ShapeInference.md).
+This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API and [input reshape feature](../../../docs/IE_DG/ShapeInference.md).
 
 Hello NV12 Input Classification C++ Sample demonstrates how to use the NV12 automatic input pre-processing API of the Inference Engine in your applications:
 
@@ -24,7 +24,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 ## How It Works
 
 Upon the start-up, the sample application reads command-line parameters, loads specified network and an
-image in the NV12 color format to an Inference Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
+image in the NV12 color format to an Inference Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream. You can place labels in .labels file near the model to get pretty output.
 
 You can see the explicit description of each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 

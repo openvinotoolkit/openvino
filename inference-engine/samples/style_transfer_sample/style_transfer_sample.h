@@ -13,7 +13,7 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char image_message[] = "Path to a folder with images or paths to an image files";
+static const char image_message[] = "Path to a folder with images or paths to image files.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model.";\
@@ -32,7 +32,7 @@ static const char custom_ex_library_message[] = "Required for CPU plugin custom 
 "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for mean values arguments
-static const char preprocess_data_message[] = "Mean values. Required if the model needs mean values for preprocessing and postprocessing";
+static const char preprocess_data_message[] = "Mean values. Required if the model needs mean values for preprocessing and postprocessing.";
 
 
 

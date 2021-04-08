@@ -1,6 +1,6 @@
 # Hello Classification C++ Sample {#openvino_inference_engine_samples_hello_classification_README}
 
-Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API, input auto-resize feature and support of UNICODE paths.
+This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API, input auto-resize feature and support of UNICODE paths.
 
 Hello Classification C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 

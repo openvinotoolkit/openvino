@@ -59,6 +59,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
     try {
         /** This sample covers certain topology and cannot be generalized for any object detection one **/
+        // ------------------------------ Get Inference Engine version ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << "\n";
 
         // --------------------------- Parsing and validation of input arguments ---------------------------------

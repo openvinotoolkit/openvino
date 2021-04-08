@@ -1,6 +1,6 @@
 # Object Detection C++ Sample SSD {#openvino_inference_engine_samples_object_detection_sample_ssd_README}
 
-Inference of object detection networks like SSD-VGG using Synchronous Inference Request API.
+This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Synchronous Inference Request API.
 
 Object Detection C++ sample SSD application demonstrates how to use the following Inference Engine C++ API in applications:
 
@@ -47,7 +47,7 @@ Running the application with the <code>-h</code> option yields the following usa
 ./object_detection_sample_ssd -h
 InferenceEngine:
     API version ............ <version>
-    Build .................. <number>
+    Build .................. <build>
     Description ....... API
 
 object_detection_sample_ssd [OPTION]
@@ -59,9 +59,9 @@ Options:
       -l "<absolute_path>"  Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
       -c "<absolute_path>"  Required for GPU, MYRIAD, HDDL custom kernels. Absolute path to the .xml config file with the kernels descriptions.
-    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
+    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma_separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified.
 
-    Available target devices: ...
+    Available target devices: <devices>
 
 ```
 
@@ -98,8 +98,8 @@ rectangles to the standard output stream.
 ```sh
 object_detection_sample_ssd -m person-detection-retail-0013\FP16\person-detection-retail-0013.xml -i person_detection.png
 [ INFO ] InferenceEngine:
-        API version ............ 
-        Build .................. 
+        API version ............ <version>
+        Build .................. <build>
         Description ....... API
 Parsing input parameters
 [ INFO ] Files were added: 1
@@ -107,8 +107,8 @@ Parsing input parameters
 [ INFO ] Loading Inference Engine
 [ INFO ] Device info:
         CPU
-        MKLDNNPlugin version ......... 
-        Build ........... 
+        MKLDNNPlugin version ......... <version>
+        Build ........... <build>
 [ INFO ] Loading network files:
         person-detection-retail-0013\FP16\person-detection-retail-0013.xml
 [ INFO ] Preparing input blobs

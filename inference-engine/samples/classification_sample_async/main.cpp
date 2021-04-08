@@ -46,6 +46,10 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
     slog::info << "Parsing input parameters" << slog::endl;
 
+    if (FLAGS_nt <= 0) {
+        throw std::logic_error("Incorrect value for nt argument. It should be greater than 0.");
+    }
+
     if (FLAGS_m.empty()) {
         showUsage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
@@ -61,6 +65,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
     try {
+        // ------------------------------ Get Inference Engine version ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
@@ -229,7 +234,7 @@ int main(int argc, char *argv[]) {
         const size_t resultsCnt = outputBlob->size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
             slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " \
-                      << resultsCnt+1 << " and more than 0)\n            will be used maximal value : " << resultsCnt << slog::endl;
+                      << resultsCnt+1 << " and more than 0)\n            Maximal value " << resultsCnt << " will be used.";
             FLAGS_nt = resultsCnt;
         }
 

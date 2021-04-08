@@ -1,6 +1,6 @@
 # Hello Query Device C++ Sample {#openvino_inference_engine_samples_hello_query_device_README}
 
-Query Inference Engine devices, prints their metrics and default configuration values, using [Query Device API feature](../../../docs/IE_DG/InferenceEngine_QueryAPI.md).
+This sample demonstrates how to execute an query Inference Engine devices, prints their metrics and default configuration values, using [Query Device API feature](../../../docs/IE_DG/InferenceEngine_QueryAPI.md).
 
 Hello Query Device C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 
