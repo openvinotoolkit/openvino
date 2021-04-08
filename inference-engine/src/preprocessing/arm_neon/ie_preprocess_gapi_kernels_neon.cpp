@@ -240,9 +240,12 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
     const int shift = static_cast<int>(half_nlanes / 4);
 
     //uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15 };
-    //v_uint8 hmask = vx_load(_mask_horizontal);
-
+    v_uint8 hmask = vx_load(_mask_horizontal);
+#if 0
     v_uint8 val_0, val_1, val_2, val_3;
+#else
+    v_int16 val0_0, val0_1, val0_2, val0_3, val1_0, val1_1, val1_2, val1_3;
+#endif
     int x = 0;
     for (;;) {
         for (; x <= length - half_nlanes && x >= 0; x += half_nlanes) {
@@ -252,6 +255,7 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
             v_int16 a76 = vx_load(&clone[4 * (x + 6)]);
 
             for (int c = 0; c < chanNum; ++c) {
+#if 0
                 v_gather_channel(val_0, tmp, &mapsx[x], chanNum, c, 0);
                 v_gather_channel(val_1, tmp, &mapsx[x], chanNum, c, shift);
                 v_gather_channel(val_2, tmp, &mapsx[x], chanNum, c, shift * 2);
@@ -266,6 +270,37 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 v_int16 val1_1 = v_reinterpret_as_s16(v_expand_high(val_1));
                 v_int16 val1_2 = v_reinterpret_as_s16(v_expand_high(val_2));
                 v_int16 val1_3 = v_reinterpret_as_s16(v_expand_high(val_3));
+#else
+                int32x2_t result = {};
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 0)) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 1)) + c)]), result, 1);
+                val0_0.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 0) + 1) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 1) + 1) + c)]), result, 1);
+                val1_0.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+
+
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + shift + 0)) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + shift + 1)) + c)]), result, 1);
+                val0_1.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + shift + 0) + 1) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + shift + 1) + 1) + c)]), result, 1);
+                val1_1.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 2*shift + 0)) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 2*shift + 1)) + c)]), result, 1);
+                val0_2.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 2*shift + 0) + 1) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 2*shift + 1) + 1) + c)]), result, 1);
+                val1_2.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 3 * shift + 0)) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 3 * shift + 1)) + c)]), result, 1);
+                val0_3.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 3 * shift + 0) + 1) + c)]), result, 0);
+                result = vset_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(&mapsx[x] + 3 * shift + 1) + 1) + c)]), result, 1);
+                val1_3.val = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s32(result)));
+#endif
 
                 v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), a10);
                 v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), a32);
@@ -276,7 +311,7 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                 v_int16 r1 = v_add_wrap(val1_1, t1);
                 v_int16 r2 = v_add_wrap(val1_2, t2);
                 v_int16 r3 = v_add_wrap(val1_3, t3);
-#if 0
+#if 1
                 v_uint8 q0 = v_pack_u(r0, r1);
                 v_uint8 q1 = v_pack_u(r2, r3);
 
@@ -402,7 +437,7 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                     v_uint8 q4 = v_shuffle(q2, vmask);
                     v_uint8 q5 = v_shuffle(q3, vmask);
 #else
-#if 1
+#if 0
                     int16x8x2_t p1 = vzipq_s16(r0.val, r2.val);
                     int16x8x2_t p2 = vzipq_s16(r1.val, r3.val);
 
