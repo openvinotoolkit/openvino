@@ -36,6 +36,14 @@ public:
         IE_THROW() << "ONNX reader cannot read model with weights!";
     }
 
+    CNNNetwork read_without_extensions(std::istream &model, const Blob::CPtr &weights) const override {
+        IE_THROW() << "ONNX reader cannot read model with weights!";
+    }
+
+    CNNNetwork read_without_extensions(std::istream &model) const override {
+        IE_THROW() << "Not Implemented!";
+    }
+
     std::vector<std::string> getDataFileExtensions() const override {
         return {};
     }
