@@ -143,7 +143,7 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
 
 
 def add_fake_background_loc(graph: Graph, input_node: Node):
-    """
+    r"""
     DetectionOutput layer expects that box coordinates contains coordinates of boxes for the "background" class also,
     but in the TensorFlow\* Object Detection API the tensor contains information about real object classes only.
     The function copies a slice of the output data of the node 'input_node' and then concats it to the beginning of the

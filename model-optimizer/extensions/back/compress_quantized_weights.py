@@ -14,7 +14,7 @@ from mo.ops.const import Const
 
 
 class CompressQuantizeWeights(BackReplacementPattern):
-    """
+    r"""
     Compress weights transformation goal is to pre-quantize data to minimize runtime calculations with constant data.
     To achieve this goal we perform FakeQuantize decomposition to separate quantization from dequantization in it.
 

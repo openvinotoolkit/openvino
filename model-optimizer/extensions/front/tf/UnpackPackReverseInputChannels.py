@@ -12,7 +12,7 @@ from mo.graph.graph import Graph
 
 
 class UnpackPackReverseInputChannels(FrontReplacementSubgraph):
-    """
+    r"""
     Unpack - Pack nodes sequence from TensorFlow connected like it shown below is a way to ReverseChannels
 
            /  0 - 2  \
