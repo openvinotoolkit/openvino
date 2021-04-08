@@ -23,7 +23,7 @@ bool ReduceMinTransformation::canBeTransformed(const TransformationContext& cont
     if (!is_type<opset1::ReduceMin>(reduce)) {
         return false;
     }
-    
+
     if (!ReduceBaseTransformation::canBeTransformed(context, reduce)) {
         return false;
     }
