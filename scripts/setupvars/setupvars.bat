@@ -57,6 +57,12 @@ set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\e
 set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\cmake"
 )
 
+:: TBBbind_2_4
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbbbind_2_4 (
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbbtbbbind_2_4\bin;%OPENVINO_LIB_PATHS%"
+set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbbbind_2_4\cmake"
+)
+
 :: nGraph
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\ngraph (
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%OPENVINO_LIB_PATHS%"

@@ -33,8 +33,6 @@
 # define TBB_PREVIEW_NUMA_SUPPORT 1
 #endif
 
-#include <atomic>
-
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
 #include "tbb/blocked_range3d.h"
@@ -73,7 +71,6 @@ inline int parallel_get_env_threads() {
 #else
 #define PARTITIONING
 #endif
-
 #elif IE_THREAD == IE_THREAD_OMP
 #include <omp.h>
 
