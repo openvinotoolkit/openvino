@@ -533,7 +533,6 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
             },
             tbb::static_partitioner());
     }
-
 #elif IE_THREAD == IE_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {

@@ -55,20 +55,23 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
         sub(reg_ow_work_amount, reg_w_lo_pad);
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
-        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
         if (mayiuse_gather) {
-            mov(reg_aux64, ptr[reg_params + GET_OFF(gather_idx)]);
+            mov(reg_aux64, gather_index_table);
             uni_vmovups(vmm_gather_index, ptr[reg_aux64]);
         }
         loop();
 
         this->postamble();
+
+        if (mayiuse_gather)
+            prepare_table();
     }
 
 private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
+    bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
@@ -91,6 +94,7 @@ private:
     Vmm vmm_gather_index = Vmm(3);
     Vmm vmm_gather_mask = Vmm(4);
     Opmask k_mask = Xbyak::Opmask(1);
+    Xbyak::Label gather_index_table;
 
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
@@ -247,6 +251,13 @@ private:
         mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
         pad_with_zeros(reg_num_pads, reg_dst);
     }
+
+    void prepare_table() {
+        align(64);
+        L(gather_index_table);
+        for (int32_t i = 0; i < vlen / sizeof(int32_t); i++)
+                dd(i * jpp.SW * jpp.dtype_size);
+    }
 };
 
 ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
@@ -345,12 +356,6 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
             eximpat_kernel.reset(new jit_eximpat_kernel<x64::sse41>(jpp));
         }
-        _gather_index.clear();
-        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
-        if (mayiuse_gather) {
-            for (int i = 0; i < jpp.block_size; i++)
-                _gather_index.push_back(i * jpp.SW * jpp.dtype_size);
-        }
 
         if (eximpat_kernel)
             eximpat_kernel->create_ker();
@@ -418,7 +423,6 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
             args.h_hi_pad = ih_hpad;
             args.w_lo_pad = iw_lpad;
             args.w_hi_pad = iw_hpad;
-            args.gather_idx = _gather_index.data();
             (*eximpat_kernel)(&args);
         };
         parallel_for4d(OB, KH, KW, IC, thread_body);
