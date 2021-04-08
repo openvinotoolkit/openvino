@@ -347,14 +347,63 @@ int main(int argc, char *argv[]) {
             ngraph::frontend::FrontEndManager manager;
             auto FE = manager.loadByFramework("onnx");
             auto inputModel = FE->loadFromFile(FLAGS_m);
-            //inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
-            auto new_input = inputModel->getPlaceByTensorName("resnetv17_conv0_fwd");
-            inputModel->extractSubgraph({inputModel->getPlaceByTensorName("resnetv17_conv0_fwd")}, {});
-            inputModel->setPartialShape(new_input, ngraph::PartialShape({1, 64, 112, 112}));
 
-#if 0
+            int test_scenario = 0;
+
+            // The next test cases are applicable for resnet50-v1-7.onnx model from the official repository
+
+            switch (test_scenario) {
+                case 0: {
+                    inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({10, 3, 224, 224}));
+                    break;
+                }
+                case 1: {
+                    auto new_input = inputModel->getPlaceByTensorName("resnetv17_conv0_fwd");
+                    inputModel->overrideAllInputs({inputModel->getPlaceByTensorName("resnetv17_conv0_fwd")});
+                    break;
+                }
+                case 2: {
+                    auto new_input = inputModel->getPlaceByTensorName("resnetv17_conv0_fwd");
+                    inputModel->overrideAllInputs({new_input});
+                    inputModel->setPartialShape(new_input, ngraph::PartialShape({2, 64, 112, 112}));
+                    break;
+                }
+                case 3: {
+                    auto new_input = inputModel->getPlaceByTensorName("resnetv17_conv0_fwd");
+                    inputModel->setPartialShape(new_input, ngraph::PartialShape({2, 64, 112, 112}));
+                    inputModel->overrideAllInputs({new_input});
+                    break;
+                }
+                case 4: {
+                    auto new_input = inputModel->getPlaceByTensorName("resnetv17_conv0_fwd");
+                    inputModel->setPartialShape(new_input, ngraph::PartialShape({2, 64, 112, 112}));
+                    inputModel->overrideAllInputs({new_input});
+                    break;
+                }
+                case 5: {
+                    // Multiple consumers for a tensor, should be converted to a single Parameter
+                    auto new_input = inputModel->getPlaceByTensorName("resnetv17_pool0_fwd");
+                    inputModel->overrideAllInputs({new_input});
+                    break;
+                }
+                case 6: {
+                    // Split usages of a tensor to two Parameters; using ports instead of tensors
+                    auto new_input = inputModel->getPlaceByTensorName("resnetv17_pool0_fwd");
+                    auto ports = new_input->getConsumingPorts();
+                    inputModel->overrideAllInputs({ports[0], ports[1]});  // it is known there are two ports
+                    break;
+                }
+                case 7: {
+                    auto new_output_1 = inputModel->getPlaceByTensorName("resnetv17_stage1_conv2_fwd");
+                    auto new_output_2 = inputModel->getPlaceByTensorName("resnetv17_stage1_conv3_fwd");
+                    inputModel->overrideAllOutputs({new_output_1, new_output_2});
+                    break;
+                }
+            }
+
+#if 1 // Complete convert
             auto ngFunc = FE->convert(inputModel);
-#else
+#else // Decode first, than finalize conversion -- should give identical to simple `convert` result
             auto ngFunc = FE->decode(inputModel);
             FE->convert(ngFunc);
 #endif
