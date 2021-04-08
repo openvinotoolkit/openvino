@@ -5,6 +5,7 @@ graph {
     input: "in1"
     output: "relu1"
     op_type: "Relu"
+    name: "add1"
   }
   node {
     input: "in1"

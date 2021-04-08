@@ -105,6 +105,7 @@ namespace ngraph
             std::vector<std::vector<std::string>> m_node_inputs;
             std::vector<std::vector<std::string>> m_node_outputs;
             std::multimap<std::string, int> m_node_name_to_index;
+            std::map<std::string, int> m_node_output_name_to_index;
             std::multimap<std::string, int> m_output_consumers_index;
         };
     }

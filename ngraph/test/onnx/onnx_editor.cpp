@@ -975,6 +975,20 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_bu
     EXPECT_EQ(edge2.m_tensor_name, "add2");
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_the_same_node_name_and_output_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
+
+    const OutputEdge edge = editor.find_output_edge(EditorNode{"add1"}, EditorOutput{0});
+    EXPECT_EQ(edge.m_node_idx, 0);
+    EXPECT_EQ(edge.m_tensor_name, "relu1");
+
+    const OutputEdge edge2 = editor.find_output_edge(EditorNode{EditorOutput{"add1"}}, EditorOutput{0});
+    EXPECT_EQ(edge2.m_node_idx, 4);
+    EXPECT_EQ(edge2.m_tensor_name, "add1");
+}
+
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_and_not_matched_output)
 {
     ONNXModelEditor editor{file_util::path_join(
