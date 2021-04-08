@@ -1184,6 +1184,7 @@ IE_CPU.idft1d_eval_i32
 IE_CPU.idft2d_eval_i32
 IE_CPU.idft3d_eval_i32
 IE_CPU.idft1d_eval_bfloat16
+IE_CPU.idft2d_eval_bfloat16
 
 #-------------------------------------------------------------------------------
 #
