@@ -62,37 +62,28 @@ namespace ngraph
                 }
 
                 template <typename inputType>
-                inline float bilinearInterp(const inputType* data,
-                                            const float x_idx,
-                                            const float y_idx,
-                                            const int x_size,
-                                            const int y_size)
+                inline float bilinear_interpolation(const inputType* data,
+                                                    const float x_idx,
+                                                    const float y_idx,
+                                                    const int x_size,
+                                                    const int y_size)
                 {
-                    int x1 = static_cast<int>(std::floor(x_idx));
-                    int x2 = static_cast<int>(std::ceil(x_idx));
-                    int y1 = static_cast<int>(std::floor(y_idx));
-                    int y2 = static_cast<int>(std::ceil(y_idx));
+                    const int x1 = std::max(static_cast<int>(std::floor(x_idx)), 0);
+                    const int x2 = std::min(static_cast<int>(std::ceil(x_idx)), x_size - 1);
+                    const int y1 = std::max(static_cast<int>(std::floor(y_idx)), 0);
+                    const int y2 = std::min(static_cast<int>(std::ceil(y_idx)), y_size - 1);
 
-                    if (x1 < 0)
-                        x1 = 0;
-                    if (x2 >= x_size)
-                        x2 = x_size - 1;
-                    if (y1 < 0)
-                        y1 = 0;
-                    if (y2 >= y_size)
-                        y2 = y_size - 1;
+                    const float distX = x_idx - x1;
+                    const float distY = y_idx - y1;
 
-                    float distX = x_idx - x1;
-                    float distY = y_idx - y1;
+                    const float value11 = data[y1 * x_size + x1];
+                    const float value12 = data[y2 * x_size + x1];
+                    const float value21 = data[y1 * x_size + x2];
+                    const float value22 = data[y2 * x_size + x2];
 
-                    float value11 = data[y1 * x_size + x1];
-                    float value12 = data[y2 * x_size + x1];
-                    float value21 = data[y1 * x_size + x2];
-                    float value22 = data[y2 * x_size + x2];
-
-                    float value = (1 - distX) * (1 - distY) * value11 +
-                                  (1 - distX) * distY * value12 + distX * (1 - distY) * value21 +
-                                  distX * distY * value22;
+                    const float value = (1 - distX) * (1 - distY) * value11 +
+                                        (1 - distX) * distY * value12 +
+                                        distX * (1 - distY) * value21 + distX * distY * value22;
                     return value;
                 }
 
@@ -159,11 +150,11 @@ namespace ngraph
                                                 continue;
 
                                             int f_buf_idx = (f_y * filter_size_x) + f_x;
-                                            sum += bilinearInterp(input_channel,
-                                                                  rel_i_x,
-                                                                  rel_i_y,
-                                                                  input_size_x,
-                                                                  input_size_y) *
+                                            sum += bilinear_interpolation(input_channel,
+                                                                          rel_i_x,
+                                                                          rel_i_y,
+                                                                          input_size_x,
+                                                                          input_size_y) *
                                                    filter_channel[f_buf_idx];
                                         }
                                     }
