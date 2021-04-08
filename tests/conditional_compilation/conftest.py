@@ -17,16 +17,14 @@ python3 -m pytest --test_conf=<path to test config> \
 import sys
 import pytest
 import yaml
-
 from inspect import getsourcefile
 from pathlib import Path
-
-from tests_utils import write_session_info, SESSION_INFO_FILE
 
 # add ../lib to imports
 sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
 
 from path_utils import expand_env_vars  # pylint: disable=import-error
+from tests_utils import write_session_info, SESSION_INFO_FILE
 
 
 def pytest_addoption(parser):

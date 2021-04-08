@@ -6,33 +6,14 @@
 """ Test inference with conditional compiled binaries.
 """
 
-import sys
-from inspect import getsourcefile
-from pathlib import Path
-from proc_utils import cmd_exec  # pylint: disable=import-error
-from install_pkg import get_openvino_environment  # pylint: disable=import-error
+from tests_utils import run_infer
 
 
-def run_infer(model, out, install_dir):
-    """ Function running inference
-    """
-
-    returncode, output = cmd_exec(
-        [sys.executable,
-         str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve()),
-         "-d=CPU", f"-m={model}", f"-r={out}"
-         ],
-        env=get_openvino_environment(install_dir),
-    )
-    return returncode, output
-
-
-def test_infer(test_id, model, artifacts, openvino_root_dir):
+def test_infer(test_id, model, artifacts, test_info):
     """ Test inference with conditional compiled binaries
     """
+    test_info["test_id"] = test_id
     install_prefix = artifacts / test_id / "install_pkg"
     out = artifacts / test_id
-    returncode, output = run_infer(model, out, openvino_root_dir)
-    assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
     returncode, output = run_infer(model, f"{out}_cc", install_prefix)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
