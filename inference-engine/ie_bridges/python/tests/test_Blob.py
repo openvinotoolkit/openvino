@@ -4,8 +4,9 @@
 import pytest
 
 import numpy as np
+import os
 
-from openvino.inference_engine import TensorDesc, Blob
+from openvino.inference_engine import TensorDesc, Blob, IECore
 from conftest import image_path
 
 
@@ -96,3 +97,21 @@ def test_incompatible_input_precision():
         Blob(tensor_desc, image)
     assert "Data type float64 of provided numpy array " \
            "doesn't match to TensorDesc precision FP32" in str(e.value)
+
+
+def test_buffer_values_after_add_outputs(device):
+    path_to_repo = os.environ["MODELS_PATH"]
+    test_net_xml_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.xml')
+    test_net_bin_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.bin')
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml_fp16, weights=test_net_bin_fp16)
+    output_layer = "22"
+    net.add_outputs(output_layer)
+    exec_net = ie_core.load_network(net, device)
+    feed_dict = {
+        'data': np.random.normal(0, 1, (1, 3, 32, 32)).astype(np.float32)
+    }
+    result = exec_net.infer(feed_dict)
+    min_value = result[output_layer].min()
+    max_value = result[output_layer].max()
+    assert max(abs(min_value),abs(max_value)) < 20
