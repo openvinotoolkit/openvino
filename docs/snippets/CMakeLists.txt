@@ -16,7 +16,7 @@ endif()
 
 # remove OpenCV related sources
 find_package(OpenCV QUIET)
-if(NOT OpenCV_FOUND)
+if((NOT ENABLE_OPENCV) OR (NOT OpenCV_FOUND))
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide5.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
