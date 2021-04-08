@@ -25,6 +25,49 @@ namespace cldnn {
 namespace gpu {
 static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 
+static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
+    cl_uint maxSubDevices;
+    size_t maxSubDevicesSize;
+    const auto err = clGetDeviceInfo(rootDevice(),
+                                     CL_DEVICE_PARTITION_MAX_SUB_DEVICES,
+                                     sizeof(maxSubDevices),
+                                     &maxSubDevices, &maxSubDevicesSize);
+
+    if (err != CL_SUCCESS || maxSubDevicesSize != sizeof(maxSubDevices)) {
+        throw cl::Error(err, "clGetDeviceInfo(..., CL_DEVICE_PARTITION_MAX_SUB_DEVICES,...)");
+    }
+
+    if (maxSubDevices == 0) {
+        return {};
+    }
+
+    const auto partitionProperties = rootDevice.getInfo<CL_DEVICE_PARTITION_PROPERTIES>();
+    const auto partitionable = std::any_of(partitionProperties.begin(), partitionProperties.end(),
+                                            [](const decltype(partitionProperties)::value_type& prop) {
+                                                return prop == CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN;
+                                            });
+
+    if (!partitionable) {
+        return {};
+    }
+
+    const auto partitionAffinityDomain = rootDevice.getInfo<CL_DEVICE_PARTITION_AFFINITY_DOMAIN>();
+    const decltype(partitionAffinityDomain) expectedFlags =
+        CL_DEVICE_AFFINITY_DOMAIN_NUMA | CL_DEVICE_AFFINITY_DOMAIN_NEXT_PARTITIONABLE;
+
+    if ((partitionAffinityDomain & expectedFlags) != expectedFlags) {
+        return {};
+    }
+
+    std::vector<cl::Device> subDevices;
+    cl_device_partition_property partitionProperty[] = {CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN,
+                                                        CL_DEVICE_AFFINITY_DOMAIN_NUMA, 0};
+
+    rootDevice.createSubDevices(partitionProperty, &subDevices);
+
+    return subDevices;
+}
+
 std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void* user_context, void* user_device) const {
     bool host_out_of_order = true;  // Change to false, if debug requires in-order queue.
     std::vector<device_impl::ptr> dev_orig, dev_sorted;
@@ -45,7 +88,20 @@ std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void*
     }
     uint32_t idx = 0;
     for (auto& dptr : dev_sorted) {
-        ret[std::to_string(idx++)] = dptr;
+        auto map_id = std::to_string(idx++);
+        ret[map_id] = dptr;
+
+        auto rootDevice = dptr->get_device();
+        auto subDevices = getSubDevices(rootDevice);
+        if (!subDevices.empty()) {
+            uint32_t sub_idx = 0;
+            for (auto& subdevice : subDevices) {
+                auto subdPtr = device_impl::ptr(new device_impl(subdevice, cl::Context(subdevice),
+                                                                dptr->get_platform(),
+                                                                device_info_internal(subdevice)), false);
+                ret[map_id+"."+std::to_string(sub_idx++)] = subdPtr;
+            }
+        }
     }
     return ret;
 }
@@ -77,7 +133,7 @@ std::vector<device_impl::ptr> ocl_builder::build_device_list(bool out_out_order)
         for (auto& device : devices) {
             if (!does_device_match_config(out_out_order, device)) continue;
             ret.emplace_back(device_impl::ptr{ new device_impl(device, cl::Context(device),
-                                                            id, device_info_internal(device)), false});
+                                                        id, device_info_internal(device)), false});
         }
     }
     if (ret.empty()) {
