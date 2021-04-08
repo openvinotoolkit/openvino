@@ -56,6 +56,10 @@ class OpenCL2CHeaders(object):
                 undefs += "#ifdef " + name + "\n"
                 undefs += "#undef " + name + "\n"
                 undefs += "#endif\n"
+        if filename in self.include_files:
+            for include_file in self.include_files[filename]:
+                include_file_undefs = self.append_undefs(include_file)
+                undefs += include_file_undefs
         return undefs
 
     def append_file_content(self, filename, origin_file):
