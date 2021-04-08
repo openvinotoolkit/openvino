@@ -140,12 +140,6 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
     auto axisPrecision = getOriginalInputPrecisionAtPort(1);
-    auto splitLengthsPrecision = Precision::I32;
-    std::vector<size_t> splitLengthsDims;
-    if (getParentEdges().size() > 2) {
-        splitLengthsPrecision = getOriginalInputPrecisionAtPort(2);
-        splitLengthsDims = getParentEdgeAt(2)->getDims().ToSizeVector();
-    }
 
     // make primitive descriptor factory function for different configurations
     bool dynBatchSupport = true;

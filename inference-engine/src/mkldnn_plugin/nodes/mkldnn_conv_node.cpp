@@ -55,6 +55,17 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
     if (convolutionOp) {
         algorithm = ConvolutionCommon;
 
+        groupNum = 1;
+        isGrouped = false;
+
+        weightDims = convolutionOp->input_value(1).get_shape();
+
+        IC = weightDims[1];
+        groupIC = IC;
+        groupOC = weightDims[0];
+
+        biasesDims = { groupOC };
+
         for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
             stride.push_back(static_cast<ptrdiff_t>(convolutionOp->get_strides()[i]));
         }
@@ -65,6 +76,17 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         paddingR = convolutionOp->get_pads_end();
     } else if (groupConvolutionOp) {
         algorithm = ConvolutionGrouped;
+
+        groupNum = groupConvolutionOp->input_value(1).get_shape()[0];
+        isGrouped = true;
+
+        weightDims = groupConvolutionOp->input_value(1).get_shape();
+
+        groupIC = weightDims[2];
+        IC = groupIC * groupNum;
+        groupOC = weightDims[1];
+
+        biasesDims = {groupOC * groupNum};
 
         for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
             stride.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_strides()[i]));
@@ -107,30 +129,6 @@ InferenceEngine::Precision MKLDNNConvolutionNode::fusedEltwisePrecision(const MK
 void MKLDNNConvolutionNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
-
-    if (getAlgorithm() == ConvolutionCommon) {
-        groupNum = 1;
-        isGrouped = false;
-
-        weightDims = inDims[1].ToSizeVector();
-
-        IC = weightDims[1];
-        groupIC = IC;
-        groupOC = weightDims[0];
-
-        biasesDims = { groupOC };
-    } else if (getAlgorithm() == ConvolutionGrouped) {
-        weightDims = inDims[1].ToSizeVector();
-
-        groupNum = weightDims[0];
-        isGrouped = true;
-
-        groupIC = weightDims[2];
-        IC = groupIC * groupNum;
-        groupOC = weightDims[1];
-
-        biasesDims = {groupOC * groupNum};
-    }
 
     withBiases = getOriginalInputsNumber() == 3;
 

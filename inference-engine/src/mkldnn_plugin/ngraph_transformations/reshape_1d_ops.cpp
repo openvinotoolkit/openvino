@@ -33,16 +33,6 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
     new_ops.push_back(weights);
 
     if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(node)) {
-        std::vector<ngraph::element::Type> inputPrecisions;
-        for (auto& inputs : node->inputs()) {
-            inputPrecisions.push_back(inputs.get_element_type());
-        }
-
-        std::vector<ngraph::element::Type> outputPrecisions;
-        for (auto& output : node->outputs()) {
-            outputPrecisions.push_back(output.get_element_type());
-        }
-
         return std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(std::vector<ngraph::element::Type>{ngraph::element::f32, ngraph::element::f32},
                                                                  std::vector<ngraph::element::Type>{ngraph::element::f32},
                                                                  ngraph::op::TemporaryReplaceOutputType(data, ngraph::element::f32).get(),
