@@ -169,4 +169,3 @@ INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
 
 # No evaluator for DeformableConv2D
 onnx_model_deformable_conv_2d
-

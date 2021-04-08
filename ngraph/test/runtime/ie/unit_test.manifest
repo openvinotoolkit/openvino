@@ -1599,7 +1599,7 @@ onnx_upsample6_dynamic
 # random values returned from the plugin: ticket 51762
 onnx_model_deformable_conv_2d
 
-# DeformableConvolution
+# DeformableConvolution groups attribute: ticket TBD
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups
