@@ -58,7 +58,7 @@ private:
     static const std::set<size_t> _supported_precisions_sizes;
 };
 
-const std::set<size_t> ExtractImagePatchesImpl::_supported_precisions_sizes = {1, 2, 4, 8};
+const std::set<size_t> ExtractImagePatchesImpl::_supported_precisions_sizes = {1, 2, 4};
 
 REG_FACTORY_FOR(ExtractImagePatchesImpl, ExtractImagePatches);
 

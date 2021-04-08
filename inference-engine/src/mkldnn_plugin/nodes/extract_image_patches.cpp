@@ -55,18 +55,10 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
         sub(reg_ow_work_amount, reg_w_lo_pad);
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
-        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common))
-                              && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
+        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
         if (mayiuse_gather) {
             mov(reg_aux64, ptr[reg_params + GET_OFF(gather_idx)]);
-            if (jpp.dtype_size == 4) {
-                uni_vmovups(vmm_gather_index, ptr[reg_aux64]);
-            } else if (jpp.dtype_size == 8) {
-                switch (isa) {
-                    case x64::avx2: uni_vmovups(Xbyak::Xmm(vmm_gather_index.getIdx()), ptr[reg_aux64]); break;
-                    case x64::avx512_common: uni_vmovups(Xbyak::Ymm(vmm_gather_index.getIdx()), ptr[reg_aux64]); break;
-                }
-            }
+            uni_vmovups(vmm_gather_index, ptr[reg_aux64]);
         }
         loop();
 
@@ -103,7 +95,6 @@ private:
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address &op) {
         Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 8: uni_vmovsd(vmm_arg, op); break;
             case 4: uni_vmovss(vmm_arg, op); break;
             case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
             case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
@@ -114,7 +105,6 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
         Xbyak::Xmm xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
-            case 8: uni_vmovsd(op, vmm_arg); break;
             case 4: uni_vmovss(op, vmm_arg); break;
             case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
             case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
@@ -146,24 +136,6 @@ private:
         L(exit);
     }
 
-    inline void custom_uni_vgatherdpd(const Vmm &vmm_arg, const Xbyak::Reg64 mem_base, const Vmm &mem_offset, Vmm &vmm_mask) {
-        switch (isa) {
-            case x64::avx2:
-                uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                vgatherdpd(vmm_arg, ptr[mem_base + Xbyak::Xmm(mem_offset.getIdx())], vmm_mask);
-                break;
-            case x64::avx512_common:
-                kxnorq(k_mask, k_mask, k_mask);
-                vgatherdpd(vmm_arg | k_mask, ptr[mem_base + Xbyak::Ymm(mem_offset.getIdx())]);
-                break;
-            case x64::sse41:
-                emulate_gather(vmm_arg, mem_base);
-                break;
-            default:
-                assert(!"unsupported instruction set in custom_uni_vgatherdpd");
-        }
-    }
-
     inline void custom_uni_vgatherdps(const Vmm &vmm_arg, reg64_t &mem_base, const Vmm &mem_offset, Vmm &vmm_mask) {
         switch (isa) {
             case x64::avx2:
@@ -184,7 +156,6 @@ private:
 
     inline void gather_src2vmm(const Vmm &vmm_arg, reg64_t &mem_base) {
         switch (jpp.dtype_size) {
-            case 8: custom_uni_vgatherdpd(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
             case 4: custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
             case 2:
             case 1: emulate_gather(vmm_arg, mem_base); break;
@@ -201,7 +172,6 @@ private:
         for (int i = 0; i < xmm_block_size; i++) {
             Xbyak::Address addr = ptr[mem_base + i * jpp.SW * jpp.dtype_size + offset];
             switch (jpp.dtype_size) {
-                case 8: uni_vpinsrq(xmm_arg, xmm_arg, addr, i); break;
                 case 4: uni_vpinsrd(xmm_arg, xmm_arg, addr, i); break;
                 case 2: uni_vpinsrw(xmm_arg, xmm_arg, addr, i); break;
                 case 1: uni_vpinsrb(xmm_arg, xmm_arg, addr, i); break;
@@ -376,8 +346,7 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             eximpat_kernel.reset(new jit_eximpat_kernel<x64::sse41>(jpp));
         }
         _gather_index.clear();
-        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common))
-                                && ((jpp.dtype_size == 4) || (jpp.dtype_size == 8));
+        bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
         if (mayiuse_gather) {
             for (int i = 0; i < jpp.block_size; i++)
                 _gather_index.push_back(i * jpp.SW * jpp.dtype_size);
