@@ -1183,6 +1183,56 @@ template<>
 class ScaleFactorPerLayer<InferenceEngine::ConvolutionLayer*> : public ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 };
 
+template<>
+class ScaleFactorPerLayer<InferenceEngine::GemmLayer*> {
+private:
+    float const _scale_reduction_50 = 0.15;
+    float const _scale_reduction_45 = 0.15;
+    float const _scale_reduction_40 = 0.10;
+    float const _scale_reduction_35 = 0.05;
+
+    uint16_t const _scale_change_req_threshold = 30;
+    uint16_t const _scale_change_threshold_100 = 100;
+    uint16_t const _scale_change_threshold_150 = 150;
+    uint16_t const _scale_change_threshold_200 = 200;
+
+public:
+    bool operator() (InferenceEngine::GemmLayer* gemmLayer, int weightsSize, ScaleFactorUpdateResult &result, const bool fakeQuantize) {
+        if ( !gemmLayer ) {
+            THROW_GNA_EXCEPTION << "Incorrect Gemm Layer pointer \n";
+        }
+        auto in0 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 0);
+        auto in1 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 1);
+
+        auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*gemmLayer);
+        auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
+        auto quantParams1 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in1);
+        quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
+        if (!quantData->_weights_quant.IsScaleSet()) {
+            quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
+            double tmp_dst_quant_scale = quantData->_weights_quant.GetScale() * quantData->_src_quant.GetScale();
+            if (static_cast<uint64_t>(tmp_dst_quant_scale * quantData->_src_quant.GetScale()) >
+                static_cast<uint64_t>(std::numeric_limits<int32_t>::max() - 1) * _scale_change_req_threshold) {
+                // reduce weight scale according experimental heuristic
+                if (quantData->_dst_quant.GetScale() * quantData->_src_quant.GetScale() /
+                    static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_100) {
+                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_50);
+                } else if (quantData->_dst_quant.GetScale() * quantData->_src_quant.GetScale() /
+                           static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_150) {
+                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_45);
+                } else if (quantData->_dst_quant.GetScale() * quantData->_src_quant.GetScale() /
+                           static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_200) {
+                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_40);
+                } else {
+                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_35);
+                }
+            }
+        }
+        quantData->_bias_quant.SetScale(-1.f);
+        quantData->_dst_quant.SetScale(quantData->_weights_quant.GetScale() * quantData->_src_quant.GetScale());
+        return true;
+    }
+};
 
 }  // namespace frontend
 
