@@ -317,9 +317,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
-    auto legacyPassConfig = legacyManager.get_pass_config();
-    legacyPassConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
-
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
         std::string errMsg;
         return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);

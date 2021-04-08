@@ -769,155 +769,129 @@ private:
     }
 };
 
-MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {
-}
+std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> MKLDNNEltwiseNode::initializers = {
+    {ngraph::op::v1::Add::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseAdd;
+    }},
+    {ngraph::op::v1::Subtract::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseSubtract;
+    }},
+    {ngraph::op::v1::Multiply::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseMultiply;
+    }},
+    {ngraph::op::v1::Divide::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseDivide;
+    }},
+    {ngraph::op::v0::SquaredDifference::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseSquaredDifference;
+    }},
+    {ngraph::op::v1::Maximum::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseMaximum;
+    }},
+    {ngraph::op::v1::Minimum::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseMinimum;
+    }},
+    {ngraph::op::v1::Mod::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseMod;
+    }},
+    {ngraph::op::v1::FloorMod::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseFloorMod;
+    }},
+    {ngraph::op::v1::Power::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwisePowerDynamic;
+    }},
+    {ngraph::op::v1::Equal::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseEqual;
+    }},
+    {ngraph::op::v1::NotEqual::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseNotEqual;
+    }},
+    {ngraph::op::v1::Greater::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseGreater;
+    }},
+    {ngraph::op::v1::GreaterEqual::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseGreaterEqual;
+    }},
+    {ngraph::op::v1::Less::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseLess;
+    }},
+    {ngraph::op::v1::LessEqual::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseLessEqual;
+    }},
+    {ngraph::op::v1::LogicalAnd::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseLogicalAnd;
+    }},
+    {ngraph::op::v1::LogicalOr::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseLogicalOr;
+    }},
+    {ngraph::op::v1::LogicalXor::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseLogicalXor;
+    }},
+    {ngraph::op::v1::LogicalNot::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseLogicalNot;
+    }},
+    {ngraph::op::v0::Relu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseRelu;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_relu;
+    }},
+    {ngraph::op::v0::Gelu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseGelu;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_gelu_erf;
+    }},
+    {ngraph::op::v7::Gelu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto gelu = getNgraphOpAs<ngraph::op::v7::Gelu>(op);
+        node.algorithm = EltwiseGelu;
+        ngraph::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+        if (approximationMode == ngraph::op::GeluApproximationMode::ERF)
+            node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_gelu_erf;
+        else if (approximationMode == ngraph::op::GeluApproximationMode::TANH)
+            node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_gelu_tanh;
+        else
+            IE_THROW(NotImplemented) << "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
+    }},
+    {ngraph::op::v0::Elu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto eluOp = getNgraphOpAs<ngraph::op::v0::Elu>(op);
 
-InferenceEngine::details::caseless_map<std::string, std::function<void(GenericLayer*, EltwiseOpType&, mkldnn::algorithm&, float&, float&)>>
-MKLDNNEltwiseNode::initializers = {
-        {"relu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("negative_slope", 0.0f);
-            beta = 0.0f;
-            opType = Relu;
-            algorithm = mkldnn::algorithm::eltwise_relu;
-        }},
-        {"gelu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Gelu;
-            std::string approximationMode = activationLayer->GetParamAsString("approximation_mode", "erf");
-            if (approximationMode == "erf")
-                algorithm = mkldnn::algorithm::eltwise_gelu_erf;
-            else if (approximationMode == "tanh")
-                algorithm = mkldnn::algorithm::eltwise_gelu_tanh;
-            else
-                IE_THROW() << "Gelu layer with name " << activationLayer->name << " doesn't support approximation mode " << approximationMode;
-        }},
-        {"elu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
-            beta = 0.0f;
-            opType = Elu;
-            algorithm = mkldnn::algorithm::eltwise_elu;
-        }},
-        {"tanh", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Tanh;
-            algorithm = mkldnn::algorithm::eltwise_tanh;
-        }},
-        {"sigmoid", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Logistic;
-            algorithm = mkldnn::algorithm::eltwise_logistic;
-        }},
-        {"logistic", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Logistic;
-            algorithm = mkldnn::algorithm::eltwise_logistic;
-        }},
-        {"square", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Square;
-            algorithm = mkldnn::algorithm::eltwise_square;
-        }},
-        {"abs", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Abs;
-            algorithm = mkldnn::algorithm::eltwise_abs;
-        }},
-        {"sqrt", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Sqrt;
-            algorithm = mkldnn::algorithm::eltwise_sqrt;
-        }},
-        {"linear", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
-            beta = activationLayer->GetParamAsFloat("beta", 0.0f);
-            opType = Linear;
-            algorithm = mkldnn::algorithm::eltwise_linear;
-        }},
-        {"bounded_relu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("alpha", 0.0f);
-            beta = 0.0f;
-            opType = BoundedRelu;
-            algorithm = mkldnn::algorithm::eltwise_bounded_relu;
-        }},
-        {"softplus", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = SoftRelu;
-            algorithm = mkldnn::algorithm::eltwise_soft_relu;
-        }},
-        {"relu6", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("n", 6.0f);
-            beta = 0.0f;
-            opType = Relu6;
-            algorithm = mkldnn::algorithm::eltwise_bounded_relu;
-        }},
-        {"clamp", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("min", 1.0f);
-            beta = activationLayer->GetParamAsFloat("max", 0.0f);
-            opType = Clamp;
-            algorithm = mkldnn::algorithm::eltwise_clip;
-        }},
-        {"exp", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Exp;
-            algorithm = mkldnn::algorithm::eltwise_exp;
-        }},
-        {"not", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = LogicalNot;
-        }},
-        {"swish", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
-            beta = 0.0f;
-            opType = Swish;
-            algorithm = mkldnn::algorithm::eltwise_swish;
-        }},
-        {"hswish", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Hswish;
-            algorithm = mkldnn::algorithm::eltwise_hswish;
-        }},
-        {"mish", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Mish;
-            algorithm = mkldnn::algorithm::eltwise_mish;
-        }},
-        {"hsigmoid", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Hsigmoid;
-            algorithm = mkldnn::algorithm::eltwise_hsigmoid;
-        }},
-        {"round", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Round;
-            std::string mode = activationLayer->GetParamAsString("mode", "half_to_even");
-            if (mode == "half_to_even")
-                algorithm = mkldnn::algorithm::eltwise_round_half_to_even;
-            else if (mode == "half_away_from_zero")
-                algorithm = mkldnn::algorithm::eltwise_round_half_away_from_zero;
-            else
-                IE_THROW() << "Round layer with name " << activationLayer->name << " doesn't support mode " << mode;
-        }},
-        {"erf", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
-            alpha = 0.0f;
-            beta = 0.0f;
-            opType = Erf;
-        }},
-};
+        node.alpha = static_cast<float>(eluOp->get_alpha());
+        node.algorithm = EltwiseElu;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_elu;
+    }},
+    {ngraph::op::v0::Tanh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseTanh;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_tanh;
+    }},
+    {ngraph::op::v0::Sigmoid::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseSigmoid;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_logistic;
+    }},
+    {ngraph::op::v0::Abs::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseAbs;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_abs;
+    }},
+    {ngraph::op::v0::Sqrt::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseSqrt;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_sqrt;
+    }},
+    {ngraph::op::v0::Clamp::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto clampOp = getNgraphOpAs<ngraph::op::v0::Clamp>(op);
+
+        node.alpha = static_cast<float>(clampOp->get_min());
+        node.beta = static_cast<float>(clampOp->get_max());
+        node.algorithm = EltwiseClamp;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_clip;
+    }},
+    {ngraph::op::v0::Exp::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseExp;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_exp;
+    }},
+    {ngraph::op::v4::Swish::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto swishOp = getNgraphOpAs<ngraph::op::v4::Swish>(op);
+        if (swishOp->get_input_size() == 2) {
+            auto alphaConstOp = ngraph::as_type_ptr<ngraph::op::Constant>(swishOp->get_input_node_shared_ptr(1));
+            if (!alphaConstOp) {
+                IE_THROW(NotImplemented)
+                        << "CPU Eltwise node doesn't support ngraph operation Swish with dynamic second input";
+            }
 
             node.alpha = alphaConstOp->cast_vector<float>()[0];
         } else {
@@ -1795,7 +1769,8 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
             case mkldnn::algorithm::eltwise_soft_relu:
             case mkldnn::algorithm::eltwise_logistic:
             case mkldnn::algorithm::eltwise_exp:
-            case mkldnn::algorithm::eltwise_gelu:
+            case mkldnn::algorithm::eltwise_gelu_erf:
+            case mkldnn::algorithm::eltwise_gelu_tanh:
             case mkldnn::algorithm::eltwise_clip:
             case mkldnn::algorithm::eltwise_swish:
             case mkldnn::algorithm::eltwise_hswish:
