@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <iostream>
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
+#include "ngraph/type/bfloat16.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
@@ -304,6 +306,39 @@ NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval)
     {
         EXPECT_NEAR(result[j], expected_result[j], 0.000002);
     }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval_bfloat16)
+{
+    auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
+    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
+    auto idft = std::make_shared<op::v7::IDFT>(data, axes_input);
+
+    auto f = make_shared<Function>(idft, ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto idft_output = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
+
+    auto backend_data = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
+    copy_data(backend_data, bfloat16::from_float_vector(idft1d_input_data));
+
+    auto handle = backend->compile(f);
+
+    handle->call({idft_output}, {backend_data});
+
+    auto result = bfloat16::to_float_vector(read_vector<bfloat16>(idft_output));
+    std::cout << "Actual result: ";
+    for (auto x : result)
+    {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
+    EXPECT_TRUE(test::all_close_f(expected_result, result));
+//     size_t num_of_elems = result.size();
+//     for (std::size_t j = 0; j < num_of_elems; ++j)
+//     {
+//         EXPECT_NEAR(result[j], expected_result[j], 0.000002);
+//     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval_i32)
