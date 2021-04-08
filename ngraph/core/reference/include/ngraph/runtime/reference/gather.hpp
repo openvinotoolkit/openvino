@@ -47,9 +47,11 @@ namespace ngraph
                         for (int64_t i = 0; i < indices_size; i++)
                         {
                             idx = indices[i + batch_indices_mul * batch];
-                            if (idx >= axis_size || (idx < 0 && -idx >= axis_size))
-                                throw std::domain_error{
-                                    "indices values of Gather exceed size along axis"};
+                            // clang-format off
+                            // todo: check if bound check is needed
+                            // if (idx >= axis_size || (idx < 0 && -idx >= axis_size))
+                            //    throw std::domain_error{"indices values of Gather exceed size along axis"};
+                            // clang-format on
                             if (idx < 0)
                                 idx += axis_size;
 
@@ -59,6 +61,18 @@ namespace ngraph
                             std::copy(src_begin, src_end, out_ptr);
                         }
                     }
+            }
+
+            template <typename T, typename U>
+            void gather(const T* const data,
+                        const U* const indices,
+                        T* out,
+                        const Shape& data_shape,
+                        const Shape& indices_shape,
+                        const Shape& out_shape,
+                        size_t axis)
+            {
+                gather(data, indices, out, data_shape, indices_shape, out_shape, axis, 0);
             }
         } // namespace reference
     }     // namespace runtime

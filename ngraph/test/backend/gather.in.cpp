@@ -744,6 +744,26 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_int32)
+{
+    Shape data_shape{3};
+    Shape indices_shape{2};
+    Shape out_shape{2};
+    auto P = make_shared<op::Parameter>(element::i32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v7::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    // clang-format off
+    test_case.add_input<int32_t>({1, 2, 3});
+    test_case.add_input<int32_t>({2, 0});
+    test_case.add_expected_output<int32_t>(out_shape, {3, 1});
+    // clang-format on
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_indices_axis_0_2d_input)
 {
     Shape data_shape{3, 2};
@@ -1107,7 +1127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_bool)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_1_batch_dims_1_int32)
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_3d_indices_axis_1_batch_dims_1)
 {
     Shape data_shape{2, 3};
     Shape indices_shape{2, 2, 2};
@@ -1140,7 +1160,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_1_batch_dims_1_int32)
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_7_2d_indices_axis_1_batch_dims_1_int32)
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_batch_dims_1)
 {
     Shape data_shape{2, 5};
     Shape indices_shape{2, 3};
@@ -1214,7 +1234,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_data_axis_2_batch_dims_1_int32)
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_7_3d_indices_axis_1_batch_dims_1)
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_1_batch_dims_1)
 {
     Shape data_shape{2, 5, 2};
     Shape indices_shape{2, 2, 3};
