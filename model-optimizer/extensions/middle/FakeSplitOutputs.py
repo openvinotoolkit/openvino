@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.result import Result
 
@@ -31,13 +31,19 @@ class AddFakeOutputsToSplit(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['op']
+        AddFakeOutputsToSplit.split_normalize_outputs(node)
 
+    '''
+    For IR Reader we need to call adding fake outputs without pattern matcher.
+    '''
+    @staticmethod
+    def split_normalize_outputs(node: Node):
         if node.has_valid('out_ports_count') and len(node.out_edges()) < node.out_ports_count:
             for p in range(node.out_ports_count):
                 if p not in node.out_ports():
                     node.add_output_port(p)
                 if node.out_port(p).disconnected():
-                    res_node = Result(graph, {'name': node.name + '/Fake_output_{}/'.format(p),
+                    res_node = Result(node.graph, {'name': node.name + '/Fake_output_{}/'.format(p),
                                               'keep_output_port': True}).create_node()
                     node.out_port(p).connect(res_node.in_port(0))
 
