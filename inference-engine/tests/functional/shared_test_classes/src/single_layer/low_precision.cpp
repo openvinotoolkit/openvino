@@ -76,16 +76,4 @@ void LowPrecisionTest::SetUp() {
                                                   "LowPrecisionTest");
 }
 
-void LowPrecisionTest::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    LoadNetwork();
-    Infer();
-
-    const auto& actualOutputs = GetOutputs();
-    auto referenceOutputs = CalculateRefs();
-
-    Compare(referenceOutputs, actualOutputs);
-}
-
 }  // namespace LowPrecisionTestDefinitions
