@@ -79,12 +79,6 @@ namespace ngraph
         ONNX_IMPORTER_API
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path, bool decode_only = false);
 
-        // TODO: Hide behind an appropriate API; Exposes ONNX_NAMESPACE; provide correct importer -> editor dependency
-        namespace detail {
-            ONNX_IMPORTER_API
-            std::shared_ptr<Function>
-            convert_to_ng_function(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, bool decode_only);
-        }
 
         ONNX_IMPORTER_API
         void convert_onnx_nodes (std::shared_ptr<Function> f);
