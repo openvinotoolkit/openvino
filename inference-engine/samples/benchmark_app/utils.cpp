@@ -196,7 +196,15 @@ void load_config(const std::string& filename,
         }
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
-            config[device.name()][item.name()] = item.string();
+            if (item.isString()) {
+                config[device.name()][item.name()] = static_cast<std::string>(item);
+            } else if (item.isInt()) {
+                config[device.name()][item.name()] = std::to_string(static_cast<int>(item));
+            } else if (item.isReal()) {
+                config[device.name()][item.name()] = std::to_string(static_cast<float>(item));
+            } else {
+                throw std::runtime_error("Error: Unsupported param type. Only string, int or float is allowed. Config file : " + filename);
+            }
         }
     }
 }
