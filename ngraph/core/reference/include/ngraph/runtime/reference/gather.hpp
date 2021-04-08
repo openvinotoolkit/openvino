@@ -66,7 +66,7 @@ namespace ngraph
             template <typename T, typename U>
             void gather(const T* const data,
                         const U* const indices,
-                        T* out,
+                        T* const out,
                         const Shape& data_shape,
                         const Shape& indices_shape,
                         const Shape& out_shape,
