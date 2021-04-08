@@ -562,12 +562,12 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_bfloat16)
         std::cout << x << ", ";
     }
     std::cout << "\n";
-    EXPECT_TRUE(test::all_close_f(expected_dft1d_bfloat16_results, result));
-//     size_t num_of_elems = result.size();
-//     for (std::size_t j = 0; j < num_of_elems; ++j)
-//     {
-//         EXPECT_NEAR(result[j], expected_dft1d_results[j], 0.00001);
-//     }
+//     EXPECT_TRUE(test::all_close_f(expected_dft1d_bfloat16_results, result));
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
+    {
+        EXPECT_NEAR(result[j], expected_dft1d_bfloat16_results[j], 0.00001);
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dft1d_signal_size_eval)
