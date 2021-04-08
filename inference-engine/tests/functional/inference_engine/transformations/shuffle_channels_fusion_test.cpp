@@ -22,6 +22,7 @@ using namespace ngraph;
 
 class ShuffleChannelsFusionTestValues {
 public:
+    bool dynamicShape;
     std::vector<int64_t> reshape_before_val;
     std::vector<size_t> transpose_val;
     std::vector<int64_t> reshape_after_val;
@@ -48,7 +49,8 @@ public:
     void SetUp() override {
         const auto values = GetParam();
         {
-            auto input0 = std::make_shared<opset6::Parameter>(element::f32, Shape{ values.batch_size, 128, 720, 480 });
+            const PartialShape inputPartialShape = values.dynamicShape ? PartialShape::dynamic() : Shape{ values.batch_size, 128, 720, 480 };
+            auto input0 = std::make_shared<opset6::Parameter>(element::f32, inputPartialShape);
             auto shape_reshape_before = opset6::Constant::create(element::i64, Shape{ values.reshape_before_val.size() }, values.reshape_before_val);
             auto permutation = opset6::Constant::create(element::i64, Shape{ values.transpose_val.size() }, values.transpose_val);
             auto shape_reshape_after = opset6::Constant::create(element::i64, Shape{ values.reshape_after_val.size() }, values.reshape_after_val);
@@ -79,7 +81,13 @@ public:
         const ShuffleChannelsFusionTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result << "_batch_size_" << testValues.batch_size << "_before_" << testValues.reshape_before_val
+        if (testValues.dynamicShape) {
+            result << "_dynamic_shape_";
+        } else {
+            result << "_batch_size_" << testValues.batch_size;
+        }
+
+        result << "_before_" << testValues.reshape_before_val
                << "_transpose_" << testValues.transpose_val << "_after_" << testValues.reshape_after_val
                << (testValues.check_reshape_values ? "check_reshape_values" : "");
 
@@ -97,16 +105,18 @@ TEST_P(ShuffleChannelsFusion, CompareFunctions) {
 }
 
 const std::vector<ShuffleChannelsFusionTestValues> testValues = {
-    { {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, 128, 720, 480}, 1, false, true },
-    { {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, 128, 720, 480}, 1, true, true },
-    { {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, -1, 720, 480}, 1, false, true },
-    { {4, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, -1, 720, 480}, 4, false, false },
-    { {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, -1, 720, 480}, 1, true, false },
-    { {1, 4, 32, 720 * 480}, {0, 2, 1, 3},  {1, 128, 720, 480}, 1, false, true },
-    { {1, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, 128, 720, 480}, 1, true, true },
-    { {1, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, -1, 720, 480}, 1, false, true },
-    { {4, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, -1, 720, 480}, 4, false, false },
-    { {1, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, -1, 720, 480}, 1, true, false },
+    { true, {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, 128, 720, 480}, 1, false, false },
+    { false, {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, 128, 720, 480}, 1, false, true },
+    { false, {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, 128, 720, 480}, 1, true, true },
+    { false, {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, -1, 720, 480}, 1, false, true },
+    { false, {4, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, -1, 720, 480}, 4, false, false },
+    { false, {1, 2, 64, 720, 480}, {0, 2, 1, 3, 4},  {1, -1, 720, 480}, 1, true, false },
+    { true, {1, 4, 32, 720 * 480}, {0, 2, 1, 3},  {1, 128, 720, 480}, 1, false, false },
+    { false, {1, 4, 32, 720 * 480}, {0, 2, 1, 3},  {1, 128, 720, 480}, 1, false, true },
+    { false, {1, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, 128, 720, 480}, 1, true, true },
+    { false, {1, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, -1, 720, 480}, 1, false, true },
+    { false, {4, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, -1, 720, 480}, 4, false, false },
+    { false, {1, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, -1, 720, 480}, 1, true, false },
 };
 INSTANTIATE_TEST_CASE_P(
     TransformationTests,

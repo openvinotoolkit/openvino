@@ -56,12 +56,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ShuffleChannelsFusion, "ShuffleChannelsFusi
 ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
     auto input = ngraph::pattern::any_input(pattern::has_static_shape());
-    auto reshape_before_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::has_static_shape());
-    auto transpose_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::has_static_shape());
-    auto reshape_after_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::has_static_shape());
+    auto reshape_before_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
+    auto transpose_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
+    auto reshape_after_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
 
     auto has_static_shape_and_single_consumer = [](const Output<Node>& output) {
-        return pattern::has_static_shape() && pattern::consumers_count(1);
+        return pattern::has_static_shape()(output) && pattern::consumers_count(1)(output);
     };
     auto reshape_before_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Reshape>({input, reshape_before_const_pattern},
                                                                                       has_static_shape_and_single_consumer);
@@ -85,6 +85,9 @@ ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_co
                 pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
             auto reshape_after_constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(
                 pattern_map.at(reshape_after_const_pattern).get_node_shared_ptr());
+
+            if (!reshape_before_constant || !reshape_after_constant)
+                return false;
 
             const auto& reshape_before_values = reshape_before_constant->cast_vector<int64_t>();
             const auto& reshape_after_values = reshape_after_constant->cast_vector<int64_t>();
