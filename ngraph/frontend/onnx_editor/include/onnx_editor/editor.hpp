@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 
+#include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -95,6 +96,9 @@ namespace ngraph
 
             /// \brief Returns a serialized ONNX model, possibly modified by the editor.
             std::string model_string() const;
+
+            /// \brief     Converts an edited ONNX model to an nGraph Function representation.
+            std::shared_ptr<Function> get_function() const;
 
             /// \brief Returns a list of all inputs of the in-memory model, including initializers.
             ///        The returned value might depend on the previous operations executed on an

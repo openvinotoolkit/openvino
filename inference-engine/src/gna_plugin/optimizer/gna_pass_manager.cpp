@@ -126,7 +126,7 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
     return copyWithQuant;
 }
 
-static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l) {
+static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l, std::shared_ptr<IPassManager> passmanager) {
     std::vector<CNNLayerPtr> prevLayers;
 
     // skipping memory inputs and true inputs layers
@@ -148,15 +148,24 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
     if (eltwise != nullptr) {
         // eltwise layer has 2 inputs, so depends on situation identity should or should not be inserted
 
-        // for  sum if we have 4-4 inputs we will handle that by inserting identity activation case (1)
-        // for  sum if we have 4-2 - OK
-        // for  sum if we have 2-2 inputs we need to insert diagonal
+        // for sum with 16-bit input precision
+        //          if we have 4-4 inputs - we will handle that by inserting identity activation case (1)
+        //          if we have 4-2 inputs - OK
+        //          if we have 2-2 inputs - we need to insert diagonal
 
-        // for  mul if we have 2-2 - OK
-        // for  mul if we have 2-4 - inputs we need to insert identity activation to make 2 bytes input
-        // for  mul if we have 4-4 - there 2 options
-        //          option 1 both inputs came from single outdata  - we will insert 1 identity  to just convert single input into 2 bytes
-        //          option 2 each input came from it's own outdata - we need to insert 2 identities activations to convert both and feed weights and inputs
+        // for sum with 8-bit input precision
+        //          if we have 1-1 inputs - OK
+        //          if we have 4-4 inputs - there are 2 options
+        //              option 1 both inputs came from single outdata - we need to insert 1 identity activation to just convert single input into 1 byte
+        //              option 2 each input came from its own outdata - we need to insert 2 identity activations to convert both and feed weights and inputs
+
+        // for mul if we have 2-2 or 1-1 (low precision case) inputs - OK
+        // for mul if we have 2-4 or 1-4 (low precision case) inputs - we need to insert identity activation to make 2 bytes input
+        //                                                             or 1 byte input (low precision case)
+        // for mul if we have 4-4 inputs - there are 2 options
+        //          option 1 both inputs came from single outdata - we need to insert 1 identity activation to just convert single input into 2 bytes
+        //                                                          or 1 byte (low precision case)
+        //          option 2 each input came from its own outdata - we need to insert 2 identity activations to convert both and feed weights and inputs
 
         auto prev0 = PrevFunctionalLayer(l, 0);
         auto prev1 = PrevFunctionalLayer(l, 1);
@@ -164,14 +173,32 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         switch (eltwise->_operation) {
             case EltwiseLayer::Sub:
             case EltwiseLayer::Sum:
-                if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
-                    return prevLayers;
+                if (!passmanager->isLowPrecision()) {
+                    if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
+                        return prevLayers;
+                    }
+                    // TODO: whether there are possibility to select after what layer identity gets inserted
+                    prevLayers.push_back(CNNNetPrevLayer(l, 0));
+                } else {
+                    if (LayerInfo(prev0).has8BOr16BOutput() && LayerInfo(prev1).has8BOr16BOutput()) {
+                        return prevLayers;
+                    }
+
+                    if (LayerInfo(prev0).has32BOutput()) {
+                        prevLayers.push_back(CNNNetPrevLayer(l, 0));
+                    }
+
+                    // if layers of outdata are different
+                    auto prevData0 = l->insData[0].lock();
+                    auto prevData1 = l->insData[1].lock();
+
+                    if ((prev0 != prev1 || prevData0 != prevData1) && LayerInfo(prev1).has32BOutput()) {
+                        prevLayers.push_back(CNNNetPrevLayer(l, 1));
+                    }
                 }
-                // TODO: whether there are possibility to select after what layer identity gets inserted
-                prevLayers.push_back(CNNNetPrevLayer(l, 0));
                 break;
             case EltwiseLayer::Prod: {
-                if (LayerInfo(prev0).has16BOutput() && LayerInfo(prev1).has16BOutput()) {
+                if (LayerInfo(prev0).has8BOr16BOutput() && LayerInfo(prev1).has8BOr16BOutput()) {
                     return prevLayers;
                 }
 
@@ -227,6 +254,8 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
 }
 
 void InsertDiagonalLayerPass::run() {
+    bool lowPrecision = getPassManager()->isLowPrecision();
+
     for (auto & l : *pLayers) {
         if (l->insData.empty()) continue;
         auto prevLayer = CNNNetPrevLayerSkipCertain(l, 0, [](CNNLayerPtr ptr) {
@@ -241,12 +270,16 @@ void InsertDiagonalLayerPass::run() {
             if (!eltwise) {
                 continue;
             }
-            // in case of eltwise sum one of input would be 4 bytes one - 2
-            // in case of eltwise mull one of input would be 2 bytes one - 2
+            // in case of eltwise sum in 16-bit input precision one of input would be 4 bytes one - 2
+            // in case of eltwise mul in 16-bit input precision one of input would be 2 bytes one - 2
+            // in case of eltwise sum in low (8-bit) input precision both inputs are 1 byte
+            // in case of eltwise mul in low (8-bit) input precision both inputs are 1 byte
             // for e sum if we have 4-4 inputs we will handle that by inserting identity activation
             // for e sum if we have 4-2 - OK
             // for e sum if we have 2-2 inputs we need to insert diagonal -- handling here
+            // for e sum if we have 1-1 inputs in low precision mode - OK
             // for e mul if we have 2-2 - OK
+            // for e mul if we have 1-1 in low precision mode - OK
             // for e mul if we have 2-4 - inputs we need to insert identity to put 4 bytes input into weights
             // for e mul if we have 4-4 - inputs we need to insert 2 identities to put both 4 bytes input into weights
 
@@ -256,7 +289,10 @@ void InsertDiagonalLayerPass::run() {
             auto prevLayer1 = CNNNetPrevLayerSkipCertain(l, 1, [](CNNLayerPtr ptr) {
                 return LayerInfo(ptr).isNonFunctional();
             });
-            if (!LayerInfo(prevLayer).has16BOutput() || !LayerInfo(prevLayer1).has16BOutput())
+            if (!LayerInfo(prevLayer).has8BOr16BOutput() || !LayerInfo(prevLayer1).has8BOr16BOutput())
+                continue;
+
+            if (lowPrecision && LayerInfo(prevLayer).has8BOr16BOutput() && LayerInfo(prevLayer1).has8BOr16BOutput())
                 continue;
         }
         auto prevDirectLayer = CNNNetPrevLayer(l, 0);
@@ -677,16 +713,6 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         }
 
         nhwc_layout_patterns.push_back({prev, next});
-
-        auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
-        if (!convolution) {
-            THROW_GNA_EXCEPTION << "Invalid type of convolution layer";
-        }
-        if (convolution->_kernel_y != 1) {
-            THROW_GNA_LAYER_EXCEPTION(l) << "this case is not implemented yet";
-        }
-        auto in_channels = convolution->input()->getDims()[1];
-        convolution->_kernel_y = in_channels;
     }
 
     for (const auto& layers : nhwc_layout_patterns) {
@@ -746,7 +772,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 void InsertIdentityLayerPass::run() {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     for (auto & l : *pLayers) {
-        for (auto && prev : getCandidatesForIdentityInsertion(l)) {
+        for (auto && prev : getCandidatesForIdentityInsertion(l, getPassManager())) {
             // Do an upstream search until Functional layer is found
             auto original_prev_layer = prev;
             auto true_layer = l;
@@ -821,7 +847,7 @@ void InsertIdentityLayerPass::run() {
                 for (auto && nextLayer : getInputTo(nextData)) {
                     if (nextLayer.second.get() == l.get())
                         continue;
-                    if (getCandidatesForIdentityInsertion(nextLayer.second).empty()) {
+                    if (getCandidatesForIdentityInsertion(nextLayer.second, getPassManager()).empty()) {
                         notAll = true;
                     }
                 }
@@ -2286,8 +2312,8 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
             // Transpose all constant inputs
             for (auto && input : constInputs) {
-                auto rows = FROM_IR_DIM(input->outData[0], 3);
-                auto columns = FROM_IR_DIM(input->outData[0], 1) * FROM_IR_DIM(input->outData[0], 2);
+                auto rows = GetDataDimSize(input->outData[0], DataDimName::C);
+                auto columns = GetDataDimSize(input->outData[0], DataDimName::H) * GetDataDimSize(input->outData[0], DataDimName::W);
                 auto blob = input->blobs["custom"];
                 // A constant should have the same number of channels since concatenation will be in height/weight dimension
                 TranspositionInfo concatTranspositionInfo{true, rows, columns};

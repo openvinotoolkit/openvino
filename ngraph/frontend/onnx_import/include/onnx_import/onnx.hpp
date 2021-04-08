@@ -12,6 +12,7 @@
 
 #include "ngraph/function.hpp"
 #include "utils/onnx_importer_visibility.hpp"
+#include "utils/onnx_internal.hpp"
 
 namespace ONNX_NAMESPACE
 {
@@ -82,7 +83,7 @@ namespace ngraph
         namespace detail {
             ONNX_IMPORTER_API
             std::shared_ptr<Function>
-            convert_to_ng_function(std::shared_ptr<const ONNX_NAMESPACE::ModelProto> model_proto, bool decode_only);
+            convert_to_ng_function(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, bool decode_only);
         }
 
         ONNX_IMPORTER_API
