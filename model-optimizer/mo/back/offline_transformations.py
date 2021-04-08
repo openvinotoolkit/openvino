@@ -34,10 +34,7 @@ if __name__ == "__main__":
     CheckAPI()
 
     net = read_network_without_extensions(path_to_model + "_tmp.xml", path_to_model + "_tmp.bin")
-    print("ok1")
     net.serialize(path_to_model + ".xml", path_to_model + ".bin")
-    print("ok2")
     path_to_mapping = path_to_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'))
-    print("ok3")
 

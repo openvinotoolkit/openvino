@@ -53,6 +53,10 @@ std::shared_ptr<ICNNNetwork> IRParser::parse(
     return parser->parse(root, weights);
 }
 
+std::shared_ptr<ICNNNetwork> IRParser::parse_without_extensions(const pugi::xml_node &root, const Blob::CPtr &weights) {
+    return parser->parse_without_extensions(root, weights);
+}
+
 namespace {
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {

@@ -48,6 +48,25 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     return CNNNetwork(parser.parse(root, weights));
 }
 
+CNNNetwork IRReader::read_without_extensions(std::istream &model, const Blob::CPtr &weights) const {
+    OV_ITT_SCOPED_TASK(itt::domains::V10Reader, "IRReader::read_without_extensions");
+
+    pugi::xml_document xmlDoc;
+    pugi::xml_parse_result res = xmlDoc.load(model);
+    if (res.status != pugi::status_ok) {
+        IE_THROW() << res.description() << "at offset " << res.offset;
+    }
+    pugi::xml_node root = xmlDoc.document_element();
+
+    auto version = details::GetIRVersion(root);
+    IRParser parser(version);
+    return CNNNetwork(parser.parse_without_extensions(root, weights));
+}
+
+CNNNetwork IRReader::read_without_extensions(std::istream &model) const {
+    return read_without_extensions(model, nullptr);
+}
+
 INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
     reader = std::make_shared<IRReader>();
 }
