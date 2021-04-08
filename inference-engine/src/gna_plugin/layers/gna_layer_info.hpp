@@ -75,7 +75,8 @@ class LayerInfo {
             [this]() { return isConvolution(); },
             [this]() { return isPooling(); },
             [this]() { return isPower(); },
-            [this]() { return isCropAffined(); }
+            [this]() { return isCropAffined(); },
+            [this]() { return isGemm(); },
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -214,6 +215,9 @@ class LayerInfo {
     }
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
+    }
+    bool isGemm() const noexcept {
+        return isOfType("Gemm");
     }
     bool isSplit() const noexcept {
         return isOfType("split");

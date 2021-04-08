@@ -138,6 +138,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
 
     auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
     auto concat = dynamic_cast<InferenceEngine::ConcatLayer *>(l.get());
+    auto gemm = dynamic_cast<InferenceEngine::GemmLayer *>(l.get());
 
     auto PrevFunctionalLayer = [](CNNLayerPtr l, int idx = 0) {
         auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [](CNNLayerPtr ptr) {
@@ -224,6 +225,13 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
                 THROW_GNA_EXCEPTION << "Eltwise Layer of type: " << eltwise->_operation << " not supported";
         }
     } else if (concat != nullptr) {
+        for (int i = 0; CNNNetHasPrevLayer(l.get(), i); ++i) {
+            auto prev = PrevFunctionalLayer(l, i);
+            if (LayerInfo(prev).has32BOutput()) {
+                prevLayers.push_back(CNNNetPrevLayer(l, i));
+            }
+        }
+    } else if (gemm != nullptr) {
         for (int i = 0; CNNNetHasPrevLayer(l.get(), i); ++i) {
             auto prev = PrevFunctionalLayer(l, i);
             if (LayerInfo(prev).has32BOutput()) {
@@ -2336,6 +2344,7 @@ int PassManager::run(int index) {
 #if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
+        network.serialize(name + ".xml", name + ".bin");
 #ifdef PLOT
         std::ofstream out(name + ".dot");
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,

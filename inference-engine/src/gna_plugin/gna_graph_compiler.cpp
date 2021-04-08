@@ -1345,6 +1345,65 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 }
 
+void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+    IE_ASSERT(!layer->insData.empty());
+    IE_ASSERT(!layer->outData.empty());
+    IE_ASSERT(layer->insData.size() == 2);
+    auto input_1 = layer->insData[0].lock();
+    auto input_2 = layer->insData[1].lock();
+    auto outputs = *layer->outData.begin();
+    auto inputPrecision = quantized ? Precision(Precision::I16) : input_1->getPrecision();
+
+    uint32_t num_rows_in = FROM_IR_DIM(input_1, 1);
+    uint32_t num_columns_in = FROM_IR_DIM(input_1, 2);
+    uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
+    uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+    uint32_t num_padding_out = 0;
+
+    void* ptr_input_1 = nullptr;
+    void* ptr_outputs = nullptr;
+    void* ptr_input_2 = nullptr;
+    void* ptr_biases = nullptr;
+
+    auto& currentComponent = dnnComponents.addComponent(layer->name, ("affine"));
+
+    dnn->InitAffineComponent(currentComponent,
+                             num_rows_in + num_padding,
+                             num_columns_in,
+                             num_rows_out + num_padding_out,
+                             inputPrecision.size(),
+                             outputs->getPrecision().size(),
+                             quantized == nullptr ? input_2->getPrecision().size() : 2,
+                             quantized == nullptr ? input_2->getPrecision().size() : 4,
+                             quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+                             quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
+                             ptr_input_1,
+                             ptr_outputs,
+                             ptr_input_2,
+                             ptr_biases,
+                             false);
+
+    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
+                                * outputs->getPrecision().size();
+
+    size_t num_data_bytes_in_1 = InferenceEngine::details::product(begin(input_1->getDims()), end(input_1->getDims()))
+                               * input_1->getPrecision().size();
+    size_t num_data_bytes_in_2 = InferenceEngine::details::product(begin(input_2->getDims()), end(input_2->getDims()))
+                                 * input_2->getPrecision().size();
+
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    connectInput(layer, ptr_input_1, num_data_bytes_in_2);
+    connectInput(layer, ptr_input_2, num_data_bytes_in_1, 0, 1);
+    if (gnaFlags->sw_fp32) {
+        IE_ASSERT(quantized == nullptr);
+        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+    } else {
+        gnamem->readonly().push_value<int32_t>(ptr_biases, 0.0f, num_rows_out, 64);
+    }
+}
+
 void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool isDiag) {
     auto& weightable = dynamic_cast<WeightableLayer&>(*layer.get());
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
@@ -2078,6 +2137,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
     static const LayersBuilder layersBuilder[] = {
         {{"Input"}, [](GNAGraphCompiler*, CNNLayerPtr l) {}},  // skip input layers they are not used in GNA lib, only as a memory blobs
         {{"FullyConnected", "InnerProduct"}, CREATE(AffinePrimitive)},
+        {{"Gemm"}, CREATE(GemmPrimitive)},
         {{"ScaleShift"}, CREATE(DiagonalPrimitive)},
         {{"AffineFilter"}, CREATE(AffineFilterPrimitive)},
         {{"ConcatAlignFilter"}, CREATE(ConcatAlignFilterPrimitive)},
