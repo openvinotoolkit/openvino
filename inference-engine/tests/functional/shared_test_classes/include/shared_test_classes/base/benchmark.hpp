@@ -6,6 +6,8 @@
 
 #include "benchmark_utils.hpp"
 
+#include <gtest/gtest.h>
+
 #ifdef PERFORMACE_BENCHMARK
 /**
  * @brief use this macro to run single instruction several times by benchmark
@@ -24,7 +26,10 @@
  * ---
  *
  */
-#define BENCHMARK_BURDEN(name) for (::perforemace_tests::Benchmark b(name); b.nextRound(); b.endRound())
+#define BENCHMARK_BURDEN(TEST_NAME)                                                                \
+    for (::perforemace_tests::Benchmark b(                                                         \
+             ::testing::UnitTest::GetInstance()->current_test_case()->name() + ("/" + TEST_NAME)); \
+         b.nextRound(); b.endRound())
 
 // TODO provide Writers collection from configuration (which not exist now)
 // don't instantiate FileWriter here
@@ -45,7 +50,7 @@
 
 #else
 
-#define BENCHMARK_BURDEN(name)
+#define BENCHMARK_BURDEN(TEST_NAME)
 
 #define BENCHMARK_WRITE_AND_DROP
 
