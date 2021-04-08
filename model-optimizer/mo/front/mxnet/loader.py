@@ -111,15 +111,15 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
         index_node_keys[i] = node_name
         fw_name_map[node_name] = node['name']
 
-    used_indices_list = []
+    used_indices_set = set()
     for i, attrs in enumerate(model_nodes):
         node = attrs
         edges, used_indices = get_mxnet_node_edges(node, i, list(model_nodes), index_node_keys)
         if len(edges) > 0:
             graph.add_edges_from(edges)
-        used_indices_list += used_indices
+        used_indices_set = used_indices_set.union(used_indices)
 
-    output_ids = [index_node_keys[node_id] for node_id in set(range(1, len(model_nodes))) - set(used_indices_list)]
+    output_ids = [index_node_keys[node_id] for node_id in set(range(len(model_nodes))) - used_indices_set]
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code

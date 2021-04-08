@@ -101,11 +101,12 @@ class AttrDictionary(object):
 
 def get_mxnet_node_edges(node: dict, node_id: [int, str], nodes_list: list, index_node_key: dict):
     edge_list = []
-    used_indices = []
+    used_indices = set()
     for in_port, src_node_id in enumerate(node['inputs']):
-        edge = create_mxnet_edge(index_node_key[src_node_id[0]], index_node_key[node_id], in_port, src_node_id[1],  nodes_list[src_node_id[0]]['name'])
+        edge = create_mxnet_edge(index_node_key[src_node_id[0]], index_node_key[node_id], in_port, src_node_id[1],
+                                 nodes_list[src_node_id[0]]['name'])
         edge_list.append(edge)
-        used_indices.append(src_node_id[0])
+        used_indices.add(src_node_id[0])
     return edge_list, used_indices
 
 

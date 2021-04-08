@@ -280,20 +280,19 @@ def caffe_pb_to_nx(graph, proto, model):
                 input_dims.append(np.array(list(dims), dtype=np.int64))
                 input_names.append(layer.name)
 
-        layer_name = layer.name
-        layer.name = graph.unique_id(layer.name)
-        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        node_id = graph.unique_id(layer.name)
+        graph.add_node(node_id, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
-            add_edge_caffe(graph, bottom, layer.name, blob_producers, dst_port)
+            add_edge_caffe(graph, bottom, node_id, blob_producers, dst_port)
             used_blobs.add(bottom)
 
         # update blob producers dictionary by output ports
         for src_port, top in enumerate(layer.top):
             if top in blob_producers:
-                log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
-            blob_producers[top] = (layer.name, src_port, layer_name)
+                log.debug("Detected reuse of blob {} by layer {}".format(top, node_id))
+            blob_producers[top] = (node_id, src_port, layer.name)
 
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
