@@ -203,8 +203,8 @@ class Connection:
             return {}, None
 
         if self.destinations and len(self.destinations) > 1:
-            raise Error("set_destination applicable only for connections that has exactly one destination or \
-                         when there is no destinations")
+            raise Error("set_destination applicable only for connections that has exactly one destination or "
+                        "when there is no destinations")
 
         if port.type == 'out':
             raise Error("Wrong port type in set_destination method. Should be 'in' but given 'out'")
