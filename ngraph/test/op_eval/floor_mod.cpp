@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-static string s_manifest = "${MANIFEST}";
-
 TEST(op_eval, floor_mod)
 {
     Shape shape{4};
