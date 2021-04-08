@@ -79,10 +79,11 @@ std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
     return kernelID;
 }
 
-std::string KernelBaseOpenCL::CreateJit(const std::string& template_name,
+std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::string& template_name,
                                           const JitConstants& constants,
                                           const std::string& kernel_id) const {
     class CodeBuilder code;
+    std::string undefs;
     code.add_line("\n//====================================================")
         .add_line("// Kernel template: " + template_name + " ")
         .add_line("// Kernel name: " + kernel_id)
@@ -90,13 +91,21 @@ std::string KernelBaseOpenCL::CreateJit(const std::string& template_name,
         .decoration_macro("FUNC", "", kernel_id)
         .decoration_macro("FUNC_CALL", "", kernel_id);
 
+    undefs += "#undef KERNEL\n";
+    undefs += "#undef FUNC\n";
+    undefs += "#undef FUNC_CALL\n";
+
     for (auto& definition : constants.GetDefinitions()) {
         code.value_macro(definition.first, definition.second);
+        undefs += "#ifdef " + definition.first.substr(0, definition.first.find('(')) + "\n";
+        undefs += "#undef " + definition.first.substr(0, definition.first.find('(')) + "\n";
+        undefs += "#endif\n";
     }
 
     std::string jit = code.str();
+    std::pair<std::string, std::string> jit_undefs(jit, undefs);
 
-    return jit;
+    return jit_undefs;
 }
 
 Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
@@ -127,7 +136,7 @@ Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
 }
 
 std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::string& name,
-                                                                  const std::string& jit,
+                                                                  const std::pair<std::string, std::string>& jit,
                                                                   const std::string& entry_point,
                                                                   const EngineInfo& engine_info,
                                                                   const std::string& exe_mode) const {
@@ -137,7 +146,8 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
 
     if (codes.size()) {
         kernel_string->str = codes[0];
-        kernel_string->jit = jit;
+        kernel_string->jit = jit.first;
+        kernel_string->undefs = jit.second;
         kernel_string->options = exe_mode + " -cl-mad-enable";
         if (engine_info.bOptHintsSupport)
             kernel_string->options += " -DOPT_HINS_SUPPORTED=1";
@@ -164,7 +174,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         const CommonDispatchData& dispatchData,
                                         const EngineInfo& engine_info,
                                         const std::string& kernelMapName,
-                                        const std::string& jit,
+                                        const std::pair<std::string, std::string>& jit,
                                         const std::string& entryPoint,
                                         const std::string& exeMode,
                                         bool weights,

@@ -22,7 +22,7 @@ protected:
         }
     }
 
-    void SetUp() {
+    void SetUp() override {
         ConvolutionLayerTest::SetUp();
     }
 };
