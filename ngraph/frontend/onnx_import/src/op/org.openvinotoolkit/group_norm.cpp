@@ -92,13 +92,13 @@ namespace ngraph
                     NGRAPH_CHECK(bias_shape.rank().is_static());
                     auto bias_rank = bias_shape.rank().get_length();
 
-                    const auto data_rank = std::make_shared<default_opset::ShapeOf>(data_shape_node);
+                    const auto data_rank =
+                        std::make_shared<default_opset::ShapeOf>(data_shape_node);
 
                     if (scale_rank == 1)
                     {
                         result = std::make_shared<default_opset::Multiply>(
-                            result,
-                            reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank));
+                            result, reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank));
                     }
                     else
                     {

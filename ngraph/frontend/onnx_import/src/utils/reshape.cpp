@@ -107,10 +107,8 @@ namespace ngraph
                                                     const Output<ngraph::Node>& expected_rank)
             {
                 // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
-                const auto one_const =
-                    default_opset::Constant::create(element::i64, Shape{1}, {1});
-                const auto two_const =
-                    default_opset::Constant::create(element::i64, Shape{1}, {2});
+                const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
+                const auto two_const = default_opset::Constant::create(element::i64, Shape{1}, {2});
                 const auto tail_shape_rank =
                     std::make_shared<default_opset::Subtract>(expected_rank, two_const);
                 const auto tail_shape =

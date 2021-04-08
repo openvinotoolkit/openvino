@@ -71,7 +71,9 @@ namespace ngraph
                         const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
                         const auto conv_rank = std::make_shared<default_opset::ShapeOf>(conv_shape);
 
-                        return {std::make_shared<default_opset::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
+                        return {std::make_shared<default_opset::Add>(
+                            ng_conv,
+                            reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
                     }
                 } // namespace
 

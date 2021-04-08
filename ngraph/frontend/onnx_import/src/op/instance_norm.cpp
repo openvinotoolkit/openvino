@@ -90,8 +90,10 @@ namespace ngraph
 
                     // scale * mvn + bias
                     std::shared_ptr<ngraph::Node> result =
-                        std::make_shared<default_opset::Multiply>(mvn, reshape::reshape_channel_shaped_node_to_nchw(scale, mvn_rank));
-                    result = std::make_shared<default_opset::Add>(result,  reshape::reshape_channel_shaped_node_to_nchw(bias, mvn_rank));
+                        std::make_shared<default_opset::Multiply>(
+                            mvn, reshape::reshape_channel_shaped_node_to_nchw(scale, mvn_rank));
+                    result = std::make_shared<default_opset::Add>(
+                        result, reshape::reshape_channel_shaped_node_to_nchw(bias, mvn_rank));
 
                     return {result};
                 }
