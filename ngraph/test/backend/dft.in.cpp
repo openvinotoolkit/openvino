@@ -494,7 +494,7 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_bfloat16)
     auto f = make_shared<Function>(dft, ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
+    auto dft_output = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
 
     auto backend_data = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
     copy_data(backend_data, bfloat16::from_float_vector(input_data));
