@@ -61,6 +61,14 @@ if [ -e "$INSTALLDIR/deployment_tools/inference_engine/external/tbb" ]; then
     export TBB_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/cmake
 fi
 
+if [ -e "$INSTALLDIR/deployment_tools/inference_engine/external/tbbbind_2_4" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        export DYLD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/tbbbind_2_4/lib:${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
+    fi
+    export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/tbbbind_2_4/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    export TBB_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/tbbbind_2_4/cmake
+fi
+
 if [ -e "$INSTALLDIR/deployment_tools/ngraph" ]; then
     export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/ngraph/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     export ngraph_DIR=$INSTALLDIR/deployment_tools/ngraph/cmake
