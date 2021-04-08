@@ -6,7 +6,7 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 
 class RemoveUselessCropsPattern(MiddleReplacementPattern):
-    """
+    r"""
     Remove useless construction with crops and concat like follows:
                 in_node
          /    /   |    \     \
