@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <ngraph/validation_util.hpp>
@@ -71,10 +59,14 @@ void op::Concat::validate_and_infer_types()
             }
             auto concat_axis = get_concatenation_axis();
             NODE_VALIDATION_CHECK(this,
-                                  concat_axis < this_input_rank.get_length(),
+                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0,
                                   "Concatenation axis (",
                                   concat_axis,
-                                  ") is out of bounds for ",
+                                  ") is out of bounds [",
+                                  -this_input_rank.get_length(),
+                                  ", ",
+                                  this_input_rank.get_length() - 1,
+                                  "] for ",
                                   "argument ",
                                   i,
                                   ", which has shape ",

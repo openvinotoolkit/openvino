@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import unittest
@@ -212,3 +199,15 @@ class TensorContentParsing(unittest.TestCase):
             self.assertEqual([warning_message], cm.output)
             self.assertEqual(ref_val, result)
 
+    def test_str_decode_list(self):
+        pb_tensor = PB({
+            'dtype': 7,
+            'string_val': [b'\377\330\377\377\330\377'],
+        })
+        shape = int64_array([])
+        warning_message = 'ERROR:root:Failed to parse a tensor with Unicode characters. Note that Inference Engine ' \
+                          'does not support string literals, so the string constant should be eliminated from the ' \
+                          'graph.'
+        with self.assertLogs(log.getLogger(), level="ERROR") as cm:
+            result = tf_tensor_content(pb_tensor.dtype, shape, pb_tensor)
+            self.assertEqual([warning_message, warning_message], cm.output)

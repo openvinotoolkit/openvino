@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 
 # test.BACKEND_NAME is a configuration variable determining which
@@ -67,12 +55,6 @@ xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
                                       "Value -1,0 cannot be casted to int.")
-xfail_issue_35916 = xfail_test(reason="RuntimeError: Unsupported input dims count for layer Z")
-xfail_issue_35917 = xfail_test(reason="RuntimeError: Unsupported input dims count for "
-                                      "layer MatMul")
-xfail_issue_35918 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
-                                      "Mismatched attribute type in 'test_node : alpha'")
-xfail_issue_35921 = xfail_test(reason="ValueError - shapes mismatch in gemm")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
@@ -155,12 +137,8 @@ xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not suppor
 xfail_issue_47317 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Add): 2>': "
                                       "Check shape_size(axes_shape) == input_rank' failed")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
-xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[name]` doesn't support "
-                                      "FP64 precision.")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_48100 = xfail_test(reason="RuntimeError: cpu_convert can't convert from: "
-                                      "FP64 precision to: FP32")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"

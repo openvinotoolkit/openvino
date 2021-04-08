@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -45,6 +33,7 @@
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "scatter_update_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
 #include "reverse_sequence_inst.h"
 #include "shuffle_channels_inst.h"
@@ -206,6 +195,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
                  !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
                  !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
+                 !input.is_type<scatter_nd_update>() &&
                  !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
                  !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
                  !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
@@ -540,6 +530,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<scatter_update>();
 
+            should_fuse |= input_data.is_type<scatter_nd_update>();
+
             should_fuse |= input_data.is_type<scatter_elements_update>();
 
             should_fuse |= input_data.is_type<depth_to_space>();
@@ -603,6 +595,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<gather>();
 
             should_fuse |= input_data.is_type<scatter_update>();
+
+            should_fuse |= input_data.is_type<scatter_nd_update>();
 
             should_fuse |= input_data.is_type<scatter_elements_update>();
 
@@ -690,6 +684,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<scatter_nd_update>() && quantize_node.get_scale_shift_opt();
+
             should_fuse |= input_data.is_type<scatter_elements_update>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<permute>() && quantize_node.get_scale_shift_opt();
@@ -745,6 +741,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<space_to_batch>()) ||
                                       (parents[i]->is_type<eltwise>() && eltwise_supports_fusings(parents[i]->as<eltwise>())) ||
                                       (parents[i]->is_type<scale>()) ||
+                                      (parents[i]->is_type<scatter_nd_update>()) ||
                                       (parents[i]->is_type<scatter_elements_update>()) ||
                                       (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
@@ -74,6 +61,11 @@ inputs7 = {'input': {'shape': int64_array([8]), 'value': int64_array([1, 2, 3, 4
           'indices': {'shape': int64_array([1]), 'value': int64_array([4])},
           'updates': {'shape': int64_array([]), 'value': 9}}
 output7 = int64_array([1, 2, 3, 4, 9, 6, 7, 8])
+
+inputs8 = {'input': {'shape': int64_array([3]), 'value': int64_array([1, 2, 3])},
+          'indices': {'shape': int64_array([1]), 'value': int64_array([2])},
+          'updates': {'shape': int64_array([1]), 'value': int64_array([9])}}
+output8 = int64_array([1, 2, 9])
 
 class TestScatterNDUpdate(unittest.TestCase):
     def test_partial_infer1(self):
@@ -152,7 +144,7 @@ class TestScatterNDUpdate(unittest.TestCase):
         res_output_value = graph.node['output']['value']
 
         self.assertTrue(np.array_equal(output6, res_output_value),
-                        'values do not match expected: {} and given: {}'.format(output5, res_output_value))
+                        'values do not match expected: {} and given: {}'.format(output6, res_output_value))
 
     def test_infer7_scalar(self):
         graph = build_graph(nodes_attributes, edges, inputs7)
@@ -163,4 +155,15 @@ class TestScatterNDUpdate(unittest.TestCase):
         res_output_value = graph.node['output']['value']
 
         self.assertTrue(np.array_equal(output7, res_output_value),
-                        'values do not match expected: {} and given: {}'.format(output5, res_output_value))
+                        'values do not match expected: {} and given: {}'.format(output7, res_output_value))
+
+    def test_infer8(self):
+        graph = build_graph(nodes_attributes, edges, inputs8)
+        scatternd_node = Node(graph, 'scatternd_node')
+        ScatterNDUpdate.infer(scatternd_node)
+
+        # get the result
+        res_output_value = graph.node['output']['value']
+
+        self.assertTrue(np.array_equal(output8, res_output_value),
+                        'values do not match expected: {} and given: {}'.format(output8, res_output_value))

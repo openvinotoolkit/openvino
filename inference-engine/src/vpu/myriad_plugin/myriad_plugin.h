@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ class Engine : public ie::InferencePluginInternal {
 public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
-    ~Engine() override {
+    ~Engine() {
         MyriadExecutor::closeDevices(_devicePool, _mvnc);
     }
 

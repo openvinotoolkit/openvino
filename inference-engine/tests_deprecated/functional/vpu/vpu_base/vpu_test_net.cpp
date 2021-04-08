@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ std::vector<double> GetParamAsDoubles(const std::string& vals) {
         try {
             result.push_back(std::stod(str));
         } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << str
+            IE_THROW() << "Cannot parse parameter " << str
                                << ". Value " << vals << " cannot be casted to double.";
         }
     }
@@ -53,7 +53,7 @@ std::vector<uint8_t> PackData(const std::vector<double>& values, const Inference
     if (precision == InferenceEngine::Precision::FP16)
         return PackData<int16_t, PackFP16Converter>(values);
 
-    THROW_IE_EXCEPTION << "unsupported pack format '" << precision << "'";
+    IE_THROW() << "unsupported pack format '" << precision << "'";
 }
 
 InferenceEngine::Layout getLayout(const IN_OUT_desc& inDim) {

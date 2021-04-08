@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,6 @@ namespace InferenceEngine {
  */
 class IRReader: public IReader {
 public:
-    void Release() noexcept override {
-        delete this;
-    }
     /**
      * @brief Checks that reader supports format of the model
      * @param model stream with model

@@ -1,23 +1,9 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 import pytest
 import warnings
-import numpy as np
 
 from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
 from conftest import model_path
@@ -196,9 +182,12 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-def test_serialize():
-    import ngraph as ng
+def test_serialize(device):
     ie = IECore()
+    if device == "CPU":
+        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
+    import ngraph as ng
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
     serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")

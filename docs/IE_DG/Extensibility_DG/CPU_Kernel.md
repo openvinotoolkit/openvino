@@ -1,6 +1,6 @@
 # How to Implement Custom CPU Operations {#openvino_docs_IE_DG_Extensibility_DG_CPU_Kernel}
 
-The primary vehicle for the performance of the CPU codepath in the Inference Engine is the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN), and new CPU kernels extend the Inference Engine plugin for the Intel MKL-DNN. Implementing the InferenceEngine::ILayerExecImpl defines a general CPU-side extension. There are no Intel MKL-DNN specifics in the way you need to implement a kernel.
+The primary means of the performance of the CPU codepath in the Inference Engine is the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN), and new CPU kernels extend the Inference Engine plugin for the Intel MKL-DNN. Implementing the InferenceEngine::ILayerExecImpl defines a general CPU-side extension. There are no Intel MKL-DNN specifics in the way you need to implement a kernel.
 
 ## Implementation Class
 
@@ -13,20 +13,20 @@ Based on that, declaration of a kernel implementation class can look as follows:
 
 The provided implementation has several fields:
 
- * `add` of the type `int64_t` is an attribute of a custom operation
- * `inShape` of the type `ngraph::Shape` is an input shape
- * `outShape` of the type `ngraph::Shape` is an output shape
- * `error` of the type `std::string` is a field to handle errors from a constructor
+ * `add` of the type `int64_t` is an attribute of a custom operation.
+ * `inShape` of the type `ngraph::Shape` is an input shape.
+ * `outShape` of the type `ngraph::Shape` is an output shape.
+ * `error` of the type `std::string` is a field to handle errors from a constructor.
 
 ### Constructor of Implementation
 
-An implementation constructor checks parameters of nGraph operation, stores needed attributes, and stores an error message in the case of an error.
+An implementation constructor checks parameters of an nGraph operation, stores required attributes, and stores an error message in the case of an error.
 
 @snippet template_extension/cpu_kernel.cpp cpu_implementation:ctor
 
 ### `getSupportedConfigurations`
 
-InferenceEngine::ILayerExecImpl::getSupportedConfigurations method returns all supported configuration formats (input/output tensor layouts) for your implementation. To specify formats of data, use InferenceEngine::TensorDesc. Refer to the [Memory Primitives](../Memory_primitives.md) section for instructions on how to do it.
+InferenceEngine::ILayerExecImpl::getSupportedConfigurations method returns all supported configuration formats (input/output tensor layouts) for your implementation. To specify formats of data, use InferenceEngine::TensorDesc. Refer to the [Memory Primitives](../Memory_primitives.md) section for instructions.
 
 @snippet template_extension/cpu_kernel.cpp cpu_implementation:getSupportedConfigurations
 

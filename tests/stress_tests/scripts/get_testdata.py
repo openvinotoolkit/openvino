@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
 
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 """ Script to acquire model IRs for stress tests.
 Usage: ./scrips/get_testdata.py
@@ -153,7 +152,12 @@ def main():
         cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
                                                                                info_dumper_path=info_dumper_path,
                                                                                model_name=model_name)
-        out = subprocess.check_output(cmd, shell=True, universal_newlines=True)
+        try:
+            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+        except subprocess.CalledProcessError as exc:
+            log.warning(exc.output)
+            continue
+
         model_info = json.loads(out)[0]
 
         # update model record from test config with Open Model Zoo info
@@ -164,6 +168,7 @@ def main():
             log.warning("Please specify precision for the model "
                         "{model_name} from the list: {model_info}".format(model_name=model_name,
                                                                           model_info=model_info['precisions']))
+            continue
         model_rec.attrib.update(info_to_add)
         model_rec.attrib["path"] = str(
             Path(model_rec.attrib["subdirectory"]) / precision / (model_rec.attrib["name"] + ".xml"))

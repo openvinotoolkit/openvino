@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ public:
     using Ptr = std::shared_ptr<Plugin>;
 
     Plugin();
-    ~Plugin() override;
+    ~Plugin();
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     InferenceEngine::QueryNetworkResult

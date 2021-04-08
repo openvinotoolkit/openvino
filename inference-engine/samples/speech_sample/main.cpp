@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -519,6 +519,10 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
     }
 
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
+    }
+
     return true;
 }
 
@@ -671,6 +675,7 @@ int main(int argc, char *argv[]) {
 
         gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] = std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Write model to file --------------------------------------------------
@@ -1024,24 +1029,37 @@ int main(int argc, char *argv[]) {
                             continue;
                         }
 
+                        ptrInputBlobs.clear();
                         if (FLAGS_iname.empty()) {
-                            size_t num_files = FLAGS_iname.empty() ? numInputArkFiles : ptrInputBlobs.size();
-                            for (size_t i = 0; i < num_files; ++i) {
-                                MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
-                                if (!minput) {
-                                    slog::err << "We expect ptrInputBlobs[" << i
-                                              << "] to be inherited from MemoryBlob, " <<
-                                              "but in fact we were not able to cast input blob to MemoryBlob"
-                                              << slog::endl;
-                                    return 1;
-                                }
-                                // locked memory holder should be alive all time while access to its buffer happens
-                                auto minputHolder = minput->wmap();
-
-                                std::memcpy(minputHolder.as<void *>(),
-                                            inputFrame[i],
-                                            minput->byteSize());
+                            for (auto &input : cInputInfo) {
+                                ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
                             }
+                        } else {
+                            std::vector<std::string> inputNameBlobs = ParseBlobName(FLAGS_iname);
+                            for (const auto& input : inputNameBlobs) {
+                                Blob::Ptr blob = inferRequests.begin()->inferRequest.GetBlob(input);
+                                if (!blob) {
+                                    std::string errMessage("No blob with name : " + input);
+                                    throw std::logic_error(errMessage);
+                                }
+                                ptrInputBlobs.push_back(blob);
+                            }
+                        }
+
+                        for (size_t i = 0; i < numInputArkFiles; ++i) {
+                            MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
+                            if (!minput) {
+                                std::string errMessage("We expect ptrInputBlobs[" + std::to_string(i) +
+                                          "] to be inherited from MemoryBlob, " +
+                                          "but in fact we were not able to cast input blob to MemoryBlob");
+                                throw std::logic_error(errMessage);
+                            }
+                            // locked memory holder should be alive all time while access to its buffer happens
+                            auto minputHolder = minput->wmap();
+
+                            std::memcpy(minputHolder.as<void *>(),
+                                        inputFrame[i],
+                                        minput->byteSize());
                         }
 
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);

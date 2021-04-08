@@ -24,14 +24,19 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 
 ## System Requirements
 
-* [Python* distribution](https://www.python.org/) 3.6, 3.7, 3.8
-* Supported Operating Systems:
-  - Ubuntu* 18.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
-  - Ubuntu* 20.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
-  - macOS* 10.15.x versions
-  - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
-  - Windows Server* 2016 or higher
-> NOTE: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
+The table below lists the supported operating systems and Python* versions required to run the installation.
+
+| Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
+| :------------------------------------------------------------| :---------------------------------------------------|
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
+|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
+|   Red Hat* Enterprise Linux* 8.2, 64-bit                     | 3.6, 3.7                                            |
+|   CentOS* 7.4, 64-bit                                        | 3.6, 3.7                                            |
+|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
+|   Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions       | 3.6, 3.7, 3.8                  |
+|   Windows Server* 2016 or higher                             | 3.6, 3.7, 3.8                |
+
+> **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
 ## Install the Developer Package
 
@@ -46,7 +51,11 @@ python -m pip install --user virtualenv
 python -m venv openvino_env --system-site-packages
 ```
 
-Activate virtual environment:<br>
+> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
+`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
+
+### Step 2. Activate Virtual Environment
+
 On Linux and macOS:
 ```sh
 source openvino_env/bin/activate
@@ -56,14 +65,14 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 2. Set Up and Update pip to the Highest Version
+### Step 3. Set Up and Update pip to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 3. Install the Package
+### Step 4. Install the Package
 
 Run the command below: <br>
 
@@ -71,18 +80,17 @@ Run the command below: <br>
    pip install openvino-dev
    ```
 
-### Step 4. Verify that the Package is Installed
+### Step 5. Verify that the Package is Installed
 
-Run the command below:
+Run the command below (this may take a few seconds):
 ```sh
-python -c "pot -h"
+pot -h
 ```
-   
+
 You will see the help message for Post-Training Optimization Tool if installation finished successfully.
 
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-
 
