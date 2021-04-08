@@ -485,7 +485,7 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval)
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval)
+NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_bfloat16)
 {
     auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
     auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
