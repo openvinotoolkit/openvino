@@ -12,8 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::I32, InferenceEngine::Precision::I16};
+    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 
 /* ============= 2D DeformableConvolution ============= */
 const std::vector<std::vector<size_t>> deformable_vals = {{1, 18, 28, 28}};
