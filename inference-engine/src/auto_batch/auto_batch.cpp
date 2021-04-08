@@ -429,7 +429,9 @@ ExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(cons
     std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
     clonedNetwork.reshape(shapes);
 
-    executableNetworkForDevice = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
+    std::map<std::string, std::string> deviceConfig0 = deviceConfig;
+    deviceConfig0["DO_NOT_AUTO_BATCH"] = "TRUE";
+    executableNetworkForDevice = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig0);
     networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
     if ((std::shared_ptr<InferenceEngine::IExecutableNetwork>)executableNetworkForDevice == nullptr)
         THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to load Executable network the device "

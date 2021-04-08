@@ -285,9 +285,23 @@ public:
         return details::ReadNetwork(model, weights, extensions);
     }
 
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
-                                  const std::map<std::string, std::string>& config) override {
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceNameOrig,
+                                  const std::map<std::string, std::string>& configOrig) override {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
+        auto deviceName = deviceNameOrig;
+        auto config = configOrig;
+        if (deviceNameOrig == "GPU") {
+            if (config.find("DO_NOT_AUTO_BATCH") != config.end()) {
+                config.erase("DO_NOT_AUTO_BATCH");
+            } else {
+                std::map<std::string, Parameter> options;
+                options["MODEL_ADDRESS"] = &network;
+                auto optimalBatchSize = GetCPPPluginByName("GPU").GetMetric(METRIC_KEY(OPTIMAL_BATCH),
+                                                                            options).as<unsigned int>();
+                if (optimalBatchSize > 1)
+                    deviceName = "BATCH:GPU(" + std::to_string(optimalBatchSize) + ")";
+            }
+        }
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         return GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
     }

@@ -9,6 +9,7 @@
 #include <memory>
 #include <api/engine.hpp>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cfloat>
 #include "cldnn_remote_context.h"
 
 namespace CLDNNPlugin {
@@ -17,6 +18,19 @@ using CLDNNCustomLayerPtr = std::shared_ptr<class CLDNNCustomLayer>;
 
 class clDNNEngine : public InferenceEngine::InferencePluginInternal,
                     public InferenceEngine::gpu::details::param_map_obj_getter {
+    struct NetworkPerfStats {
+        float maxMemTolerance = -1;
+        float ratio_compute_convs = 0;
+        float ratio_mem_limited_convs = 0;
+        float ratio_compute_deconvs = 0;
+
+        static constexpr float memThresholdNotLimited = 1.0f;
+        static constexpr float memThresholdAssumeLimited = 0.5f;
+        static constexpr float memThresholdUnknown = FLT_MAX;
+        static constexpr float ALL = 1.0f;
+    };
+    static NetworkPerfStats NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network);
+
     struct impl;
     std::shared_ptr<impl> _impl;
 

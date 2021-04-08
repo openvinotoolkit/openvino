@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
            [ name ] (const std::pair<std::string, std::string>& p) { return p.first == name;}) != command_line_arguments.end());
         };
 
-        std::string device_name = "BATCH:" + FLAGS_d + "(4)";
+        std::string device_name = FLAGS_d;
 
         // Parse devices
         auto devices = parseDevices(device_name);
