@@ -44,7 +44,6 @@ class DeformableConvolutionLayerTest : public testing::WithParamInterface<deform
 public:
     static std::string getTestCaseName(testing::TestParamInfo<deformableConvLayerTestParamsSet> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-    void Validate() override;
 
 protected:
     void SetUp() override;

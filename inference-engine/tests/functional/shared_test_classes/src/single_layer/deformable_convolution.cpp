@@ -44,19 +44,15 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(testing::TestParamIn
 
 InferenceEngine::Blob::Ptr DeformableConvolutionLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
         InferenceEngine::Blob::Ptr blobPtr;
-        const std::string name = info.name();
+        const std::string& name = info.name();
         if (name == "a_data") {
             blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
         } else if (name == "b_offset_vals") {
-            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 0, 0, 0, 7235346); // TODO
+            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0, 0.1);
         } else if (name == "c_filter_vals") {
             blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
         }
         return blobPtr;
-}
-
-void DeformableConvolutionLayerTest::Validate() {
-    //TODO
 }
 
 void DeformableConvolutionLayerTest::SetUp() {
