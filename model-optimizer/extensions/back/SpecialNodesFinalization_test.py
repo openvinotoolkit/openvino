@@ -107,7 +107,7 @@ class RemoveConstToResultReplacementTest(unittest.TestCase):
         nodes = [
             ('const_node', {'type': 'Const', 'kind': 'op'}),
             ('const_data', {'kind': 'data', 'value': np.array(5)}),
-            ('result_node', {'type': 'Result', 'kind': 'op'}),
+            ('result_node', {'type': 'Result', 'kind': 'op', 'keep_output_port': False}),
 
             ('placeholder_1', {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'}),
             ('placeholder_1_data', {'kind': 'data'}),
@@ -150,12 +150,51 @@ class RemoveConstToResultReplacementTest(unittest.TestCase):
         self.assertNotIn('const_data', graph.node)
         self.assertNotIn('result_node', graph.node)
 
+
+    def test_only_consumer_keep_result(self):
+        """Result node is only consumer of Const data node"""
+        nodes = [
+            ('const_node', {'type': 'Const', 'kind': 'op'}),
+            ('const_data', {'kind': 'data', 'value': np.array(5)}),
+            ('result_node', {'type': 'Result', 'kind': 'op', 'keep_output_port': True}),
+
+            ('placeholder_1', {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'}),
+            ('placeholder_1_data', {'kind': 'data'}),
+            ('relu_1', {'type': 'ReLU', 'kind': 'op', 'op': 'ReLU'}),
+            ('relu_1_data', {'kind': 'data'}),
+        ]
+        edges = [
+            ('const_node', 'const_data'),
+            ('const_data', 'result_node'),
+
+            ('placeholder_1', 'placeholder_1_data'),
+            ('placeholder_1_data', 'relu_1'),
+            ('relu_1', 'relu_1_data')
+        ]
+        
+        graph = build_graph_with_attrs(
+            nodes_with_attrs=nodes,
+            edges_with_attrs=edges,
+        )
+        graph_ref = build_graph_with_attrs(
+            nodes_with_attrs=nodes,
+            edges_with_attrs=edges,
+        )
+        tested_pattern = RemoveConstToResult()
+        tested_pattern.find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, last_node='relu_1_data')
+        self.assertTrue(flag, resp)
+        self.assertIn('const_node', graph.node)
+        self.assertIn('const_data', graph.node)
+        self.assertIn('result_node', graph.node)
+
+
     def test_two_consumers(self):
         """Const data node has two consumers: Result and ReLu"""
         nodes = [
             ('const_node', {'type': 'Const', 'kind': 'op'}),
             ('const_data', {'kind': 'data', 'value': np.array(5)}),
-            ('result_node', {'type': 'Result', 'kind': 'op'}),
+            ('result_node', {'type': 'Result', 'kind': 'op', 'keep_output_port': False}),
             ('relu_1', {'type': 'ReLU', 'kind': 'op', 'op': 'ReLU'}),
             ('relu_1_data', {'kind': 'data'}),
         ]
@@ -190,3 +229,34 @@ class RemoveConstToResultReplacementTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, last_node='relu_1_data')
         self.assertTrue(flag, resp)
         self.assertNotIn('result_node', graph.node)
+
+
+    def test_two_consumers_keep_outputs(self):
+        """Const data node has two consumers: Result and ReLu"""
+        nodes = [
+            ('const_node', {'type': 'Const', 'kind': 'op'}),
+            ('const_data', {'kind': 'data', 'value': np.array(5)}),
+            ('result_node', {'type': 'Result', 'kind': 'op', 'keep_output_port': True}),
+            ('relu_1', {'type': 'ReLU', 'kind': 'op', 'op': 'ReLU'}),
+            ('relu_1_data', {'kind': 'data'}),
+        ]
+        edges = [
+            ('const_node', 'const_data'),
+            ('const_data', 'result_node'),
+            ('const_data', 'relu_1'),
+            ('relu_1', 'relu_1_data')
+        ]
+
+        graph = build_graph_with_attrs(
+            nodes_with_attrs=nodes,
+            edges_with_attrs=edges,
+        )
+        graph_ref = build_graph_with_attrs(
+            nodes_with_attrs=nodes,
+            edges_with_attrs=edges,
+        )
+        tested_pattern = RemoveConstToResult()
+        tested_pattern.find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, last_node='relu_1_data')
+        self.assertTrue(flag, resp)
+        self.assertIn('result_node', graph.node)
