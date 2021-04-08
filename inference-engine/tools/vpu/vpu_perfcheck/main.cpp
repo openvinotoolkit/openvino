@@ -381,7 +381,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
         }
     }
 
-    std::vector<InferenceEngine::IExecutableNetwork::Ptr> exeNetwork(num_networks);
+    std::vector<InferenceEngine::ExecutableNetwork> exeNetwork(num_networks);
     std::map<std::string, std::string> networkConfig;
     setConfig(networkConfig, file_config_cl);
 
@@ -403,7 +403,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
 
     for (int r = 0, idxPic = 0; r < num_requests; ++r) {
         int n = r % num_networks;
-        IECALL(exeNetwork[n]->CreateInferRequest(request[r], &resp));
+        request[r] = exeNetwork[n].CreateInferRequest();
 
         for (auto &input : networkInputs) {
             InferenceEngine::Blob::Ptr inputBlob;

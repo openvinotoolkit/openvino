@@ -118,14 +118,13 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network_impl]
-InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) {
+InferenceEngine::ExecutableNetworkInternal::Ptr
+Plugin::ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetworkImpl");
 
     Configuration cfg(config);
-    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg,
+    return std::make_shared<ExecutableNetwork>(model, cfg,
         std::static_pointer_cast<Plugin>(shared_from_this()));
-
-    return make_executable_network(exec_network_impl);
 }
 // ! [plugin:import_network_impl]
 
