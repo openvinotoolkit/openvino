@@ -214,7 +214,11 @@ cdef class Blob:
 
     def __deepcopy__(self, memodict):
         res = Blob(deepcopy(self.tensor_desc, memodict), deepcopy(self._array_data, memodict))
-        res.buffer[:] = deepcopy(self.buffer[:], memodict)
+        precision = self.tensor_desc.precision
+        if precision in ["FP16","BF16"]:
+            res.buffer[:] = deepcopy(self.buffer[:].view(dtype=np.float16), memodict)
+        else:
+            res.buffer[:] = deepcopy(self.buffer[:], memodict)
         return res
 
     ## Blob's memory as numpy.ndarray representation
