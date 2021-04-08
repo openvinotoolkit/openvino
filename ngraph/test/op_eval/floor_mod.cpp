@@ -87,3 +87,57 @@ TEST(op_eval, floor_mod_vector_scalar)
     test_case.add_expected_output<float>(shape_a, {0.0f, 1.0f, 0.0f, 1.0f});
     test_case.run();
 }
+
+TEST(op_eval, floor_mod_int64)
+{
+    Shape shape{4};
+
+    auto A = make_shared<op::Parameter>(element::i64, shape);
+    auto B = make_shared<op::Parameter>(element::i64, shape);
+    auto f = make_shared<Function>(make_shared<op::FloorMod>(A, B), ParameterVector{A, B});
+
+    std::vector<int64_t> a{5, -5, 5, -5};
+    std::vector<int64_t> b{3, 3, -3, -3};
+
+    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    test_case.add_multiple_inputs<int64_t>({a, b});
+    test_case.add_expected_output<int64_t>(shape, {2, -2, 2, -2});
+    test_case.run();
+}
+
+TEST(op_eval, floor_mod_broadcasted_int64)
+{
+    Shape shape_a{2, 1, 2};
+    Shape shape_b{2, 1};
+    Shape shape_r{2, 2, 2};
+
+    auto A = make_shared<op::Parameter>(element::i64, shape_a);
+    auto B = make_shared<op::Parameter>(element::i64, shape_b);
+    auto f = make_shared<Function>(make_shared<op::FloorMod>(A, B), ParameterVector{A, B});
+
+    std::vector<int64_t> a{1, 2, 3, 4};
+    std::vector<int64_t> b{2, 3};
+
+    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    test_case.add_multiple_inputs<int64_t>({a, b});
+    test_case.add_expected_output<int64_t>(shape_r, {1, 0, 1, 2,
+                                                     1, 0, 0, 1});
+    test_case.run();
+}
+
+TEST(op_eval, floor_mod_int32)
+{
+    Shape shape{4};
+
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto B = make_shared<op::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::FloorMod>(A, B), ParameterVector{A, B});
+
+    std::vector<int32_t> a{5, -5, 5, -5};
+    std::vector<int32_t> b{3, 3, -3, -3};
+
+    auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
+    test_case.add_multiple_inputs<int32_t>({a, b});
+    test_case.add_expected_output<int32_t>(shape, {2, -2, 2, -2});
+    test_case.run();
+}
