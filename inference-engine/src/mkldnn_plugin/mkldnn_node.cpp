@@ -145,7 +145,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "Eltwise", Eltwise },
 //        { "Mod", Eltwise },
 //        { "Power", Eltwise },
-//        { "Crop", Crop },
+//        { "StridedSlice", StridedSlice },
 //        { "Reshape", Reshape },
         { "Tile", Tile },
 //        { "SimplerNMS", SimplerNMS },

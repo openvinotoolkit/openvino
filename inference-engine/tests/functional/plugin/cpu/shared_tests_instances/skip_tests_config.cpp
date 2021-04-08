@@ -103,6 +103,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GatherElementsCPUTest.*)",
         R"(.*OneHotLayerCPUTest.*)",
         R"(.*AddConvertToReorderTest.*)",
+        R"(.*StridedSliceLayerCPUTest.*)",
 
         // InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone
         R"(.*AddOutputsTest.*)",
