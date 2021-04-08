@@ -105,7 +105,7 @@ def run_timetest(args: dict, log=None):
     aggregated_stats = aggregate_stats(filtered_stats)
     log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
-    return 0, aggregated_stats, filtered_stats
+    return 0, aggregated_stats, stats
 
 
 def check_positive_int(val):
@@ -154,12 +154,10 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, aggr_stats, stats = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
-        # Save all results to a file
-        for step_name in aggr_stats:
-            aggr_stats[step_name].update({"vals": stats[step_name]})
+        # Save aggregated results to a file
         with open(args.stats_path, "w") as file:
             yaml.safe_dump(aggr_stats, file)
         logging.info("All statistics saved to a file: '{}'".format(
