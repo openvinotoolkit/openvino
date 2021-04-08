@@ -6,39 +6,46 @@
 
 **Short description**: *Split* operation splits an input tensor into pieces of the same length along some axis.
 
+**Detailed Description**
+
+*Split* operation splits a given input tensor `data` into chunks of the same length along a scalar `axis`. It produces multiple output tensors based on *num_splits* attribute.
+The i-th output tensor shape is equal to the input tensor `data` shape, except for dimension along `axis` which is `data.shape[axis]/num_splits`.
+
+\f[
+shape\_output\_tensor = [data.shape[0], data.shape[1], \dotsc , split\_lengths[axis], \dotsc data.shape[D-1]]
+\f]
+
+Where D is the rank of input tensor `data` and `split_lengths[axis]` represents:
+
+\f[
+split\_lengths[axis] = data.shape[axis] / num\_splits
+\f]
+
+The sum of `split_lengths` along output shapes must match `data.shape[axis]`.
+
 **Attributes**
 
 * *num_splits*
 
-  * **Description**: it specifies the number of outputs into which the initial "*data*" tensor will be split along *"axis"*
-  * **Range of values**: a positive integer less than or equal to the size of the dimension being split over
-  * **Type**: any integer type
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Description**: number of outputs into which the input tensor `data` will be split along `axis` dimension
+  * **Range of values**: a positive integer less than or equal to the value of `axis` dimension being split over
+  * **Type**: `int`
+  * **Default value**: none
+  * **Required**: *yes*
 
 **Inputs**
 
-* **1**: "data" - A tensor of type T1. **Required.**
-
-* **2**: "axis" - axis along *"data"* to split. A scalar of type T2 with value from range `-rank(data) .. rank(data)-1`. Negative values address dimensions from the end. **Required.**
+* **1**: `data`. A tensor of type `T1` and arbitrary shape. **Required.**
+* **2**: `axis`. Axis along `data` to split. A scalar of type `T2` with value from range `-rank(data) .. rank(data)-1`. Negative values address dimensions from the end. **Required.**
+* **Note**: The dimension of input tensor `data` shape along `axis` must be evenly divisible by *num_splits* attribute.
 
 **Outputs**
 
-* **Multiple outputs**: Tensors of the same type as the 1st input tensor. The shape of the i-th output has the same shape as the *"data"* except along dimension *"axis"* where the size is `data.shape[i]/num_splits`.
-
-**Detailed Description**
-
-*Split* operation splits the *"data"* input tensor into pieces of the same length along *"axis"*. The i-th shape of output tensor will be equal to the *"data"* shape except along dimension *"axis"* where the shape will be `data.shape[i]/num_splits`. The sum of elements of split_lengths must match `data.shape[axis]`.
-
-Shape of output tensor will be:
-\f[
-shape_output_tensor = shape_input_tensor[shape_input_tensor[0], shape_input_tensor[1], ... ,split_lengths[axis], ... shape_input_tensor[D-1]], where D rank of input tensor.
-\f]
-
+* **Multiple outputs**: Tensors of type `T1`. The i-th output has the same shape as `data` input tensor except for dimension along `axis` which is `data.shape[axis]/num_splits`.
 
 **Types**
 
-* *T1*: arbitrary supported type.
+* *T1*: any arbitrary supported type.
 * *T2*: any integer type.
 
 **Example**
