@@ -556,13 +556,6 @@ NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_bfloat16)
     handle->call({dft_output}, {backend_data});
 
     auto result = bfloat16::to_float_vector(read_vector<bfloat16>(dft_output));
-    std::cout << "Actual result: ";
-    for (auto x : result)
-    {
-        std::cout << x << ", ";
-    }
-    std::cout << "\n";
-//     EXPECT_TRUE(test::all_close_f(expected_dft1d_bfloat16_results, result));
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
@@ -647,6 +640,39 @@ NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval)
     {
         EXPECT_NEAR(result[j], expected_dft2d_results[j], 0.000062);
     }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval_bfloat16)
+{
+    auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
+    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
+    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
+
+    auto f = make_shared<Function>(dft, ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto dft_output = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
+
+    auto backend_data = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
+    copy_data(backend_data, bfloat16::from_float_vector(input_data));
+
+    auto handle = backend->compile(f);
+
+    handle->call({dft_output}, {backend_data});
+
+    auto result = bfloat16::to_float_vector(read_vector<bfloat16>(dft_output));
+    std::cout << "Actual result: ";
+    for (auto x : result)
+    {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
+    EXPECT_TRUE(test::all_close_f(expected_dft2d_results, result));
+//     size_t num_of_elems = result.size();
+//     for (std::size_t j = 0; j < num_of_elems; ++j)
+//     {
+//         EXPECT_NEAR(result[j], expected_dft2d_results[j], 0.000062);
+//     }
 }
 
 // NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval)
