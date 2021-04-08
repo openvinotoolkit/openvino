@@ -68,7 +68,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
-            inPrc  = netPrecision;
+            inPrc  = Precision::BF16;
             outPrc = Precision::BF16;
         } else {
             inPrc = outPrc = netPrecision;
@@ -77,11 +77,13 @@ protected:
         selectedType += "_";
         selectedType += outPrc.name();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
         std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
+
         auto lstm_cell = ngraph::builder::makeLSTM(
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hidden_size, activations, {}, {}, clip);
+
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
 
@@ -112,7 +114,7 @@ std::vector<size_t> input_size{1, 30};
 std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh", "tanh"}};
 // oneDNN supports only zero clip
 std::vector<float> clip{0.f};
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
+std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16};
 
 INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCPU,
                         LSTMCellLayerCPUTest,

@@ -170,7 +170,7 @@ void MKLDNNRNN::fillCellDesc() {
     if (bias && bias->size() != Gb * SC)
         IE_THROW() << "RNN Layer. Biases size is not correct. Expected size:" << G * SC;
 
-    auto runtimePrecision = outs[0]->getPrecision();
+    auto runtimePrecision = ins[0].lock()->getPrecision();
 
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
