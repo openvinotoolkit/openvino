@@ -132,9 +132,11 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
         const auto& input = params.inputs[1];
         if (input.GetLayout() == DataLayout::bfyx) {
             //dispatchData.gws = {input.Batch().v, 1, 1};
-            dispatchData.gws = {input.Batch().v, input.Feature().v, 1};
+            dispatchData.gws = {input.Batch().v, input.Feature().v, idx == 1 ? 2UL : 1UL};
         }
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+        if (idx == 1)
+            dispatchData.lws[2] = 2;
     } else {
         dispatchData.gws = {1, 1, 1};
         dispatchData.lws = {1, 1, 1};
@@ -221,8 +223,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
             size_t num_bit_mask = CeilDiv(boxes_num, 8);
             size_t num_score_per_item = RoundUp(CeilDiv(boxes_num, 256), 8);
             size_t num_score_block = CeilDiv(boxes_num, num_score_per_item);
-            printf("num_score_per_item: %zd = RoundUp((%zd - 1)/256 + 1, 8), num_score_block: %zd, num_bit_mask: %zd\n"
-                    , num_score_per_item, boxes_num, num_score_block, num_bit_mask);
+            // printf("num_score_per_item: %zd = RoundUp((%zd - 1)/256 + 1, 8), num_score_block: %zd, num_bit_mask: %zd\n"
+            //         , num_score_per_item, boxes_num, num_score_block, num_bit_mask);
             cldnn_jit.AddConstants({ MakeJitConstant("NUM_BIT_MASK", num_bit_mask)
                                     , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
                                     , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)

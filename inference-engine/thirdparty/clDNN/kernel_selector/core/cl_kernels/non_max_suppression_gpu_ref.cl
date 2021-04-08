@@ -24,11 +24,6 @@
 /// VALID_OUTPUTS_TERM       1 if valid_outputs is used
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
 /// BUFFER_STRIDE            20 bytes * NUM_BOXES
-#if SORT_RESULT_DESCENDING
-#endif
-
-#if BOX_ENCODING
-#endif
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
@@ -82,7 +77,6 @@ inline float FUNC(intersectionOverUnion)(const __global INPUT0_TYPE *boxes,
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
 {
-    //printf("iou(%.2f) iou_threshold(%.2f) scale(%.2f)\n", iou, iou_threshold, scale);
     if (iou <= iou_threshold) {
         return exp(scale * iou * iou);
     } else {
@@ -209,6 +203,9 @@ inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNu
     }
 }
 
+#define PRINT printf
+// #define PRINT
+
 // boxes shape: {num_batches, num_boxes, 4}
 // scores shape: {num_batches, num_classes, num_boxes}
 KERNEL (non_max_suppression_ref)(
@@ -327,20 +324,48 @@ KERNEL (non_max_suppression_ref)(
     // __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     // int sortedBoxNum = FUNC_CALL(initBoxList)(sortedBoxList, NUM_BOXES, scores, SCORE_THRESHOLD_VAL, batchId, classId);
     // buffer3[batchId * NUM_CLASSES + classId] = sortedBoxNum;
-
+    // if (batchId == 0 && classId == 0 && box_gid == 0)
+    //     PRINT("stage 1\n");
 #elif IS_FIRST_ITER
     int batchId = get_global_id(0);
     int classId = get_global_id(1);
+    int wi_num = get_global_id(2);
 
     int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
-    FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
+#if 1 //parallel
+    // PRINT("stage 2, wi %d\n", wi_num);
+    // FUNC_CALL(outer_quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1, batchId, classId, wi_num);
 
-    for (int i = 0; i < sortedBoxNum; i++) {
-        SBOX_INFO binfo = sortedBoxList[i];
-        // printf("[%d, %d] %d %d %f\n", batchId, classId, binfo.boxId, binfo.suppress_begin_index, TO_ACCUMULATOR_TYPE(binfo.score));
+    int l = 0;
+    int h = sortedBoxNum - 1;
+    __local int __p[NUM_BATCHES][NUM_CLASSES];
+    if (wi_num == 1)
+        __p[batchId][classId] = FUNC_CALL(partition)(sortedBoxList, l, h);
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    int p = __p[batchId][classId];
+
+    // If there are elements on left side of pivot,
+    // then push left side to stack
+    if (p - 1 > l && wi_num == 0) {
+        FUNC_CALL(quickSortIterative)(sortedBoxList, l, p - 1);
     }
-    // printf("[%d, %d] sortedBoxNum: %d\n", batchId, classId, sortedBoxNum);
+  
+    if (p + 1 < h && wi_num == 1) {
+        FUNC_CALL(quickSortIterative)(sortedBoxList, p + 1, h);
+    }
+    // PRINT("stage 3\n");
+#else
+    if (wi_num == 0)
+        FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
+#endif
+
+    // for (int i = 0; i < sortedBoxNum; i++) {
+        // SBOX_INFO binfo = sortedBoxList[i];
+        // PRINT("[%d, %d] %d %d %f\n", batchId, classId, binfo.boxId, binfo.suppress_begin_index, TO_ACCUMULATOR_TYPE(binfo.score));
+    // }
+    // PRINT("[%d, %d] sortedBoxNum: %d\n", batchId, classId, sortedBoxNum);
 
 #elif IS_SECOND_ITER
     // printf("Is second iter\n");
