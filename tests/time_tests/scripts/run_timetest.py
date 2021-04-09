@@ -160,7 +160,7 @@ if __name__ == "__main__":
         # Save aggregated results to a file
         with open(args.stats_path, "w") as file:
             yaml.safe_dump(aggr_stats, file)
-        logging.info("All statistics saved to a file: '{}'".format(
+        logging.info("Aggregated statistics saved to a file: '{}'".format(
             args.stats_path.resolve()))
     else:
         logging.info("Aggregated statistics:")
