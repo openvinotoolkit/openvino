@@ -107,7 +107,7 @@ class RemoveConstToResult(BackReplacementPattern):
     If sub-graph is Const->data->Result -- then all three nodes are removed.
     If there is more complex constant sub-graph -- then only Result node is removed.
     If Result node has keep_output_port attribute True the node will not to be removed from graph but
-    the Result node will not to be saved to IR. Only port will be keep in IR.
+    the Result node will not to be saved to IR. Only port will be kept in IR.
 
     Currently IE is unable to handle such graph so this transformation is a work around for such case.
     For instance, this case appears for Wide and Deep model.
