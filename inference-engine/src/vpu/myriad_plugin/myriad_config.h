@@ -18,10 +18,6 @@ namespace MyriadPlugin {
 
 class MyriadConfig : public virtual ParsedConfig {
 public:
-    const std::string& pluginLogFilePath() const {
-        return _pluginLogFilePath;
-    }
-
     bool asyncDma() const {
         return _enableAsyncDma;
     }
@@ -33,7 +29,6 @@ protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    std::string _pluginLogFilePath;
     bool _enableAsyncDma = true;
 };
 

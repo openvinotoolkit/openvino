@@ -25,9 +25,7 @@ IE_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& MyriadConfig::getRunTimeOptions() const {
 IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_set<std::string> options = merge(ParsedConfig::getRunTimeOptions(), {
-        ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
-    });
+    static const std::unordered_set<std::string> options = ParsedConfig::getRunTimeOptions();
 IE_SUPPRESS_DEPRECATED_END
 
     return options;
@@ -44,14 +42,7 @@ IE_SUPPRESS_DEPRECATED_END
 void MyriadConfig::parse(const std::map<std::string, std::string>& config) {
     ParsedConfig::parse(config);
 
-    setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
     setOption(_enableAsyncDma,   switches,              config, ie::MYRIAD_ENABLE_ASYNC_DMA);
-
-#ifndef NDEBUG
-    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_PLUGIN_LOG_FILE_PATH")) {
-        _pluginLogFilePath = envVar;
-    }
-#endif
 }
 
 }  // namespace MyriadPlugin

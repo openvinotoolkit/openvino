@@ -39,7 +39,7 @@ ExecutableNetwork::ExecutableNetwork(
     _log = std::make_shared<Logger>(
         "MyriadPlugin",
         logLevel,
-        defaultOutput(_config.pluginLogFilePath()));
+        consoleOutput());
 
     _executor = std::make_shared<MyriadExecutor>(false, std::move(mvnc), logLevel, _log);
 
