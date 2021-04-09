@@ -21,21 +21,10 @@ class AddFakeOutputsToSplit(MiddleReplacementPattern):
     def run_after(self):
         return [TensorIteratorMerge]
 
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[('op', dict(kind='op', op='Split'))],
-            edges=[],
-        )
+    def find_and_replace_pattern(self, graph: Graph):
+        for split_node in graph.get_op_nodes(op='Split'):
+            AddFakeOutputsToSplit.split_normalize_outputs(split_node)
 
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
-        node = match['op']
-        AddFakeOutputsToSplit.split_normalize_outputs(node)
-
-    '''
-    For IR Reader we need to call adding fake outputs without pattern matcher.
-    '''
     @staticmethod
     def split_normalize_outputs(node: Node):
         if node.has_valid('out_ports_count') and len(node.out_edges()) < node.out_ports_count:
@@ -44,7 +33,7 @@ class AddFakeOutputsToSplit(MiddleReplacementPattern):
                     node.add_output_port(p)
                 if node.out_port(p).disconnected():
                     res_node = Result(node.graph, {'name': node.name + '/Fake_output_{}/'.format(p),
-                                              'keep_output_port': True}).create_node()
+                                                   'keep_output_port': True}).create_node()
                     node.out_port(p).connect(res_node.in_port(0))
 
 
