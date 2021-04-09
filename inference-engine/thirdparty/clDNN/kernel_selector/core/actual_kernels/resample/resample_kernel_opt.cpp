@@ -37,6 +37,7 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableReampleType(ResampleType::LINEAR_ONNX);
+    k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     k.EnableSubGroup();
     k.EnableSubGroupShort();
     return k;
@@ -46,13 +47,21 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
     DispatchData dispatchData;
     const auto& out = arg.output;
 
-    dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
-    dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
-    dispatchData.gws[2] = arg.output.Batch().v;
+    if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
+        dispatchData.gws[0] = out.X().v * out.Y().v;
+        dispatchData.gws[1] = CeilDiv(out.Feature().v, GetFeatureBlockSize(arg));
+        dispatchData.gws[2] = arg.output.Batch().v;
 
-    dispatchData.lws[0] = 1;
-    dispatchData.lws[1] = sub_group_size;
-    dispatchData.lws[2] = 1;
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
+    } else {
+        dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
+        dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
+        dispatchData.gws[2] = arg.output.Batch().v;
+
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = sub_group_size;
+        dispatchData.lws[2] = 1;
+    }
 
     return dispatchData;
 }
@@ -98,10 +107,26 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = {"b", "feature_block", "y", "(x + out_x)"};
-        FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
-        conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        if (params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP) {
+            std::vector<std::string> idx_order = {"b", "feature_block", "y", "(x + out_x)"};
+            FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
+            conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        } else {
+            std::vector<std::string> idx_order;
+            idx_order = {"batch", "OF_ID", "oy", "ox"};
+
+            FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), 1};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
+    }
+
+    if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
+        if (GetFeatureBlockSize(params) == 8) {
+            jit.AddConstant(MakeJitConstant("VEC_BLOCK_SIZE", 8));
+        } else {
+            jit.AddConstant(MakeJitConstant("VEC_BLOCK_SIZE", 16));
+        }
     }
 
     return jit;

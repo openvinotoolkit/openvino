@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,9 +49,9 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             // If we write only
             //    attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::linear;
             // instead of a conditional statements below when attrsV0.mode == "linear",
-            // then we have a performance drop, because CPU and GPU have no optimized
+            // then we have a performance drop, because CPU have no optimized
             // version of the 'linear' mode.
-            // TODO: delete this conditional statement, when CPU and GPU will have
+            // TODO: delete this conditional statement, when CPU will have
             // optimized version of the 'linear' mode.
             if (input_shape_rank < 5) {
                 attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx;

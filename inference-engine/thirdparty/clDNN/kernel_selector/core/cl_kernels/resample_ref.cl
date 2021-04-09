@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
+#include "include/fetch.cl"
 #include "include/data_types.cl"
-#include "include/include_all.cl"
 
 inline uint FUNC(get_input_index)(uint b, uint f, uint z, uint y, uint x)
 {
@@ -373,11 +372,6 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     const int batch = (int)get_global_id(2) % OUTPUT_BATCH_NUM;
     const int oz    = (int)get_global_id(2) / OUTPUT_BATCH_NUM;
 #endif
-    const int PADDED_B = in_size[0] + PADS_BEGIN[0] + PADS_END[0];
-    const int PADDED_F = in_size[1] + PADS_BEGIN[1] + PADS_END[1];
-    const int PADDED_Z = in_size[2] + PADS_BEGIN[2] + PADS_END[2];
-    const int PADDED_Y = in_size[3] + PADS_BEGIN[3] + PADS_END[3];
-    const int PADDED_X = in_size[4] + PADS_BEGIN[4] + PADS_END[4];
 
     ACCUMULATOR_TYPE i_b = AXES_USED[0] ? FUNC_CALL(get_original_coordinate)(batch, SCALES[0], out_size[0], PADDED_B) : batch;
     ACCUMULATOR_TYPE i_f = AXES_USED[1] ? FUNC_CALL(get_original_coordinate)(feature, SCALES[1], out_size[1], PADDED_F) : feature;
