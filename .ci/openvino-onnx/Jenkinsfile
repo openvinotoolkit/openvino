@@ -5,8 +5,9 @@ DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
 DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
 BACKEND_CONFIGURATIONS = [
-    [ protobuf_lite : "ON" ],
-    [ protobuf_lite : "OFF" ]
+    [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
+    [ name: "Debug", build_type: "Debug", protobuf_lite : "OFF" ],
+    [ name: "Rel+Lite", build_type: "Release", protobuf_lite : "ON" ],
 ]
 
 // workaround for aborting previous builds on PR update
@@ -101,30 +102,44 @@ def updateModels() {
     """
 }
 
-def buildDockerImage(String protobuf_lite="OFF") {
+def buildDockerImage(Map configuration) {
     updateModels()
     sh """
-        docker build --tag=${DOCKER_IMAGE_TAG} --build-arg PROTOBUF_LITE=${protobuf_lite} \
+        docker build --tag=${DOCKER_IMAGE_TAG} \
+        --build-arg BUILD_TYPE=${configuration.build_type} \
+        --build-arg PROTOBUF_LITE=${configuration.protobuf_lite} \
         --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
         --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
     """
 }
 
-def runTests() {
+
+def runTests(Map configuration) {
     get_commit_id()
-    sh """
-        docker run --name ${DOCKER_CONTAINER_NAME}_GIT_COMMIT_ID \
-        --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-        ${DOCKER_IMAGE_TAG}
-    """
+    def DOCKER_CONTAINER_NAME_="${DOCKER_CONTAINER_NAME}_${GIT_COMMIT_ID}_${configuration.name}"
+    // Run only basic unit tests in Debug configuration
+    if (configuration.build_type == "Debug") {
+        sh """
+            docker run --name ${DOCKER_CONTAINER_NAME_} ${DOCKER_IMAGE_TAG}
+        """
+    }
+
+    // Run unit-tests AND large model tests by default
+    else {
+        sh """
+            docker run --name ${DOCKER_CONTAINER_NAME_} \
+            --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
+            ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models"
+        """
+    }
 }
 
 def getConfigurationsMap() {
     def configurationsMap = [:]
     for (backend in BACKEND_CONFIGURATIONS) {
         def configuration = backend.clone()
-        configuration.name = "protobuf-lite ${configuration.protobuf_lite}"
+        configuration.name = "${configuration.name}"
         configurationsMap[configuration.name] = {
             stage(configuration.name) { CONFIGURATION_WORKFLOW(configuration) }
         }
@@ -150,12 +165,12 @@ CONFIGURATION_WORKFLOW = { configuration ->
             }
             stage("Prepare Docker environment") {
               dir("${WORKDIR}") {
-                    buildDockerImage(configuration.protobuf_lite)
+                    buildDockerImage(configuration)
                 }
             }
             stage("Run tests") {
                 timeout(time: 20, unit: 'MINUTES') {
-                    runTests()
+                    runTests(configuration)
                 }
             }
         }
@@ -173,8 +188,8 @@ CONFIGURATION_WORKFLOW = { configuration ->
             stage("Cleanup") {
                 deleteDir()
                 sh """
+                    docker rm -f ${DOCKER_CONTAINER_NAME_}
                     docker image prune -f
-                    docker rm -f ${DOCKER_CONTAINER_NAME}__GIT_COMMIT_ID
                 """
             }
         }

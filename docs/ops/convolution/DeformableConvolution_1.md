@@ -88,7 +88,7 @@
 
 **Types**:
 
-* *T*: Any floating point type.
+* *T*: Any numeric type.
  
 **Example**
 
