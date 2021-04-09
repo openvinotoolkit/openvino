@@ -14,12 +14,14 @@ def test_verify(test_id, model, artifacts, openvino_root_dir, tolerance=1e-6):  
     """
     out = artifacts / test_id
     install_prefix = artifacts / test_id / "install_pkg"
-    returncode, output = run_infer(model, f"{out}.npz", openvino_root_dir)
+    out_file = f"{out}.npz"
+    out_file_cc = f"{out}_cc.npz"
+    returncode, output = run_infer(model, out_file, openvino_root_dir)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
-    returncode, output = run_infer(model, f"{out}_cc.npz", install_prefix)
+    returncode, output = run_infer(model, out_file_cc, install_prefix)
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
-    reference_results = dict(np.load(f"{out}.npz"))
-    inference_results = dict(np.load(f"{out}_cc.npz"))
+    reference_results = dict(np.load(out_file))
+    inference_results = dict(np.load(out_file_cc))
     assert sorted(reference_results.keys()) == sorted(inference_results.keys()), \
         "Results have different number of layers"
     for layer in reference_results.keys():

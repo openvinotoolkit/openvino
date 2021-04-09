@@ -36,7 +36,7 @@ def save_session_info(pytestconfig, artifacts):
     write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
 
 
-def test_cc_collect(test_id, model, sea_runtool, collector_dir, artifacts, test_info):
+def test_cc_collect(test_id, model, sea_runtool, collector_dir, artifacts, test_info, save_session_info):
     """ Test conditional compilation statistics collection
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
                       contain a dictionary to store test metadata.
