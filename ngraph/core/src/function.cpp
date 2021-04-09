@@ -536,9 +536,13 @@ bool Function::visit_attributes(AttributeVisitor& visitor)
 void Function::add_sinks(const SinkVector& sinks)
 {
     m_sinks.insert(m_sinks.end(), sinks.begin(), sinks.end());
-    for (const auto& sink : sinks) {
-        if (const auto& variable_op = dynamic_pointer_cast<Memory>(sink)) {
-            if (find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) == m_variables.end()) {
+    for (const auto& sink : sinks)
+    {
+        if (const auto& variable_op = dynamic_pointer_cast<Memory>(sink))
+        {
+            if (find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) ==
+                m_variables.end())
+            {
                 m_variables.push_back(variable_op->get_variable());
             }
         }
