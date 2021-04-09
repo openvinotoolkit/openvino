@@ -3281,12 +3281,6 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         return true;
     }
 
-    cldnn::engine_configuration get_engine_config(bool enable_profiling = false, const std::string& dump_dir = "") {
-        this->enable_profiling = enable_profiling;
-        cldnn::engine_configuration cfg {enable_profiling, false, false, "", "", true, "", dump_dir};
-        return cfg;
-    }
-
     void execute_same_input(const eltwise_same_input_test_params& params, bool check_result) {
         auto eng = cldnn::engine();
 
