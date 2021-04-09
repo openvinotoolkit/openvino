@@ -5876,7 +5876,7 @@ class ScatterElementsUpdatePrimitiveFusingTest : public ::BaseFusingTest<scatter
 public:
     void execute(scatter_elements_update_test_params& p) {
 
-        auto input_prim = get_mem(get_input_layout(p));
+        auto input_prim = get_mem(get_input_layout(p), -5, 5);
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
@@ -5963,7 +5963,7 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
         data("scatter_elements_update_indices", get_repeatless_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)) - 1)),
-        data("scatter_elements_update_updates", get_mem(get_updates_layout(p), 0, 100)),
+        data("scatter_elements_update_updates", get_mem(get_updates_layout(p), 0, 5)),
         data("scale_data", get_mem(get_per_channel_layout(p), -1, 1)),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.input_shape})),
         scatter_elements_update("scatter_elements_update_prim", "input", "scatter_elements_update_indices", "scatter_elements_update_updates", p.axis),
@@ -5972,7 +5972,7 @@ TEST_P(scatter_elements_update_scale_activation_eltwise, basic) {
         eltwise("eltwise", {"scale", "eltwise_data"}, eltwise_mode::sum, p.data_type),
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
-    tolerance = 1e-5f;
+    tolerance = 1e-2f;
     execute(p);
 }
 
