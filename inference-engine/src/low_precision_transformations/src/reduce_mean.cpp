@@ -24,17 +24,11 @@ bool ReduceMeanTransformation::canBeTransformed(const TransformationContext& con
 }
 
 bool ReduceMeanTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept {
-    const auto children = getChildrenRecursivelyExceptPrecisionPreserved(reduce);
-    return NetworkHelper::notAllChildrensAreFQ(children);
+    return false;
 }
 
 bool ReduceMeanTransformation::getUpdatePrecision(const std::shared_ptr<Node>& reduce) const {
-    const auto children = getChildrenRecursivelyExceptPrecisionPreserved(reduce);
-    if ((children.size() == 1ul) && (!this->layerTransformationsManager->isQuantized(children[0]))) {
-        return false;
-    } else {
-        return NetworkHelper::notAllChildrensAreFQ(children);
-    }
+    return false;
 }
 
 } // namespace low_precision
