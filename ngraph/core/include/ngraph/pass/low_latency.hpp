@@ -14,7 +14,7 @@ namespace ngraph
     namespace pass
     {
         /**
-         * @brief The transformation finds all TensorIterator layers in the network,
+         * @brief The transformation finds all TensorIterator/Loop layers in the network,
          * processes all back edges that describe a connection between Result and Parameter
          * of the TensorIterator body,and inserts ReadValue layer between Parameter
          * and the next layers after this Parameter, and Assign layer after the layers
@@ -49,10 +49,34 @@ namespace ngraph
             LowLatency();
         };
 
+        /**
+         * @brief The transformation finds all TensorIterator/Loop layers in the network,
+         * processes all back edges that describe a connection between Result and Parameter
+         * of the TensorIterator/Loop bodies,and inserts ReadValue and Assign layers at the
+         * input and output corresponding to this back edge.
+         * Supported platforms: CPU, GNA.
+         *
+         * The example below describes the changes made by the transformation
+         *  [] - TensorIterator body
+         *  () - new layer
+         *  BE - back-edge
+         *
+         *  before applying the transformation:
+         *  -> input1[TensorIterator: BE_1 -> Parameter -> Layers ... -> Result  -> BE_1 ]output1->
+         *
+         *  after applying the transformation:
+         *  -> (ReadValue)-> input1[TensorIterator: BE_1 -> Parameter -> Layers ... -> Result  ->
+         * BE_1]output1->(Assign)
+         *                                                                                         \
+         *                                                                                           ->
+         * ... After applying both of these transformations, the resulting network can be inferred
+         * step by step, the states will store between inferences.
+         */
         class NGRAPH_API LowLatency_v2 : public ngraph::pass::FunctionPass
         {
         public:
-            enum InitialValue {
+            enum InitialValue
+            {
                 PARAMETER,
                 CONST
             };
@@ -60,17 +84,20 @@ namespace ngraph
             LowLatency_v2() = default;
 
             explicit LowLatency_v2(int64_t iterations)
-            : m_iterations(iterations) {
+                : m_iterations(iterations)
+            {
             }
 
             explicit LowLatency_v2(LowLatency_v2::InitialValue init_value)
-            : m_init_value(init_value) {
+                : m_init_value(init_value)
+            {
             }
 
             LowLatency_v2(LowLatency_v2::InitialValue init_value, int64_t iterations)
-            : m_init_value(init_value),
-              m_iterations(iterations)
-            {}
+                : m_init_value(init_value)
+                , m_iterations(iterations)
+            {
+            }
 
             NGRAPH_RTTI_DECLARATION;
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
@@ -78,7 +105,6 @@ namespace ngraph
         private:
             InitialValue m_init_value = InitialValue::CONST;
             int64_t m_iterations = 1;
-
         };
     } // namespace pass
 } // namespace ngraph
