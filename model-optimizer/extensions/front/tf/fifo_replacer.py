@@ -35,7 +35,7 @@ class FIFOQueue(FrontReplacementSubgraph):
 
     @staticmethod
     def replace_sub_graph(graph: Graph, match: dict, **kwargs):
-        """
+        r"""
         Usually graph looks like:
 
           main_graph
