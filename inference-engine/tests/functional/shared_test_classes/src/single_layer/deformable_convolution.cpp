@@ -48,7 +48,8 @@ InferenceEngine::Blob::Ptr DeformableConvolutionLayerTest::GenerateInput(const I
         if (name == "a_data") {
             blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
         } else if (name == "b_offset_vals") {
-            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0, 0.1);
+            // TODO: createAndFillBlob() resolution is int, need to rewrite it to test also real number offsets
+            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0, 1);
         } else if (name == "c_filter_vals") {
             blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
         }
