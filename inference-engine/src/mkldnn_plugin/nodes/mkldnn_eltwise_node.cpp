@@ -8,7 +8,7 @@
 
 #include <mkldnn_types.h>
 #include "utils/bfloat16.hpp"
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/ref_eltwise.hpp>
 
 #include "mkldnn_extension_utils.h"
@@ -923,7 +923,7 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
     }},
     {ngraph::op::v4::HSwish::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseHswish;
-        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_hswish;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_hardswish;
     }},
     {ngraph::op::v4::Mish::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseMish;
@@ -1687,7 +1687,7 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
             case mkldnn::algorithm::eltwise_gelu_tanh:
             case mkldnn::algorithm::eltwise_clip:
             case mkldnn::algorithm::eltwise_swish:
-            case mkldnn::algorithm::eltwise_hswish:
+            case mkldnn::algorithm::eltwise_hardswish:
             case mkldnn::algorithm::eltwise_mish:
             case mkldnn::algorithm::eltwise_hsigmoid:
             case mkldnn::algorithm::eltwise_round_half_to_even:
