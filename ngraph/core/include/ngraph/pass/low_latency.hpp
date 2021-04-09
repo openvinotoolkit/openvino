@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/pass/pass.hpp>
 
 namespace ngraph
 {
@@ -74,7 +75,7 @@ namespace ngraph
         class NGRAPH_API LowLatency_v2 : public ngraph::pass::FunctionPass
         {
         public:
-            enum InitialValue
+            enum class InitialValue
             {
                 PARAMETER,
                 CONST
