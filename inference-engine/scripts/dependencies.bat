@@ -30,8 +30,10 @@ call :DownloadFile TBBBIND_2_4 %TBBBIND_2_4%
 for /f "delims=" %%x in (ld_library_rpath_64.txt) do (set "%%x")
 
 set PATH=%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%;%PATH%
-set PATH=%DL_SDK_TEMP%\test_dependencies\MKL\%MKL_FILENAME%%MKL%;%PATH%
-set PATH=%DL_SDK_TEMP%\test_dependencies\OMP\%OMP_FILENAME%%OMP%;%PATH%
+@REM Commented on the OMP and MKL paths, as when PATH expands to TBBBIND_2_4 it seems to exceed its length
+@REM These products were chosen from path since OMP not used for 3 years and MKL links statically
+@REM set PATH=%DL_SDK_TEMP%\test_dependencies\MKL\%MKL_FILENAME%%MKL%;%PATH%
+@REM set PATH=%DL_SDK_TEMP%\test_dependencies\OMP\%OMP_FILENAME%%OMP%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\GNA\%GNA_FILENAME%%GNA%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\OPENCV\%OPENCV_FILENAME%%OPENCV%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\TBB\%TBB_FILENAME%%TBB%;%PATH%

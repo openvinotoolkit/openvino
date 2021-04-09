@@ -1,4 +1,0 @@
-TBB=http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/windows/tbb2020_20200415_no_bind_win_v3.zip
-TBBBIND_2_4=http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/windows/tbbbind_2_4_static_hwloc_win_v3.zip
-OPENCV=http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/windows/opencv/opencv_4.5.1-044.txz
-SPEECH_LIBS_AND_DEMOS=http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/windows/speech_demo_1.0.0.755_windows.zip
