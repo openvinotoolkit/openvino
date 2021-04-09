@@ -1121,7 +1121,7 @@ NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval_float16)
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        EXPECT_NEAR(result[j], expected_dft3d_float16_results[j], 0.00001);
+        EXPECT_NEAR(result[j], expected_dft3d_float16_results[j], 0.0001);
     }
 }
 
