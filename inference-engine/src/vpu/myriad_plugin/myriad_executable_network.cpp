@@ -70,7 +70,7 @@ ExecutableNetwork::ExecutableNetwork(
     const auto compilerLog = std::make_shared<Logger>(
         "GraphCompiler",
         _config.get<LogLevelOption>(),
-        defaultOutput(_config.compilerLogFilePath()));
+        consoleOutput());
 
     auto compiledGraph = compileNetwork(
         network,

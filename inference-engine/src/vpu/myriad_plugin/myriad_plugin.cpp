@@ -155,7 +155,7 @@ QueryNetworkResult Engine::QueryNetwork(
     const auto log = std::make_shared<Logger>(
             "GraphCompiler",
             _parsedConfig.get<LogLevelOption>(),
-            defaultOutput(parsedConfigCopy.compilerLogFilePath()));
+            consoleOutput());
 
     const auto supportedLayers = getSupportedLayers(
             network,

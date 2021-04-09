@@ -36,8 +36,6 @@ IE_SUPPRESS_DEPRECATED_START
         //
 
         ie::MYRIAD_NONE_LAYERS,
-
-        ie::MYRIAD_COMPILER_LOG_FILE_PATH,
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -95,8 +93,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     ParsedConfigBase::parse(config);
 
-    setOption(_compilerLogFilePath,                                    config, ie::MYRIAD_COMPILER_LOG_FILE_PATH);
-
     setOption(_compileConfig.checkPreprocessingInsideModel,  switches, config, ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
     setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
     setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
@@ -120,12 +116,6 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
         throw std::invalid_argument("Value must be positive or default(-1).");
     };
-
-#ifndef NDEBUG
-    if (const auto envVar = std::getenv("IE_VPU_COMPILER_LOG_FILE_PATH")) {
-        _compilerLogFilePath = envVar;
-    }
-#endif
 }
 
 }  // namespace vpu

@@ -29,10 +29,6 @@ public:
     ParsedConfig(ParsedConfig&&) = delete;
     ParsedConfig& operator=(ParsedConfig&&) = delete;
 
-    const std::string& compilerLogFilePath() const {
-        return _compilerLogFilePath;
-    }
-
     const CompilationConfig& compileConfig() const {
         return _compileConfig;
     }
@@ -48,7 +44,6 @@ protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    std::string _compilerLogFilePath;
     CompilationConfig _compileConfig;
 };
 
