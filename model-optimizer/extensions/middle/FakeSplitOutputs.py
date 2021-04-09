@@ -72,4 +72,4 @@ class AddFakeOutputsToVariadicSplit(MiddleReplacementPattern):
         if not node.has_valid('out_ports_count'):
             node['out_ports_count'] = len(size_splits)
 
-        AddFakeOutputsToSplit().replace_pattern(graph, match)
+        AddFakeOutputsToSplit().split_normalize_outputs(node)
