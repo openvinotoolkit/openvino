@@ -49,7 +49,7 @@ static std::vector<float> to_float_vector(const std::vector<float16>& v_f16)
     }
 
     size_t num_of_elems = v_f16.size();
-    std::vector<float16> v_f32(num_of_elems);
+    std::vector<float> v_f32(num_of_elems);
     for (size_t i = 0; i < num_of_elems; ++i)
     {
         v_f32[i] = float(v_f16[i]);
