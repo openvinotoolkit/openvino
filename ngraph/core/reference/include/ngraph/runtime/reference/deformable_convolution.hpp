@@ -187,8 +187,11 @@ namespace ngraph
                 const Shape group_in_shape = shape_scale(shape_reduce(in_shape), groups);
                 const size_t group_in_size = shape_size(group_in_shape);
 
-                const Shape group_offset_shape = shape_reduce(o_shape);
+                const Shape group_offset_shape = shape_scale(shape_reduce(o_shape), groups);
                 const size_t group_offset_size = shape_size(group_offset_shape);
+                const size_t group_offset_batch_size = shape_size(shape_reduce(o_shape));
+                const size_t deformable_groups_per_group =
+                    std::ceil(static_cast<float>(deformable_groups) / static_cast<float>(groups));
 
                 const size_t group_filters_count = f_shape[filter_out_ch_axis] / groups;
                 const Shape group_filter_shape = shape_reduce(f_shape);
@@ -199,15 +202,16 @@ namespace ngraph
                 for (size_t batch_idx = 0; batch_idx < batches_count; ++batch_idx)
                 {
                     const T* group_filters = filters;
+                    const T* group_offsets = offsets;
                     for (size_t group_idx = 0; group_idx < groups; ++group_idx)
                     {
                         for (size_t f_idx = 0; f_idx < group_filters_count; ++f_idx)
                         {
                             convolve_2D_channels(params,
-                                                 deformable_groups,
+                                                 deformable_groups_per_group,
                                                  in,
                                                  group_in_shape,
-                                                 offsets,
+                                                 group_offsets,
                                                  group_offset_shape,
                                                  group_filters,
                                                  group_filter_shape,
@@ -216,8 +220,12 @@ namespace ngraph
                             out += out_ch_size;
                         }
                         in += group_in_size;
+                        if (deformable_groups > 1)
+                        {
+                            group_offsets += (deformable_groups_per_group * group_offset_size);
+                        }
                     }
-                    offsets += group_offset_size;
+                    offsets += group_offset_batch_size;
                 }
             }
         } // namespace reference

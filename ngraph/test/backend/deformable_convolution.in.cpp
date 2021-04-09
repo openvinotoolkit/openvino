@@ -1887,7 +1887,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_deforgro
                               dilations, group, deformable_group);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_integral_offsets_groups_and_deforgroups)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_integral_offsets_groups_and_deforgroups)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -2573,7 +2573,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_real_offsets_deforgroup_c
                               dilations, group, deformable_group, tolerance_bits);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_real_offsets_groups_and_deforgroups)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_real_offsets_groups_and_deforgroups)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
