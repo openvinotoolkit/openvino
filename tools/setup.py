@@ -9,13 +9,16 @@ Use this script to create a wheel with OpenVINO™ Python* tools:
 $ python setup.py sdist bdist_wheel
 """
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 with open('benchmark/requirements.txt') as f:
     required = f.read().splitlines()
+
+NAMESPACE = 'openvino.tools'
+packages = find_packages()
 
 setup(
     name="openvino-tools",
@@ -35,9 +38,9 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    package_dir={'openvino.tools.benchmark': 'benchmark',
-                 'openvino.tools.benchmark.utils': 'benchmark/utils'},
-    packages=['openvino.tools.benchmark', 'openvino.tools.benchmark.utils'],
+    package_dir={''.join((NAMESPACE, '.', package)) : package.replace('.', '/')
+                 for package in packages},
+    packages=[''.join((NAMESPACE, '.', package)) for package in packages],
     install_requires=required,
     python_requires=">=3.6",
 )
