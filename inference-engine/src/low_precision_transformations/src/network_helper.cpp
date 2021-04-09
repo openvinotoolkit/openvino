@@ -275,11 +275,30 @@ void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, 
         target->set_friendly_name(friendlyName);
     }
 
-    auto& targetRt = target->output(0).get_rt_info();
-    for (auto& source : sources) {
-        const auto& sourceRt = source->output(0).get_rt_info();
-        for (const auto& it : sourceRt) {
-            targetRt[it.first] = it.second;
+    // TODO: has to be implemented in ngraph::copy_runtime_info
+    {
+        //for (auto& targetOutput : target->inputs()) {
+        //    auto& targetRt = targetOutput.get_rt_info();
+        //    for (auto& source : sources) {
+        //        for (auto& soruceOutput : source->outputs()) {
+        //            const auto& sourceRt = soruceOutput.get_rt_info();
+        //            for (const auto& it : sourceRt) {
+        //                targetRt[it.first] = it.second;
+        //            }
+        //        }
+        //    }
+        //}
+
+        for (auto& targetOutput : target->outputs()) {
+            auto& targetRt = targetOutput.get_rt_info();
+            for (auto& source : sources) {
+                for (auto& soruceOutput : source->outputs()) {
+                    const auto& sourceRt = soruceOutput.get_rt_info();
+                    for (const auto& it : sourceRt) {
+                        targetRt[it.first] = it.second;
+                    }
+                }
+            }
         }
     }
 }

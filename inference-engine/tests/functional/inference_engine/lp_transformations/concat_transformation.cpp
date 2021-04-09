@@ -15,6 +15,7 @@
 #include <transformations/init_node_info.hpp>
 #include <low_precision/rt_info/intervals_alignment_attribute.hpp>
 #include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include <low_precision/rt_info/precisions_attribute.hpp>
 #include <low_precision/rt_info/precision_preserved_attribute.hpp>
 
 #include <low_precision/align_concat_quantization_parameters.hpp>
@@ -220,6 +221,9 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    const auto fakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    ASSERT_TRUE(checkIfOutputAttributesAreEqual<std::shared_ptr<PrecisionsAttribute>>(fakeQuantizes)) << "PrecisionsAttribute are not the same";
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -276,10 +280,16 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             },
         },
         {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
             {},
             {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
             {},
             {},
             ngraph::element::u8,

@@ -32,6 +32,41 @@ public:
     static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
         const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
+    template <class Operation>
+    static std::vector<std::shared_ptr<ngraph::Node>> get(std::shared_ptr<ngraph::Function> function) {
+        std::vector<std::shared_ptr<ngraph::Node>> foundNodes;
+        std::vector<std::shared_ptr<ngraph::Node>>& nodes = function->get_ordered_ops();
+        for (auto& node : nodes) {
+            if (is_type<Operation>(node)) {
+                foundNodes.push_back(node);
+            }
+        }
+        return foundNodes;
+    }
+
+    template <class Attribute>
+    static bool checkIfOutputAttributesAreEqual(std::vector<std::shared_ptr<ngraph::Node>> nodes) {
+        Variant* first = nullptr;
+        for (auto node : nodes) {
+            for (auto output : node->outputs()) {
+                auto& rt = output.get_rt_info();
+                const std::string& name = ngraph::VariantWrapper<Attribute>::type_info.name;
+                auto it = rt.find(name);
+                if (it == rt.end()) {
+                    return false;
+                }
+
+                auto value = it->second;
+                if (first == nullptr) {
+                    first = value.get();
+                } else if(value.get() != first) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 protected:
     void transform(std::shared_ptr<ngraph::Function> function);
     void transform(
