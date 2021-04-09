@@ -187,6 +187,8 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 
 #define OV_CC_DOMAINS(Module)
 
+#define OV_CC_SCOPE_IS_ENABLED OV_PP_IS_ENABLED
+
 #define OV_SCOPE(Module, region)    \
     for (bool ovCCScopeIsEnabled = OV_PP_IS_ENABLED(OV_PP_CAT3(Module, _, region)); ovCCScopeIsEnabled; ovCCScopeIsEnabled = false)
 
