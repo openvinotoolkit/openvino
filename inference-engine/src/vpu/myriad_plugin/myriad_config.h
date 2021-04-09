@@ -26,10 +26,6 @@ public:
         return _enableAsyncDma;
     }
 
-    ncDevicePlatform_t platform() const {
-        return _platform;
-    }
-
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -39,7 +35,6 @@ protected:
 private:
     std::string _pluginLogFilePath;
     bool _enableAsyncDma = true;
-    ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
 };
 
 }  // namespace MyriadPlugin

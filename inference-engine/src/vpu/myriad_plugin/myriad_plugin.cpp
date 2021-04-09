@@ -60,6 +60,7 @@
 #include <vpu/configuration/options/config_file.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_force_reset.hpp>
+#include <vpu/configuration/options/platform.hpp>
 
 #include "myriad_plugin.h"
 
@@ -158,7 +159,7 @@ QueryNetworkResult Engine::QueryNetwork(
 
     const auto supportedLayers = getSupportedLayers(
             network,
-            parsedConfigCopy.platform(),
+            ncDevicePlatform_t::NC_ANY_PLATFORM,
             parsedConfigCopy,
             log,
             GetCore());
@@ -183,14 +184,6 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     VPU_THROW_UNLESS(_mvnc, "mvnc is null");
 
     _pluginName = "MYRIAD";
-
-    // TODO: remove once all options are migrated
-IE_SUPPRESS_DEPRECATED_START
-    _config = {
-        // Deprecated
-        { KEY_VPU_MYRIAD_PLATFORM, "" },
-    };
-IE_SUPPRESS_DEPRECATED_END
 
     _parsedConfig.registerOption<LogLevelOption>();
     _parsedConfig.registerOption<CopyOptimizationOption>();
@@ -243,6 +236,7 @@ IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
     _parsedConfig.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
     _parsedConfig.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
+    _parsedConfig.registerDeprecatedOption<PlatformOption>(VPU_MYRIAD_CONFIG_KEY(PLATFORM));
 IE_SUPPRESS_DEPRECATED_END
 }
 

@@ -62,7 +62,6 @@ struct DeviceDesc {
         }
 
         return isSuitableByName &&
-                ((config.platform() == NC_ANY_PLATFORM) || (_platform == config.platform())) &&
                 ((config.get<ProtocolOption>() == NC_ANY_PROTOCOL) || (_protocol == config.get<ProtocolOption>()));
     }
 

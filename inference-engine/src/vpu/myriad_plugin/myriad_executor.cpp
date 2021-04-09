@@ -90,7 +90,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     }
 #endif
 
-    const ncDevicePlatform_t& configPlatform = config.platform();
+    const ncDevicePlatform_t& configPlatform = ncDevicePlatform_t::NC_ANY_PLATFORM;
     const ncDeviceProtocol_t& configProtocol = config.get<ProtocolOption>();
     const std::string& configDevName = config.get<DeviceIDOption>();
     PowerConfig powerConfig = config.get<PowerConfigOption>();
@@ -275,12 +275,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
             });
 
         // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty() && config.platform() != NC_ANY_PLATFORM) {
-            DeviceDesc device;
-            device._platform = config.platform();
-            device._protocol = config.get<ProtocolOption>();
-            return std::make_shared<DeviceDesc>(device);
-        } else if (availableDevices.empty()) {
+        if (availableDevices.empty()) {
             IE_THROW() << "Can not init Myriad device: " << ncStatusToStr(nullptr, booted);
         }
 
