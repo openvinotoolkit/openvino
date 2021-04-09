@@ -137,8 +137,23 @@ void replaceAttributeInNodes(
         }
 
         if (!is_type<opset1::FakeQuantize>(node)) {
-            for (auto& input : node->inputs()) {
+            for (size_t index = 0ul; index < node->get_input_size(); ++index) {
+                auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
+                    const auto dequantization = NetworkHelper::getDequantization(node, index);
+                    if (!dequantization.empty() &&
+                        (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                        is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+
+                        const auto input = dequantization.data.get_node()->input(0);
+                        return input;
+                    }
+                    return node->input(index);
+                };
+
+                auto& input = getInput(node, index);
                 const auto& input_node = input.get_source_output().get_node_shared_ptr();
+
+                //const auto& input_node = input.get_source_output().get_node_shared_ptr();
                 if (visited.count(input_node) || is_type<op::Constant>(input_node)) {
                     continue;
                 }
@@ -250,7 +265,7 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
             const auto& input = node->input(index);
             auto inputNode = input.get_source_output().get_node_shared_ptr();
 
-            const auto dequantization = NetworkHelper::getDequantization(inputNode, index);
+            const auto dequantization = NetworkHelper::getDequantization(node, index);
             if (!dequantization.empty() &&
                 (is_type<opset1::Convert>(dequantization.data.get_node())) &&
                 is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {

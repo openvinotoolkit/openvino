@@ -67,6 +67,28 @@ public:
         return true;
     }
 
+    template <class Attribute>
+    static bool checkIfAttributesAreEqual(std::vector<std::shared_ptr<ngraph::Node>> nodes) {
+        Variant* first = nullptr;
+        for (auto node : nodes) {
+            auto& rt = node->get_rt_info();
+            const std::string& name = ngraph::VariantWrapper<Attribute>::type_info.name;
+            auto it = rt.find(name);
+            if (it == rt.end()) {
+                return false;
+            }
+
+            auto value = it->second;
+            if (first == nullptr) {
+                first = value.get();
+            }
+            else if (value.get() != first) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 protected:
     void transform(std::shared_ptr<ngraph::Function> function);
     void transform(

@@ -337,7 +337,8 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         if (dequantization.subtract != nullptr) {
             targetNodes.push_back(dequantization.subtract);
         }
-        ngraph::copy_runtime_info(sourceNodes, targetNodes);
+        //ngraph::copy_runtime_info(sourceNodes, targetNodes);
+        NetworkHelper::copyInfo(sourceNodes, targetNodes);
     } else {
         //if (preferedPrecision == element::undefined) {
         //    if (dataPrecision.precision == element::undefined) {

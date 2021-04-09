@@ -224,6 +224,10 @@ TEST_P(ConcatTransformation, CompareFunctions) {
 
     const auto fakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
     ASSERT_TRUE(checkIfOutputAttributesAreEqual<std::shared_ptr<PrecisionsAttribute>>(fakeQuantizes)) << "PrecisionsAttribute are not the same";
+
+    auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+    operations.insert(operations.end(), fakeQuantizes.begin(), fakeQuantizes.end());
+    ASSERT_TRUE(checkIfAttributesAreEqual<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) << "IntervalsAlignmentAttribute are not the same";
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -232,33 +236,33 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
-    //// U8: concat
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    false,
-    //    {
-    //        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {},
-    //        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} }
-    //    },
-    //    {
-    //        {
-    //            256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, {}, { 0.01f } },
-    //    }
-    //},
+    // U8: concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} }
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.01f } },
+        }
+    },
     // U8: concat
     {
         LayerTransformation::createParamsU8I8(),
@@ -296,341 +300,359 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { ngraph::element::f32, {}, { 0.01f } }
         }
     },
-    ////// U8: concat
-    ////{
-    ////    LayerTransformation::createParamsU8I8(),
-    ////    true,
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-    ////        { ngraph::element::u8 },
-    ////        {
-    ////            { element::f32 },
-    ////            {},
-    ////            { 0.01f }
-    ////        },
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-    ////        { ngraph::element::u8 },
-    ////        {
-    ////            { element::f32 },
-    ////            {},
-    ////            { 0.01f }
-    ////        },
-    ////    },
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        ngraph::element::u8,
-    ////        { ngraph::element::f32, {}, { 0.01f } }
-    ////    }
-    ////},
-    ////// U8: concat
-    ////{
-    ////    LayerTransformation::createParamsU8I8(),
-    ////    false,
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    ////        {},
-    ////        {},
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-    ////        { ngraph::element::u8 },
-    ////        {
-    ////            { element::f32 },
-    ////            {},
-    ////            { 0.01f }
-    ////        },
-    ////    },
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        ngraph::element::u8,
-    ////        { ngraph::element::f32, {}, { 0.01f } }
-    ////    }
-    ////},
-    ////// U8: concat
-    ////{
-    ////    LayerTransformation::createParamsU8I8(),
-    ////    true,
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    ////        {},
-    ////        {},
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-    ////        { ngraph::element::u8 },
-    ////        {
-    ////            { element::f32 },
-    ////            {},
-    ////            { 0.01f }
-    ////        },
-    ////    },
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        ngraph::element::u8,
-    ////        { ngraph::element::f32, {}, { 0.01f } }
-    ////    }
-    ////},
-    //// U8: concat
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    false,
-    //    {
-    //        { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {},
-    //        { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, {}, { 0.01f } }
-    //    }
-    //},
-    //// U8: concat
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    false,
-    //    {
-    //        { 256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {},
-    //        { 256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, {}, { 0.01f } }
-    //    }
-    //},
-    //// U8: concat multi channels
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    true,
-    //    {
-    //        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {},
-    //        { 256ul, {}, {0.f}, {1.275f}, {0.f}, {1.275f} },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {}, {0.f}, {1.275f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, {}, {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }} }
-    //    }
-    //},
-    //// U8: concat multi channels
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    true,
-    //    {
-    //        { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {},
-    //        { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {1.275f}, {0.f}, {1.275f} },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {{1}, {1}, {}, {}}, {0.f}, {1.275f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, {}, {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }} }
-    //    }
-    //},
-    //// U8: concat multi channels
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    true,
-    //    {
-    //        {
-    //            256ul,
-    //            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-    //            {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul,
-    //            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-    //            {0.f, 0.f, 0.f}, {1.275f, 1.275f, 1.275f}, {0.f, 0.f, 0.f}, {1.275f / 1.f, 1.275f / 2.f, 1.275f / 3.f}
-    //        },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul,
-    //            {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-    //            {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55f}, {0.f}, {255.f},
-    //            ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul,
-    //            {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-    //            {0.f, 0.f, 0.f}, {1.275f, 1.275f, 1.275f}, {0.f}, {255.f},
-    //            ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, {}, {{ 0.01f / 1.f, 0.01f / 2.f, 0.01f / 3.f, 0.005f / 1.f, 0.005f / 2.f, 0.005f / 3.f }} }
-    //    }
-    //},
-    //// U8: concat multi channels with subtract
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    true,
-    //    {
-    //        { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
-    //        {},
-    //        {},
-    //        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        {
-    //            ngraph::element::f32,
-    //            {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
-    //            {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
-    //        }
-    //    }
-    //},
-    //// I8
-    //{
-    //    LayerTransformation::createParamsI8I8(),
-    //    false,
-    //    {
-    //        { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-    //        {},
-    //        {},
-    //        { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul, {}, {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {}, {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::i8,
-    //        { ngraph::element::f32, {}, { 0.01f } }
-    //    }
-    //},
-    //// mixed: U8 + I8: concat (check constant values here)
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    false,
-    //    {
-    //        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        {},
-    //        {},
-    //        { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-    //        {},
-    //        {}
-    //    },
-    //    {
-    //        {
-    //            256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        {
-    //            256ul, {}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ngraph::element::u8,
-    //            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
-    //        },
-    //        {},
-    //        {},
-    //        ngraph::element::u8,
-    //        { ngraph::element::f32, { {0.f, 0.f, 0.f, 128.f, 128.f, 128.f } }, { 0.01f } }
-    //    }
-    //},
+    // U8: concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {},
+                { 0.01f }
+            },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {},
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.01f } }
+        }
+    },
+    // U8: concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {},
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.01f } }
+        }
+    },
+    // U8: concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {},
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.01f } }
+        }
+    },
+    // U8: concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        {
+            { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.01f } }
+        }
+    },
+    // U8: concat
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        {
+            { 256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.01f } }
+        }
+    },
+    // U8: concat multi channels
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {1.275f}, {0.f}, {1.275f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {1.275f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }} }
+        }
+    },
+    // U8: concat multi channels
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {1.275f}, {0.f}, {1.275f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {{1}, {1}, {}, {}}, {0.f}, {1.275f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, {{ 0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f }} }
+        }
+    },
+    // U8: concat multi channels
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
+            },
+            {},
+            {},
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {1.275f, 1.275f, 1.275f}, {0.f, 0.f, 0.f}, {1.275f / 1.f, 1.275f / 2.f, 1.275f / 3.f}
+            },
+            {},
+            {}
+        },
+        {
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55f}, {0.f}, {255.f},
+                ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                {0.f, 0.f, 0.f}, {1.275f, 1.275f, 1.275f}, {0.f}, {255.f},
+                ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, {{ 0.01f / 1.f, 0.01f / 2.f, 0.01f / 3.f, 0.005f / 1.f, 0.005f / 2.f, 0.005f / 3.f }} }
+        }
+    },
+    // U8: concat multi channels with subtract
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
+                {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
+            }
+        }
+    },
+    // I8
+    {
+        LayerTransformation::createParamsI8I8(),
+        false,
+        {
+            { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            {},
+            {},
+            { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {}, {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(0.f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::i8,
+            { ngraph::element::f32, {}, { 0.01f } }
+        }
+    },
+    // mixed: U8 + I8: concat (check constant values here)
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, { {0.f, 0.f, 0.f, 128.f, 128.f, 128.f } }, { 0.01f } }
+        }
+    },
 
     ////// mixed: U8 + I8: concat multi channels
     ////{

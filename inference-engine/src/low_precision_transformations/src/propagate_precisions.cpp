@@ -211,14 +211,6 @@ void replaceAttributeInInputs(
 
                         const auto input = dequantization.data.get_node()->input(0);
                         return input;
-
-                        //const auto fakeQuantize = dequantization.data.get_node()->input(0);
-                        //if (is_type<opset1::FakeQuantize>(fakeQuantize)) {
-                        //    const auto& targetInputs = dequantization.data.get_target_inputs();
-                        //    if (targetInputs.size() == 1ul) {
-                        //        return *targetInputs.begin();
-                        //    }
-                        //}
                     }
                     return node->input(index);
                 };

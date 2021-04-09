@@ -254,48 +254,50 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     return newMultiply;
 }
 
-void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target) {
+void NetworkHelper::copyInfo(
+    const std::vector<std::shared_ptr<Node>>& sources,
+    const std::vector<std::shared_ptr<Node>>& targets) {
     //// TODO: merge_runtime_info with correctly defined DEQUANTIZATION
     //const auto& sourceAttributes = source->get_rt_info();
     //auto& targetAttrubutes = target->get_rt_info();
     //for (auto attribute : sourceAttributes) {
     //    targetAttrubutes[attribute.first] = attribute.second;
     //}
-    ngraph::copy_runtime_info(sources, target);
 
-    auto& rt = target->get_rt_info();
-    if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
-        rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
-        rt.erase(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
-        rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
-    }
+    ngraph::copy_runtime_info(sources, targets);
+    for (const auto& target : targets) {
+        const std::string friendlyName = sources[0]->get_friendly_name();
+        if (!friendlyName.empty()) {
+            target->set_friendly_name(friendlyName);
+        }
 
-    const std::string friendlyName = sources[0]->get_friendly_name();
-    if (!friendlyName.empty()) {
-        target->set_friendly_name(friendlyName);
-    }
+        auto& rt = target->get_rt_info();
+        if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
+            rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
+            rt.erase(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
+            rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
+        } else {
+            // TODO: has to be implemented in ngraph::copy_runtime_info
+            for (auto& targetInput : target->inputs()) {
+                auto& targetRt = targetInput.get_rt_info();
+                for (auto& source : sources) {
+                    for (auto& soruceInput : source->inputs()) {
+                        const auto& sourceRt = soruceInput.get_rt_info();
+                        for (const auto& it : sourceRt) {
+                            targetRt[it.first] = it.second;
+                        }
+                    }
+                }
+            }
 
-    // TODO: has to be implemented in ngraph::copy_runtime_info
-    {
-        //for (auto& targetOutput : target->inputs()) {
-        //    auto& targetRt = targetOutput.get_rt_info();
-        //    for (auto& source : sources) {
-        //        for (auto& soruceOutput : source->outputs()) {
-        //            const auto& sourceRt = soruceOutput.get_rt_info();
-        //            for (const auto& it : sourceRt) {
-        //                targetRt[it.first] = it.second;
-        //            }
-        //        }
-        //    }
-        //}
-
-        for (auto& targetOutput : target->outputs()) {
-            auto& targetRt = targetOutput.get_rt_info();
-            for (auto& source : sources) {
-                for (auto& soruceOutput : source->outputs()) {
-                    const auto& sourceRt = soruceOutput.get_rt_info();
-                    for (const auto& it : sourceRt) {
-                        targetRt[it.first] = it.second;
+            for (auto& targetOutput : target->outputs()) {
+                auto& targetRt = targetOutput.get_rt_info();
+                for (auto& source : sources) {
+                    for (auto& soruceOutput : source->outputs()) {
+                        const auto& sourceRt = soruceOutput.get_rt_info();
+                        for (const auto& it : sourceRt) {
+                            targetRt[it.first] = it.second;
+                        }
                     }
                 }
             }
@@ -303,8 +305,12 @@ void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, 
     }
 }
 
+void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target) {
+    copyInfo(sources, std::vector<std::shared_ptr<Node>> { target } );
+}
+
 void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
-    copyInfo(std::vector<std::shared_ptr<Node>>{ source }, target);
+    copyInfo(std::vector<std::shared_ptr<Node>>{ source }, std::vector<std::shared_ptr<Node>>{ target });
 }
 
 void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {
