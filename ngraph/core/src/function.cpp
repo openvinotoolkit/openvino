@@ -32,7 +32,7 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    check_all_parameters_registered();
+    prerequirements(true, false);
 }
 
 Function::Function(const OutputVector& results,
@@ -44,7 +44,7 @@ Function::Function(const OutputVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    check_all_parameters_registered();
+    prerequirements(true, false);
 }
 
 Function::Function(const NodeVector& results,
@@ -56,7 +56,7 @@ Function::Function(const NodeVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    check_all_parameters_registered();
+    prerequirements(true, false);
 }
 
 Function::Function(const std::shared_ptr<Node>& result,
@@ -77,7 +77,7 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    check_all_parameters_registered();
+    prerequirements(true, false);
 }
 
 Function::Function(const OutputVector& results,
@@ -101,7 +101,7 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    check_all_parameters_registered();
+    prerequirements(false, false);
 }
 
 Function::Function(const OutputVector& results,
@@ -129,12 +129,28 @@ Function::Function(const ResultVector& results,
 {
 }
 
-void Function::check_all_parameters_registered() const
+Function::Function(const OutputVector& results, const SinkVector& sinks, const string& name)
+    : m_results(as_result_vector(results))
+    , m_sinks(sinks)
+    , m_name(name)
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
+    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+{
+    prerequirements(true, true);
+}
+
+Function::Function(const OutputVector& results, const string& name)
+    : Function(results, SinkVector{}, name)
+{
+}
+
+void Function::check_all_parameters_registered(
+    const std::vector<shared_ptr<Node>>& ordered_ops) const
 {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
                        "Function::check_all_parameters_registered");
     std::stringstream unregistered_parameters;
-    for (auto& node : get_ordered_ops())
+    for (auto& node : ordered_ops)
     {
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
@@ -143,6 +159,60 @@ void Function::check_all_parameters_registered() const
     if (!unregistered_parameters.str().empty())
         throw ngraph_error("Function references undeclared parameters: " +
                            unregistered_parameters.str());
+}
+
+void Function::check_all_variables_registered(
+    const std::vector<shared_ptr<Node>>& ordered_ops) const
+{
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
+                       "Function::check_all_variables_registered");
+    std::stringstream unregistered_variables;
+    for (auto& node : ordered_ops)
+    {
+        const auto& variable_op = dynamic_pointer_cast<Memory>(node);
+        if (variable_op &&
+            std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) ==
+                m_variables.end())
+            unregistered_variables << variable_op->get_variable_id() << std::endl;
+    }
+    if (!unregistered_variables.str().empty())
+        throw ngraph_error("Function references undeclared variables: " +
+                           unregistered_variables.str());
+}
+
+void Function::auto_detect_variables(const std::vector<std::shared_ptr<Node>>& ordered_ops)
+{
+    unordered_set<VariablePtr> variables;
+    for (const auto& op : ordered_ops)
+    {
+        if (const auto& variable_op = dynamic_pointer_cast<Memory>(op))
+        {
+            variables.insert(variable_op->get_variable());
+        }
+    }
+    m_variables.assign(variables.begin(), variables.end());
+}
+
+void Function::auto_detect_parameters(const std::vector<std::shared_ptr<Node>>& ordered_ops)
+{
+    unordered_set<VariablePtr> variables;
+    for (const auto& op : ordered_ops)
+    {
+        if (const auto& variable_op = dynamic_pointer_cast<Memory>(op))
+        {
+            variables.insert(variable_op->get_variable());
+        }
+    }
+    m_variables.assign(variables.begin(), variables.end());
+}
+
+void Function::prerequirements(bool detect_variables, bool detect_parameters)
+{
+    const auto& ordered_ops = get_ordered_ops();
+    detect_parameters ? auto_detect_parameters(ordered_ops)
+                      : check_all_parameters_registered(ordered_ops);
+    detect_variables ? auto_detect_variables(ordered_ops)
+                     : check_all_variables_registered(ordered_ops);
 }
 
 void Function::validate_nodes_and_infer_types() const
@@ -157,12 +227,19 @@ void Function::validate_nodes_and_infer_types() const
     };
     std::map<Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
+    std::stringstream unregistered_variables;
     for (auto& node : get_ordered_ops())
     {
         node->revalidate_and_infer_types();
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
+
+        const auto& variable_op = dynamic_pointer_cast<Memory>(node);
+        if (variable_op &&
+            std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) ==
+                m_variables.end())
+            unregistered_variables << variable_op->get_variable_id() << std::endl;
 
         if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(node))
         {
@@ -177,6 +254,9 @@ void Function::validate_nodes_and_infer_types() const
         throw ngraph_error("Function references undeclared parameters: " +
                            unregistered_parameters.str());
 
+    if (!unregistered_variables.str().empty())
+        throw ngraph_error("Function references undeclared Variables: " +
+                           unregistered_variables.str());
     bool only_pairs = std::all_of(
         pair_checker.begin(), pair_checker.end(), [](const std::pair<Variable*, Counter>& val) {
             return val.second.cnt_assign == 1 && val.second.cnt_read_val == 1;
@@ -225,7 +305,7 @@ void Function::map_unordered_ops(std::function<void(Node*)> f) const
     {
         remaining_ops.push(param.get());
     }
-    while (remaining_ops.size() > 0)
+    while (!remaining_ops.empty())
     {
         Node* op = remaining_ops.top();
         remaining_ops.pop();

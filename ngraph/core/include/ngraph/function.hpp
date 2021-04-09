@@ -77,6 +77,12 @@ namespace ngraph
                  const VariableVector& variables,
                  const std::string& name = "");
 
+        Function(const OutputVector& results, const std::string& name = "");
+
+        Function(const OutputVector& results,
+                 const SinkVector& sinks,
+                 const std::string& name = "");
+
         virtual ~Function() {}
         /// Return the number of outputs for this function.
         size_t get_output_size() const;
@@ -236,7 +242,13 @@ namespace ngraph
         Function(const Function&&) = delete;
         Function& operator=(const Function&) = delete;
         /// \brief Checks all the Parameter nodes are registered in the list of Function parameters
-        void check_all_parameters_registered() const;
+        void check_all_parameters_registered(
+            const std::vector<std::shared_ptr<Node>>& ordered_ops) const;
+        void check_all_variables_registered(
+            const std::vector<std::shared_ptr<Node>>& ordered_ops) const;
+        void auto_detect_variables(const std::vector<std::shared_ptr<Node>>& ordered_ops);
+        void auto_detect_parameters(const std::vector<std::shared_ptr<Node>>& ordered_ops);
+        void prerequirements(bool detect_variables, bool detect_parameters);
 
         static std::atomic<size_t> m_next_instance_id;
         std::string m_name;
