@@ -48,5 +48,37 @@ namespace ngraph
             NGRAPH_RTTI_DECLARATION;
             LowLatency();
         };
+
+        class NGRAPH_API LowLatency_v2 : public ngraph::pass::FunctionPass
+        {
+        public:
+            enum InitialValue {
+                PARAMETER,
+                CONST
+            };
+
+            LowLatency_v2() = default;
+
+            explicit LowLatency_v2(int64_t iterations)
+            : m_iterations(iterations) {
+            }
+
+            explicit LowLatency_v2(LowLatency_v2::InitialValue init_value)
+            : m_init_value(init_value) {
+            }
+
+            LowLatency_v2(LowLatency_v2::InitialValue init_value, int64_t iterations)
+            : m_init_value(init_value),
+              m_iterations(iterations)
+            {}
+
+            NGRAPH_RTTI_DECLARATION;
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+        private:
+            InitialValue m_init_value = InitialValue::CONST;
+            int64_t m_iterations = 1;
+
+        };
     } // namespace pass
 } // namespace ngraph
