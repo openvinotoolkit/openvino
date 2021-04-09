@@ -32,12 +32,14 @@ For example:
 
 ```
 [ INFO ] Creating Inference Engine
+[ INFO ] Available devices:
 [ INFO ] CPU :
-[ INFO ]        AVAILABLE_DEVICES: 
-[ INFO ]        FULL_DEVICE_NAME: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
-[ INFO ]        OPTIMIZATION_CAPABILITIES: FP32, FP16, INT8, BIN
-[ INFO ]        RANGE_FOR_ASYNC_INFER_REQUESTS: 1, 1, 1
-[ INFO ]        RANGE_FOR_STREAMS: 1, 8
+[ INFO ]        SUPPORTED_METRICS:
+[ INFO ]                AVAILABLE_DEVICES:
+[ INFO ]                FULL_DEVICE_NAME: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
+[ INFO ]                OPTIMIZATION_CAPABILITIES: FP32, FP16, INT8, BIN
+[ INFO ]                RANGE_FOR_ASYNC_INFER_REQUESTS: 1, 1, 1
+[ INFO ]                RANGE_FOR_STREAMS: 1, 8
 [ INFO ]
 [ INFO ]        SUPPORTED_CONFIG_KEYS (default values):
 [ INFO ]                CPU_BIND_THREAD: NUMA
@@ -51,9 +53,11 @@ For example:
 [ INFO ]                PERF_COUNT: NO
 [ INFO ]
 [ INFO ] GNA :
-[ INFO ]        AVAILABLE_DEVICES: GNA_SW
-[ INFO ]        OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
-[ INFO ]        FULL_DEVICE_NAME: GNA_SW
+[ INFO ]        SUPPORTED_METRICS:
+[ INFO ]                AVAILABLE_DEVICES: GNA_SW
+[ INFO ]                OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]                FULL_DEVICE_NAME: GNA_SW
+[ INFO ]                GNA_LIBRARY_FULL_VERSION: 2.0.0.1047
 [ INFO ]
 [ INFO ]        SUPPORTED_CONFIG_KEYS (default values):
 [ INFO ]                EXCLUSIVE_ASYNC_REQUESTS: NO
@@ -70,12 +74,13 @@ For example:
 [ INFO ]                SINGLE_THREAD: YES
 [ INFO ]
 [ INFO ] GPU :
-[ INFO ]        AVAILABLE_DEVICES: 0
-[ INFO ]        FULL_DEVICE_NAME: Intel(R) UHD Graphics 620 (iGPU)
-[ INFO ]        OPTIMIZATION_CAPABILITIES: FP32, BIN, FP16
-[ INFO ]        RANGE_FOR_ASYNC_INFER_REQUESTS: 1, 2, 1
-[ INFO ]        RANGE_FOR_STREAMS: 1, 2
-[ INFO ] 
+[ INFO ]        SUPPORTED_METRICS:
+[ INFO ]                AVAILABLE_DEVICES: 0
+[ INFO ]                FULL_DEVICE_NAME: Intel(R) UHD Graphics 620 (iGPU)
+[ INFO ]                OPTIMIZATION_CAPABILITIES: FP32, BIN, FP16
+[ INFO ]                RANGE_FOR_ASYNC_INFER_REQUESTS: 1, 2, 1
+[ INFO ]                RANGE_FOR_STREAMS: 1, 2
+[ INFO ]
 [ INFO ]        SUPPORTED_CONFIG_KEYS (default values):
 [ INFO ]                CACHE_DIR:
 [ INFO ]                CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS: YES
