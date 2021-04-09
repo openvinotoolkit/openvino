@@ -54,7 +54,7 @@ private:
     InferenceEngine::SizeVector biasesDims;
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights, bool initAsBinary);
 
     bool withBiases = false;
 
