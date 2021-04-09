@@ -75,6 +75,7 @@ namespace ngraph
         class NGRAPH_API LowLatency_v2 : public ngraph::pass::FunctionPass
         {
         public:
+            NGRAPH_RTTI_DECLARATION;
             enum class InitialValue
             {
                 PARAMETER,
@@ -99,7 +100,6 @@ namespace ngraph
             {
             }
 
-            NGRAPH_RTTI_DECLARATION;
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
         private:
