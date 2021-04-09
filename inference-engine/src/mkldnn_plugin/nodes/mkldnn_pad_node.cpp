@@ -239,10 +239,12 @@ static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector&
 }
 
 static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVector& indexes) {
-    for (int j = nDims - 1; j >= 0; j--) {
-        indexes[j] = (indexes[j] + 1) % dims[j];
-        if (indexes[j] != 0)
-            return;
+    for (int j = nDims - 1; j >= 0; --j) {
+        ++indexes[j];
+        if (indexes[j] < dims[j])
+            break;
+        else
+            indexes[j] = 0;
     }
 }
 
