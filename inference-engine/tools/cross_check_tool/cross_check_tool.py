@@ -100,21 +100,21 @@ def get_model_info(net: IENetwork):
 ###
 
 
-@error_handling('processing inference on \'{device}\' device')
-def get_infer_results(executable_network, inputs: dict, device: str):
+@error_handling('processing inference')
+def get_infer_results(executable_network, inputs: dict):
     return executable_network.infer(inputs=inputs)
 
 
-@error_handling('getting performance counts from executable network on \'{device}\' device')
-def get_perf_counts(executable_network, device: str):
+@error_handling('getting performance counts from executable network')
+def get_perf_counts(executable_network):
     return executable_network.requests[0].get_perf_counts()
 
 
-@error_handling('getting inference results for outputs: \'{output}\'')
+@error_handling('getting inference results for outputs: \'{output}\' on \'{device}\' device')
 def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list):
     executable_network = get_exec_net(core=core, net=net, device=device)
-    infer_dict = get_infer_results(executable_network=executable_network, inputs=inputs, device=device)
-    pc = get_perf_counts(executable_network=executable_network, device=device)
+    infer_dict = get_infer_results(executable_network=executable_network, inputs=inputs)
+    pc = get_perf_counts(executable_network=executable_network)
     no_i = 'no_info'
     no_info_pc = {'cpu_time': no_i, 'exec_time': no_i, 'layer_type': no_i, 'real_time': no_i, 'status': no_i}
     result = {}
