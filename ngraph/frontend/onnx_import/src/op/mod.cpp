@@ -56,4 +56,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngrap
+} // namespace ngraph
