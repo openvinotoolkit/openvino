@@ -753,7 +753,7 @@ def add_outputs_identity(graph: Graph, outputs: list, add_edge: callable, params
     for output in outputs:
         fake_node_name = graph.unique_id(output)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
-                       infer=None, needs_removal=True)
+                       infer=None, needs_removal=True, symbol_dict={'op': 'Identity'})
         add_edge(graph, output, fake_node_name, **params)
 
 

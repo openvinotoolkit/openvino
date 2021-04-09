@@ -24,23 +24,6 @@
 # pragma GCC diagnostic ignored "-Wreturn-type"
 #endif
 
-#define CATCH_IE_EXCEPTION(ExceptionType) catch (const InferenceEngine::ExceptionType& e) {throw e;}
-
-#define CATCH_IE_EXCEPTIONS                     \
-        CATCH_IE_EXCEPTION(GeneralError)        \
-        CATCH_IE_EXCEPTION(NotImplemented)      \
-        CATCH_IE_EXCEPTION(NetworkNotLoaded)    \
-        CATCH_IE_EXCEPTION(ParameterMismatch)   \
-        CATCH_IE_EXCEPTION(NotFound)            \
-        CATCH_IE_EXCEPTION(OutOfBounds)         \
-        CATCH_IE_EXCEPTION(Unexpected)          \
-        CATCH_IE_EXCEPTION(RequestBusy)         \
-        CATCH_IE_EXCEPTION(ResultNotReady)      \
-        CATCH_IE_EXCEPTION(NotAllocated)        \
-        CATCH_IE_EXCEPTION(InferNotStarted)     \
-        CATCH_IE_EXCEPTION(NetworkNotRead)      \
-        CATCH_IE_EXCEPTION(InferCancelled)
-
 #define CALL_STATEMENT(...)                                                                        \
     if (!actual) IE_THROW() << "Wrapper used in the CALL_STATEMENT was not initialized.";  \
     try {                                                                                          \

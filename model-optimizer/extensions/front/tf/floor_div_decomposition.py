@@ -8,7 +8,7 @@ from mo.graph.graph import Graph, Node, rename_node
 
 
 class FloorDivDecomposition(FrontReplacementPattern):
-    """
+    r"""
     BEFORE:                     AFTER:
     input_0     input_1         input_0     input_1
         \       /                   \       /
