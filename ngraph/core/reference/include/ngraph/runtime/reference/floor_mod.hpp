@@ -28,8 +28,8 @@ namespace ngraph
                     arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
                         // Cast to double is needed for integer input,
                         // otherwise std::floor will act like std::trunc
-                        const double divider = static_cast<double>(y);
-                        return x - y * std::floor(x / divider);
+                        const double divisor = static_cast<double>(y);
+                        return x - y * std::floor(x / divisor);
                     });
             }
         }
