@@ -11,6 +11,6 @@ using namespace InferenceEngine;
 void InferenceEngine::LowLatency(InferenceEngine::CNNNetwork &network) {
     auto function = network.getFunction();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::LowLatency>();
+    manager.register_pass<ngraph::pass::LowLatency_v2>();
     manager.run_passes(function);
 }

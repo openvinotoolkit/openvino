@@ -62,14 +62,13 @@ namespace ngraph
          *  BE - back-edge
          *
          *  before applying the transformation:
-         *  -> input1[TensorIterator: BE_1 -> Parameter -> Layers ... -> Result  -> BE_1 ]output1->
+         *  -> input1[BE_1 -> Parameter -> Layers ... -> Result  -> BE_1 ]output1->
          *
          *  after applying the transformation:
-         *  -> (ReadValue)-> input1[TensorIterator: BE_1 -> Parameter -> Layers ... -> Result  ->
-         * BE_1]output1->(Assign)
-         *                                                                                         \
-         *                                                                                           ->
-         * ... After applying both of these transformations, the resulting network can be inferred
+         *  ->(ReadValue)-> input1[BE_1 ->Parameter->Layers ...->Result->BE_1]output1 ->(Assign)
+         *                                                                      \
+         *                                                                       ->...
+         * After applying both of these transformations, the resulting network can be inferred
          * step by step, the states will store between inferences.
          */
         class NGRAPH_API LowLatency_v2 : public ngraph::pass::FunctionPass
