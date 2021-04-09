@@ -88,7 +88,7 @@ onnx_model_conv_transpose_w_groups
 
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
 onnx_model_global_lp_pool_p0
-onnx_model_mod
+onnx_model_mod_sign_i64
 onnx_model_constant_of_shape_float_zeros
 onnx_model_constant_of_shape_int_ones
 ab_plus_c_inference
