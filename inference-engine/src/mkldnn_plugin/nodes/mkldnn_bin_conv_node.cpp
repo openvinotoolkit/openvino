@@ -16,8 +16,8 @@
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "cpu/x64/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 
@@ -849,7 +849,7 @@ private:
 
         // offset = 4
         for (size_t d = 0; d < simd_w; ++d) {
-            dd(float2int(jcp_.ic * jcp_.kw * jcp_.kh));
+            dd(x64::float2int(jcp_.ic * jcp_.kw * jcp_.kh));
         }
 
         // offset = 5

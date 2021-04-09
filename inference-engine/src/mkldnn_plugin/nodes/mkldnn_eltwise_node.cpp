@@ -9,7 +9,7 @@
 
 #include <mkldnn_types.h>
 #include "utils/bfloat16.hpp"
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/ref_eltwise.hpp>
 
 #include "mkldnn_extension_utils.h"
@@ -882,7 +882,7 @@ MKLDNNEltwiseNode::initializers = {
             alpha = 0.0f;
             beta = 0.0f;
             opType = Hswish;
-            algorithm = mkldnn::algorithm::eltwise_hswish;
+            algorithm = mkldnn::algorithm::eltwise_hardswish;
         }},
         {"mish", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = 0.0f;
@@ -1753,7 +1753,7 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::algorithm::eltwise_gelu_tanh:
         case mkldnn::algorithm::eltwise_clip:
         case mkldnn::algorithm::eltwise_swish:
-        case mkldnn::algorithm::eltwise_hswish:
+        case mkldnn::algorithm::eltwise_hardswish:
         case mkldnn::algorithm::eltwise_mish:
         case mkldnn::algorithm::eltwise_hsigmoid:
         case mkldnn::algorithm::eltwise_round_half_to_even:

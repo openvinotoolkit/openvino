@@ -141,11 +141,11 @@ private:
         }
 
         for (size_t d = 0; d < vlen / sizeof(int32_t); ++d) {
-            dd(float2int(static_cast<float>(jcp_.ih)));
+            dd(cpu::x64::float2int(static_cast<float>(jcp_.ih)));
         }
 
         for (size_t d = 0; d < vlen / sizeof(int32_t); ++d) {
-            dd(float2int(static_cast<float>(jcp_.iw)));
+            dd(cpu::x64::float2int(static_cast<float>(jcp_.iw)));
         }
 
         for (size_t d = 0; d < vlen / sizeof(int32_t); ++d) {
@@ -332,7 +332,7 @@ private:
                         size_t def_off_h = ((2 * (kh * jcp_.kw + kw) + 0) * jcp_.oh * jcp_.ow) + ow;
                         mov(reg_tmp_32, ptr[aux_reg_def_off + def_off_h * jcp_.typesize_off]);
                         movq(xmm_tmp, reg_tmp_64);
-                        mov(reg_tmp_32, float2int(static_cast<float>((kh * (jcp_.dilate_h + 1)))));
+                        mov(reg_tmp_32, cpu::x64::float2int(static_cast<float>((kh * (jcp_.dilate_h + 1)))));
                         movq(xmm_map_h, reg_tmp_64);
                         addss(xmm_map_h, xmm_tmp);
 
@@ -359,7 +359,7 @@ private:
                         size_t def_off_w = ((2 * (kh * jcp_.kw + kw) + 1) * jcp_.oh * jcp_.ow) + ow;
                         mov(reg_tmp_32, ptr[aux_reg_def_off + def_off_w * jcp_.typesize_off]);
                         movq(xmm_tmp, reg_tmp_64);
-                        mov(reg_tmp_32, float2int(static_cast<float>((kw * (jcp_.dilate_w + 1)))));
+                        mov(reg_tmp_32, cpu::x64::float2int(static_cast<float>((kw * (jcp_.dilate_w + 1)))));
                         movq(xmm_map_w, reg_tmp_64);
                         addss(xmm_map_w, xmm_tmp);
 

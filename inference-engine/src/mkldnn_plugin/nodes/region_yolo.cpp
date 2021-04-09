@@ -16,7 +16,7 @@
 #include "emitters/jit_bf16_emitters.hpp"
 #include "mkldnn.hpp"
 #include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
