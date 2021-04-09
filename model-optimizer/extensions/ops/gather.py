@@ -17,8 +17,8 @@ class Gather(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
-            'version': 'opset1',
-
+            'version': 'opset7',
+            'batch_dims': 0,
             'infer': self.infer,
 
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
@@ -29,6 +29,20 @@ class Gather(Op):
 
         assert 'axis' not in self.attrs, \
             'Use AttributedGather operation instead of Gather to create it with `axis` as a parameter'
+
+    def backend_attrs(self):
+        return [('batch_dims', lambda node: Gather.get_batch_dims(node))]
+
+    @staticmethod
+    def get_axis(node: Node):
+        out_rank = len(node.out_port(0).data.get_shape())
+        axis_value = node.in_port(2).data.get_value()
+        axis_value = axis_value[0] if len(axis_value) == 1 else axis_value
+        return axis_value + out_rank if axis_value < 0 else axis_value
+
+    @staticmethod
+    def get_batch_dims(node: Node):
+        return node.batch_dims + Gather.get_axis() if node.batch_dims < 0 else node.batch_dims
 
     @staticmethod
     def infer(node: Node):
@@ -51,18 +65,24 @@ class Gather(Op):
         from mo.graph.perm_inputs import PermuteInputs
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
 
+        batch_dims = Gather.get_batch_dims(node)
+        batch_dims_range = indices_shape[:batch_dims]
+        out_shape = np.concatenate((data_shape[:axis], indices_shape[batch_dims:], data_shape[axis + 1:]))
+
         data_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
         if data_value is not None and indices_value is not None:
-            node.out_port(0).data.set_value(np.array(np.take(data_value, int64_array(indices_value), axis),
-                                                     dtype=data_value.dtype))
+            if not batch_dims:
+                node.out_port(0).data.set_value(np.take(data_value, indices_value, axis))
+                return
+
+            out_value = np.empty(out_shape)
+            for batch_idx in np.ndindex(tuple(batch_dims_range)):
+                out_value[batch_idx] = np.take(data_value[batch_idx], indices_value[batch_idx], axis - batch_dims)
+            node.out_port(0).data.set_value(out_value)
             return
 
-        shape = np.concatenate((data_shape[:axis], indices_shape))
-        if axis < len(data_shape) - 1:
-            shape = np.concatenate((shape, data_shape[axis + 1:]))
-
-        node.out_port(0).data.set_shape(int64_array(shape))
+        node.out_port(0).data.set_shape(int64_array(out_shape))
 
 
 class AttributedGather(Op):
