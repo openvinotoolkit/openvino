@@ -9,7 +9,7 @@
 from tests_utils import run_infer
 
 
-def test_infer(test_id, model, artifacts, test_info):
+def test_infer(test_id, model, artifacts):
     """ Test inference with conditional compiled binaries
     """
     install_prefix = artifacts / test_id / "install_pkg"

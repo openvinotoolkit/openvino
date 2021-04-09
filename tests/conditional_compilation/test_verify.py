@@ -9,7 +9,7 @@ import numpy as np
 from tests_utils import run_infer
 
 
-def test_verify(test_id, model, artifacts, openvino_root_dir, test_info, tolerance=1e-6):  # pylint: disable=too-many-arguments
+def test_verify(test_id, model, artifacts, openvino_root_dir, tolerance=1e-6):  # pylint: disable=too-many-arguments
     """ Test verifying that inference results are equal
     """
     out = artifacts / test_id

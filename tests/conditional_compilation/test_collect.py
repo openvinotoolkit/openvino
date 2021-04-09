@@ -9,10 +9,31 @@
 import glob
 import os
 import sys
+import pytest
 from inspect import getsourcefile
 from pathlib import Path
 
 from proc_utils import cmd_exec  # pylint: disable=import-error
+from tests_utils import write_session_info, SESSION_INFO_FILE
+
+
+@pytest.fixture(scope="function")
+def test_info(request, pytestconfig):
+    """Fixture function for getting the additional attributes of the current test."""
+    setattr(request.node._request, "test_info", {})
+    if not hasattr(pytestconfig, "session_info"):
+        setattr(pytestconfig, "session_info", [])
+
+    yield request.node._request.test_info
+
+    pytestconfig.session_info.append(request.node._request.test_info)
+
+
+@pytest.fixture(scope="session")
+def save_session_info(pytestconfig, artifacts):
+    """Fixture function for saving additional attributes to configuration file."""
+    yield
+    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
 
 
 def test_cc_collect(test_id, model, sea_runtool, collector_dir, artifacts, test_info):

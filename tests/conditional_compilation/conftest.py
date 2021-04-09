@@ -24,7 +24,6 @@ from pathlib import Path
 sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
 
 from path_utils import expand_env_vars  # pylint: disable=import-error
-from tests_utils import write_session_info, SESSION_INFO_FILE
 
 
 def pytest_addoption(parser):
@@ -77,25 +76,6 @@ def pytest_generate_tests(metafunc):
         params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
         ids = ids + [test_id]
     metafunc.parametrize("test_id, model", params, ids=ids)
-
-
-@pytest.fixture(scope="function")
-def test_info(request, pytestconfig):
-    """Fixture function for getting the additional attributes of the current test."""
-    setattr(request.node._request, "test_info", {})
-    if not hasattr(pytestconfig, "session_info"):
-        setattr(pytestconfig, "session_info", [])
-
-    yield request.node._request.test_info
-
-    pytestconfig.session_info.append(request.node._request.test_info)
-
-
-@pytest.fixture(scope="session")
-def save_session_info(pytestconfig, artifacts):
-    """Fixture function for saving additional attributes to configuration file."""
-    yield
-    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
 
 
 @pytest.fixture(scope="session")
