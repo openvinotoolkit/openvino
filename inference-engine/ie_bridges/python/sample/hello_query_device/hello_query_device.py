@@ -24,15 +24,17 @@ def main():
     ie = IECore()
 
 # ---------------------------Get metrics of available devices----------------------------------------------------------
+    log.info('Available devices:')
     for device in ie.available_devices:
         log.info(f'{device} :')
+        log.info('\tSUPPORTED_METRICS:')
         for metric in ie.get_metric(device, 'SUPPORTED_METRICS'):
             if metric not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS'):
                 try:
                     metric_val = ie.get_metric(device, metric)
                 except TypeError:
                     metric_val = 'UNSUPPORTED TYPE'
-                log.info(f'\t{metric}: {param_to_string(metric_val)}')
+                log.info(f'\t\t{metric}: {param_to_string(metric_val)}')
         log.info('')
 
         log.info('\tSUPPORTED_CONFIG_KEYS (default values):')
