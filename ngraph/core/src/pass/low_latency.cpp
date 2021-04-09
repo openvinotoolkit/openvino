@@ -193,10 +193,10 @@ bool pass::LowLatency_v2::run_on_function(shared_ptr<Function> f)
                     // Layers -> [new op: ReadValue] -> Subgraph operation
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
                     Output<Node> read_value_in = input.get_source_output();
-                    if (m_init_value == InitialValue::CONST)
-                    {
-                        read_value_in = create_init_subgraph(read_value_in);
-                    }
+                    //                    if (m_init_value == InitialValue::CONST)
+                    //                    {
+                    read_value_in = create_init_subgraph(read_value_in);
+                    //                    }
                     auto read_value = make_shared<ReadValue>(read_value_in, variable);
                     input.replace_source_output(read_value->output(0));
                     read_value->set_friendly_name(var_name);
