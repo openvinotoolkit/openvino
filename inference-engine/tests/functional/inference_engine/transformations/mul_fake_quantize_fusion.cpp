@@ -42,7 +42,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionPositiveConstant) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -81,7 +80,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantOnFirstInput) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -120,7 +118,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionReshape) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -159,7 +156,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantAllNegative) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -198,7 +194,6 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegative) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -276,7 +271,6 @@ TEST(TransformationTests, NegativeMulFakeQuantizeFusionNotAConstant) {
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::MulFakeQuantizeFusion>();
-        m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
