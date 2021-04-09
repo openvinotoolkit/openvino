@@ -15,21 +15,25 @@ Inference Engine sample applications include the following:
 - **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths).
    - [Hello Classification C++ Sample](../../inference-engine/samples/hello_classification/README.md)
    - [Hello Classification C Sample](../../inference-engine/ie_bridges/c/samples/hello_classification/README.md)
+   - [Hello Classification Python Sample](../../inference-engine/ie_bridges/python/sample/hello_classification/README.md)
 - **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the NV12 color format and pre-process it automatically during inference. The sample supports only images as inputs. 
    - [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md)
    - [Hello NV12 Input Classification C Sample](../../inference-engine/ie_bridges/c/samples/hello_nv12_input_classification/README.md)
 - **Hello Query Device Sample** – Query of available Inference Engine devices and their metrics, configuration values.
    - [Hello Query Device C++ Sample](../../inference-engine/samples/hello_query_device/README.md)
    - [Hello Query Device Python* Sample](../../inference-engine/ie_bridges/python/sample/hello_query_device/README.md)
-- **[Hello Reshape SSD C++ Sample**](../../inference-engine/samples/hello_reshape_ssd/README.md)** – Inference of SSD networks resized by ShapeInfer API according to an input size.
+- **Hello Reshape SSD Sample** – Inference of SSD networks resized by ShapeInfer API according to an input size.
+   - [Hello Reshape SSD C++ Sample**](../../inference-engine/samples/hello_reshape_ssd/README.md)
+   - [Hello Reshape SSD Python Sample**](../../inference-engine/ie_bridges/python/sample/hello_reshape_ssd/README.md)
 - **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs). 
    - [Image Classification C++ Sample Async](../../inference-engine/samples/classification_sample_async/README.md)
    - [Image Classification Python* Sample Async](../../inference-engine/ie_bridges/python/sample/classification_sample_async/README.md)
-- **[Image Classification Python* Sample](../../inference-engine/ie_bridges/python/sample/hello_classification/README.md)** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API (the sample supports only images as inputs).
 - **Neural Style Transfer Sample** – Style Transfer sample (the sample supports only images as inputs).
    - [Neural Style Transfer C++ Sample](../../inference-engine/samples/style_transfer_sample/README.md)
    - [Neural Style Transfer Python* Sample](../../inference-engine/ie_bridges/python/sample/style_transfer_sample/README.md)
-- **[nGraph Function Creation C++ Sample](../../inference-engine/samples/ngraph_function_creation_sample/README.md)** – Construction of the LeNet network using the nGraph function creation sample.
+- **nGraph Function Creation Sample** – Construction of the LeNet network using the nGraph function creation sample.
+   - [nGraph Function Creation C++ Sample](../../inference-engine/samples/ngraph_function_creation_sample/README.md)
+   - [nGraph Function Creation Python Sample](../../inference-engine/ie_bridges/python/sample/ngraph_function_creation_sample/README.md)
 - **Object Detection for SSD Sample** – Inference of object detection networks based on the SSD, this sample is simplified version that supports only images as inputs. 
    - [Object Detection for SSD C++ Sample](../../inference-engine/samples/object_detection_sample_ssd/README.md)
    - [Object Detection for SSD C Sample](../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)
@@ -39,7 +43,7 @@ Inference Engine sample applications include the following:
 
 ## Media Files Available for Samples
 
-To run the sample applications, you can use images and videos from the media files collection available at https://github.com/intel-iot-devkit/sample-videos.
+To run the sample applications, you can use images and videos from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 ## Samples that Support Pre-Trained Models
 

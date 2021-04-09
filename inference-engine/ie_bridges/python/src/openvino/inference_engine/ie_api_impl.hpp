@@ -23,6 +23,7 @@
 
 #include <ie_extension.h>
 #include <ie_core.hpp>
+#include <ie_iexecutable_network.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
