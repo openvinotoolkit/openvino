@@ -28,12 +28,20 @@ def main():
         log.info(f'{device} :')
         for metric in ie.get_metric(device, 'SUPPORTED_METRICS'):
             if metric not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS'):
-                log.info(f'\t{metric}: {param_to_string(ie.get_metric(device, metric))}')
+                try:
+                    metric_val = ie.get_metric(device, metric)
+                except TypeError:
+                    metric_val = 'UNSUPPORTED TYPE'
+                log.info(f'\t{metric}: {param_to_string(metric_val)}')
         log.info('')
 
         log.info('\tSUPPORTED_CONFIG_KEYS (default values):')
         for config_key in ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS'):
-            log.info(f'\t\t{config_key}: {param_to_string(ie.get_config(device, config_key))}')
+            try:
+                config_val = ie.get_config(device, config_key)
+            except TypeError:
+                config_val = 'UNSUPPORTED TYPE'
+            log.info(f'\t\t{config_key}: {param_to_string(config_val)}')
         log.info('')
 
 # ----------------------------------------------------------------------------------------------------------------------
