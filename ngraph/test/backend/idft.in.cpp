@@ -593,7 +593,6 @@ NGRAPH_TEST(${BACKEND_NAME}, idft3d_eval_bfloat16)
 
     handle->call({idft_output}, {backend_data});
 
-    auto result = read_vector<float>(idft_output);
     auto result = bfloat16::to_float_vector(read_vector<bfloat16>(idft_output));
     std::cout << "Actual result: ";
     for (auto x : result)
