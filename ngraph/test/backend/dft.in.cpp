@@ -1118,18 +1118,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval_float16)
     handle->call({dft_output}, {backend_data});
 
     auto result = to_float_vector(read_vector<float16>(dft_output));
-    std::cout << "Actual result: ";
-    for (auto x : result)
+    size_t num_of_elems = result.size();
+    for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        std::cout << x << ", ";
+        EXPECT_NEAR(result[j], expected_dft3d_float16_results[j], 0.00001);
     }
-    std::cout << "\n";
-    EXPECT_TRUE(test::all_close_f(expected_dft3d_float16_results, result));
-//     size_t num_of_elems = result.size();
-//     for (std::size_t j = 0; j < num_of_elems; ++j)
-//     {
-//         EXPECT_NEAR(result[j], expected_dft3d_bfloat16_results[j], 0.00001);
-//     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval_bfloat16)

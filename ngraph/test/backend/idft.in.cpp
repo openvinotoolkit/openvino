@@ -7,6 +7,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
@@ -23,6 +24,38 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+
+static std::vector<float16> from_float_vector(const std::vector<float>& v_f32)
+{
+    if (v_f32.empty())
+    {
+        return std::vector<float16>();
+    }
+
+    size_t num_of_elems = v_f32.size();
+    std::vector<float16> v_f16(num_of_elems);
+    for (size_t i = 0; i < num_of_elems; ++i)
+    {
+        v_f16[i] = float16(v_f32[i]);
+    }
+    return v_f16;
+}
+
+static std::vector<float> to_float_vector(const std::vector<float16>& v_f16)
+{
+    if (v_f16.empty())
+    {
+        return std::vector<float>();
+    }
+
+    size_t num_of_elems = v_f16.size();
+    std::vector<float> v_f32(num_of_elems);
+    for (size_t i = 0; i < num_of_elems; ++i)
+    {
+        v_f32[i] = float(v_f16[i]);
+    }
+    return v_f32;
+}
 
 static const std::vector<float> expected_result =  {
     0.85943836,  0.009941814, 0.004292889, 0.54598427,   0.8270831,   0.49770153,  0.9035636,
@@ -464,6 +497,39 @@ NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval)
     }
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval_float16)
+{
+    auto data = std::make_shared<op::Parameter>(element::f16, Shape{2, 10, 10, 2});
+    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
+    auto idft = std::make_shared<op::v7::IDFT>(data, axes_input);
+
+    auto f = make_shared<Function>(idft, ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto idft_output = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
+
+    auto backend_data = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
+    copy_data(backend_data, from_float_vector(idft1d_input_data));
+
+    auto handle = backend->compile(f);
+
+    handle->call({idft_output}, {backend_data});
+
+    auto result = to_float_vector(read_vector<float16>(idft_output));
+    std::cout << "Actual result: ";
+    for (auto x : result)
+    {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
+    EXPECT_TRUE(test::all_close_f(expected_result, result));
+//     size_t num_of_elems = result.size();
+//     for (std::size_t j = 0; j < num_of_elems; ++j)
+//     {
+//         EXPECT_NEAR(result[j], expected_bfloat_idft1d_result[j], 0.000002);
+//     }
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, idft1d_eval_bfloat16)
 {
     auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
@@ -542,6 +608,39 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_eval)
     }
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, idft2d_eval_float16)
+{
+    auto data = std::make_shared<op::Parameter>(element::f16, Shape{2, 10, 10, 2});
+    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
+    auto idft = std::make_shared<op::v7::IDFT>(data, axes_input);
+
+    auto f = make_shared<Function>(idft, ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto idft_output = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
+
+    auto backend_data = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
+    copy_data(backend_data, from_float_vector(idft2d_input_data));
+
+    auto handle = backend->compile(f);
+
+    handle->call({idft_output}, {backend_data});
+
+    auto result = to_float_vector(read_vector<float16>(idft_output));
+    std::cout << "Actual result: ";
+    for (auto x : result)
+    {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
+    EXPECT_TRUE(test::all_close_f(expected_result, result));
+//     size_t num_of_elems = result.size();
+//     for (std::size_t j = 0; j < num_of_elems; ++j)
+//     {
+//         EXPECT_NEAR(result[j], expected_bfloat_idft2d_result[j], 0.000003);
+//     }
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, idft2d_eval_bfloat16)
 {
     auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
@@ -618,6 +717,39 @@ NGRAPH_TEST(${BACKEND_NAME}, idft3d_eval)
     {
         EXPECT_NEAR(result[j], expected_result[j], 0.000003);
     }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, idft3d_eval_float16)
+{
+    auto data = std::make_shared<op::Parameter>(element::f16, Shape{2, 10, 10, 2});
+    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{3}, {0, 1, 2});
+    auto idft = std::make_shared<op::v7::IDFT>(data, axes_input);
+
+    auto f = make_shared<Function>(idft, ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto idft_output = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
+
+    auto backend_data = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
+    copy_data(backend_data, from_float_vector(idft3d_input_data));
+
+    auto handle = backend->compile(f);
+
+    handle->call({idft_output}, {backend_data});
+
+    auto result = to_float_vector(read_vector<float16>(idft_output));
+    std::cout << "Actual result: ";
+    for (auto x : result)
+    {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
+    EXPECT_TRUE(test::all_close_f(expected_result, result));
+//     size_t num_of_elems = result.size();
+//     for (std::size_t j = 0; j < num_of_elems; ++j)
+//     {
+//         EXPECT_NEAR(result[j], expected_bfloat_idft3d_result[j], 0.000003);
+//     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, idft3d_eval_bfloat16)
