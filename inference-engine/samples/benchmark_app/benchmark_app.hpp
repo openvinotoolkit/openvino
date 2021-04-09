@@ -51,7 +51,9 @@ static const char infer_num_streams_message[] = "Optional. Number of streams to 
                                                 "while for the best-latency estimations the number of streams should be set to 1.";
 
 /// @brief message for enforcing of BF16 execution where it is possible
-static const char enforce_bf16_message[] = "Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.";
+static const char enforce_bf16_message[] = "Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.\n"
+                                           "                                  'true'  - enable  bfloat16 regardless of platform support\n"
+                                           "                                  'false' - disable bfloat16 regardless of platform support";
 
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.";
@@ -249,7 +251,7 @@ static void showUsage() {
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -enforcebf16              " << enforce_bf16_message << std::endl;
+    std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
     std::cout << "    -pin \"YES\"/\"NO\"/\"NUMA\"    " << infer_threads_pinning_message << std::endl;
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;

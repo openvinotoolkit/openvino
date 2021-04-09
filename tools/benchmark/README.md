@@ -110,16 +110,17 @@ Options:
                         "input1[NCHW],input2[NC]" or "[NCHW]" in case of one
                         input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                       Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD
-                       (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                       Default value is determined automatically for a device.
-                       Please note that although the automatic selection usually provides a reasonable performance,
-                       it still may be non-optimal for some cases, especially for very small networks.
-                       Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
-                       estimations the number of streams should be set to 1.
--enforcebf16 [ENFORCE_BFLOAT16], --enforce_bfloat16 [ENFORCE_BFLOAT16]
-                        Optional. Enforcing of floating point operations
-                        execution in bfloat16 precision where it is acceptable.
+                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD
+                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
+                        Default value is determined automatically for a device.
+                        Please note that although the automatic selection usually provides a reasonable performance,
+                        it still may be non-optimal for some cases, especially for very small networks.
+                        Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
+                        estimations the number of streams should be set to 1.
+  -enforcebf16 [{true,false}], --enforce_bfloat16 [{true,false}]
+                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
+                        'true'  - enable  bfloat16 regardless of platform support
+                        'false' - disable bfloat16 regardless of platform support.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU
                         (including HETERO  and MULTI cases).
