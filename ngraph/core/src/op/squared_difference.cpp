@@ -10,7 +10,10 @@ using namespace ngraph;
 
 // ------------------------------ v0 -------------------------------------------
 
-constexpr NodeTypeInfo op::SquaredDifference::type_info;
+NGRAPH_RTTI_DEFINITION(op::SquaredDifference,
+                       "SquaredDifference",
+                       0,
+                       util::BinaryElementwiseArithmetic);
 
 op::SquaredDifference::SquaredDifference(const Output<Node>& arg0,
                                          const Output<Node>& arg1,

@@ -18,8 +18,9 @@ namespace ngraph
             class NGRAPH_API SquaredDifference : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"SquaredDifference", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
+                /// \brief Constrcuts an uninitialized squared difference operation
                 SquaredDifference()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
                 {
