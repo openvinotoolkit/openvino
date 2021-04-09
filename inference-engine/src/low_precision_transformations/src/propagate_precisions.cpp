@@ -23,8 +23,17 @@ using namespace ngraph::pass::low_precision;
 
 std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentInputRestrictions(const std::shared_ptr<ngraph::Node> node) {
     std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentAttributes;
-    for (Input<Node>& input : node->inputs()) {
-        const auto& inputNode = input.get_source_output().get_node()->shared_from_this();
+    for (size_t index = 0ul; index < node->get_input_size(); index++) {
+        const Input<Node>& input = node->input(index);
+        auto& inputNode = input.get_source_output().get_node()->shared_from_this();
+
+        const auto dequantization = NetworkHelper::getDequantization(node, index);
+        if (!dequantization.empty() &&
+            (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+            is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+            inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
+        }
+
         if (NetworkHelper::isPrecisionPreserved(inputNode)) {
             for (const Input<Node>& input : inputNode->inputs()) {
                 auto& inputRtInfo = input.get_rt_info();
@@ -88,7 +97,6 @@ std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> ge
     return nullptr;
 }
 
-
 std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentOutputRestrictions(const std::shared_ptr<ngraph::Node> node) {
     std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentOutputAttributes;
     for (Input<Node>& input : node->inputs()) {
@@ -149,7 +157,26 @@ void replaceAttributeInInputs(
                 }
             }
         } else {
-            for (auto& input : node->inputs()) {
+            for (size_t index = 0ul; index < node->get_input_size(); ++index) {
+                //auto getInput = [](const std::shared_ptr<Node>& node, const size_t index) -> const Input<Node> {
+                //    // TODO: isPrecisionPreserved
+                //    const auto dequantization = NetworkHelper::getDequantization(node, index);
+                //    if (!dequantization.empty() &&
+                //        (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                //        is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+
+                //        const auto& targetInputs = dequantization.data.get_target_inputs();
+                //        if (targetInputs.size() == 1ul) {
+                //            return *targetInputs.begin();
+                //        }
+                //    }
+
+                //    return node->input(index);
+                //};
+
+                //auto input = getInput(node, index);
+
+                auto& input = node->input(index);
                 auto& rt = input.get_rt_info();
 
                 if (node == initialNode) {
@@ -175,7 +202,28 @@ void replaceAttributeInInputs(
         }
 
         if (!is_type<opset1::FakeQuantize>(node)) {
-            for (auto& input : node->inputs()) {
+            for (size_t index = 0ul; index < node->get_input_size(); ++index) {
+                auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
+                    const auto dequantization = NetworkHelper::getDequantization(node, index);
+                    if (!dequantization.empty() &&
+                        (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                        is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+
+                        const auto input = dequantization.data.get_node()->input(0);
+                        return input;
+
+                        //const auto fakeQuantize = dequantization.data.get_node()->input(0);
+                        //if (is_type<opset1::FakeQuantize>(fakeQuantize)) {
+                        //    const auto& targetInputs = dequantization.data.get_target_inputs();
+                        //    if (targetInputs.size() == 1ul) {
+                        //        return *targetInputs.begin();
+                        //    }
+                        //}
+                    }
+                    return node->input(index);
+                };
+
+                auto& input = getInput(node, index);
                 const auto& input_node = input.get_source_output().get_node_shared_ptr();
                 if (visited.count(input_node) || is_type<op::Constant>(input_node)) {
                     continue;
@@ -285,11 +333,6 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
                     return attributes;
                 };
 
-                auto parentAttributes = getAttributes(input);
-                if (parentAttributes.empty()) {
-                    continue;
-                }
-
                 auto& nodeRt = input.get_rt_info();
 
                 const static std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
@@ -300,6 +343,11 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
 
                 const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
                 std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes{ attribute};
+
+                auto parentAttributes = getAttributes(input);
+                if (parentAttributes.empty()) {
+                    continue;
+                }
 
                 for (auto& parentAttribute : parentAttributes) {
                     parentAttribute->merge(attributes);

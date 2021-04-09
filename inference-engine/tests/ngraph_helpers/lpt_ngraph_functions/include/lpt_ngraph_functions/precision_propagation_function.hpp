@@ -21,8 +21,14 @@ public:
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
+        const DequantizationOperations::Convert& convert1,
+        const DequantizationOperations& dequantization1,
         const FakeQuantizeOnData& fqOnData2,
-        const FakeQuantizeOnData& fqOnData3);
+        const DequantizationOperations::Convert& convert2,
+        const DequantizationOperations& dequantization2,
+        const FakeQuantizeOnData& fqOnData3,
+        const DequantizationOperations::Convert& convert3,
+        const DequantizationOperations& dequantization3);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
         const ngraph::element::Type precision,

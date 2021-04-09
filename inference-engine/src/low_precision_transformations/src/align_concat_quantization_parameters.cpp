@@ -246,8 +246,16 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
 
         // get nodes
         std::vector<std::shared_ptr<ngraph::Node>> inputNodes;
-        for (const auto& input : node->inputs()) {
+        for (auto index = 0ul; index < node->get_input_size(); ++index) {
+            const auto& input = node->input(index);
             auto inputNode = input.get_source_output().get_node_shared_ptr();
+
+            const auto dequantization = NetworkHelper::getDequantization(inputNode, index);
+            if (!dequantization.empty() &&
+                (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
+            }
 
             auto existingIntervalsAttribute = getAttribute<IntervalsAlignmentAttributePtr>(inputNode);
             if (existingIntervalsAttribute != nullptr) {

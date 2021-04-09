@@ -274,6 +274,14 @@ void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, 
     if (!friendlyName.empty()) {
         target->set_friendly_name(friendlyName);
     }
+
+    auto& targetRt = target->output(0).get_rt_info();
+    for (auto& source : sources) {
+        const auto& sourceRt = source->output(0).get_rt_info();
+        for (const auto& it : sourceRt) {
+            targetRt[it.first] = it.second;
+        }
+    }
 }
 
 void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
@@ -559,7 +567,14 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
         fakeQuantize->get_levels());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newFakeQuantize, node->get_output_element_type(0));
     replace_node(node->shared_from_this(), newFakeQuantize);
-    newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
+    NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
+
+    //const auto& originalRt = fakeQuantize->output(0).get_rt_info();
+    //auto& newRt = newFakeQuantize->output(0).get_rt_info();
+    //for (const auto& it : originalRt) {
+    //    newRt[it.first] = it.second;
+    //}
+
     return newFakeQuantize;
 }
 
@@ -733,7 +748,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_levels(),
             newFakeQuantize->get_auto_broadcast());
         replace_node(dequantization.convert, replacement);
-        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        copyInfo({ dequantization.convert, fakeQuantize }, replacement);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, dequantization.convert->output(0).get_element_type());
         newFakeQuantize = replacement;
     }
@@ -752,7 +768,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_levels(),
             newFakeQuantize->get_auto_broadcast());
         replace_node(dequantization.subtract, replacement);
-        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        copyInfo({ dequantization.subtract, newFakeQuantize }, replacement);
         newFakeQuantize = replacement;
     }
 
@@ -788,7 +805,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_auto_broadcast());
 
         replace_node(dequantization.multiply, replacement);
-        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        copyInfo({ dequantization.multiply, newFakeQuantize }, replacement);
         newFakeQuantize = replacement;
     }
 
@@ -1179,7 +1197,12 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
 FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shared_ptr<Node>& node) {
     const Output<Node> dataNode = node->output(0);
-    std::shared_ptr<Node> lastNode = dataNode.get_target_inputs().begin()->get_node()->shared_from_this();
+    const auto& targetInputs = dataNode.get_target_inputs();
+    if (targetInputs.size() == 0ul) {
+        return FakeQuantizeDequantization();
+    }
+
+    std::shared_ptr<Node> lastNode = targetInputs.begin()->get_node()->shared_from_this();
 
     const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(lastNode);
     if (convert != nullptr) {
