@@ -23,7 +23,7 @@ namespace ngraph
                         const Shape& indices_shape,
                         const Shape& out_shape,
                         size_t axis,
-                        size_t batch_dims)
+                        size_t batch_dims=0)
             {
                 // flattened shapes
                 int64_t batch_size = shape_size(span(data_shape).subspan(0, batch_dims));
@@ -63,17 +63,6 @@ namespace ngraph
                     }
             }
 
-            template <typename T, typename U>
-            void gather(const T* const data,
-                        const U* const indices,
-                        T* const out,
-                        const Shape& data_shape,
-                        const Shape& indices_shape,
-                        const Shape& out_shape,
-                        size_t axis)
-            {
-                gather(data, indices, out, data_shape, indices_shape, out_shape, axis, 0);
-            }
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
