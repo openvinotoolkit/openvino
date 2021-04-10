@@ -234,15 +234,16 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::b_fs_yx_32fp,           {1, 32}}
     };
 
-    auto block_layout = block_layouts.find(params.inputs[0].GetLayout());
-    if (block_layout != block_layouts.end()) {
-        auto block_size = block_layout->second;
-        if (params.inputs[0].Batch().v % block_size.first != 0 || params.inputs[0].Feature().v % block_size.second != 0)
-                return false;
-    }
-
     if (params.inputs.size()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
+
+        auto block_layout = block_layouts.find(params.inputs[0].GetLayout());
+        if (block_layout != block_layouts.end()) {
+            auto block_size = block_layout->second;
+            if (params.inputs[0].Batch().v % block_size.first != 0 || params.inputs[0].Feature().v % block_size.second != 0)
+                    return false;
+        }
+
         if (params.fused_ops.size()) {
             for (auto fused_op : params.fused_ops) {
                 for (size_t in = 0; in < fused_op.tensors.size(); in++) {
@@ -250,12 +251,11 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
                         continue;
 
                     auto layout = block_layouts.find(fused_op.tensors[in].GetLayout());
-                    if (layout == block_layouts.end())
-                        continue;
-
-                    auto block_size = layout->second;
-                    if (fused_op.tensors[in].Batch().v % block_size.first != 0 || fused_op.tensors[in].Feature().v % block_size.second != 0)
-                        return false;
+                    if (layout != block_layouts.end()) {
+                        auto block_size = layout->second;
+                        if (fused_op.tensors[in].Batch().v % block_size.first != 0 || fused_op.tensors[in].Feature().v % block_size.second != 0)
+                            return false;
+                    }
 
                     no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == fused_op.tensors[in]);
                 }
@@ -264,13 +264,13 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
 
         for (size_t i = 1; i < params.inputs.size(); i++) {
             no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.inputs[i]);
-            auto layout = block_layouts.find(params.inputs[i].GetLayout());
-            if (layout == block_layouts.end())
-                continue;
 
-            auto block_size = layout->second;
-            if (params.inputs[i].Batch().v % block_size.first != 0 || params.inputs[i].Feature().v % block_size.second != 0)
-                return false;
+            auto layout = block_layouts.find(params.inputs[i].GetLayout());
+            if (layout != block_layouts.end()) {
+                auto block_size = layout->second;
+                if (params.inputs[i].Batch().v % block_size.first != 0 || params.inputs[i].Feature().v % block_size.second != 0)
+                    return false;
+            }
         }
 
         no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.output);
