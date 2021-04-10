@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file that provides wrapper classes for IExecutableNetwork
- * 
+ *
  * @file ie_executable_network.hpp
  */
 #pragma once
@@ -38,6 +38,12 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
     friend class InferencePlugin;
 
 public:
+    /**
+     * @brief A smart pointer to the ExecutableNetwork object
+     */
+    using Ptr = std::shared_ptr<ExecutableNetwork>;
+
+
     /**
      * @brief Default constructor
      */
@@ -95,7 +101,7 @@ public:
      * Wraps IExecutableNetwork::CreateInferRequest.
      * @return shared pointer on InferenceEngine::InferRequest object
      */
-    INFERENCE_ENGINE_DEPRECATED("Use CreateInferRequest")
+    INFERENCE_ENGINE_DEPRECATED("Use CreateInferRequest instead")
     InferRequest::Ptr CreateInferRequestPtr();
 
     /**
@@ -179,7 +185,6 @@ public:
      * @return A context
      */
     RemoteContext::Ptr GetContext() const;
-
     /**
      * @brief Checks if current ExecutableNetwork object is not initialized
      * @return true if current ExecutableNetwork object is not initialized, false - otherwise
