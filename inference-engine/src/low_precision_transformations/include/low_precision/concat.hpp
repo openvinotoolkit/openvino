@@ -35,12 +35,22 @@ protected:
         ngraph::pass::low_precision::Subgraph& subgraph,
         std::function<void(
             std::shared_ptr<ngraph::Node> layer,
+            std::shared_ptr<ngraph::Node> child,
             const std::string originalLayerName,
             std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const;
 
     static bool isHandled(
         const TransformationContext& context,
         const std::vector<std::shared_ptr<ngraph::Node>>& quantizationOperations);
+
+    void fillDequantizationNodes(
+        const std::vector<FakeQuantizeDequantization>& layerDequantizations,
+        const std::shared_ptr<Node> layer,
+        NodeVector& convertNodes,
+        NodeVector& subtractNodes,
+        NodeVector& multiplyNodes) const;
+
+    std::shared_ptr<Node> concatenateDeqNodes(NodeVector& nodes) const;
 
 private:
     size_t getMinQuantizationLevels(
