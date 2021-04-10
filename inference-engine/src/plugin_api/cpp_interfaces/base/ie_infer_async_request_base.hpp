@@ -153,8 +153,12 @@ public:
     }
 
     StatusCode GetUserData(void** data, ResponseDesc*) noexcept override {
-        *data = _data;
-        return OK;
+        if (data != nullptr) {
+            *data = _data;
+            return OK;
+        } else {
+            return GENERAL_ERROR;
+        }
     }
 
     StatusCode SetUserData(void* data, ResponseDesc*) noexcept override {
