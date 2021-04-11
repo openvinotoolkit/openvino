@@ -101,22 +101,7 @@ output = [[1.0, 5.0, 9.0],
           [2.0, 10.0, 18.0]]
 ```
 
-Example 5 shows how *Einsum* extracts a diagonal for each batch object:
-
-```
-A = [[[1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0],
-      [7.0, 8.0, 9.0]],
-     [[2.0, 4.0, 6.0],
-      [8.0, 10.0, 12.0],
-      [14.0, 16.0, 18.0]],
-     ])
-equation = "kii->ki"
-output = [[1.0, 5.0, 9.0],
-          [2.0, 10.0, 18.0]]
-```
-
-Example 6 shows how *Einsum* transposes input tensor:
+Example 5 shows how *Einsum* transposes input tensor:
 
 ```
 A = [[[1.0, 2.0, 3.0],
@@ -138,7 +123,7 @@ For example, *Einsum* operation on two inputs (of shapes `[11, 1, 4, 3]` and `[3
 has ellipsis for both operands covering dimensions with sizes `[1, 4]` and `[11, 7, 1]` that are broadcasted to `[11, 7, 4]`.
 The resulted shape of *Einsum* operation will be `[11, 11, 7, 4]` since a dimension labeled with `a` is left alongside with broadcasted dimensions.
 
-Example 7 shows how *Einsum* operates on the single input with an equation containing ellipsis:
+Example 6 shows how *Einsum* operates on the single input with an equation containing ellipsis:
 
 ```
 A = [[1.0, 2.0, 3.0],
@@ -148,7 +133,7 @@ equation = "a...->..."
 output = [12.0, 15.0, 17.0])
 ```
 
-Example 8 shows how *Einsum* operates with broadcasting two operands:
+Example 7 shows how *Einsum* operates with broadcasting two operands:
 
 ```
 A = [[1.0, 2.0, 3.0],
