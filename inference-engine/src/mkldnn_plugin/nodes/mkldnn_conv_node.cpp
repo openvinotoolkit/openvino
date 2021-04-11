@@ -251,6 +251,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                     // bofore the fused convolution. This behaviour might be more correct regarding expected markup
                     // of the graph but performance of first and second approaches might be different. Need to verify
                     outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
+                    eltwisePrecision = MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType);
                 }
             }
         }

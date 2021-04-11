@@ -582,6 +582,13 @@ public:
         originalInputPrecisions[port] = precision;
     }
 
+    void setOriginalOutputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
+        if (originalOutputPrecisions.size() <= port) {
+            IE_THROW() << "Incorrect output port number for node " << getName();
+        }
+        originalOutputPrecisions[port] = precision;
+    }
+
     void addOriginalInputPrecision(InferenceEngine::Precision precision) {
         originalInputPrecisions.push_back(precision);
     }

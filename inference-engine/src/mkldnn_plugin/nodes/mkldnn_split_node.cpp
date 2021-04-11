@@ -60,10 +60,6 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::Precision inpPrecision = inpData->getPrecision();
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
-<<<<<<< HEAD
-=======
-    auto axisPrecision = getOriginalInputPrecisionAtPort(1);
->>>>>>> fixes second review
 
     bool dynBatchSupport = true;
     if (axis < 1) {

@@ -8,17 +8,21 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ReshapeFullyConnectedFusion, "ReshapeFullyConnectedFusion", 0);
 
 MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     auto m_reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>(ngraph::pattern::has_static_shape());
-    auto m_fc = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>({m_reshape, ngraph::pattern::any_input()});
+    ngraph::OutputVector twoInputs = {m_reshape, ngraph::pattern::any_input()};
+    ngraph::OutputVector threeInputs = {m_reshape, ngraph::pattern::any_input(), ngraph::pattern::any_input()};
+    auto fcTwoInputs = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(twoInputs, ngraph::pattern::has_static_shape());
+    auto fcThreeInputs = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(threeInputs, ngraph::pattern::has_static_shape());
+    const auto fcTwoOrThreeInputs = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fcTwoInputs, fcThreeInputs});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto & pattern_to_output = m.get_pattern_value_map();
-        auto fc = pattern_to_output[m_fc].get_node_shared_ptr();
-        auto reshape = pattern_to_output[m_reshape].get_node_shared_ptr();
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(m.get_match_root());
+        auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(fc->get_input_node_shared_ptr(0));
 
         // Check that Reshape reshapes 4D tensor to 2D or input shape = output shape
         auto shape_in = reshape->input_value(0).get_shape();
@@ -71,6 +75,6 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_fc, "ReshapeFullyConnectedFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fcTwoOrThreeInputs, "ReshapeFullyConnectedFusion");
     register_matcher(m, callback);
 }

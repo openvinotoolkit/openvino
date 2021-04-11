@@ -83,4 +83,4 @@ MKLDNN_EXTENSION_NODE(GatherTreeImpl, GatherTree);
 //MKLDNN_EXTENSION_NODE(SparseSegmentReduceImpl, SparseSegmentMean);
 //MKLDNN_EXTENSION_NODE(SparseSegmentReduceImpl, SparseSegmentSqrtN);
 //MKLDNN_EXTENSION_NODE(SparseSegmentReduceImpl, SparseSegmentSum);
-//MKLDNN_EXTENSION_NODE(CumSumImpl, CumSum);
+MKLDNN_EXTENSION_NODE(CumSumImpl, CumSum);

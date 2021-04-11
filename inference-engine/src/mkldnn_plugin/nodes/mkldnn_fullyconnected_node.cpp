@@ -24,10 +24,6 @@ bool MKLDNNFullyConnectedNode::isSupportedOperation(const std::shared_ptr<ngraph
             errorMessage = "Only legacy FullyConnected operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fc->get_input_node_shared_ptr(WEIGHTS_ID)) == nullptr) {
-            errorMessage = "Only Constant operation on 'weights' input is supported";
-            return false;
-        }
         if (fc->get_input_size() == 3 && std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fc->get_input_node_shared_ptr(BIAS_ID)) == nullptr) {
             errorMessage = "Only Constant operation on 'bias' input is supported";
             return false;
