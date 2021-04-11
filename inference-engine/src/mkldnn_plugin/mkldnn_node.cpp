@@ -521,6 +521,7 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
     SEARCH_TYPE(ref);
 
     SEARCH_TYPE(avx512);
+    SEARCH_TYPE(amx);
     SEARCH_TYPE(avx2);
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
@@ -915,6 +916,9 @@ void MKLDNNNode::cleanup() {
 const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,
