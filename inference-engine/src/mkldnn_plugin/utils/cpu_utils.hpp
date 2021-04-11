@@ -54,4 +54,41 @@ inline bool isEmptyTensorDesc(const InferenceEngine::TensorDesc &td) {
     return std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
 }
 
+/**
+* @brief Return precision to which given precision must be converted to be supported in plug-in
+* @param precision
+* precision for convert
+* @return plug-in supported precision or UNSPECIFIED if precision unsupported
+*/
+inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine::Precision precision) {
+    switch (precision) {
+        case InferenceEngine::Precision::U8:
+        case InferenceEngine::Precision::I8:
+        case InferenceEngine::Precision::I32:
+        case InferenceEngine::Precision::BF16:
+        case InferenceEngine::Precision::FP32: {
+            break;
+        }
+        case InferenceEngine::Precision::BOOL: {
+            precision = InferenceEngine::Precision::U8;
+            break;
+        }
+        case InferenceEngine::Precision::U16:
+        case InferenceEngine::Precision::I16:
+        case InferenceEngine::Precision::I64:
+        case InferenceEngine::Precision::U64: {
+            precision = InferenceEngine::Precision::I32;
+            break;
+        }
+        case InferenceEngine::Precision::FP16: {
+            precision = InferenceEngine::Precision::FP32;
+            break;
+        }
+        default: {
+            precision = InferenceEngine::Precision::UNSPECIFIED;
+        }
+    }
+    return precision;
+}
+
 }  // namespace MKLDNNPlugin

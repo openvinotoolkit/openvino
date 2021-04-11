@@ -20,7 +20,8 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_async_infer_request.h"
 #include <debug.h>
-
+#include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
@@ -103,33 +104,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             IE_THROW() << "Input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name " << input.first;
         }
         auto inPrec = input.second->getTensorDesc().getPrecision();
+        if (graph->hasMeanImageFor(input.first) && one_of(inPrec, InferenceEngine::Precision::U8, InferenceEngine::Precision::BOOL)) {
+            inPrec = InferenceEngine::Precision::FP32;
+        } else {
+            inPrec = normalizeToSupportedPrecision(inPrec);
+        }
 
-        switch (inPrec) {
-            // these precisions are supported by mkldnn, so we push the blob directly
-            case InferenceEngine::Precision::I8:
-            case InferenceEngine::Precision::I32:
-            case InferenceEngine::Precision::BF16:
-            case InferenceEngine::Precision::FP32: {
-                break;
-            }
-            // these precisions are supported by mkldnn, so we push the blob directly
-            // BUT if a mean image exists, we convert the blob and send FP32
-            case InferenceEngine::Precision::U8:
-            case InferenceEngine::Precision::BOOL: {
-                if (graph->hasMeanImageFor(input.first))
-                    inPrec = InferenceEngine::Precision::FP32;
-                break;
-            }
-            // these precisions are unsupported by mkldnn, so we convert the blob and send I32
-            case InferenceEngine::Precision::U16:
-            case InferenceEngine::Precision::I16:
-            case InferenceEngine::Precision::I64:
-            case InferenceEngine::Precision::U64: {
-                inPrec = InferenceEngine::Precision::I32;
-                break;
-            }
-            default:
-                IE_THROW() << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
+        if (inPrec == InferenceEngine::Precision::UNSPECIFIED) {
+            IE_THROW() << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
         }
 
         // User can initialize input via setBlob API using tensorDesc with default (ANY) layout.
@@ -257,11 +239,10 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
         _inputs[name] = make_blob_with_precision(desc);
         _inputs[name]->allocate();
-        // [NM] TODO mandrono
-        // if (desc.getPrecision() == originPrecision &&
-        //         graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
-        //     externalPtr[name] = _inputs[name]->buffer();
-        // }
+        if (desc.getPrecision() == originPrecision &&
+                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+            externalPtr[name] = _inputs[name]->buffer();
+        }
         data = _inputs[name];
         checkBlob(data, name, true);
         return data;
@@ -287,10 +268,9 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
         _outputs[name] = make_blob_with_precision(desc);
         _outputs[name]->allocate();
-        // [NM] TODO mandrono
-        // if (desc.getPrecision() == originPrecision && !graph->getProperty().batchLimit) {
-        //     externalPtr[name] = _outputs[name]->buffer();
-        // }
+        if (desc.getPrecision() == originPrecision && !graph->getProperty().batchLimit) {
+            externalPtr[name] = _outputs[name]->buffer();
+        }
         data = _outputs[name];
         checkBlob(data, name, false);
         return data;
@@ -354,13 +334,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
-            // [NM] TODO mandrono: if input precision == FP32 but node precision != FP32 convertion doesn't performed
-            // if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
-            //     graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
-            //     externalPtr[name] = data->buffer();
-            // } else if (externalPtr.find(name) != externalPtr.end()) {
-            //     externalPtr.erase(name);
-            // }
+            if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
+                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+                externalPtr[name] = data->buffer();
+            } else if (externalPtr.find(name) != externalPtr.end()) {
+                externalPtr.erase(name);
+            }
             _inputs[name] = data;
         }
     } else {
@@ -387,13 +366,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 IE_THROW(ParameterMismatch) << "Failed to set output blob. Blocking descriptor mismatch.";
         }
 
-        // TODO: [NM]
-        // if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
-        //         !graph->getProperty().batchLimit) {
-        //     externalPtr[name] = data->buffer();
-        // } else if (externalPtr.find(name) != externalPtr.end()) {
-        //     externalPtr.erase(name);
-        // }
+        if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
+                !graph->getProperty().batchLimit) {
+            externalPtr[name] = data->buffer();
+        } else if (externalPtr.find(name) != externalPtr.end()) {
+            externalPtr.erase(name);
+        }
         _outputs[name] = data;
     }
 }

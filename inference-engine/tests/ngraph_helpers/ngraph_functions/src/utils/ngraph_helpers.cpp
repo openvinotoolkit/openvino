@@ -346,6 +346,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
             case element::Type_t::u64: {
                 return convertPrecision<uint8_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::boolean: {
+                return convertPrecision<uint8_t, char>(output, elementsCount, element::Type(toPrecision).size());
+            }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
                                                                                                         element::Type(toPrecision).get_type_name());
@@ -382,6 +385,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
             }
             case element::Type_t::u64: {
                 return convertPrecision<uint16_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::boolean: {
+                return convertPrecision<uint16_t, char>(output, elementsCount, element::Type(toPrecision).size());
             }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
@@ -420,6 +426,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
             case element::Type_t::u64: {
                 return convertPrecision<int8_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::boolean: {
+                return convertPrecision<int8_t, char>(output, elementsCount, element::Type(toPrecision).size());
+            }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
                                                                                                         element::Type(toPrecision).get_type_name());
@@ -456,6 +465,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
             }
             case element::Type_t::u64: {
                 return convertPrecision<int16_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::boolean: {
+                return convertPrecision<int16_t, char>(output, elementsCount, element::Type(toPrecision).size());
             }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
@@ -494,6 +506,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
             case element::Type_t::u64: {
                 return convertPrecision<int32_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::boolean: {
+                return convertPrecision<int32_t, char>(output, elementsCount, element::Type(toPrecision).size());
+            }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
                                                                                                         element::Type(toPrecision).get_type_name());
@@ -531,6 +546,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
             case element::Type_t::u64: {
                 return convertPrecision<int64_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::boolean: {
+                return convertPrecision<int64_t, char>(output, elementsCount, element::Type(toPrecision).size());
+            }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
                                                                                                         element::Type(toPrecision).get_type_name());
@@ -567,6 +585,9 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
             }
             case element::Type_t::u64: {
                 return convertPrecision<uint64_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::boolean: {
+                return convertPrecision<uint64_t, char>(output, elementsCount, element::Type(toPrecision).size());
             }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +

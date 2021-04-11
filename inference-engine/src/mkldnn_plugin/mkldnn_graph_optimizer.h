@@ -24,6 +24,7 @@ private:
     void FuseMultiplyAndAdd(MKLDNNGraph &graph);
     void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);

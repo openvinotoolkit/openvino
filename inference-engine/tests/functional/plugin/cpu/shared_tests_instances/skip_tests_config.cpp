@@ -62,7 +62,6 @@ std::vector<std::string> disabledTestPatterns() {
         // shared SLT test
         R"(.*BatchToSpaceLayerTest.*)",
         R"(.*BucketizeLayerTest.*)",
-        R"(.*CumSumLayerTest.*)",
         R"(.*DepthToSpaceLayerTest.*)",
         R"(.*ExtractImagePatchesTest.*)",
         R"(.*GRUCellTest.*)",
@@ -70,6 +69,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LogSoftmaxLayerTest.*)",
         R"(.*StaticShapeLoopTest.*)",
         R"(.*TrivialLoopTest.*)",
+        R"(.*LoopTest.*)",
         R"(.*LSTMCellTest.*)",
         R"(.*LSTMSequenceTest.*)",
         R"(.*OneHotLayerTest.*)",
@@ -79,9 +79,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*SelectLayerTest.*)",
         R"(.*SpaceToBatchLayerTest.*)",
         R"(.*SpaceToDepthLayerTest.*)",
-        R"(.*StridedSliceLayerTest.*)",
         R"(.*TensorIteratorTest.*)",
         R"(.*VariadicSplitPad.*)",
+
+        // unsupported operation
+        // LPT_BS2/DepthToSpaceTransformation
+        // smoke_LPT_BS3/DepthToSpaceTransformation
+        R"(.*ExecGraphInputsFusingBinConv.*)",
 
         // dynamic batch
         R"(.*ReshapeCheckDynBatch.*)",
@@ -101,11 +105,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*QueryNetworkTest.*)",
 
         // plug-in specific tests
-        R"(.*CropLayerCPUTest.*)",
         R"(.*GatherElementsCPUTest.*)",
         R"(.*OneHotLayerCPUTest.*)",
         R"(.*AddConvertToReorderTest.*)",
-        R"(.*StridedSliceLayerCPUTest.*)",
 
         // InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone
         R"(.*AddOutputsTest.*)",
@@ -119,7 +121,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // input/output network
         R"(.*NetWithLayout.*)",
-        R"(.*SetBlobTest.*)",
         R"(.*SetBlobOfKindTest.*)",
         R"(.*PreprocessTest.*)",
         ".*PreprocessConversionTest.*",
