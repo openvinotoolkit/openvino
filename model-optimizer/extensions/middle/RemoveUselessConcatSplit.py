@@ -6,7 +6,7 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 
 class RemoveUselessConcatSplitPattern(MiddleReplacementPattern):
-    """
+    r"""
     Remove useless construction with concat and split like follows:
          /    /   |    \     \
        br1  br2   ..  br(n-1)br(n)
