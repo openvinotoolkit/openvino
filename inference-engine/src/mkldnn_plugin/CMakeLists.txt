@@ -22,7 +22,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_convert_node.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_crop_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_strided_slice_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
@@ -98,7 +98,6 @@ set(LAYERS
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/sparse_to_dense.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/bucketize.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/squeeze.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/strided_slice.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topkrois_onnx.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unique.cpp
 #    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
@@ -108,7 +107,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topk.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/cum_sum.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/cum_sum.cpp
 )
 
 file(GLOB SOURCES

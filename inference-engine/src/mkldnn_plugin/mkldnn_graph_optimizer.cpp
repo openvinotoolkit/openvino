@@ -77,6 +77,9 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
 
+    FuseConvolutionAndSimpleOperationThroughMaxPool(graph);
+    graph.RemoveDroppedNodes();
+
 // TODO [NM]: While fusing simple operation into any node (except Eltwise) we need to check that other inputs are Constant nodes.
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
@@ -1020,6 +1023,55 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
     //     graph.DropDWConvNode(childConvNode);
     // }
+}
+
+// TODO: mandrono: unite with FuseConvolutionAndSimpleOperation
+void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        return (node->getType() == Convolution || node->getType() == BinaryConvolution) && node->getChildEdges().size() == 1 &&
+               node->getOriginalOutputPrecisionAtPort(0) == Precision::FP32;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSutableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (childNode->getAlgorithm() != PoolingMax || childNode->getChildEdges().size() != 1) {
+            parent++;
+            continue;
+        }
+
+        auto fuseCandidate = childNode->getChildEdgeAt(0)->getChild();
+        if (parentNode->getType() == BinaryConvolution && !parentNode->canFuse(fuseCandidate)) {
+            parent++;
+            continue;
+        }
+
+        if (!one_of(fuseCandidate->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu, EltwiseClamp, EltwiseTanh,
+                                                   EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                                                   EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt)) {
+            parent++;
+            continue;
+        }
+        parentNode->addFusedNode(fuseCandidate);
+        parentNode->addOriginalLayer(fuseCandidate->getOriginalLayers());
+        auto parentEdges = fuseCandidate->parentEdges;
+        for (auto &parentEdge : parentEdges) {
+            auto p_edge = parentEdge.lock();
+            if (p_edge->getParent() == childNode)
+                continue;
+
+            removeEdge(graph, p_edge);
+        }
+        graph.DropNode(fuseCandidate);
+    }
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph) {

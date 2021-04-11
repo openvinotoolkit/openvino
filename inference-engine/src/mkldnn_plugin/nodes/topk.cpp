@@ -32,7 +32,7 @@ public:
         try {
             auto topKOp = ngraph::as_type_ptr<const ngraph::op::v1::TopK>(op);
             if (!topKOp) {
-                errorMessage = "Node is not an instance of the TopK from the operations set v1.";
+                errorMessage = "Node is not an instance of the TopK from the operations set v1 or v3";
                 return false;
             }
             if (topKOp->get_mode() != ngraph::op::TopKMode::MAX &&
@@ -40,7 +40,7 @@ public:
                 errorMessage = "Unsupported mode.";
                 return false;
             }
-            if (MKLDNNPlugin::one_of(topKOp->get_sort_type(), ngraph::op::TopKSortType::NONE,
+            if (!MKLDNNPlugin::one_of(topKOp->get_sort_type(), ngraph::op::TopKSortType::NONE,
                     ngraph::op::TopKSortType::SORT_VALUES,
                     ngraph::op::TopKSortType::SORT_INDICES)) {
                 errorMessage = "Unsupported sort type.";
