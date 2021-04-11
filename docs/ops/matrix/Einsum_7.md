@@ -25,11 +25,11 @@ The output subscript `<subscript for output>` is separated from the input subscr
 In the second step, it operates on the result of the first step and the third input and so forth.
 *Einsum* operates on two operands similar to element-wise multiplication by all pairs of batches from both operands. The batch dimensions are defined
 with labels that enter only one subscript from the corresponding two subscripts.
-For example, the intermediate result after the first step for *Einsum* with three inputs (of shapes `[2,5]`, `[5,3,6]` and `[5,3]`)
-and `equation` equal to `ab,bcd,bc->ca` will be a tensor of shape `[2,5,3,6]` with a subscript `abcd`
+For example, the intermediate result after the first step for *Einsum* with three inputs (of shapes `[2, 5]`, `[5, 3, 6]` and `[5, 3]`)
+and `equation` equal to `ab,bcd,bc->ca` will be a tensor of shape `[2, 5, 3, 6]` with a subscript `abcd`
 where batch dimensions for the first input and the second input are represented with label sequences `a` and `cd`.
-The next step performs the same logic on input tensors (of shapes `[2,5,3,6]` and `[5,3]`) with subscripts `abcd` and `bc` and
-outputs a tensor of shape `[2,5,3,6]` with a subscript `abcd`.
+The next step performs the same logic on input tensors (of shapes `[2, 5, 3, 6]` and `[5, 3]`) with subscripts `abcd` and `bc` and
+outputs a tensor of shape `[2, 5, 3, 6]` with a subscript `abcd`.
 Lastly, the output subscript defines order of output dimensions and which dimensions are sum-reduced.
 Dimensions corresponding to absent labels in the output subscript are sum-reduced. The final result for the considered example is of shape equal to `[3,2]`
 where dimensions with labels `b` and `d` are reduced and the transpose is applied to get output layout `ca`.
@@ -41,7 +41,7 @@ correspond must be equal in size.
 
 **NOTE**: A labels can repeat in the same input subscript, for example, `equation` equal to `aac,abd,ddde`. In this case the corresponding dimensions
 must match in size and the operand the operand will be replaced by its diagonal along these dimensions.
-For example, *Einsum* operation on the single 3D tensor of shape `[2,4,5,4]` with `equation` equal to `ijkj->ij`.
+For example, *Einsum* operation on the single 3D tensor of shape `[2, 4, 5, 4]` with `equation` equal to `ijkj->ij`.
 
 **NOTE**: The specification considers the primitive algorithm for *Einsum* operation for better understanding of the operation
 and does not recommend it for implementation.
@@ -128,26 +128,63 @@ output = [[[1.0, 4.0, 7.0],
            [3.0, 6.0, 9.0]]])
 ```
 
-In implicit mode (a classical form of Einstein summation) `equation` does not have the output subscript and has the following format:
-`<subscript for input1>, <subscript for input2>, ..., <subscript for inputn>`. The equation consists of only input subscripts for each operand.
-The output subscript can be recovered as a sequence of alphabetically sorted labels that do not -repeat in the left-hand of the equation.
+Aside a lower case label, ellipsis `...` can be used as a label in a subscript to cover broadcasted dimensions.
+Each input subscript can contain at most one ellipsis. For example, the ellipsis in input subscript `a...bc` for five rank tensor covers 
+the second and third dimensions. In case ellipsis presents in input subscripts for several operands, the dimensions covered by the ellipsis
+must be broadcastable to satisfy numpy broadcasting (or multidirectional broadcasting) rules available in
+<a href="https://numpy.org/doc/stable/user/basics.broadcasting.html#general-broadcasting-rules">numpy broadcasting documentation</a>.
+If ellipsis presents in at least one input subscript, the output subscript must always contain one ellipsis.
+For example, *Einsum* operation on two inputs (of shapes `[11, 1, 4, 3]` and `[3, 11, 7, 1]`) with `equation="a...b,b...->a..."`
+has ellipsis for both operands covering dimensions with sizes `[1, 4]` and `[11, 7, 1]` that are broadcasted to `[11, 7, 4]`.
+The resulted shape of *Einsum* operation will be `[11, 11, 7, 4]` since a dimension labeled with `a` is left alongside with broadcasted dimensions.
+
+Example 7 shows how *Einsum* operates on the single input with an equation containing ellipsis:
+
+```
+A = [[1.0, 2.0, 3.0],
+      [4.0, 5.0, 6.0],
+      [7.0, 8.0, 9.0]]
+equation = "a...->..."
+output = [12.0, 15.0, 17.0])
+```
+
+Example 8 shows how *Einsum* operates with broadcasting two operands:
+
+```
+A = [[1.0, 2.0, 3.0],
+      [4.0, 5.0, 6.0],
+      [7.0, 8.0, 9.0]]
+B = [0.5]
+equation = "a...,...->a..."
+output = [[0.5, 1.0, 1.5],
+          [2.0, 2.5, 3.0],
+          [3.5, 4.0, 4.5]]
+```
+
+**NOTE**: Deep learning frameworks support implicit mode (a classical form of Einstein summation) where the equation does not have the output subscript 
+and has the following format: `<subscript for input1>, <subscript for input2>, ..., <subscript for inputn>`.
+The equation consists of only input subscripts for each operand.
+The output subscript can be recovered as a sequence of alphabetically sorted labels that do not repeat in the left-hand of the equation.
 For example, `equation = "dbbc,ca"` in implicit mode is the same as `equation = "dbbc,ca->ad"`.
 The equation in implicit mode can set up only subset of Einstein summation conventions so this mode has limitations. For example,
-`equation = "kii->i"` cannot be represented in implicit mode.
+`equation = "kii->i"` cannot be represented in implicit mode. *Einsum* operation only supports explicit mode. In case of ellipsis label in the left-hand
+of the equation in implicit mode, the ellipsis will come first in the output subscript for the recovery.
 
-The *Einsum* operation has *einsum_path* attribute that can recommend an order of input contraction to plugins. In case of multiple inputs
-it can boost performance and reduce memory costs. The order of applying of *Einsum* operation to inputs makes sense in terms of performance.
-For example, *Einsum* operation on three inputs (of shapes `[2,2]`, `[2,5]` and `[5,2]`) with `equation="ij,jk,kl->il"` 
-will behave more effective if the operation performs on the second and the third inputs first to avoid a larger size dimension, i.e. the dimension 
-which size equal to `5`. So *einsum_path* can record an order of applying *Einsum* operation. For this example it will be equal to `[1,2],[0,1]`.
-
-The ellipsis `...` in subscript - TBD.
+The *Einsum* operation has *einsum_path* attribute that can recommend to plugins an order of input contraction. In case of multiple inputs
+the effective order can boost performance and reduce memory costs during *Einsum* computation. The order of applying of *Einsum* operation to inputs 
+makes sense in terms of performance. For example, *Einsum* operation on three inputs (of shapes `[2, 2]`, `[2, 5]` and `[5, 2]`) 
+with `equation="ij,jk,kl->il"` will behave more effective if the operation performs on the second and the third inputs first to avoid 
+a larger size dimension, i.e. the dimension which size is equal to `5`. So *einsum_path* can record an order of applying *Einsum* operation. 
+For this example it will be equal to `"[(1, 2), (0, 1)]"`. The format of *einsum_path* is in string format and represents a list of tuples with operand
+indices (the start index is `0`). The value of *einsum_path* indicates which inputs of *Einsum* operation should be contracted first, 
+the result of this contraction is then appended to the end of the contraction list. This list can then be iterated over until 
+all intermediate contractions are complete.
 
 **Attributes**:
 
 * *equation*
 
-  * **Description**: it defines Einstein summation convention on input operands.
+  * **Description**: it defines Einstein summation convention on input operands. The equation must be in explicit mode, i.e. the output subscript must be in place
   * **Range of values**: the equation format is described above
   * **Type**: string
   * **Required**: *yes*
@@ -155,7 +192,7 @@ The ellipsis `...` in subscript - TBD.
 * *einsum_path*
 
   * **Description**: it recommends the pre-computed (sub-)optimal path of Einstein summation on multiple inputs. The plugin can ignore it.
-  * **Range of values**: the contraction path format is described above
+  * **Range of values**: the contraction path format is a list of tuples with operand indices
   * **Type**: string
   * **Default value**: None
   * **Required**: *no*
@@ -166,7 +203,7 @@ The ellipsis `...` in subscript - TBD.
 
 **Output**:
 
-*   **1**: Tensor of type *T*.
+*   **1**: Tensor of type *T* and shape is computed based on the output subscript of the equation.
 
 **Types**
 
@@ -197,7 +234,7 @@ The ellipsis `...` in subscript - TBD.
 
 ```xml
 <layer ... type="Einsum" version="opset7">
-    <data equation="ab...,ac...,ade->...bc" einsum_path="[1, 2], [0, 1]"/>
+    <data equation="ab...,ac...,ade->...bc" einsum_path="[(1, 2), (0, 1)]"/>
     <input>
         <port id="0">
             <dim>2</dim>
