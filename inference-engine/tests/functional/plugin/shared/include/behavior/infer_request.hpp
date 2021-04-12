@@ -455,20 +455,15 @@ TEST_P(InferRequestTests, canRun3SyncRequestsConsistentlyFromThreads) {
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();
     auto req3 = execNet.CreateInferRequest();
-    InferenceEngine::ResponseDesc response1, response2, response3;
-    InferenceEngine::StatusCode sts1, sts2, sts3;
 
-    std::thread t1([&] { req1.Infer(); sts1 = req1.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
-    std::thread t2([&] { req2.Infer(); sts2 = req2.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
-    std::thread t3([&] { req3.Infer(); sts3 = req3.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY); });
 
-    t1.join();
-    t2.join();
-    t3.join();
+    auto f1 = std::async(std::launch::async, [&] { req1.Infer();});
+    auto f2 = std::async(std::launch::async, [&] { req2.Infer();});
+    auto f3 = std::async(std::launch::async, [&] { req3.Infer();});
 
-    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts1) << response1.msg;
-    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts2) << response2.msg;
-    ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), sts3) << response3.msg;
+    ASSERT_NO_THROW(f1.get());
+    ASSERT_NO_THROW(f2.get());
+    ASSERT_NO_THROW(f3.get());
 }
 
 TEST_P(InferRequestTests, canRun3AsyncRequestsConsistentlyWithWait) {
