@@ -45,16 +45,16 @@ namespace frontend {
 namespace pdpd {
 
 std::shared_ptr<ngraph::Node>
-make_ng_node(std::map<std::string, std::shared_ptr<ngraph::Node>> &nodes,
-             std::shared_ptr<OpPlacePDPD> place,
+make_ng_node(std::map<std::string, Output<Node>> &nodes,
+             const std::shared_ptr<OpPlacePDPD>& place,
              const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
     auto op = (paddle::framework::proto::OpDesc*)place->op;
     std::cout << "Making node: " << op->type() << std::endl;
 
     MY_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
-    std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs_preproc;
+    std::map<std::string, OutputVector> inputs_preproc;
     for (const auto &item : place->inputs) {
-        inputs_preproc[item.first] = std::vector<std::shared_ptr<ngraph::Node>>();
+        inputs_preproc[item.first] = OutputVector();
         for (auto& var_place : item.second) {
             // TODO: refactor to not search every time
             auto var = (paddle::framework::proto::VarDesc*)var_place.lock()->var;
@@ -68,12 +68,11 @@ make_ng_node(std::map<std::string, std::shared_ptr<ngraph::Node>> &nodes,
     NamedInputs named_inputs;
     for(const auto& input: inputs_preproc)
     {
-        for(auto node: input.second)
+        for(const auto& node: input.second)
             named_inputs[input.first].push_back(node);
     }
 
     OutputVector outputs = CREATORS_MAP.at(op->type())(NodeContext(*op, named_inputs));
-    MY_ASSERT(outputs.size() == 1);
     return outputs[0].get_node_shared_ptr();
 }
 
@@ -103,11 +102,11 @@ std::shared_ptr<opset6::Constant> FrontEndPDPD::read_tensor(std::shared_ptr<VarP
 }
 
 std::shared_ptr<Function>
-    FrontEndPDPD::convert_model(std::shared_ptr<InputModelPDPD> model) const
+    FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model) const
 {
     std::cout << "Convert Model Start" << std::endl;    
     
-    std::map<std::string, std::shared_ptr<Node>> nodes_dict;
+    std::map<std::string, Output<Node>> nodes_dict;
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
     
@@ -167,15 +166,14 @@ std::shared_ptr<Function>
                 auto node = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
                 // set layer name by the name of first output var
                 auto& first_output_var_place = op_place->outputs.begin()->second[0];
-                auto var = (paddle::framework::proto::VarDesc*)first_output_var_place.lock()->var;
+                const auto& var = static_cast<const paddle::framework::proto::VarDesc*>(first_output_var_place.lock()->var);
                 node->set_friendly_name(var->name());
 
                 std::cerr << "Named with " << node->get_friendly_name() << "\n";
                 for (const auto &item : op_place->outputs) {
-                    MY_ASSERT(item.second.size() <= 1);
-                    if (item.second.size() == 1) {
-                        auto var = (paddle::framework::proto::VarDesc*)item.second[0].lock()->var;
-                        nodes_dict[var->name()] = node;
+                    for (size_t idx = 0; idx < item.second.size(); ++idx) {
+                        auto var = (paddle::framework::proto::VarDesc *)item.second[idx].lock()->var;
+                        nodes_dict[var->name()] = node->output(idx);
                     }
                 }
             }

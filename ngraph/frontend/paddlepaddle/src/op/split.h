@@ -15,33 +15,16 @@
 //*****************************************************************************
 
 #pragma once
-
-#include <frontend_manager/frontend_manager.hpp>
-
-#include "model.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include "node_context.hpp"
 
 namespace ngraph {
 namespace frontend {
+namespace pdpd {
+namespace op {
 
-class NGRAPH_API FrontEndPDPD : public FrontEnd
-{
-    std::shared_ptr<Function> convert_model(const std::shared_ptr<InputModelPDPD>& model) const;
-    std::shared_ptr<opset6::Constant> read_tensor(std::shared_ptr<VarPlacePDPD> place,
-                                                  std::shared_ptr<InputModelPDPD> model) const;
-public:
+    OutputVector split(const NodeContext& node);
 
-    FrontEndPDPD ()
-    {
-    }
-
-    virtual InputModel::Ptr loadFromFile (const std::string& path) const override
-    {
-        return std::make_shared<InputModelPDPD>(path);
-    }
-
-    virtual std::shared_ptr<Function> convert (InputModel::Ptr model) const override;
-};
-
+} // namespace op
+} // namespace pdpd
 } // namespace frontend
 } // namespace ngraph

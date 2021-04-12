@@ -1,0 +1,450 @@
+<?xml version="1.0"?>
+<net name="Function_0" version="10">
+	<layers>
+		<layer id="0" name="x" type="Parameter" version="opset1">
+			<data shape="2, 10, 4, 4" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>2</dim>
+					<dim>10</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Constant_1" type="Const" version="opset1">
+			<data element_type="i32" shape="" offset="0" size="4" />
+			<output>
+				<port id="0" precision="I32" />
+			</output>
+		</layer>
+		<layer id="2" name="split_0.tmp_0" type="Split" version="opset1">
+			<data num_splits="10" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>10</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1" />
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="3" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="4" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="5" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="6" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="7" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="8" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="9" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="10" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="11" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="elementwise_add_4.tmp_0" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Constant_16" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="4" size="4" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="5" name="save_infer_model/scale_4.tmp_0" type="Multiply" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="6" name="save_infer_model/scale_4.tmp_0/Result" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+		</layer>
+		<layer id="7" name="elementwise_add_3.tmp_0" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="8" name="Constant_14" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="4" size="4" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="9" name="save_infer_model/scale_3.tmp_0" type="Multiply" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="10" name="save_infer_model/scale_3.tmp_0/Result" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+		</layer>
+		<layer id="11" name="elementwise_add_2.tmp_0" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="12" name="Constant_12" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="4" size="4" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="13" name="save_infer_model/scale_2.tmp_0" type="Multiply" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="14" name="save_infer_model/scale_2.tmp_0/Result" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+		</layer>
+		<layer id="15" name="elementwise_add_1.tmp_0" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="16" name="Constant_10" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="4" size="4" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="17" name="save_infer_model/scale_1.tmp_0" type="Multiply" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="18" name="save_infer_model/scale_1.tmp_0/Result" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+		</layer>
+		<layer id="19" name="elementwise_add_0.tmp_0" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="20" name="Constant_8" type="Const" version="opset1">
+			<data element_type="f32" shape="1" offset="4" size="4" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="21" name="save_infer_model/scale_0.tmp_0" type="Multiply" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="22" name="save_infer_model/scale_0.tmp_0/Result" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="7" to-layer="11" to-port="1" />
+		<edge from-layer="2" from-port="3" to-layer="19" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="19" to-port="0" />
+		<edge from-layer="2" from-port="5" to-layer="15" to-port="1" />
+		<edge from-layer="2" from-port="4" to-layer="15" to-port="0" />
+		<edge from-layer="2" from-port="6" to-layer="11" to-port="0" />
+		<edge from-layer="2" from-port="9" to-layer="7" to-port="1" />
+		<edge from-layer="2" from-port="10" to-layer="3" to-port="0" />
+		<edge from-layer="2" from-port="11" to-layer="3" to-port="1" />
+		<edge from-layer="2" from-port="8" to-layer="7" to-port="0" />
+		<edge from-layer="3" from-port="2" to-layer="5" to-port="0" />
+		<edge from-layer="4" from-port="0" to-layer="5" to-port="1" />
+		<edge from-layer="5" from-port="2" to-layer="6" to-port="0" />
+		<edge from-layer="7" from-port="2" to-layer="9" to-port="0" />
+		<edge from-layer="8" from-port="0" to-layer="9" to-port="1" />
+		<edge from-layer="9" from-port="2" to-layer="10" to-port="0" />
+		<edge from-layer="11" from-port="2" to-layer="13" to-port="0" />
+		<edge from-layer="12" from-port="0" to-layer="13" to-port="1" />
+		<edge from-layer="13" from-port="2" to-layer="14" to-port="0" />
+		<edge from-layer="15" from-port="2" to-layer="17" to-port="0" />
+		<edge from-layer="16" from-port="0" to-layer="17" to-port="1" />
+		<edge from-layer="17" from-port="2" to-layer="18" to-port="0" />
+		<edge from-layer="19" from-port="2" to-layer="21" to-port="0" />
+		<edge from-layer="20" from-port="0" to-layer="21" to-port="1" />
+		<edge from-layer="21" from-port="2" to-layer="22" to-port="0" />
+	</edges>
+</net>
