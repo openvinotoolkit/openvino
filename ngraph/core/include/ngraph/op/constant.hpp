@@ -23,6 +23,24 @@ namespace ngraph
     {
         namespace v0
         {
+            // this (or similar) helpers should be provided by element_type.hpp
+            template <element::Type_t>
+            struct IsLowPrecision : std::false_type
+            {
+            };
+            template <>
+            struct IsLowPrecision<element::Type_t::u1> : std::true_type
+            {
+            };
+            template <>
+            struct IsLowPrecision<element::Type_t::u4> : std::true_type
+            {
+            };
+            template <>
+            struct IsLowPrecision<element::Type_t::i4> : std::true_type
+            {
+            };
+
             /// \brief Class for constants.
             class NGRAPH_API Constant : public Op
             {
@@ -293,6 +311,7 @@ namespace ngraph
                 }
 
                 const void* get_data_ptr() const { return (m_data ? m_data->get_ptr() : nullptr); }
+
                 template <typename T>
                 const T* get_data_ptr() const
                 {
@@ -302,6 +321,56 @@ namespace ngraph
                     }
 
                     return static_cast<const T*>(get_data_ptr());
+                }
+
+                void check_type(element::Type_t type) const
+                {
+                    if (type != get_element_type())
+                    {
+                        throw std::runtime_error("Constant stores elements of different type");
+                    }
+                }
+
+                template <element::Type_t Type,
+                          typename RetValue = fundamental_type_for<Type>,
+                          typename std::enable_if<!IsLowPrecision<Type>::value, bool>::type = true>
+                RetValue get_value(size_t index) const
+                {
+                    check_type(Type);
+                    return static_cast<const RetValue*>(get_data_ptr())[index];
+                }
+
+                template <element::Type_t Type,
+                          typename RetValue = fundamental_type_for<Type>,
+                          typename std::enable_if<Type == element::Type_t::u1, bool>::type = true>
+                RetValue get_value(size_t index) const
+                {
+                    check_type(Type);
+                    const auto data = static_cast<const uint8_t*>(get_data_ptr());
+                    return (data[index / 8] >> (7 - (index % 8))) & 1;
+                }
+
+                template <element::Type_t Type,
+                          typename RetValue = fundamental_type_for<Type>,
+                          typename std::enable_if<Type == element::Type_t::u4, bool>::type = true>
+                RetValue get_value(size_t index) const
+                {
+                    check_type(Type);
+                    const auto data = static_cast<const uint8_t*>(get_data_ptr());
+                    return (data[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+                }
+
+                template <element::Type_t Type,
+                          typename RetValue = fundamental_type_for<Type>,
+                          typename std::enable_if<Type == element::Type_t::i4, bool>::type = true>
+                RetValue get_value(size_t index) const
+                {
+                    check_type(Type);
+                    const auto data = static_cast<const uint8_t*>(get_data_ptr());
+                    const uint8_t u4data = (data[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+                    const bool is_negative_number = (u4data >> 3) & 0b1;
+                    const int8_t i4data = is_negative_number ? ((u4data & 0x7) | 0xF0) : u4data;
+                    return i4data;
                 }
 
                 template <element::Type_t ET>

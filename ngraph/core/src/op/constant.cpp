@@ -16,8 +16,10 @@
 using namespace ngraph;
 using namespace std;
 
-template <typename T>
-string to_cpp_string(T value)
+template <typename T,
+          typename TT = typename std::decay<T>::type,
+          typename std::enable_if<!std::is_integral<TT>::value, bool>::type = true>
+static inline string to_cpp_string(T value)
 {
     string rc;
     if (std::isnan(value))
@@ -35,6 +37,14 @@ string to_cpp_string(T value)
         rc = ss.str();
     }
     return rc;
+}
+
+template <typename T,
+          typename TT = typename std::decay<T>::type,
+          typename std::enable_if<std::is_integral<TT>::value, bool>::type = true>
+static inline string to_cpp_string(T value)
+{
+    return std::to_string(value);
 }
 
 constexpr NodeTypeInfo op::Constant::type_info;
@@ -315,7 +325,6 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const void
 {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
-    constructor_validate_and_infer_types();
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
 }
 
@@ -332,6 +341,7 @@ op::Constant::~Constant() {}
 
 string op::Constant::convert_value_to_string(size_t index) const
 {
+    using Type_t = element::Type_t;
     string rc;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic push
@@ -340,48 +350,44 @@ string op::Constant::convert_value_to_string(size_t index) const
 #endif
     switch (get_element_type())
     {
-    case element::Type_t::boolean: rc = to_string(get_data_ptr<char>()[index]); break;
-    case element::Type_t::bf16:
-        rc = to_cpp_string(static_cast<float>(get_data_ptr<bfloat16>()[index]));
-        break;
-    case element::Type_t::f16:
-        rc = to_cpp_string(static_cast<float>(get_data_ptr<float16>()[index]));
-        break;
-    case element::Type_t::f32: rc = to_cpp_string(get_data_ptr<float>()[index]); break;
-    case element::Type_t::f64: rc = to_cpp_string(get_data_ptr<double>()[index]); break;
-    case element::Type_t::i4:
-    {
-        uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
-        int8_t data = i4data;
-        if ((i4data >> 3) & 0b1)
-        {
-            // negative number
-            data = (i4data & 0x7) | 0xF0;
-        }
-        rc = to_string(data);
-        break;
-    }
-    case element::Type_t::u4:
-        rc = to_string((get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F);
-        break;
-    case element::Type_t::i8: rc = to_string(get_data_ptr<int8_t>()[index]); break;
-    case element::Type_t::i16: rc = to_string(get_data_ptr<int16_t>()[index]); break;
-    case element::Type_t::i32: rc = to_string(get_data_ptr<int32_t>()[index]); break;
-    case element::Type_t::i64: rc = to_string(get_data_ptr<int64_t>()[index]); break;
-    case element::Type_t::u1:
-        rc = to_string((get_data_ptr<uint8_t>()[index / 8] >> (7 - (index % 8))) & 1);
-        break;
-    case element::Type_t::u8: rc = to_string(get_data_ptr<uint8_t>()[index]); break;
-    case element::Type_t::u16: rc = to_string(get_data_ptr<uint16_t>()[index]); break;
-    case element::Type_t::u32: rc = to_string(get_data_ptr<uint32_t>()[index]); break;
-    case element::Type_t::u64: rc = to_string(get_data_ptr<uint64_t>()[index]); break;
-    case element::Type_t::undefined: throw runtime_error("unsupported type");
-    case element::Type_t::dynamic: throw runtime_error("unsupported type");
+    case Type_t::boolean: rc = to_cpp_string(get_value<Type_t::boolean>(index)); break;
+    case Type_t::bf16: rc = to_cpp_string(get_value<Type_t::bf16>(index)); break;
+    case Type_t::f16: rc = to_cpp_string(get_value<Type_t::f16>(index)); break;
+    case Type_t::f32: rc = to_cpp_string(get_value<Type_t::f32>(index)); break;
+    case Type_t::f64: rc = to_cpp_string(get_value<Type_t::f64>(index)); break;
+    case Type_t::i4: rc = to_cpp_string(get_value<Type_t::i4>(index)); break;
+    case Type_t::i8: rc = to_cpp_string(get_value<Type_t::i8>(index)); break;
+    case Type_t::i16: rc = to_cpp_string(get_value<Type_t::i16>(index)); break;
+    case Type_t::i32: rc = to_cpp_string(get_value<Type_t::i32>(index)); break;
+    case Type_t::i64: rc = to_cpp_string(get_value<Type_t::i64>(index)); break;
+    case Type_t::u1: rc = to_cpp_string(get_value<Type_t::u1>(index)); break;
+    case Type_t::u4: rc = to_cpp_string(get_value<Type_t::u4>(index)); break;
+    case Type_t::u8: rc = to_cpp_string(get_value<Type_t::u8>(index)); break;
+    case Type_t::u16: rc = to_cpp_string(get_value<Type_t::u16>(index)); break;
+    case Type_t::u32: rc = to_cpp_string(get_value<Type_t::u32>(index)); break;
+    case Type_t::u64: rc = to_cpp_string(get_value<Type_t::u64>(index)); break;
+    case Type_t::undefined: throw runtime_error("unsupported type");
+    case Type_t::dynamic: throw runtime_error("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic pop
 #endif
     return rc;
+}
+
+namespace
+{
+    template <element::Type_t Type, typename ValueTypes = fundamental_type_for<Type>>
+    std::vector<std::string> fill_string_vector(const op::Constant* c)
+    {
+        std::vector<std::string> values;
+        for (ValueTypes value : c->get_vector<ValueTypes>())
+        {
+            values.push_back(to_cpp_string(value));
+        }
+
+        return values;
+    }
 }
 
 vector<string> op::Constant::get_value_strings() const
@@ -395,84 +401,19 @@ vector<string> op::Constant::get_value_strings() const
 #endif
     switch (get_element_type())
     {
-    case element::Type_t::boolean:
-        for (int value : get_vector<char>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::bf16:
-        for (bfloat16 value : get_vector<bfloat16>())
-        {
-            rc.push_back(to_cpp_string(static_cast<float>(value)));
-        }
-        break;
-    case element::Type_t::f16:
-        for (float16 value : get_vector<float16>())
-        {
-            rc.push_back(to_cpp_string(static_cast<float>(value)));
-        }
-        break;
-    case element::Type_t::f32:
-        for (float value : get_vector<float>())
-        {
-            rc.push_back(to_cpp_string(value));
-        }
-        break;
-    case element::Type_t::f64:
-        for (double value : get_vector<double>())
-        {
-            rc.push_back(to_cpp_string(value));
-        }
-        break;
-    case element::Type_t::i8:
-        for (int value : get_vector<int8_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::i16:
-        for (int value : get_vector<int16_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::i32:
-        for (int32_t value : get_vector<int32_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::i64:
-        for (int64_t value : get_vector<int64_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::u8:
-        for (uint32_t value : get_vector<uint8_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::u16:
-        for (uint32_t value : get_vector<uint16_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::u32:
-        for (uint32_t value : get_vector<uint32_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
-    case element::Type_t::u64:
-        for (uint64_t value : get_vector<uint64_t>())
-        {
-            rc.push_back(to_string(value));
-        }
-        break;
+    case element::Type_t::boolean: rc = fill_string_vector<element::Type_t::boolean>(this); break;
+    case element::Type_t::bf16: rc = fill_string_vector<element::Type_t::bf16>(this); break;
+    case element::Type_t::f16: rc = fill_string_vector<element::Type_t::f16>(this); break;
+    case element::Type_t::f32: rc = fill_string_vector<element::Type_t::f32>(this); break;
+    case element::Type_t::f64: rc = fill_string_vector<element::Type_t::f64>(this); break;
+    case element::Type_t::i8: rc = fill_string_vector<element::Type_t::i8>(this); break;
+    case element::Type_t::i16: rc = fill_string_vector<element::Type_t::i16>(this); break;
+    case element::Type_t::i32: rc = fill_string_vector<element::Type_t::i32>(this); break;
+    case element::Type_t::i64: rc = fill_string_vector<element::Type_t::i64>(this); break;
+    case element::Type_t::u8: rc = fill_string_vector<element::Type_t::u8>(this); break;
+    case element::Type_t::u16: rc = fill_string_vector<element::Type_t::u16>(this); break;
+    case element::Type_t::u32: rc = fill_string_vector<element::Type_t::u32>(this); break;
+    case element::Type_t::u64: rc = fill_string_vector<element::Type_t::u64>(this); break;
     case element::Type_t::u1:
     case element::Type_t::i4:
     case element::Type_t::u4:
