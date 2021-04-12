@@ -268,7 +268,7 @@ TEST(TransformationTests, NegativeAddFakeQuantizeFusionWithConvolutionAndNonScal
         auto filter = std::make_shared<opset5::Parameter>(element::f32, Shape{4, 3, 2, 2});
         auto conv = std::make_shared<opset5::Convolution>(data, filter, Strides{1, 1},
                 CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        auto add_const = opset5::Constant::create(element::f32, Shape{1}, {1, 4, 1, 1});
+        auto add_const = opset5::Constant::create(element::f32, Shape{1, 4, 1, 1}, {1, 2, 3, 4});
         auto add = std::make_shared<opset5::Add>(conv, add_const);
         auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
         auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
@@ -289,7 +289,7 @@ TEST(TransformationTests, NegativeAddFakeQuantizeFusionWithConvolutionAndNonScal
         auto filter = std::make_shared<opset5::Parameter>(element::f32, Shape{4, 3, 2, 2});
         auto conv = std::make_shared<opset5::Convolution>(data, filter, Strides{1, 1},
                 CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        auto add_const = opset5::Constant::create(element::f32, Shape{1}, {1, 4, 1, 1});
+        auto add_const = opset5::Constant::create(element::f32, Shape{1, 4, 1, 1}, {1, 2, 3, 4});
         auto add = std::make_shared<opset5::Add>(conv, add_const);
         auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
         auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});

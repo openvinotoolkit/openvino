@@ -51,10 +51,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             float v;
             bool is_single_value = op::util::get_single_value(add_const, v);
             if (is_single_value) {
-                new_const = op::Constant::create(element::f32, Shape{1}, {v});
-                if (add_const->get_element_type() != element::f32) {
-                    new_const = std::make_shared<opset5::Convert>(new_const, add_const->get_element_type());
-                }
+                new_const = std::make_shared<opset5::Constant>(add_const->get_element_type(), Shape{1}, v);
             } else {
                 const auto& add_inputs = add_node->input_values();
                 const auto& node_type_info = add_inputs[0].get_node()->get_type_info();
@@ -76,8 +73,14 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             }
         }
 
-        auto new_input_low = get_constant_from_source(std::make_shared<opset5::Subtract>(fq->input_value(1), new_const));
-        auto new_input_high = get_constant_from_source(std::make_shared<opset5::Subtract>(fq->input_value(2), new_const));
+        auto input_low_sub = std::make_shared<opset5::Subtract>(fq->input_value(1), new_const);
+        std::shared_ptr<Node> new_input_low = get_constant_from_source(input_low_sub);
+        if (!new_input_low)
+            new_input_low = input_low_sub;
+        auto input_high_sub = std::make_shared<opset5::Subtract>(fq->input_value(2), new_const);
+        std::shared_ptr<Node> new_input_high = get_constant_from_source(input_high_sub);
+        if (!new_input_high)
+            new_input_high = input_high_sub;
         auto new_fq = register_new_node<opset5::FakeQuantize>(pattern_value_map.at(input_pattern),
                                                               new_input_low,
                                                               new_input_high,
