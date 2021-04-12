@@ -151,7 +151,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 2});
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 3});
     auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
 
@@ -162,7 +162,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 1. Got 3");
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 2. Got 3");
     }
     catch (...)
     {

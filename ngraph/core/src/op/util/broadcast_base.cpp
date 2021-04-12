@@ -147,7 +147,8 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
         if (arg_shape.rank().get_length() > 0)
         {
             NODE_VALIDATION_CHECK(this,
-                                  target_shape[axes_mapping_val[i]].compatible(arg_shape[i]),
+                                  target_shape[axes_mapping_val[i]].compatible(arg_shape[i]) ||
+                                      arg_shape[i].compatible(1),
                                   "Broadcast target[axes_mapping[",
                                   i,
                                   "]]",

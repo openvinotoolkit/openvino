@@ -134,8 +134,6 @@ xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with nam
                                       "FakeQuantize_xxx has non const input on 1 port")
 xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
 xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not supported by ArgMin and ArgMax")
-xfail_issue_47317 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Add): 2>': "
-                                      "Check shape_size(axes_shape) == input_rank' failed")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
@@ -173,3 +171,5 @@ xfail_issue_49750 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v4
 xfail_issue_49752 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::Pad")
 xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::StridedSlice")
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
+xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
+                                      "Not equal to tolerance")
