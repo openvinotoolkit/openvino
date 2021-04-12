@@ -29,6 +29,7 @@
 #include "op/clip.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
+#include "op/constant_fill.hpp"
 #include "op/constant_of_shape.hpp"
 #include "op/conv.hpp"
 // #include "op/conv_integer.hpp"
@@ -133,7 +134,6 @@
 #include "op/xor.hpp"
 #include "ops_bridge.hpp"
 
-#include "op/org.openvinotoolkit/constant_fill.hpp"
 #include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
