@@ -15,7 +15,7 @@ from mo.ops.shape import Shape
 
 
 class InterpolateConcat(BackReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph using the following Concat inputs
 
     BEFORE:
@@ -85,7 +85,7 @@ class InterpolateConcat(BackReplacementPattern):
 
 
 class InterpolateReshapeWA(BackReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph.
     WARNING: Could cause troubles if model has hard-coded Interpolate intentionally -- rare situation
     BEFORE:
