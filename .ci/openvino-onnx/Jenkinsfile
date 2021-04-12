@@ -7,7 +7,7 @@ DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 BACKEND_CONFIGURATIONS = [
     [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
     [ name: "Debug", build_type: "Debug", protobuf_lite : "OFF" ],
-    [ name: "Rel+Lite", build_type: "Release", protobuf_lite : "ON" ],
+    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ],
 ]
 
 // workaround for aborting previous builds on PR update
@@ -117,7 +117,7 @@ def buildDockerImage(Map configuration) {
 
 def runTests(Map configuration) {
     get_commit_id()
-    def DOCKER_CONTAINER_NAME_="${DOCKER_CONTAINER_NAME}_${GIT_COMMIT_ID}_${configuration.name}"
+    DOCKER_CONTAINER_NAME_="${DOCKER_CONTAINER_NAME}_${GIT_COMMIT_ID}_${configuration.name}"
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
         sh """
