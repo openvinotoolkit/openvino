@@ -10,6 +10,7 @@ import platform
 import subprocess
 import traceback
 from collections import OrderedDict
+from copy import deepcopy
 
 import numpy as np
 
@@ -17,6 +18,7 @@ import telemetry.telemetry as tm
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
@@ -245,12 +247,15 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
+    mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
+    input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
+
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
                     output_dir=argv.output_dir,
                     output_model_name=argv.model_name,
-                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
-                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
+                    mean_data=mean_data,
+                    input_names=input_names,
                     meta_info=get_meta_info(argv))
 
     graph.clear()
@@ -302,6 +307,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                 path_to_file = orig_model_name + "_tmp" + suf
                 if os.path.exists(path_to_file):
                     os.remove(path_to_file)
+
+            # add meta information to IR
+            append_ir_info(file=orig_model_name,
+                           meta_info=get_meta_info(argv),
+                           mean_data=mean_data,
+                           input_names=input_names)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
