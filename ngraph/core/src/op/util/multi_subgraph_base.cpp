@@ -11,6 +11,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp, "MultiSubGraphOp", 0);
 
+constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::InvariantInputDescription::type_info;
 constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::BodyOutputDescription::type_info;
 
 op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index,
