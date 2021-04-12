@@ -117,16 +117,20 @@ function(_clone_source_to_target TARGET SOURCE ARCH_SET)
                         ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}
                         ${CMAKE_CURRENT_BINARY_DIR}/${ARCH_SOURCE}
                 DEPENDS ${SOURCE}
+                VERBATIM
                 )
 
         set(_ARCH_SPECIFIC_FLAGS
                 ${_DEFINE_${_arch}}
                 ${_FLAGS_${_arch}}
                 "-DXARCH=${_arch}"  ## to replace XARCH with direct ARCH name
-                "-I${CMAKE_CURRENT_SOURCE_DIR}/${ARCH_INCLUDE_DIR}"  ## To make valid #include "some.hpp"
                 )
 
         _add_source_compile_flags(${ARCH_SOURCE} ${_ARCH_SPECIFIC_FLAGS})
+
+        ## To make `#include "some.hpp"` valid
+        set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY INCLUDE_DIRECTORIES
+                "${CMAKE_CURRENT_SOURCE_DIR}/${ARCH_INCLUDE_DIR}")
 
         list(APPEND _ARCH_SOURCES ${ARCH_SOURCE})
     endforeach()
@@ -146,25 +150,26 @@ function(_add_dispatcher_to_target TARGET HEADER FUNC_NAME NAMESPACE ARCH_SET)
     set(DISPATCHER_SOURCE     "cross-compiled/${DISPATCHER_NAME}_disp.cpp")
     set(DISPATCHER_OPT_HOLDER "cross-compiled/${DISPATCHER_NAME}_holder.txt")
 
-    set(_GEN_ARGS_LIST
-            -DXARCH_FUNC_NAME="${X_NAME}"
-            -DXARCH_NAMESPACES="${NAMESPACE}"
-            -DXARCH_API_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}"
-            -DXARCH_DISP_FILE="${CMAKE_CURRENT_BINARY_DIR}/${DISPATCHER_SOURCE}"
-            -DXARCH_SET="${ARCH_SET}"
-    )
     configure_file(${DISPATCHER_GEN_OPTIONS_HOLDER} ${DISPATCHER_OPT_HOLDER})
 
     add_custom_command(
             OUTPUT  ${DISPATCHER_SOURCE}
-            COMMAND ${CMAKE_COMMAND} ${_GEN_ARGS_LIST}
+            COMMAND ${CMAKE_COMMAND}
+                    -D "XARCH_FUNC_NAME=${X_NAME}"
+                    -D "XARCH_NAMESPACES=${NAMESPACE}"
+                    -D "XARCH_API_HEADER=${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}"
+                    -D "XARCH_DISP_FILE=${CMAKE_CURRENT_BINARY_DIR}/${DISPATCHER_SOURCE}"
+                    -D "XARCH_SET=${ARCH_SET}"
                     -P ${DISPATCHER_GEN_SCRIPT}
             DEPENDS ${HEADER}
                     ${DISPATCHER_GEN_SCRIPT}
                     ${CMAKE_CURRENT_BINARY_DIR}/${DISPATCHER_OPT_HOLDER} ## Just to make run dependency on args value
+            VERBATIM
     )
 
-    _add_source_compile_flags(${DISPATCHER_SOURCE} "-I${DISPATCHER_INCLUDE_DIR}")
+    set_property(SOURCE ${DISPATCHER_SOURCE} APPEND PROPERTY INCLUDE_DIRECTORIES
+            "${CMAKE_CURRENT_SOURCE_DIR}/${DISPATCHER_INCLUDE_DIR}")
+
     _add_source_to_target(${TARGET} ${DISPATCHER_SOURCE})
 endfunction()
 
