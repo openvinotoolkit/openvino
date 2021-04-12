@@ -31,7 +31,7 @@ namespace ngraph
     {
         namespace
         {
-            PerfCounters& perf_counters_manager()
+            PerfCounters& perf_counters()
             {
                 static PerfCounters counters;
                 return counters;
