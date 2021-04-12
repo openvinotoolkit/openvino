@@ -54,7 +54,7 @@ namespace ngraph
                 void validate_and_infer_type_body(
                     std::shared_ptr<Function> body,
                     ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors);
-                void op::v0::If::fill_body(std::shared_ptr<op::v0::If> new_op,
+                void fill_body(std::shared_ptr<op::v0::If> new_op,
                                            size_t branch_index,
                                            const OutputVector& new_args) const;
             };

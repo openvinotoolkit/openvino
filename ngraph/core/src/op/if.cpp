@@ -146,7 +146,7 @@ void op::v0::If::validate_and_infer_types()
 
         std::set<int64_t> then_output_indexes{};
         std::set<int64_t> else_output_indexes{};
-        auto& output_nodes = outputs();
+        auto output_nodes = outputs();
         for (auto then_output_description : m_output_descriptions[then_body_index]) {
             auto out_index = then_output_description->m_output_index;
             auto cond = [=](Output<Node>& node) { return node.get_index() == out_index; };
