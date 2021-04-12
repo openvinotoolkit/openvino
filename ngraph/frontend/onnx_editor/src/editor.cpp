@@ -66,7 +66,7 @@ namespace
 
         auto* tensor_type = type_proto->mutable_tensor_type();
 
-        if(onnx_common::is_supported_ng_type(elem_type))
+        if (onnx_common::is_supported_ng_type(elem_type))
         {
             tensor_type->set_elem_type(onnx_common::ng_to_onnx_data_type(elem_type));
         }
