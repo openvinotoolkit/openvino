@@ -256,7 +256,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                     output_model_name=argv.model_name,
                     mean_data=mean_data,
                     input_names=input_names,
-                    meta_info=get_meta_info(argv))
+                    meta_info=get_meta_info(argv),
+                    use_temporary_path=True)
 
     graph.clear()
 
