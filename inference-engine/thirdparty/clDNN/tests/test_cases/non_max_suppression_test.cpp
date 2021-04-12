@@ -350,7 +350,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
 TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     // auto engine = tests::get_test_engine();
 
-    cldnn::engine_configuration cfg = { true, false, false, "", "", true, "", "/home/jade/work/cl_dump/"};
+    cldnn::engine_configuration cfg = { true, false, false, "", "", true, "", "/home/sungeunk/work/openvino/build/cl_dump/"};
     auto engine = cldnn::engine(cfg); 
 
     auto num_per_class_mem = memory::allocate(engine, layout(data_types::f32, format::bfyx, tensor(batch(1))));

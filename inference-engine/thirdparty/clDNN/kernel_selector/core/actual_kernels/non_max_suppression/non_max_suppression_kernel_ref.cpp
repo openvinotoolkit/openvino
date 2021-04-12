@@ -116,34 +116,47 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     return jit;
 }
 
+size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+    const size_t lws_max = info.maxWorkGroupSize;
+    const size_t optimal_lws_values[] = {8, 7, 6, 5, 4, 2, 1};
+    size_t total_lws = gws[0] * gws[2];
+    size_t localClassSize = 1;
+
+    auto rest_lws = lws_max / total_lws;
+    size_t lws_idx = 0;
+    while (rest_lws < optimal_lws_values[lws_idx]) lws_idx++;
+    while (gws[1] % optimal_lws_values[lws_idx]) lws_idx++;
+
+    localClassSize = optimal_lws_values[lws_idx];
+    total_lws *= optimal_lws_values[lws_idx];
+
+    return localClassSize;
+}
+
 NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_params& params, int idx) {
     NonMaxSuppressionKernelRef::DispatchData dispatchData;
 
+    const auto& input = params.inputs[1];
     if (idx == 0) {
-        const auto& input = params.inputs[1];
-        if (input.GetLayout() == DataLayout::bfyx) {
-            dispatchData.gws = {input.Batch().v, input.Feature().v, 256};
-        }
+        dispatchData.gws = {input.Batch().v, input.Feature().v, 256};
         dispatchData.lws = {1, 1, 256};
-
-        // printf("gws: %zd, %zd, %zd\n", dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
-        // printf("lws: %zd, %zd, %zd\n", dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
-    } else if (idx == 1 || idx == 2) {
-        const auto& input = params.inputs[1];
-        if (input.GetLayout() == DataLayout::bfyx) {
-            //dispatchData.gws = {input.Batch().v, 1, 1};
-            dispatchData.gws = {input.Batch().v, input.Feature().v, idx == 1 ? 2UL : 1UL};
-        }
+    } else if (idx == 1) {
+        const size_t kSplitNum = 4;    // 1, 2, 4, 8
+        dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
+        const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
+        dispatchData.lws = {1, kClassSize, kSplitNum};
+    } else if (idx == 2) {
+        dispatchData.gws = {input.Batch().v, input.Feature().v, 1};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
-        if (idx == 1)
-            dispatchData.lws[2] = 2;
     } else {
         dispatchData.gws = {1, 1, 1};
         dispatchData.lws = {1, 1, 1};
     }
 
-    // printf("gws: %zd, %zd, %zd\n", dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
-    // printf("lws: %zd, %zd, %zd\n", dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
+    if (idx == 1) {
+        printf("[%d] gws: %zd, %zd, %zd\n", idx, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
+        printf("[%d] lws: %zd, %zd, %zd\n", idx, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
+    }
     return dispatchData;
 }
 
@@ -226,11 +239,13 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
             // printf("num_score_per_item: %zd = RoundUp((%zd - 1)/256 + 1, 8), num_score_block: %zd, num_bit_mask: %zd\n"
             //         , num_score_per_item, boxes_num, num_score_block, num_bit_mask);
             cldnn_jit.AddConstants({ MakeJitConstant("NUM_BIT_MASK", num_bit_mask)
-                                    , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
-                                    , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)
-                                    , MakeJitConstant("IS_ZERO_ITER", "true")});
+                                   , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
+                                   , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)
+                                   , MakeJitConstant("IS_ZERO_ITER", "true")});
         } else if (i == 1) {
-            cldnn_jit.AddConstant(MakeJitConstant("IS_FIRST_ITER", "true"));
+            cldnn_jit.AddConstants({ MakeJitConstant("IS_FIRST_ITER", "true")
+                                   , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
+                                   , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])});
         } else if (i == 2) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
         } else {
