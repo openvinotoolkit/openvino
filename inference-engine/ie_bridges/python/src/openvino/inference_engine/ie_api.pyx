@@ -215,7 +215,7 @@ cdef class Blob:
     def __deepcopy__(self, memodict):
         res = Blob(deepcopy(self.tensor_desc, memodict), deepcopy(self._array_data, memodict))
         precision = self.tensor_desc.precision
-        if precision in ["FP16","BF16"]:
+        if precision == "FP16":
             res.buffer[:] = deepcopy(self.buffer[:].view(dtype=np.float16), memodict)
         else:
             res.buffer[:] = deepcopy(self.buffer[:], memodict)

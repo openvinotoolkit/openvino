@@ -115,3 +115,4 @@ def test_buffer_values_after_add_outputs(device):
     min_value = result[output_layer].min()
     max_value = result[output_layer].max()
     assert max(abs(min_value),abs(max_value)) < 20
+    
