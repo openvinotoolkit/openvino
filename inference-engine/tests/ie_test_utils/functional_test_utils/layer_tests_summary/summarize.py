@@ -121,15 +121,24 @@ def merge_xmls(xmls: list):
                 results.append(device)
             else:
                 for entry in device:
-                    if device_results.find(entry.tag) is not None:
+                    res_summary = device_results.find(entry.tag)
+                    if res_summary is not None:
                         current_timestamp = datetime.strptime(xml.attrib["timestamp"], "%d-%m-%Y %H:%M:%S")
                         base_timestamp = datetime.strptime(summary.attrib["timestamp"], "%d-%m-%Y %H:%M:%S")
                         if current_timestamp > base_timestamp:
                             device_results.find(entry.tag).attrib = entry.attrib
+                        # workaround for unsaved reports
+                        for attr_name in device_results.find(entry.tag).attrib:
+                            if attr_name == "passrate":
+                                xml_value = float(entry.attrib.get(attr_name))
+                                aggregated_value = float(res_summary.attrib.get(attr_name))
+                            else:
+                                xml_value = int(entry.attrib.get(attr_name))
+                                aggregated_value = int(res_summary.attrib.get(attr_name))
+                            device_results.find(res_summary.tag).set(attr_name, str(max(xml_value, aggregated_value)))
                     else:
                         device_results.append(entry)
     return summary
-
 
 xmls = []
 for xml in args.xml:
