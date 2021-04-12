@@ -14,7 +14,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev
+          sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
@@ -51,7 +51,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev
+          sudo apt --assume-yes install libusb-1.0-0-dev libprotobuf-dev
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
 
       - name: CMake

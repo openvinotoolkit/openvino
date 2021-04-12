@@ -139,6 +139,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine_transformations
     inference_engine_lp_transformations
     inference_engine_snippets
+    frontend_manager
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

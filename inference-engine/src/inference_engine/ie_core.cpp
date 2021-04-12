@@ -15,6 +15,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <frontend_manager/frontend_manager.hpp>
 
 #include <cpp_interfaces/exception2status.hpp>
 #include "compilation_context.hpp"
@@ -208,6 +209,7 @@ class Core::Impl : public ICore {
 
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
+    ngraph::frontend::FrontEndManager frontEndManager;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins

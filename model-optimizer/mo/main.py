@@ -18,7 +18,7 @@ from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConst
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
-from mo.pipeline.unified import unified_pipeline
+from mo.pipeline.unified import unified_pipeline, moc_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
@@ -32,6 +32,8 @@ from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements
 from mo.utils.find_ie_version import find_ie_version
+
+from ngraph import FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -86,9 +88,18 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def prepare_ir(argv: argparse.Namespace):
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
 
+    new_front_ends = []
+    if not argv.use_legacy_frontend:
+        fem = FrontEndManager()
+        new_front_ends = fem.availableFrontEnds()
+        argv.feManager = fem
+
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
-        raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
-                    'mxnet, kaldi, onnx. ' + refer_to_faq_msg(15), argv.framework)
+        frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
+        frameworks = list(set(frameworks + new_front_ends))
+        if argv.framework not in frameworks:
+            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                        refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -232,54 +243,66 @@ def prepare_ir(argv: argparse.Namespace):
         t.send_event('mo', 'framework', 'kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_onnx:
+    elif is_onnx and ('onnx' not in new_front_ends or argv.use_legacy_frontend):
         t.send_event('mo', 'framework', 'onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    graph = unified_pipeline(argv)
+
+    if argv.framework not in new_front_ends or argv.use_legacy_frontend:
+        graph = unified_pipeline(argv)
+    else:
+        graph = moc_pipeline(argv)
     return graph
 
 
-def emit_ir(graph: Graph, argv: argparse.Namespace):
-    NormalizeTI().find_and_replace_pattern(graph)
-    for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
-    for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
+def emit_ir(graph, argv: argparse.Namespace):
+    if 'network' not in graph.graph:
+        NormalizeTI().find_and_replace_pattern(graph)
+        for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
+        for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-    prepare_emit_ir(graph=graph,
-                    data_type=graph.graph['cmd_params'].data_type,
-                    output_dir=argv.output_dir,
-                    output_model_name=argv.model_name,
-                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
-                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
-                    meta_info=get_meta_info(argv))
+        prepare_emit_ir(graph=graph,
+                        data_type=graph.graph['cmd_params'].data_type,
+                        output_dir=argv.output_dir,
+                        output_model_name=argv.model_name,
+                        mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
+                        input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
+                        meta_info=get_meta_info(argv))
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+# TODO: mnosov: frontend changes
+        orig_model_name = os.path.join(output_dir, argv.model_name)
+        if 'network' in graph.graph:
+            graph.graph['network'].serialize(orig_model_name + ".xml", orig_model_name + ".bin")
+            print('[ SUCCESS ] Converted with ONNX Importer')
+#=======
+#        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+#
+#        return_code = "not executed"
+#        # This try-except is additional reinsurance that the IE
+#        # dependency search does not break the MO pipeline
+#        try:
+#            if find_ie_version(silent=True):
+#                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
+#                                                               'offline_transformations.py')
+#                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
+#                return_code = status.returncode
+#                if return_code != 0 and not argv.silent:
+#                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
+#        except Exception as e:
+#            pass
 
-        return_code = "not executed"
-        # This try-except is additional reinsurance that the IE
-        # dependency search does not break the MO pipeline
-        try:
-            if find_ie_version(silent=True):
-                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
-                                                               'offline_transformations.py')
-                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
-                return_code = status.returncode
-                if return_code != 0 and not argv.silent:
-                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
-        except Exception as e:
-            pass
-
-        message = str(dict({
-            "platform": platform.system(),
-            "mo_version": get_simplified_mo_version(),
-            "ie_version": get_simplified_ie_version(env=os.environ),
-            "python_version": sys.version,
-            "return_code": return_code
-        }))
-        t = tm.Telemetry()
-        t.send_event('mo', 'offline_transformations_status', message)
+#        message = str(dict({
+#            "platform": platform.system(),
+#            "mo_version": get_simplified_mo_version(),
+#            "ie_version": get_simplified_ie_version(env=os.environ),
+#            "python_version": sys.version,
+#            "return_code": return_code
+#        }))
+#        t = tm.Telemetry()
+#        t.send_event('mo', 'offline_transformations_status', message)
+#>>>>>>> upstream/master
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

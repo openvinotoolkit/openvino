@@ -18,6 +18,8 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
+#include <frontend_manager/frontend_manager.hpp>
+
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
 #include "progress_bar.hpp"
@@ -337,7 +339,15 @@ int main(int argc, char *argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
-            CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+            //CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+            ngraph::frontend::FrontEndManager manager;
+            auto FE = manager.loadByFramework("pdpd");
+            auto inputModel = FE->loadFromFile(FLAGS_m);
+            //inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
+            auto ngFunc = FE->convert(inputModel);
+            CNNNetwork cnnNetwork(ngFunc);
+            cnnNetwork.serialize("benchmark_app_loaded_network.xml");
+
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)

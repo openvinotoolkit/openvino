@@ -26,6 +26,14 @@ set(NGRAPH_INCLUDE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
 
+set(FRONTEND_INCLUDE_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/frontend/generic/include
+)
+
+set(FRONTEND_BASE_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/frontend
+)
+
 if (APPLE)
     # Enable MACOS_RPATH by default.
     cmake_policy(SET CMP0042 NEW)
@@ -79,6 +87,7 @@ option(NGRAPH_INTERPRETER_ENABLE "Control the building of the INTERPRETER backen
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
 option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
 option(NGRAPH_ONNX_EDITOR_ENABLE "Enable ONNX Editor" OFF)
+option(NGRAPH_TF_FRONTEND_ENABLE "Enable TensorFlow FrontEnd" OFF)
 option(NGRAPH_LIB_VERSIONING_ENABLE "Enable shared library versioning" OFF)
 option(NGRAPH_PYTHON_BUILD_ENABLE "Enable build nGraph python package wheel" OFF)
 option(NGRAPH_DYNAMIC_COMPONENTS_ENABLE "Enable dynamic loading of components" ON)
@@ -104,6 +113,7 @@ message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABL
 message(STATUS "NGRAPH_LIB_VERSIONING_ENABLE:         ${NGRAPH_LIB_VERSIONING_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
 message(STATUS "NGRAPH_ONNX_EDITOR_ENABLE:            ${NGRAPH_ONNX_EDITOR_ENABLE}")
+message(STATUS "NGRAPH_TF_FRONTEND_ENABLE:            ${NGRAPH_TF_FRONTEND_ENABLE}")
 message(STATUS "NGRAPH_PYTHON_BUILD_ENABLE:           ${NGRAPH_PYTHON_BUILD_ENABLE}")
 message(STATUS "NGRAPH_THREAD_SANITIZER_ENABLE:       ${NGRAPH_THREAD_SANITIZER_ENABLE}")
 message(STATUS "NGRAPH_TOOLS_ENABLE:                  ${NGRAPH_TOOLS_ENABLE}")

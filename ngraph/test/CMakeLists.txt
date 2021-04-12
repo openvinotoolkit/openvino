@@ -446,6 +446,15 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
+# SOURCE FOR FRONTEND TESTING
+# TODO: try to find a way to move it out of common CMakeLists
+file(GLOB_RECURSE FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/*.cpp)
+# ---TODO FIXME --DO_NOT_RELEASE-- (mnosov)
+set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp) # DEBUG trick to disable all unit tests for faster build
+# --- END OF --DO_NOT_RELEASE--
+set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+#-----
+
 add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
@@ -513,3 +522,18 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
+
+MESSAGE("HERE2" ${ONNX_IMPORT_INCLUDE_DIR})
+
+############ FRONTEND ############
+# TODO: try to find a way to move it outside of general CMAKE
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
+target_link_libraries(unit-test PRIVATE frontend_manager)
+
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
+target_link_libraries(unit-test PRIVATE frontend_manager)
+
+#PaddlePaddle
+target_include_directories(unit-test PRIVATE ${FRONTEND_BASE_PATH}/paddlepaddle/include)
+target_link_libraries(unit-test PRIVATE paddlepaddle_frontend)
+### END FRONTEND ###

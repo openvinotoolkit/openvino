@@ -17,6 +17,7 @@
 #include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyngraph/dimension.hpp"
+#include "pyngraph/frontend_manager.hpp"
 #include "pyngraph/ops/constant.hpp"
 #include "pyngraph/ops/parameter.hpp"
 #include "pyngraph/ops/result.hpp"
@@ -37,6 +38,11 @@ PYBIND11_MODULE(_pyngraph, m)
     m.doc() = "Package ngraph.impl that wraps nGraph's namespace ngraph";
     regclass_pyngraph_PyRTMap(m);
     regclass_pyngraph_Node(m);
+    regclass_pyngraph_Place(m);
+    regclass_pyngraph_FEC(m);
+    regclass_pyngraph_FrontEndManager(m);
+    regclass_pyngraph_FrontEnd(m);
+    regclass_pyngraph_InputModel(m);
     regclass_pyngraph_Input(m);
     regclass_pyngraph_Output(m);
     regclass_pyngraph_NodeFactory(m);

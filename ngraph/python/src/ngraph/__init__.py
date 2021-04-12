@@ -12,7 +12,13 @@ except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
 from ngraph.impl import Node
+from ngraph.impl import PartialShape
+from ngraph.impl import Dimension
 from ngraph.impl import Function
+from ngraph.impl import FrontEndManager
+from ngraph.impl import FrontEndCapabilities
+from ngraph.impl import FrontEnd
+from ngraph.impl import InputModel
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
 

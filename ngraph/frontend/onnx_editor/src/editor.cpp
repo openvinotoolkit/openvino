@@ -358,3 +358,72 @@ void onnx_editor::ONNXModelEditor::set_input_values(
         modify_initializer(*onnx_initializer, name, values, onnx_input);
     }
 }
+
+namespace
+{
+    const auto is_equal_to =
+        +[](const std::string& other) { return [&](const std::string& s) { return s == other; }; };
+}
+
+int onnx_editor::ONNXModelEditor::find_producing_node_idx(const std::string& tensorName) const
+{
+    const auto& graph = m_pimpl->m_model_proto.graph();
+    for (int i = 0; i < graph.node_size(); ++i)
+    {
+        const auto& outputs = graph.node(i).output();
+        const auto output_found =
+            std::any_of(std::begin(outputs), std::end(outputs), is_equal_to(tensorName));
+
+        if (output_found)
+        {
+            return i;
+        }
+    }
+
+    throw ngraph::ngraph_error{"Source node not found in the graph for tensor name: " + tensorName};
+}
+
+std::vector<int>
+    onnx_editor::ONNXModelEditor::find_consumeing_node_idxs(const std::string& tensorName) const
+{
+    const auto& graph = m_pimpl->m_model_proto.graph();
+    std::vector<int> result;
+    for (int i = 0; i < graph.node_size(); ++i)
+    {
+        const auto& inputs = graph.node(i).input();
+        const auto input_found =
+            std::any_of(std::begin(inputs), std::end(inputs), is_equal_to(tensorName));
+
+        if (input_found)
+        {
+            result.push_back(i);
+        }
+    }
+    return result;
+}
+
+bool onnx_editor::ONNXModelEditor::validate_tensor_name(const std::string& tensorName) const
+{
+    const auto& graph = m_pimpl->m_model_proto.graph();
+    for (int i = 0; i < graph.node_size(); ++i)
+    {
+        const auto& outputs = graph.node(i).output();
+        const auto output_found =
+            std::any_of(std::begin(outputs), std::end(outputs), is_equal_to(tensorName));
+
+        if (output_found)
+        {
+            return true;
+        }
+
+        const auto& inputs = graph.node(i).input();
+        const auto input_found =
+            std::any_of(std::begin(inputs), std::end(inputs), is_equal_to(tensorName));
+
+        if (input_found)
+        {
+            return true;
+        }
+    }
+    return false;
+}
