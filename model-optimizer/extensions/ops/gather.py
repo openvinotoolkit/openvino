@@ -35,14 +35,13 @@ class Gather(Op):
 
     @staticmethod
     def get_axis(node: Node):
-        out_rank = len(node.out_port(0).data.get_shape())
+        data_rank = len(node.in_port(0).data.get_shape())
         axis_value = node.in_port(2).data.get_value()
-        axis_value = axis_value[0] if len(axis_value) == 1 else axis_value
-        return axis_value + out_rank if axis_value < 0 else axis_value
+        return axis_value + data_rank if axis_value < 0 else axis_value
 
     @staticmethod
     def get_batch_dims(node: Node):
-        return node.batch_dims + Gather.get_axis() if node.batch_dims < 0 else node.batch_dims
+        return node.batch_dims + Gather.get_axis(node) if node.batch_dims < 0 else node.batch_dims
 
     @staticmethod
     def infer(node: Node):
@@ -59,7 +58,7 @@ class Gather(Op):
         assert indices_shape is not None
         axis = node.in_port(2).data.get_value()
         assert axis is not None
-        axis = get_canonical_axis_index(data_shape, axis)
+        axis = Gather.get_axis(node)
 
         # we import PermuteInputs locally because it uses Gather inside and we have recursive imports
         from mo.graph.perm_inputs import PermuteInputs
@@ -127,7 +126,7 @@ class AttributedGather(Op):
         assert indices_shape is not None
 
         # Convert negative axis
-        axis = get_canonical_axis_index(data_shape, axis)
+        axis = Gather.get_axis(node)
         node.axis = axis
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
