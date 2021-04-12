@@ -106,6 +106,8 @@ class RemoveConstToResult(BackReplacementPattern):
     Transformation looks for a constant sub-graph followed by Result operation.
     If sub-graph is Const->data->Result -- then all three nodes are removed.
     If there is more complex constant sub-graph -- then only Result node is removed.
+    If Result node has keep_output_port attribute True the node will not to be removed from graph but
+    the Result node will not to be saved to IR. Only port will be kept in IR.
 
     Currently IE is unable to handle such graph so this transformation is a work around for such case.
     For instance, this case appears for Wide and Deep model.
@@ -123,7 +125,8 @@ class RemoveConstToResult(BackReplacementPattern):
         return dict(
             nodes=[
                 ('const_data', {'kind': 'data', 'value': lambda value: value is not None}),
-                ('result_node', {'type': 'Result', 'kind': 'op'}),
+                ('result_node', {'type': 'Result', 'kind': 'op',
+                                 'keep_output_port': lambda attr: not attr}),
             ],
             edges=[
                 ('const_data', 'result_node')
