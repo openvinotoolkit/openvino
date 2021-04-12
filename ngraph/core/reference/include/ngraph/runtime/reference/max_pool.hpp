@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <numeric>
-
 #include "ngraph/coordinate_transform.hpp"
 
 namespace ngraph
@@ -78,6 +77,21 @@ namespace ngraph
                         input_batch_transform_start[i] = movement_stride * out_coord[i];
                         input_batch_transform_end[i] =
                             input_batch_transform_start[i] + window_shape_this_dim;
+                        // If a window (kernel) is out of arg shape bounds, trim it to fit
+                        auto padded_upper_bound =
+                            arg_shape[i] + padding_below[i - 2] + padding_above[i - 2];
+                        if (input_batch_transform_end[i] > padded_upper_bound)
+                        {
+                            input_batch_transform_end[i] = padded_upper_bound;
+                            // In some cases with padding in place and ceil rounding
+                            // the last window actually begins after the input ends,
+                            // so to propagate the edge value, the window needs to begin earlier
+                            if (input_batch_transform_end[i] == input_batch_transform_start[i] ==
+                                arg_shape[i])
+                            {
+                                input_batch_transform_start[i] -= 1;
+                            }
+                        }
                         input_batch_transform_padding_below[i] = padding_below[i - 2];
                         input_batch_transform_padding_above[i] = padding_above[i - 2];
                     }
