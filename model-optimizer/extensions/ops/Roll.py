@@ -8,6 +8,7 @@ from mo.ops.op import Op
 
 class Roll(Op):
     op = 'Roll'
+    enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
@@ -19,3 +20,6 @@ class Roll(Op):
             'version': 'opset7'
         }
         super().__init__(graph, mandatory_props, attrs)
+
+    def backend_attrs(self):
+        return []
