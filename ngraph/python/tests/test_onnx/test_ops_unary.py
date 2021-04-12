@@ -267,7 +267,7 @@ def test_logsoftmax():
 
 def test_softplus():
     def softplus(x):
-        return np.where(x < np.log(np.finfo(np.float32).max), np.log(np.exp(x) + 1), x)
+        return np.where(x < 20, np.log(np.exp(x) + 1), x)
 
     np.random.seed(133391)
     data = np.random.randn(3, 4, 5).astype(np.float32)

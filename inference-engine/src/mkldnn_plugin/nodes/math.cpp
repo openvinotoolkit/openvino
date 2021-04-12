@@ -211,9 +211,9 @@ public:
             });
             break;
         case Math::SoftPlus: {
-            const float large_positive_value = logf(std::numeric_limits<float>::max());
+            const float threshold = 20.f;
             parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = src_data[i] < large_positive_value ? logf(expf(src_data[i]) + 1.f) : src_data[i];
+                dst_data[i] = src_data[i] < threshold ? logf(expf(src_data[i]) + 1.f) : src_data[i];
             });
             break;
         }

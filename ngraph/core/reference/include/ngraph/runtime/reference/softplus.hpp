@@ -16,12 +16,11 @@ namespace ngraph
             template <typename T>
             void softplus(const T* arg, T* out, size_t count)
             {
-                const T large_positive_value =
-                    static_cast<T>(std::log(std::numeric_limits<T>::max()));
+                const T threshold = static_cast<T>(20.f);
 
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = (arg[i] < large_positive_value)
+                    out[i] = (arg[i] < threshold)
                                  ? static_cast<T>(std::log(std::exp(arg[i]) + 1))
                                  : arg[i];
                 }
