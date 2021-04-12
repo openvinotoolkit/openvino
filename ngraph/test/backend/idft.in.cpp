@@ -778,7 +778,7 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_eval_float16)
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        EXPECT_NEAR(result[j], expected_float16_idft2d_result[j], 0.000003);
+        EXPECT_NEAR(result[j], expected_float16_idft2d_result[j], 0.0002);
     }
 }
 
@@ -804,7 +804,7 @@ NGRAPH_TEST(${BACKEND_NAME}, idft2d_eval_bfloat16)
     size_t num_of_elems = result.size();
     for (std::size_t j = 0; j < num_of_elems; ++j)
     {
-        EXPECT_NEAR(result[j], expected_bfloat_idft2d_result[j], 0.000003);
+        EXPECT_NEAR(result[j], expected_bfloat_idft2d_result[j], 0.004);
     }
 }
 
