@@ -22,8 +22,8 @@ namespace ngraph
                         const Shape& data_shape,
                         const Shape& indices_shape,
                         const Shape& out_shape,
-                        int64_t axis,
-                        int64_t batch_dims = 0)
+                        size_t axis,
+                        size_t batch_dims = 0)
             {
                 // flattened shapes
                 int64_t batch_size = shape_size(span(data_shape).subspan(0, batch_dims));
