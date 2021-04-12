@@ -212,7 +212,7 @@ public:
             break;
         case Math::SoftPlus:
             parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = logf(expf(src_data[i]) + 1.f);
+                dst_data[i] = logf(expf(src_data[i]) + 1);
             });
             break;
         case Math::Softsign:
