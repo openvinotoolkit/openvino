@@ -49,9 +49,11 @@ class TimeHeightConvolutionFrontExtractor(FrontExtractorOp):
         mapping_rule = {'height_subsample': height_subsample,
                         'height_in': height_in,
                         'height_out': height_out,
+                        'in_channels': in_shape,
+                        'out_channels': out_shape,
                         'offsets': offsets,
                         'time_offsets': time_offsets,
-                        'out-size': out_shape}
+                        'out-size': out_shape * height_out}
 
         embed_input(mapping_rule, 1, 'weights', weights)
         embed_input(mapping_rule, 2, 'biases', biases)

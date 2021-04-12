@@ -8,6 +8,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import read_binary_bool_token, read_binary_integer32_token, collect_until_token, \
     read_binary_float_token
 from mo.front.kaldi.utils import read_binary_vector
+from mo.ops.batchnormcomponent import BatchNormComponent
 from mo.ops.scale_shift import ScaleShiftOp
 from mo.utils.error import Error
 
@@ -48,8 +49,10 @@ class BatchNormComponentFrontExtractor(FrontExtractorOp):
         scale = target_rms / np.sqrt(var + eps)
 
         shift = - target_rms * mean / np.sqrt(var + eps)
-        attrs = {'out-size': len(shift)}
+        attrs = {'out-size': dim,
+                 'dim': dim,
+                 'block_dim': block_dim}
         embed_input(attrs, 1, 'weights', scale)
         embed_input(attrs, 2, 'biases', shift)
-        ScaleShiftOp.update_node_stat(node, attrs)
+        BatchNormComponent.update_node_stat(node, attrs)
         return cls.enabled

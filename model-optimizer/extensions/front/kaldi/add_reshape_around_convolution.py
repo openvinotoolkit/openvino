@@ -5,6 +5,7 @@ import numpy as np
 
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Div
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
@@ -61,7 +62,8 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             graph, Div, {1: float32_array([node.patch_stride])}, {'name': node_name + '/div_stride_h'})
         div.in_port(0).connect(H.out_port(0))
 
-        concat = create_op_with_const_inputs(graph, Concat, {2: float32_array([1]), 3: float32_array([node.patch_stride])},
+        concat = create_op_with_const_inputs(graph, Concat, {2: float32_array([node.patch_stride//node.kernel[1]]),
+                                                             3: float32_array([node.kernel[1]])},
                                              {'name': node_name + '/concat_all_dims', 'in_ports_count': 4, 'axis': 0})
         concat.in_port(0).connect(N.out_port(0))
         concat.in_port(1).connect(div.out_port(0))
@@ -72,13 +74,17 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         reshape_in = Reshape(graph, {'name': node_name + '/reshape_in'}).create_node()
         reshape_in.in_port(1).connect(reshape_pattern.out_port(0))
 
+        # change layout from NHWC to NCHW
+        transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 3, 1, 2]),
+                                                     {'name': node.name + '/Transpose'}, reshape_in)
+
         # create Reshape after Convolution
         reshape_out = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
                                                        {'name': node_name + '/reshape_out'})
 
         # connect input_reshape_node
         source = node.in_port(0).get_source()
-        node.in_port(0).get_connection().set_source(reshape_in.out_port(0))
+        node.in_port(0).get_connection().set_source(transpose.out_port(0))
         reshape_in.in_port(0).connect(source)
         # connect output_reshape_node
         node.out_port(0).get_connection().set_source(reshape_out.out_port(0))
