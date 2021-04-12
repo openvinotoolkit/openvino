@@ -13,6 +13,8 @@ element in the output tensor with the following formula:
 SoftPlus(x) = ln(e^{x} + 1.0)
 \f]
 
+**Note**: For numerical stability the operation reverts the linear function when \f[ x > 20 \f]
+
 **Attributes**: *SoftPlus* operation has no attributes.
 
 
