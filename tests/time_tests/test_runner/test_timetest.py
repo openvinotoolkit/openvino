@@ -63,11 +63,12 @@ def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir
         run_timetest(_exe_args, log=logging)
         assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
 
-    retcode, aggr_stats = run_timetest(exe_args, log=logging)
+    retcode, aggr_stats, raw_stats = run_timetest(exe_args, log=logging)
     assert retcode == 0, "Run of executable failed"
 
     # Add timetest results to submit to database and save in new test conf as references
     test_info["results"] = aggr_stats
+    test_info["raw_results"] = raw_stats
 
     # Compare with references
     comparison_status = 0
