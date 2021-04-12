@@ -34,7 +34,9 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 static inline size_t GetBlockSize(const eltwise_params& params) {
     // Set blocksize 1 when broadcasting X dim
     for (size_t i = 0; i < params.inputs.size(); i++) {
-        if (params.inputs[i].X().v == 1 && params.inputs[i].LogicalSize() != 1) {
+        if ((params.inputs[i].X().v == 1) &&
+            (params.inputs[i].LogicalSize() != 1) &&
+            (params.inputs[i].LogicalSize() != params.output.Feature().v || params.inputs[i].Feature().v != params.output.Feature().v)) {
             return 1;
         }
     }
@@ -56,9 +58,9 @@ static inline bool OpHasFeatureBroadcast(const eltwise_params& params, const siz
     for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
         const auto &input = ew.inputs[input_idx];
         if (input.mode == EltwiseInputMode::INPUT_BUFFER) {
-            if (params.inputs[input_idx].LogicalSize() != 1
-                && params.inputs[input_idx].Feature().v == 1
-                && params.output.Feature().v != 1) {
+            if (params.inputs[input_idx].LogicalSize() != 1 &&
+                params.inputs[input_idx].Feature().v == 1 &&
+                params.output.Feature().v != 1) {
                     return true;
                 }
         }
@@ -193,7 +195,19 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    jit.AddConstant(MakeJitConstant("ELTWISE_BROADCAST", params.broadcast));
+    if (params.broadcast) {
+        const auto& output = params.output;
+        bool need_idx_safe = true;
+        for (size_t i = 0; i < params.inputs.size(); i++) {
+            if ((params.inputs[i].LogicalSize() == output.Feature().v && params.inputs[i].Feature().v == output.Feature().v) ||
+                (params.inputs[i].LogicalSize() == 1)) {
+                    need_idx_safe = false;
+                    break;
+            }
+        }
+        if (need_idx_safe)
+            jit.AddConstant(MakeJitConstant("ELTWISE_BROADCAST", params.broadcast));
+    }
 
     return jit;
 }
@@ -206,9 +220,15 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
     const auto& output = ewParams.output;
+    const auto count = output.PhysicalSize();
+
+    if (count % 8 != 0)
+        return false;
 
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16 && GetBlockSize(ewParams) != 1) {
+        if ((ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
+            (ewParams.inputs[i].LogicalSize() != output.Feature().v || ewParams.inputs[i].Feature().v != output.Feature().v) &&
+            (ewParams.inputs[i].LogicalSize() != 1)) {
             return false;
         }
     }
