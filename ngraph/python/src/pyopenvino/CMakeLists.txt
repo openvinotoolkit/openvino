@@ -1,7 +1,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-project (openvino.pyopenvino)
+project (pyopenvino)
 
 if(DEFINED IE_MAIN_SOURCE_DIR)
     set(InferenceEngine_LIBRARIES inference_engine)
@@ -36,20 +36,21 @@ if(OpenVINO_MAIN_SOURCE_DIR)
     add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.*.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
             )
 endif()
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
 
-    install(TARGETS ${PROJECT_NAME}
-            DESTINATION python/${PYTHON_VERSION}
-            COMPONENT pyopenvino_${PYTHON_VERSION})
-
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyopenvino_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
+
+    install(TARGETS ${PROJECT_NAME}
+            DESTINATION python/${PYTHON_VERSION}/openvino
+            COMPONENT pyopenvino_${PYTHON_VERSION})
 
     ie_cpack(pyopenvino_${PYTHON_VERSION})
 endif()
