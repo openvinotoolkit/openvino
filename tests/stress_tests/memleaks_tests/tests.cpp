@@ -110,6 +110,14 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
     };
     test_runner(test_params.numthreads, test);
 }
+
+TEST_P(MemLeaksTestSuite, infer_request_inference) {
+    auto test_params = GetParam();
+    auto test = [&] {
+        return test_infer_request_inference(test_params.model, test_params.device, test_params.numiters);
+    };
+    test_runner(test_params.numthreads, test);
+}
 // tests_pipelines/tests_pipelines.cpp
 
 INSTANTIATE_TEST_CASE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
