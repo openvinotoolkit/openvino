@@ -36,11 +36,7 @@ namespace ngraph
                                          divisor.get_element_type().is_integral(),
                                      "If the input type is floating point, then `fmod` attribute "
                                      "must be set to 1.");
-                        const auto floor_mod =
-                            std::make_shared<default_opset::FloorMod>(dividend, divisor);
-                        const auto sign = std::make_shared<default_opset::Sign>(divisor);
-                        const auto floor_mod_abs = std::make_shared<default_opset::Abs>(floor_mod);
-                        output = {std::make_shared<default_opset::Multiply>(floor_mod_abs, sign)};
+                        output = {std::make_shared<default_opset::FloorMod>(dividend, divisor)};
                     }
                     else
                     {
