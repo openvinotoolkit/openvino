@@ -77,8 +77,9 @@ void op::v5::GatherND::validate_and_infer_types()
         {
             NODE_VALIDATION_CHECK(
                 this,
-                (indices_pshape[indices_pshape.rank().get_length() - 1].get_length() +
-                 m_batch_dims) <= static_cast<uint64_t>(data_pshape.rank().get_length()),
+                static_cast<int64_t>(
+                    indices_pshape[indices_pshape.rank().get_length() - 1].get_length() +
+                    m_batch_dims) <= data_pshape.rank().get_length(),
                 "Length of a tuple with indices must not exceed a rank of data tensor "
                 "excluding "
                 "batch dimensions.");
@@ -92,8 +93,9 @@ void op::v5::GatherND::validate_and_infer_types()
     {
         auto indices_tuple_length =
             indices_pshape[indices_pshape.rank().get_length() - 1].get_length();
-        auto slice_length = data_pshape.rank().get_length() - indices_tuple_length - m_batch_dims;
-        auto output_indices_length = indices_pshape.rank().get_length() - m_batch_dims - 1;
+        int64_t slice_length =
+            data_pshape.rank().get_length() - indices_tuple_length - m_batch_dims;
+        int64_t output_indices_length = indices_pshape.rank().get_length() - m_batch_dims - 1;
         auto output_rank = output_indices_length + slice_length;
         size_t delta_output_rank = 0;
         if (m_batch_dims > 0)
@@ -121,11 +123,11 @@ void op::v5::GatherND::validate_and_infer_types()
                 }
             }
         }
-        for (uint64_t dim = 0; dim < output_indices_length; dim++)
+        for (int64_t dim = 0; dim < output_indices_length; dim++)
         {
             output_shape[dim + delta_output_rank] = indices_pshape[dim + m_batch_dims];
         }
-        for (uint64_t dim = 0; dim < slice_length; dim++)
+        for (int64_t dim = 0; dim < slice_length; dim++)
         {
             output_shape[output_indices_length + dim + delta_output_rank] =
                 data_pshape[m_batch_dims + indices_tuple_length + dim];
