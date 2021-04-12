@@ -120,7 +120,7 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
 }
 
 void Summary::saveReport() {
-    if (isReported) {
+    if (isReported && !saveReportWithUniqueName) {
         return;
     }
 
