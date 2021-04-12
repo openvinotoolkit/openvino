@@ -660,6 +660,7 @@ extensions/ops/depth_to_space.py
 extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
 extensions/ops/detectionoutput_onnx.py
+extensions/ops/dft.py
 extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
