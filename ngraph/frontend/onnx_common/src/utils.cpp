@@ -55,7 +55,7 @@ namespace ngraph
                 {element::Type_t::u16, TensorProto_DataType::TensorProto_DataType_UINT16},
                 {element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
                 {element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
-            };
+                {element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
         }
 
         element::Type_t onnx_to_ng_data_type(const TensorProto_DataType& onnx_type)
@@ -67,6 +67,13 @@ namespace ngraph
                     const std::pair<element::Type_t, ONNX_NAMESPACE::TensorProto_DataType>& pair) {
                     return pair.second == onnx_type;
                 });
+            if (result == std::end(NG_2_ONNX_TYPES))
+            {
+                throw ngraph_error(
+                    "unsupported element type: " +
+                    ONNX_NAMESPACE::TensorProto_DataType_Name(
+                        static_cast<ONNX_NAMESPACE::TensorProto_DataType>(onnx_type)));
+            }
             return result->first;
         }
 

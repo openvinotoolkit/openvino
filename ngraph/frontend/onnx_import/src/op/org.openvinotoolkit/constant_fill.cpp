@@ -28,8 +28,8 @@ namespace ngraph
                         "dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
                     const auto ng_type = onnx_common::onnx_to_ng_data_type(
                         static_cast<ONNX_NAMESPACE::TensorProto_DataType>(dtype));
-                    Output<ngraph::Node> const_val_to_fill =
-                        default_opset::Constant::create(ng_type, {}, {fill_value});
+                    const auto const_val_to_fill = std::make_shared<default_opset::Convert>(
+                        default_opset::Constant::create(element::f32, {}, {fill_value}), ng_type);
                     const auto input_as_shape =
                         node.get_attribute_value<int64_t>("input_as_shape", 1);
                     if (input_as_shape == 1) // use the first input as target shape
@@ -49,7 +49,7 @@ namespace ngraph
                                 OutputVector{target_shape, extra_shape_const}, 0);
                         }
                     }
-                    else // use input_as_shape attribute as target shape
+                    else // use shape attribute as target shape
                     {
                         const auto shape = node.get_attribute_value<std::vector<int64_t>>("shape");
                         target_shape =
