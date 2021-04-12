@@ -270,6 +270,9 @@ class LayerInfo {
         }
         return true;
     }
+    bool isNonValuesChangable() const {
+        return isNonFunctional() || isSplit() || isSlice() || isConcat();
+    }
     bool isPooling() const noexcept {
         return isOfType("pooling");
     }

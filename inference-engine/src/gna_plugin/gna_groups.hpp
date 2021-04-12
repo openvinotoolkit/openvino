@@ -5,6 +5,7 @@
 #pragma once
 
 #include <legacy/graph_tools.hpp>
+#include "gna_graph_tools.hpp"
 #include "gna_plugin_log.hpp"
 #include "layers/gna_layer_info.hpp"
 
@@ -52,6 +53,14 @@ inline bool HasTo2DReshapeData(InferenceEngine::CNNLayerPtr layer) {
 
     // Don't reshape user-defined ScaleShift layers
     if (layer->name.rfind("SyntheticScaleShift", 0) == std::string::npos)
+        return false;
+
+    // Don't reshape the first dnn layer since it breaks groups recognition
+    auto prevLayer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, 0, [](InferenceEngine::CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonValuesChangable();
+    });
+    IE_ASSERT(prevLayer != nullptr);
+    if (LayerInfo(prevLayer).isInput())
         return false;
 
     // Don't reshape diagonallayers with bias connection

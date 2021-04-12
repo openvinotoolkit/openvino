@@ -913,7 +913,7 @@ void GNAModelSerial::ImportTranspositionInfo(std::istream &is,
 void GNAModelSerial::ExportTranspositionInfo(std::ostream &os,
         const TranspositionInfoMap &transpositionInfoMap) const {
     for (const auto &transpositionInfo : transpositionInfoMap) {
-        auto nameSize = strlen(transpositionInfo.first.c_str()) + 1;
+        auto nameSize = strlen(transpositionInfo.first.c_str());
         writeBits(static_cast<uint32_t>(nameSize), os);
         writeNBytes(transpositionInfo.first.c_str(), nameSize, os);
         auto fragmentsNum = transpositionInfo.second.size();
