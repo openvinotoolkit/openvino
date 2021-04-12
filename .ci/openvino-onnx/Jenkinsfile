@@ -151,7 +151,7 @@ def getConfigurationsMap() {
 }
 
 CONFIGURATION_WORKFLOW = { configuration ->
-    node("OpenVINO-ONNX") {
+    node("OpenVino") {
         try {
             PROJECT_NAME = "openvino"
             WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}"
