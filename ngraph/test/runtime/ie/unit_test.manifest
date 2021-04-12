@@ -883,8 +883,9 @@ dyn_group_convolution_backprop_data
 dynamic_transpose
 transpose
 
-# Failing from new reason after unblocking more Blob types
+# todo: check negative indices implementation
 gather_2d_negative_and_positive_indices_axis_0_2d_input
+# Failing from new reason after unblocking more Blob types
 gather_axis_0_int8
 gather_axis_0_uint8
 gather_axis_0_uint32
@@ -1581,6 +1582,33 @@ evaluate_mvn_6_inside_sqrt
 evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
+
+# not yet implemented on CPU/GPU Gather 7
+gather_v7_1d_int32
+gather_v7_data_int32_3d_indices_axis_1_batch_dims_1
+gather_v7_data_int32_2d_indices_axis_1_batch_dims_1
+gather_v7_3d_indices_axis_1_batch_dims_1
+gather_v7_4d_indices_axis_0_uint8
+gather_v7_4d_indices_axis_0_2d_input
+gather_v7_3d_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_0_2d_input
+gather_v7_2d_negative_and_positive_indices_axis_0_2d_input
+gather_v7_1d_indices_axis_0_1d_input
+gather_v7_scalar_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_1_2d_input
+gather_v7_1d_indices_axis_2_4d_input
+gather_v7_scalar_indices_axis_1_2d_input
+gather_v7_axis_0_int8
+gather_v7_axis_0_int16
+gather_v7_axis_0_int32
+gather_v7_axis_0_int64
+gather_v7_axis_0_uint8
+gather_v7_axis_0_uint16
+gather_v7_axis_0_uint32
+gather_v7_axis_0_uint64
+gather_v7_axis_0_bool
+gather_v7_3d_indices_axis_1_batch_dims_1_int32
+gather_v7_4d_data_axis_2_batch_dims_1_int32
 
 # Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
 bin_convolution_2D_1batch_1channel

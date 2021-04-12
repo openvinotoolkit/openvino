@@ -1197,7 +1197,7 @@ TEST(eval, evaluate_logical_not)
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_dynamic_gather)
+TEST(eval, evaluate_dynamic_gather_v1)
 {
     auto arg1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
@@ -1216,7 +1216,7 @@ TEST(eval, evaluate_dynamic_gather)
     ASSERT_EQ(cval, out);
 }
 
-TEST(eval, evaluate_dynamic_axis_gather)
+TEST(eval, evaluate_dynamic_gather_v1_scalar_axis)
 {
     auto arg1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
@@ -1229,6 +1229,49 @@ TEST(eval, evaluate_dynamic_axis_gather)
                                    {3, 3}, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f}),
                                make_host_tensor<element::Type_t::i32>({1, 2}, {0, 2}),
                                make_host_tensor<element::Type_t::u64>({}, {1})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{3, 1, 2}));
+    auto cval = read_vector<float>(result_tensor);
+    vector<float> out{1.0f, 1.2f, 2.0f, 2.2f, 3.0f, 3.2f};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_dynamic_gather_v7)
+{
+    auto arg1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto arg3 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    int64_t batch_dims = 1;
+    int32_t axis = 1;
+    auto gather = make_shared<op::v7::Gather>(arg1, arg2, arg3, batch_dims);
+    auto fun = make_shared<Function>(OutputVector{gather}, ParameterVector{arg1, arg2, arg3});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result_tensor},
+                              {make_host_tensor<element::Type_t::f32>({2, 3}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}),
+                               make_host_tensor<element::Type_t::i32>({2, 2}, {1, 0, 1, 0}),
+                               make_host_tensor<element::Type_t::i32>({1}, {axis})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{2, 2}));
+    auto cval = read_vector<float>(result_tensor);
+    vector<float> out{2.0f, 1.0f, 5.0f, 4.0f};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_dynamic_gather_v7_axis_scalar)
+{
+    auto arg1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto arg3 = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    int64_t batch_dims = 0;
+    int64_t axis = 1;
+    auto gather = make_shared<op::v7::Gather>(arg1, arg2, arg3, batch_dims);
+    auto fun = make_shared<Function>(OutputVector{gather}, ParameterVector{arg1, arg2, arg3});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result_tensor},
+                              {make_host_tensor<element::Type_t::f32>(
+                                      {3, 3}, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f}),
+                               make_host_tensor<element::Type_t::i32>({1, 2}, {0, 2}),
+                               make_host_tensor<element::Type_t::i64>({}, {axis})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{3, 1, 2}));
     auto cval = read_vector<float>(result_tensor);
