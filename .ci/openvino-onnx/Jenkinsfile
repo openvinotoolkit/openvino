@@ -190,6 +190,8 @@ CONFIGURATION_WORKFLOW = { configuration ->
         finally {
             stage("Cleanup") {
                 deleteDir()
+                    get_commit_id()
+                    DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}"
                 sh """
                     docker rm -f ${DOCKER_CONTAINER_NAME}
                     docker image prune -f
