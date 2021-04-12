@@ -1,8 +1,8 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
-DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
+DOCKER_CONTAINER_PREFIX= "openvino-onnx-ci-container"
+DOCKER_IMAGE_TAG_PREFIX = "openvino-onnx-ci-image"
 
 BACKEND_CONFIGURATIONS = [
     [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
@@ -104,8 +104,9 @@ def updateModels() {
 
 def buildDockerImage(Map configuration) {
     updateModels()
+    get_commit_id()
     sh """
-        docker build --tag=${DOCKER_IMAGE_TAG} \
+        docker build --tag=${DOCKER_IMAGE_TAG_PREFIX}_${GIT_COMMIT_ID}_${configuration.name} \
         --build-arg BUILD_TYPE=${configuration.build_type} \
         --build-arg PROTOBUF_LITE=${configuration.protobuf_lite} \
         --file=.ci/openvino-onnx/Dockerfile \
@@ -116,19 +117,20 @@ def buildDockerImage(Map configuration) {
 
 
 def runTests(Map configuration) {
-    get_commit_id()
-    DOCKER_CONTAINER_NAME_="${DOCKER_CONTAINER_NAME}_${GIT_COMMIT_ID}_${configuration.name}"
+    DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}"
+    DOCKER_IMAGE_TAG={DOCKER_IMAGE_TAG_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}
+    
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
         sh """
-            docker run --name ${DOCKER_CONTAINER_NAME_} ${DOCKER_IMAGE_TAG}
+            docker run --name ${DOCKER_CONTAINER_NAME} ${DOCKER_IMAGE_TAG}
         """
     }
 
     // Run unit-tests AND large model tests by default
     else {
         sh """
-            docker run --name ${DOCKER_CONTAINER_NAME_} \
+            docker run --name ${DOCKER_CONTAINER_NAME} \
             --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
             ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models"
         """
@@ -188,7 +190,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
             stage("Cleanup") {
                 deleteDir()
                 sh """
-                    docker rm -f ${DOCKER_CONTAINER_NAME_}
+                    docker rm -f ${DOCKER_CONTAINER_NAME}
                     docker image prune -f
                 """
             }
