@@ -101,7 +101,7 @@ void op::v7::IDFT::validate()
     {
         const auto input_rank = input_shape.rank().get_length();
         NODE_VALIDATION_CHECK(this,
-                              input_rank >= axes_shape.to_shape()[0] + 1,
+                              input_rank >= static_cast<int64_t>(axes_shape.to_shape()[0] + 1),
                               "The input rank must be greater than number of IDFT axes. Got "
                               "input rank: ",
                               input_rank,
@@ -192,7 +192,7 @@ void op::v7::IDFT::validate_and_infer_types()
 
     if (axes_shape.rank().is_dynamic() || !is_type<op::Constant>(input_value(1).get_node()))
     {
-        for (size_t i = 0; i < input_rank - 1; ++i)
+        for (int64_t i = 0; i < input_rank - 1; ++i)
         {
             output_shape[i] = Dimension::dynamic();
         }
