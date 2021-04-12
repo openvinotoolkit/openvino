@@ -123,6 +123,7 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingSwish,
         fusingHSwish,
         fusingMish,
+        fusingSoftPlus,
         // other patterns
         fusingReluScaleShift,
         fusingFakeQuantizePerTensorRelu,

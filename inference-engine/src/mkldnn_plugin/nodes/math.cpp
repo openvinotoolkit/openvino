@@ -210,13 +210,11 @@ public:
                 dst_data[i] = sinhf(src_data[i]);
             });
             break;
-        case Math::SoftPlus: {
-            const float threshold = 20.f;
+        case Math::SoftPlus:
             parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = src_data[i] < threshold ? logf(expf(src_data[i]) + 1.f) : src_data[i];
+                dst_data[i] = logf(expf(src_data[i]) + 1.f);
             });
             break;
-        }
         case Math::Softsign:
             parallel_for(dataSize, [&](size_t i) {
                 float x = src_data[i];
