@@ -21,7 +21,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
         "${NGRAPH_COVERAGE_BASE_DIRECTORY}/ngraph/frontend/onnx_import*")
     ie_coverage_genhtml(INFO_FILE "onnx_importer"
         PREFIX "${NGRAPH_COVERAGE_BASE_DIRECTORY}")
-
+endif()
+if (NGRAPH_ONNX_EDITOR_ENABLE)
     ie_coverage_extract(INPUT "nGraph" OUTPUT "onnx_editor"
         PATTERNS 
         "${NGRAPH_COVERAGE_BASE_DIRECTORY}/ngraph/frontend/onnx_editor*")

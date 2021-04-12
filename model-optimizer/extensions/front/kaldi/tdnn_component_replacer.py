@@ -11,7 +11,7 @@ from mo.ops.memoryoffset import MemoryOffset
 
 
 class TdnnComponentReplacer(FrontReplacementPattern):
-    '''
+    r"""
     Expand TdnnComponent into MemoryOffsets, Concat and FullyConected nodes
 
     BEFORE:
@@ -31,7 +31,7 @@ class TdnnComponentReplacer(FrontReplacementPattern):
                              |
                         FullyConnected
                              |
-    '''
+    """
     enabled = True
     run_not_recursively = True
 
