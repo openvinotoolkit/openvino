@@ -32,6 +32,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(eltwise);
     REGISTER_GPU(fully_connected);
     REGISTER_GPU(gather);
+    REGISTER_GPU(gather_nd);
     REGISTER_GPU(gemm);
     REGISTER_GPU(input_layout);
     REGISTER_GPU(lrn);
