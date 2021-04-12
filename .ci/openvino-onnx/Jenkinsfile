@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 DOCKER_CONTAINER_PREFIX= "openvino-onnx-ci-container"
-DOCKER_IMAGE_TAG_PREFIX = "openvino-onnx-ci-image"
+DOCKER_IMAGE_PREFIX= "openvino-onnx-ci-image"
 
 BACKEND_CONFIGURATIONS = [
     [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
@@ -78,7 +78,7 @@ def gitSubmoduleUpdate(String repository_name) {
             git submodule init && git submodule update \
                 --init \
                 --no-fetch \
-                --recursive 
+                --recursive
         """
     }
 }
@@ -105,7 +105,7 @@ def updateModels() {
 def buildDockerImage(Map configuration) {
     updateModels()
     get_commit_id()
-    DOCKER_IMAGE_TAG = ${DOCKER_IMAGE_TAG_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}.toLowerCase()
+    DOCKER_IMAGE_TAG="${DOCKER_IMAGE_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}".toLowerCase()
     sh """
         docker build --tag=${DOCKER_IMAGE_TAG} \
         --build-arg BUILD_TYPE=${configuration.build_type} \
@@ -118,8 +118,9 @@ def buildDockerImage(Map configuration) {
 
 
 def runTests(Map configuration) {
+    get_commit_id()
+    DOCKER_IMAGE_TAG="${DOCKER_IMAGE_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}".toLowerCase()
     DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}"
-
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
         sh """
