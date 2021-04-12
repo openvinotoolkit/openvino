@@ -26,15 +26,9 @@ namespace ngraph
 
                 const std::string& get_type_name() const { return m_type_name; }
 
-                const std::map<std::string, std::string>& get_attrs() const
-                {
-                    return m_attrs;
-                }
+                const std::map<std::string, std::string>& get_attrs() const { return m_attrs; }
 
-                void set_attrs(const std::map<std::string, std::string>& attrs)
-                {
-                    m_attrs = attrs;
-                }
+                void set_attrs(const std::map<std::string, std::string>& attrs) { m_attrs = attrs; }
 
             private:
                 std::string m_type_name;
