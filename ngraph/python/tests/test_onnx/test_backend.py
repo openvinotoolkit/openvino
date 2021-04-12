@@ -57,7 +57,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_45344,
                    xfail_issue_46762,
                    xfail_issue_46765,
-                   xfail_issue_47317,
                    xfail_issue_47323,
                    xfail_issue_47337,
                    xfail_issue_48052,
@@ -65,7 +64,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_49750,
                    xfail_issue_49752,
                    xfail_issue_49753,
-                   xfail_issue_49754)
+                   xfail_issue_49754,
+                   xfail_issue_52463)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -189,9 +189,8 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_argmin_no_keepdims_random_select_last_index_cpu"),
     (xfail_issue_38091,
      "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu"),
-    (xfail_issue_47317,
-     "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_broadcast_cpu",
-     "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_singleton_broadcast_cpu",),
+    (xfail_issue_52463,
+     "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_singleton_broadcast_cpu"),
     (xfail_issue_47323,
      "OnnxBackendPyTorchOperatorModelTest.test_operator_add_broadcast_cpu",
      "OnnxBackendPyTorchOperatorModelTest.test_operator_addconstant_cpu",
