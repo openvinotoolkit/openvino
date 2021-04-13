@@ -7,6 +7,7 @@
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -47,11 +48,11 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_seq_len->input_value(0));
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
-        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
+        auto T = std::make_shared<ngraph::opset7::Gather>(data_shape, indexT, axisT);
 
         auto axisN = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexN = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, indexN, axisN);
+        auto N = std::make_shared<ngraph::opset7::Gather>(data_shape, indexN, axisN);
 
         auto start = opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto step = opset6::Constant::create(seq_len_type, Shape{}, {1});

@@ -59,6 +59,8 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_5.hpp"
+#include "transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp"
+#include "transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
@@ -85,6 +87,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
+    manager.register_pass<ngraph::pass::ConvertGather1ToGather7>(); // all transformations use Gather-7
     manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
     manager.register_pass<ngraph::pass::TransposeSinking>();
 
@@ -156,6 +159,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    // need to convert to Gather-1 until plugins do not support Gather-7
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();

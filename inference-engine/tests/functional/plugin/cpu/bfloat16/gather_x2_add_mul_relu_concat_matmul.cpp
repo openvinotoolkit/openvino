@@ -18,6 +18,7 @@
 #include "common_test_utils/common_utils.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -75,10 +76,10 @@ protected:
         }
         auto axesConst = opset1::Constant::create(ngraph::element::i64, Shape{1}, { 1 });
         auto indexesConst = opset1::Constant::create(ngraph::element::i64, Shape{inputSize}, gatherArray);
-        auto gatherNode1 = std::make_shared<opset1::Gather>(matmulNode, indexesConst, axesConst);
+        auto gatherNode1 = std::make_shared<opset7::Gather>(matmulNode, indexesConst, axesConst);
         gatherNode1->set_friendly_name("Gather_1");
 
-        auto gatherNode2 = std::make_shared<opset1::Gather>(matmulNode, indexesConst, axesConst);
+        auto gatherNode2 = std::make_shared<opset7::Gather>(matmulNode, indexesConst, axesConst);
         gatherNode2->set_friendly_name("Gather_2");
 
         // multiply

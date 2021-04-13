@@ -8,6 +8,7 @@
 #include <common_test_utils/test_common.hpp>
 
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
 
 namespace {
@@ -39,7 +40,7 @@ protected:
                 parameter,
                 ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {axis}));
 
-        const auto gather = std::make_shared<ngraph::opset6::Gather>(
+        const auto gather = std::make_shared<ngraph::opset7::Gather>(
                 unsqueeze,
                 ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}),
                 ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {axis}));

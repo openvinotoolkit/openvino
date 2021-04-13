@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
@@ -94,7 +95,7 @@ ngraph::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
 
         auto axis = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({0}));
         auto index = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({0}));
-        auto stop = std::make_shared<ngraph::opset3::Gather>(input_shape, index, axis);
+        auto stop = std::make_shared<ngraph::opset7::Gather>(input_shape, index, axis);
 
         auto range = std::make_shared<ngraph::opset3::Range>(start, stop, step);
 

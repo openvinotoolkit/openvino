@@ -14,6 +14,7 @@
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph
@@ -34,7 +35,7 @@ namespace ngraph
                                                const Output<Node>& reduction_axes)
         {
             const auto value_shape = std::make_shared<ngraph::opset1::ShapeOf>(value);
-            const auto dim_values = std::make_shared<ngraph::opset1::Gather>(
+            const auto dim_values = std::make_shared<ngraph::opset7::Gather>(
                 value_shape,
                 reduction_axes,
                 ngraph::opset1::Constant::create(element::i64, {}, {0}));

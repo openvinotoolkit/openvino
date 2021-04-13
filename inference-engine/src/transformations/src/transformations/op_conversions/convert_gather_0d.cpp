@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
@@ -17,10 +18,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather0D, "ConvertGather0D", 0);
 
 ngraph::pass::ConvertGather0D::ConvertGather0D() {
     MATCHER_SCOPE(ConvertGather0D);
-    auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
+    auto gather = ngraph::pattern::wrap_type<opset7::Gather>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto gather = std::dynamic_pointer_cast<ngraph::opset1::Gather>(m.get_match_root());
+        auto gather = std::dynamic_pointer_cast<ngraph::opset7::Gather>(m.get_match_root());
         if (!gather) {
             return false;
         }
@@ -40,7 +41,7 @@ ngraph::pass::ConvertGather0D::ConvertGather0D() {
 
         auto axis = axes_constant->cast_vector<int64_t>()[0];
         indices = std::make_shared<ngraph::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
-        auto gather_new = std::make_shared<ngraph::opset1::Gather>(gather->input_value(0), indices, axes_constant);
+        auto gather_new = std::make_shared<ngraph::opset7::Gather>(gather->input_value(0), indices, axes_constant);
         auto sq = std::make_shared<ngraph::opset1::Squeeze>(gather_new, opset1::Constant::create(element::i64, Shape{1}, {axis}));
         sq->set_friendly_name(gather->get_friendly_name());
 

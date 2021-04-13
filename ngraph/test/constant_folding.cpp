@@ -6,6 +6,7 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "util/all_close_f.hpp"
@@ -553,7 +554,7 @@ TEST(constant_folding, shape_of_dynamic_v0)
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
+    ASSERT_EQ(count_ops_of_type<opset7::Gather>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
 
@@ -578,7 +579,7 @@ TEST(constant_folding, shape_of_dynamic_v3)
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
+    ASSERT_EQ(count_ops_of_type<opset7::Gather>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
 
@@ -604,7 +605,7 @@ TEST(constant_folding, shape_of_dynamic_i32_v3)
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
+    ASSERT_EQ(count_ops_of_type<opset7::Gather>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
 
@@ -632,7 +633,7 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v0)
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
+    ASSERT_EQ(count_ops_of_type<opset7::Gather>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
 
@@ -658,7 +659,7 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v3)
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
+    ASSERT_EQ(count_ops_of_type<opset7::Gather>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
 

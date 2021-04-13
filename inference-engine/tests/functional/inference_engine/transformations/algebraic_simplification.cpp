@@ -13,6 +13,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/builder/autobroadcast.hpp>
@@ -294,7 +295,7 @@ TEST(algebraic_simplification, replace_transpose_with_reshape) {
             shared_ptr<Node> k;
             auto last_dim = shape.rank().get_length() - 1;
             if (shape[last_dim].is_dynamic()) {
-                k = make_shared<op::v1::Gather>(make_shared<op::ShapeOf>(param),
+                k = make_shared<opset7::Gather>(make_shared<op::ShapeOf>(param),
                                                 op::Constant::create(element::i64, {}, {last_dim}),
                                                 op::Constant::create(element::i64, {}, {0}));
             } else {
@@ -396,7 +397,7 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
-        auto G = make_shared<op::v1::Gather>((multiout ? A1->output(0) : A1), indices, axis);
+        auto G = make_shared<opset7::Gather>((multiout ? A1->output(0) : A1), indices, axis);
 
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(G), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
@@ -411,10 +412,10 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
         EXPECT_TRUE(ps.rank().is_static() && ps_r.rank().is_static()) << casename;
         ASSERT_EQ(ps.rank().get_length(), ps_r.rank().get_length()) << casename;
 
-        ASSERT_EQ(count_ops_of_type<op::v1::Gather>(baseline_f), 1) << casename;
+        ASSERT_EQ(count_ops_of_type<opset7::Gather>(baseline_f), 1) << casename;
         // the pass should short cut the Gather i/p with the gather users
         // since we are fetching the whole tensor using gather op
-        ASSERT_EQ(count_ops_of_type<op::v1::Gather>(optimized_f), num) << casename;
+        ASSERT_EQ(count_ops_of_type<opset7::Gather>(optimized_f), num) << casename;
     };
     for (auto& i32 : {true, false})
         for (auto& multiout : {true, false}) {
@@ -466,7 +467,7 @@ TEST(algebraic_simplification, gather_shapeof) {
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
-        auto B = make_shared<op::v1::Gather>(
+        auto B = make_shared<opset7::Gather>(
             (multiout ? (multiout_1 ? A1->output(1) : A1->output(0)) : A1), indices, axis);
         shared_ptr<Node> B1;
         if (opset2) {
@@ -491,14 +492,14 @@ TEST(algebraic_simplification, gather_shapeof) {
         EXPECT_TRUE(ps.rank().is_static() && ps_r.rank().is_static()) << casename;
         EXPECT_TRUE(ps.same_scheme(ps_r)) << casename;
 
-        ASSERT_EQ(count_ops_of_type<op::v1::Gather>(baseline_f), 1) << casename;
+        ASSERT_EQ(count_ops_of_type<opset7::Gather>(baseline_f), 1) << casename;
 
         auto last_node = optimized_f->get_results()[0]->input_value(0).get_node_shared_ptr();
         if (is_scalar_index) {
             ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(optimized_f), 1) << casename;
-            ASSERT_EQ(count_ops_of_type<op::v1::Gather>(optimized_f), 1) << casename;
+            ASSERT_EQ(count_ops_of_type<opset7::Gather>(optimized_f), 1) << casename;
             EXPECT_TRUE(
-                as_type_ptr<op::v1::Gather>(last_node->input_value(0).get_node_shared_ptr()))
+                as_type_ptr<opset7::Gather>(last_node->input_value(0).get_node_shared_ptr()))
                 << casename;
         } else {
             ASSERT_EQ(count_ops_of_type<op::v0::Concat>(optimized_f), 1) << casename;
