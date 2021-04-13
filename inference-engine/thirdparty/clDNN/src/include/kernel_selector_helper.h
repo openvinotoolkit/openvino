@@ -159,7 +159,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     params.layerID = arg.id();
 
     convert_fused_activation_func_params(arg, params.activations);
-    std::map<primitive_id, size_t> prim_op_id_map;
+    std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_op_id_map;
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
         kernel_selector::fused_operation_desc desc;
@@ -172,7 +172,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
         desc.dep_size = fused_prim.deps.size();
         desc.op_id = op_id++;
         desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
-        prim_op_id_map[fused_prim.node->id()] = desc.op_id;
+        prim_op_id_map[fused_prim.node->id()] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
         for (auto& dep : fused_prim.fused_deps) {
             auto iter = prim_op_id_map.find(dep);
             if (iter != prim_op_id_map.end()) {
