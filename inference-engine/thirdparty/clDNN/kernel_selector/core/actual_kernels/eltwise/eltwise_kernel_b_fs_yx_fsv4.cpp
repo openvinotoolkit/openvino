@@ -9,8 +9,7 @@
 #include <vector>
 
 namespace kernel_selector {
-static std::vector<size_t> GetLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info);
-static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, int input_idx);
+static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, const size_t input_idx);
 
 ParamsKey EltwiseKernel_b_fs_yx_fsv4::GetSupportedKey() const {
     ParamsKey k;
@@ -24,6 +23,7 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableDifferentTypes();
     k.EnableBatching();
     k.EnableTensorPitches();
     k.EnableTensorOffset();
@@ -78,7 +78,8 @@ bool EltwiseKernel_b_fs_yx_fsv4::Validate(const Params& params, const optional_p
         return false;
 
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv4) {
+        if ((ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv4) &&
+            (ewParams.inputs[i].LogicalSize() != 1)) {
             return false;
         }
     }
@@ -140,9 +141,12 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::MakeLoadJitConstants(const eltwise_para
                     jit.AddConstant(MakeJitConstant(idx_order, "b, f_block*4, y, x"));
 
                     if (params.inputs[input.index].LogicalSize() == 1) {
-                        jit.AddConstant(MakeJitConstant(name,
-                                                        "input" + std::to_string(input.index) +
-                                                        "[0]"));
+                        const std::string vload_name = "DO_VLOAD" + std::to_string(op_num) + "_" + std::to_string(input_idx);
+                        const std::string vload_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_a" + std::to_string(op_num) +
+                                                        "_" + std::to_string(input_idx) + " = " "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4))" +
+                                                        "(input" + std::to_string(input.index) + "[0])";
+                        jit.AddConstant(MakeJitConstant(vload_name, vload_value));
+                        jit.AddConstant(MakeJitConstant(name, "tmp_a" + std::to_string(op_num) + "_" + std::to_string(input_idx)));
                     } else {
                         bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.output.Feature().v != 1);
 
@@ -156,8 +160,9 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::MakeLoadJitConstants(const eltwise_para
                             jit.AddConstant(MakeJitConstant(name, "tmp_b" + std::to_string(op_num)));
                         } else {
                             const std::string vload_name = "DO_VLOAD" + std::to_string(op_num) + "_" + std::to_string(input_idx);
-                            const std::string vload_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_a" + std::to_string(op_num) + "_" + std::to_string(input_idx) +
-                                                            " = TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, " + std::to_string(vec_size) + "), vload4(0, &input" + std::to_string(input.index) +
+                            const std::string vload_value = "\\\n\tMAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) tmp_a" + std::to_string(op_num) +
+                                                            "_" + std::to_string(input_idx) + " = TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, " +
+                                                            std::to_string(vec_size) + "), vload4(0, &input" + std::to_string(input.index) +
                                                             "[GET_INDEX(INPUT," + std::to_string(input.index) + ", " + idx_order + ")]));";
 
                             jit.AddConstant(MakeJitConstant(vload_name, vload_value));
@@ -202,7 +207,12 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
     std::string do_eltwise;
     auto& operations = params.operations;
     for (size_t op_num = 0; op_num < operations.size(); op_num++) {
-        for (size_t input_idx = 0; input_idx < params.inputs.size(); input_idx++) {
+        const auto &ew = operations[op_num];
+        for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
+            const auto &input = ew.inputs[input_idx];
+            if (input.mode != EltwiseInputMode::INPUT_BUFFER && input.mode != EltwiseInputMode::SCALAR)
+                continue;
+
             if (InputHasFeatureBroadcast(params, op_num, input_idx)) {
                 do_eltwise += "\\\n\tDO_FEATURE_BROADCAST" + std::to_string(op_num) + "_" + std::to_string(input_idx) + ";";
             } else {
@@ -237,9 +247,21 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    jit.AddConstant(MakeJitConstant("ELTWISE_BROADCAST", params.broadcast));
     jit.AddConstant(MakeJitConstant("QUANTIZATION_TERM", params.int8_quantization));
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
+
+    if (params.broadcast) {
+        bool need_idx_safe = true;
+        for (size_t i = 0; i < params.inputs.size(); i++) {
+            if (params.inputs[i].LogicalSize() == 1) {
+                need_idx_safe = false;
+                break;
+            }
+        }
+
+        if (need_idx_safe)
+            jit.AddConstant(MakeJitConstant("ELTWISE_BROADCAST", params.broadcast));
+    }
 
     return jit;
 }
@@ -251,7 +273,7 @@ EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv4::SetDefault(const elt
     dispatchData.gws[1] = CeilDiv(params.output.Feature().v, 4);
     dispatchData.gws[2] = params.output.Batch().v;
 
-    dispatchData.lws= GetLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 
@@ -259,26 +281,7 @@ EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv4::SetDefault(const elt
 }
 
 // Local
-static std::vector<size_t> GetLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info) {
-    const size_t lws_max = info.maxWorkGroupSize;
-    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
-    size_t total_lws = 1;
-    std::vector<size_t> lws;
-    for (size_t i = 0; i < gws.size(); ++i) {
-        auto rest_lws = lws_max / total_lws;
-        size_t lws_idx = 0;
-        while (rest_lws < optimal_lws_values[lws_idx]) lws_idx++;
-
-        while (gws[i] % optimal_lws_values[lws_idx]) lws_idx++;
-
-        lws.push_back(optimal_lws_values[lws_idx]);
-        total_lws *= optimal_lws_values[lws_idx];
-    }
-
-    return lws;
-}
-
-static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, int input_idx) {
+static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, const size_t input_idx) {
     const auto &ew = params.operations[op_num];
 
     const auto &input = ew.inputs[input_idx];

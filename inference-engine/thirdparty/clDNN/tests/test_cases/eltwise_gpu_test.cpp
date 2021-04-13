@@ -3786,6 +3786,7 @@ struct eltwise_random_test_params {
     tensor      second_input_size;
 
     format::type in_format;
+    format::type in_format_second;  // For testing 1x1x1x1 bfyx
     format::type out_format;
     eltwise_mode mode;
 };
@@ -3871,7 +3872,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto eng = cldnn::engine();
 
         auto in_layout1 = layout(params.input_type, params.in_format, params.first_input_size);
-        auto in_layout2 = layout(params.input_type, params.in_format, params.second_input_size);
+        auto in_layout2 = layout(params.input_type, params.in_format_second, params.second_input_size);
         auto input1 = memory::allocate(eng, in_layout1);
         auto input2 = memory::allocate(eng, in_layout2);
         fill_random(input1);
@@ -3937,16 +3938,17 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
     }
 
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
-        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64}, {1, 10, 48, 64}, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64}, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4}, {1, 1, 4, 4}, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum});
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
-        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4}, {1, 5, 4, 4}, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum});
         return *this;
     }
 };
