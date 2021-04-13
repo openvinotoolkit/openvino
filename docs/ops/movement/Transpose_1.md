@@ -21,11 +21,11 @@
 
 **Outputs**:
 
-*   **1**: A tensor with shape and type matching 1st tensor.
+*   **1**: A tensor of type `T1` and shape with transposed first input tensor dimensions.
 
 **Types**
 
-* *T1*: arbitrary supported type.
+* *T1*: any supported type.
 * *T2*: any integer type.
 
 
