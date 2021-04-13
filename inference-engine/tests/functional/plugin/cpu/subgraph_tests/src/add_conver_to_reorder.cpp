@@ -64,7 +64,7 @@ namespace  {
                   |
              Output[FP32]
 */
-
+// TODO: disabled since Gather should not accept non-integer inputs
 TEST_F(AddConvertToReorderTest, DISABLED_smoke_TestAddConvert_CPU) {
     BuildGraph(ngraph::element::bf16);
     Run();
@@ -84,6 +84,7 @@ TEST_F(AddConvertToReorderTest, DISABLED_smoke_TestAddConvert_CPU) {
                   |
              Output[FP32]
 */
+// TODO: disabled since Gather should not accept non-integer inputs
 TEST_F(AddConvertToReorderTest, DISABLED_smoke_TestAddReorder_CPU) {
     BuildGraph(ngraph::element::i8);
     Run();
