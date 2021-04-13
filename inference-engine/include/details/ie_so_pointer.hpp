@@ -123,7 +123,7 @@ public:
     }
 
     explicit operator bool() const noexcept {
-        return (nullptr != _so_loader) && (nullptr != _pointedObj);
+        return (nullptr != _pointedObj);
     }
 
     friend bool operator==(std::nullptr_t, const SOPointer& ptr) noexcept {
@@ -145,7 +145,7 @@ public:
         return *this;
     }
 
-    operator std::shared_ptr<Loader>() const noexcept {
+    operator const std::shared_ptr<Loader>&() const noexcept {
         return _so_loader;
     }
 

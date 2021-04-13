@@ -41,7 +41,8 @@ OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
                                " is disabled!")
 #define NGRAPH_PASS_CALLBACK(matcher)
 #else
-#define NGRAPH_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, #region)
+#define NGRAPH_OP_SCOPE(region)                                                                    \
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, OV_PP_TOSTRING(region))
 #define NGRAPH_PASS_CALLBACK(matcher)
 #endif
 
