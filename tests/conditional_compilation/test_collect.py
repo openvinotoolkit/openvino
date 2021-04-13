@@ -10,11 +10,9 @@ import glob
 import os
 import sys
 import pytest
-from inspect import getsourcefile
-from pathlib import Path
 
 from proc_utils import cmd_exec  # pylint: disable=import-error
-from tests_utils import write_session_info, SESSION_INFO_FILE
+from tests_utils import write_session_info, SESSION_INFO_FILE, infer_tool
 
 
 @pytest.fixture(scope="function")
@@ -48,15 +46,17 @@ def test_cc_collect(test_id, model, sea_runtool, collector_dir, artifacts, test_
     for path in prev_result:
         os.remove(path)
     # run use case
+    sys_executable = os.path.join(sys.prefix, 'python.exe') if sys.platform == "win32" \
+        else os.path.join(sys.prefix, 'bin', 'python')
     return_code, output = cmd_exec(
         [
-            sys.executable,
+            sys_executable,
             str(sea_runtool),
             f"--output={out}",
             f"--bindir={collector_dir}",
             "!",
-            sys.executable,
-            str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve()),
+            sys_executable,
+            infer_tool,
             f"-m={model}",
             "-d=CPU",
             f"-r={out}",
