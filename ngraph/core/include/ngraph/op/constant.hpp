@@ -217,10 +217,11 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values A vector of values to use as the constant data.
                 template <typename T>
-                static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, const std::vector<T> values)
+                static std::shared_ptr<Constant> create(const element::Type& type,
+                                                        const Shape& shape,
+                                                        const std::vector<T>& values)
                 {
-                    auto result = std::make_shared<op::v0::Constant>(type, shape, values);
+                    auto result = std::make_shared<Constant>(type, shape, values);
                     result->validate_and_infer_types();
                     return result;
                 }
@@ -231,11 +232,24 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values An initializer_list of values to use as the constant data.
                 template <typename T>
-                static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, std::initializer_list<T> values)
+                static std::shared_ptr<Constant> create(const element::Type& type,
+                                                        const Shape& shape,
+                                                        std::initializer_list<T> values)
                 {
-                    auto result =
-                        std::make_shared<op::v0::Constant>(type, shape, std::vector<T>{values});
+                    auto result = std::make_shared<Constant>(type, shape, std::vector<T>{values});
+                    result->validate_and_infer_types();
+                    return result;
+                }
+
+                /// \brief Wrapper around constructing a shared_ptr of a Constant
+                ///
+                /// \param type The element type of the tensor constant.
+                /// \param shape The shape of the tensor constant.
+                /// \param memory An continues memory chunk which contains the constant data.
+                static std::shared_ptr<Constant>
+                    create(const element::Type& type, const Shape& shape, const void* memory)
+                {
+                    auto result = std::make_shared<Constant>(type, shape, memory);
                     result->validate_and_infer_types();
                     return result;
                 }

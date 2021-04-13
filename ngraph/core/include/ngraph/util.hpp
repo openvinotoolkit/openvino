@@ -379,6 +379,8 @@ std::vector<T> read_vector(std::shared_ptr<ngraph::runtime::Tensor> tv)
     return rc;
 }
 
+std::vector<uint8_t> NGRAPH_API read_raw_data(std::shared_ptr<ngraph::runtime::Tensor> tv);
+
 template <typename T>
 std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor)
 {
