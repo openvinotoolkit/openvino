@@ -91,6 +91,7 @@ verified_operations = [
     'Sin-0',
     'SoftPlus-4',
     'Softmax-1',
+    'Split-1',
     'StridedSlice-1',
     'Substract-1',
     'Swish-4',
