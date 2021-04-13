@@ -217,6 +217,8 @@ cdef class Blob:
         precision = self.tensor_desc.precision
         if precision == "FP16":
             res.buffer[:] = deepcopy(self.buffer[:].view(dtype=np.float16), memodict)
+        elif precision == "BF16":
+            raise BufferError("Can't represent BF16 precision in python memory")
         else:
             res.buffer[:] = deepcopy(self.buffer[:], memodict)
         return res
