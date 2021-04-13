@@ -98,7 +98,7 @@ style_transfer_sample -m fast-neural-style-mosaic-onnx.onnx -i car.png car_1.bmp
 [ INFO ] Files were added: 2
 [ INFO ]     car.png
 [ INFO ]     car_1.bmp
-[ INFO ] Loading Inference Engine
+[ INFO
 [ INFO ] Device info:
         CPU
         MKLDNNPlugin version ......... <version>

@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 1. Initialize inference engine core -------------------------------------
-        slog::info << "Creating Inference Engine" << slog::endl;
+        slog::info << "Loading Inference Engine" << slog::endl;
         Core ie;
         // ------------------------------ Get Available Devices ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;

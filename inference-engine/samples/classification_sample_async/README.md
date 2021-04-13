@@ -10,7 +10,7 @@ Image Classification C++ sample application demonstrates how to use the followin
 |:---     |:--- |:---
 |Inference Engine Version| `InferenceEngine::GetInferenceEngineVersion` | Get Inference Engine API version
 |Available Devices|`InferenceEngine::Core::GetAvailableDevices`| Get version information of the devices for inference
-| Asynchronous Infer | `InferenceEngine::InferRequest::StartAsync`, `InferenceEngine::InferRequest::SetCompletionCallback` | Do asynchronous inference
+| Asynchronous Infer | `InferenceEngine::InferRequest::StartAsync`, `InferenceEngine::InferRequest::SetCompletionCallback` | Do asynchronous inference with callback
 |Custom Extension Kernels|`InferenceEngine::Core::AddExtension`, `InferenceEngine::Core::SetConfig`| Load extension library and config to the device
 | Network Operations | `InferenceEngine::CNNNetwork::setBatchSize`, `InferenceEngine::CNNNetwork::getBatchSize`, `InferenceEngine::CNNNetwork::getFunction` |  Managing of network, operate with its batch size. Setting batch size using input image count.
 
@@ -105,7 +105,7 @@ classification_sample_async -m alexnet_fp32/alexnet.xml -i car_1.bmp -d GPU
 [ INFO ] Parsing input parameters
 [ INFO ] Files were added: 1
 [ INFO ]     car_1.bmp
-[ INFO ] Creating Inference Engine
+[ INFO ] Loading Inference Engine
 [ INFO ] Device info:
         GPU
         clDNNPlugin version ......... <version>
