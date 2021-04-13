@@ -183,7 +183,7 @@ public:
     virtual std::vector<Place::Ptr> getOutputs () const;
 
     /// Returns a tensor place by a tensor name following framework conventions, or nullptr if a tensor with this name doesn't exist.
-    virtual Place::Ptr getPlaceByTensorName (const std::string& tensorName);
+    virtual Place::Ptr getPlaceByTensorName (const std::string& tensorName) const;
 
     /// Returns an operation place by a tensor name following framework conventions, or nullptr if an operation with this name doesn't exist.
     virtual Place::Ptr getPlaceByOperationName (const std::string& operationName);

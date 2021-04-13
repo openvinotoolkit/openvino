@@ -22,7 +22,7 @@ public:
     InputModelPDPDImpl (const std::string& _path);
     std::vector<Place::Ptr> getInputs () const;
     std::vector<Place::Ptr> getOutputs () const;
-    Place::Ptr getPlaceByTensorName (const std::string& tensorName);
+    Place::Ptr getPlaceByTensorName (const std::string& tensorName) const;
     void overrideAllOutputs (const std::vector<Place::Ptr>& outputs);
     void overrideAllInputs (const std::vector<Place::Ptr>& inputs);
     void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
@@ -126,7 +126,7 @@ std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getOutputs () const 
     NOT_IMPLEMENTED("getOutputs");
 }
 
-Place::Ptr InputModelPDPD::InputModelPDPDImpl::getPlaceByTensorName (const std::string& tensorName) {
+Place::Ptr InputModelPDPD::InputModelPDPDImpl::getPlaceByTensorName (const std::string& tensorName) const {
     for (auto var_places_in_block : var_places) {
         if (var_places_in_block.count(tensorName))
             return var_places_in_block.at(tensorName);
@@ -181,7 +181,7 @@ std::vector<Place::Ptr> InputModelPDPD::getOutputs () const {
     return _impl->getOutputs();
 }
 
-Place::Ptr InputModelPDPD::getPlaceByTensorName (const std::string& tensorName) {
+Place::Ptr InputModelPDPD::getPlaceByTensorName (const std::string& tensorName) const {
     return _impl->getPlaceByTensorName(tensorName);
 }
 

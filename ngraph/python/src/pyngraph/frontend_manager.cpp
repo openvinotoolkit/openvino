@@ -45,7 +45,8 @@ void regclass_pyngraph_FrontEnd(py::module m)
         m, "FrontEnd", py::dynamic_attr());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
-    fem.def("loadFromFile", &ngraph::frontend::FrontEnd::loadFromFile);
+    fem.def("loadFromFile", &ngraph::frontend::FrontEnd::loadFromFile,
+            py::arg("path"));
     fem.def("convert",
             static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
                 ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert));
@@ -56,12 +57,14 @@ void regclass_pyngraph_FrontEnd(py::module m)
 
 void regclass_pyngraph_Place(py::module m)
 {
-    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> fem(
+    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(
         m, "Place", py::dynamic_attr());
-    fem.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
+    place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
 
-    // fem.def("load", &ngraph::frontend::FrontEnd::load);
-    // fem.def("convert", &ngraph::frontend::FrontEnd::convert);
+    place.def("isInput", &ngraph::frontend::Place::isInput);
+    place.def("isOutput", &ngraph::frontend::Place::isOutput);
+    place.def("getNames", &ngraph::frontend::Place::getNames);
+    place.def("isEqual", &ngraph::frontend::Place::isEqual);
 }
 
 void regclass_pyngraph_InputModel(py::module m)
@@ -70,9 +73,13 @@ void regclass_pyngraph_InputModel(py::module m)
         m, "InputModel", py::dynamic_attr());
     im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
     im.def("extractSubgraph", &ngraph::frontend::InputModel::extractSubgraph);
-    im.def("getPlaceByTensorName", &ngraph::frontend::InputModel::getPlaceByTensorName);
+    im.def("getPlaceByTensorName", static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::InputModel::*)(
+            const std::string&) const>(&ngraph::frontend::InputModel::getPlaceByTensorName));
     im.def("setPartialShape", &ngraph::frontend::InputModel::setPartialShape);
     im.def("getInputs", &ngraph::frontend::InputModel::getInputs);
+    im.def("getOutputs", &ngraph::frontend::InputModel::getOutputs);
+    im.def("overrideAllInputs", &ngraph::frontend::InputModel::overrideAllInputs);
+    im.def("overrideAllOutputs", &ngraph::frontend::InputModel::overrideAllOutputs);
 }
 
 void regclass_pyngraph_FEC(py::module m)
