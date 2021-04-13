@@ -289,7 +289,6 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         }
         data = _outputs[name];
         checkBlob(data, name, false);
-        return data;
     }
     if (!data) {
         IE_THROW() << "Cannot find blob with name: " << name;
