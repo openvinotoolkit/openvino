@@ -13,6 +13,9 @@ namespace ngraph
     {
     };
 
+    template <element::Type_t Type>
+    using fundamental_type_for = typename element_type_traits<Type>::value_type;
+
     template <>
     struct element_type_traits<element::Type_t::boolean>
     {
