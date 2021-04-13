@@ -22,9 +22,9 @@ It is not a full list of models that can be converted to ONNX\* and to IR.
 
 * [ESPNet Models](https://github.com/sacmehta/ESPNet/tree/master/pretrained)
 * [MobileNetV3](https://github.com/d-li14/mobilenetv3.pytorch)
-* F3Net topology can be converted using [instruction](pytorch_specific/Convert_F3Net.md)
-* QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using [instruction](pytorch_specific/Convert_QuartzNet.md)
-* YOLACT topology can be converted using [instruction](pytorch_specific/Convert_YOLACT.md)
+* F3Net topology can be converted using [Convert PyTorch\* F3Net to the IR](pytorch_specific/Convert_F3Net.md) instruction.
+* QuartzNet topologies from [NeMo project](https://github.com/NVIDIA/NeMo) can be converted using [Convert PyTorch\* QuartzNet to the IR](pytorch_specific/Convert_QuartzNet.md) instruction.
+* YOLACT topology can be converted using [Convert PyTorch\* YOLACT to the IR](pytorch_specific/Convert_YOLACT.md) instruction.
 
 ## Export PyTorch\* Model to ONNX\* Format <a name="export-to-onnx"></a>
 
