@@ -206,7 +206,7 @@ namespace ngraph
                     std::vector<uint64_t> axes_vec =
                         get_normalized_axes_vector(node, data_rank, raw_axes_vec);
 
-                    const uint64_t slice_indices_length =
+                    const size_t slice_indices_length =
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
                     const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
