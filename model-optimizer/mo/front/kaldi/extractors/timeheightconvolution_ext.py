@@ -1,25 +1,11 @@
-"""
- Copyright (C) 2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import collect_until_token
+from mo.front.kaldi.loader.utils import collect_until_token, read_token_value
 from mo.front.kaldi.utils import read_binary_matrix, read_binary_vector, read_binary_vector_of_pairs
-from mo.front.kaldi.loader.utils import read_token_value
 from mo.ops.timeheightconvolution import TimeHeightConvolutionComponent
 
 
@@ -41,17 +27,31 @@ class TimeHeightConvolutionFrontExtractor(FrontExtractorOp):
         collect_until_token(pb, b'<RequiredTimeOffsets>')
         time_offsets = read_binary_vector(pb, read_token=False, dtype=np.int32)
         collect_until_token(pb, b'<LinearParams>')
-        weights, w_shape = read_binary_matrix(pb)
+        weights, _ = read_binary_matrix(pb)
         collect_until_token(pb, b'<BiasParams>')
         biases = read_binary_vector(pb)
 
         offsets = offsets.reshape([len(offsets)//2, 2])
-        mapping_rule = {'height_subsample': height_subsample,
+        mapping_rule = {  # stride for h axis
+                        'height_subsample': height_subsample,
+                        # input dimension for h axis
                         'height_in': height_in,
+                        # output dimension for h axis
                         'height_out': height_out,
+                        # input dimension for channel axis
                         'in_channels': in_shape,
+                        # output dimension for channel axis
                         'out_channels': out_shape,
+                        # array with pairs like the following
+                        # [ (-1, -1) (-1, 0) (-1, 1)
+                        #   (0, -1)  (0, 0)  (0, 1)
+                        #   (1, -1)  (1, 0)  (1, 1)]
+                        #  it means that kernel 3x3 will be applied to calculate current value of output
                         'offsets': offsets,
+                        # required time offsets to calculate current convolution
+                        # time_offsets = [-1, 0, 1] for previous example means no padding for time axis and
+                        # 3 values should be prepared
+                        # time_offsets = [0] means zero padding [1, 1] for time axis
                         'time_offsets': time_offsets,
                         'out-size': out_shape * height_out}
 
