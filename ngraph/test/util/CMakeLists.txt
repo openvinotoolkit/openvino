@@ -9,6 +9,7 @@ set (SRC
     engine/shared_utils.cpp
     float_util.cpp
     test_tools.cpp
+    test_case.cpp
     test_control.cpp
     visitor.hpp
     provenance_enabler.hpp

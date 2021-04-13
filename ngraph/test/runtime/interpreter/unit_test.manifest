@@ -65,6 +65,11 @@ INTERPRETER.gather_axis_0_int8
 INTERPRETER.gather_axis_0_int16
 INTERPRETER.gather_axis_0_uint8
 INTERPRETER.gather_axis_0_uint16
+INTERPRETER.gather_v7_4d_indices_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_int8
+INTERPRETER.gather_v7_axis_0_int16
+INTERPRETER.gather_v7_axis_0_uint8
+INTERPRETER.gather_v7_axis_0_uint16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
@@ -142,6 +147,7 @@ onnx_controlflow_loop_infinite
 onnx_controlflow_loop_2d_trip_count_dynamic
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
+squeeze_dynamic
 
 # The test fails in CI on Ubuntu i386
 # There's an overflow of some kind: 2147483647 is not close to -2147483648 at index 2

@@ -23,10 +23,10 @@ import os
 import shutil
 import sys
 import tempfile
-from pathlib import Path
-
 import pytest
 import yaml
+
+from pathlib import Path
 from jsonschema import validate, ValidationError
 
 from scripts.run_timetest import check_positive_int
@@ -161,6 +161,7 @@ def test_info(request, pytestconfig):
     """
     setattr(request.node._request, "test_info", {"orig_instance": request.node.funcargs["instance"],
                                                  "results": {},
+                                                 "raw_results": {},
                                                  "db_info": {}})
     if not hasattr(pytestconfig, "session_info"):
         setattr(pytestconfig, "session_info", [])
@@ -391,6 +392,7 @@ def pytest_runtest_makereport(item, call):
 
     data = item._request.test_info["db_info"].copy()
     data["results"] = item._request.test_info["results"].copy()
+    data["raw_results"] = item._request.test_info["raw_results"].copy()
     data["status"] = "not_finished"
     data["error_msg"] = ""
 
