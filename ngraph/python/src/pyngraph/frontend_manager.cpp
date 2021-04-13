@@ -73,8 +73,7 @@ void regclass_pyngraph_InputModel(py::module m)
         m, "InputModel", py::dynamic_attr());
     im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
     im.def("extractSubgraph", &ngraph::frontend::InputModel::extractSubgraph);
-    im.def("getPlaceByTensorName", static_cast<ngraph::frontend::Place::Ptr (ngraph::frontend::InputModel::*)(
-            const std::string&) const>(&ngraph::frontend::InputModel::getPlaceByTensorName));
+    im.def("getPlaceByTensorName", &ngraph::frontend::InputModel::getPlaceByTensorName);
     im.def("setPartialShape", &ngraph::frontend::InputModel::setPartialShape);
     im.def("getInputs", &ngraph::frontend::InputModel::getInputs);
     im.def("getOutputs", &ngraph::frontend::InputModel::getOutputs);
