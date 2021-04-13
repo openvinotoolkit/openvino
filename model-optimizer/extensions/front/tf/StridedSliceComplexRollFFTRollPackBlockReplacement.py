@@ -66,8 +66,7 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
         tf_fft = match['fft']
         tf_fft_name = tf_fft.soft_get('name', tf_fft.id)
 
-        dft_node = create_dft_from_tffft(graph, tf_fft)
-        roll_before.out_port(0).connect(dft_node.in_port(0))
+        dft_node = create_dft_from_tffft(graph, tf_fft, roll_before)
 
         unroll.in_port(1).get_connection().set_destination(roll_after.in_port(1))
         unroll.in_port(2).get_connection().set_destination(roll_after.in_port(2))
@@ -82,8 +81,8 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
         rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
 
 
-def create_dft_from_tffft(graph: Graph, tffft: Node) -> Node:
+def create_dft_from_tffft(graph: Graph, tffft: Node, input_node=None) -> Node:
     num_of_dims = tffft.soft_get('num_of_dimensions', 1)
     axes = int64_array(range(-num_of_dims, 0))
     op = IDFT if tffft.soft_get('is_inverse', False) else DFT
-    return create_op_with_const_inputs(graph, op, {1: axes}, {})
+    return create_op_with_const_inputs(graph, op, {1: axes}, {'in_ports_count': 2}, input_node)

@@ -40,4 +40,6 @@ class ComplexAbs(FrontReplacementSubgraph):
         sqrt = create_op_with_const_inputs(graph, Pow, {1: np.float32(0.5)}, {})
         add.out_port(0).connect(sqrt.in_port(0))
 
+        complex_abs.out_port(0).get_connection().set_source(sqrt.out_port(0))
+
         rename_nodes([(complex_abs, complex_abs_name + '/to_be_removed'), (sqrt, complex_abs_name)])
