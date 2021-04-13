@@ -134,8 +134,8 @@ void op::Clamp::validate_and_infer_types()
                           "Input element type must be numeric. Got: ",
                           input_et);
     NODE_VALIDATION_CHECK(this,
-                          m_min < m_max,
-                          "Attribute 'min' must be less than 'max'. Got: ",
+                          m_min <= m_max,
+                          "Attribute 'min' must be less or equal than 'max'. Got: ",
                           m_min,
                           " and ",
                           m_max);
