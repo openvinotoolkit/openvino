@@ -23,6 +23,10 @@ class TRANSFORMATIONS_API Exception : std::exception {
     std::shared_ptr<std::ostringstream> buffer;
     mutable std::string buffer_str;
 public:
+    Exception() {
+        buffer = std::make_shared<std::ostringstream>();
+    }
+
     template <typename T>
     Exception& operator<< (const T& x) {
         *buffer << x;

@@ -27,10 +27,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*RangeLayerTest.*)",
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
-        // TODO: Issue: 34083
-#if (defined(_WIN32) || defined(_WIN64))
-        R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
-#endif
         // TODO: Issue: 43793
         R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
@@ -58,7 +54,10 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*BF16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
-        R"(.*BinaryConvolutionLayerTest.*)"
+        R"(.*BinaryConvolutionLayerTest.*)",
+        // TODO: 51676. Incorrect conversion of min and max limits from double to integral
+        R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
+        R"(.*ClampLayerTest.*netPrc=U64.*)"
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {

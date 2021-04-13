@@ -10,6 +10,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::LogicalReduction, "LogicalReduction", 1);
+
 op::util::LogicalReduction::LogicalReduction() {}
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)

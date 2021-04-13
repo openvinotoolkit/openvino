@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/node.hpp"
@@ -167,6 +168,8 @@ namespace ngraph
             {
                 OutputVector slice(const Node& node)
                 {
+                    using ngraph::op::is_null;
+
                     OutputVector inputs{node.get_ng_inputs()};
                     const auto data = inputs.at(0);
                     const auto data_rank = data.get_partial_shape().rank();
@@ -176,7 +179,7 @@ namespace ngraph
 
                     // Slice is calculated over all axes as default
                     Output<ngraph::Node> axes;
-                    if (inputs.size() >= 4) // axes input provided
+                    if (inputs.size() >= 4 && !is_null(inputs.at(3))) // axes input provided
                     {
                         axes = inputs.at(3);
                         CHECK_VALID_NODE(node,
@@ -202,12 +205,12 @@ namespace ngraph
                     std::vector<uint64_t> axes_vec =
                         get_normalized_axes_vector(node, data_rank, raw_axes_vec);
 
-                    const uint64_t slice_indices_length =
+                    const size_t slice_indices_length =
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
                     const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
                     Output<ngraph::Node> steps;
-                    if (inputs.size() == 5) // steps input provided
+                    if (inputs.size() == 5 && !is_null(inputs.at(4))) // steps input provided
                     {
                         steps = inputs.at(4);
                     }
@@ -260,7 +263,7 @@ namespace ngraph
                     std::vector<uint64_t> normalized_axes =
                         get_normalized_axes_vector(node, data_rank, axes);
 
-                    const uint64_t slice_indices_length =
+                    const size_t slice_indices_length =
                         *std::max_element(std::begin(normalized_axes), std::end(normalized_axes)) +
                         1;
                     const auto begin_end_mask = axes_to_mask(normalized_axes, slice_indices_length);
