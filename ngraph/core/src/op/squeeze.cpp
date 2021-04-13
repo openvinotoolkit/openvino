@@ -70,8 +70,7 @@ void op::Squeeze::validate_and_infer_types()
     if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
         (data_has_dynamic_shape && axes_is_empty_constant))
     {
-        set_output_type(
-            0, get_input_element_type(0), PartialShape::dynamic(data.get_partial_shape().rank()));
+        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;
     }
 

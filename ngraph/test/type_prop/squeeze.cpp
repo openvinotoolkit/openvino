@@ -57,7 +57,7 @@ TEST(type_prop, squeeze_dynamic_static_rank)
 
     ASSERT_EQ(squeeze_default_axes->get_element_type(), element::f32);
     EXPECT_TRUE(
-        squeeze_default_axes->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
+        squeeze_default_axes->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, squeeze_dynamic_dynamic_rank)
@@ -87,7 +87,7 @@ TEST(type_prop, squeeze_axes_dynamic)
     auto squeeze = make_shared<op::Squeeze>(param, axes_node);
 
     ASSERT_EQ(squeeze->get_element_type(), element::f32);
-    ASSERT_TRUE(squeeze->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
+    ASSERT_TRUE(squeeze->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, squeeze_axes_invalid_value)
@@ -138,7 +138,7 @@ TEST(type_prop, squeeze_negative_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
     auto axes_node =
-        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{-6, -4});
+        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{-6, -4});
     auto squeeze = make_shared<op::Squeeze>(param, axes_node);
 
     ASSERT_EQ(squeeze->get_element_type(), element::f32);
@@ -156,7 +156,7 @@ TEST(type_prop, squeeze_incorrect_negative_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
     auto axes_node =
-        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{-6, -10});
+        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{-6, -10});
 
     try     
     {
