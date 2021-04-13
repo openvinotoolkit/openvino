@@ -734,7 +734,7 @@ extensions/ops/RNN.py
 extensions/ops/RNNCell.py
 extensions/ops/roialign.py
 extensions/ops/roifeatureextractor_onnx.py
-extensions/ops/Roll.py
+extensions/ops/roll.py
 extensions/ops/scatter.py
 extensions/ops/scatternd.py
 extensions/ops/select.py

@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.Roll import Roll
+from extensions.ops.roll import Roll
 from mo.front.extractor import FrontExtractorOp
 
 

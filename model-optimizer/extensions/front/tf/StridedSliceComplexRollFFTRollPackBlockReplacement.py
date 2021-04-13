@@ -2,20 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-
 import logging as log
 
-import numpy as np
-
-from extensions.front.Pack import Pack
-from extensions.front.tf.nearest_neighbor_upsampling import NearestNeighborUpsampling
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph, Node
-from mo.ops.const import Const
-from extensions.ops.mvn import MVN
+from mo.graph.graph import Graph, Node, rename_nodes
 from extensions.ops.dft import DFT, IDFT
+from extensions.ops.roll import Roll
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 
 
@@ -55,11 +49,41 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
             log.debug('The pattern does not correspond to (i)fftxd with shift. Different inputs.')
             return
 
+        roll = match['roll']
+        unroll = match['unroll']
+        roll_name = roll.soft_get('name', roll.id)
+        unroll_name = unroll.soft_get('name', unroll.id)
+
+        roll_before = Roll(graph, {'need_axes_correction': True}).create_node()
+        roll_after = Roll(graph, {'need_axes_correction': True}).create_node()
+
+        roll.in_port(1).get_connection().set_destination(roll_before.in_port(1))
+        roll.in_port(2).get_connection().set_destination(roll_before.in_port(2))
+
+        strided_slice_real = match['strided_slice_real']
+        strided_slice_real.in_port(0).get_connection().set_destination(roll_before.in_port(0))
+
+        tf_fft = match['fft']
+        tf_fft_name = tf_fft.soft_get('name', tf_fft.id)
+
+        dft_node = create_dft_from_tffft(graph, tf_fft)
+        roll_before.out_port(0).connect(dft_node.in_port(0))
+
+        unroll.in_port(1).get_connection().set_destination(roll_after.in_port(1))
+        unroll.in_port(2).get_connection().set_destination(roll_after.in_port(2))
+
+        dft_node.out_port(0).connect(roll_after.in_port(0))
+
+        pack = match['pack']
+        pack.out_port(0).get_connection().set_source(roll_after.out_port(0))
+
+        rename_nodes([(roll, roll_name + '/to_be_removed'), (roll_before, roll_name)])
+        rename_nodes([(unroll, unroll_name + '/to_be_removed'), (roll_after, unroll_name)])
+        rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
+
 
 def create_dft_from_tffft(graph: Graph, tffft: Node) -> Node:
     num_of_dims = tffft.soft_get('num_of_dimensions', 1)
     axes = int64_array(range(-num_of_dims, 0))
-    if tffft.soft_get('is_inverse', False):
-        return create_op_with_const_inputs(graph, DFT, {1: axes}, {})
-    else:
-        return create_op_with_const_inputs(graph, IDFT, {1: axes}, {})
+    op = IDFT if tffft.soft_get('is_inverse', False) else DFT
+    return create_op_with_const_inputs(graph, op, {1: axes}, {})
