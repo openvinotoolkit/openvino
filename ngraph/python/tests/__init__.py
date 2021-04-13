@@ -81,9 +81,6 @@ xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimensi
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: roi has zero dimension which is not allowed")
-xfail_issue_38712 = xfail_test(reason="RuntimeError: Check '(fmod == 1) "
-                                      "While validating ONNX node '<Node(Mod): z>': "
-                                      "Only 'fmod=1' mode is supported for mod operator.")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
