@@ -14,5 +14,23 @@ std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
     return std::make_shared<ngraph::opset3::MatMul>(A, B, transpose_a, transpose_b);
 }
 
+std::shared_ptr<Node> makeFullyConnectedRelaxed(const Output<Node>& A,
+                                                const Output<Node>& B,
+                                                bool transpose_a,
+                                                bool transpose_b) {
+    auto inputParamsFP32 = ngraph::builder::makeParams(ngraph::element::f32, { A.get_shape() });
+    auto matrixB_FP32 = ngraph::builder::makeConstant<float>(ngraph::element::f32, B.get_shape(), {}, true);
+
+    auto matMulNodeRelaxed = std::make_shared<op::TypeRelaxed<opset3::MatMul>>(
+            *as_type_ptr<opset3::MatMul>(std::make_shared<ngraph::opset3::MatMul>(inputParamsFP32[0], matrixB_FP32, transpose_a, transpose_b)),
+                    element::f32);
+
+    auto newMatrixB = ngraph::builder::makeConstant<float>(B.get_element_type(), B.get_shape(), {}, true);
+
+    auto newMatMul = matMulNodeRelaxed->copy_with_new_inputs({A, newMatrixB});
+
+    return newMatMul;
+}
+
 }  // namespace builder
 }  // namespace ngraph

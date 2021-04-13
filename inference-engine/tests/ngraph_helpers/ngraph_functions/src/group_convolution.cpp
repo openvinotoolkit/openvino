@@ -58,5 +58,40 @@ std::shared_ptr<Node> makeGroupConvolution(const ngraph::Output<Node> &in,
     }
 }
 
+std::shared_ptr<Node> makeGroupConvolutionRelaxed(const ngraph::Output<Node> &in,
+                                                  const element::Type &type,
+                                                  const std::vector<size_t> &filterSize,
+                                                  const std::vector<size_t> &strides,
+                                                  const std::vector<ptrdiff_t> &padsBegin,
+                                                  const std::vector<ptrdiff_t> &padsEnd,
+                                                  const std::vector<size_t> &dilations,
+                                                  const op::PadType &autoPad,
+                                                  size_t numOutChannels,
+                                                  size_t numGroups,
+                                                  const std::vector<float> &filterWeights) {
+    auto inputParamsFP32 = ngraph::builder::makeParams(ngraph::element::f32, { in.get_shape() });
+    auto paramOutsFP32 = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParamsFP32));
+
+    auto groupConvolutionNodeRelaxed = std::make_shared<op::TypeRelaxed<opset1::GroupConvolution>>(
+            *as_type_ptr<opset1::GroupConvolution>(ngraph::builder::makeGroupConvolution(
+                    paramOutsFP32.front(), ngraph::element::f32, filterSize, strides, padsBegin, padsEnd, dilations, autoPad, numOutChannels, numGroups)),
+            element::f32);
+
+    bool randomFilterWeights = filterWeights.empty();
+    auto shape = in.get_shape();
+    std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
+    if (filterWeightsShape[0] % numGroups || filterWeightsShape[1] % numGroups)
+        throw std::runtime_error("incorrected shape for GroupConvolution");
+    filterWeightsShape[0] /= numGroups;
+    filterWeightsShape[1] /= numGroups;
+    filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
+    filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
+    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+
+    auto newGroupConvolution = groupConvolutionNodeRelaxed->copy_with_new_inputs({in, filterWeightsNode});
+
+    return newGroupConvolution;
+}
+
 }  // namespace builder
 }  // namespace ngraph

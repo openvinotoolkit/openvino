@@ -153,7 +153,7 @@ protected:
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
-    float abs_threshold;
+    float abs_threshold = -1;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
 
@@ -164,6 +164,8 @@ protected:
     virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
+
+    std::vector<std::shared_ptr<ngraph::pass::GraphRewrite>> additionalPasses;
 
 private:
     RefMode refMode = RefMode::INTERPRETER;

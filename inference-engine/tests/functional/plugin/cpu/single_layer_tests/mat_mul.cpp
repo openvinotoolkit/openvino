@@ -44,6 +44,12 @@ public:
 protected:
      std::string cpuNodeType;
 
+    int calculateQuantizeInHigh(const int numMult, const int maxIn0 = 10, const int maxIn1 = 10) const {
+        auto quantizeInHigh = maxIn0 * maxIn1;
+        quantizeInHigh *= numMult;
+        return quantizeInHigh;
+    }
+
     void SetUp() override {
         MatMulLayerTestParamsSet basicParamsSet;
         MatMulNodeType nodeType;
@@ -67,17 +73,18 @@ protected:
          * Currently nodes are not fused thought Reshape
          * Check can be deleted after this limitation is gone
          */
-        if (nodeType == MatMulNodeType::MatMul && inShapeA.size() < 4 && inShapeB.size() < 4)
+        if (nodeType == MatMulNodeType::FullyConnected || (nodeType == MatMulNodeType::MatMul && inShapeA.size() < 4 && inShapeB.size() < 4))
             std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
-            inPrc = outPrc = netPrecision = Precision::BF16;
-        else
-            inPrc = outPrc = netPrecision;
-
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
+
+        if (nodeType == MatMulNodeType::MatMul) {
+            if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+                inPrc = outPrc = netPrecision = Precision::BF16;
+            else
+                inPrc = outPrc = netPrecision;
+        }
 
         auto transpose = [](SizeVector& shape) {
             IE_ASSERT(shape.size() > 1);
@@ -88,14 +95,36 @@ protected:
         if (transpB) transpose(inShapeB);
 
         auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = builder::makeParams(ngPrec, {inShapeA});
-        auto matrixB = builder::makeInputLayer(ngPrec, secondaryInputType, inShapeB);
+        auto elemTypeA = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto elemTypeB = (elemTypeA == element::u8) ? element::i8 : elemTypeA;
+
+        auto params = builder::makeParams(elemTypeA, {inShapeA});
+        auto matrixB = builder::makeInputLayer(elemTypeB, secondaryInputType, inShapeB);
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
-        function = makeNgraphFunction(ngPrec, params, matMul, cpuNodeType);
+
+        std::shared_ptr<ngraph::Node> matMul;
+        if (nodeType == MatMulNodeType::MatMul) {
+            matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
+        } else {
+            matMul = builder::makeFullyConnectedRelaxed(paramOuts[0], matrixB, transpA, transpB);
+        }
+
+        if (outPrc == Precision::U8 || outPrc == Precision::I8) {
+            threshold = 1.001f;
+            abs_threshold = 1.001f;
+            quantizeInHigh = calculateQuantizeInHigh(inShapeA[1]);
+            outElemType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
+        }
+
+        if (inPrc == Precision::U8 || inPrc == Precision::I8) {
+            additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::i8, element::f32>>());
+            additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::u8, element::f32>>());
+        }
+
+        function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
         checkFusingPosition = false;
     }
 };
@@ -110,9 +139,8 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* ============= Common params ============= */
-const std::vector<bool> transpose = {
-    true, false
-};
+const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
 
 std::vector<std::map<std::string, std::string>> additionalConfig {
     std::map<std::string, std::string>{/* empty config */},
@@ -153,30 +181,85 @@ const std::vector<ShapeRelatedParams> IS2D {
     {{{71, 128}, true}, {{128, 20}, false}},
     {{{71, 128}, false}, {{128, 20}, true}},
     {{{71, 128}, true}, {{128, 20}, true}},
+
+    {{{7, 3}, false}, {{3, 5}, false}},
+    {{{71, 3}, false}, {{3, 20}, false}},
 };
 
-std::vector<fusingSpecificParams> fusingParamsSet2D {
+std::vector<fusingSpecificParams> fusingParamsSet2D_FP32 {
         emptyFusingSpec,
         fusingBiasFC,
         fusingRelu,
         fusingMultiplyPerChannel,
-        fusingPReluPerTensor
+        fusingScaleShift,
+        fusingPReluPerChannel,
+        fusingPReluPerTensor,
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
 };
 
-const auto fullyConnectedParams2D = ::testing::Combine(::testing::ValuesIn(IS2D),
-                                                       ::testing::ValuesIn(netPRCs),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
+const auto fullyConnectedParams2D_FP32 = ::testing::Combine(::testing::ValuesIn(IS2D),
+                                                       ::testing::Values(Precision::FP32),
+                                                       ::testing::Values(Precision::FP32),
+                                                       ::testing::Values(Precision::FP32),
                                                        ::testing::Values(Layout::ANY),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                                       ::testing::ValuesIn(additionalConfig));
+                                                       ::testing::Values(cpuEmptyPluginConfig));
 
-const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
+const auto testParams2D_FP32 = ::testing::Combine(fullyConnectedParams2D_FP32,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D));
+                                             ::testing::ValuesIn(fusingParamsSet2D_FP32));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP32, MatMulLayerCPUTest, testParams2D_FP32, MatMulLayerCPUTest::getTestCaseName);
+
+std::vector<fusingSpecificParams> fusingParamsSet2D_BF16 {
+        emptyFusingSpec,
+        fusingBiasFC,
+        fusingRelu,
+        fusingMultiplyPerChannel,
+        fusingScaleShift,
+};
+
+const auto fullyConnectedParams2D_BF16 = ::testing::Combine(::testing::ValuesIn(IS2D),
+                                                            ::testing::Values(Precision::BF16),
+                                                            ::testing::Values(Precision::BF16),
+                                                            ::testing::Values(Precision::BF16),
+                                                            ::testing::Values(Layout::ANY),
+                                                            ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                            ::testing::Values(cpuBF16PluginConfig));
+
+const auto testParams2D_BF16 = ::testing::Combine(fullyConnectedParams2D_BF16,
+                                                  ::testing::Values(MatMulNodeType::FullyConnected),
+                                                  ::testing::ValuesIn(fusingParamsSet2D_BF16));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16, MatMulLayerCPUTest, testParams2D_BF16, MatMulLayerCPUTest::getTestCaseName);
+
+std::vector<fusingSpecificParams> fusingParamsSet2D_I8 {
+        emptyFusingSpec,
+        fusingBiasFC,
+        fusingRelu,
+        fusingMultiplyPerChannel,
+        fusingScaleShift,
+        fusingPReluPerChannel,
+        fusingPReluPerTensor,
+};
+
+const auto fullyConnectedParams2D_I8 = ::testing::Combine(::testing::ValuesIn(IS2D),
+                                                          ::testing::Values(Precision::FP32),
+                                                          ::testing::Values(Precision::U8, Precision::I8),
+                                                          ::testing::Values(Precision::FP32, Precision::U8, Precision::I8),
+                                                          ::testing::Values(Layout::ANY),
+                                                          ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                          ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                          ::testing::Values(cpuEmptyPluginConfig));
+
+const auto testParams2D_I8 = ::testing::Combine(fullyConnectedParams2D_I8,
+                                                ::testing::Values(MatMulNodeType::FullyConnected),
+                                                ::testing::ValuesIn(fusingParamsSet2D_I8));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_I8, MatMulLayerCPUTest, testParams2D_I8, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS3D = {
     {{{1, 32, 120}, false}, {{120, 5}, false}},
@@ -195,20 +278,35 @@ std::vector<fusingSpecificParams> fusingParamsSet3D {
         fusingBiasFC
 };
 
-const auto fullyConnectedParams3D = ::testing::Combine(::testing::ValuesIn(IS3D),
-                                                       ::testing::ValuesIn(netPRCs),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
+const auto fullyConnectedParams3D_FP32 = ::testing::Combine(::testing::ValuesIn(IS3D),
+                                                       ::testing::Values(Precision::FP32),
+                                                       ::testing::Values(Precision::FP32),
+                                                       ::testing::Values(Precision::FP32),
                                                        ::testing::Values(Layout::ANY),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                                       ::testing::ValuesIn(additionalConfig));
+                                                       ::testing::Values(cpuEmptyPluginConfig));
 
-const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
+const auto testParams3D_FP32 = ::testing::Combine(fullyConnectedParams3D_FP32,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet3D));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP32, MatMulLayerCPUTest, testParams3D_FP32, MatMulLayerCPUTest::getTestCaseName);
+
+const auto fullyConnectedParams3D_BF16 = ::testing::Combine(::testing::ValuesIn(IS3D),
+                                                            ::testing::Values(Precision::BF16),
+                                                            ::testing::Values(Precision::BF16),
+                                                            ::testing::Values(Precision::BF16),
+                                                            ::testing::Values(Layout::ANY),
+                                                            ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                            ::testing::Values(cpuBF16PluginConfig));
+
+const auto testParams3D_BF16 = ::testing::Combine(fullyConnectedParams3D_BF16,
+                                                  ::testing::Values(MatMulNodeType::FullyConnected),
+                                                  ::testing::ValuesIn(fusingParamsSet3D));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulLayerCPUTest, testParams3D_BF16, MatMulLayerCPUTest::getTestCaseName);
 
 }; // namespace fullyConnected
 
