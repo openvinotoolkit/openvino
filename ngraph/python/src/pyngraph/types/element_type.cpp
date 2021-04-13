@@ -28,6 +28,7 @@ void regclass_pyngraph_Type(py::module m)
     type.attr("u16") = ngraph::element::u16;
     type.attr("u32") = ngraph::element::u32;
     type.attr("u64") = ngraph::element::u64;
+    type.attr("bf16") = ngraph::element::bf16;
 
     type.def("__repr__", [](const ngraph::element::Type& self) {
         std::string bitwidth = std::to_string(self.bitwidth());

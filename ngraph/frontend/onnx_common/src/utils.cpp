@@ -29,6 +29,7 @@ namespace ngraph
             case ONNX_NAMESPACE::TensorProto_DataType_UINT16: return sizeof(uint16_t);
             case ONNX_NAMESPACE::TensorProto_DataType_UINT32: return sizeof(uint32_t);
             case ONNX_NAMESPACE::TensorProto_DataType_UINT64: return sizeof(uint64_t);
+            case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16: return sizeof(uint16_t);
             }
 #ifdef NGRAPH_USE_PROTOBUF_LITE
             throw ngraph_error("unsupported element type");

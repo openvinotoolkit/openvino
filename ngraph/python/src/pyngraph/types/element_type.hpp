@@ -20,3 +20,4 @@ void regclass_pyngraph_UInt8(py::module m);
 // void regclass_pyngraph_UInt16(py::module m);
 void regclass_pyngraph_UInt32(py::module m);
 void regclass_pyngraph_UInt64(py::module m);
+void regclass_pyngraph_BFloat16(py::module m);
