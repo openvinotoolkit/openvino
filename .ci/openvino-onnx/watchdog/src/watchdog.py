@@ -140,7 +140,7 @@ class Watchdog:
             data = {_PR_REPORTS_CONFIG_KEY: {}}
         return data
 
-    @retry(wait_fixed=10000, stop_max_delay=600000)
+    @retry(wait_fixed=2000, stop_max_delay=10000)
     def _check_pr(self, pr):
         """Check pull request (if there's no reason to skip).
 
@@ -262,7 +262,7 @@ class Watchdog:
         else:
             return False
 
-    @retry(wait_fixed=10000, stop_max_delay=600000)
+    @retry(wait_fixed=2000, stop_max_delay=10000)
     def _check_missing_status(self, pr):
         """Verify if missing status is expected.
 
@@ -382,7 +382,7 @@ class Watchdog:
         :type pr:                   github.PullRequest.PullRequest
         """
 
-        @retry(wait_fixed=10000, stop_max_delay=600000)
+        @retry(wait_fixed=2000, stop_max_delay=10000)
         def check_statuses():
             # Retrieve build number for Jenkins build related to this PR
             build_number = self._retrieve_build_number(status.target_url)
