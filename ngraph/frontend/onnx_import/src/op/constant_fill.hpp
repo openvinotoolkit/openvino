@@ -17,6 +17,7 @@ namespace ngraph
         {
             namespace set_1
             {
+                // ConstantFill is a deprecated experimental operator removed in ONNX 1.4
                 OutputVector constant_fill(const Node& node);
             } // namespace set_1
 

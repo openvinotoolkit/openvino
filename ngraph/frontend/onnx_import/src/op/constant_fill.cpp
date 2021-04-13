@@ -19,7 +19,6 @@ namespace ngraph
         {
             namespace set_1
             {
-                // ConstantFill is a deprecated experimental operator removed in ONNX 1.4
                 OutputVector constant_fill(const Node& node)
                 {
                     Output<ngraph::Node> target_shape;
@@ -28,8 +27,8 @@ namespace ngraph
                         "dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
                     const auto ng_type = onnx_common::onnx_to_ng_data_type(
                         static_cast<ONNX_NAMESPACE::TensorProto_DataType>(dtype));
-                    const auto const_val_to_fill = std::make_shared<default_opset::Convert>(
-                        default_opset::Constant::create(element::f32, {}, {fill_value}), ng_type);
+                    const auto const_val_to_fill =
+                        default_opset::Constant::create(ng_type, {}, {fill_value});
                     const auto input_as_shape =
                         node.get_attribute_value<int64_t>("input_as_shape", 1);
                     if (input_as_shape == 1) // use the first input as target shape
