@@ -114,5 +114,5 @@ def test_buffer_values_after_add_outputs(device):
     result = exec_net.infer(feed_dict)
     min_value = result[output_layer].min()
     max_value = result[output_layer].max()
-    assert max(abs(min_value),abs(max_value)) < 20
+    assert max(abs(min_value),abs(max_value)) < 30
     
