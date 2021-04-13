@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.perm_inputs import PermuteInputs
 from mo.graph.graph import Graph, Node
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 
 
