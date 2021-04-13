@@ -62,6 +62,7 @@ namespace ngraph
             {
                 using complex_type = std::complex<float>;
 
+                // Calculates strides for all axes.
                 std::vector<int64_t> compute_strides(const std::vector<int64_t>& v)
                 {
                     std::vector<int64_t> strides(v.size() + 1);
@@ -75,6 +76,12 @@ namespace ngraph
                     return strides;
                 }
 
+                // To simplify calculation of strides for all axes of 'shape' of some complex
+                // tensor, we reverse numbers in 'shape'. Because we have no native support for
+                // complex numbers in tensors, we interpret FFT input tensors of the shape
+                // [N_0, ..., N_{r - 1}, 2] as a complex tensor with the shape
+                // [N_0, ..., N_{r - 1}]. Hence, we convert 'shape=[N_0, ..., N_{r - 1}, 2]'
+                // into [N_{r - 1}, ..., N_0].
                 std::vector<int64_t> reverse_shape(const Shape& shape)
                 {
                     size_t complex_data_rank = shape.size() - 1;
@@ -87,6 +94,7 @@ namespace ngraph
                     return reversed_shape;
                 }
 
+                // This function gets FFT axes from axes_data
                 std::vector<int64_t> get_axes(const int64_t* axes_data,
                                               const Shape& axes_data_shape,
                                               int64_t complex_data_rank)
@@ -96,6 +104,7 @@ namespace ngraph
                     return axes;
                 }
 
+                // When we reverted shape, we need to revert FFT axes.
                 void reverse_fft_axes(std::vector<int64_t>& axes, int64_t complex_data_rank)
                 {
                     for (int64_t& axis : axes)
@@ -104,6 +113,7 @@ namespace ngraph
                     }
                 }
 
+                // Helper function to get only length with respect to given axes.
                 std::vector<int64_t> get_lengths(const std::vector<int64_t>& shape,
                                                  const std::vector<int64_t>& axes)
                 {
@@ -115,6 +125,8 @@ namespace ngraph
                     return lengths;
                 }
 
+                // This function calculates 'outer axes', that is axes that are
+                // not transformed by FFT.
                 std::vector<int64_t> get_outer_axes(const std::vector<int64_t>& inner_axes,
                                                     int64_t complex_data_rank)
                 {
@@ -144,6 +156,7 @@ namespace ngraph
 
                 inline bool is_power_of_two(int64_t x) { return (x != 0) && ((x & (x - 1)) == 0); }
 
+                // This function calculates internal FFT buffer size using lengths of FFT axes.
                 int64_t compute_buffer_size(const std::vector<int64_t>& fft_lengths)
                 {
                     int64_t buffer_size = 0;
@@ -157,6 +170,9 @@ namespace ngraph
                     return buffer_size;
                 }
 
+                // Calculating coordinates c_0, ..., c_{k - 1} from the index of the form
+                // c_0 * strides[0] + ... c_{k - 1} * strides[k - 1]
+                // where k is the number of strides.
                 std::vector<int64_t> coords_from_index(int64_t index,
                                                        const std::vector<int64_t>& strides)
                 {
@@ -176,6 +192,7 @@ namespace ngraph
                     return coords;
                 }
 
+                // This function gets a complex value from given coords of this value
                 complex_type get_value_from_input(const complex_type* input_data,
                                                   int64_t src_index,
                                                   const std::vector<int64_t>& coords,
@@ -197,6 +214,7 @@ namespace ngraph
                     return input_data[src_index + offset];
                 }
 
+                // Copying input data to the given memory domain.
                 void copy_data_from_input(complex_type* result,
                                           const complex_type* input_data,
                                           int64_t src_index,
@@ -214,6 +232,7 @@ namespace ngraph
                     }
                 }
 
+                // This function checks whether data of given complex blob are only zeros.
                 bool blob_is_zero(const complex_type* data, int64_t blob_size)
                 {
                     for (int64_t i = 0; i < blob_size; ++i)
@@ -226,6 +245,7 @@ namespace ngraph
                     return true;
                 }
 
+                // Calculates offset of value using corresponding coordinates and strides.
                 int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords,
                                                        const std::vector<int64_t>& strides)
                 {
@@ -238,6 +258,7 @@ namespace ngraph
                     return offset;
                 }
 
+                // Copying calculated data to the given memory domain.
                 void copy_data_to_output(complex_type* output,
                                          const complex_type* data,
                                          int64_t dst_index,
@@ -257,6 +278,8 @@ namespace ngraph
 
                 static constexpr float pi = 3.141592653589793238462643f;
 
+                // This function calculates e^{-2i\pi k / length} for the forward FFT, and
+                // e^{2i\pi k / length} otherwise. Here 'i' is an imaginary unit.
                 complex_type twiddle(int64_t k, int64_t length, FFTKind fft_kind)
                 {
                     float angle = -2.0f * pi * static_cast<float>(k) / static_cast<float>(length);
@@ -264,6 +287,7 @@ namespace ngraph
                     return (fft_kind == FFTKind::Inverse) ? std::conj(result) : result;
                 }
 
+                // This function gathers data from the input of 1D FFT to the contiguous buffer
                 void gather_to_buffer(const complex_type* data,
                                       int64_t length,
                                       int64_t start,
@@ -342,6 +366,7 @@ namespace ngraph
                     }
                 }
 
+                // Naive implementation of 1D FFT
                 void naive_fft1d(int64_t length,
                                  int64_t fft_offset,
                                  int64_t stride,
@@ -404,6 +429,7 @@ namespace ngraph
                     int64_t buffer_size;
                 };
 
+                // This function builds information needed to calculate FFT.
                 InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
                                                                const int64_t* axes_data,
                                                                const Shape& axes_data_shape,
@@ -458,6 +484,7 @@ namespace ngraph
                 }
             }
 
+            // Calculation of FFT
             void fft(const float* input_data,
                      const Shape& input_data_shape,
                      const int64_t* axes_data,
@@ -495,12 +522,15 @@ namespace ngraph
                 const auto& input_fft_strides = info.input_fft_strides;
                 const auto& input_outer_strides = info.input_outer_strides;
 
+                // Loop along with 'outer' dimensions, that is along with
+                // not transformed dimensions.
                 for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx)
                 {
                     const auto outer_coords = coords_from_index(outer_idx, outer_strides);
                     int64_t outer_input_offset =
                         offset_from_coords_and_strides(outer_coords, input_outer_strides);
 
+                    // Copying current data to transform
                     copy_data_from_input(data.data(),
                                          complex_input_data_ptr,
                                          outer_input_offset,
@@ -511,6 +541,7 @@ namespace ngraph
 
                     if (!blob_is_zero(data.data(), fft_size))
                     {
+                        // The loop along with all transformed axes.
                         for (int64_t axis_idx = 0; axis_idx < fft_rank; ++axis_idx)
                         {
                             int64_t current_fft_stride = fft_strides[axis_idx];
@@ -533,6 +564,7 @@ namespace ngraph
                             auto fft_strides_for_outer_fft_axes =
                                 get_lengths(fft_strides, outer_fft_axes);
 
+                            // Loop along with all FFT axes, except the current one.
                             for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size;
                                  ++outer_fft_idx)
                             {
@@ -540,6 +572,7 @@ namespace ngraph
                                     coords_from_index(outer_fft_idx, outer_fft_strides);
                                 int64_t outer_fft_offset = offset_from_coords_and_strides(
                                     outer_fft_coords, fft_strides_for_outer_fft_axes);
+                                // Calculation of 1D FFT
                                 fft1d(current_fft_length,
                                       outer_fft_offset,
                                       current_fft_stride,
@@ -550,6 +583,7 @@ namespace ngraph
                         }
                     }
 
+                    // Copying current calculated data to the output blob.
                     int64_t outer_output_offset =
                         offset_from_coords_and_strides(outer_coords, output_outer_strides);
                     copy_data_to_output(complex_output_ptr,
