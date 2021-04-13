@@ -562,6 +562,7 @@ extensions/middle/ConvertGroupedStridedSlice.py
 extensions/middle/ConvertLayoutDependentOperations.py
 extensions/middle/ConvertMultiInputConv.py
 extensions/middle/ConvToBinaryConv.py
+extensions/middle/CorrectRollAxes.py
 extensions/middle/CustomSubgraphCall.py
 extensions/middle/CutInputHavingZeroDimFromConcat.py
 extensions/middle/DecomposeBias.py
