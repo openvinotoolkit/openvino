@@ -49,7 +49,7 @@ class ArgOpsToTopK(MiddleReplacementPattern):
             topk_node.out_port(0).connect(concat_node.in_port(1))  # indices
             topk_node.out_port(1).connect(concat_node.in_port(0))  # values
             if not node.out_port(0).disconnected():
-                node.out_port(0).get_connection().set_source(concat_node.out_port(1))
+                node.out_port(0).get_connection().set_source(concat_node.out_port(0))
         else:
             if not node.out_port(0).disconnected():
                 node.out_port(0).get_connection().set_source(topk_node.out_port(1))
