@@ -6,6 +6,11 @@ graph {
     input: "B"
     output: "Y"
     op_type: "Mod"
+    attribute {
+      name: "fmod"
+      i: 1
+      type: INT
+    }
   }
   name: "test_mod"
   input {
@@ -21,7 +26,7 @@ graph {
       }
     }
   }
-  input {
+    input {
     name: "B"
     type {
       tensor_type {
