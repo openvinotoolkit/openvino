@@ -4,17 +4,17 @@
 
 import logging as log
 
+from extensions.ops.dft import DFT, IDFT
+from extensions.ops.roll import Roll
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph, Node, rename_nodes
-from extensions.ops.dft import DFT, IDFT
-from extensions.ops.roll import Roll
 from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Graph, Node, rename_nodes
 
 
 class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgraph):
-    enabled = False
+    enabled = True
 
     def pattern(self):
         return dict(

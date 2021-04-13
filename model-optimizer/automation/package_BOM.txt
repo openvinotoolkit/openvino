@@ -378,6 +378,7 @@ extensions/front/tf/broadcast_ext.py
 extensions/front/tf/bucketize.py
 extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
+extensions/front/tf/complex_abs.py
 extensions/front/tf/concat.py
 extensions/front/tf/concat_ext.py
 extensions/front/tf/const_ext.py
