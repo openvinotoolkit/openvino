@@ -789,5 +789,6 @@ NGRAPH_TEST(onnx_editor, combined__cut_and_replace_shape)
     EXPECT_TRUE(result.is_ok) << result.error_message;
 
     const auto graph_inputs = editor.get_function()->get_parameters();
-    EXPECT_TRUE(find_input(graph_inputs, "conv1/7x7_s2_1")->get_partial_shape().same_scheme(new_shape));
+    EXPECT_TRUE(
+        find_input(graph_inputs, "conv1/7x7_s2_1")->get_partial_shape().same_scheme(new_shape));
 }
