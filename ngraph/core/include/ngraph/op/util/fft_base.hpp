@@ -13,7 +13,7 @@ namespace ngraph
     {
         namespace util
         {
-            /// \brief Abstract base class for operations DFT and DFT.
+            /// \brief Base class for operations DFT and DFT.
             class NGRAPH_API FFTBase : public Op
             {
             public:
