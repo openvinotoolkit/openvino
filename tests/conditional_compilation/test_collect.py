@@ -9,11 +9,32 @@
 import glob
 import os
 import sys
+import pytest
 
 from proc_utils import cmd_exec  # pylint: disable=import-error
+from tests_utils import write_session_info, SESSION_INFO_FILE, infer_tool
 
 
-def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, artifacts, test_info):
+@pytest.fixture(scope="function")
+def test_info(request, pytestconfig):
+    """Fixture function for getting the additional attributes of the current test."""
+    setattr(request.node._request, "test_info", {})
+    if not hasattr(pytestconfig, "session_info"):
+        setattr(pytestconfig, "session_info", [])
+
+    yield request.node._request.test_info
+
+    pytestconfig.session_info.append(request.node._request.test_info)
+
+
+@pytest.fixture(scope="session")
+def save_session_info(pytestconfig, artifacts):
+    """Fixture function for saving additional attributes to configuration file."""
+    yield
+    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
+
+
+def test_cc_collect(test_id, model, sea_runtool, collector_dir, artifacts, test_info, save_session_info):
     """ Test conditional compilation statistics collection
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
                       contain a dictionary to store test metadata.
@@ -25,19 +46,20 @@ def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, a
     for path in prev_result:
         os.remove(path)
     # run use case
+    sys_executable = os.path.join(sys.prefix, 'python.exe') if sys.platform == "win32" \
+        else os.path.join(sys.prefix, 'bin', 'python')
     return_code, output = cmd_exec(
         [
-            sys.executable,
+            sys_executable,
             str(sea_runtool),
             f"--output={out}",
             f"--bindir={collector_dir}",
-            "--app_status",
             "!",
-            str(benchmark_app),
-            "-d=CPU",
+            sys_executable,
+            infer_tool,
             f"-m={model}",
-            "-niter=1",
-            "-nireq=1",
+            "-d=CPU",
+            f"-r={out}",
         ]
     )
     out_csv = glob.glob(f"{out}.pid*.csv")
