@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph
+from mo.graph.perm_inputs import PermuteInputs
+from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
 
@@ -17,7 +18,7 @@ class Roll(Op):
             'type': self.op,
             'op': self.op,
             'version': 'opset7',
-            'infer': copy_shape_infer,
+            'infer': roll_infer,
             'in_ports_count': 3,
             'out_ports_count': 1
         }, attrs)
@@ -37,9 +38,14 @@ class AttributedRoll(Op):
             'type': self.op,
             'op': self.op,
             'version': 'opset7',
-            'infer': copy_shape_infer,
+            'infer': None,
             'in_ports_count': 3,
             'out_ports_count': 1,
             'shift': None,
             'axes': None
         }, attrs)
+
+
+def roll_infer(node: Node):
+    PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'axis')
+    copy_shape_infer(node)
