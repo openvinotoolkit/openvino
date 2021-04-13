@@ -33,8 +33,6 @@ TEST(op_eval, floor_mod)
     test_case.run();
 }
 
-<<<<<<< HEAD
-
 TEST(op_eval, floor_mod_broadcasted)
 {
     Shape shape_a{2, 1, 2};
