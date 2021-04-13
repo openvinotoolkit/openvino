@@ -11,10 +11,13 @@
     output[i(order[0]), i(order[1]), ..., i(order[N-1])] = input[i(0), i(1), ..., i(N-1)], 
     where i(j) in range 0..(input.shape[j]-1)
 
+
+**Attributes**: *Transpose* operation has no attributes.
+
 **Inputs**:
 
-* **1**: "arg" - the tensor to be transposed. A tensor of type T1. **Required.**
-* **2**: "input_order" - the permutation to apply to the axes of the input shape. Must be a vector of element T2 type, with shape [n], where n is the rank of "arg". The tensor's value must contain every integer in the range [0,n-1]. If an empty list is specified [] then the axes will be inverted. A tensor of type T2. **Required.**
+* **1**: `arg` - the tensor to be transposed. A tensor of type `T1`. **Required.**
+* **2**: `input_order` - the permutation to apply to the axes of the first input shape. Must be a vector of element `T2` type, with shape `[n]`, where `n` is the rank of the first input. The tensor's value must contain every integer in the range `[0, n-1]`. If an empty list is specified `[]` then the axes will be inverted. A tensor of type `T2`. **Required.**
 
 **Outputs**:
 
@@ -25,12 +28,6 @@
 * *T1*: arbitrary supported type.
 * *T2*: any integer type.
 
-**Detailed description**:
-
-*Transpose* operation reorders the input tensor dimensions. Source indexes and destination indexes are bound by the formula: 
-\f[
-    output[i(order[0]), i(order[1]), ..., i(order[N-1])] = input[i(0), i(1), ..., i(N-1)], where i(j) in range 0..(input.shape[j]-1).
-\f]
 
 **Examples**
 
