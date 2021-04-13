@@ -33,7 +33,7 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
                 ('strided_slice_real', 'complex', {'in': 0}),
                 ('strided_slice_imag', 'complex', {'in': 1}),
                 ('complex', 'roll', {'in': 0}),
-                ('roll', 'fft2d', {'in': 0}),
+                ('roll', 'fft', {'in': 0}),
                 ('fft', 'unroll', {'in': 0}),
                 ('unroll', 'real', {'in': 0}),
                 ('unroll', 'imag', {'in': 0}),
