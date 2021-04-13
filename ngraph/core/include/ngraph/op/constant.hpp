@@ -23,24 +23,6 @@ namespace ngraph
     {
         namespace v0
         {
-            // this (or similar) helpers should be provided by element_type.hpp
-            template <element::Type_t>
-            struct IsLowPrecision : std::false_type
-            {
-            };
-            template <>
-            struct IsLowPrecision<element::Type_t::u1> : std::true_type
-            {
-            };
-            template <>
-            struct IsLowPrecision<element::Type_t::u4> : std::true_type
-            {
-            };
-            template <>
-            struct IsLowPrecision<element::Type_t::i4> : std::true_type
-            {
-            };
-
             /// \brief Class for constants.
             class NGRAPH_API Constant : public Op
             {
@@ -235,10 +217,11 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values A vector of values to use as the constant data.
                 template <typename T>
-                static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, const std::vector<T> values)
+                static std::shared_ptr<Constant> create(const element::Type& type,
+                                                        const Shape& shape,
+                                                        const std::vector<T>& values)
                 {
-                    auto result = std::make_shared<op::v0::Constant>(type, shape, values);
+                    auto result = std::make_shared<Constant>(type, shape, values);
                     result->validate_and_infer_types();
                     return result;
                 }
@@ -249,11 +232,11 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values An initializer_list of values to use as the constant data.
                 template <typename T>
-                static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, std::initializer_list<T> values)
+                static std::shared_ptr<Constant> create(const element::Type& type,
+                                                        const Shape& shape,
+                                                        std::initializer_list<T> values)
                 {
-                    auto result =
-                        std::make_shared<op::v0::Constant>(type, shape, std::vector<T>{values});
+                    auto result = std::make_shared<Constant>(type, shape, std::vector<T>{values});
                     result->validate_and_infer_types();
                     return result;
                 }
@@ -268,8 +251,10 @@ namespace ngraph
                 std::vector<T> get_vector() const
                 {
                     const T* p = get_data_ptr<T>();
-                    if (p == nullptr)
+                    if (!p)
+                    {
                         throw std::runtime_error("Cannot create vector! Buffer is not allocated.");
+                    }
                     return std::vector<T>(p, p + shape_size(m_shape));
                 }
 
@@ -333,7 +318,7 @@ namespace ngraph
 
                 template <element::Type_t Type,
                           typename RetValue = fundamental_type_for<Type>,
-                          typename std::enable_if<!IsLowPrecision<Type>::value, bool>::type = true>
+                          typename std::enable_if<element::info<Type>::bitwidth >= 8, bool>::type = true>
                 RetValue get_value(size_t index) const
                 {
                     check_type(Type);

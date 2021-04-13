@@ -47,6 +47,36 @@ namespace ngraph
             u64
         };
 
+        template <Type_t ET>
+        struct info
+        {
+            static constexpr size_t bitwidth = std::numeric_limits<size_t>::max();
+        };
+#define ELEMENT_TYPE_INFO(ELEMENT_TYPE_T, BITWIDTH)                                                \
+    template <>                                                                                    \
+    struct info<ELEMENT_TYPE_T>                                                                    \
+    {                                                                                              \
+        static constexpr size_t bitwidth = BITWIDTH;                                               \
+    };
+        ELEMENT_TYPE_INFO(Type_t::dynamic, 0)
+        ELEMENT_TYPE_INFO(Type_t::boolean, 8)
+        ELEMENT_TYPE_INFO(Type_t::bf16, 16)
+        ELEMENT_TYPE_INFO(Type_t::f16, 16)
+        ELEMENT_TYPE_INFO(Type_t::f32, 32)
+        ELEMENT_TYPE_INFO(Type_t::f64, 64)
+        ELEMENT_TYPE_INFO(Type_t::i4, 4)
+        ELEMENT_TYPE_INFO(Type_t::i8, 8)
+        ELEMENT_TYPE_INFO(Type_t::i16, 16)
+        ELEMENT_TYPE_INFO(Type_t::i32, 32)
+        ELEMENT_TYPE_INFO(Type_t::i64, 64)
+        ELEMENT_TYPE_INFO(Type_t::u1, 1)
+        ELEMENT_TYPE_INFO(Type_t::u4, 4)
+        ELEMENT_TYPE_INFO(Type_t::u8, 8)
+        ELEMENT_TYPE_INFO(Type_t::u16, 16)
+        ELEMENT_TYPE_INFO(Type_t::u32, 32)
+        ELEMENT_TYPE_INFO(Type_t::u64, 64)
+#undef ELEMENT_TYPE_INFO
+
         class NGRAPH_API Type
         {
         public:
