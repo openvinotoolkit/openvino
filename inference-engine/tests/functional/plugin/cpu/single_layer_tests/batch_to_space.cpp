@@ -81,7 +81,7 @@ const std::vector<std::vector<int64_t>> cropsBegin4D  = {{0, 0, 0, 0}, {0, 0, 0,
 
 const std::vector<std::vector<int64_t>> cropsEnd4D    = {{0, 0, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}, {0, 0, 1, 1}};
 
-const std::vector<std::vector<size_t>> inputShapes4D  = {{4, 32, 36, 36}, {8, 16, 10, 10}, {16, 60, 18, 18}, {16, 18, 12, 12}};
+const std::vector<std::vector<size_t>> inputShapes4D  = {{4, 32, 15, 15}, {8, 16, 10, 10}, {16, 64, 18, 18}, {16, 16, 12, 12}};
 
 const std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
