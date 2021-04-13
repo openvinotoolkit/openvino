@@ -96,5 +96,36 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
     }
 }
 
+std::shared_ptr<Node> makeConvolutionBackpropDataRelaxed(const ngraph::Output<Node> &in,
+                                                  const element::Type &weiType,
+                                                  const element::Type &outType,
+                                                  const std::vector<size_t> &filterSize,
+                                                  const std::vector<size_t> &strides,
+                                                  const std::vector<ptrdiff_t> &padsBegin,
+                                                  const std::vector<ptrdiff_t> &padsEnd,
+                                                  const std::vector<size_t> &dilations,
+                                                  const op::PadType &autoPad,
+                                                  size_t numOutChannels,
+                                                  const std::vector<float> &filterWeights) {
+    auto inputParamsFP32 = ngraph::builder::makeParams(ngraph::element::f32, { in.get_shape() });
+    auto paramOutsFP32 = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParamsFP32));
+
+    auto deconvolutionNodeRelaxed = std::make_shared<op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
+            *as_type_ptr<opset1::ConvolutionBackpropData>(ngraph::builder::makeConvolutionBackpropData(
+                    paramOutsFP32.front(), ngraph::element::f32, filterSize, strides, padsBegin, padsEnd, dilations, autoPad, numOutChannels)),
+            outType);
+
+    bool randomFilterWeights = filterWeights.empty();
+    auto shape = in.get_shape();
+    std::vector<size_t> filterWeightsShape = {shape[1], numOutChannels};
+    filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
+    auto filterWeightsNode = makeConstant(weiType, filterWeightsShape, filterWeights, randomFilterWeights);
+
+    auto newDeconvolution = deconvolutionNodeRelaxed->copy_with_new_inputs(
+            {in, filterWeightsNode});
+
+    return newDeconvolution;
+}
+
 }  // namespace builder
 }  // namespace ngraph

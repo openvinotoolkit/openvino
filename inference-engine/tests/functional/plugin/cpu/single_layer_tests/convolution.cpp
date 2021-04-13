@@ -78,6 +78,7 @@ protected:
     }
 
     void SetUp() override {
+        using namespace ngraph;
         convLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
@@ -97,28 +98,40 @@ protected:
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
         std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
 
-        if (inPrc == Precision::UNSPECIFIED) {
-            selectedType += std::string("_") + Precision(Precision::FP32).name();
-        } else if (inPrc == Precision::BF16) {
-            selectedType += std::string("_") + inPrc.name();
+        if (inPrc == Precision::UNSPECIFIED)
+            inPrc = Precision::FP32;
+
+        if (inPrc == Precision::U8) {
+            selectedType += std::string("_") + Precision(Precision::I8).name();
         } else {
-            selectedType += std::string("_") + Precision(netPrecision).name();
+            selectedType += std::string("_") + inPrc.name();
         }
 
-        ngraph::op::PadType padType;
+        op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = (inPrc == Precision::BF16)
+                ? FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32)
+                : FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
 
-        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, { inputShape });
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
+        auto inputParams = builder::makeParams(ngPrc, { inputShape });
+        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
-        auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), ngPrc, kernel, stride, padBegin,
+        auto weiPrc = (ngPrc == element::u8) ? element::i8 : ngPrc;
+        auto convolutionNode = builder::makeConvolutionRelaxed(paramOuts.front(), weiPrc, kernel, stride, padBegin,
             padEnd, dilation, padType, convOutChannels);
 
-        function = makeNgraphFunction(ngPrc, inputParams, convolutionNode, "Convolution");
+        function = makeNgraphFunction(element::f32, inputParams, convolutionNode, "Convolution");
+
+        if (inPrc == Precision::U8 || inPrc == Precision::I8) {
+            additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::i8, element::f32>>());
+            additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::u8, element::f32>>());
+        }
+//        if (outPrc != Precision::FP32 && outPrc != Precision::BF16) {
+//            additionalPasses.push_back(std::make_shared<ConvertPrecision<opset1::ConvolutionBackpropData>>());
+//        }
     }
 };
 
@@ -175,19 +188,43 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingAddPerChannel
 };
 
+const std::vector<fusingSpecificParams> fusingParamsSetI8{
+//    fusingReluScaleShift
+        emptyFusingSpec,
+//        // activations
+//        fusingRelu,
+//        fusingElu,
+//        fusingSigmoid,
+//        fusingClamp,
+//        fusingPReluPerChannel,
+//        // todo: [antonvor] not supported yet
+////        fusingSwish,
+//        fusingHSwish,
+//        fusingMish,
+//        // other patterns
+//        // todo: [antonvor] not supported yet
+////        fusingReluScaleShift,
+//        fusingFakeQuantizePerTensorRelu,
+//        fusingFakeQuantizePerChannelRelu,
+        // todo: [antonvor] not supported yet
+//        fusingSumEluFQ,
+//        fusingSum,
+//        fusingAddPerChannel
+};
+
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
 
 /* ============= Convolution params (GEMM layout) ============= */
-const SizeVector numOutChannels_Gemm = {6 };
+const SizeVector numOutChannels_Gemm = { 6 };
 
 /* ============= Convolution params (blocked and nspc layout) ============= */
 const SizeVector numOutChannels = { 64, 63 };
 
 /* ============= Convolution params (2D) ============= */
-const std::vector<SizeVector> kernels2d = { {3, 3}, {1, 1} };
-const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
-const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
+const std::vector<SizeVector> kernels2d = { {2, 2}/*, {1, 1}*/ };
+const std::vector<SizeVector> strides2d = { {1, 1}/*, {2, 2}*/ };
+const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}/*, {1, 1}*/ };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1}, {2, 2} };
 const std::vector<SizeVector> inputShapes2d = { {1, 64, 7, 7}, {1, 67, 7, 7} };
@@ -252,21 +289,41 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            convParams_ExplicitPadding_GEMM_2D,
-            ::testing::Values(Precision::FP32),
-            ::testing::Values(Precision::I8),
-            ::testing::Values(Precision::UNSPECIFIED),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
-        ::testing::Values(fusingSum),
-        ::testing::Values(cpuEmptyPluginConfig)),
-    ConvolutionLayerCPUTest::getTestCaseName);
+//INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
+//    ::testing::Combine(
+//        ::testing::Combine(
+//            convParams_ExplicitPadding_GEMM_2D,
+//            ::testing::Values(Precision::FP32),
+//            ::testing::Values(Precision::I8),
+//            ::testing::Values(Precision::UNSPECIFIED),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+//            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
+//        ::testing::Values(fusingSum),
+//        ::testing::Values(cpuEmptyPluginConfig)),
+//    ConvolutionLayerCPUTest::getTestCaseName);
+
+const std::vector<CPUSpecificParams> CPUParams_2D_I8 = {
+        conv_avx512_2D_nspc
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        convParams_ExplicitPadding_GEMM_2D,
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(Precision::U8, Precision::I8),
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(Layout::ANY),
+                                        ::testing::Values(Layout::ANY),
+                                        ::testing::Values(std::vector<size_t >({ 1, 2, 4, 4 })),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_I8)),
+                                ::testing::ValuesIn(fusingParamsSetI8),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        ConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Convolution (GEMM 3D) ============= */
 const auto convParams_ExplicitPadding_GEMM_3D = ::testing::Combine(
@@ -316,21 +373,21 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            convParams_ExplicitPadding_GEMM_3D,
-            ::testing::Values(Precision::FP32),
-            ::testing::Values(Precision::I8),
-            ::testing::Values(Precision::UNSPECIFIED),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
-        ::testing::Values(fusingSum),
-        ::testing::Values(cpuEmptyPluginConfig)),
-    ConvolutionLayerCPUTest::getTestCaseName);
+//INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
+//    ::testing::Combine(
+//        ::testing::Combine(
+//            convParams_ExplicitPadding_GEMM_3D,
+//            ::testing::Values(Precision::FP32),
+//            ::testing::Values(Precision::I8),
+//            ::testing::Values(Precision::UNSPECIFIED),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+//            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
+//        ::testing::Values(fusingSum),
+//        ::testing::Values(cpuEmptyPluginConfig)),
+//    ConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Convolution (2D) ============= */
 const auto convParams_ExplicitPadding_2D = ::testing::Combine(
@@ -384,21 +441,21 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            convParams_ExplicitPadding_2D,
-            ::testing::Values(Precision::FP32),
-            ::testing::Values(Precision::I8),
-            ::testing::Values(Precision::UNSPECIFIED),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(Layout::ANY),
-            ::testing::ValuesIn(inputShapes2d),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
-        ::testing::Values(fusingSum),
-        ::testing::Values(cpuEmptyPluginConfig)),
-    ConvolutionLayerCPUTest::getTestCaseName);
+//INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
+//    ::testing::Combine(
+//        ::testing::Combine(
+//            convParams_ExplicitPadding_2D,
+//            ::testing::Values(Precision::FP32),
+//            ::testing::Values(Precision::I8),
+//            ::testing::Values(Precision::UNSPECIFIED),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::ValuesIn(inputShapes2d),
+//            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+//        ::testing::Values(fusingSum),
+//        ::testing::Values(cpuEmptyPluginConfig)),
+//    ConvolutionLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams_2D_plain_to_blocked = {
         conv_sse42_plain_to_blocked_2D,
@@ -489,21 +546,21 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_I8, ConvolutionLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            convParams_ExplicitPadding_3D,
-            ::testing::Values(Precision::FP32),
-            ::testing::Values(Precision::I8),
-            ::testing::Values(Precision::UNSPECIFIED),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(Layout::ANY),
-            ::testing::ValuesIn(inputShapes3d),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
-        ::testing::Values(fusingSum),
-        ::testing::Values(cpuEmptyPluginConfig)),
-    ConvolutionLayerCPUTest::getTestCaseName);
+//INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_I8, ConvolutionLayerCPUTest,
+//    ::testing::Combine(
+//        ::testing::Combine(
+//            convParams_ExplicitPadding_3D,
+//            ::testing::Values(Precision::FP32),
+//            ::testing::Values(Precision::I8),
+//            ::testing::Values(Precision::UNSPECIFIED),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::ValuesIn(inputShapes3d),
+//            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
+//        ::testing::Values(fusingSum),
+//        ::testing::Values(cpuEmptyPluginConfig)),
+//    ConvolutionLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams_3D_plain_to_blocked = {
         conv_avx2_plain_to_blocked_3D,
@@ -595,21 +652,21 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_I8, ConvolutionLayerCPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            convParams_ExplicitPadding_1x1_2D,
-            ::testing::Values(Precision::FP32),
-            ::testing::Values(Precision::I8),
-            ::testing::Values(Precision::UNSPECIFIED),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(Layout::ANY),
-            ::testing::ValuesIn(inputShapes2d),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1x1_2D)),
-        ::testing::Values(fusingSum),
-        ::testing::Values(cpuEmptyPluginConfig)),
-    ConvolutionLayerCPUTest::getTestCaseName);
+//INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_I8, ConvolutionLayerCPUTest,
+//    ::testing::Combine(
+//        ::testing::Combine(
+//            convParams_ExplicitPadding_1x1_2D,
+//            ::testing::Values(Precision::FP32),
+//            ::testing::Values(Precision::I8),
+//            ::testing::Values(Precision::UNSPECIFIED),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::Values(Layout::ANY),
+//            ::testing::ValuesIn(inputShapes2d),
+//            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1x1_2D)),
+//        ::testing::Values(fusingSum),
+//        ::testing::Values(cpuEmptyPluginConfig)),
+//    ConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Convolution (1D) ============= */
 /* ============= Convolution params (1D) ============= */
