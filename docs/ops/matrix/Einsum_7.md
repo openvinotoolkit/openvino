@@ -16,7 +16,7 @@ The format of `equation` is described below.
 In explicit mode, the einsum `equation` has the output subscript separated from the input subscripts by `->` and has the following format for `n` operands: 
 `<subscript for input1>, <subscript for input2>, ..., <subscript for inputn> -> <subscript for output>`.
 Each input subscript `<subscript for input1>` contains a sequence of labels (lower case letters `['a',...,'z']`) where each label refers to a dimension of 
-the corresponsing operand. The appereance of labels in a subscript in alphabetical order is not needed. The subscript for a scalar input is empty.
+the corresponsing operand. The appereance of labels in a subscript in alphabetical order is not required. The subscript for a scalar input is empty.
 The input subscripts are separated with a comma `,`.
 The output subscript `<subscript for output>` is separated from the input subscripts by `->` and also represents a sequence of labels
 (lower case letters `['a',...,'z']`). A length of the input subscript matches a rank of the input. The input subscript is empty for a scalar input.
@@ -39,19 +39,18 @@ where dimensions with labels `b` and `d` are reduced and the transpose is applie
 **NOTE**: Input ranks must be equal to a length of corresponding subscripts and dimensions to which the same labels in input subscripts 
 correspond must be equal in size.
 
-**NOTE**: A labels can repeat in the same input subscript, for example, `equation` equal to `aac,abd,ddde`. In this case the corresponding dimensions
-must match in size and the operand the operand will be replaced by its diagonal along these dimensions.
+**NOTE**: A label can repeat in the same input subscript, for example, `equation` equal to `aac,abd,ddde`. In this case the corresponding dimensions
+must match in size and the operand will be replaced by its diagonal along these dimensions.
 For example, *Einsum* operation on the single 3D tensor of shape `[2, 4, 5, 4]` with `equation` equal to `ijkj->ij`.
 
 **NOTE**: The specification considers the primitive algorithm for *Einsum* operation for better understanding of the operation
 and does not recommend it for implementation.
 
-**NOTE**: The described algorithm can be improved by immediate dimension sum-reduction in the intermediate results if the corresponding labels absent in
+**NOTE**: The described algorithm can be improved by immediate dimension sum-reduction of the intermediate results if the corresponding labels absent in
 the input subscripts of subsequent inputs and the output subscript. It can significantly boosts performance and reduces memory costs.
 In the considered example, after the first step we can reduce a dimension corresponding to a label `d`.
 
-The output shape can be easily computed using the output subscript. It needs to concatenate sizes of dimensions to which labels in output subscript
-correspond in the specified order.
+The output shape is computed by concatenation of dimension sizes to which labels in the output subscript correspond in the specified order.
 
 Example 1 shows how *Einsum* computes inner product of two 1D tensors:
 
@@ -113,7 +112,7 @@ output = [[[1.0, 4.0, 7.0],
            [3.0, 6.0, 9.0]]])
 ```
 
-Aside a lower case label, ellipsis `...` can be used as a label in a subscript to cover broadcasted dimensions.
+In addition to a lower case label, ellipsis `...` can be used as a label in a subscript to cover broadcasted dimensions.
 Each input subscript can contain at most one ellipsis. For example, the ellipsis in input subscript `a...bc` for five rank tensor covers 
 the second and third dimensions. In case ellipsis presents in input subscripts for several operands, the dimensions covered by the ellipsis
 must be broadcastable to satisfy numpy broadcasting (or multidirectional broadcasting) rules available in
@@ -127,8 +126,8 @@ Example 6 shows how *Einsum* operates on the single input with an equation conta
 
 ```
 A = [[1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0],
-      [7.0, 8.0, 9.0]]
+     [4.0, 5.0, 6.0],
+     [7.0, 8.0, 9.0]]
 equation = "a...->..."
 output = [12.0, 15.0, 17.0])
 ```
@@ -137,8 +136,8 @@ Example 7 shows how *Einsum* operates with broadcasting two operands:
 
 ```
 A = [[1.0, 2.0, 3.0],
-      [4.0, 5.0, 6.0],
-      [7.0, 8.0, 9.0]]
+     [4.0, 5.0, 6.0],
+     [7.0, 8.0, 9.0]]
 B = [0.5]
 equation = "a...,...->a..."
 output = [[0.5, 1.0, 1.5],
