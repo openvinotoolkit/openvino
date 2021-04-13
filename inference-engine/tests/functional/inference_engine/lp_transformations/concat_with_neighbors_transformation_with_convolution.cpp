@@ -13,6 +13,11 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 
+#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
+#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include <low_precision/rt_info/precisions_attribute.hpp>
+#include <low_precision/rt_info/precision_preserved_attribute.hpp>
+
 #include <low_precision/align_concat_quantization_parameters.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/markup_precisions.hpp>
@@ -26,12 +31,14 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/precision_propagation_function.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
+using namespace ngraph::builder::subgraph;
 
 namespace {
 
@@ -116,34 +123,52 @@ public:
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
-            });
+        });
 
+#define VISUALIZE_TREE_NOT
+#ifndef VISUALIZE_TREE
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
+        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+        manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+        manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
+
+        std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
+        common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>();
+        common->add_matcher<ngraph::pass::low_precision::ConvolutionTransformation>();
+        common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>();
+        common->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>();
+
+        manager.run_passes(actualFunction);
+
+#else
         {
             ngraph::pass::Manager manager;
             manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
-            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
             manager.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
         }
 
         {
             ngraph::pass::Manager manager;
             manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
-            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
             manager.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
         }
 
         {
             ngraph::pass::Manager manager;
             manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
             manager.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming3").run_on_function(actualFunction);
         }
 
         {
             ngraph::pass::Manager manager;
             manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
-            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
             manager.run_passes(actualFunction);
+            ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming4").run_on_function(actualFunction);
         }
 
         {
@@ -169,6 +194,7 @@ public:
             manager.run_passes(actualFunction);
             ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
         }
+#endif
 
         referenceFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getReferenceWithNeighbors(
             precision,
@@ -204,6 +230,18 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    ASSERT_TRUE(checkIfOutputAttributesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) << "PrecisionsAttribute are not the same";
+
+    const auto referenceFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(referenceFunction);
+    // TODO: not completed
+    //ASSERT_TRUE(checkIfOutputAttributesAreEqual<std::shared_ptr<IntervalsAlignmentAttribute>>(actualFakeQuantizes, referenceFakeQuantizes)) <<
+    //    "attributes are not the equal";
+
+    auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+    operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
+    ASSERT_TRUE(checkIfAttributesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) << "IntervalsAlignmentAttribute are not the same";
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -228,9 +266,18 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
             {}
         },
         {
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f} },
+            {
+                256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}, element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 1.27f) }
+            },
+            {
+                256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}, element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 1.27f) }
+            },
+            {
+                256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 1.27f) }
+            },
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,

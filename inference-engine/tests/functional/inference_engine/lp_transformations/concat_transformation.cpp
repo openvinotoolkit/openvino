@@ -139,8 +139,15 @@ public:
         //transform.register_pass<ngraph::pass::low_precision::ConcatTransformation>();
         //transform.transform(actualFunction);
 
+        auto supportedPrecisionsOnActivation = std::vector<OperationPrecisionRestriction>({
+            OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}}
+            })
+            });
+
         ngraph::pass::Manager manager1;
-        manager1.register_pass<ngraph::pass::low_precision::MarkupPrecisions>();
+        manager1.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
         manager1.run_passes(actualFunction);
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
 
@@ -219,15 +226,19 @@ public:
 
 TEST_P(ConcatTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
-    const auto fakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-    ASSERT_TRUE(checkIfOutputAttributesAreEqual<std::shared_ptr<PrecisionsAttribute>>(fakeQuantizes)) << "PrecisionsAttribute are not the same";
+    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    ASSERT_TRUE(checkIfOutputAttributesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) << "PrecisionsAttribute are not the same";
+
+    const auto referenceFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(referenceFunction);
+    //ASSERT_TRUE(checkIfOutputAttributesAreEqual<std::shared_ptr<IntervalsAlignmentAttribute>>(actualFakeQuantizes, referenceFakeQuantizes)) <<
+    //    "attributes are not the equal";
 
     auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
-    operations.insert(operations.end(), fakeQuantizes.begin(), fakeQuantizes.end());
-    ASSERT_TRUE(checkIfAttributesAreEqual<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) << "IntervalsAlignmentAttribute are not the same";
+    operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
+    ASSERT_TRUE(checkIfAttributesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) << "IntervalsAlignmentAttribute are not the same";
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -653,30 +664,35 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { ngraph::element::f32, { {0.f, 0.f, 0.f, 128.f, 128.f, 128.f } }, { 0.01f } }
         }
     },
-
-    ////// mixed: U8 + I8: concat multi channels
-    ////{
-    ////    LayerTransformation::createParamsU8I8(),
-    ////    true,
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-    ////        {},
-    ////        {},
-    ////        { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-    ////        {},
-    ////        {}
-    ////    },
-    ////    {
-    ////        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        { 256ul, {}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ngraph::element::u8 },
-    ////        {},
-    ////        {},
-    ////        ngraph::element::u8,
-    ////        { ngraph::element::f32, {{ 0.f, 0.f, 0.f, 128.f, 128.f, 128.f }}, { 0.01f } }
-    ////    }
-    ////},
+    // mixed: U8 + I8: concat multi channels
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            {},
+            {}
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {{ 0.f, 0.f, 0.f, 128.f, 128.f, 128.f }}, { 0.01f } }
+        }
+    },
     ////// mixed: I8 + U8: concat (check constant values here)
     ////{
     ////    LayerTransformation::createParamsU8I8(),
@@ -690,10 +706,16 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     ////        {}
     ////    },
     ////    {
-    ////        { 256ul, {}, {-1.28f}, {1.27f}, {0.f}, {170.f}, ngraph::element::u8 },
+    ////        {
+    ////            256ul, {}, {-1.28f}, {1.27f}, {0.f}, {170.f}, ngraph::element::u8,
+    ////            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
+    ////        },
     ////        {},
     ////        {},
-    ////        { 256ul, {}, {0.f}, {2.55f}, {85.f}, {255.f}, ngraph::element::u8 },
+    ////        {
+    ////            256ul, {}, {0.f}, {2.55f}, {85.f}, {255.f}, ngraph::element::u8,
+    ////            { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f) }
+    ////        },
     ////        {},
     ////        {},
     ////        ngraph::element::u8,

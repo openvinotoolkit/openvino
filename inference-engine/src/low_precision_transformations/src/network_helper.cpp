@@ -272,11 +272,12 @@ void NetworkHelper::copyInfo(
         }
 
         auto& rt = target->get_rt_info();
-        if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
-            rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
-            rt.erase(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
-            rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
-        } else {
+        //if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
+        //    rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
+        //    rt.erase(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
+        //    rt.erase(ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name);
+        //}
+        {
             // TODO: has to be implemented in ngraph::copy_runtime_info
             for (auto& targetInput : target->inputs()) {
                 auto& targetRt = targetInput.get_rt_info();
@@ -774,7 +775,7 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_auto_broadcast());
         replace_node(dequantization.convert, replacement);
         //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
-        copyInfo({ dequantization.convert, fakeQuantize }, replacement);
+        copyInfo({ fakeQuantize, dequantization.convert }, replacement);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, dequantization.convert->output(0).get_element_type());
         newFakeQuantize = replacement;
     }
@@ -794,7 +795,7 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_auto_broadcast());
         replace_node(dequantization.subtract, replacement);
         //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
-        copyInfo({ dequantization.subtract, newFakeQuantize }, replacement);
+        copyInfo({ newFakeQuantize, dequantization.subtract }, replacement);
         newFakeQuantize = replacement;
     }
 
@@ -831,7 +832,7 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
 
         replace_node(dequantization.multiply, replacement);
         //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
-        copyInfo({ dequantization.multiply, newFakeQuantize }, replacement);
+        copyInfo({ newFakeQuantize, dequantization.multiply }, replacement);
         newFakeQuantize = replacement;
     }
 

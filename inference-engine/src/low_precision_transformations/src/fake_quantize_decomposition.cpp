@@ -102,11 +102,20 @@ DataPrecision getDataPrecision(std::shared_ptr<opset1::FakeQuantize> layer) {
 
 } // fq_decomposition
 
+bool enabled(const std::shared_ptr<ngraph::Node> node) {
+    for (const Input<Node>& input : node->inputs()) {
+        auto& rt = input.get_rt_info();
+        auto it = rt.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
+        if (it != rt.end()) {
+            const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+            return !attribute->get()->precisions.empty();
+        }
+    }
+    return true;
+}
+
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
-
-    std::cout << "FakeQuantizeDecompositionTransformation::transform: " << layer->get_friendly_name() << std::endl;
-
     if (!NetworkHelper::isQuantizeSupported(layer)) {
         return false;
     }
@@ -130,15 +139,14 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
         //            if (as_type<ngraph::opset1::Reshape>(node)) {
         //                for (const auto& child : NetworkHelper::consumers(node->shared_from_this())) {
-        //                    if ((as_type_ptr<ngraph::opset1::GroupConvolution>(child)) &&
-        //                        (paramsManager->getPrecisionsOnActivations(*child).size() != 0ul)) {
+        //                    if (as_type_ptr<ngraph::opset1::GroupConvolution>(child) && enabled(child)) {
         //                        nextOpearionsWillBeNotHandled = false;
         //                        break;
         //                    }
         //                }
         //            }
 
-        //            if (paramsManager->getPrecisionsOnActivations(*input.get_node()).size() != 0ul) {
+        //            if (enabled(input.get_node()->shared_from_this())) {
         //                nextOpearionsWillBeNotHandled = false;
         //                break;
         //            }

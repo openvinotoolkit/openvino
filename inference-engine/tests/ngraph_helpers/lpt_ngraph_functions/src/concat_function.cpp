@@ -796,6 +796,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     input1->set_friendly_name("input1");
 
     std::shared_ptr<Node> fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, inputPrecision, fqOnData1);
+    fakeQuantize1->set_friendly_name("fakeQuantize1");
     std::shared_ptr<Node> parent1 = fakeQuantize1;
     //parent1->get_rt_info().emplace(
     //    ngraph::VariantWrapper<QuantizationAlignmentAttribute>::type_info.name,
@@ -811,6 +812,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     input2->set_friendly_name("input2");
 
     std::shared_ptr<Node> fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, inputPrecision, fqOnData2);
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
     std::shared_ptr<Node> parent2 = fakeQuantize2;
 
     //parent2->get_rt_info().emplace(
@@ -824,6 +826,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     }
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1);
+    concat->set_friendly_name("concat");
     addAttributes({ concat }, concatAttributes);
 
     auto& rtInfo = concat->get_rt_info();
@@ -832,7 +835,37 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
     const auto lastDequantization = makeDequantization(concat, dequantizationAfter);
     lastDequantization->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastDequantization) };
+    auto parent = lastDequantization;
+    //{
+    //    const size_t outputChannels = 9ul;
+    //    const size_t inputChannels = 6ul;
+    //    const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
+    //    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
+    //        std::make_shared<opset1::Constant>(element::f32, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
+    //        inputPrecision,
+    //        255,
+    //        { outputChannels, 1, 1, 1 },
+    //        std::vector<float>(outputChannels, -1.27f),
+    //        std::vector<float>(outputChannels, 1.27f),
+    //        std::vector<float>(outputChannels, -1.27f),
+    //        std::vector<float>(outputChannels, 1.27f));
+    //    fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
+
+    //    auto& rt = fakeQuantizeOnWeights->get_rt_info();
+    //    //rt[::ngraph::VariantWrapper<std::shared_ptr<T>> > ] = make_shared_attribute_ptr<IntervalsAlignmentAttribute>(-1.28f, 2.55f);
+
+    //    parent = std::make_shared<ngraph::opset1::Convolution>(
+    //        ngraph::op::TemporaryReplaceOutputType(parent, inputPrecision).get(),
+    //        ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, inputPrecision).get(),
+    //        ngraph::Strides{ 1, 1 },
+    //        ngraph::CoordinateDiff{ 0, 0 },
+    //        ngraph::CoordinateDiff{ 0, 0 },
+    //        ngraph::Strides{ 1, 1 });
+
+    //    parent->set_friendly_name("convolution");
+    //}
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },

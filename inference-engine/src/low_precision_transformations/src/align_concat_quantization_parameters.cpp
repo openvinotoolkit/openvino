@@ -211,16 +211,46 @@ bool ngraph::pass::low_precision::AlignConcatQuantizationParamters::run_on_funct
         // create new
         if (ngraph::is_type<opset1::FakeQuantize>(node)) {
             // TODO: FakeQuantize validation is skipped: if FakeQuantize will be not handled then ignore it
-            const std::vector<float> lowIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(3))->cast_vector<float>();
-            const float lowInterval = *std::min_element(lowIntervals.begin(), lowIntervals.end());
 
-            const auto& highIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(4))->cast_vector<float>();
-            const float highInterval = *std::max_element(highIntervals.begin(), highIntervals.end());
+            float lowInterval;
+            float highInterval;
+            FakeQuantizeDequantization dequantization;
+            {
+                const auto targetInputs = node->output(0).get_target_inputs();
+                if (targetInputs.size() == 1ul) {
+                    auto input = *targetInputs.begin();
+                    dequantization = NetworkHelper::getDequantizationBelow(input.get_node()->shared_from_this());
+                }
+            }
+            if (dequantization.empty()) {
+                const std::vector<float> lowIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(3))->cast_vector<float>();
+                lowInterval = *std::min_element(lowIntervals.begin(), lowIntervals.end());
+
+                const std::vector<float> highIntervals = as_type<opset1::Constant>(node->get_input_node_ptr(4))->cast_vector<float>();
+                highInterval = *std::max_element(highIntervals.begin(), highIntervals.end());
+
+            } else {
+                {
+                    auto multiplyResult = fold<opset1::Multiply>(node->get_input_node_ptr(3)->shared_from_this(), dequantization.multiplyConstant);
+                    auto multiplyResultConstant = as_type_ptr<opset1::Constant>(multiplyResult);
+                    auto intervals = multiplyResultConstant->cast_vector<float>();
+                    lowInterval = *std::min_element(intervals.begin(), intervals.end());
+                }
+
+                {
+                    auto multiplyResult = fold<opset1::Multiply>(node->get_input_node_ptr(4)->shared_from_this(), dequantization.multiplyConstant);
+                    auto multiplyResultConstant = as_type_ptr<opset1::Constant>(multiplyResult);
+                    auto intervals = multiplyResultConstant->cast_vector<float>();
+                    highInterval = *std::max_element(intervals.begin(), intervals.end());
+                }
+            }
+
+            //const float highInterval = *std::max_element(highIntervals.begin(), highIntervals.end());
 
             auto& rtInfo = node->get_rt_info();
 
-            const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ngraph::as_type_ptr<opset1::FakeQuantize>(node));
-            const LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(quantizationDetails);
+            //const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ngraph::as_type_ptr<opset1::FakeQuantize>(node));
+            //const LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(quantizationDetails);
 
             const auto attribute = std::make_shared<::ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(
                 std::make_shared<IntervalsAlignmentAttribute>(lowInterval, highInterval));
