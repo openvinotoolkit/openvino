@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
-DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
+DOCKER_CONTAINER_PREFIX= "openvino-onnx-ci-container"
+DOCKER_IMAGE_PREFIX= "openvino-onnx-ci-image"
 
 BACKEND_CONFIGURATIONS = [
     [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
     [ name: "Debug", build_type: "Debug", protobuf_lite : "OFF" ],
-    [ name: "Rel+Lite", build_type: "Release", protobuf_lite : "ON" ],
+    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ],
 ]
 
 // workaround for aborting previous builds on PR update
@@ -78,7 +78,7 @@ def gitSubmoduleUpdate(String repository_name) {
             git submodule init && git submodule update \
                 --init \
                 --no-fetch \
-                --recursive 
+                --recursive
         """
     }
 }
@@ -90,6 +90,12 @@ def prepare_repository() {
     }
 }
 
+def get_commit_id(){
+    dir("${WORKDIR}/PROJECT_NAME") {
+        GIT_COMMIT_ID = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+    }
+}
+
 def updateModels() {
     sh """
         ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data -o
@@ -98,6 +104,8 @@ def updateModels() {
 
 def buildDockerImage(Map configuration) {
     updateModels()
+    get_commit_id()
+    DOCKER_IMAGE_TAG="${DOCKER_IMAGE_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}".toLowerCase()
     sh """
         docker build --tag=${DOCKER_IMAGE_TAG} \
         --build-arg BUILD_TYPE=${configuration.build_type} \
@@ -108,7 +116,11 @@ def buildDockerImage(Map configuration) {
     """
 }
 
+
 def runTests(Map configuration) {
+    get_commit_id()
+    DOCKER_IMAGE_TAG="${DOCKER_IMAGE_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}".toLowerCase()
+    DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}"
     // Run only basic unit tests in Debug configuration
     if (configuration.build_type == "Debug") {
         sh """
@@ -178,6 +190,8 @@ CONFIGURATION_WORKFLOW = { configuration ->
         finally {
             stage("Cleanup") {
                 deleteDir()
+                    get_commit_id()
+                    DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}"
                 sh """
                     docker rm -f ${DOCKER_CONTAINER_NAME}
                     docker image prune -f
