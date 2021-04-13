@@ -21,8 +21,8 @@ void make_gna_pwl(const DnnActivation  fun,
                   const bool low_precision,
                   std::vector<gna_pwl_segment_t> &gna_pwl) {
     pwl_gna_slope_scale_t s;
-    int16_t y_min = low_precision ? INT8_MIN : INT16_MIN;
-    int16_t y_max = low_precision ? INT8_MAX : INT16_MAX;
+    const int16_t y_min = low_precision ? INT8_MIN : INT16_MIN;
+    const int16_t y_max = low_precision ? INT8_MAX : INT16_MAX;
     uint32_t pwl_size = static_cast<int32_t>(pwl.size());
     gnalog() << "make_gna_pwl\n";
     gnalog() << "   in_scale  " << in_scale << "\n";
@@ -37,7 +37,7 @@ void make_gna_pwl(const DnnActivation  fun,
             gna_pwl[0].xBase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
             if (fun == kActSigmoid) {
                 gnalog() <<  "=========================== Sigmoid Segments ===========================\n";
-                auto minVal = fun.fqParams.set? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale): 0;
+                auto minVal = fun.fqParams.set ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) : 0;
                 gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
                 gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-pwl[0].b / pwl[0].m))) & XBASEMASK;
             } else if (fun == kActTanh) {
