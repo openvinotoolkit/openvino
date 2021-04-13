@@ -14,11 +14,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather1ToGather7, "ConvertGather1ToG
 ngraph::pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
     MATCHER_SCOPE(ConvertGather1ToGather7);
 
-
     auto gather_v1 = pattern::wrap_type<ngraph::opset1::Gather>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto gather_v1_node = std::dynamic_pointer_cast<ngraph::opset1::Gather>(m.get_match_root());
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto gather_v1_node = m.get_match_root();
         if (!gather_v1_node)
             return false;
 

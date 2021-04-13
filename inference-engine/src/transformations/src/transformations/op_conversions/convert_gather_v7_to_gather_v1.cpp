@@ -15,10 +15,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather7ToGather1, "ConvertGather7ToG
 ngraph::pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
     MATCHER_SCOPE(ConvertGather7ToGather1);
 
-
     auto gather_v7 = pattern::wrap_type<ngraph::opset7::Gather>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto gather_v7_node = std::dynamic_pointer_cast<ngraph::opset7::Gather>(m.get_match_root());
         if (!gather_v7_node)
             return false;
