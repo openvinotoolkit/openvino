@@ -35,7 +35,6 @@ struct CompilationConfig {
         return noneLayers.count(layerType) != 0;
     }
 
-    bool checkPreprocessingInsideModel = true;
     bool enableCustomReshapeParam = false;
 
     //

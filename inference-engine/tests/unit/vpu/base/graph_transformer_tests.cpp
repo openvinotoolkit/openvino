@@ -48,6 +48,7 @@
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_force_reset.hpp>
 #include <vpu/configuration/options/platform.hpp>
+#include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 
 #include <atomic>
 #include <iomanip>
@@ -429,6 +430,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<ConfigFileOption>();
     configuration.registerOption<MemoryTypeOption>();
     configuration.registerOption<EnableForceResetOption>();
+    configuration.registerOption<CheckPreprocessingInsideModelOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);

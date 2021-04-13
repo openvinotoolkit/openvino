@@ -10,6 +10,7 @@
 #include <vpu/model/data_contents/scaled_content.hpp>
 
 #include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 
 #include <precision_utils.h>
 
@@ -90,7 +91,7 @@ bool isScalable(const Stage& stage) {
 
 bool checkGrowingOutput(const Model& model) {
     const auto& env = CompileEnv::get();
-    if (!env.config.compileConfig().checkPreprocessingInsideModel) {
+    if (!env.config.get<CheckPreprocessingInsideModelOption>()) {
         return false;
     }
 

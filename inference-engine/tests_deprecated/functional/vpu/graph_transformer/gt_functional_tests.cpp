@@ -49,6 +49,7 @@
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_force_reset.hpp>
 #include <vpu/configuration/options/platform.hpp>
+#include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -125,6 +126,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<ConfigFileOption>();
     _configuration.registerOption<MemoryTypeOption>();
     _configuration.registerOption<EnableForceResetOption>();
+    _configuration.registerOption<CheckPreprocessingInsideModelOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
