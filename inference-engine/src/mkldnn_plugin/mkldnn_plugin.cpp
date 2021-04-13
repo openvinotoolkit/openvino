@@ -323,7 +323,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         transformer.transform(nGraphFunc);
     }
 
-    bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+    bool hasFakeQuantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+    bool hasTypeRelaxed = ::ngraph::op::util::has_op_with_type<ngraph::op::TypeRelaxedBase>(nGraphFunc);
 
     ngraph::pass::Manager legacyManager;
 
@@ -363,7 +364,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
-    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork, has_fake_quantize));
+    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork, hasFakeQuantize || hasTypeRelaxed));
 
     OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 

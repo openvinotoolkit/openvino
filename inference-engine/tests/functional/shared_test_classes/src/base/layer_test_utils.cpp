@@ -261,6 +261,9 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
 
+    for (const auto &pass : additionalPasses)
+        pass->run_on_function(function);
+
     function->validate_nodes_and_infer_types();
 
     auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
