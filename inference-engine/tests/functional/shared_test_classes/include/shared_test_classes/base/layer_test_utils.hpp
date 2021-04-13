@@ -85,6 +85,12 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
+//        for (std::size_t i = 0; i < size; ++i) {
+//            const auto &ref = expected[i];
+//            const auto &res = actual[i];
+//            std::cout << i << ". ref = " << ref << ", res = " << res << std::endl;
+//        }
+
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
@@ -148,6 +154,8 @@ protected:
     virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
+
+    std::vector<std::shared_ptr<ngraph::pass::GraphRewrite>> additionalPasses;
 
 private:
     RefMode refMode = RefMode::INTERPRETER;

@@ -322,6 +322,10 @@ void LayerTestsCommon::GenerateInputs() {
 
         const auto& info = infoIt->second;
         auto blob = GenerateInput(*info);
+//        auto mem = blob->buffer().as<int8_t *>();
+//        std::cout << "SRC:\n";
+//        for (int i = 0; i < blob->size(); i++)
+//            std::cout << i << ". " << static_cast<int32_t>(mem[i]) << std::endl;
         inputs.push_back(blob);
     }
 }
@@ -352,6 +356,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     // nGraph interpreter does not support f16/bf16
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+
+    for (const auto &pass : additionalPasses)
+        pass->run_on_function(function);
 
     function->validate_nodes_and_infer_types();
 
