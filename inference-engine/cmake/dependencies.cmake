@@ -307,8 +307,8 @@ if (ENABLE_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.1047.1")
-            set(GNA_HASH "20820e07392a1e876cf5577430c1c4c74b924d8f34cc17bfa3e36e641555e05d")
+            set(GNA_VERSION "02.00.00.1191")
+            set(GNA_HASH "91a2dfd1485c46ae675a256e4d0115c147b2f9b6c681e7b37ed4aef8052f3f98")
         endif()
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
