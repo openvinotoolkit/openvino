@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
@@ -125,7 +126,7 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
     } else {
         auto shape_of = std::make_shared<opset3::ShapeOf>(data);
         new_ops.push_back(shape_of);
-        reshape_dim = std::make_shared<opset3::Gather>(
+        reshape_dim = std::make_shared<opset7::Gather>(
                 shape_of, order, opset3::Constant::create(element::i64, Shape{1}, {0}));
         new_ops.push_back(reshape_dim.get_node_shared_ptr());
     }
@@ -186,7 +187,7 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
         reduction_axes = ngraph::opset6::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ngraph::NodeVector new_ops;
-        auto new_axes = ngraph::op::util::make_try_fold<ngraph::opset6::Gather>(
+        auto new_axes = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
                 transpose_order, reduction_axes, ngraph::opset6::Constant::create(ngraph::element::i64, {}, {0}));
         new_ops.push_back(new_axes);
         auto new_reduce = reduction->copy_with_new_inputs({transpose->input_value(0), new_axes});
