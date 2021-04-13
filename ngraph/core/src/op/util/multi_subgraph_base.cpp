@@ -66,15 +66,7 @@ Input<Node> op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value
 }
 
 
-void op::util::MultiSubGraphOp::set_invariant_input(
-    const std::shared_ptr<Parameter>& body_parameter, const Output<Node>& value, int body_index)
-{
-    m_input_descriptions[body_index].push_back(
-        std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
-        input_for_value(value).get_index(),
-        m_bodies[body_index]->get_parameter_index(body_parameter)));
-    validate_and_infer_types();
-}
+
 void op::util::MultiSubGraphOp::reserve_bodies(int num_bodies)
 {
     m_bodies = decltype(m_bodies)(num_bodies);

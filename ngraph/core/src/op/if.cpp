@@ -32,8 +32,8 @@ bool op::v0::If::visit_attributes(AttributeVisitor& visitor)
     if (m_bodies.size() != 2) {
         m_bodies = std::vector<std::shared_ptr<ngraph::Function>>(2);
     }
-    visitor.on_attribute("then_body", m_bodies[then_body_index]);
-    visitor.on_attribute("else_body", m_bodies[else_body_index]);
+    visitor.on_attribute("port_map",m_input_descriptions[then_body_index]);
+    visitor.on_attribute("else_port_map", m_input_descriptions[else_body_index]); 
   /*  visitor.on_attribute("then_body", m_bodies[then_body_index]);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
@@ -229,18 +229,21 @@ void op::v0::If::fill_body(std::shared_ptr<op::v0::If> new_op,
     auto param_size = body->get_parameters().size();
     std::vector<::ngraph::element::Type> types(param_size);
     std::vector<::ngraph::PartialShape> new_shapes(param_size);
-    auto input_descriptions = m_input_descriptions[branch_index];
+    auto& input_descriptions = m_input_descriptions[branch_index];
     for (auto& input_description : input_descriptions)
     {
-        types[input_description->m_body_parameter_index] =
-            new_args[input_description->m_input_index].get_element_type();
-        new_shapes[input_description->m_body_parameter_index] =
-            new_args[input_description->m_input_index].get_partial_shape();
+        if (input_description->m_input_index < new_args.size()) 
+{
+            types[input_description->m_body_parameter_index] =
+                new_args[input_description->m_input_index].get_element_type();
+            new_shapes[input_description->m_body_parameter_index] =
+                new_args[input_description->m_input_index].get_partial_shape();
+        }
     }
     auto func =
         std::make_shared<Function>(body->get_results(), body->get_sinks(), body->get_parameters());
     auto spec_func =
-        specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
+        specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size()-1, nullptr));
     new_op->m_bodies[branch_index] = std::make_shared<Function>(
         spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
@@ -271,10 +274,28 @@ std::shared_ptr<Node>
     op->m_input_descriptions = std::vector<MultiSubgraphInputDescriptionVector>(2);
     op->m_output_descriptions = std::vector<MultiSubgraphOutputDescriptionVector>(2);
     op->set_output_size(m_output_descriptions[0].size());
-
     fill_body(op, then_body_index, new_args);
     fill_body(op, else_body_index, new_args);
     op->validate_and_infer_types();
     return op;
+}
+void op::v0::If::set_invariant_input(
+    const Output<Node>& value,
+    const std::shared_ptr<Parameter>& then_parameter,
+    const std::shared_ptr<Parameter>& else_parameter)
+{
+    auto input_index = input_for_value(value).get_index();
+    if (then_parameter != nullptr)
+    {
+        m_input_descriptions[then_body_index].push_back(
+            std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
+                input_index, m_bodies[then_body_index]->get_parameter_index(then_parameter)));
+    }
+    if (else_parameter != nullptr) {
+        m_input_descriptions[else_body_index].push_back(
+            std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
+                input_index, m_bodies[else_body_index]->get_parameter_index(else_parameter)));
+    }
+    validate_and_infer_types();
 }
 

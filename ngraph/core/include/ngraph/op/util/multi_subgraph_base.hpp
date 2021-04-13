@@ -149,10 +149,6 @@ namespace ngraph
                 {
                     return m_output_descriptions[index];
                 }
-
-                void set_invariant_input(const std::shared_ptr<Parameter>& body_parameter,
-                                         const Output<Node>& value,
-                                         int body_index);
                 void reserve_bodies(int num_bodies);
                 MultiSubGraphOp(const MultiSubGraphOp&) = delete;
                 MultiSubGraphOp(MultiSubGraphOp&&) = default;
@@ -200,7 +196,7 @@ namespace ngraph
         }
 
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::"
+            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::"
             "InputDescription>>>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }

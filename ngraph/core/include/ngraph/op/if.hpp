@@ -48,8 +48,9 @@ namespace ngraph
                 ngraph::Output<Node> set_output(ngraph::Output<ngraph::Node> then_output,
                                  ngraph::Output<ngraph::Node> else_output);
                 void validate_and_infer_types() override;
-                /// \return the body of the iteration
-           //     std::shared_ptr<Function> get_function() override;
+                void set_invariant_input(const Output<Node>& value,
+                                         const std::shared_ptr<Parameter>& then_parameter,
+                                         const std::shared_ptr<Parameter>& else_parameter);
             private:
                 void validate_and_infer_type_body(
                     std::shared_ptr<Function> body,
