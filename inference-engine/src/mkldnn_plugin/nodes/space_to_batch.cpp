@@ -206,8 +206,6 @@ private:
                     finish.push_back(finish[1]);
                     finish.erase(finish.begin() + 1);
                 }
-                indxStart[1] / blockSize;
-                indxEnd[1] / blockSize;
                 const int64_t addTmpOC = blocked ? 0lu : oAdd[1];
                 const int64_t addTmpOc = blocked ? oAdd[1] : 0lu;
                 indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
