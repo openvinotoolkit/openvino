@@ -37,3 +37,25 @@ TEST(op_eval, floor_mod)
     for (size_t i = 0; i < expected_result.size(); i++)
         EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
 }
+
+TEST(op_eval, floor_mod_i32)
+{
+    auto a = make_shared<op::Parameter>(element::i32, Shape{6});
+    auto b = make_shared<op::Parameter>(element::i32, Shape{6});
+    auto floor_mod = make_shared<op::v1::FloorMod>(a, b);
+    auto fun = make_shared<Function>(OutputVector{floor_mod}, ParameterVector{a, b});
+
+    std::vector<int32_t> a_value{-4, 7, 5, 4, -7, 8};
+    std::vector<int32_t> b_value{2, -3, 8, -2, 3, 5};
+    std::vector<int32_t> expected_result{0, -2,  5,  0,  2,  3};
+
+    auto result = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result},
+                              {make_host_tensor<element::Type_t::i32>(Shape{6}, a_value),
+                               make_host_tensor<element::Type_t::i32>(Shape{6}, b_value)}));
+    EXPECT_EQ(result->get_element_type(), element::i32);
+    EXPECT_EQ(result->get_shape(), Shape{6});
+    auto result_data = read_vector<int32_t>(result);
+    for (size_t i = 0; i < expected_result.size(); i++)
+        EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
+}
