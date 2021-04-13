@@ -3012,17 +3012,120 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_matmul_float_type)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<int64_t>({-8, 3, 4, 9, -17, 1});
-    test_case.add_input<int64_t>({22, -13, 8, -3, 7, 2});
-    test_case.add_expected_output<int64_t>(Shape{6}, {-8, 3, 4, 0, -3, 1});
+    test_case.add_input<int32_t>({-4, 7, 5, 4, -7, 8});
+    test_case.add_input<int32_t>({2, -3, 8, -2, 3, 5});
+    test_case.add_expected_output<int32_t>(Shape{6}, {0, -2,  5,  0,  2,  3});
 
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_i64)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_i64.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int64_t>({-4, 7, 5, 4, -7, 8});
+    test_case.add_input<int64_t>({2, -3, 8, -2, 3, 5});
+    test_case.add_expected_output<int64_t>(Shape{6}, {0, -2,  5,  0,  2,  3});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_broadcast)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_broadcast.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
+    test_case.add_input<int32_t>({3});
+    test_case.add_expected_output<int32_t>(Shape{6}, {1, 0, 1, 0, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_f32)
+{
+    try
+    {
+        const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_f32.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("If the input type is floating point, then `fmod` attribute must be set to 1."));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
+    test_case.add_input<int32_t>({22, -13, 8, -3, 7, 2});
+    test_case.add_expected_output<int32_t>(Shape{6}, {-8, 3, 4, 0, -3, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_broadcast)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_broadcast.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
+    test_case.add_input<int32_t>({3});
+    test_case.add_expected_output<int32_t>(Shape{6}, {-2, 0, 1, 0, -2, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_f32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_f32.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({-4.3, 7.2, 5.0, 4.3, -7.2, 8.0});
+    test_case.add_input<float>({2.1, -3.4, 8.0, -2.1, 3.4, 5.0});
+    test_case.add_expected_output<float>(Shape{6}, {-0.10000038, 0.39999962, 5. , 0.10000038, -0.39999962, 3.});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_incorrect_fmod)
+{
+    try
+    {
+        const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_incorrect_fmod.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_param_i64_indices)

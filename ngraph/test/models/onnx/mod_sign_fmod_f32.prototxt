@@ -6,13 +6,18 @@ graph {
     input: "B"
     output: "Y"
     op_type: "Mod"
+    attribute {
+      name: "fmod"
+      i: 1
+      type: INT
+    }
   }
   name: "test_mod"
   input {
     name: "A"
     type {
       tensor_type {
-        elem_type: 6
+        elem_type: 1
         shape {
           dim {
             dim_value: 6
@@ -21,11 +26,11 @@ graph {
       }
     }
   }
-  input {
+    input {
     name: "B"
     type {
       tensor_type {
-        elem_type: 6
+        elem_type: 1
         shape {
           dim {
             dim_value: 6
@@ -38,7 +43,7 @@ graph {
     name: "Y"
     type {
       tensor_type {
-        elem_type: 6
+        elem_type: 1
         shape {
           dim {
             dim_value: 6
