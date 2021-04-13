@@ -10,6 +10,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <exec_graph_info.hpp>
 #include "ie_system_conf.h"
+#include "ngraph_ops/type_relaxed.hpp"
 
 namespace CPUTestUtils {
     typedef enum {
@@ -151,6 +152,10 @@ protected:
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;
+
+    ngraph::element::Type outElemType = ngraph::element::f32;
+    // only for int8 testing
+    int quantizeInHigh = 1;
 };
 
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};

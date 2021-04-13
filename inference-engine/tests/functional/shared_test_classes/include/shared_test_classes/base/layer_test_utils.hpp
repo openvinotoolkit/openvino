@@ -153,6 +153,8 @@ protected:
 
     InferenceEngine::InferRequest inferRequest;
 
+    std::vector<std::shared_ptr<ngraph::pass::GraphRewrite>> additionalPasses;
+
 private:
     RefMode refMode = RefMode::INTERPRETER;
 };
