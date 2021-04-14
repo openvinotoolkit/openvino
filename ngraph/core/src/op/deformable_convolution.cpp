@@ -184,10 +184,33 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
                                                             m_pads_begin,
                                                             m_pads_end);
 
-    if (result_shape.rank().is_static() && result_shape[0].is_dynamic() &&
-        deformable_values_pshape.rank().is_static())
+    if (result_shape.rank().is_static() && deformable_values_pshape.rank().is_static())
     {
-        result_shape[0] = deformable_values_pshape[0]; // batch size
+        PartialShape result_spatial_shape = [&result_shape]() {
+            vector<Dimension> result_spatial_dims{result_shape};
+            result_spatial_dims.erase(result_spatial_dims.begin(), result_spatial_dims.begin() + 2);
+            return PartialShape{result_spatial_dims};
+        }();
+
+        PartialShape deformable_values_spatial_shape = [&deformable_values_pshape]() {
+            vector<Dimension> deformable_values_spatial_dims{deformable_values_pshape};
+            deformable_values_spatial_dims.erase(deformable_values_spatial_dims.begin(),
+                                                 deformable_values_spatial_dims.begin() + 2);
+            return PartialShape{deformable_values_spatial_dims};
+        }();
+
+        NODE_VALIDATION_CHECK(
+            this,
+            deformable_values_spatial_shape.compatible(result_spatial_shape),
+            "Spatial dimensions of deformable values and output must be equal. Got: ",
+            deformable_values_spatial_shape,
+            " and ",
+            result_spatial_shape);
+
+        if (result_shape[0].is_dynamic())
+        {
+            result_shape[0] = deformable_values_pshape[0]; // batch size
+        }
     }
     set_output_type(0, result_et, result_shape);
 }
