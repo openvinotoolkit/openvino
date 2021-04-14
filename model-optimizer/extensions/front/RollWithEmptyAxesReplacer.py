@@ -21,7 +21,6 @@ class RollWithEmptyAxesReplacer(FrontReplacementPattern):
     reshape to 1D tensor -> Roll -> reshape to original shape.
     """
     enabled = True
-    op = "Roll"
 
     def run_after(self):
         return [AttributedRollToRoll]
