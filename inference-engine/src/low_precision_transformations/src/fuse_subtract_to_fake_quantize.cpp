@@ -14,11 +14,11 @@ namespace pass {
 namespace low_precision {
 
 FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::Subtract>();
+    auto matcher = pattern::wrap_type<opset1::Subtract>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -26,10 +26,6 @@ FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformati
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FuseSubtractToFakeQuantizeTransformation");
     this->register_matcher(m, callback);
-}
-
-void FuseSubtractToFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Subtract>(pass, context);
 }
 
 bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {

@@ -16,11 +16,11 @@ namespace pass {
 namespace low_precision {
 
 FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
+    auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
 
@@ -29,10 +29,6 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeTransformation");
     this->register_matcher(m, callback);
-}
-
-void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addSingleNodePattern<opset1::FakeQuantize>(pass, context);
 }
 
 bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {

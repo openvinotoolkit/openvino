@@ -21,8 +21,9 @@ public:
     public:
         SharedValue(const bool value) : value(value) {}
         SharedValue(const bool value, const std::string& operationName) : value(value), operationName(operationName) {}
-        std::string operationName;
+
         bool value;
+        std::string operationName;
     };
 
     PrecisionPreservedAttribute(const bool value, const std::string& operationName) : sharedValue(std::make_shared<SharedValue>(value, operationName)) {}
@@ -54,7 +55,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes) override;
 
-    PrecisionPreservedAttribute get() { return this->m_value; };
+    PrecisionPreservedAttribute get() { return this->m_value; }
 
     std::string get_string() override;
 };

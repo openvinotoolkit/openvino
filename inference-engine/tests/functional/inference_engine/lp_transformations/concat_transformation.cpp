@@ -24,7 +24,6 @@
 #include <low_precision/markup_avg_pool_precisions.hpp>
 #include <low_precision/propagate_precisions.hpp>
 
-#include <low_precision/transformer.hpp>
 #include <low_precision/concat.hpp>
 #include <low_precision/concat_multi_channels.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>

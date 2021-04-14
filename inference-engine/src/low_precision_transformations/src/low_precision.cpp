@@ -44,10 +44,10 @@
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
 #include "low_precision/split.hpp"
+#include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
-#include "low_precision/split.hpp"
 
 // cleanup transformations
 #include "low_precision/convert.hpp"
@@ -62,7 +62,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision"
 
 ngraph::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<OperationPrecisionRestriction>& restrictions,
-    const LayerTransformation::Params params) : restrictions(restrictions), params(params){
+    const LayerTransformation::Params params) : restrictions(restrictions), params(params) {
 }
 
 bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
@@ -119,11 +119,11 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     common->add_matcher<ngraph::pass::low_precision::ReluTransformation>();
     common->add_matcher<ngraph::pass::low_precision::ReshapeTransformation>();
     common->add_matcher<ngraph::pass::low_precision::SqueezeTransformation>();
-    //common->add_matcher<ngraph::pass::low_precision::SplitTransformation>();
-    //common->add_matcher<ngraph::pass::low_precision::StridedSliceTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::SplitTransformation>();
+    common->add_matcher<ngraph::pass::low_precision::StridedSliceTransformation>();
     common->add_matcher<ngraph::pass::low_precision::TransposeTransformation>();
     common->add_matcher<ngraph::pass::low_precision::UnsqueezeTransformation>();
-    //common->add_matcher<ngraph::pass::low_precision::VariadicSplit>();
+    common->add_matcher<ngraph::pass::low_precision::VariadicSplitTransformation>();
 
     std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = manager.register_pass<ngraph::pass::GraphRewrite>();
     //cleanup->add_matcher<ngraph::pass::low_precision::FoldConvertTransformation>();

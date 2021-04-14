@@ -15,7 +15,6 @@ class TRANSFORMATIONS_API AddTransformation : public EltwiseBaseTransformation {
 public:
     AddTransformation(const Params& params = Params());
     ~AddTransformation() override {}
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };

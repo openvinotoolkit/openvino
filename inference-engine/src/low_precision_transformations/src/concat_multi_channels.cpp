@@ -25,11 +25,11 @@ namespace pass {
 namespace low_precision {
 
 ConcatMultiChannelsTransformation::ConcatMultiChannelsTransformation(const Params& params) : ConcatTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::Concat>();
+    auto matcher = pattern::wrap_type<opset1::Concat>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -49,10 +49,6 @@ bool ConcatMultiChannelsTransformation::isMultiChannel(const std::vector<std::sh
         }
     }
     return true;
-}
-
-void ConcatMultiChannelsTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addSingleNodePattern<opset1::Concat>(pass, context);
 }
 
 bool ConcatMultiChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {

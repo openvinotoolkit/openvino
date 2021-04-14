@@ -40,7 +40,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
-    std::shared_ptr<PrecisionsAttribute> get() { return this->m_value; };
+    std::shared_ptr<PrecisionsAttribute> get() { return this->m_value; }
 
-    virtual std::string get_string();
+    std::string get_string() override;
 };

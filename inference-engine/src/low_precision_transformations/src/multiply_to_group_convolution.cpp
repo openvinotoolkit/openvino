@@ -13,11 +13,11 @@ namespace pass {
 namespace low_precision {
 
 MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformation(const Params& params) : LayerTransformation(params), groupSize(1ul) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::Multiply>();
+    auto matcher = pattern::wrap_type<opset1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -25,10 +25,6 @@ MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformati
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MultiplyToGroupConvolutionTransformation");
     this->register_matcher(m, callback);
-}
-
-void MultiplyToGroupConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Multiply>(pass, context);
 }
 
 bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {

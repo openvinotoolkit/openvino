@@ -5,6 +5,7 @@
 #include "low_precision/depth_to_space.hpp"
 
 #include <memory>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
@@ -12,11 +13,11 @@ using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
 DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : TransparentBaseTransformation(params) {
-    auto matcher = make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<opset1::DepthToSpace>({ pattern::wrap_type<opset1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -24,13 +25,6 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "DepthToSpaceTransformation");
     this->register_matcher(m, callback);
-}
-
-void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::opset1::Multiply>() }));
 }
 
 bool DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {

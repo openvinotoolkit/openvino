@@ -9,6 +9,8 @@
 #include <cmath>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
@@ -36,11 +38,11 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 } // namespace normalize_l2
 
 NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = make_op_pattern<ngraph::opset1::NormalizeL2>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<opset1::NormalizeL2>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -91,16 +93,6 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     }
 
     return true;
-}
-
-void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<ngraph::opset1::NormalizeL2>({
-            make_op_label<ngraph::opset1::Multiply>(),
-            make_op_label<ngraph::opset1::Constant>()
-            }));
 }
 
 bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {

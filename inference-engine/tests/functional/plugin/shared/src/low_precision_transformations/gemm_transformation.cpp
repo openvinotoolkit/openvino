@@ -45,24 +45,6 @@ void GemmTransformation::SetUp() {
         inputShape,
         low,
         high);
-
-    validate();
-}
-
-void GemmTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    EXPECT_EQ(1ul, transformed->get_output_size());
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(GemmTransformation, CompareWithRefImpl) {

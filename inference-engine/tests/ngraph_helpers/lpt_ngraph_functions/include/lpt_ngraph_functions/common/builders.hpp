@@ -99,9 +99,11 @@ std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op
 
 template <typename ... Args>
 void addAttribute(std::vector<std::shared_ptr<ngraph::Node>> nodes, Args&& ... args) {
-    const auto attribute = std::make_shared<::ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttribute>>(QuantizationAlignmentIntervalsAttribute(std::forward<Args>(args)...));
+    const auto attribute = std::make_shared<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(
+        QuantizationAlignmentAttribute(std::forward<Args>(args)...));
+
     for (const auto& node : nodes) {
-        node->get_rt_info()[ngraph::VariantWrapper<QuantizationAlignmentIntervalsAttribute>::type_info.name] = attribute;
+        node->get_rt_info()[ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name] = attribute;
     }
 }
 

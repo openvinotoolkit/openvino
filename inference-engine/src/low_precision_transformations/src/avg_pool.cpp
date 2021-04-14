@@ -16,16 +16,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-AvgPoolTransformation::AvgPoolTransformation() : LayerTransformation(Params()) {
-}
+AvgPoolTransformation::AvgPoolTransformation() : LayerTransformation(Params()) {}
 
 AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransformation(params) {
-    //auto matcher = make_op_pattern<opset1::AvgPool>({ make_op_label<opset1::Multiply>() });
-    auto matcher = ngraph::pattern::wrap_type<opset1::AvgPool>();
+    auto matcher = pattern::wrap_type<opset1::AvgPool>({ pattern::wrap_type<opset1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -33,13 +31,6 @@ AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransf
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "AvgPoolTransformation");
     this->register_matcher(m, callback);
-}
-
-void AvgPoolTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::AvgPool>({ make_op_label<opset1::Multiply>() }));
 }
 
 bool getUpdatePrecision(const std::shared_ptr<Node>& node) {

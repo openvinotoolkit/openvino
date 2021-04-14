@@ -28,30 +28,13 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Lay
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
     };
 
     this->register_matcher(matcher, callback);
-}
-
-void FuseConvertTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Multiply>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Subtract>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Add>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }));
 }
 
 std::shared_ptr<Node> removeConvertIfPossibleForSubtract(

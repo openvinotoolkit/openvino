@@ -285,7 +285,7 @@ std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<No
     auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
     assert(attribute != nullptr);
     return attribute;
-};
+}
 
 }  // namespace low_precision
 }  // namespace pass

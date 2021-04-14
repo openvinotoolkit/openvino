@@ -7,9 +7,9 @@
 #include <string>
 #include <ngraph/ngraph.hpp>
 #include <low_precision/transformation_context.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/layer_transformation.hpp>
 #include <low_precision/transformation_context.hpp>
+#include <low_precision/low_precision.hpp>
 
 #include <low_precision/markup_precisions.hpp>
 #include <low_precision/markup_avg_pool_precisions.hpp>
@@ -26,40 +26,6 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer() {
     lowPrecisionManager->register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
     lowPrecisionManager->register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
     lowPrecisionManager->register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
-}
-
-std::vector<ngraph::element::Type> SimpleLowPrecisionTransformer::getPrecisionsOnActivations(const ngraph::Node& op) const noexcept {
-    const auto it = transformations.find(ngraph::pass::low_precision::LowPrecisionTransformations::getType(op));
-    if (it == transformations.end()) {
-        return std::vector<ngraph::element::Type>();
-    }
-
-    const ngraph::pass::low_precision::LayerTransformationPtr transformation = it->second;
-    return transformation->getPrecisionsOnActivations();
-}
-
-bool SimpleLowPrecisionTransformer::isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept {
-    const std::string operantionType = ngraph::pass::low_precision::LowPrecisionTransformations::getType(*layer);
-
-    const auto it = transformations.find(operantionType);
-    if (it == transformations.end()) {
-        return false;
-    }
-
-    const ngraph::pass::low_precision::LayerTransformationPtr transformation = it->second;
-    return transformation->isQuantized(layer);
-}
-
-bool SimpleLowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept {
-    const std::string operantionType = ngraph::pass::low_precision::LowPrecisionTransformations::getType(*layer);
-
-    const auto it = transformations.find(operantionType);
-    if (it == transformations.end()) {
-        return false;
-    }
-
-    const ngraph::pass::low_precision::LayerTransformationPtr transformation = it->second;
-    return transformation->isPrecisionPreserved(layer);
 }
 
 void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>& function) {

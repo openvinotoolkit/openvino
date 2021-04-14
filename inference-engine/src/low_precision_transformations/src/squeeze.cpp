@@ -8,6 +8,8 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -15,11 +17,11 @@ namespace pass {
 namespace low_precision {
 
 SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = make_op_pattern<opset1::Squeeze>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<opset1::Squeeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -27,13 +29,6 @@ SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransf
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SqueezeTransformation");
     this->register_matcher(m, callback);
-}
-
-void SqueezeTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Squeeze>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
 }
 
 bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {

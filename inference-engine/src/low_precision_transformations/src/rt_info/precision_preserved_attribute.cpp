@@ -30,7 +30,7 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrecisionPreservedAttribute>::me
             continue;
         }
 
-        auto& attribute = std::dynamic_pointer_cast<VariantWrapper<PrecisionPreservedAttribute>>(rtIt->second);
+        const auto& attribute = std::dynamic_pointer_cast<VariantWrapper<PrecisionPreservedAttribute>>(rtIt->second);
         PrecisionPreservedAttribute expectedOperation = attribute->get();
         std::shared_ptr<PrecisionPreservedAttribute::SharedValue>& sharedValue = expectedOperation.sharedValue;
 

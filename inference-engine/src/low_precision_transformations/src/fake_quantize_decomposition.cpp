@@ -18,11 +18,13 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params, TransformationContext& context) : LayerTransformation(params) {
-   auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
+FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(
+    const Params& params,
+    TransformationContext& context) : LayerTransformation(params) {
+    auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
     ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(context, m);
@@ -33,10 +35,11 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
 }
 
 FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
+    auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
+
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -44,10 +47,6 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeDecompositionTransformation");
     this->register_matcher(m, callback);
-}
-
-void FakeQuantizeDecompositionTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addSingleNodePattern<opset1::FakeQuantize>(pass, context);
 }
 
 namespace fq_decomposition {
@@ -81,8 +80,7 @@ DataPrecision getDataPrecision(std::shared_ptr<opset1::FakeQuantize> layer) {
         if (foundIt == precisions.end()) {
             precision = *precisions.begin();
             hasZeroPoint = true;
-        }
-        else {
+        } else {
             precision = precisionDetailsAtOutputIntervals.precision;
             hasZeroPoint = precisionDetailsAtOutputIntervals.hasZeroPoint;
         }
@@ -100,7 +98,7 @@ DataPrecision getDataPrecision(std::shared_ptr<opset1::FakeQuantize> layer) {
         hasZeroPoint);
 }
 
-} // fq_decomposition
+} // namespace fq_decomposition
 
 bool enabled(const std::shared_ptr<ngraph::Node> node) {
     for (const Input<Node>& input : node->inputs()) {
@@ -386,8 +384,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             if (subtract != nullptr) {
                 const std::shared_ptr<opset1::Constant> subtractConst = as_type_ptr<opset1::Constant>(subtract->get_input_node_shared_ptr(1));
                 dequantizationShifts = subtractConst->cast_vector<float>();
-            }
-            else {
+            } else {
                 dequantizationShifts = std::vector<float>(dequantizationScales.size());
             }
 

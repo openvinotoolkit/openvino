@@ -15,7 +15,6 @@ class TRANSFORMATIONS_API ConvertTransformation : public LayerTransformation {
 public:
     ConvertTransformation(const Params& params);
     ~ConvertTransformation() override {}
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };

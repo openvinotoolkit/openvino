@@ -63,7 +63,8 @@ bool ngraph::pass::low_precision::MarkupAvgPoolPrecisions::run_on_function(std::
                     if (firstExistingAttribute == nullptr) {
                         firstExistingAttribute = tmpAttribute;
                     } else {
-                        NGRAPH_CHECK(firstExistingAttribute->get().sharedValue->operationName == tmpAttribute->get().sharedValue->operationName, "Only one operation is supported");
+                        NGRAPH_CHECK(firstExistingAttribute->get().sharedValue->operationName ==
+                            tmpAttribute->get().sharedValue->operationName, "Only one operation is supported");
                     }
                 }
             }

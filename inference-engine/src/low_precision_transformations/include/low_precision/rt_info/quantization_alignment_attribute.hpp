@@ -41,7 +41,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
-    std::shared_ptr<QuantizationAlignmentAttribute> get() { return this->m_value; };
+    std::shared_ptr<QuantizationAlignmentAttribute> get() { return this->m_value; }
 
     std::string get_string() override;
 };

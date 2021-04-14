@@ -295,7 +295,7 @@ void NetworkHelper::copyInfo(
             target->set_friendly_name(friendlyName);
         }
 
-        auto& rt = target->get_rt_info();
+        //auto& rt = target->get_rt_info();
         //if (rt.find(ngraph::VariantWrapper<DequantizationAttr>::type_info.name) != rt.end()) {
         //    rt.erase(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
         //    rt.erase(ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name);
@@ -331,7 +331,7 @@ void NetworkHelper::copyInfo(
 }
 
 void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target) {
-    copyInfo(sources, std::vector<std::shared_ptr<Node>> { target } );
+    copyInfo(sources, std::vector<std::shared_ptr<Node>>{ target });
 }
 
 void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {

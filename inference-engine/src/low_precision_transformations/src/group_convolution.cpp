@@ -16,11 +16,11 @@ namespace pass {
 namespace low_precision {
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
+    auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -28,16 +28,6 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "GroupConvolutionTransformation");
     this->register_matcher(m, callback);
-}
-
-void GroupConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    // question to nGraph: why it doesn't work
-    // addPattern(
-    //    pass,
-    //    context,
-    //    make_op_pattern<opset1::GroupConvolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>()}));
-
-    addSingleNodePattern<opset1::GroupConvolution>(pass, context);
 }
 
 bool GroupConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {

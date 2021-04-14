@@ -43,28 +43,6 @@ void FakeQuantizeTransformation::SetUp() {
         fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void FakeQuantizeTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(precision, inputShapes, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
-
-    auto transformations = getLowPrecisionTransformationsNGraph(params);
-    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, ngraph::opset1::Subtract>();
-    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ngraph::opset1::Multiply>();
-
-    const auto transformed = transformNGraph(params, transformations);
-    EXPECT_EQ(1ul, transformed->get_output_size());
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(FakeQuantizeTransformation, CompareWithRefImpl) {

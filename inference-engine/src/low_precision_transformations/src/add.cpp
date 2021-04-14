@@ -93,7 +93,7 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (!op || m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -101,10 +101,6 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "AddTransformation");
     this->register_matcher(m, callback);
-}
-
-void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Add>(pass, context);
 }
 
 bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {

@@ -138,10 +138,8 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     // TODO: operation set version is not affected <= not mandatory for PoC
     static std::unordered_set<std::string> precisionPreserved = {
         { name<opset1::Concat>() },
-        // TODO: there are conditions
         { name<opset1::DepthToSpace>() },
         { name<opset1::MaxPool>() },
-        // TODO: there are conditions
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset1::Reshape>() },

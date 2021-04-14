@@ -18,11 +18,11 @@ namespace pass {
 namespace low_precision {
 
 SubtractMultiplyToMultiplyAddTransformation::SubtractMultiplyToMultiplyAddTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::Multiply>();
+    auto matcher = pattern::wrap_type<opset1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
-        if (m_transformation_callback(op)) {
+        if (!op || transformation_callback(op)) {
             return false;
         }
         return transform(*context, m);
@@ -30,10 +30,6 @@ SubtractMultiplyToMultiplyAddTransformation::SubtractMultiplyToMultiplyAddTransf
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SubtractMultiplyToMultiplyAddTransformation");
     this->register_matcher(m, callback);
-}
-
-void SubtractMultiplyToMultiplyAddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Multiply>(pass, context);
 }
 
 FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {

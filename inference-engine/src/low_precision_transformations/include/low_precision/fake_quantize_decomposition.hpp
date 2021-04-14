@@ -17,7 +17,6 @@ class TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public Layer
 public:
     FakeQuantizeDecompositionTransformation(const Params& params, TransformationContext& context);
     FakeQuantizeDecompositionTransformation(const Params& params = Params());
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };

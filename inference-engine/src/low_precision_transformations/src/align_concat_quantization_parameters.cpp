@@ -101,7 +101,7 @@ void replaceAttributeInNodes(
     std::deque<std::shared_ptr<Node>> nodes;
     nodes.emplace_back(initialNode);
 
-    bool initialNodeIsNotInitialized = true;
+    // bool initialNodeIsNotInitialized = true;
 
     while (!nodes.empty()) {
         auto node = nodes.front();
@@ -143,14 +143,13 @@ void replaceAttributeInNodes(
                     if (!dequantization.empty() &&
                         (is_type<opset1::Convert>(dequantization.data.get_node())) &&
                         is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
-
                         const auto input = dequantization.data.get_node()->input(0);
                         return input;
                     }
                     return node->input(index);
                 };
 
-                auto& input = getInput(node, index);
+                const auto& input = getInput(node, index);
                 const auto& input_node = input.get_source_output().get_node_shared_ptr();
 
                 //const auto& input_node = input.get_source_output().get_node_shared_ptr();

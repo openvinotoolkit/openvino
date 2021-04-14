@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <iterator>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -24,7 +25,8 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttrib
     return nullptr;
 }
 
-void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes) {
+void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(
+    std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes) {
     auto my = this->get()->precisions;
 
     for (auto attribute : attributes) {

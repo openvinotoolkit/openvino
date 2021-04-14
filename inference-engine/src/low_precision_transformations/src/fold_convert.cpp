@@ -12,9 +12,9 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void FoldConvertTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Subtract>(pass, context);
-}
+//void FoldConvertTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
+//    addSingleNodePattern<opset1::Subtract>(pass, context);
+//}
 
 bool FoldConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     const auto subtract = m.get_match_root();

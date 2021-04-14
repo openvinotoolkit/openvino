@@ -12,7 +12,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/concat.hpp>
 #include <low_precision/concat_multi_channels.hpp>
 #include <low_precision/max_pool.hpp>

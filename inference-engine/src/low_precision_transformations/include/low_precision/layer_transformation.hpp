@@ -250,7 +250,6 @@ public:
 
     LayerTransformation(const Params& params);
     virtual ~LayerTransformation() = default;
-    virtual void registerMatcherIn(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const = 0;
     virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const = 0;
 
     void setParams(const Params& params);

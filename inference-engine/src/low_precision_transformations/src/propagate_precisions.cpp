@@ -21,11 +21,12 @@
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
-std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentInputRestrictions(const std::shared_ptr<ngraph::Node> node) {
+std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentInputRestrictions(
+    const std::shared_ptr<ngraph::Node> node) {
     std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentAttributes;
     for (size_t index = 0ul; index < node->get_input_size(); index++) {
         const Input<Node>& input = node->input(index);
-        auto& inputNode = input.get_source_output().get_node()->shared_from_this();
+        auto inputNode = input.get_source_output().get_node()->shared_from_this();
 
         const auto dequantization = NetworkHelper::getDequantization(node, index);
         if (!dequantization.empty() &&
@@ -66,7 +67,7 @@ void replaceAttributeInInputs(
     std::deque<std::shared_ptr<Node>> nodes;
     nodes.emplace_back(initialNode);
 
-    bool initialNodeIsNotInitialized = true;
+    //bool initialNodeIsNotInitialized = true;
 
     while (!nodes.empty()) {
         auto node = nodes.front();
@@ -118,7 +119,7 @@ void replaceAttributeInInputs(
 
                 //auto input = getInput(node, index);
 
-                auto& input = node->input(index);
+                auto input = node->input(index);
                 auto& rt = input.get_rt_info();
 
                 if (node == initialNode) {
@@ -150,14 +151,13 @@ void replaceAttributeInInputs(
                     if (!dequantization.empty() &&
                         (is_type<opset1::Convert>(dequantization.data.get_node())) &&
                         is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
-
                         const auto input = dequantization.data.get_node()->input(0);
                         return input;
                     }
                     return node->input(index);
                 };
 
-                auto& input = getInput(node, index);
+                auto input = getInput(node, index);
                 const auto& input_node = input.get_source_output().get_node_shared_ptr();
                 if (visited.count(input_node) || is_type<op::Constant>(input_node)) {
                     continue;
@@ -221,11 +221,8 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
     for (auto it = nodes.begin(); it != nodes.end(); it++) {
         const std::shared_ptr<Node> node = *it;
         if (is_type<opset1::FakeQuantize>(node)) {
-            // define
-            auto& outputs = node->outputs();
-            assert(outputs.size() == 1ul);
-            Output<Node>& output = outputs[0];
-            auto& outputRtInfo = output.get_rt_info();
+            assert(node->get_output_size() == 1ul);
+            auto& outputRtInfo = node->output(0).get_rt_info();
 
             auto attribute = std::make_shared<PrecisionsAttribute>(std::set<element::Type>{element::u8, element::i8});
             auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
@@ -239,7 +236,7 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
 
                 // TODO: move to method
                 auto getAttributes = [](const Input<Node>& nodeInput) {
-                    const static std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
+                    const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
 
                     auto node = nodeInput.get_source_output().get_node_shared_ptr();
                     std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes;
@@ -269,7 +266,7 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shar
 
                 auto& nodeRt = input.get_rt_info();
 
-                const static std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
+                const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
                 const auto it = nodeRt.find(name);
                 if (it == nodeRt.end()) {
                     continue;

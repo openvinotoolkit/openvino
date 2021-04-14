@@ -15,7 +15,6 @@ class TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformat
 public:
     MultiplyTransformation(const Params& params = Params());
     ~MultiplyTransformation() override {}
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
 };
 

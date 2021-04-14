@@ -11,22 +11,12 @@
 #include "common_test_utils/test_common.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/transformation_context.hpp"
-#include <low_precision/transformer.hpp>
 #include <low_precision/iparams_manager.hpp>
 #include <low_precision/ilayer_transformations_manager.hpp>
 
-class SimpleLowPrecisionTransformer : public
-    ngraph::pass::IParamsManager,
-    ngraph::pass::ILayerTransformationsManager {
+class SimpleLowPrecisionTransformer {
 public:
     SimpleLowPrecisionTransformer();
-
-    // IParamsManager interface implementation
-    std::vector<ngraph::element::Type> getPrecisionsOnActivations(const ngraph::Node& op) const noexcept override;
-
-    // ILayerTransformationsManager interface implementation
-    bool isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
-    bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
 
     template <class T, class Operation>
     void add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {

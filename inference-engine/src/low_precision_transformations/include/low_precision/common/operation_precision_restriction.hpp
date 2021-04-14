@@ -30,7 +30,7 @@ public:
     using PrecisionsByPort = std::vector<std::pair<size_t, std::set<ngraph::element::Type>>>;
 
     std::string name;
-    uint64_t version;
+    int64_t version;
     std::vector<std::pair<size_t, std::set<ngraph::element::Type>>> precisionsByPort;
 
     OperationPrecisionRestriction() = default;
@@ -45,7 +45,7 @@ public:
         const PrecisionsByPort& precisionsByPort,
         const bool specifiedVersion = false) {
         const ngraph::Node::type_info_t& typeInfo = T::get_type_info_static();
-        return OperationPrecisionRestriction(typeInfo.name, specifiedVersion ? typeInfo.version : -1ull, precisionsByPort);
+        return OperationPrecisionRestriction(typeInfo.name, specifiedVersion ? typeInfo.version : -1ll, precisionsByPort);
     }
 };
 

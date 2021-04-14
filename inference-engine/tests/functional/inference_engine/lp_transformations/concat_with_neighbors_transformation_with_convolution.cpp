@@ -98,7 +98,9 @@ typedef std::tuple <
     ConcatWithNeighborsWithConvolutionTestValues
 > ConcatWithNeighborsWithConvolutionParams;
 
-class ConcatWithNeighborsWithConvolutionTransformation : public LayerTransformation, public testing::WithParamInterface<ConcatWithNeighborsWithConvolutionParams> {
+class ConcatWithNeighborsWithConvolutionTransformation :
+    public LayerTransformation,
+    public testing::WithParamInterface<ConcatWithNeighborsWithConvolutionParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());

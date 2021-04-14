@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -71,16 +72,19 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     return NetworkHelper::toScalarIfPossible(result);
 }
 
-StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {}
+StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = ngraph::pattern::wrap_type<opset1::StridedSlice>();
 
-void StridedSliceTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(pass,
-        context,
-        make_op_pattern<opset1::StridedSlice>({
-            make_op_label<opset1::Multiply>(),
-            make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>() }));
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (!op || transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "StridedSliceTransformation");
+    this->register_matcher(m, callback);
 }
 
 bool StridedSliceTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {

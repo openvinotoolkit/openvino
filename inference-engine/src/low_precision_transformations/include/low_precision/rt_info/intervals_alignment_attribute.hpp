@@ -38,7 +38,7 @@ public:
 
     std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes) override;
 
-    std::shared_ptr<IntervalsAlignmentAttribute> get() const { return this->m_value; };
+    std::shared_ptr<IntervalsAlignmentAttribute> get() const { return this->m_value; }
 
     std::string get_string() override;
 };

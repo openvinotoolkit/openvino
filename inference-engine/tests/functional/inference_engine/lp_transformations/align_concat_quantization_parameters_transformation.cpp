@@ -22,7 +22,6 @@
 #include <low_precision/concat.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/max_pool.hpp>
-#include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -61,7 +60,9 @@ typedef std::tuple<
     std::string, // additional layer before FQ
     AlignConcatQuantizationParametersTransformationTestValues> AlignConcatQuantizationParametersTransformationParams;
 
-class AlignConcatQuantizationParametersTransformation : public LayerTransformation, public testing::WithParamInterface<AlignConcatQuantizationParametersTransformationParams> {
+class AlignConcatQuantizationParametersTransformation :
+    public LayerTransformation,
+    public testing::WithParamInterface<AlignConcatQuantizationParametersTransformationParams> {
 public:
     void SetUp() override {
         ngraph::element::Type precision;

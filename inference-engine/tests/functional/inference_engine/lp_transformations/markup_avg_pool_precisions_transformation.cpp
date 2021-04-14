@@ -18,7 +18,6 @@
 #include <low_precision/avg_pool.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/max_pool.hpp>
-#include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"

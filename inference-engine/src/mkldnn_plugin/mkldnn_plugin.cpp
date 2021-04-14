@@ -321,7 +321,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         //manager.register_pass<ngraph::pass::low_precision::MarkupPortWeights>(supportedPrecisionsOnActivation);
 
 
-        manager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisionsOnActivation); // LayerTransformation::Params(true) - updatePrecisions configuration
+        // LayerTransformation::Params(true) - updatePrecisions configuration
+        manager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisionsOnActivation);
 
         // TODO: comment: apply callback for a transformation from all groups
         //auto pass_config = manager.get_pass_config();
