@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.front.AttributedRollToRoll import AttributedRollToRoll
-from extensions.ops.roll import Roll
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, rename_nodes
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
@@ -43,6 +42,7 @@ class RollWithEmptyAxesReplacer(FrontReplacementPattern):
             # reshape to original shape
             shape_of = Shape(graph, {'name': node_name + '/shape_of'}).create_node()
             roll_node.in_port(0).get_connection().add_destination(shape_of.in_port(0))
-            reshape_to_orig_shape = Reshape(graph, {'name': node_name + '/reshape2'}).create_node()
+            reshape_to_orig_shape = Reshape(graph, {}).create_node()
+            rename_nodes([(roll_node, node_name + '/roll'), (reshape_to_orig_shape, node_name)])
             shape_of.out_port(0).connect(reshape_to_orig_shape.in_port(1))
             roll_node.out_port(0).get_connection().insert_node(reshape_to_orig_shape)
