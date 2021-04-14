@@ -1,73 +1,121 @@
-# Image Classification Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_README}
+# Hello Classification Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
 
-This topic demonstrates how to run the Image Classification sample application, which performs
-inference using image classification networks such as AlexNet and GoogLeNet.
+This sample demonstrates how to do inference of image classification networks using Synchronous Inference Request API.  
+Models with only 1 input and output are supported.
+
+The following Inference Engine Python API is used in the application:
+
+| Feature            | API                                                                                                                         | Description                                           |
+| :----------------- | :-------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
+| Basic Infer Flow   | [IECore], [IECore.read_network], [IECore.load_network]                                                                      | Common API to do inference                            |
+| Synchronous Infer  | [ExecutableNetwork.infer]                                                                                                   | Do synchronous inference                              |
+| Network Operations | [IENetwork.input_info], [IENetwork.outputs], [InputInfoPtr.precision], [DataPtr.precision], [InputInfoPtr.input_data.shape] | Managing of network: configure input and output blobs |
+
+| Options                    | Values                                                                                                    |
+| :------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| Validated Models           | [alexnet](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/alexnet/alexnet.md) |
+| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                  |
+| Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                   |
+| Other language realization | [C++](../../../../samples/hello_classification), [C](../../../c/samples/hello_classification)             |
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters and loads a network and an image to the Inference
-Engine plugin. When inference is done, the application creates an
-output image and outputs data to the standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the Inference Engine plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+You can see the explicit description of
+each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## Running
 
-Run the application with the `-h` option yields the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
+
 ```
-python3 classification_sample.py -h
+python hello_classification.py -h
 ```
-The command yields the following usage message:
+
+Usage message:
+
 ```
-usage: classification_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
-                                [-l CPU_EXTENSION]
-                                [-d DEVICE] [--labels LABELS] [-nt NUMBER_TOP]
+usage: hello_classification.py [-h] -m MODEL -i INPUT [-d DEVICE]
+                               [--labels LABELS] [-nt NUMBER_TOP]
 
 Options:
   -h, --help            Show this help message and exit.
   -m MODEL, --model MODEL
-                        Required. Path to an .xml file with a trained model.
-  -i INPUT [INPUT ...], --input INPUT [INPUT ...]
-                        Required. Path to a folder with images or path to an
-                        image files
-  -l CPU_EXTENSION, --cpu_extension CPU_EXTENSION
-                        Optional. Required for CPU custom layers. MKLDNN (CPU)-targeted custom layers.
-                        Absolute path to a shared library with the kernels
-                        implementations.
+                        Required. Path to an .xml or .onnx file with a trained
+                        model.
+  -i INPUT, --input INPUT
+                        Required. Path to an image file.
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
-                        GPU, FPGA, HDDL or MYRIAD is acceptable. The sample
+                        GPU, MYRIAD, HDDL or HETERO: is acceptable. The sample
                         will look for a suitable plugin for device specified.
-                        Default value is CPU
-  --labels LABELS       Optional. Path to a labels mapping file
+                        Default value is CPU.
+  --labels LABELS       Optional. Path to a labels mapping file.
   -nt NUMBER_TOP, --number_top NUMBER_TOP
-                        Optional. Number of top results
+                        Optional. Number of top results.
 ```
 
-Running the application with the empty list of options yields the usage message given above.
+To run the sample, you need specify a model and image:
+ - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+ - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
-To run the sample, you can use AlexNet and GoogLeNet or other image classification models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
+> **NOTES**:
+>
+> * By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+>
+> * Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>
+> * The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-> 
-> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
-
-For example, to perform inference of an AlexNet model (previously converted to the Inference Engine format) on CPU, use the following command:
+You can do inference of an image using a pre-trained model on a GPU using the following command:
 
 ```
-    python3 classification_sample.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml
+python hello_classification.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp -d GPU
 ```
 
 ## Sample Output
 
-By default the application outputs top-10 inference results.
-Add the `-nt` option to the previous command to modify the number of top output results.
-For example, to get the top-5 results on GPU, run the following command:
+The sample application logs each step in a standard output stream and outputs top-10 inference results.
+
 ```
-    python3 classification_sample.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d GPU
+[ INFO ] Creating Inference Engine
+[ INFO ] Reading the network: models\alexnet.xml
+[ INFO ] Configuring input and output blobs
+[ INFO ] Loading the model to the plugin
+[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (227, 227)
+[ INFO ] Starting inference in synchronous mode
+[ INFO ] Image path: images\cat.bmp
+[ INFO ] Top 10 results:
+[ INFO ] classid probability
+[ INFO ] -------------------
+[ INFO ] 435     0.0996890
+[ INFO ] 876     0.0900242
+[ INFO ] 999     0.0691449
+[ INFO ] 587     0.0390189
+[ INFO ] 666     0.0360393
+[ INFO ] 419     0.0308307
+[ INFO ] 285     0.0306287
+[ INFO ] 700     0.0293009
+[ INFO ] 696     0.0202707
+[ INFO ] 631     0.0199126
+[ INFO ]
+[ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 
 ## See Also
+
+* [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 * [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader_README)
+* [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+
+[IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html
+[IECore.read_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#a0d69c298618fab3a08b855442dca430f
+[IENetwork.input_info]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[IENetwork.outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#data_fields
+[InputInfoPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[DataPtr.precision]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1DataPtr.html#data_fields
+[IECore.load_network]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html#ac9a2e043d14ccfa9c6bbf626cfd69fcc
+[InputInfoPtr.input_data.shape]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1InputInfoPtr.html#data_fields
+[ExecutableNetwork.infer]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1ExecutableNetwork.html#aea96e8e534c8e23d8b257bad11063519
