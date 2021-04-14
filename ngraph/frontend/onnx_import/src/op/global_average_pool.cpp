@@ -41,7 +41,7 @@ namespace ngraph
                     // Input shape: [N, C, H, W, D]
                     // Input spatial dimensions are H, W and D
                     // Expected spatial dims indexes: [2, 3, 4]
-                    uint64_t data_spatial_rank = data_rank_value - 2;
+                    size_t data_spatial_rank = data_rank_value - 2;
                     auto reduce_axes_vector = std::vector<std::int64_t>(data_spatial_rank);
                     std::iota(reduce_axes_vector.begin(), reduce_axes_vector.end(), 2);
                     auto reduce_axes = default_opset::Constant::create(
