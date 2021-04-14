@@ -147,7 +147,8 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
         if (arg_shape.rank().get_length() > 0)
         {
             NODE_VALIDATION_CHECK(this,
-                                  target_shape[axes_mapping_val[i]].compatible(arg_shape[i]),
+                                  target_shape[axes_mapping_val[i]].compatible(arg_shape[i]) ||
+                                      arg_shape[i].compatible(1),
                                   "Broadcast target[axes_mapping[",
                                   i,
                                   "]]",
@@ -512,9 +513,8 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     Shape target_shape = get_target_shape(inputs[1]);
 
