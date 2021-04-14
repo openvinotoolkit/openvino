@@ -1228,7 +1228,7 @@ TEST(eval, evaluate_dynamic_gather_v1_scalar_axis)
                               {make_host_tensor<element::Type_t::f32>(
                                    {3, 3}, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f}),
                                make_host_tensor<element::Type_t::i32>({1, 2}, {0, 2}),
-                               make_host_tensor<element::Type_t::i64>({}, {1})}));
+                               make_host_tensor<element::Type_t::u64>({}, {1})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{3, 1, 2}));
     auto cval = read_vector<float>(result_tensor);
