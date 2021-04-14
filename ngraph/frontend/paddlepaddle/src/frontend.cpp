@@ -95,7 +95,7 @@ std::shared_ptr<opset6::Constant> FrontEndPDPD::read_tensor(std::shared_ptr<VarP
     auto tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
     // TODO: implement for other types
-    auto tensor_data = model->getWeight(_var->name(), tensor_length);    
+    auto tensor_data = model->readWeight(_var->name(), tensor_length);    
 
     auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
     return opset6::Constant::create(element::f32, Shape(shape), tensor_data);
@@ -127,9 +127,7 @@ std::shared_ptr<Function>
     for (int i = 0; i < model->getBlockNumber(); i++) {
         const auto& op_places = model->getOpPlaces(i);
         const auto& var_places = model->getVarPlaces(i);
-        for (int j = 0; j < op_places.size(); j++) {
-            std::cerr << "Observing index i = " << j << "\n";
-            const auto &op_place = op_places[j];
+        for (const auto &op_place : op_places) {
             auto op = (paddle::framework::proto::OpDesc*)op_place->op;
             std::cerr << "Observing " << op->type() << "\n";
             if (op->type() == "feed") {

@@ -1,19 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
-
 #include <algorithm>
 #include <iostream>
 #include <numeric>
@@ -24,7 +11,7 @@
 #include <ngraph/pattern/op/label.hpp>
 #include <ngraph/util.hpp>
 
-#include <ngraph/pass/transpose_sinking.h>
+#include <ngraph/pass/core_transpose_sinking.h>
 
 using namespace std;
 
@@ -460,7 +447,7 @@ namespace ngraph
         // For each op type we support we can either combine
         // two transposes by replacing the existing Transpose,
         // materialize pending transposes if they can't be propagated through op
-        bool TransposeSinking::run_on_function(shared_ptr<ngraph::Function> f)
+        bool CoreTransposeSinking::run_on_function(shared_ptr<ngraph::Function> f)
         {
             TransposeMap reorders;
             set<shared_ptr<ngraph::Node>> transposes_to_delete;

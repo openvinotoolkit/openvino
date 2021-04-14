@@ -36,7 +36,7 @@ namespace ngraph
     namespace frontend
     {
 
-        #define FRONT_END_NOT_IMPLEMENTED(NAME) throw #NAME " is not implemented for this FrontEnd class";
+        #define FRONT_END_NOT_IMPLEMENTED(NAME) throw std::runtime_error(#NAME " is not implemented for this FrontEnd class");
         #define FRONT_END_ASSERT(EXPRESSION) \
             { if (!(EXPRESSION)) throw "AssertionFailed"; }
 
@@ -50,7 +50,7 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(getOutputs);
         }
 
-        Place::Ptr InputModel::getPlaceByTensorName (const std::string& tensorName)
+        Place::Ptr InputModel::getPlaceByTensorName (const std::string& tensorName) const
         {
             FRONT_END_NOT_IMPLEMENTED(getPlaceByTensorName);
         }
@@ -285,7 +285,7 @@ namespace ngraph
 
             InputModelONNX (const std::string& model_path) : editor(model_path) {}
 
-            Place::Ptr getPlaceByTensorName (const std::string& tensorName) override
+            Place::Ptr getPlaceByTensorName (const std::string& tensorName) const override
             {
                 if(!editor.validate_tensor_name(tensorName)) {
                     std::cerr << " [ ERROR ] Node with name " << tensorName << " is not valid for a given model\n";

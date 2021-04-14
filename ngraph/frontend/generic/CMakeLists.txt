@@ -49,7 +49,7 @@ endif()
 # TODO: Add other frontends to the list of dependencies temporary; in the produce version they should be discovered
 # TODO: in runtime.
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(frontend_manager PRIVATE onnx_importer)
+    target_link_libraries(frontend_manager PRIVATE onnx_common onnx_importer)
     target_compile_definitions(frontend_manager PRIVATE NGRAPH_ONNX_IMPORT_ENABLE)
 endif()
 
@@ -63,7 +63,7 @@ if (NGRAPH_TF_FRONTEND_ENABLE)
     target_compile_definitions(frontend_manager PRIVATE NGRAPH_TF_FRONTEND_ENABLE)
 endif()
 
-target_link_libraries(frontend_manager PRIVATE onnx_common paddlepaddle_frontend PUBLIC ngraph)
+target_link_libraries(frontend_manager PRIVATE paddlepaddle_frontend PUBLIC ngraph)
 
 set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
 target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>

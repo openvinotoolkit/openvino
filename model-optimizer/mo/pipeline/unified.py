@@ -36,8 +36,12 @@ def moc_pipeline(argv: argparse.Namespace):
     fe = fem.loadByFramework(argv.framework)
     print(fe)
     inputModel = fe.loadFromFile(argv.input_model)
-
-
+    try:
+        place = inputModel.getPlaceByTensorName('x')
+        print(place)
+        print(place.isEqual(None))
+    except Exception:
+        log.exception('Failed to call model API with hardcoded input name "x"')
     # Wrap nGraph network to Graph for smoothly pass through the legacy code in MO.
     # This trick doesn't mean that we will hold Graph forever as a wrapper, it is derived from
     # NX graph and this is not required. But Graph has several methods that can be implemented for nGraph
