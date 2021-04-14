@@ -10,18 +10,17 @@ if(HddlUnite_FOUND)
     # test kmb_plugin directory
     if(EXISTS ${KMBPLUGIN_HOME}/include/)
         set(HDDL2_PARAMS_DIR ${KMBPLUGIN_HOME}/include/)
-        add_definitions(-DUSE_REMOTE_MEM)
-        set(HDDL2_DEP "HddlUnite::HddlUnite")
+        set(HDDL2_DEFINITION USE_REMOTE_MEM)
+        set(HDDL2_DEPENDENCE "HddlUnite::HddlUnite")
     else()
         message(WARNING "kmb_plugin/include could not find. Preallocating memory in remote device feature is disabled.")
-        remove_definitions(-DUSE_REMOTE_MEM)
     endif()
 endif()
 
 ie_add_sample(NAME benchmark_app
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES format_reader ${HDDL2_DEP}
+              DEPENDENCIES format_reader ${HDDL2_DEPENDENCE}
               OPENCV_DEPENDENCIES imgcodecs
-              INCLUDE_DIRECTORIES ${HDDL2_PARAMS_DIR})
-
+              INCLUDE_DIRECTORIES ${HDDL2_PARAMS_DIR}
+              MACRO_DEFINITIONS ${HDDL2_DEFINITION})

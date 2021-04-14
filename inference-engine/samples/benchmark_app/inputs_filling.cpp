@@ -12,7 +12,6 @@
 #include <samples/slog.hpp>
 
 #include "inputs_filling.hpp"
-#include "../../src/plugin_api/blob_factory.hpp"
 
 using namespace InferenceEngine;
 

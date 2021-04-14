@@ -187,12 +187,13 @@ include(CMakeParseArguments)
 #               [INCLUDE_DIRECTORIES <include dir>]
 #               [DEPENDENCIES <dependencies>]
 #               [OPENCV_DEPENDENCIES <opencv modules>]
+#               [MACRO_DEFINITIONS <definitions>]
 #               [EXCLUDE_CPPLINT]
 #
 macro(ie_add_sample)
     set(options EXCLUDE_CPPLINT)
     set(oneValueArgs NAME)
-    set(multiValueArgs SOURCES HEADERS DEPENDENCIES OPENCV_DEPENDENCIES INCLUDE_DIRECTORIES)
+    set(multiValueArgs SOURCES HEADERS DEPENDENCIES OPENCV_DEPENDENCIES INCLUDE_DIRECTORIES MACRO_DEFINITIONS)
     cmake_parse_arguments(IE_SAMPLE "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
@@ -216,6 +217,9 @@ macro(ie_add_sample)
     add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLES_HEADERS})
     if(IE_SAMPLE_OPENCV_DEPENDENCIES)
         target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE USE_OPENCV)
+    endif()
+    if(IE_SAMPLE_MACRO_DEFINITIONS)
+        target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_MACRO_DEFINITIONS})
     endif()
 
     set(folder_name cpp_samples)
