@@ -30,6 +30,7 @@
 #include "op/concat.hpp"
 #include "op/cast.hpp"
 #include "op/softmax.hpp"
+#include "op/split.h"
 
 #include "op_table.hpp"
 
@@ -59,7 +60,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"concat", op::concat},
             {"cast", op::cast},
-            {"softmax", op::softmax}
+            {"softmax", op::softmax},
+            {"split", op::split}
     };
 };
 
