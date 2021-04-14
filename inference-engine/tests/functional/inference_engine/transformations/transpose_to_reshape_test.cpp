@@ -12,6 +12,7 @@
 #include <queue>
 #include <map>
 
+#include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -101,6 +102,8 @@ TEST_P(TransposeToReshapeTests, CompareFunctions) {
     ngraph::pass::TransposeSinking().run_on_function(f);
     f->validate_nodes_and_infer_types();
     ASSERT_NO_THROW(check_rt_info(f));
+    ngraph::pass::VisualizeTree("f.png").run_on_function(f);
+    ngraph::pass::VisualizeTree("f_ref.png").run_on_function(f_ref);
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
