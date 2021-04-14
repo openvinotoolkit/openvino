@@ -106,6 +106,15 @@ TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& 
 
 TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len);
 
+TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs);
+
+template <typename T, typename... Args>
+std::shared_ptr<Node> make_try_fold(Args&&... args) {
+    auto unary_output_node = std::make_shared<T>(std::forward<Args>(args)...);
+    return try_fold_unary_output(unary_output_node);
+}
 
 template <class T>
 Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
