@@ -11,9 +11,6 @@ from extensions.front.user_data_repack import UserDataRepack
 from extensions.front.input_cut import InputCut
 from extensions.front.output_cut import OutputCut
 from mo.utils.class_registration import apply_replacements_list
-from ngraph import FrontEndManager
-from ngraph import function_to_cnn
-from ngraph import PartialShape
 import logging as log
 
 
@@ -29,6 +26,9 @@ def unified_pipeline(argv: argparse.Namespace):
     return graph
 
 def moc_pipeline(argv: argparse.Namespace):
+    from ngraph import FrontEndManager
+    from ngraph import function_to_cnn
+    from ngraph import PartialShape
     log.info('New MOC pipeline')
     fem = argv.feManager
     log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))

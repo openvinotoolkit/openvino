@@ -33,8 +33,6 @@ from mo.utils.version import get_version, get_simplified_mo_version, get_simplif
 from mo.utils.versions_checker import check_requirements
 from mo.utils.find_ie_version import find_ie_version
 
-from ngraph import FrontEndManager
-
 
 def replace_ext(name: str, old: str, new: str):
     base, ext = os.path.splitext(name)
@@ -90,7 +88,7 @@ def prepare_ir(argv: argparse.Namespace):
 
     fem = argv.feManager
     new_front_ends = []
-    if not argv.use_legacy_frontend:
+    if not argv.use_legacy_frontend and not fem == None:
         new_front_ends = fem.availableFrontEnds()
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
@@ -334,7 +332,7 @@ def driver(argv: argparse.Namespace):
     return ret_res
 
 
-def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
+def main(cli_parser: argparse.ArgumentParser, fem, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session()
     telemetry.send_event('mo', 'version', get_simplified_mo_version())

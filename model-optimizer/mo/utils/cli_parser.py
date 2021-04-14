@@ -18,9 +18,7 @@ from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
-
-from ngraph import FrontEndManager
-
+from mo.utils.frontendmanager_wrapper import create_fem
 
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
@@ -627,8 +625,8 @@ def get_all_cli_parser():
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
-    fem = FrontEndManager()
-    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + fem.availableFrontEnds()))
+    fem = create_fem()
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (fem.availableFrontEnds() if fem else [])))
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
