@@ -198,11 +198,9 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     }
 
     if (params.broadcast) {
-        const auto& output = params.output;
         bool need_idx_safe = true;
         for (size_t i = 0; i < params.inputs.size(); i++) {
-            if ((params.inputs[i].LogicalSize() == output.Feature().v && params.inputs[i].Feature().v == output.Feature().v) ||
-                (params.inputs[i].LogicalSize() == 1)) {
+            if (IS_BROADCASTING_POSSIBLE_INPUT) {
                     need_idx_safe = false;
                     break;
             }
