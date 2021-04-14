@@ -187,7 +187,6 @@ namespace gelu
 bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v7_Gelu_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return gelu::evaluate_gelu(inputs[0], outputs[0], m_approximation_mode);
 }

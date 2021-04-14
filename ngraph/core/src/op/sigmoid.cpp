@@ -64,7 +64,6 @@ namespace sigmoid
 bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return sigmoid::evaluate_sigmoid(inputs[0], outputs[0]);
 }
