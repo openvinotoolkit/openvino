@@ -3,28 +3,32 @@
 
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
+from mo.middle.replacement import MiddleReplacementPattern
 
 
-class CorrectRollAxes(FrontReplacementOp):
-    op = 'Roll'
+def correct_roll_axes(roll: Node):
+    if not roll.soft_get('need_axes_correction', False):
+        return
+
+    axes = roll.in_port(2).data.get_value()
+    if axes is None:
+        del roll['need_axes_correction']
+        return
+
+    corrected_axes = axes.copy()
+    for i, axis in enumerate(axes):
+        if axis < 0:
+            corrected_axes[i] = axis - 1
+
+    roll.in_port(2).data.set_value(int64_array(corrected_axes))
+    del roll['need_axes_correction']
+
+
+class CorrectRollAxes(MiddleReplacementPattern):
     enabled = True
 
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        roll_node = match['op']
-        if not roll_node.soft_get('need_axes_correction', False):
-            return
-
-        axes = roll_node.in_port(0).data.get_value()
-        if axes is None:
-            del roll_node['need_axes_correction']
-            return
-
-        corrected_axes = axes.copy()
-        for i, axis in enumerate(axes):
-            if axis < 0:
-                corrected_axes[i] = axis - 1
-
-        roll_node.in_port(1).data.set_value(int64_array(corrected_axes))
-        del roll_node['need_axes_correction']
+    def find_and_replace_pattern(self, graph: Graph):
+        roll_ops = graph.get_op_nodes(op='TFRoll')
+        for roll in roll_ops:
+            correct_roll_axes(roll)

@@ -5,7 +5,7 @@
 import logging as log
 
 from extensions.ops.dft import DFT, IDFT
-from extensions.ops.roll import Roll
+from extensions.ops.roll import TFRoll
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
@@ -22,9 +22,9 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
                 ('strided_slice_real', dict(op='StridedSlice')),
                 ('strided_slice_imag', dict(op='StridedSlice')),
                 ('complex', dict(op='Complex')),
-                ('roll', dict(op='Roll')),
+                ('roll', dict(op='TFRoll')),
                 ('fft', dict(op='TFFFT')),
-                ('unroll', dict(op='Roll')),
+                ('unroll', dict(op='TFRoll')),
                 ('real', dict(op='Real')),
                 ('imag', dict(op='Imag')),
                 ('pack', dict(op='Pack')),
@@ -54,8 +54,8 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
         roll_name = roll.soft_get('name', roll.id)
         unroll_name = unroll.soft_get('name', unroll.id)
 
-        roll_before = Roll(graph, {'need_axes_correction': True}).create_node()
-        roll_after = Roll(graph, {'need_axes_correction': True}).create_node()
+        roll_before = TFRoll(graph, {'need_axes_correction': True}).create_node()
+        roll_after = TFRoll(graph, {'need_axes_correction': True}).create_node()
 
         roll.in_port(1).get_connection().set_destination(roll_before.in_port(1))
         roll.in_port(2).get_connection().set_destination(roll_before.in_port(2))
@@ -79,9 +79,8 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
         rename_nodes([(unroll, unroll_name + '/to_be_removed'), (roll_after, unroll_name)])
         rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
 
-        disable_nhwc_to_nchw = graph.graph['cmd_params'].disable_nhwc_to_nchw
-        if not disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
-            dft_node['need_insert_transposes'] = True
+        if not graph.graph['cmd_params'].disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
+            dft_node['need_insert_transposes_for_dft'] = True
 
 
 def create_dft_from_tffft(graph: Graph, tffft: Node, input_node=None) -> Node:

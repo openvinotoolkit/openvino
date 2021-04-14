@@ -60,6 +60,7 @@ extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
 extensions/back/StridedSliceMasksNormalizer.py
 extensions/back/TopKNormalizer.py
+extensions/back/TransposeDFT.py
 extensions/back/TransposeReduceFusing.py
 extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
@@ -638,6 +639,7 @@ extensions/middle/TensorIteratorLSTMToLSTMSequence.py
 extensions/middle/TensorIteratorMerge.py
 extensions/middle/TensorIteratorOutput.py
 extensions/middle/TF_lstm_cell_to_generic.py
+extensions/middle/TFRollToRoll.py
 extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
