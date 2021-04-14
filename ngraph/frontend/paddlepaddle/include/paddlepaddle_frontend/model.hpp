@@ -34,7 +34,7 @@ class NGRAPH_API InputModelPDPD : public InputModel
     //template<typename T>
     std::vector<float> getWeight(const std::string& name, int64_t tensor_length);
     std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces(int i) const;
-    std::map<std::string, std::shared_ptr<VarPlacePDPD>> getVarPlaces(int i) const;
+    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces(int i) const;
     size_t getBlockNumber() const;
 
 public:
