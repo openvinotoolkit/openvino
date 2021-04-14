@@ -67,7 +67,6 @@ def gelu(
     return _get_node_factory_opset7().create("Gelu", inputs, attributes)
 
 
-
 @nameable_op
 def roll(
         data: NodeInput,
