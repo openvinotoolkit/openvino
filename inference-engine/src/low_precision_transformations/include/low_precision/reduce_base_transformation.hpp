@@ -12,6 +12,13 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+* @brief ReduceBaseTransformation: base class for Reduce*Transformation
+* detects dequantization operations in front of the Reduce* layer and
+* propagates them through the Reduce* if possible
+* 
+*/
+
 class TRANSFORMATIONS_API ReduceBaseTransformation : public LayerTransformation {
 public:
     ReduceBaseTransformation(const Params& params);
