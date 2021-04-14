@@ -23,6 +23,11 @@ op::v1::Gather::Gather(const Output<Node>& params,
     constructor_validate_and_infer_types();
 }
 
+void op::v1::Gather::validate_and_infer_types()
+{
+    op::util::GatherBase::common_validate_and_infer();
+}
+
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
@@ -45,6 +50,11 @@ op::v7::Gather::Gather(const Output<Node>& data,
     : GatherBase(data, indices, axis, batch_dims)
 {
     constructor_validate_and_infer_types();
+}
+
+void op::v7::Gather::validate_and_infer_types()
+{
+    op::util::GatherBase::common_validate_and_infer({element::i32, element::i64});
 }
 
 bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)

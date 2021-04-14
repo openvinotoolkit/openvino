@@ -28,17 +28,48 @@ op::util::GatherBase::GatherBase(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-void op::util::GatherBase::validate_and_infer_types()
+void op::util::GatherBase::common_validate_and_infer(
+    const std::vector<element::Type>& restrict_indices_to_types)
 {
     NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
     const auto& indices_type = get_input_element_type(1);
+    const auto& axis_type = get_input_element_type(2);
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_type == element::Type_t::i32 ||
-                              indices_type == element::Type_t::i64,
-                          "indices must be of int32 or int64 type. But instead got: ",
-                          indices_type);
+    // according to Gather_7 spec we should accept only int32/int64 for indices and axis
+    if (!restrict_indices_to_types.empty())
+    {
+        string allowed_types;
+        for (auto const& val : restrict_indices_to_types)
+        {
+            allowed_types += val.c_type_string();
+            if (val != *restrict_indices_to_types.rbegin())
+            {
+                if (val == *(restrict_indices_to_types.end() - 2))
+                    allowed_types += " or ";
+                else
+                    allowed_types += ", ";
+            }
+        }
+
+        NODE_VALIDATION_CHECK(this,
+                              std::count(restrict_indices_to_types.begin(),
+                                         restrict_indices_to_types.end(),
+                                         indices_type) > 0,
+                              "indices must be of type ",
+                              allowed_types,
+                              ". But instead got: ",
+                              indices_type.c_type_string());
+
+        NODE_VALIDATION_CHECK(this,
+                              std::count(restrict_indices_to_types.begin(),
+                                         restrict_indices_to_types.end(),
+                                         axis_type) > 0,
+                              "axis must be of type ",
+                              allowed_types,
+                              ". But instead got: ",
+                              axis_type.c_type_string());
+    }
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
@@ -345,7 +376,13 @@ bool op::util::GatherBase::evaluate(const HostTensorVector& outputs,
     {
     case element::Type_t::i32: axis = inputs[2]->get_data_ptr<element::Type_t::i32>()[0]; break;
     case element::Type_t::i64: axis = inputs[2]->get_data_ptr<element::Type_t::i64>()[0]; break;
-    default: throw ngraph_error("axis must be of int32 or int64 type.");
+    case element::Type_t::i8: axis = inputs[2]->get_data_ptr<element::Type_t::i8>()[0]; break;
+    case element::Type_t::i16: axis = inputs[2]->get_data_ptr<element::Type_t::i16>()[0]; break;
+    case element::Type_t::u8: axis = inputs[2]->get_data_ptr<element::Type_t::u8>()[0]; break;
+    case element::Type_t::u16: axis = inputs[2]->get_data_ptr<element::Type_t::u16>()[0]; break;
+    case element::Type_t::u32: axis = inputs[2]->get_data_ptr<element::Type_t::u32>()[0]; break;
+    case element::Type_t::u64: axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0]; break;
+    default: throw ngraph_error("axis must be of integral data type.");
     }
 
     if (axis < 0)
