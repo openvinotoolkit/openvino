@@ -10,7 +10,6 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/init_node_info.hpp>
@@ -53,11 +52,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(data1);
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
-        auto T = std::make_shared<ngraph::opset7::Gather>(data_shape, indexT, axisT);
+        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
 
         auto axisN = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexN = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto N = std::make_shared<ngraph::opset7::Gather>(data_shape, indexN, axisN);
+        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, indexN, axisN);
 
         auto start = opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto step = opset6::Constant::create(seq_len_type, Shape{}, {1});
@@ -145,11 +144,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(data1);
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
-        auto T = std::make_shared<ngraph::opset7::Gather>(data_shape, indexT, axisT);
+        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
 
         auto axisN = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexN = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto N = std::make_shared<ngraph::opset7::Gather>(data_shape, indexN, axisN);
+        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, indexN, axisN);
 
         auto start = opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto step = opset6::Constant::create(seq_len_type, Shape{}, {1});
@@ -237,11 +236,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(data1);
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
-        auto T = std::make_shared<ngraph::opset7::Gather>(data_shape, indexT, axisT);
+        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
 
         auto axisN = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexN = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto N = std::make_shared<ngraph::opset7::Gather>(data_shape, indexN, axisN);
+        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, indexN, axisN);
 
         auto start = opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto step = opset6::Constant::create(seq_len_type, Shape{}, {1});
@@ -329,11 +328,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(data1);
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
-        auto T = std::make_shared<ngraph::opset7::Gather>(data_shape, indexT, axisT);
+        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
 
         auto axisN = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexN = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto N = std::make_shared<ngraph::opset7::Gather>(data_shape, indexN, axisN);
+        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, indexN, axisN);
 
         auto start = opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto step = opset6::Constant::create(seq_len_type, Shape{}, {1});
@@ -462,11 +461,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIn
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(data1);
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
-        auto T = std::make_shared<ngraph::opset7::Gather>(data_shape, indexT, axisT);
+        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
 
         auto axisN = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexN = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto N = std::make_shared<ngraph::opset7::Gather>(data_shape, indexN, axisN);
+        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, indexN, axisN);
 
         auto start = opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto step = opset6::Constant::create(seq_len_type, Shape{}, {1});

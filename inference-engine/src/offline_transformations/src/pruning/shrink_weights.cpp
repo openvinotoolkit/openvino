@@ -6,7 +6,7 @@
 
 #include "pruning.hpp"
 #include "mask_attribute.hpp"
-#include <ngraph/opsets/opset7.hpp>
+
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -64,7 +64,7 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
 
                 const auto & prev_shape = last_output.get_shape();
                 const auto & prev_name = last_output.get_node()->get_friendly_name();
-                last_output = std::make_shared<opset7::Gather>(last_output,
+                last_output = std::make_shared<opset6::Gather>(last_output,
                                                                opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
                                                                opset6::Constant::create(element::i64, Shape{}, {dim}));
                 NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to " << last_output.get_shape();

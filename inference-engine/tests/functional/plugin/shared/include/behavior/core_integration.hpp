@@ -10,7 +10,6 @@
 #include <memory>
 #include <fstream>
 #include <ngraph/variant.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <hetero/hetero_plugin_config.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
@@ -581,7 +580,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
             auto shapeOf = std::make_shared<ngraph::opset6::ShapeOf>(matMulWeights);
             auto gConst1 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
             auto gConst2 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {}, {0});
-            auto gather = std::make_shared<ngraph::opset7::Gather>(shapeOf, gConst1, gConst2);
+            auto gather = std::make_shared<ngraph::opset6::Gather>(shapeOf, gConst1, gConst2);
             auto concatConst = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {1}, {1});
             auto concat =
                 std::make_shared<ngraph::opset6::Concat>(ngraph::NodeVector{concatConst, gather}, 0);

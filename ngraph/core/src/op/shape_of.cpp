@@ -131,7 +131,7 @@ namespace shape_of
                         output_type, Shape{1}, std::vector<int64_t>{i});
                     auto axis = std::make_shared<op::v0::Constant>(
                         element::i64, Shape{}, std::vector<int64_t>{0});
-                    auto temp = make_shared<op::v7::Gather>(shape_of, index, axis);
+                    auto temp = make_shared<op::v1::Gather>(shape_of, index, axis);
                     temp->set_friendly_name("DynDim/" + temp->get_name());
                     dimensions.push_back(temp);
                 }

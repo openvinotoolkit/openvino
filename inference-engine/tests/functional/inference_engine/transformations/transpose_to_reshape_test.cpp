@@ -14,7 +14,6 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
@@ -82,7 +81,7 @@ private:
             reshape_dims = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_value.size()}, params.reshape_value);
         } else {
             auto shape_of = std::make_shared<ngraph::opset3::ShapeOf>(data);
-            reshape_dims = std::make_shared<ngraph::opset7::Gather>(shape_of,
+            reshape_dims = std::make_shared<ngraph::opset3::Gather>(shape_of,
                     ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order),
                     ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         }

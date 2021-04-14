@@ -12,7 +12,6 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
@@ -244,7 +243,7 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
             shared_ptr<Node> k;
             auto last_dim = shape.rank().get_length() - 1;
             if (shape[last_dim].is_dynamic()) {
-                k = make_shared<opset7::Gather>(make_shared<op::ShapeOf>(A),
+                k = make_shared<op::v1::Gather>(make_shared<op::ShapeOf>(A),
                                                 op::Constant::create(element::i64, {}, {last_dim}),
                                                 op::Constant::create(element::i64, {}, {0}));
             } else {

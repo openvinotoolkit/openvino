@@ -5,7 +5,6 @@
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 
 #include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include "itt.hpp"
@@ -20,7 +19,7 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     const auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset6::Unsqueeze>({unsqueezeInput, unsqueezeAxis}, pattern::consumers_count(1));
     const auto gatherIndices = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
     const auto gatherAxis = ngraph::pattern::any_input();
-    const auto gather = ngraph::pattern::wrap_type<ngraph::opset7::Gather>({unsqueeze, gatherIndices, gatherAxis});
+    const auto gather = ngraph::pattern::wrap_type<ngraph::opset6::Gather>({unsqueeze, gatherIndices, gatherAxis});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& patternValue = m.get_pattern_value_map();
