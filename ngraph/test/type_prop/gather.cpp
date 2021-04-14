@@ -55,7 +55,7 @@ TEST(type_prop, gather_v1_incorrect_axis_shape)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Axes input must be scalar or have 1 element (shape:"));
+                             std::string("Axis input must be scalar or have 1 element"));
     }
     catch (...)
     {
@@ -77,7 +77,7 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("The axis must => 0 and <= input_rank (axis:"));
+                             std::string("The axis must be >= 0 and < data_rank. But instead got axis"));
     }
     catch (...)
     {
@@ -303,7 +303,7 @@ TEST(type_prop, gather_7_incorrect_axis_shape)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Axes input must be scalar or have 1 element"));
+                             std::string("Axis input must be scalar or have 1 element"));
     }
     catch (...)
     {
@@ -326,7 +326,7 @@ TEST(type_prop, gather_7_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("The axis must be => 0 and < data_rank. But instead got"));
+            error.what(), std::string("The axis must be >= 0 and < data_rank. But instead got"));
     }
     catch (...)
     {
