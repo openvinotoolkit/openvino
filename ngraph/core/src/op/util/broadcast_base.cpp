@@ -513,9 +513,8 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     Shape target_shape = get_target_shape(inputs[1]);
 
