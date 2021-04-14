@@ -7,22 +7,22 @@ from extensions.front.AttributedRollToRoll import AttributedRollToRoll
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, const, result
+from mo.utils.unittest.graph import build_graph, const, result, regular_op
 
 nodes_attributes = {
-    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-    'attr_roll': {'kind': 'op', 'op': 'AttributedRoll', 'name': 'attr_roll', 'axes': int64_array([-1, 2, 3]),
-                  'shift': int64_array([5, -2, 3])},
+    **regular_op('placeholder', {'type': 'Parameter'}),
+    **regular_op('attr_roll', {'type': 'AttributedRoll', 'op': 'AttributedRoll', 'axes': int64_array([-1, 2, 3]),
+                               'shift': int64_array([5, -2, 3])}),
     **result('result'),
 
     # new Roll node and inputs
-    'roll': {'type': 'Roll', 'kind': 'op', 'op': 'Roll'},
+    **regular_op('roll', {'type': 'Roll'}),
     **const('roll_axes', int64_array([-1, 2, 3])),
     **const('roll_shift', int64_array([5, -2, 3]))
 }
 
 
-class AttributedPadToPadTest(unittest.TestCase):
+class AttributedRollToRollTest(unittest.TestCase):
     def test_axes_shift(self):
         graph = build_graph(nodes_attributes,
                             [('placeholder', 'attr_roll', {'in': 0, 'out': 0}),
@@ -35,8 +35,7 @@ class AttributedPadToPadTest(unittest.TestCase):
                                  ('roll', 'result')], {}, nodes_with_edges_only=True)
         graph.stage = 'front'
 
-        replacer = AttributedRollToRoll()
-        replacer.find_and_replace_pattern(graph)
+        AttributedRollToRoll().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -54,8 +53,7 @@ class AttributedPadToPadTest(unittest.TestCase):
                                  ('roll', 'result')], {}, nodes_with_edges_only=True)
         graph.stage = 'front'
 
-        replacer = AttributedRollToRoll()
-        replacer.find_and_replace_pattern(graph)
+        AttributedRollToRoll().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)

@@ -25,7 +25,7 @@ class RollWithEmptyAxesReplacer(FrontReplacementOp):
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         roll_node = match['op']
-        if len(roll_node.in_ports()) < 3 or not roll_node.in_port(2).disconnected():
+        if not roll_node.in_port(2).disconnected():
             return
         node_name = roll_node.soft_get('name', roll_node.id)
 

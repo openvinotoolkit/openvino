@@ -11,15 +11,14 @@ from mo.utils.unittest.graph import build_graph, const, result, regular_op
 
 nodes_attributes = {
     **regular_op('placeholder', {'type': 'Parameter'}),
-    'roll': {'type': 'Roll', 'kind': 'op', 'op': 'Roll', 'name': 'roll', 'axes': int64_array([-1, 2, 3]),
-             'shift': int64_array([5, -2, 3])},
+    **regular_op('roll', {'type': 'Roll', 'op': 'Roll', 'axes': int64_array([-1, 2, 3]), 'shift': int64_array([5, -2, 3])}),
     **const('roll_shift', int64_array([5, -2, 3])),
     **result('result'),
 
-    'shape_of': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
-    'reshape1': {'type': 'Reshape', 'kind': 'op', 'op': 'Reshape'},
-    'new_roll': {'type': 'Roll', 'kind': 'op', 'op': 'Roll'},
-    'reshape2': {'type': 'Reshape', 'kind': 'op', 'op': 'Reshape'},
+    **regular_op('shape_of', {'type': 'ShapeOf'}),
+    **regular_op('reshape1', {'type': 'Reshape'}),
+    **regular_op('new_roll', {'type': 'Roll'}),
+    **regular_op('reshape2', {'type': 'Reshape'}),
 
     **const('min_one_const', int64_array([-1])),
     **const('zero_const', int64_array([0]))
@@ -47,8 +46,7 @@ class RollWithEmptyAxesReplacerTest(unittest.TestCase):
 
         graph.stage = 'front'
 
-        replacer = RollWithEmptyAxesReplacer()
-        replacer.find_and_replace_pattern(graph)
+        RollWithEmptyAxesReplacer().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
