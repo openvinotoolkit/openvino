@@ -9,6 +9,10 @@
 
 namespace kernel_selector {
 
+#define IS_BROADCASTING_POSSIBLE_INPUT  ((params.inputs[i].LogicalSize() == 1) || \
+                                         (params.inputs[i].LogicalSize() == params.output.Feature().v && \
+                                          params.inputs[i].Feature().v == params.output.Feature().v))
+
 ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -34,9 +38,7 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 static inline size_t GetBlockSize(const eltwise_params& params) {
     // Set blocksize 1 when broadcasting X dim
     for (size_t i = 0; i < params.inputs.size(); i++) {
-        if ((params.inputs[i].X().v == 1) &&
-            (params.inputs[i].LogicalSize() != 1) &&
-            (params.inputs[i].LogicalSize() != params.output.Feature().v || params.inputs[i].Feature().v != params.output.Feature().v)) {
+        if ((params.inputs[i].X().v == 1) && !IS_BROADCASTING_POSSIBLE_INPUT) {
             return 1;
         }
     }
@@ -212,32 +214,30 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     return jit;
 }
 
-bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(params, o)) {
+bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
+    if (!EltwiseKernelBase::Validate(p, o)) {
         return false;
     }
 
-    const auto& ewParams = static_cast<const eltwise_params&>(params);
+    const auto& params = static_cast<const eltwise_params&>(p);
 
-    const auto& output = ewParams.output;
-    const auto count = output.PhysicalSize();
+    const auto count = params.output.PhysicalSize();
 
     if (count % 8 != 0)
         return false;
 
-    for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        if ((ewParams.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
-            (ewParams.inputs[i].LogicalSize() != output.Feature().v || ewParams.inputs[i].Feature().v != output.Feature().v) &&
-            (ewParams.inputs[i].LogicalSize() != 1)) {
+    for (size_t i = 0; i < params.inputs.size(); i++) {
+        if ((params.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
+            !IS_BROADCASTING_POSSIBLE_INPUT) {
             return false;
         }
     }
 
-    auto input0 = ewParams.inputs[0];
+    auto input0 = params.inputs[0];
 
     // Check that padding before features doesn't miss-align the blocks
     auto feature_block_size = 16;
-    if (input0.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
+    if (input0.Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0) {
         return false;
     }
 
@@ -260,10 +260,10 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
         return same;
     };
 
-    for (size_t i = 1; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].LogicalSize() == input0.LogicalSize() && !(compareTensors(ewParams.inputs[i], input0)))
+    for (size_t i = 1; i < params.inputs.size(); i++) {
+        if (params.inputs[i].LogicalSize() == input0.LogicalSize() && !(compareTensors(params.inputs[i], input0)))
             return false;
-        if (ewParams.inputs[i].Feature().pad.before % feature_block_size != 0) {
+        if (params.inputs[i].Feature().pad.before % feature_block_size != 0) {
             return false;
         }
     }
