@@ -110,6 +110,18 @@ public:
     ConvertDepthComputation(test::Mat inMat, test::Mat outMat, int depth);
 };
 
+class FLUID_COMPUTATION_VISIBILITY DivCComputation : public FluidComputation
+{
+public:
+    DivCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c);
+};
+
+class FLUID_COMPUTATION_VISIBILITY SubCComputation : public FluidComputation
+{
+public:
+    SubCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c);
+};
+
 class FLUID_COMPUTATION_VISIBILITY MeanValueSubtractComputation : public FluidComputation
 {
 public:
