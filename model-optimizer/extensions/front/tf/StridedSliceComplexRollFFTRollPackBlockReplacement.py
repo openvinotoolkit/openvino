@@ -66,11 +66,10 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
         tf_fft = match['fft']
         tf_fft_name = tf_fft.soft_get('name', tf_fft.id)
 
-        dft_node = create_dft_from_tffft(graph, tf_fft, roll_before)
-
         unroll.in_port(1).get_connection().set_destination(roll_after.in_port(1))
         unroll.in_port(2).get_connection().set_destination(roll_after.in_port(2))
 
+        dft_node = create_dft_from_tffft(graph, tf_fft, roll_before)
         dft_node.out_port(0).connect(roll_after.in_port(0))
 
         pack = match['pack']
@@ -79,6 +78,10 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
         rename_nodes([(roll, roll_name + '/to_be_removed'), (roll_before, roll_name)])
         rename_nodes([(unroll, unroll_name + '/to_be_removed'), (roll_after, unroll_name)])
         rename_nodes([(tf_fft, tf_fft_name + '/to_be_removed'), (dft_node, tf_fft_name)])
+
+        disable_nhwc_to_nchw = graph.graph['cmd_params'].disable_nhwc_to_nchw
+        if not disable_nhwc_to_nchw or graph.graph['layout'] == 'NHWC':
+            dft_node['need_insert_transposes'] = True
 
 
 def create_dft_from_tffft(graph: Graph, tffft: Node, input_node=None) -> Node:
