@@ -15,7 +15,6 @@ for %%A in ("%OPENCV%") do set OPENCV_FILENAME=%%~nxA
 for %%A in ("%HDDL%") do set HDDL_FILENAME=%%~nxA
 for %%A in ("%VPU_FIRMWARE_MA2X8X%") do set VPU_FIRMWARE_MA2X8X_FILENAME=%%~nxA
 for %%A in ("%TBB%") do set TBB_FILENAME=%%~nxA
-for %%A in ("%TBBBIND_2_4%") do set TBBBIND_2_4_FILENAME=%%~nxA
 
 call :DownloadFile MKL %MKL%
 call :DownloadFile OMP %OMP%
@@ -25,19 +24,15 @@ call :DownloadFile OPENCV %OPENCV%
 call :DownloadFile HDDL %HDDL%
 call :DownloadFile VPU_FIRMWARE_MA2X8X %VPU_FIRMWARE_MA2X8X%
 call :DownloadFile TBB %TBB%
-call :DownloadFile TBBBIND_2_4 %TBBBIND_2_4%
 
 for /f "delims=" %%x in (ld_library_rpath_64.txt) do (set "%%x")
 
 set PATH=%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%;%PATH%
-@REM Commented on the OMP and MKL paths, as when PATH expands to TBBBIND_2_4 it seems to exceed its length
-@REM These products were chosen from path since OMP not used for 3 years and MKL links statically
-@REM set PATH=%DL_SDK_TEMP%\test_dependencies\MKL\%MKL_FILENAME%%MKL%;%PATH%
-@REM set PATH=%DL_SDK_TEMP%\test_dependencies\OMP\%OMP_FILENAME%%OMP%;%PATH%
+set PATH=%DL_SDK_TEMP%\test_dependencies\MKL\%MKL_FILENAME%%MKL%;%PATH%
+set PATH=%DL_SDK_TEMP%\test_dependencies\OMP\%OMP_FILENAME%%OMP%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\GNA\%GNA_FILENAME%%GNA%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\OPENCV\%OPENCV_FILENAME%%OPENCV%;%PATH%
 set PATH=%DL_SDK_TEMP%\test_dependencies\TBB\%TBB_FILENAME%%TBB%;%PATH%
-set PATH=%DL_SDK_TEMP%\test_dependencies\TBBBIND_2_4\%TBBBIND_2_4_FILENAME%%TBBBIND_2_4%;%PATH%
 
 set PATH=%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%;%PATH%
 
