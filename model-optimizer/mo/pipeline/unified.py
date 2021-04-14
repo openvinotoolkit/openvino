@@ -26,9 +26,9 @@ def unified_pipeline(argv: argparse.Namespace):
     return graph
 
 def moc_pipeline(argv: argparse.Namespace):
-    from ngraph import FrontEndManager
-    from ngraph import function_to_cnn
-    from ngraph import PartialShape
+    from ngraph import FrontEndManager # pylint: disable=import-error
+    from ngraph import function_to_cnn # pylint: disable=import-error
+    from ngraph import PartialShape    # pylint: disable=import-error
     log.info('New MOC pipeline')
     fem = argv.feManager
     log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))

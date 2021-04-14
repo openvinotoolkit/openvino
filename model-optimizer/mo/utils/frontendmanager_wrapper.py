@@ -10,7 +10,7 @@ def create_fem():
 
     fem = None
     try:
-        from ngraph import FrontEndManager
+        from ngraph import FrontEndManager # pylint: disable=import-error
         fem = FrontEndManager()
     except:
         pass
