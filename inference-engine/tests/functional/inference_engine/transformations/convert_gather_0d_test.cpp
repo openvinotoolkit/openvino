@@ -24,7 +24,7 @@ TEST(TransformationTests, ConvertGather0DStatic1) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
-        auto indices = std::make_shared<opset1::Parameter>(element::i32, Shape{15, 4, 20, 28});
+        auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{15, 4, 20, 28});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
@@ -40,7 +40,7 @@ TEST(TransformationTests, ConvertGather0DStatic1) {
 
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
-        auto indices = std::make_shared<opset1::Parameter>(element::i32, Shape{15, 4, 20, 28});
+        auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{15, 4, 20, 28});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
@@ -55,7 +55,7 @@ TEST(TransformationTests, ConvertGather0DStatic2) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
-        auto indices = std::make_shared<opset1::Parameter>(element::i32, Shape{});
+        auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
@@ -71,7 +71,7 @@ TEST(TransformationTests, ConvertGather0DStatic2) {
 
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
-        auto indices = std::make_shared<opset1::Parameter>(element::i32, Shape{});
+        auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto unsqueeze = std::make_shared<opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
         auto gather = std::make_shared<opset1::Gather>(input, unsqueeze, axis_const);
