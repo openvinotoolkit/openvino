@@ -337,8 +337,8 @@ bool op::util::GatherBase::evaluate(const HostTensorVector& outputs,
                                     const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(Gather_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())
