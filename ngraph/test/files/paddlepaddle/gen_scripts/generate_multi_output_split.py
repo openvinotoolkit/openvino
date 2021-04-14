@@ -3,9 +3,9 @@ from paddle import fluid
 import numpy as np
 
 # it's better to use PYTHON_PATH
-import sys
-sys.path.append('/home/itikhonov/OpenVINO/openvino/bin/intel64/Debug/lib/python_api/python3.6/')
-from openvino.inference_engine import IECore
+# import sys
+# sys.path.append('/home/itikhonov/OpenVINO/openvino/bin/intel64/Debug/lib/python_api/python3.6/')
+# from openvino.inference_engine import IECore
 
 
 def create_multi_output_model():
@@ -34,18 +34,18 @@ def create_multi_output_model():
                                   params_filename="multi_output_split.pdiparams")
 
     # IE inference
-    ie = IECore()
-    path_to_ie_model = "../models/multi_output_split/multi_output_split"
-    net = ie.read_network(model=path_to_ie_model + ".xml", weights=path_to_ie_model + ".bin")
-    exec_net = ie.load_network(net, "CPU")
-    res = exec_net.infer({'x': inp_blob_1})
-
-    # compare results: IE vs PDPD
-    idx = 0
-    for key in res:
-        comp = np.all(np.isclose(res_pdpd[idx], res[key], rtol=1e-05, atol=1e-08, equal_nan=False))
-        assert comp, "PDPD and IE results are different"
-        idx = idx + 1
+    # ie = IECore()
+    # path_to_ie_model = "../models/multi_output_split/multi_output_split"
+    # net = ie.read_network(model=path_to_ie_model + ".xml", weights=path_to_ie_model + ".bin")
+    # exec_net = ie.load_network(net, "CPU")
+    # res = exec_net.infer({'x': inp_blob_1})
+    #
+    # # compare results: IE vs PDPD
+    # idx = 0
+    # for key in res:
+    #     comp = np.all(np.isclose(res_pdpd[idx], res[key], rtol=1e-05, atol=1e-08, equal_nan=False))
+    #     assert comp, "PDPD and IE results are different"
+    #     idx = idx + 1
 
 
 create_multi_output_model()
