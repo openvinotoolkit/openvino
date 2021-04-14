@@ -13,7 +13,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 o_{i} = a_{i} % b_{i}
 \f] 
 
-*FloorMod* operation computes a reminder of a floored division. It is the same behaviour like in Python programming language: `floor(x / y) * y + floor_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend. The result of division by zero is undefined.
+*FloorMod* operation computes a reminder of a floored division. It is the same behaviour like in Python programming language: `floor(x / y) * y + floor_mod(x, y) = x`. The sign of the result is equal to a sign of a divisor. The result of division by zero is undefined.
 
 **Attributes**:
 

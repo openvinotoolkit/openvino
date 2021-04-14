@@ -25,10 +25,25 @@ namespace ngraph
                     Output<ngraph::Node> divisor{node.get_ng_inputs().at(1)};
 
                     std::int64_t fmod = node.get_attribute_value<std::int64_t>("fmod", 0);
-                    CHECK_VALID_NODE(
-                        node, fmod == 1, "Only 'fmod=1' mode is supported for mod operator.");
-
-                    return {std::make_shared<default_opset::Mod>(dividend, divisor)};
+                    OutputVector output;
+                    if (fmod == 1)
+                    {
+                        output = {std::make_shared<default_opset::Mod>(dividend, divisor)};
+                    }
+                    else if (fmod == 0)
+                    {
+                        NGRAPH_CHECK(dividend.get_element_type().is_integral() &&
+                                         divisor.get_element_type().is_integral(),
+                                     "If the input type is floating point, then `fmod` attribute "
+                                     "must be set to 1.");
+                        output = {std::make_shared<default_opset::FloorMod>(dividend, divisor)};
+                    }
+                    else
+                    {
+                        throw ngraph_error(
+                            "Unsupported value of 'fmod' attribute (should be: 0 or 1)");
+                    }
+                    return output;
                 }
 
             } // namespace set_1
