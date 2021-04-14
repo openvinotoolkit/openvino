@@ -1,8 +1,8 @@
 # Post-Training Optimization Tool - A real example
 
 This tutorial describes the example from the following YouTube* video:
+https://www.youtube.com/watch?v=cGQesbWuRhk&t=49s
 
-http://XXXXX
 
 Watch this video to learn the basics of Post-training Optimization Tool (POT): 
    https://www.youtube.com/watch?v=SvkI25Ca_SQ   
