@@ -59,6 +59,8 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
                     if device_results.find(op.tag) is not None:
                         entry = device_results.find(op.tag)
                         for attr_name in device_results.find(op.tag).attrib:
+                            if attr_name == "passrate":
+                                continue
                             xml_value = int(op.attrib.get(attr_name))
                             aggregated_value = int(entry.attrib.get(attr_name))
                             device_results.find(entry.tag).set(attr_name, str(xml_value + aggregated_value))
