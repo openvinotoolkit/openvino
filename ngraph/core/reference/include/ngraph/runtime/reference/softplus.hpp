@@ -20,9 +20,8 @@ namespace ngraph
 
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = (arg[i] < threshold)
-                                 ? static_cast<T>(std::log(std::exp(arg[i]) + 1))
-                                 : arg[i];
+                    out[i] = (arg[i] < threshold) ? static_cast<T>(std::log(std::exp(arg[i]) + 1))
+                                                  : arg[i];
                 }
             }
         }
