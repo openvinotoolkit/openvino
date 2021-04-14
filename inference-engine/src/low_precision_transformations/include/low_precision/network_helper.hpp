@@ -97,6 +97,8 @@ public:
     // Optimizes the series of multiplies after a given output port
     static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
+    static bool isConvertable(const std::shared_ptr<Node>& node, const element::Type targetType);
+
     static std::shared_ptr<opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
     static std::shared_ptr<opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq);

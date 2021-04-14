@@ -117,7 +117,6 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     std::shared_ptr<Node> inputLowConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(1), deqPrecision);
     std::shared_ptr<Node> inputHighConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(2), deqPrecision);
 
-
     std::shared_ptr<opset1::Constant> constant = fq::getConstant(eltwise);
     if (is_type<opset1::Multiply>(eltwise) && checkElementwise(eltwise)) {
         const auto value = constant->get_output_element_type(0) == deqPrecision ?

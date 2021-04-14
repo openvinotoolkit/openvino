@@ -424,6 +424,32 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
     return nullptr;
 }
 
+bool NetworkHelper::isConvertable(const std::shared_ptr<Node>& node, const element::Type targetType) {
+    const auto constant = as_type_ptr<opset1::Constant>(node);
+    assert(constant);
+
+    const auto values = constant->cast_vector<float>();
+    float min;
+    float max;
+    if (targetType == element::i8) {
+        min = -128.f;
+        max = 127.f;
+    } else if (targetType == element::u8) {
+        min = 0.f;
+        max = 255.f;
+    } else if (targetType == element::i4) {
+        min = -8.f;
+        max = 7.f;
+    } else if (targetType == element::u4) {
+        min = 0.f;
+        max = 15.f;
+    } else {
+        return false;
+    }
+
+    return std::all_of(values.begin(), values.end(), [&](const float value) { return (min <= value) && (value <= max); });
+}
+
 std::shared_ptr<opset1::Constant> NetworkHelper::round(std::shared_ptr<Node> node, element::Type target_type) {
     const auto constant = as_type_ptr<opset1::Constant>(node);
     assert(constant);
@@ -1356,6 +1382,8 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
         }
 
         if (roundedShift) {
+            NetworkHelper::copyInfo(shift, roundedShift);
+
             // Propagate convertInputType down
             replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
             NetworkHelper::copyInfo(subtract, replacement);
@@ -1363,22 +1391,10 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
             replace_node(subtract, replacement);
         }
 
-        // We lose the tail conversion here; not needed if the next node is a TypeRelaxed
-        // TODO: check cases when Convert should be preserved
-
-        // Try to optimize Add out if constant is zero
-        // TODO: don't remove operation here: don't create this Subtraction operation in FQ decomposition
-        // if (isScalarLike(roundedShift)) {
-        //    auto scalar = distillToScalar(roundedShift);
-        //    if (op::util::constantIsEqualTo(scalar, 0)) {
-        //        replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
-        //        replacement = nullptr;
-        //    }
-        // }
-
         return replacement;
-    } else if (is_type<opset1::Convert>(subtractParent) || is_type<opset1::Constant>(subtractParent->get_input_node_shared_ptr(0))) {
+    } else if (is_type<opset1::Convert>(subtractParent) && is_type<opset1::Constant>(subtractParent->get_input_node_shared_ptr(0))) {
         auto replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, subtractParent->get_input_node_shared_ptr(0));
+        NetworkHelper::copyInfo(subtract, replacement);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
         replace_node(subtract, replacement);
         return replacement;
