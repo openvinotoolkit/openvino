@@ -100,7 +100,7 @@ public:
             default: {
                 if (resp) {
                     std::string errorMsg = "BatchToSpace layer does not support precision '"
-                            + std::string(inputs[0]->getTensorDesc().getPrecision().name()) + "'";
+                                           + std::string(inputs[0]->getTensorDesc().getPrecision().name()) + "'";
                     errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
                     return GENERAL_ERROR;
                 }
@@ -156,15 +156,17 @@ private:
         const size_t outSpatialStep = outShape5D[2] * outShape5D[3] * outShape5D[4];
         const size_t outBatchStep = (blocked ? blockSize * blockCountOutput : outShape5D[1]) * outSpatialStep;
 
-        const size_t workAmount = inShape5D[0] * inShape5D[1];
+        size_t channels = (inShape5D[1] / blockSize);
+        channels = channels == 0 ? 1 : channels;
+        const size_t workAmount = inShape5D[0] * channels;
 
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start(0lu), end(0lu);
             splitter(workAmount, nthr, ithr, start, end);
             std::vector<size_t> indxStart(2, 0);
             std::vector<size_t> indxEnd(2, 0);
-            parallel_it_init(start, indxStart[0], inShape5D[0], indxStart[1], inShape5D[1]);
-            parallel_it_init((end - 1), indxEnd[0], inShape5D[0], indxEnd[1], inShape5D[1]);
+            parallel_it_init(start, indxStart[0], inShape5D[0], indxStart[1], channels);
+            parallel_it_init((end - 1), indxEnd[0], inShape5D[0], indxEnd[1], channels);
             for (size_t i0 = indxStart[0]; i0 < indxEnd[0] + 1; ++i0) {
                 int64_t bIdx = i0 / outShape5D[0];
                 const size_t srcIdx0 = i0 * inBatchStep;
@@ -249,4 +251,3 @@ REG_FACTORY_FOR(BatchToSpaceImpl, BatchToSpace);
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine
-
