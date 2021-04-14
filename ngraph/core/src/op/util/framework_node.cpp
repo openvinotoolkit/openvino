@@ -32,23 +32,32 @@ void op::util::FrameworkNode::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(util_FrameworkNode_validate_and_infer_types);
     // Save initial inputs descriptors
+    bool initialize_input_desc = m_inputs_desc.empty();
     for (uint64_t i = 0; i < get_input_size(); i++)
     {
         // TODO: store constant values
         const auto& new_input_desc =
             std::make_tuple(get_input_partial_shape(i), get_input_element_type(i));
 
-        if (m_inputs_desc.empty())
+        if (initialize_input_desc)
         {
             m_inputs_desc.push_back(new_input_desc);
         }
         else
         {
-            NODE_VALIDATION_CHECK(this,
-                                  m_inputs_desc[i] == new_input_desc,
-                                  "Input descriptor for ",
-                                  get_friendly_name(),
-                                  "has been changed.");
+            auto get_message = [&]() {
+                std::stringstream out;
+                out << "Input descriptor for " << get_friendly_name()
+                    << " node has been changed:" << std::endl;
+                out << "Before: " << std::get<0>(m_inputs_desc[i]) << ", "
+                    << std::get<1>(m_inputs_desc[i]) << std::endl;
+                out << "After:  " << std::get<0>(new_input_desc) << ", "
+                    << std::get<1>(new_input_desc) << std::endl;
+                out << "Please specify InferenceEngine Extensions to support this case.";
+                return out.str();
+            };
+
+            NODE_VALIDATION_CHECK(this, m_inputs_desc[i] == new_input_desc, get_message());
         }
     }
 }
