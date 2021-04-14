@@ -133,22 +133,43 @@ def temp_dir(pytestconfig):
 
 
 @pytest.fixture(scope="function")
-def cl_cache_dir(pytestconfig):
+def cl_cache_dir(pytestconfig, instance):
     """Generate directory to save OpenCL cache before test run and clean up after run.
 
     Folder `cl_cache` should be created in a directory where tests were run. In this case
     cache will be saved correctly. This behaviour is OS independent.
     More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
     """
-    cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
-    # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
-    # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
-    os.environ["cl_cache_dir"] = str(cl_cache_dir)
-    if cl_cache_dir.exists():
+    if instance["device"]["name"] == "GPU":
+        cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
+        # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
+        # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
+        os.environ["cl_cache_dir"] = str(cl_cache_dir)
+        if cl_cache_dir.exists():
+            shutil.rmtree(cl_cache_dir)
+        cl_cache_dir.mkdir()
+        logging.info("cl_cache will be created in {}".format(cl_cache_dir))
+        yield cl_cache_dir
         shutil.rmtree(cl_cache_dir)
-    cl_cache_dir.mkdir()
-    yield cl_cache_dir
-    shutil.rmtree(cl_cache_dir)
+    else:
+        yield None
+
+
+@pytest.fixture(scope="function")
+def model_cache_dir(pytestconfig, instance):
+    """
+    Generate directory to IE model cache before test run and clean up after run.
+    """
+    if instance.get("use_model_cache"):
+        model_cache_dir = pytestconfig.invocation_dir / "models_cache"
+        if model_cache_dir.exists():
+            shutil.rmtree(model_cache_dir)
+        model_cache_dir.mkdir()
+        logging.info("model_cache will be created in {}".format(model_cache_dir))
+        yield model_cache_dir
+        shutil.rmtree(model_cache_dir)
+    else:
+        yield None
 
 
 @pytest.fixture(scope="function")
