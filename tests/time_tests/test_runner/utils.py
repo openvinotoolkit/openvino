@@ -76,7 +76,7 @@ def filter_timetest_result(stats: dict):
         iqr, q1, q3 = calculate_iqr(time_results)
         cut_off = iqr * IQR_CUTOFF
         upd_time_results = [x for x in time_results if (q1 - cut_off < x < q3 + cut_off)]
-        filtered_stats.update({step_name: upd_time_results})
+        filtered_stats.update({step_name: upd_time_results if upd_time_results else time_results})
     return filtered_stats
 
 

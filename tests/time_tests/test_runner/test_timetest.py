@@ -25,7 +25,7 @@ from test_runner.utils import expand_env_vars
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir, validate_test_case,
+def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, temp_dir, validate_test_case,
                   prepare_db_info):
     """Parameterized test.
 
@@ -33,6 +33,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir
     :param executable: timetest executable to run
     :param niter: number of times to run executable
     :param cl_cache_dir: directory to store OpenCL cache
+    :param model_cache_dir: directory to store IE model cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
     :param validate_test_case: custom pytest fixture. Should be declared as test argument to be enabled
@@ -55,13 +56,13 @@ def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir
         "device": instance["device"]["name"],
         "niter": niter
     }
-    if exe_args["device"] == "GPU":
-        # Generate cl_cache via additional timetest run
-        _exe_args = exe_args.copy()
-        _exe_args["niter"] = 1
-        logging.info("Run timetest once to generate cl_cache to {}".format(cl_cache_dir))
-        run_timetest(_exe_args, log=logging)
+    logging.info("Run timetest once to generate any cache")
+    retcode, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
+    assert retcode == 0, "Run of executable for warm up failed"
+    if cl_cache_dir:
         assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
+    if model_cache_dir:
+        assert os.listdir(model_cache_dir), "model_cache isn't generated"
 
     retcode, aggr_stats, raw_stats = run_timetest(exe_args, log=logging)
     assert retcode == 0, "Run of executable failed"
