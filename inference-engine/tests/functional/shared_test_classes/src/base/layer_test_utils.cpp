@@ -62,9 +62,9 @@ void LayerTestsCommon::Run() {
         s.updateOPsStats(function, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
-    if (s.getSaveReportWithUniqueName()) {
-        s.saveReport();
-    }
+//    if (s.getSaveReportWithUniqueName()) {
+//        s.saveReport();
+//    }
 }
 
 void LayerTestsCommon::Serialize() {
