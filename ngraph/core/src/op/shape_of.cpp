@@ -216,8 +216,8 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
@@ -280,8 +280,8 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 

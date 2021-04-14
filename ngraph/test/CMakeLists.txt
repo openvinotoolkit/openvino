@@ -323,6 +323,7 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
     backend/detection_output.in.cpp
+    backend/dft.in.cpp
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
@@ -340,6 +341,7 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
     backend/hard_sigmoid.in.cpp
+    backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
