@@ -93,7 +93,7 @@ const Shape& descriptor::Tensor::get_shape() const
 
 size_t descriptor::Tensor::size() const
 {
-    return shape_size(get_shape()) * m_element_type.size();
+    return ceil(shape_size(get_shape()) * m_element_type.bitwidth() / 8.f);
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
