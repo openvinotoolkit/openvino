@@ -2,12 +2,15 @@
 
 **Versioned name**: *SoftPlus-4*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
-**Short description**: SoftPlus takes one input tensor and produces output tensor where the softplus function is applied to the tensor elementwise.
+**Short description**: *SoftPlus* is a rectified-based element-wise activation function.
 
-**Detailed description**: For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula:
+**Detailed description**
+
+*SoftPlus* operation is introduced in this [article](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.165.6419). 
+
+*SoftPlus* performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[
 SoftPlus(x) = \left\{\begin{array}{r}
@@ -21,7 +24,7 @@ is chosen in such a way that the difference between the linear function and exac
 The `threshold` can be calculated with the following formula where `alpha` is the count of the numbers after the decimal point:
 
 \f[
-threshold > -log(e^{10^{\alpha}} - 1.0)
+threshold < -log(e^{10^{-\alpha}} - 1.0)
 \f]
 
 For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `threshold` should be `12`.
@@ -31,16 +34,15 @@ For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor of type *T*. **Required**.
+*   **1**: A tensor of type `T` and arbitrary shape. **Required**.
 
 **Outputs**:
 
-*   **1**: The resulting tensor of the same shape and type as input tensor.
+*   **1**: The result of element-wise *SoftPlus* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
-
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 

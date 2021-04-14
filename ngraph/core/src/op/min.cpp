@@ -46,7 +46,7 @@ namespace minop
     }
 } // namespace minop
 
-constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceMin, "ReduceMin", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceMin::ReduceMin(const Output<Node>& arg,
                              const Output<Node>& reduction_axes,
@@ -67,8 +67,8 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
 

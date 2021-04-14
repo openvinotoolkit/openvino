@@ -52,10 +52,12 @@ limitations under the License.
                         <tab type="usergroup" title="Converting Your ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX">
                             <tab type="user" title="Convert ONNX* Faster R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN"/>
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
-                            <tab type="user" title="Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
-                            <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_QuartzNet"/>
-                            <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_YOLACT"/>
-                            <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_F3Net"/>
+                            <tab type="user" title="Convert ONNX* GPT-2 Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2"/>
+                            <tab type="user" title="Convert DLRM ONNX* Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
+                        <tab type="usergroup" title="Converting Your PyTorch* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch">
+                            <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet"/>
+                            <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT"/>
+                            <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net"/>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
                         <tab type="user" title="Cutting off Parts of a Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model"/>
@@ -234,7 +236,7 @@ limitations under the License.
                 <tab type="user" title="ScatterNDUpdate" url="@ref openvino_docs_ops_movement_ScatterNDUpdate_3"/>
                 <tab type="user" title="ScatterUpdate-3" url="@ref openvino_docs_ops_movement_ScatterUpdate_3"/>
                 <tab type="user" title="Select-1" url="@ref openvino_docs_ops_condition_Select_1"/>
-                <tab type="user" title="Selu-1" url="@ref openvino_docs_ops_arithmetic_Selu_1"/>
+                <tab type="user" title="Selu-1" url="@ref openvino_docs_ops_activation_Selu_1"/>
                 <tab type="user" title="ShapeOf-1" url="@ref openvino_docs_ops_shape_ShapeOf_1"/>
                 <tab type="user" title="ShapeOf-3" url="@ref openvino_docs_ops_shape_ShapeOf_3"/>
                 <tab type="user" title="ShuffleChannels-1" url="@ref openvino_docs_ops_movement_ShuffleChannels_1"/>
