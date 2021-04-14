@@ -30,7 +30,7 @@ op::util::GatherBase::GatherBase(const Output<Node>& data,
 
 void op::util::GatherBase::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(GatherBase_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
     const auto& indices_type = get_input_element_type(1);
 
@@ -336,7 +336,7 @@ namespace gather
 bool op::util::GatherBase::evaluate(const HostTensorVector& outputs,
                                     const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(Gather_evaluate);
+    NGRAPH_OP_SCOPE(util_Gather_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 

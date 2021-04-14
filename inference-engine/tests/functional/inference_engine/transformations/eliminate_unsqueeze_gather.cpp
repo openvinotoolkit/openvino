@@ -6,7 +6,7 @@
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
-
+#include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -50,7 +50,9 @@ protected:
                 "Actual");
 
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::VisualizeTree>("before.png");
         manager.register_pass<ngraph::pass::EliminateUnsqueezeGather>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("after.png");
         manager.run_passes(function);
 
         return function;
