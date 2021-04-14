@@ -8,8 +8,13 @@ message(STATUS "--- THREADING ${THREADING}")
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     find_package(TBBBIND_2_4)
     if(TBBBIND_2_4_FOUND)
+        message(STATUS "--- TBBBIND_2_4_IMPORTED_TARGETS ${TBBBIND_2_4_IMPORTED_TARGETS}")
+
         get_target_property(TBBBIND_2_4_LIB TBBbind::tbbbind_2_4 IMPORTED_LOCATION)
         message(STATUS "--- TBBBIND_2_4_FOUND ${TBBBIND_2_4_LIB}")
+
+        get_target_property(HWLOC_2_4_LIB TBBbind::hwloc_2_4 IMPORTED_LOCATION)
+        message(STATUS "--- HWLOC_2_4_LIB ${HWLOC_2_4_LIB}")
     endif()
 endif()
 
@@ -261,26 +266,6 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
                   "${TBB}/cmake/TBBConfigVersion.cmake"
             DESTINATION ${IE_CPACK_IE_DIR}/external/tbb/cmake
             COMPONENT tbb)
-
-    if(TBBBIND_2_4_FOUND)
-        ie_cpack_add_component(tbbbind_2_4 REQUIRED)
-        list(APPEND core_components tbbbind_2_4)
-
-        install(DIRECTORY "${TBBBIND_2_4}/lib"
-                DESTINATION ${IE_CPACK_IE_DIR}/external/tbbbind_2_4
-                COMPONENT tbbbind_2_4)
-        if(EXISTS "${TBBBIND_2_4}/bin")
-          install(DIRECTORY "${TBBBIND_2_4}/bin"
-                  DESTINATION ${IE_CPACK_IE_DIR}/external/tbbbind_2_4
-                  COMPONENT tbbbind_2_4)
-        endif()
-        install(FILES "${TBBBIND_2_4}/LICENSE"
-                DESTINATION ${IE_CPACK_IE_DIR}/external/tbbbind_2_4
-                COMPONENT tbbbind_2_4)
-        install(FILES "${TBBBIND_2_4}/cmake/TBBBIND_2_4Config.cmake"
-                DESTINATION ${IE_CPACK_IE_DIR}/external/tbbbind_2_4/cmake
-                COMPONENT tbbbind_2_4)
-    endif()
 endif()
 
 # Install Inference Engine

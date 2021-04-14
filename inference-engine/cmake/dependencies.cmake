@@ -153,15 +153,15 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     if (WIN32 AND X86_64)
         #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_20200415_no_bind_win_v3.zip"
+                ARCHIVE_WIN "tbb2020_20200415_win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "9fb6a42a2441154936409fe1681b935647c823cc1207905bdd0f527e1d462dcb")
+                SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_WIN "tbbbind_2_4_static_hwloc_win_v3.zip"
+                ARCHIVE_WIN "tbbbind_2_4_static_win_v4.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
                 ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "88b1b2e1ac2f9732b1ee7131daff5883f067e0c51a9e41768aaf10ae6ac5b2bc")
+                SHA256 "e4bf7663afdbfc30a2318bf9ae43149546653ccdcd387094c07076d4c6c6e862")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -170,13 +170,13 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_20200415_no_bind_lin_strip_v3.tgz"
+                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
-                SHA256 "ed40cfa06a6b35d168ee847b426cbb97fd9f84c921fc7615cd6304427e8fb342")
+                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_LIN "tbbbind_2_4_static_hwloc_lin_v3.tgz"
+                ARCHIVE_LIN "tbbbind_2_4_static_lin_v4.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
-                SHA256 "b8512abefd7a72f01bf2e24e1921ec054eebfeccb4e90a7f96502c9154980258")
+                SHA256 "e603132b69344985230d16bdcddbf61b2816fcdf5206a678cd0db32a13c09c26")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -200,13 +200,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
 
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/bin")
-        log_rpath_from_dir(TBBBIND_2_4 "${TBBBIND_2_4}/bin")
     else ()
         log_rpath_from_dir(TBB "${TBB}/lib")
-        log_rpath_from_dir(TBBBIND_2_4 "${TBBBIND_2_4}/lib")
     endif ()
     debug_message(STATUS "tbb=" ${TBB})
-    debug_message(STATUS "tbbbind_2_4=" ${TBBBIND_2_4})
 endif ()
 
 if (ENABLE_OPENCV)
