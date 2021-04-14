@@ -136,7 +136,7 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
     for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
         auto& output = outputs[resultIndex];
         const auto& outputTensor = outputTensors[resultIndex];
-        output.resize(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().size());
+        output.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
         outputTensors[resultIndex]->read(output.data(), output.size());
         if (!convertType.empty() && convertType[resultIndex] != element::Type_t::undefined &&
                 outputTensor->get_element_type() != element::Type(convertType[resultIndex]))
