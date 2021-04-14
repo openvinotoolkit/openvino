@@ -8,7 +8,7 @@
 
 **Detailed description**: *Einsum* can represent many common multidimensional linear algebraic tensor operations: matrix multiplication;
 inner (or dot), outer and cross products; transpose; trace and diagonal extraction.
-Also, the single *Einsum* operation can express complex combination of these common linear algebraic tensor operations on multiple operands,
+Also, a single *Einsum* operation can express complex combination of these common linear algebraic tensor operations on multiple operands,
 for example, a dot product of a diagonal, extracted from a tensor with shape [5, 5], and 5D vector is performed by single Einsum operation.
 The Einstein summation convention on input tensors is defined by `equation`, which is a mandatory attribute of *Einsum* operation.
 The format of `equation` is described below.
@@ -19,7 +19,7 @@ Each input subscript `<subscript for input1>` contains a sequence of labels (low
 the corresponsing operand. Labels do not need to appear in a subscript in alphabetical order. The subscript for a scalar input is empty.
 The input subscripts are separated with a comma `,`.
 The output subscript `<subscript for output>` is separated from the input subscripts by `->` and represents a sequence of labels
-(lowercase letters `['a',...,'z']`). A length of the input subscript matches a rank of the input. The input subscript is empty for a scalar input.
+(lowercase letters `['a',...,'z']`). The length of an input subscript matches a rank of the input. The input subscript is empty for a scalar input.
 
 *Einsum* operation on multiple inputs can be treated as several consecutive *Einsum* operations. In the first step, *Einsum* applies the first two inputs. 
 In the second step, it operates on the result of the first step and the third input, and so forth.
@@ -157,7 +157,7 @@ In case ellipsis label is in the left-hand side of the equation in implicit mode
 
 * *equation*
 
-  * **Description**: it defines Einstein summation convention on input operands. The equation must be in explicit mode meaning the output subscript must be in place
+  * **Description**: it defines Einstein summation convention on input operands. The equation must be in explicit mode, meaning the output subscript must be in place.
   * **Range of values**: the equation format is described above
   * **Type**: string
   * **Required**: *yes*
