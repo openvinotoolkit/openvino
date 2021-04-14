@@ -41,7 +41,7 @@ public:
     InputModelPDPD (const std::string& _path);
     std::vector<Place::Ptr> getInputs () const;
     std::vector<Place::Ptr> getOutputs () const;
-    Place::Ptr getPlaceByTensorName (const std::string& tensorName);
+    Place::Ptr getPlaceByTensorName (const std::string& tensorName) const;
     void overrideAllOutputs (const std::vector<Place::Ptr>& outputs);
     void overrideAllInputs (const std::vector<Place::Ptr>& inputs);
     void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
