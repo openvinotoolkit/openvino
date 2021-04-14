@@ -49,8 +49,10 @@ public:
         const auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(
             data, in_low, in_high, out_low, out_high, 255);
 
+        std::vector<float> mul_const(shape_size(mul_const_shape));
+        std::iota(mul_const.begin(), mul_const.end(), 0);
         const auto mul_value = ngraph::opset4::Constant::create(
-            ngraph::element::Type_t::f32, mul_const_shape, {3.14f});
+            ngraph::element::Type_t::f32, mul_const_shape, mul_const);
         const auto mul = std::make_shared<ngraph::opset4::Multiply>(fq, mul_value);
 
         m_function = std::make_shared<ngraph::Function>(
@@ -167,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(FQOutputs_1D__multiplier_3D, FQMulFusion,
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 3, 1})));
+                                           ::testing::Values(ngraph::Shape{1, 1, 3, 1})));
 
 INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
