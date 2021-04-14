@@ -917,13 +917,13 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
     //     if (!parentConvolutionNode->weightsZeroPoints.empty())
     //         return false;
 
-        // TODO [oneDNN]: is it still valide constrain on conv to fuse in?
-        bool isSupportedParams = layer->_group == 1 &&
-                is1x1Convolution(layer) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
-                everyone_is(1, layer->_stride[X_AXIS], layer->_stride[Y_AXIS]) &&
-                everyone_is(Precision::FP32, layer->insData[0].lock()->getPrecision(), layer->outData[0].get()->getPrecision()) &&
-                node->getChildEdgeAt(0)->getDims().ndims() == 4;
-        if (!isSupportedParams) return false;
+        // // TODO [oneDNN]: is it still valide constrain on conv to fuse in?
+        // bool isSupportedParams = layer->_group == 1 &&
+        //         is1x1Convolution(layer) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
+        //         everyone_is(1, layer->_stride[X_AXIS], layer->_stride[Y_AXIS]) &&
+        //         everyone_is(Precision::FP32, layer->insData[0].lock()->getPrecision(), layer->outData[0].get()->getPrecision()) &&
+        //         node->getChildEdgeAt(0)->getDims().ndims() == 4;
+        // if (!isSupportedParams) return false;
 
     //     return node->getChildEdges().size() == 1 && isConvolutionNode(node->getChildEdgeAt(0)->getChild());
     // };
@@ -937,12 +937,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
     //     if (parentLayer == nullptr)
     //         IE_THROW() << "Cannot get convolution layer " << parentNode->getName();
 
-        if (!everyone_is(Precision::FP32, parentLayer->outData[0].get()->getPrecision(), childLayer->insData[0].lock()->getPrecision(),
-                childLayer->outData[0].get()->getPrecision()))
-            return false;
+        // if (!everyone_is(Precision::FP32, parentLayer->outData[0].get()->getPrecision(), childLayer->insData[0].lock()->getPrecision(),
+        //         childLayer->outData[0].get()->getPrecision()))
+        //     return false;
 
-        if (!everyone_is(Precision::FP32, parentLayer->precision, childLayer->precision))
-            return false;
+        // if (!everyone_is(Precision::FP32, parentLayer->precision, childLayer->precision))
+        //     return false;
 
     //     auto parentOutputPrecision = !parentNode->fusedWith.empty()
     //             ? parentNode->fusedWith[parentNode->fusedWith.size() - 1]->getCnnLayer()->outData[0].get()->getPrecision()
@@ -952,8 +952,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
     //             ? childNode->fusedWith[childNode->fusedWith.size() - 1]->getCnnLayer()->outData[0].get()->getPrecision()
     //             : childNode->getCnnLayer()->outData[0].get()->getPrecision();
 
-        if (!everyone_is(Precision::FP32, parentOutputPrecision, childOutputPrecision))
-            return false;
+        // if (!everyone_is(Precision::FP32, parentOutputPrecision, childOutputPrecision))
+        //     return false;
 
     //     auto* childConvolutionNode = dynamic_cast<MKLDNNConvolutionNode*>(childNode.get());
     //     if (childConvolutionNode == nullptr)
