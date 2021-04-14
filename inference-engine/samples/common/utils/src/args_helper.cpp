@@ -73,7 +73,7 @@ void parseInputFilesArguments(std::vector<std::string> &files) {
         readInputFilesArguments(files, *img);
     }
 
-    int max_files = 20;
+    size_t max_files = 20;
     if (files.size() < max_files) {
         slog::info << "Files were added: " << files.size() << slog::endl;
         for (const auto& filePath : files) {
