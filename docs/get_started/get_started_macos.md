@@ -95,9 +95,10 @@ The script:
 <details>
     <summary><strong>Click for an example of running the Image Classification demo script</strong></summary>
 
-To run the script to perform inference on a CPU:
+To run the script to view the sample image and perform inference on the CPU:
 
 ```sh
+open car.png
 ./demo_squeezenet_download_convert_run.sh
 ```
 

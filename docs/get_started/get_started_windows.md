@@ -96,6 +96,8 @@ The script:
 
 To run the script to perform inference on a CPU:
 
+1. Open the `car.png` file in any image viewer to see what the demo will be classifying.
+2. Run the following script:
 ```bat
 .\demo_squeezenet_download_convert_run.bat
 ```
