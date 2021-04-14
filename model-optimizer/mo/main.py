@@ -88,11 +88,10 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def prepare_ir(argv: argparse.Namespace):
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
 
+    fem = argv.feManager
     new_front_ends = []
     if not argv.use_legacy_frontend:
-        fem = FrontEndManager()
         new_front_ends = fem.availableFrontEnds()
-        argv.feManager = fem
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
@@ -159,9 +158,11 @@ def prepare_ir(argv: argparse.Namespace):
     except Exception as e:
         pass
 
-    ret_code = check_requirements(framework=argv.framework)
-    if ret_code:
-        raise Error('check_requirements exit with return code {}'.format(ret_code))
+    if not new_front_ends or argv.framework not in new_front_ends:
+        ret_code = check_requirements(framework=argv.framework)
+        if ret_code:
+            raise Error('check_requirements exit with return code {}'.format(ret_code))
+    # TODO: should we check some 'generic' requirements if 'framework' belongs to FrontEndManager?
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
@@ -271,38 +272,35 @@ def emit_ir(graph, argv: argparse.Namespace):
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-# TODO: mnosov: frontend changes
-        orig_model_name = os.path.join(output_dir, argv.model_name)
+
+        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
         if 'network' in graph.graph:
             graph.graph['network'].serialize(orig_model_name + ".xml", orig_model_name + ".bin")
-            print('[ SUCCESS ] Converted with ONNX Importer')
-#=======
-#        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
-#
-#        return_code = "not executed"
-#        # This try-except is additional reinsurance that the IE
-#        # dependency search does not break the MO pipeline
-#        try:
-#            if find_ie_version(silent=True):
-#                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
-#                                                               'offline_transformations.py')
-#                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
-#                return_code = status.returncode
-#                if return_code != 0 and not argv.silent:
-#                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
-#        except Exception as e:
-#            pass
+            print('[ SUCCESS ] Converted with nGraph Serializer')
 
-#        message = str(dict({
-#            "platform": platform.system(),
-#            "mo_version": get_simplified_mo_version(),
-#            "ie_version": get_simplified_ie_version(env=os.environ),
-#            "python_version": sys.version,
-#            "return_code": return_code
-#        }))
-#        t = tm.Telemetry()
-#        t.send_event('mo', 'offline_transformations_status', message)
-#>>>>>>> upstream/master
+        return_code = "not executed"
+        # This try-except is additional reinsurance that the IE
+        # dependency search does not break the MO pipeline
+        try:
+            if find_ie_version(silent=True):
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
+                                                               'offline_transformations.py')
+                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
+                return_code = status.returncode
+                if return_code != 0 and not argv.silent:
+                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
+        except Exception as e:
+            pass
+
+        message = str(dict({
+            "platform": platform.system(),
+            "mo_version": get_simplified_mo_version(),
+            "ie_version": get_simplified_ie_version(env=os.environ),
+            "python_version": sys.version,
+            "return_code": return_code
+        }))
+        t = tm.Telemetry()
+        t.send_event('mo', 'offline_transformations_status', message)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
@@ -336,7 +334,7 @@ def driver(argv: argparse.Namespace):
     return ret_res
 
 
-def main(cli_parser: argparse.ArgumentParser, framework: str):
+def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session()
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
@@ -348,6 +346,7 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         argv = cli_parser.parse_args()
         if framework:
             argv.framework = framework
+        argv.feManager = fem
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:

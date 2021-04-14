@@ -30,7 +30,7 @@ def unified_pipeline(argv: argparse.Namespace):
 
 def moc_pipeline(argv: argparse.Namespace):
     log.info('New MOC pipeline')
-    fem = argv.feManager if 'feManager' in argv else FrontEndManager()
+    fem = argv.feManager
     log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
     log.info('Initializing new FE for framework {}'.format(argv.framework))
     fe = fem.loadByFramework(argv.framework)
