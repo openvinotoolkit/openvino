@@ -5,7 +5,7 @@ from extensions.ops.roll import Roll
 from mo.front.extractor import FrontExtractorOp
 
 
-class RollFrontExtractorTF(FrontExtractorOp):
+class RollExtractor(FrontExtractorOp):
     op = 'Roll'
     enabled = True
 

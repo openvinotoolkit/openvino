@@ -6,7 +6,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
-class RollFrontExtractor(FrontExtractorOp):
+class RollExtractor(FrontExtractorOp):
     op = '_np_roll'
     enabled = True
 

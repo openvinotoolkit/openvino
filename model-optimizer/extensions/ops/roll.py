@@ -28,6 +28,7 @@ class AttributedRoll(Op):
     """ Roll operation that shifts elements of a tensor along specified axes.
 
         This operation uses the same semantics as Roll but with shift and axes specified as attributes.
+        Shift and axes are specified as attributes in MxNet.
     """
 
     op = 'AttributedRoll'
@@ -35,9 +36,8 @@ class AttributedRoll(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': self.op,
+            'type': None,
             'op': self.op,
-            'version': 'opset7',
             'infer': None,
             'in_ports_count': 3,
             'out_ports_count': 1,
