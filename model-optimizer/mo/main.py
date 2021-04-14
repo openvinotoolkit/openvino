@@ -18,7 +18,7 @@ from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConst
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
-from mo.pipeline.unified import unified_pipeline, moc_pipeline
+from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
@@ -88,7 +88,7 @@ def prepare_ir(argv: argparse.Namespace):
 
     fem = argv.feManager
     new_front_ends = []
-    if not argv.use_legacy_frontend and not fem == None:
+    if not argv.use_legacy_frontend and fem is not None:
         new_front_ends = fem.availableFrontEnds()
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
@@ -247,9 +247,10 @@ def prepare_ir(argv: argparse.Namespace):
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
-    if argv.framework not in new_front_ends or argv.use_legacy_frontend:
+    if argv.feManager is None or argv.framework not in new_front_ends or argv.use_legacy_frontend:
         graph = unified_pipeline(argv)
     else:
+        from mo.pipeline.unified import moc_pipeline
         graph = moc_pipeline(argv)
     return graph
 
