@@ -24,7 +24,7 @@ is chosen in such a way that the difference between the linear function and exac
 The `threshold` can be calculated with the following formula where `alpha` is the count of the numbers after the decimal point:
 
 \f[
-threshold < -log(e^{10^{-\alpha}} - 1.0)
+threshold > -log(e^{10^{-\alpha}} - 1.0)
 \f]
 
 For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `threshold` should be `12`.
