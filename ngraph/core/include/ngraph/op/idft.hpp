@@ -9,6 +9,7 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/fft_base.hpp"
 
 namespace ngraph
 {
@@ -17,7 +18,7 @@ namespace ngraph
         namespace v7
         {
             /// \brief An operation IDFT that computes the inverse discrete Fourier transformation.
-            class NGRAPH_API IDFT : public Op
+            class NGRAPH_API IDFT : public util::FFTBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -40,13 +41,8 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                void validate_and_infer_types() override;
-
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
-            protected:
-                void validate();
             };
         }
     }
