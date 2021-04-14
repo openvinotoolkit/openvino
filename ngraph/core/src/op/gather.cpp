@@ -60,3 +60,4 @@ shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_a
     check_new_args_count(this, new_args);
     return make_shared<v7::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
 }
+
