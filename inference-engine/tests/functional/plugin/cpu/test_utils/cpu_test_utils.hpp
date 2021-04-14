@@ -92,6 +92,7 @@ public:
     static const char *cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char *str);
     static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts);
+    static std::string fmts2strWithPrefix(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix);
     static std::string impls2str(const std::vector<std::string> &priority);
     static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
                                std::vector<cpu_memory_format_t> outFmts,

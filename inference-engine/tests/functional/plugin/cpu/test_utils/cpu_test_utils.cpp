@@ -80,9 +80,13 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
 }
 
 std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
+    return fmts2strWithPrefix(fmts, "cpu:");
+}
+
+std::string CPUTestsBase::fmts2strWithPrefix(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix) {
     std::string str;
     for (auto &fmt : fmts) {
-        ((str += "cpu:") += cpu_fmt2str(fmt)) += ",";
+        ((str += prefix) += cpu_fmt2str(fmt)) += ",";
     }
     if (!str.empty()) {
         str.pop_back();
@@ -190,10 +194,10 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     std::string selectedType;
     std::tie(inFmts, outFmts, priority, selectedType) = params;
     if (!inFmts.empty()) {
-        result << "_inFmts=" << fmts2str(inFmts);
+        result << "_inFmts=" << fmts2strWithPrefix(inFmts, "");
     }
     if (!outFmts.empty()) {
-        result << "_outFmts=" << fmts2str(outFmts);
+        result << "_outFmts=" << fmts2strWithPrefix(outFmts, "");
     }
     if (!selectedType.empty()) {
         result << "_primitive=" << selectedType;
