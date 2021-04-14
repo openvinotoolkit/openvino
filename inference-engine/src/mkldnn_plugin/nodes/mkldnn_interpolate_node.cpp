@@ -133,7 +133,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                         break;
                     }
                     default:
-                        assert(!"unsupported memory layout for interpolate layer with cubic mode.");
+                        assert(!"unsupported memory layout for interpolate layer with cubic mode...");
                 }
                 break;
             }
