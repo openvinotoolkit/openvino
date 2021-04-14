@@ -27,14 +27,12 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 |SSD-ResNet-50|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.6/resnet50_ssd_512_voc0712_trainval.zip)|
 |SSD-VGG-16-300|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.5-beta/vgg16_ssd_300_voc0712_trainval.zip)|
 |SSD-Inception v3|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.7-alpha/ssd_inceptionv3_512_voc0712trainval.zip)|
-|FCN8 (Semantic Segmentation)|	[Repo](https://github.com/apache/incubator-mxnet/tree/master/example/fcn-xs), [Symbol](https://www.dropbox.com/sh/578n5cxej7ofd6m/AAA9SFCBN8R_uL2CnAd3WQ5ia/FCN8s_VGG16-symbol.json?dl=0), [Params](https://www.dropbox.com/sh/578n5cxej7ofd6m/AABHWZHCtA2P6iR6LUflkxb_a/FCN8s_VGG16-0019-cpu.params?dl=0)|
 |MTCNN part 1 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det1-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det1-0001.params)|
 |MTCNN part 2 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det2-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det2-0001.params)|
 |MTCNN part 3 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det3-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det3-0001.params)|
 |MTCNN part 4 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det4-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det4-0001.params)|
 |Lightened_moon| [Repo](https://github.com/tornadomeet/mxnet-face/tree/master/model/lightened_moon), [Symbol](https://github.com/tornadomeet/mxnet-face/blob/master/model/lightened_moon/lightened_moon_fuse-symbol.json), [Params](https://github.com/tornadomeet/mxnet-face/blob/master/model/lightened_moon/lightened_moon_fuse-0082.params)|
 |RNN-Transducer| [Repo](https://github.com/HawkAaron/mxnet-transducer) |
-|word_lm| [Repo](https://github.com/apache/incubator-mxnet/tree/master/example/rnn/word_lm) |
 
 **Other supported topologies**
 

@@ -32,7 +32,11 @@ referenced in the "Pre-trained EfficientDet Checkpoints" section of the model re
 wget https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz
 tar zxvf efficientdet-d4.tar.gz
 ```
-5. Freeze the model:<br>
+5. Upgrade the model optimization code:
+```sh
+pip3 install --user --upgrade tensorflow-model-optimization
+```
+6. Freeze the model:<br>
 ```sh
 python3 model_inspect.py --runmode=saved_model --model_name=efficientdet-d4  --ckpt_path=efficientdet-d4 --saved_model_dir=savedmodeldir
 ```

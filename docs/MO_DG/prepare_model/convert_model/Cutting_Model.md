@@ -19,7 +19,7 @@ Model Optimizer provides command line options `--input` and `--output` to specif
 *   `--input` option accepts a comma-separated list of layer names of the input model that should be treated as new entry points to the model.
 *   `--output` option accepts a comma-separated list of layer names of the input model that should be treated as new exit points from the model.
 
-The `--input` option is required for cases unrelated to model cutting. For example, when the model contains several inputs and `--input_shape` or `--mean_values` options are used, you should use the `--input` option to specify the order of input nodes for correct mapping between multiple items provided in `--input_shape` and `--mean_values` and the inputs in the model. This is out of scope.
+The `--input` option is required for cases unrelated to model cutting. For example, when the model contains several inputs and `--input_shape` or `--mean_values` options are used, you should use the `--input` option to specify the order of input nodes for correct mapping between multiple items provided in `--input_shape` and `--mean_values` and the inputs in the model. Details on these options are out of scope for this document, which focuses on model cutting.
 
 Model cutting is illustrated with Inception V1. This model is in `models/research/slim` repository. [This section](Converting_Model.md) describes pre-work to prepare the model for the Model Optimizer to be ready to proceed with this chapter.
 

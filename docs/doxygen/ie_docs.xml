@@ -52,24 +52,21 @@ limitations under the License.
                         <tab type="usergroup" title="Converting Your ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX">
                             <tab type="user" title="Convert ONNX* Faster R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN"/>
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
-                            <tab type="user" title="Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
+                            <tab type="user" title="[DEPRECATED] Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
                             <tab type="user" title="Convert PyTorch* QuartzNet Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_QuartzNet"/>
                             <tab type="user" title="Convert PyTorch* YOLACT Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_YOLACT"/>
                             <tab type="user" title="Convert PyTorch* F3Net Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_F3Net"/>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
                         <tab type="user" title="Cutting off Parts of a Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model"/>
-                        <tab type="user" title="Sub-graph Replacement in Model Optimizer" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Subgraph_Replacement_Model_Optimizer"/>
                         <tab type="user" title="Supported Framework Layers" url="@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers"/>
                         <tab type="user" title="[DEPRECATED] IR Notation Reference" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Legacy_IR_Layers_Catalog_Spec"/>
                         <tab type="user" title="IR suitable for INT8 inference" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference"/>
                     </tab>
                     <tab type="usergroup" title="Model Optimizer Extensibility" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer">
-                        <tab type="user" title="Extending Model Optimizer with New Primitives" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives"/>
                         <tab type="user" title="Extending Model Optimizer with Caffe* Python Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers"/>
                         <tab type="user" title="Extending Model Optimizer for Custom MXNet* Operations" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives"/>
-                        <tab type="user" title="Legacy Mode for Caffe* Custom Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers"/>
-                        <tab type="user" title="[DEPRECATED] Offloading Sub-Graph Inference" url="https://docs.openvinotoolkit.org/2020.1/_docs_MO_DG_prepare_model_customize_model_optimizer_Offloading_Sub_Graph_Inference.html"/>
+                        <tab type="user" title="[DEPRECATED] Legacy Mode for Caffe* Custom Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers"/>
                     </tab>
                 </tab>
                 <tab type="user" title="Model Optimizer Frequently Asked Questions" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ"/>
