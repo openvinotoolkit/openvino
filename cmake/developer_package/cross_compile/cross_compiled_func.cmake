@@ -13,10 +13,10 @@ set(_ACCEPTED_ARCHS_AVX512F "^(ANY|SSE42|AVX|AVX2|AVX512F)$")
 
 ## Arch specific definitions
 set(_DEFINE_ANY      "")
-set(_DEFINE_SSE42    "-DHAVE_SSE42"   ${_DEFINE_ANY})
-set(_DEFINE_AVX      "-DHAVE_AVX"     ${_DEFINE_SSE42})
-set(_DEFINE_AVX2     "-DHAVE_AVX2"    ${_DEFINE_AVX})
-set(_DEFINE_AVX512F  "-DHAVE_AVX512F" ${_DEFINE_AVX2})
+set(_DEFINE_SSE42    "HAVE_SSE42"   ${_DEFINE_ANY})
+set(_DEFINE_AVX      "HAVE_AVX"     ${_DEFINE_SSE42})
+set(_DEFINE_AVX2     "HAVE_AVX2"    ${_DEFINE_AVX})
+set(_DEFINE_AVX512F  "HAVE_AVX512F" ${_DEFINE_AVX2})
 
 ## Arch specific compile options
 ie_avx512_optimization_flags(_FLAGS_AVX512F)
@@ -120,13 +120,13 @@ function(_clone_source_to_target TARGET SOURCE ARCH_SET)
                 VERBATIM
                 )
 
-        set(_ARCH_SPECIFIC_FLAGS
-                ${_DEFINE_${_arch}}
-                ${_FLAGS_${_arch}}
-                "-DXARCH=${_arch}"  ## to replace XARCH with direct ARCH name
-                )
+        set_property(SOURCE ${ARCH_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS
+                " ${_FLAGS_${_arch}}")
 
-        _add_source_compile_flags(${ARCH_SOURCE} ${_ARCH_SPECIFIC_FLAGS})
+        set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY COMPILE_DEFINITIONS
+                ${_DEFINE_${_arch}}
+                "XARCH=${_arch}" ## to replace XARCH with direct ARCH name
+                )
 
         ## To make `#include "some.hpp"` valid
         set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY INCLUDE_DIRECTORIES
@@ -135,7 +135,7 @@ function(_clone_source_to_target TARGET SOURCE ARCH_SET)
         list(APPEND _ARCH_SOURCES ${ARCH_SOURCE})
     endforeach()
 
-    _add_source_to_target(${TARGET} ${_ARCH_SOURCES})
+    target_sources(${TARGET} PRIVATE ${_ARCH_SOURCES})
 endfunction()
 
 
@@ -170,7 +170,7 @@ function(_add_dispatcher_to_target TARGET HEADER FUNC_NAME NAMESPACE ARCH_SET)
     set_property(SOURCE ${DISPATCHER_SOURCE} APPEND PROPERTY INCLUDE_DIRECTORIES
             "${CMAKE_CURRENT_SOURCE_DIR}/${DISPATCHER_INCLUDE_DIR}")
 
-    _add_source_to_target(${TARGET} ${DISPATCHER_SOURCE})
+    target_sources(${TARGET} PRIVATE ${DISPATCHER_SOURCE})
 endfunction()
 
 #######################################
@@ -203,30 +203,4 @@ function(_remove_source_from_target TARGET SOURCE_FILE)
     set_target_properties(${TARGET}
             PROPERTIES
             SOURCES "${ORIGINAL_SOURCES}")
-endfunction()
-
-function(_add_source_to_target TARGET)
-    get_target_property(ORIGINAL_SOURCES ${TARGET} SOURCES)
-
-    list(APPEND ORIGINAL_SOURCES ${ARGN})
-
-    set_target_properties(${TARGET}
-            PROPERTIES
-            SOURCES "${ORIGINAL_SOURCES}")
-endfunction()
-
-function(_add_source_compile_flags SOURCE)
-    get_source_file_property(ORIGINAL_FLAGS  ${SOURCE} COMPILE_FLAGS)
-
-    ## Empty list of COMPILE_FLAGS represented as NOTFOUND
-    if(NOT ORIGINAL_FLAGS)
-        set(ORIGINAL_FLAGS "")
-    endif()
-
-    string(REPLACE ";" " " NEW_FLAGS "${ARGN}")
-    string(APPEND ORIGINAL_FLAGS " " ${NEW_FLAGS})
-
-    set_source_files_properties(${SOURCE}
-            PROPERTIES
-            COMPILE_FLAGS "${ORIGINAL_FLAGS}")
 endfunction()
