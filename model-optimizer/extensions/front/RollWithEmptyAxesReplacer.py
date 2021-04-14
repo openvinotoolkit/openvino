@@ -32,7 +32,7 @@ class RollWithEmptyAxesReplacer(FrontReplacementPattern):
 
             # reshape to 1d tensor
             reshape_to_1d = create_op_node_with_second_input(graph, Reshape, int64_array([-1]),
-                                                             {'name': node_name + '/reshape1'})
+                                                             {'name': node_name + '/reshape'})
             roll_node.in_port(0).get_connection().insert_node(reshape_to_1d)
 
             # add zero const as axes input to roll
