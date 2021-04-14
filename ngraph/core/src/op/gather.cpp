@@ -488,8 +488,8 @@ bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Gather_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_gather(outputs, inputs);
 }
 
@@ -548,8 +548,8 @@ bool op::v7::Gather::evaluate_gather(const HostTensorVector& outputs,
 bool op::v7::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v7_Gather_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_gather(outputs, inputs);
 }
 
