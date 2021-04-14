@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
         const size_t resultsCnt = outputBlob->size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
             slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " \
-                      << resultsCnt+1 << " and more than 0)\n            Maximal value " << resultsCnt << " will be used.";
+                      << resultsCnt+1 << " and more than 0)\n            Maximal value " << resultsCnt << " will be used." << slog::endl;
             FLAGS_nt = resultsCnt;
         }
 

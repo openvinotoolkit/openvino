@@ -91,7 +91,8 @@ std::vector<std::string> readInputFileNames(const std::string& path) {
         files.push_back(path);
     }
 
-    if (files.size() < 20) {
+    int max_files = 20;
+    if (files.size() < max_files) {
         slog::info << "Files were added: " << files.size() << slog::endl;
         for (std::string filePath : files) {
             slog::info << "    " << filePath << slog::endl;
