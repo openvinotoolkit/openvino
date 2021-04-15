@@ -12,6 +12,8 @@
 namespace ngraph {
 namespace frontend {
 
+using namespace paddle::framework::proto;
+
 class InputModelPDPD::InputModelPDPDImpl {
 public:
     std::string path;
@@ -35,7 +37,7 @@ public:
 private:
     std::vector<std::vector<std::shared_ptr<OpPlacePDPD>>> op_places_blocks;
     std::vector<std::map<std::string, std::shared_ptr<TensorPlacePDPD>>> var_places_blocks;
-    std::shared_ptr<paddle::framework::proto::ProgramDesc> fw_ptr;
+    std::shared_ptr<ProgramDesc> fw_ptr;
     std::ifstream weights_stream;
     bool weights_composed = false;
     const InputModel& m_input_model;
@@ -45,7 +47,7 @@ private:
 
 InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path, const InputModel& input_model)
     : path(_path),
-      fw_ptr{std::make_shared<paddle::framework::proto::ProgramDesc>()},
+      fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model) {
     std::string ext = ".pdmodel";            
     std::string model_file(path);
@@ -79,38 +81,32 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
         auto& op_place_block = op_places_blocks[block_idx];
 
         for (const auto& var : block.vars()) {
-            var_place_block[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model,
-                                                                            std::make_shared<paddle::framework::proto::VarDesc>(var));
+            var_place_block[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model, std::make_shared<VarDesc>(var));
         }
 
         for (const auto& op : block.ops()) {
-            auto op_place = std::make_shared<OpPlacePDPD>(m_input_model,
-                                                          std::make_shared<paddle::framework::proto::OpDesc>(op));
+            auto op_place = std::make_shared<OpPlacePDPD>(m_input_model, std::make_shared<OpDesc>(op));
             op_place_block.push_back(op_place);
 
             for (const auto &output : op.outputs()) {
+                auto out_port = std::make_shared<OutPortPlacePDPD>(m_input_model);
+                op_place->addOutPort(out_port, output.parameter());
+                out_port->setOp(op_place);
                 for (const auto &var_name : output.arguments()) {
                     const auto& tensor = var_place_block.at(var_name);
-                    auto out_port = std::make_shared<OutPortPlacePDPD>(m_input_model);
-
                     tensor->addProducingPort(out_port);
-                    op_place->addOutPort(out_port, output.parameter());
-
                     out_port->addTargetTensor(tensor);
-                    out_port->setOp(op_place);
                 }
             }
 
             for (const auto &input : op.inputs()) {
+                auto in_port = std::make_shared<InPortPlacePDPD>(m_input_model);
+                op_place->addInPort(in_port, input.parameter());
+                in_port->setOp(op_place);
                 for (const auto &var_name : input.arguments()) {
                     const auto& tensor = var_place_block.at(var_name);
-                    auto in_port = std::make_shared<InPortPlacePDPD>(m_input_model);
-
                     tensor->addConsumingPort(in_port);
-                    op_place->addInPort(in_port, input.parameter());
-
                     in_port->addSourceTensor(tensor);
-                    in_port->setOp(op_place);
                 }
             }
 
