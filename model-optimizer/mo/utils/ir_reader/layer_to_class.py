@@ -18,6 +18,7 @@ from extensions.ops.psroipooling import DeformablePSROIPoolingOp
 from extensions.ops.scatter import Scatter
 from extensions.ops.scatternd import ScatterNDBase
 from extensions.ops.split import Split, VariadicSplit
+from extensions.ops.dft import DFT, IDFT
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.ops.clamp import AttributedClamp
@@ -48,6 +49,8 @@ custom_ops = {
     'Subtract': Sub,
     'VariadicSplit': VariadicSplit,
     'Clamp': AttributedClamp,
+    'DFT': DFT,
+    'IDFT': IDFT,
 }
 
 
