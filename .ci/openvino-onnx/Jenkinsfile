@@ -86,7 +86,7 @@ def gitSubmoduleUpdate(String repository_name) {
 def prepare_repository() {
     dir("${WORKDIR}") {
         checkout scm
-        gitSubmoduleUpdate(${PROJECT_NAME})
+        gitSubmoduleUpdate(PROJECT_NAME)
     }
 }
 
@@ -109,8 +109,6 @@ def updateModels() {
                                 fi
                             done
                           ''').trim().reverse().take(8).reverse()
-
-
     }
     return WORKER_NAME
 }
