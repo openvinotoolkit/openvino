@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function (extract archive_path unpacked_path folder result)
+function (extract archive_path unpacked_path folder files_to_extract result)
   # Slurped from a generated extract-TARGET.cmake file.
     get_filename_component(unpacked_dir ${unpacked_path} DIRECTORY)
 
@@ -24,8 +24,9 @@ function (extract archive_path unpacked_path folder result)
       message("unpacked_dir= ${unpacked_dir}")      
     endif()
 
-    message(STATUS "extracting... [tar xfz]")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xfz ${archive_path} 
+    string(REGEX REPLACE ";" " " list_files_to_extract "${${files_to_extract}}")
+    message(STATUS "extracting... [tar xfz] ${list_files_to_extract}")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xfz ${archive_path} ${${files_to_extract}}
       WORKING_DIRECTORY ${unpacked_dir}
       RESULT_VARIABLE rv
       ERROR_VARIABLE err)
