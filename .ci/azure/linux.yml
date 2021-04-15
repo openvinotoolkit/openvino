@@ -107,7 +107,10 @@ jobs:
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ninja
+  - script: |
+      grep -R unity
+      cat ngraph/core/CMakeFiles/ngraph.dir/Unity/unity_26_cxx.cxx
+      ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin'
 
