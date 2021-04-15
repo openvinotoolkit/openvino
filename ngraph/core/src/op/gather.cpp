@@ -58,8 +58,7 @@ void op::v7::Gather::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v7_Gather_validate_and_infer_types);
 
     // according to Gather_7 specification for indices and axis only int32/int64 are allowed
-    validate_tensor_type(this, "indices", get_input_element_type(1), {element::i32, element::i64});
-    validate_tensor_type(this, "axis", get_input_element_type(2), {element::i32, element::i64});
+    // todo: align with specification
 
     op::util::GatherBase::common_validate_and_infer_pshape();
 }

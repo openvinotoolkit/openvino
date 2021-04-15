@@ -311,13 +311,6 @@ namespace ngraph
     /// that all the HostTensorPtrs are not equal to nullptr
     NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
 
-    /// \brief Checks if tensor_type is one of the allowed types,
-    /// if type is not allowed throws exception with an appropriate message
-    NGRAPH_API void validate_tensor_type(const Node* node,
-                                         const std::string& tensor_name,
-                                         element::Type tensor_type,
-                                         const std::vector<element::Type>& allowed_types);
-
     namespace opset1
     {
         ///

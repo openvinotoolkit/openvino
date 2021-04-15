@@ -1720,34 +1720,3 @@ bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, 
         return t != nullptr;
     });
 }
-
-void ngraph::validate_tensor_type(const Node* node,
-                                  const std::string& tensor_name,
-                                  element::Type tensor_type,
-                                  const std::vector<element::Type>& allowed_types)
-{
-    if (!allowed_types.empty())
-    {
-        std::string allowed_types_msg;
-        for (auto const& val : allowed_types)
-        {
-            allowed_types_msg += val.c_type_string();
-            if (val != *allowed_types.rbegin())
-            {
-                if (val == *(allowed_types.end() - 2))
-                    allowed_types_msg += " or ";
-                else
-                    allowed_types_msg += ", ";
-            }
-        }
-
-        NODE_VALIDATION_CHECK(node,
-                              std::count(allowed_types.begin(), allowed_types.end(), tensor_type) >
-                                  0,
-                              tensor_name,
-                              " must be of type ",
-                              allowed_types_msg,
-                              ". But instead got: ",
-                              tensor_type.c_type_string());
-    }
-}

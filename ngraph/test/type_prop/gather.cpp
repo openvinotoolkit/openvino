@@ -455,7 +455,8 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check)
     }
 }
 
-TEST(type_prop, gather_7_indices_type_check)
+// disabled until decision of type constrains for gather
+TEST(type_prop, DISABLED_gather_7_indices_type_check)
 {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
@@ -484,7 +485,8 @@ TEST(type_prop, gather_7_indices_type_check)
     }
 }
 
-TEST(type_prop, gather_7_axis_type_check)
+// disabled until decision of type constrains for gather
+TEST(type_prop, DISABLED_gather_7_axis_type_check)
 {
     PartialShape data_shape{1, 20, 20, 22, 22};
     PartialShape indices_shape{1, 3};
