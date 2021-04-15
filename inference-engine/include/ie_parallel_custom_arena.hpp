@@ -5,23 +5,12 @@
 /**
  * @brief Contains declarations and custom threading interfaces based on TBB info and task_arena APIs.
  *
- * @file ie_parallel_custom.hpp
+ * @file ie_parallel_custom_arena.hpp
  */
 
 #pragma once
 
-#include <cstddef>
-#include <type_traits>
-
-#define IE_THREAD_TBB 0
-#define IE_THREAD_OMP 1
-#define IE_THREAD_SEQ 2
-#define IE_THREAD_TBB_AUTO 3
-
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#ifndef NOMINMAX
-# define NOMINMAX
-#endif
 #ifndef TBB_PREVIEW_LOCAL_OBSERVER
 # define TBB_PREVIEW_LOCAL_OBSERVER 1
 #endif
@@ -33,12 +22,15 @@
 #endif
 
 #include <mutex>
+#include <cstddef>
+#include <type_traits>
+#include <vector>
 
 #include "tbb/task_arena.h"
 #include "tbb/task_scheduler_observer.h"
 
-#define TBB_NUMA_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 11100 || TBBBIND_2_4_AVAILABLE
-#define TBB_HYBRID_CPUS_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 12020 || TBBBIND_2_4_AVAILABLE
+#define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100 || TBBBIND_2_4_AVAILABLE)
+#define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 12020 || TBBBIND_2_4_AVAILABLE)
 
 namespace custom {
 
@@ -154,4 +146,7 @@ namespace info {
 
 #endif /*TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020*/
 } // namespace custom
+#else
+#define TBB_NUMA_SUPPORT_PRESENT 0
+#define TBB_HYBRID_CPUS_SUPPORT_PRESENT 0
 #endif /*(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)*/

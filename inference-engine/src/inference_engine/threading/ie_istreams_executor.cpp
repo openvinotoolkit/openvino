@@ -30,7 +30,7 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() {
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
         if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
             if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
-                #if !TBB_NUMA_SUPPORT_PRESENT
+                #if !(TBB_NUMA_SUPPORT_PRESENT)
                 if (value == CONFIG_VALUE(NUMA))
                     IE_THROW() << CONFIG_KEY(CPU_BIND_THREAD) << " property value was set to NUMA. But IE was built with "
                                        << "TBB version without NUMA-aware support";

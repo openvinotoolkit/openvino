@@ -26,20 +26,14 @@
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
-#ifndef TBB_PREVIEW_LOCAL_OBSERVER
-# define TBB_PREVIEW_LOCAL_OBSERVER 1
-#endif
-#ifndef TBB_PREVIEW_NUMA_SUPPORT
-# define TBB_PREVIEW_NUMA_SUPPORT 1
-#endif
+
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
 #include "tbb/blocked_range3d.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
 #include "tbb/parallel_sort.h"
-#include "tbb/task_arena.h"
-#include "tbb/task_scheduler_observer.h"
+#include "ie_parallel_custom_arena.hpp"
 
 inline int parallel_get_max_threads() {
     return tbb::this_task_arena::max_concurrency();
