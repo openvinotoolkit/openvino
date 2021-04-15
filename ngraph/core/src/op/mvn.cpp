@@ -65,7 +65,8 @@ void op::MVN::validate_and_infer_types()
     {
         AxisSet reduction_axes;
         size_t start_axis = m_across_channels ? 1 : 2;
-        for (size_t i = start_axis; i < input_value(0).get_partial_shape().rank().get_length(); ++i)
+        for (int64_t i = start_axis; i < input_value(0).get_partial_shape().rank().get_length();
+             ++i)
         {
             reduction_axes.insert(i);
         }
@@ -175,7 +176,8 @@ void op::v6::MVN::validate_and_infer_types()
 
         NODE_VALIDATION_CHECK(
             this,
-            data.rank().is_dynamic() || data.rank().get_length() >= axes.get_shape()[0],
+            data.rank().is_dynamic() ||
+                data.rank().get_length() >= static_cast<int64_t>(axes.get_shape()[0]),
             "Expected rank for the 'data' input to be higher than axes shape. Got: ",
             data);
     }
