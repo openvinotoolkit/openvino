@@ -25,14 +25,18 @@ std::string ConcatWithSplitTransformation::getTestCaseName(testing::TestParamInf
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::map<std::string, std::string> config;
     std::tie(netPrecision, inputShapes, targetDevice, param, params, config) = obj.param;
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << param.fqOnData1 << "_" << param.fqOnData2;
 
-    if (!config.first.empty()) {
-        result << "_targetConfig=" << config.first;
+    if (!config.empty()) {
+        result << "_targetConfig={";
+        for (auto& setting : config) {
+            result << "{" << setting.first << "=" << setting.second << "}_";
+        }
+        result << "}";
     }
 
     return result.str();
@@ -44,7 +48,7 @@ InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const In
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::map<std::string, std::string> config;
     std::tie(netPrecision, inputShapes, targetDevice, param, params, config) = this->GetParam();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
@@ -64,10 +68,10 @@ void ConcatWithSplitTransformation::SetUp() {
     ngraph::Shape inputShapes;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::map<std::string, std::string> config;
     std::tie(netPrecision, inputShapes, targetDevice, param, params, config) = this->GetParam();
 
-    configuration = config.second;
+    configuration = config;
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
         netPrecision,

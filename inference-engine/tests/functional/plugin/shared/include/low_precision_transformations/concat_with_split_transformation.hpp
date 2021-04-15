@@ -23,7 +23,7 @@ typedef std::tuple<
     std::string,
     ConcatWithSplitTransformationParam,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    std::pair<std::string, std::map<std::string, std::string>>> ConcatWithSplitTransformationParams;
+    std::map<std::string, std::string>> ConcatWithSplitTransformationParams;
 
 class ConcatWithSplitTransformation :
     public testing::WithParamInterface<ConcatWithSplitTransformationParams>,

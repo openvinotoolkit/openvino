@@ -84,7 +84,7 @@ const std::vector<LayerTestsDefinitions::SplitTransformationParam> params = {
     }
 };
 
-const std::pair<std::string, std::map<std::string, std::string>> config = {};
+const std::map<std::string, std::string> config = {};
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, SplitTransformation,
     ::testing::Combine(

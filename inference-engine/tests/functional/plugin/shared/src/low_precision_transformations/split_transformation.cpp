@@ -21,15 +21,19 @@ std::string SplitTransformation::getTestCaseName(testing::TestParamInfo<SplitTra
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
-    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::map<std::string, std::string> config;
     std::tie(netPrecision, inputShapes, targetDevice, params, param, config) = obj.param;
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" <<
         param.fakeQuantize << "_axis=" << param.splitedAxis << "_n_splits=" << param.numSplit;
 
-    if (!config.first.empty()) {
-        result << "_targetConfig=" << config.first;
+    if (!config.empty()) {
+        result << "_targetConfig={";
+        for (auto& setting : config) {
+            result << "{" << setting.first << "=" << setting.second << "}_";
+        }
+        result << "}";
     }
 
     return result.str();
@@ -41,7 +45,7 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
-    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::map<std::string, std::string> config;
     std::tie(precision, inputShape, targetDevice, params, param, config) = this->GetParam();
     const auto& fqOnData = param.fakeQuantize;
 
@@ -57,10 +61,10 @@ void SplitTransformation::SetUp() {
     ngraph::Shape  inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
-    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::map<std::string, std::string> config;
     std::tie(precision, inputShape, targetDevice, params, param, config) = this->GetParam();
 
-    configuration = config.second;
+    configuration = config;
 
     function = ngraph::builder::subgraph::SplitFunction::getOriginal(
         precision,
@@ -78,7 +82,7 @@ void SplitTransformation::validate() {
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SplitTransformationParam param;
-    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::map<std::string, std::string> config;
     std::tie(netPrecision, inputShape, targetDevice, params, param, config) = this->GetParam();
 
     ngraph::pass::low_precision::LowPrecisionTransformations transformations = getLowPrecisionTransformationsNGraph(params);
