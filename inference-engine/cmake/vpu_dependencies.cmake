@@ -19,7 +19,7 @@ set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1119)
+set(FIRMWARE_PACKAGE_VERSION 1656)
 
 #
 # CMake variables to override default firmware files

@@ -100,6 +100,7 @@ IE_SUPPRESS_DEPRECATED_END
     setOption(_pluginLogFilePath, config, VPU_MYRIAD_CONFIG_KEY(PLUGIN_LOG_FILE_PATH));
     setOption(_deviceName, config, CONFIG_KEY(DEVICE_ID));
     setOption(_forceReset, switches, config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
+    setOption(_enableAsyncDma, switches, config, VPU_MYRIAD_CONFIG_KEY(ENABLE_ASYNC_DMA));
     setOption(_platform, platforms, config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
     setOption(_protocol, protocols, config, VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     setOption(_watchdogInterval, watchdogIntervals, config, VPU_MYRIAD_CONFIG_KEY(WATCHDOG));

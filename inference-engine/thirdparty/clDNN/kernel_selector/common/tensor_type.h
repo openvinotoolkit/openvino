@@ -25,6 +25,7 @@
 #include <array>
 #include <string>
 #include <utility>
+#include <stdexcept>
 
 namespace kernel_selector {
 #define KERNEL_SELECTOR_TENSOR_DIM_MAX 9

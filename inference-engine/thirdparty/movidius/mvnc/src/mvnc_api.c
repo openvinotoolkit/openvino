@@ -82,8 +82,23 @@ static OVERLAPPED global_lock_overlap = { 0 };
 #define GLOBAL_UNLOCK() UnlockFileEx(global_lock_fd, 0, MAXDWORD, MAXDWORD, &global_lock_overlap)
 #else
 static int global_lock_fd = -1;
-#define GLOBAL_LOCK() flock(global_lock_fd, LOCK_EX)
-#define GLOBAL_UNLOCK() flock(global_lock_fd, LOCK_UN)
+#define GLOBAL_LOCK()                                                                               \
+    do {                                                                                            \
+        CHECK_MUTEX_SUCCESS_RC(flock(global_lock_fd, LOCK_EX), NC_ERROR);                           \
+        if (pthread_mutex_lock(&deviceOpenMutex) != 0) {                                            \
+            CHECK_MUTEX_SUCCESS(flock(global_lock_fd, LOCK_UN));                                    \
+            return NC_ERROR;                                                                        \
+        }                                                                                           \
+    } while (0)
+
+#define GLOBAL_UNLOCK()                                                                             \
+    do {                                                                                            \
+        if (flock(global_lock_fd, LOCK_UN) != 0) {                                                  \
+            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));                            \
+            return NC_ERROR;                                                                        \
+        }                                                                                           \
+        CHECK_MUTEX_SUCCESS_RC(pthread_mutex_unlock(&deviceOpenMutex), NC_ERROR);                   \
+    } while (0)
 #endif
 
 #define STRINGIFY(_text) #_text
@@ -743,17 +758,10 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     }
 
     GLOBAL_LOCK();
-    int error = pthread_mutex_lock(&deviceOpenMutex);
-    if (error) {
-        GLOBAL_UNLOCK();
-        mvLog(MVLOG_ERROR, "pthread_mutex_lock(&deviceOpenMutex) failed with error: %d", error);
-        return NC_ERROR;
-    }
 
     if (!initialized) {
         ncStatus_t sc;
         if ((sc = initializeXLink()) != 0) {
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
             GLOBAL_UNLOCK();
             return sc;
         }
@@ -769,7 +777,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     }
 
     if (rc != X_LINK_SUCCESS) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return parseXLinkError(NC_ERROR);
     }
@@ -789,7 +796,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         d->wd_interval = watchdogInterval;
         *deviceHandlePtr = dH;
     } else {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         mvLog(MVLOG_ERROR, "Memory allocation failed");
         free(d);
@@ -799,7 +805,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
     if (d->dev_addr == NULL) {
         destroyDeviceHandle(deviceHandlePtr);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return NC_OUT_OF_MEMORY;
     }
@@ -811,7 +816,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     if (!handler) {
         mvLog(MVLOG_ERROR, "Memory allocation failed");
         destroyDeviceHandle(deviceHandlePtr);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return NC_OUT_OF_MEMORY;
     }
@@ -841,7 +845,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             mvLog(MVLOG_ERROR, "Can't get firmware, error: %s", ncStatusToStr(sc));
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
             GLOBAL_UNLOCK();
             return NC_MVCMD_NOT_FOUND;
         }
@@ -852,7 +855,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
             GLOBAL_UNLOCK();
             return NC_ERROR;
         } else {
@@ -911,7 +913,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             mvLog(MVLOG_ERROR, "Can't get firmware, error: %s", ncStatusToStr(sc));
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
             GLOBAL_UNLOCK();
             return NC_MVCMD_NOT_FOUND;
         }
@@ -1012,7 +1013,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             }
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
             GLOBAL_UNLOCK();
             return NC_ERROR;
         }
@@ -1023,7 +1023,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         mvLog(MVLOG_ERROR, "Failed connection to device (%s) with error %d", d->dev_addr, rc);
         free(handler);
         destroyDeviceHandle(deviceHandlePtr);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return parseXLinkError(rc);
     }
@@ -1036,7 +1035,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     if (d->dev_addr == NULL || d->dev_addr_booted == NULL || d->xlink == NULL) {
         mvLog(MVLOG_ERROR, "device is invalid");
         destroyDeviceHandle(deviceHandlePtr);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return NC_INVALID_HANDLE;
     }
@@ -1044,11 +1042,10 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     devices = d;
 
     mvLog(MVLOG_INFO, "XLinkConnect done - link Id %d\n", handler->linkId);
-
+    int error = 0;
     if ((error = pthread_mutex_init(&d->dev_data_m, NULL)) != 0) {
         mvLog(MVLOG_ERROR, "pthread_mutex_init (dev_data_m) failed with error: %d", error);
         destroyDeviceHandle(deviceHandlePtr);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return NC_ERROR;
     }
@@ -1057,7 +1054,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         mvLog(MVLOG_ERROR, "pthread_mutex_init (dev_stream_m) failed with error: %d", error);
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
         destroyDeviceHandle(deviceHandlePtr);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return NC_ERROR;
     }
@@ -1066,7 +1062,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_stream_m));
         destroyDeviceHandle(deviceHandlePtr);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return NC_ERROR;
     }
@@ -1082,7 +1077,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
     sleepForSeconds(1);
 
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
     GLOBAL_UNLOCK();
 
     streamId_t deviceMonitorStreamId = XLinkOpenStream(d->xlink->linkId, "deviceMonitor", CONFIG_STREAM_SIZE);
@@ -1933,22 +1927,24 @@ ncStatus_t checkGraphMonitorResponse(streamId_t graphMonStream) {
     return NC_OK;
 }
 
-static void lockAllInferences() {
+static ncStatus_t lockAllInferences() {
+    GLOBAL_LOCK();
     struct _devicePrivate_t *d = devices;
     while (d) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
         d = d->next;
     }
-    return;
+    return NC_OK;
 }
 
-static void unlockAllInferences() {
+static ncStatus_t unlockAllInferences() {
     struct _devicePrivate_t *d = devices;
     while (d) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         d = d->next;
     }
-    return;
+    GLOBAL_UNLOCK();
+    return NC_OK;
 }
 
 ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
@@ -1998,7 +1994,12 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
     }
     GLOBAL_UNLOCK();
 
-    lockAllInferences();
+    rc = lockAllInferences();
+    if (rc != 0) {
+        mvLog(MVLOG_ERROR, "can't lock all inferences");
+        unlockAllInferences();
+        return rc;
+    }
     g->id = graphIdCount++;
     streamId_t streamId;
 
@@ -2163,7 +2164,11 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
 
     g->debug_buffer = g->aux_buffer;
     g->time_taken = (float *) (g->aux_buffer + 120);
-    unlockAllInferences();
+    rc = unlockAllInferences();
+    if (rc != 0) {
+        mvLog(MVLOG_ERROR, "Can't unlock all inferences");
+        return rc;
+    }
 
     GLOBAL_LOCK();
     g->dev = d;
@@ -2516,6 +2521,7 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
         opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -2685,20 +2691,32 @@ static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
     return rc;
 }
 
-static ncStatus_t setDevicePowerConfig(struct _devicePrivate_t *d,
+static ncStatus_t setDeviceOption(struct _devicePrivate_t *d,
                                         ncDeviceOption_t option,
                                         const void *data, unsigned int dataLength){
     XLinkError_t rc = X_LINK_SUCCESS;
     deviceCommand_t config;
 
-    if (option != NC_RW_DEVICE_POWER_CONFIG_RESET && option != NC_RW_DEVICE_POWER_CONFIG) {
-        mvLog(MVLOG_ERROR, "No such option");
-        return NC_INVALID_PARAMETERS;
+    switch (option) {
+        case NC_RW_DEVICE_POWER_CONFIG_RESET: {
+            config.type = DEVICE_RESET_POWER_CONFIG;
+            break;
+        }
+        case NC_RW_DEVICE_POWER_CONFIG: {
+            config.type = DEVICE_SET_POWER_CONFIG;
+            break;
+        }
+        case NC_RW_ENABLE_ASYNC_DMA: {
+            config.type = DEVICE_ENABLE_ASYNC_DMA;
+            break;
+        }
+        default: {
+            mvLog(MVLOG_ERROR, "No such option");
+            return NC_INVALID_PARAMETERS;
+        }
     }
 
-    config.type = (option == NC_RW_DEVICE_POWER_CONFIG ? DEVICE_SET_POWER_CONFIG : DEVICE_RESET_POWER_CONFIG);
     config.arg = *(uint32_t*)data;
-
     rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t *)&config, sizeof(config));
 
     if (rc != X_LINK_SUCCESS)
@@ -2748,20 +2766,11 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
 
     if (opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
-    switch (option) {
-        case NC_RW_DEVICE_POWER_CONFIG:
-        case NC_RW_DEVICE_POWER_CONFIG_RESET:
-        {
-            rc = setDevicePowerConfig(d, option, data, dataLength);
-            break;
-        }
-        default:
-            rc = NC_INVALID_PARAMETERS;
-            mvLog(MVLOG_ERROR, "There is no such option");
-    }
+    setDeviceOption(d, option, data, dataLength);
 
     GLOBAL_UNLOCK();
     return rc;
@@ -2817,6 +2826,7 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
        opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
