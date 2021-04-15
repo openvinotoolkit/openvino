@@ -98,7 +98,7 @@ def get_commit_id(){
 
 def updateModels() {
     dir("${HOME}/ONNX_CI/data") {
-        def WORKER_NAME = sh(returnStdout: true, script: """
+        def WORKER_NAME = sh(returnStdout: true, script: '''
                             mkdir -p worker_1 worker_2 worker_3
                             for i in $(seq 3); do
                                 if [ ! -f ./worker_${i}/executing ]; then
@@ -108,7 +108,7 @@ def updateModels() {
                                     exit
                                 fi
                             done
-                          """).trim().reverse().take(8).reverse()
+                          ''').trim().reverse().take(8).reverse()
 
 
     }
