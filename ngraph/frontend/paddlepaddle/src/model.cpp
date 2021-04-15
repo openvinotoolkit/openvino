@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/paddlepaddle_frontend/model.hpp"
+#include <paddlepaddle_frontend/model.hpp>
 
 #include "framework.pb.h"
 #include "utility.hpp"
@@ -75,13 +75,13 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
         auto& op_place_block = op_places_blocks[block_idx];
 
         for (const auto& var : block.vars()) {
-            // storing proto in Places? std::make_shared<paddle::framework::proto::VarDesc>(var)
-            var_place_block[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model, &var);
+            var_place_block[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model,
+                                                                            std::make_shared<paddle::framework::proto::VarDesc>(var));
         }
 
         for (const auto& op : block.ops()) {
-            // storing proto in Places? std::make_shared<paddle::framework::proto::OpDesc>(op)
-            auto op_place = std::make_shared<OpPlacePDPD>(m_input_model, &op);
+            auto op_place = std::make_shared<OpPlacePDPD>(m_input_model,
+                                                          std::make_shared<paddle::framework::proto::OpDesc>(op));
             op_place_block.push_back(op_place);
 
             for (const auto &output : op.outputs()) {
@@ -96,7 +96,6 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& _path,
             for (const auto &input : op.inputs()) {
                 for (const auto &var_name : input.arguments()) {
                     auto &var = var_place_block.at(var_name);
-
                     op_place->addInput(var, input.parameter());
                     var->addOutput(op_place);
                 }
