@@ -7,6 +7,7 @@ from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
+from mo.utils.error import Error
 
 
 class Gather(Op):
@@ -20,9 +21,7 @@ class Gather(Op):
             'version': 'opset7',
             'batch_dims': 0,
             'infer': self.infer,
-
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
-
             'in_ports_count': 3,
             'out_ports_count': 1,
         }, attrs)
@@ -31,7 +30,13 @@ class Gather(Op):
             'Use AttributedGather operation instead of Gather to create it with `axis` as a parameter'
 
     def backend_attrs(self):
-        return [('batch_dims', lambda node: Gather.get_batch_dims(node))]
+        version = self.get_opset()
+        if version == 'opset7':
+            return [('batch_dims', lambda node: Gather.get_batch_dims(node))]
+        elif version == 'opset1':
+            return []
+        else:
+            raise Error('Unsupported operation opset version "{}"'.format(version))
 
     @staticmethod
     def get_axis(node: Node):
