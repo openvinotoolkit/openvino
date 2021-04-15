@@ -21,16 +21,26 @@ namespace MKLDNNPlugin {
 using namespace InferenceEngine;
 
 Config::Config() {
-#if (defined(__APPLE__) || defined(_WIN32))
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 11100)
-    // If we sure that TBB has NUMA aware API part.
-    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
-#else
-    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
-#endif
-#else
+    // this is default mode
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
-#endif
+
+    // for the TBB code-path, additional configuration depending on the OS and CPU types
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // NUMA-aware TBB support
+            #if defined(__APPLE__) || defined(_WIN32)
+            // 'CORES' is not implemented for Win/MacOS, so the 'NUMA' is default
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+            #endif
+        #else
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+        #endif
+
+        #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // hybrid-aware TBB
+        const auto core_types = custom::info::core_types();
+        if (core_types.size() > 1 /*Hybrid CPU*/)
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
+        #endif
+    #endif
 
     if (!with_cpu_x86_bfloat16())
         enforceBF16 = false;
@@ -127,6 +137,9 @@ void Config::updateProperties() {
             case IStreamsExecutor::ThreadBindingType::NUMA:
                 _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NUMA });
             break;
+            case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+                _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE});
+                break;
         }
         if (collectPerfCounters == true)
             _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES });

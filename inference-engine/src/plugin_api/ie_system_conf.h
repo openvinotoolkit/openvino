@@ -42,7 +42,7 @@ INFERENCE_ENGINE_API_CPP(std::vector<int>) getAvailableNUMANodes();
  * @ingroup    ie_dev_api_system_conf
  * @return     Number of physical CPU cores.
  */
-INFERENCE_ENGINE_API_CPP(int) getNumberOfCPUCores();
+INFERENCE_ENGINE_API_CPP(int) getNumberOfCPUCores(bool bigCoresOnly = false);
 
 /**
  * @brief      Checks whether CPU supports SSE 4.2 capability

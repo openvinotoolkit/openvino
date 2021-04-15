@@ -49,11 +49,11 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNetwork(network);
 
+    bool isFloatModel = true;
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         // Check if network is INT8 or Binary.
         // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
         // BF16 + INT8 or BF16 + BIN.
-        bool isFloatModel = true;
         CNNNetworkIterator iter(network);
         while (iter != CNNNetworkIterator()) {
             if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
@@ -229,7 +229,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
-        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
+        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
