@@ -31,7 +31,8 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementOp):
     def replace_op(self, graph: Graph, node: Node):
         req_time_offsets = node.soft_get('time_offsets')
         offsets = node.soft_get("offsets", [[]])
-        all_time_offsets = set(offsets[:, 0])
+        all_time_offsets = list(set(offsets[:, 0]))
+        all_time_offsets.sort()
         in_name = node.soft_get('name', node.id)
 
         # input for convolution
@@ -65,34 +66,34 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementOp):
 
         stride = node.soft_get("height_subsample", 1)
 
-        kernel = [0, 0]
+        kernel = int64_array([0, 0])
         kernel[0] = len(set(offsets[:, 0]))
         kernel[1] = len(set(offsets[:, 1]))
 
-        pad_h = [0, 0]
+        pad_h = int64_array([0, 0])
         pad_h[0] = -min(offsets[:, 1]) if min(offsets[:, 1]) < 0 else 0
-        pad_h[1] = stride * node.height_out - (node.height_in - kernel[1] + 1 + pad_h[0])
+        pad_h[1] = stride * node.height_out - (node.height_in - max([max(offsets[:, 1]), 0]))
 
-        dilation_t = (max(offsets[:, 0]) - min(offsets[:, 0])) / (kernel[0] - 1)
-        dilation_h = (max(offsets[:, 1]) - min(offsets[:, 1])) / (kernel[1] - 1)
+        dilation_t = (max(offsets[:, 0]) - min(offsets[:, 0])) / (kernel[0] - 1) if kernel[0] > 1 else 1
+        dilation_h = (max(offsets[:, 1]) - min(offsets[:, 1])) / (kernel[1] - 1) if kernel[0] > 1 else 1
 
         mapping_rule = {
             'name': in_name + '/Convolution',
             'output': node['out_channels'],
             'patch_stride': node.height_in * node.in_channels,
             'bias_term': None,
-            'pad': np.array([[0, 0], [0, 0], [0, 0], pad_h], dtype=np.int64),
-            'pad_spatial_shape': np.array([[0, 0], pad_h], dtype=np.int64),
-            'dilation': np.array([1, 1, dilation_t, dilation_h], dtype=np.int64),
-            'kernel': np.array([node.out_channels, node.in_channels, kernel[0], kernel[1]], dtype=np.int64),
-            'stride': np.array([1, 1, 1, stride], dtype=np.int64),
-            'kernel_spatial': np.array(kernel, dtype=np.int64),
+            'pad': int64_array([[0, 0], [0, 0], [0, 0], pad_h]),
+            'pad_spatial_shape': int64_array([[0, 0], pad_h]),
+            'dilation': int64_array([1, 1, dilation_t, dilation_h]),
+            'kernel': int64_array([node.out_channels, node.in_channels, kernel[0], kernel[1]]),
+            'stride': int64_array([1, 1, 1, stride]),
+            'kernel_spatial': kernel,
             'input_feature_channel': 1,
             'output_feature_channel': 0,
             'channel_dims': int64_array([1]),
             'spatial_dims': int64_array([2, 3]),
             'batch_dims': int64_array([0]),
-            'kernel_spatial_idx': [2, 3],
+            'kernel_spatial_idx': int64_array([2, 3]),
             'group': 1,
             'reshape_kernel': True,
             'bias_addable': True,

@@ -49,7 +49,7 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
         # create Reshape before convolution
-        # shape = [in_shape[0], in_shape[1]/patch_stride, 1, patch_stride]
+        # shape = [in_shape[0], in_shape[1]/patch_stride, patch_stride/in_channels, in_channels]
         i_shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
         shape = Cast(graph, {'name': node_name + '/to_float',
                              'dst_type': dst_dtype}).create_node()
@@ -75,6 +75,8 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         reshape_in.in_port(1).connect(reshape_pattern.out_port(0))
 
         # change layout from NHWC to NCHW
+        # should be replaced by common Permute logic in future
+        # added if to avoid changes in old networks where channel dimension is 1 and transpose is not needed
         transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 3, 1, 2]),
                                                      {'name': node.name + '/Transpose'}, reshape_in)
 
