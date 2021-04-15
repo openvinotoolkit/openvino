@@ -73,7 +73,7 @@ void op::v1::Softmax::validate_and_infer_types()
     const PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
-                              m_axis < input_shape.rank().get_length(),
+                              m_axis < static_cast<size_t>(input_shape.rank().get_length()),
                               "Reduction axis (",
                               m_axis,
                               ") is out of bounds (argument shape: ",

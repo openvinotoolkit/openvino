@@ -107,7 +107,7 @@ TEST(copy, concat)
     auto arg1 = make_shared<op::Parameter>(element::f32, shape);
     OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
                           make_shared<op::Parameter>(element::f32, shape)};
-    size_t axis = 0;
+    int64_t axis = 0;
     auto node = make_shared<op::Concat>(NodeVector{arg0, arg1}, axis);
     auto new_node = node->clone_with_new_inputs(new_args);
     auto node_cast = as_type_ptr<op::Concat>(new_node);
