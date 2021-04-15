@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-import numpy as np
 
 from extensions.middle.TFRollToRoll import TFRollToRoll
 from mo.front.common.partial_infer.utils import int64_array
