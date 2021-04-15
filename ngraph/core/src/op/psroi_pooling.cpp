@@ -106,18 +106,19 @@ void op::PSROIPooling::validate_and_infer_types()
                                           0,
                                       "Number of input's channels must be a multiply of "
                                       "spatial_bins_x * spatial_bins_y");
-                NODE_VALIDATION_CHECK(this,
-                                      m_output_dim == num_input_channels /
-                                                          (m_spatial_bins_x * m_spatial_bins_y),
-                                      "output_dim must be equal to input channels divided by "
-                                      "spatial_bins_x * spatial_bins_y");
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_output_dim == static_cast<size_t>(num_input_channels /
+                                                        (m_spatial_bins_x * m_spatial_bins_y)),
+                    "output_dim must be equal to input channels divided by "
+                    "spatial_bins_x * spatial_bins_y");
             }
         }
         std::vector<Dimension> output_shape{coords_pshape[0],
                                             static_cast<Dimension::value_type>(m_output_dim)};
-        for (size_t i = 2; i < feat_map_pshape.rank().get_length(); i++)
+        for (int64_t i = 2; i < feat_map_pshape.rank().get_length(); i++)
         {
-            output_shape.push_back(m_group_size);
+            output_shape.emplace_back(m_group_size);
         }
         set_output_type(0, feat_maps_et, output_shape);
     }

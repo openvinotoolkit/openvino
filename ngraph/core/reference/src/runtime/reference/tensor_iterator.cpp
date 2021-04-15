@@ -22,7 +22,7 @@ namespace ngraph
                                  const custom_evaluate_function& evaluate)
             {
                 HostTensorVector inputs_to_body;
-                for (int64_t i = 0; i < input_descs.size(); ++i)
+                for (size_t i = 0; i < input_descs.size(); ++i)
                     inputs_to_body.push_back(
                         std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
 
@@ -71,7 +71,7 @@ namespace ngraph
                         auto shape = args[slice_desc->m_input_index]->get_shape();
                         shape.at(slice_desc->m_axis) = 1;
                         sliced_values.emplace_back(HostTensorVector());
-                        for (int i = 0; i < num_iterations; ++i)
+                        for (uint64_t i = 0; i < num_iterations; ++i)
                         {
                             sliced_values.back().emplace_back(std::make_shared<HostTensor>(
                                 args[slice_desc->m_input_index]->get_element_type(), shape));
@@ -98,7 +98,7 @@ namespace ngraph
                 std::vector<HostTensorVector> values_to_concat(concat_outputs.size());
                 HostTensorVector body_outputs;
 
-                for (int64_t cur_iter = 0; cur_iter < num_iterations; ++cur_iter)
+                for (uint64_t cur_iter = 0; cur_iter < num_iterations; ++cur_iter)
                 {
                     // Copy new values for sliced inputs
                     for (size_t i = 0; i < slice_inputs.size(); ++i)

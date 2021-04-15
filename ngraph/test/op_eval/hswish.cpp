@@ -31,6 +31,6 @@ TEST(op_eval, hswish)
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);
-    for (auto i = 0; i < inputs.size(); i++)
+    for (size_t i = 0; i < inputs.size(); i++)
         EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
 }

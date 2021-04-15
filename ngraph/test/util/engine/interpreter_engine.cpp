@@ -67,7 +67,7 @@ namespace
         NGRAPH_CHECK(expected.size() == result.size(),
                      "Number of expected and computed results don't match");
 
-        for (int i = 0; i < expected.size(); ++i)
+        for (size_t i = 0; i < expected.size(); ++i)
         {
             expected_double[i] = static_cast<double>(expected[i]);
             result_double[i] = static_cast<double>(result[i]);
@@ -82,7 +82,7 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
 {
     m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, false); // static INT backend
     m_executable = m_backend->compile(m_function);
-    for (auto i = 0; i < m_function->get_output_size(); ++i)
+    for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
         m_result_tensors.push_back(m_backend->create_tensor(m_function->get_output_element_type(i),
                                                             m_function->get_output_shape(i)));
@@ -95,7 +95,7 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
 {
     m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, true); // dynamic INT backend
     m_executable = m_backend->compile(m_function);
-    for (auto i = 0; i < m_function->get_output_size(); ++i)
+    for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
         m_result_tensors.push_back(m_backend->create_dynamic_tensor(
             m_function->get_output_element_type(i), m_function->get_output_partial_shape(i)));

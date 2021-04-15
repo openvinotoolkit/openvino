@@ -49,7 +49,7 @@ namespace ngraph
                         {
                             weights_shape.push_back(0);
                         }
-                        for (size_t i = 2; i < data_shape.rank().get_length(); ++i)
+                        for (int64_t i = 2; i < data_shape.rank().get_length(); ++i)
                         {
                             weights_shape.push_back(1);
                         }

@@ -82,10 +82,10 @@ namespace ngraph
                     std::vector<std::map<int, std::vector<dataType>>>& confPreds)
                 {
                     confPreds.resize(numImages);
-                    for (int i = 0; i < numImages; ++i)
+                    for (size_t i = 0; i < numImages; ++i)
                     {
                         std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
-                        for (int p = 0; p < numPriors; ++p)
+                        for (size_t p = 0; p < numPriors; ++p)
                         {
                             int startIdx = p * attrs.num_classes;
                             for (int c = 0; c < attrs.num_classes; ++c)
@@ -103,10 +103,10 @@ namespace ngraph
                     std::vector<std::map<int, std::vector<dataType>>>& confPreds)
                 {
                     confPreds.resize(numImages);
-                    for (int i = 0; i < numImages; ++i)
+                    for (size_t i = 0; i < numImages; ++i)
                     {
                         std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
-                        for (int p = 0; p < numPriors; ++p)
+                        for (size_t p = 0; p < numPriors; ++p)
                         {
                             int startIdx = p * attrs.num_classes;
                             if (armConfData[p * 2 + 1] < attrs.objectness_score)
@@ -152,11 +152,11 @@ namespace ngraph
                     priorVariances.resize(priorsBatchSize);
                     int off = attrs.variance_encoded_in_target ? (numPriors * priorSize)
                                                                : (2 * numPriors * priorSize);
-                    for (int n = 0; n < priorsBatchSize; n++)
+                    for (size_t n = 0; n < priorsBatchSize; n++)
                     {
                         std::vector<NormalizedBBox>& currPrBbox = priorBboxes[n];
                         std::vector<std::vector<dataType>>& currPrVar = priorVariances[n];
-                        for (int i = 0; i < numPriors; ++i)
+                        for (size_t i = 0; i < numPriors; ++i)
                         {
                             int start_idx = i * priorSize;
                             NormalizedBBox bbox;
@@ -169,7 +169,7 @@ namespace ngraph
                         if (!attrs.variance_encoded_in_target)
                         {
                             const dataType* priorVar = priorData + numPriors * priorSize;
-                            for (int i = 0; i < numPriors; ++i)
+                            for (size_t i = 0; i < numPriors; ++i)
                             {
                                 int start_idx = i * 4;
                                 std::vector<dataType> var(4);
@@ -314,7 +314,7 @@ namespace ngraph
                     std::vector<LabelBBox>& decodeBboxes)
                 {
                     decodeBboxes.resize(numImages);
-                    for (int i = 0; i < numImages; ++i)
+                    for (size_t i = 0; i < numImages; ++i)
                     {
                         LabelBBox& decodeBboxesImage = decodeBboxes[i];
                         int pboxIdx = i;
@@ -325,7 +325,7 @@ namespace ngraph
                         const std::vector<NormalizedBBox>& currPrBbox = priorBboxes[pboxIdx];
                         const std::vector<std::vector<dataType>>& currPrVar =
                             priorVariances[pboxIdx];
-                        for (int c = 0; c < numLocClasses; ++c)
+                        for (size_t c = 0; c < numLocClasses; ++c)
                         {
                             int label = attrs.share_location ? -1 : c;
                             if (attrs.background_label_id > -1 &&
@@ -349,12 +349,12 @@ namespace ngraph
                     const std::vector<LabelBBox>& armLocPreds)
                 {
                     decodeBboxes.resize(numImages);
-                    for (int i = 0; i < numImages; ++i)
+                    for (size_t i = 0; i < numImages; ++i)
                     {
                         LabelBBox& decodeBboxesImage = decodeBboxes[i];
                         const std::vector<NormalizedBBox>& currPrBbox = priorBboxes[i];
                         const std::vector<std::vector<dataType>>& currPrVar = priorVariances[i];
-                        for (int c = 0; c < numLocClasses; ++c)
+                        for (size_t c = 0; c < numLocClasses; ++c)
                         {
                             int label = attrs.share_location ? -1 : c;
                             if (attrs.background_label_id > -1 &&
@@ -389,7 +389,7 @@ namespace ngraph
                                       const int topK,
                                       std::vector<std::pair<dataType, int>>& scoreIndexVec)
                 {
-                    for (int i = 0; i < scores.size(); ++i)
+                    for (size_t i = 0; i < scores.size(); ++i)
                     {
                         if (scores[i] > threshold)
                         {
@@ -400,7 +400,7 @@ namespace ngraph
                     std::stable_sort(
                         scoreIndexVec.begin(), scoreIndexVec.end(), SortScorePairDescend<int>);
 
-                    if (topK > -1 && topK < scoreIndexVec.size())
+                    if (topK > -1 && static_cast<size_t>(topK) < scoreIndexVec.size())
                     {
                         scoreIndexVec.resize(topK);
                     }
@@ -459,7 +459,7 @@ namespace ngraph
                     {
                         const int idx = scoreIndexVec.front().second;
                         bool keep = true;
-                        for (int k = 0; k < indices.size(); ++k)
+                        for (size_t k = 0; k < indices.size(); ++k)
                         {
                             const int kept_idx = indices[k];
                             dataType overlap = JaccardOverlap(bboxes[idx], bboxes[kept_idx]);
@@ -483,7 +483,7 @@ namespace ngraph
                               std::map<int, std::vector<int>>& indices)
                 {
                     std::vector<std::pair<dataType, std::pair<int, int>>> scoreIndexPairs;
-                    for (int p = 0; p < numPriors; p++)
+                    for (size_t p = 0; p < numPriors; p++)
                     {
                         dataType conf = -1;
                         int id = 0;
@@ -508,7 +508,7 @@ namespace ngraph
                               SortScorePairDescend<std::pair<int, int>>);
 
                     if (attrs.top_k != -1)
-                        if (scoreIndexPairs.size() > attrs.top_k)
+                        if (scoreIndexPairs.size() > static_cast<size_t>(attrs.top_k))
                             scoreIndexPairs.resize(attrs.top_k);
 
                     while (scoreIndexPairs.size() != 0)
@@ -517,7 +517,7 @@ namespace ngraph
                         const int prior = scoreIndexPairs.front().second.second;
                         std::vector<int>& currInd = indices[cls];
                         bool keep = true;
-                        for (int i = 0; i < currInd.size(); i++)
+                        for (size_t i = 0; i < currInd.size(); i++)
                         {
                             const int keptIdx = currInd[i];
                             auto currBbox = attrs.share_location ? decodeBboxesImage.at(-1)
@@ -596,7 +596,7 @@ namespace ngraph
 
                     int numKept = 0;
                     std::vector<std::map<int, std::vector<int>>> allIndices;
-                    for (int i = 0; i < numImages; ++i)
+                    for (size_t i = 0; i < numImages; ++i)
                     {
                         const LabelBBox& decodeBboxesImage = decodeBboxes[i];
                         const std::map<int, std::vector<dataType>>& confScores = confPreds[i];
@@ -642,7 +642,7 @@ namespace ngraph
                                     continue;
                                 const std::vector<dataType>& scores =
                                     confScores.find(label)->second;
-                                for (int j = 0; j < labelIndices.size(); ++j)
+                                for (size_t j = 0; j < labelIndices.size(); ++j)
                                 {
                                     int idx = labelIndices[j];
                                     scoreIndexPairs.push_back(
@@ -654,7 +654,7 @@ namespace ngraph
                                       SortScorePairDescend<std::pair<int, int>>);
                             scoreIndexPairs.resize(attrs.keep_top_k[0]);
                             std::map<int, std::vector<int>> newIndices;
-                            for (int j = 0; j < scoreIndexPairs.size(); ++j)
+                            for (size_t j = 0; j < scoreIndexPairs.size(); ++j)
                             {
                                 int label = scoreIndexPairs[j].second.first;
                                 int idx = scoreIndexPairs[j].second.second;
@@ -670,8 +670,8 @@ namespace ngraph
                         }
                     }
 
-                    int count = 0;
-                    for (int i = 0; i < numImages; ++i)
+                    size_t count = 0;
+                    for (size_t i = 0; i < numImages; ++i)
                     {
                         const std::map<int, std::vector<dataType>>& confScores = confPreds[i];
                         const LabelBBox& decodeBboxesImage = decodeBboxes[i];
@@ -685,7 +685,7 @@ namespace ngraph
                             const std::vector<NormalizedBBox>& bboxes =
                                 decodeBboxesImage.find(loc_label)->second;
                             std::vector<int>& indices = it->second;
-                            for (int j = 0; j < indices.size(); ++j)
+                            for (size_t j = 0; j < indices.size(); ++j)
                             {
                                 int idx = indices[j];
                                 result[count * 7 + 0] = i;

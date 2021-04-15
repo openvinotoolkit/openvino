@@ -139,9 +139,9 @@ namespace ngraph
                                 else if (mode == BILINEAR)
                                 {
                                     c_in = 0;
-                                    for (size_t sby = 0; sby < spatial_bins_y; sby++)
+                                    for (int sby = 0; sby < spatial_bins_y; sby++)
                                     {
-                                        for (size_t sbx = 0; sbx < spatial_bins_x; sbx++)
+                                        for (int sbx = 0; sbx < spatial_bins_x; sbx++)
                                         {
                                             float bin_start_w = start_w + sbx * bin_width;
                                             float bin_start_h = start_h + sby * bin_height;

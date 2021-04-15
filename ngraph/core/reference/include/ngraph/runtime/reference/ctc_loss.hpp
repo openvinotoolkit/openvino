@@ -43,7 +43,8 @@ namespace ngraph
                 {
                     U actualLogitLen = logitsLength[b];
                     U actualTargetLen = labelsLength[b];
-                    if (actualLogitLen > maxTime || actualTargetLen > maxTime ||
+                    if (static_cast<size_t>(actualLogitLen) > maxTime ||
+                        static_cast<size_t>(actualTargetLen) > maxTime ||
                         actualTargetLen > actualLogitLen)
                     {
                         throw ngraph_error(
@@ -63,7 +64,7 @@ namespace ngraph
                     if (unique)
                     {
                         std::unordered_set<U> uniqVals;
-                        for (size_t t = 0lu; t < actualTargetLen; t++)
+                        for (size_t t = 0lu; t < static_cast<size_t>(actualTargetLen); t++)
                         {
                             if (uniqVals.find(target[t]) != uniqVals.end())
                             {
@@ -77,7 +78,7 @@ namespace ngraph
                     {
                         U prevValue = target[0];
                         targetD[decodedTargetLen++] = target[0];
-                        for (size_t t = 1lu; t < actualTargetLen; t++)
+                        for (size_t t = 1lu; t < static_cast<size_t>(actualTargetLen); t++)
                         {
                             if (target[t] == prevValue)
                             {
@@ -97,7 +98,7 @@ namespace ngraph
 
                     std::vector<std::unordered_map<size_t, T>> logProbabilities(actualLogitLen);
                     T logProb = 0.f, kExp = 0.f;
-                    for (size_t t = 0; t < actualLogitLen; t++)
+                    for (size_t t = 0; t < static_cast<size_t>(actualLogitLen); t++)
                     {
                         kExp = 0.f;
                         const size_t btcT = BTC + classesNum * t;
@@ -120,7 +121,7 @@ namespace ngraph
                     // Looking for aligned paths
                     std::function<void(size_t, size_t, size_t, T)> findPaths =
                         [&](size_t targetIdx, size_t start, size_t end, T prevLogProb) {
-                            if (end > actualLogitLen)
+                            if (end > static_cast<size_t>(actualLogitLen))
                             {
                                 if (res == -type_inf)
                                 {
@@ -151,9 +152,11 @@ namespace ngraph
                                     }
                                     newLogProb +=
                                         logProbabilities[pos].find(targetD[targetIdx])->second;
-                                    if (end == actualLogitLen)
+                                    if (end == static_cast<size_t>(actualLogitLen))
                                     {
-                                        for (int64_t ble = pos + 1; ble < actualLogitLen; ble++)
+                                        for (size_t ble = pos + 1;
+                                             ble < static_cast<size_t>(actualLogitLen);
+                                             ble++)
                                         {
                                             newLogProb +=
                                                 logProbabilities[ble].find(blankIndex)->second;
@@ -172,7 +175,7 @@ namespace ngraph
                                     {
                                         newLogProb += logProbabilities[bl].find(blankIndex)->second;
                                     }
-                                    if (end == actualLogitLen)
+                                    if (end == static_cast<size_t>(actualLogitLen))
                                     {
                                         for (int64_t ble = pos + 1; ble < actualLogitLen; ble++)
                                         {

@@ -48,7 +48,7 @@ TEST(op_eval, variadic_split_same_lengths)
                              make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{1}),
                              make_host_tensor<element::Type_t::i64>({4}, split_lengths_vec)}));
 
-    for (int i = 0; i < split_lengths_vec.size(); ++i)
+    for (size_t i = 0; i < split_lengths_vec.size(); ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(),
@@ -87,7 +87,7 @@ TEST(op_eval, variadic_split_different_lengths)
                              make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{0}),
                              make_host_tensor<element::Type_t::i64>({3}, split_lengths_vec)}));
 
-    for (int i = 0; i < split_lengths_vec.size(); ++i)
+    for (size_t i = 0; i < split_lengths_vec.size(); ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(),
@@ -125,7 +125,7 @@ TEST(op_eval, variadic_split_neg_length)
                              make_host_tensor<element::Type_t::i64>({3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{3, 1, 3};
-    for (int i = 0; i < split_lengths_vec.size(); ++i)
+    for (size_t i = 0; i < split_lengths_vec.size(); ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, expected_lengths[i], 1}));
@@ -162,7 +162,7 @@ TEST(op_eval, variadic_split_neg_length_neg_axis)
                              make_host_tensor<element::Type_t::i64>(Shape{3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{1, 2, 2};
-    for (int i = 0; i < split_lengths_vec.size(); ++i)
+    for (size_t i = 0; i < split_lengths_vec.size(); ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, expected_lengths[i], 2}));
@@ -198,7 +198,7 @@ TEST(op_eval, variadic_split_neg_length_bool_data_type)
                              make_host_tensor<element::Type_t::i64>({3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{1, 2, 2};
-    for (int i = 0; i < split_lengths_vec.size(); ++i)
+    for (size_t i = 0; i < split_lengths_vec.size(); ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::boolean);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, expected_lengths[i]}));
@@ -236,7 +236,7 @@ TEST(op_eval, variadic_split_neg_length_axis_ui64)
          make_host_tensor<element::Type_t::i64>({split_lengths_vec.size()}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{2, 2};
-    for (int i = 0; i < split_lengths_vec.size(); ++i)
+    for (size_t i = 0; i < split_lengths_vec.size(); ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, expected_lengths[i], 2}));
@@ -274,7 +274,7 @@ TEST(op_eval, variadic_split_data_float_length_i32)
                              make_host_tensor<element::Type_t::i32>({3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{1, 1, 1};
-    for (int i = 0; i < split_lengths_vec.size(); ++i)
+    for (size_t i = 0; i < split_lengths_vec.size(); ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::f32);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 3, expected_lengths[i]}));

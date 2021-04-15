@@ -429,9 +429,10 @@ namespace ngraph
             {
                 NGRAPH_CHECK((input_shape.rank().is_static() && output_shape.rank().is_static()),
                              "Tensor's rank has to be static.");
-                NGRAPH_CHECK((input_shape.rank().get_length() + start_match_axis <=
-                              output_shape.rank().get_length()),
-                             "Unable to figure out axes mapping.");
+                NGRAPH_CHECK(
+                    (input_shape.rank().get_length() + static_cast<int64_t>(start_match_axis) <=
+                     output_shape.rank().get_length()),
+                    "Unable to figure out axes mapping.");
 
                 vector<int64_t> mapping(input_shape.rank().get_length());
                 iota(begin(mapping), end(mapping), start_match_axis);

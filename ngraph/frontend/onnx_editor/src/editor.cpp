@@ -172,7 +172,7 @@ namespace
         {
             auto tensor_type = input->mutable_type()->mutable_tensor_type();
             TensorShapeProto shape;
-            for (size_t i = 0; i < initializer.dims_size(); ++i)
+            for (int i = 0; i < initializer.dims_size(); ++i)
             {
                 shape.add_dim()->set_dim_value(initializer.dims(i));
             }

@@ -274,15 +274,15 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
         const auto num_spatial_dims = data_pshape.rank().get_length() - 2;
 
         NODE_VALIDATION_CHECK(this,
-                              m_strides.size() == num_spatial_dims,
+                              static_cast<int64_t>(m_strides.size()) == num_spatial_dims,
                               "Strides should be defined for all and only spatial features.");
 
         NODE_VALIDATION_CHECK(this,
-                              m_dilations.size() == num_spatial_dims,
+                              static_cast<int64_t>(m_dilations.size()) == num_spatial_dims,
                               "Dilations should be defined for all and only spatial features.");
 
         NODE_VALIDATION_CHECK(this,
-                              m_output_padding.size() == num_spatial_dims,
+                              static_cast<int64_t>(m_output_padding.size()) == num_spatial_dims,
                               "Output padding should be defined for all and only "
                               "spatial features.");
     }

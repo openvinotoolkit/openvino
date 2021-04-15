@@ -81,7 +81,7 @@ void op::LRN::validate_and_infer_types()
         for (auto axis : reduction_axes)
         {
             NODE_VALIDATION_CHECK(this,
-                                  axis < input_shape_rank.get_length(),
+                                  static_cast<int64_t>(axis) < input_shape_rank.get_length(),
                                   "Reduction axis (",
                                   axis,
                                   ") is out of bounds ",

@@ -315,7 +315,7 @@ static std::string pretty_partial_shape(const PartialShape& shape)
         bool first = true;
 
         ss << "[";
-        for (size_t i = 0; i < shape.rank().get_length(); i++)
+        for (int64_t i = 0; i < shape.rank().get_length(); i++)
         {
             if (!first)
             {

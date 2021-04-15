@@ -49,7 +49,7 @@ void op::util::IndexReduction::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, rank.is_dynamic() || rank.get_length() >= 1, "Argument rank is zero.");
     NODE_VALIDATION_CHECK(this,
-                          rank.is_dynamic() || m_axis < rank.get_length(),
+                          rank.is_dynamic() || m_axis < static_cast<uint64_t>(rank.get_length()),
                           "Reduction axis (",
                           m_axis,
                           ") is not less than argument rank (",
@@ -76,7 +76,7 @@ void op::util::IndexReduction::validate_and_infer_types()
         std::vector<Dimension> output_dims(rank.get_length() - 1);
         size_t j = 0;
 
-        for (size_t i = 0; i < rank.get_length() - 1; i++)
+        for (int64_t i = 0; i < rank.get_length() - 1; i++)
         {
             if (j == m_axis)
             {

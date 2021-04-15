@@ -335,7 +335,7 @@ bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank r
         }
     }
 
-    return (rank.is_dynamic() || permutation.size() == rank.get_length());
+    return (rank.is_dynamic() || static_cast<int64_t>(permutation.size()) == rank.get_length());
 }
 
 template <typename T>

@@ -95,7 +95,7 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
     std::vector<int64_t> input_spatial_shape(spatial_rank);
     std::vector<int64_t> output_spatial_shape(spatial_rank);
 
-    for (int64_t i = 0; i < spatial_rank; ++i)
+    for (size_t i = 0; i < spatial_rank; ++i)
     {
         input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
         output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
@@ -204,7 +204,7 @@ InterpolateEvalHelper::LinearModeInnerIterationResult
 
     LinearModeInnerIterationResult result;
 
-    std::vector<int64_t> inner_coords_vector(input_rank);
+    std::vector<size_t> inner_coords_vector(input_rank);
     for (std::size_t i = 0; i < input_rank; ++i)
     {
         inner_coords_vector[i] = output_coord[i];

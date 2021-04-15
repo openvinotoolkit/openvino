@@ -100,7 +100,8 @@ namespace ngraph
                     if (input_rank.is_static())
                     {
                         CHECK_VALID_NODE(node,
-                                         reduction_axes.size() <= input_rank.get_length(),
+                                         static_cast<int64_t>(reduction_axes.size()) <=
+                                             input_rank.get_length(),
                                          "Number of reduction axes (",
                                          reduction_axes.size(),
                                          ") is larger than the input tensor's rank (",

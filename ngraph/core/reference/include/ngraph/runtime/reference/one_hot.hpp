@@ -3,6 +3,9 @@
 //
 
 #pragma once
+
+#include "ngraph/shape.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -26,18 +29,18 @@ namespace ngraph
                 // Number of elements between one-hot values in the output memory layout
                 const size_t inner_block = [&] {
                     size_t mul = 1;
-                    for (auto i = one_hot_axis; i < indices_shape.size(); ++i)
+                    for (size_t i = one_hot_axis; i < indices_shape.size(); ++i)
                         mul *= indices_shape[i];
                     return mul;
                 }();
                 // Step 2: Write on_value at needed positions
-                for (auto outer_i = 0; outer_i < num_ind; outer_i += inner_block)
+                for (size_t outer_i = 0; outer_i < num_ind; outer_i += inner_block)
                 {
-                    for (auto inner_i = 0; inner_i < inner_block; inner_i++)
+                    for (size_t inner_i = 0; inner_i < inner_block; inner_i++)
                     {
                         auto input_val = indices[outer_i + inner_i];
                         // Negative indices are ignored
-                        if ((input_val >= 0) && (input_val < depth))
+                        if ((input_val >= 0) && (static_cast<size_t>(input_val) < depth))
                         {
                             auto oh_index = static_cast<size_t>(input_val);
                             size_t output_offset = out_elem_size * (outer_i * depth + inner_i +

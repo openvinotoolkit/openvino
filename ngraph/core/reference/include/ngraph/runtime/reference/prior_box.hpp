@@ -147,9 +147,9 @@ namespace ngraph
                                     ar = std::sqrt(ar);
                                     float box_width_ratio = attrs.fixed_size[s] * 0.5f * ar;
                                     float box_height_ratio = attrs.fixed_size[s] * 0.5f / ar;
-                                    for (size_t r = 0; r < density_; ++r)
+                                    for (int64_t r = 0; r < density_; ++r)
                                     {
-                                        for (size_t c = 0; c < density_; ++c)
+                                        for (int64_t c = 0; c < density_; ++c)
                                         {
                                             float center_x_temp = center_x - fixed_size_ / 2 +
                                                                   shift / 2.f + c * shift;
@@ -257,7 +257,7 @@ namespace ngraph
 
                 if (attrs.clip)
                 {
-                    for (uint64_t i = 0; i < H * W * num_priors * 4; ++i)
+                    for (int64_t i = 0; i < H * W * num_priors * 4; ++i)
                     {
                         dst_data[i] = (std::min)((std::max)(dst_data[i], 0.0f), 1.0f);
                     }
@@ -273,7 +273,7 @@ namespace ngraph
                 }
                 else
                 {
-                    for (uint64_t i = 0; i < H * W * num_priors; ++i)
+                    for (int64_t i = 0; i < H * W * num_priors; ++i)
                     {
                         for (size_t j = 0; j < 4; ++j)
                         {

@@ -130,7 +130,7 @@ namespace ngraph
                     {
                         std::vector<int64_t> target_dims;
 
-                        for (size_t i = 0; i < axis; ++i)
+                        for (int64_t i = 0; i < axis; ++i)
                         {
                             target_dims.push_back(1);
                         }
@@ -145,7 +145,7 @@ namespace ngraph
                             target_dims.push_back(0);
                         }
 
-                        for (size_t i = axis + 1; i < x_shape.rank().get_length(); ++i)
+                        for (int64_t i = axis + 1; i < x_shape.rank().get_length(); ++i)
                         {
                             target_dims.push_back(1);
                         }

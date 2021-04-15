@@ -124,7 +124,8 @@ namespace ngraph
 
                     const auto rank = data.get_partial_shape().rank();
                     CHECK_VALID_NODE(node,
-                                     rank.is_static() && scales.size() == rank.get_length(),
+                                     rank.is_static() &&
+                                         static_cast<int64_t>(scales.size()) == rank.get_length(),
                                      "Input tensor's rank is required to be the same as number of "
                                      "elements of 'scales' attribute.");
 
