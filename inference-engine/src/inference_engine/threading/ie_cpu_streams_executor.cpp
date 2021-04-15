@@ -109,24 +109,25 @@ struct CPUStreamsExecutor::Impl {
                  #else
                 _taskArena.reset(new custom::task_arena{concurrency});
                  #endif
-                } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+            } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
-                        // TODO: REMOVE THE DEBUG PRINTF
-                        printf("%s, conventional ThreadBindingType::CORES codepath \n", _impl->_config._name.c_str());
+                    // TODO: REMOVE THE DEBUG PRINTF
+                    printf("%s, conventional ThreadBindingType::CORES codepath \n", _impl->_config._name.c_str());
                     CpuSet processMask;
                     int    ncpus = 0;
                     std::tie(processMask, ncpus) = GetProcessMask();
                     if (nullptr != processMask) {
-                        _observer.reset(new Observer{*_taskArena,
+                        _observer.reset(new Observer{ *_taskArena,
                                                      std::move(processMask),
                                                      ncpus,
                                                      _streamId,
                                                      _impl->_config._threadsPerStream,
                                                      _impl->_config._threadBindingStep,
-                                                     _impl->_config._threadBindingOffset});
+                                                     _impl->_config._threadBindingOffset });
                         _observer->observe(true);
-                    } else {
+                    }
+                } else {
                         // TODO: REMOVE THE DEBUG PRINTF
                         printf("%s, conventional ThreadBindingType::NONE codepath \n", _impl->_config._name.c_str());
                 }
