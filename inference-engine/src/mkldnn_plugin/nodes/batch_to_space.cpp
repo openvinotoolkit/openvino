@@ -82,9 +82,9 @@ public:
             if (inDims[1] % 16 == 0) blockConfs.push_back({ConfLayout::BLK16, ConfLayout::BLK16});
             for (auto conf : blockConfs) {
                 addConfig(layer, {DataConfigurator(conf.first, precision),
-                                  DataConfigurator(ConfLayout::ANY, batchToSpaceLayer->insData[1].lock()->getPrecision()),
-                                  DataConfigurator(ConfLayout::ANY, batchToSpaceLayer->insData[2].lock()->getPrecision()),
-                                  DataConfigurator(ConfLayout::ANY, batchToSpaceLayer->insData[3].lock()->getPrecision())},
+                                  DataConfigurator(ConfLayout::PLN, batchToSpaceLayer->insData[1].lock()->getPrecision()),
+                                  DataConfigurator(ConfLayout::PLN, batchToSpaceLayer->insData[2].lock()->getPrecision()),
+                                  DataConfigurator(ConfLayout::PLN, batchToSpaceLayer->insData[3].lock()->getPrecision())},
                           {DataConfigurator(conf.second, precision)});
             }
         } catch (InferenceEngine::Exception &ex) {
@@ -96,7 +96,6 @@ public:
             case 1: batchToSpaceKernel<PrecisionTrait<Precision::U8>::value_type> (inputs, outputs);  break;
             case 2: batchToSpaceKernel<PrecisionTrait<Precision::U16>::value_type>(inputs, outputs); break;
             case 4: batchToSpaceKernel<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs); break;
-            case 8: batchToSpaceKernel<PrecisionTrait<Precision::U64>::value_type>(inputs, outputs); break;
             default: {
                 if (resp) {
                     std::string errorMsg = "BatchToSpace layer does not support precision '"
@@ -136,10 +135,8 @@ private:
         if (layout == NHWC || layout == NDHWC) {
             inShape5D.push_back(inShape5D[1]);
             inShape5D.erase(inShape5D.begin() + 1);
-
             outShape5D.push_back(outShape5D[1]);
             outShape5D.erase(outShape5D.begin() + 1);
-
             blockShape.push_back(blockShape[1]);
             blockShape.erase(blockShape.begin() + 1);
         }
@@ -167,13 +164,13 @@ private:
             std::vector<size_t> indxEnd(2, 0);
             parallel_it_init(start, indxStart[0], inShape5D[0], indxStart[1], channels);
             parallel_it_init((end - 1), indxEnd[0], inShape5D[0], indxEnd[1], channels);
+            std::vector<int64_t> oAdd(5, 1);
+            std::vector<size_t> begin(5, 0);
+            std::vector<size_t> finish(5, 1);
             for (size_t i0 = indxStart[0]; i0 < indxEnd[0] + 1; ++i0) {
                 int64_t bIdx = i0 / outShape5D[0];
                 const size_t srcIdx0 = i0 * inBatchStep;
                 const size_t dstIdx0 = (i0 - (bIdx * outShape5D[0])) * outBatchStep;
-                std::vector<int64_t> oAdd(5, 1);
-                std::vector<size_t> begin(5, 0);
-                std::vector<size_t> finish(5, 1);
                 oAdd[4] = bIdx % blockShapeIn[dimsSize - 1] - cropsBeginIn[dimsSize - 1];
                 bIdx /= blockShapeIn[dimsSize - 1];
                 oAdd[3] = bIdx % blockShapeIn[dimsSize - 2] - cropsBeginIn[dimsSize - 2];
@@ -181,24 +178,18 @@ private:
                 oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0lu;
                 bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
                 oAdd[1] = bIdx % blockShapeIn[1] - cropsBeginIn[1];
-                begin[1] = (blockShapeIn[1] - 1 - oAdd[1]) / blockShapeIn[1] / blockSize;
-                finish[1] = (outDims[1] - 1 - oAdd[1]) / blockShapeIn[1] / blockSize;
-                begin[2] = dimsSize == 5 ? (blockShapeIn[2] - 1 - oAdd[2]) / blockShapeIn[2] : 0lu;
-                finish[2] = dimsSize == 5 ? (outDims[2] - 1 - oAdd[2]) / blockShapeIn[2] : 0lu;
-                begin[3] = (blockShapeIn[dimsSize - 2] - 1 - oAdd[3]) / blockShapeIn[dimsSize - 2];
-                finish[3] = (outDims[dimsSize - 2] - 1 - oAdd[3]) / blockShapeIn[dimsSize - 2];
-                begin[4] = (blockShapeIn[dimsSize - 1] - 1 - oAdd[4]) / blockShapeIn[dimsSize - 1];
-                finish[4] = (outDims[dimsSize - 1] - 1 - oAdd[4]) / blockShapeIn[dimsSize - 1];
                 if (layout == NHWC || layout == NDHWC) {
                     oAdd.push_back(oAdd[1]);
                     oAdd.erase(oAdd.begin() + 1);
-
-                    begin.push_back(begin[1]);
-                    begin.erase(begin.begin() + 1);
-
-                    finish.push_back(finish[1]);
-                    finish.erase(finish.begin() + 1);
                 }
+                begin[1] = (blockShape[1] - 1 - oAdd[1]) / blockShape[1] / blockSize;
+                finish[1] = (outShape5D[1] - 1 - oAdd[1]) / blockShape[1] / blockSize;
+                begin[2] = (blockShape[2] - 1 - oAdd[2]) / blockShape[2];
+                finish[2] = (outShape5D[2] - 1 - oAdd[2]) / blockShape[2];
+                begin[3] = (blockShape[3] - 1 - oAdd[3]) / blockShape[3];
+                finish[3] = (outShape5D[3] - 1 - oAdd[3]) / blockShape[3];
+                begin[4] = (blockShape[4] - 1 - oAdd[4]) / blockShape[4];
+                finish[4] = (outShape5D[4] - 1 - oAdd[4]) / blockShape[4];
                 const int64_t addTmpOC = blocked ? 0lu : oAdd[1];
                 const int64_t addTmpOc = blocked ? oAdd[1] : 0lu;
                 indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
