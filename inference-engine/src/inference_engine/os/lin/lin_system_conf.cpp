@@ -8,9 +8,7 @@
 #include <vector>
 #include <iostream>
 #include <sched.h>
-#include <numeric>
 #include "ie_system_conf.h"
-#include "ie_parallel.hpp"
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_common.h"
 
@@ -88,7 +86,7 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         const auto little_cores = core_types.front();
         // assuming the Little cores feature no hyper-threading
-        phys_cores -= oneapi::tbb::info::default_concurrency(little_cores);
+        phys_cores -= custom::info::default_concurrency(little_cores);
     }
     #endif
     return phys_cores;
