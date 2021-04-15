@@ -161,7 +161,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 ARCHIVE_WIN "tbbbind_2_4_static_win_v4.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
                 ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "e4bf7663afdbfc30a2318bf9ae43149546653ccdcd387094c07076d4c6c6e862")
+                SHA256 "1a3a05082cc5ef1a764d635793be347b82c795f0e9ced771515fc3706a4dc4f0")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -176,7 +176,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
                 ARCHIVE_LIN "tbbbind_2_4_static_lin_v4.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
-                SHA256 "e603132b69344985230d16bdcddbf61b2816fcdf5206a678cd0db32a13c09c26")
+                SHA256 "888582a94f81821f9894cc089db36d5a6c2e0b6998cfa1fec0c027f28c597ada")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
