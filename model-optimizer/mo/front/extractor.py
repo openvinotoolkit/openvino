@@ -591,11 +591,11 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                 if node is None:
                     raise Error('Cannot find location {} in the graph'.format(input_name))
                 shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
-            if input_name in input_user_data_types and input_user_data_types[input_name] is not None:
-                data_type = input_user_data_types[input_name]
-                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
-            else:
-                _input_shapes.append({'node': node, 'shape': shape})
+                if input_name in input_user_data_types and input_user_data_types[input_name] is not None:
+                    data_type = input_user_data_types[input_name]
+                    _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
+                else:
+                    _input_shapes.append({'node': node, 'shape': shape})
         elif isinstance(input_user_shapes, np.ndarray):
             model_inputs = inputModel.getInputs()
             assert len(model_inputs) == 1

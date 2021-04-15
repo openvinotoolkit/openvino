@@ -58,9 +58,8 @@ def moc_pipeline(argv: argparse.Namespace):
     apply_replacements_list(graph, transforms)
     user_shapes = graph.graph['user_shapes']
     if len(user_shapes) > 0:
-        assert len(inputModel.getInputs()) == 1
-        assert len(user_shapes) == 1
-        inputModel.setPartialShape(user_shapes[0]['node'], PartialShape(user_shapes[0]['shape']))
+        for user_shape in user_shapes:
+            inputModel.setPartialShape(user_shape['node'], PartialShape(user_shape['shape']))
     nGraphModel = fe.convert(inputModel)
     network = function_to_cnn(nGraphModel)
     graph.graph['network'] = network
