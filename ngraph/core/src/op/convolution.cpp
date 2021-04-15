@@ -332,8 +332,8 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
                               "Dilations should be defined for all and only spatial features.");
 
         NODE_VALIDATION_CHECK(this,
-                              m_pads_begin.size() == num_spatial_dims &&
-                                  m_pads_end.size() == num_spatial_dims,
+                              static_cast<int64_t>(m_pads_begin.size()) == num_spatial_dims &&
+                                  static_cast<int64_t>(m_pads_end.size()) == num_spatial_dims,
                               "Pads should be defined for all and only spatial features.");
 
         NODE_VALIDATION_CHECK(this,
@@ -345,7 +345,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
         {
             Shape output_shape = output_spatial_pshape.to_shape();
             NODE_VALIDATION_CHECK(this,
-                                  output_shape.size() == num_spatial_dims,
+                                   static_cast<int64_t>(output_shape.size()) == num_spatial_dims,
                                   "Output shape should be specified only and for "
                                   "all spatial dimensions.");
         }
