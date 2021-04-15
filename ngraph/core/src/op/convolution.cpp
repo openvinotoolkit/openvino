@@ -345,7 +345,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
         {
             Shape output_shape = output_spatial_pshape.to_shape();
             NODE_VALIDATION_CHECK(this,
-                                   static_cast<int64_t>(output_shape.size()) == num_spatial_dims,
+                                  static_cast<int64_t>(output_shape.size()) == num_spatial_dims,
                                   "Output shape should be specified only and for "
                                   "all spatial dimensions.");
         }
