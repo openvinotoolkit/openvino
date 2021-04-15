@@ -28,6 +28,7 @@ using namespace InferenceEngine;
 
 /**
  * \brief Parse image size provided as string in format WIDTHxHEIGHT
+ * @param string of image size in WIDTHxHEIGHT format
  * @return parsed width and height
  */
 std::pair<size_t, size_t> parseImageSize(const std::string& size_string) {
@@ -90,7 +91,8 @@ std::vector<std::string> readInputFileNames(const std::string& path) {
         files.push_back(path);
     }
 
-    if (files.size() < 20) {
+    size_t max_files = 20;
+    if (files.size() < max_files) {
         slog::info << "Files were added: " << files.size() << slog::endl;
         for (std::string filePath : files) {
             slog::info << "    " << filePath << slog::endl;
@@ -106,6 +108,8 @@ using UString = std::basic_string<uint8_t>;
 
 /**
  * \brief Read image data from file
+ * @param vector files paths
+ * @param size of file paths vector
  * @return buffers containing the images data
  */
 std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& files, size_t size) {
@@ -134,6 +138,13 @@ std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& fil
     return result;
 }
 
+/**
+* @brief Read input image to blob
+* @param ref to input image data
+* @param width input image
+* @param height input image
+* @return blob point to hold the NV12 input data
+*/
 std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, size_t height) {
     // read image with size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
 
@@ -160,6 +171,12 @@ std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, 
     return blobs;
 }
 
+/**
+* @brief Check supported batched blob for device
+* @param IE core object
+* @param string device name
+* @return True(success) or False(fail)
+*/
 bool isBatchedBlobSupported(const Core& ie, const std::string& device_name) {
     const std::vector<std::string> supported_metrics =
         ie.GetMetric(device_name, METRIC_KEY(SUPPORTED_METRICS));
@@ -182,7 +199,7 @@ bool isBatchedBlobSupported(const Core& ie, const std::string& device_name) {
 */
 int main(int argc, char *argv[]) {
     try {
-        // ------------------------------ Parsing and validatiing input arguments------------------------------
+        // ------------------------------ Parsing and validation input arguments------------------------------
         if (argc != 5) {
             std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image(s)> <image_size> <device_name>"
                       << std::endl;
@@ -196,7 +213,7 @@ int main(int argc, char *argv[]) {
         const std::string device_name{argv[4]};
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 0. Read image names -----------------------------------------------------
+        // ------------------------------ Read image names -----------------------------------------------------
         auto image_names = readInputFileNames(input_image_path);
 
         if (image_names.empty()) {
@@ -204,15 +221,15 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load inference engine ------------------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core ------------------------------------------------
         Core ie;
         // -----------------------------------------------------------------------------------------------------
 
-        // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Reshape model -------------------------------------------------
+        // --------------------------- Reshape model -------------------------------------------------
         size_t netInputSize = isBatchedBlobSupported(ie, device_name) ? image_names.size() : 1;
         ICNNNetwork::InputShapes inputShapes = network.getInputShapes();
         for (auto& shape : inputShapes) {
@@ -227,7 +244,7 @@ int main(int argc, char *argv[]) {
         std::cout << "Batch size is " << batchSize << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 3. Configure input and output -------------------------------------------
+        // --------------------------- Step 3. Configure input and output -------------------------------------------
         // --------------------------- Prepare input blobs -----------------------------------------------------
         if (network.getInputsInfo().empty()) {
             std::cerr << "Network inputs info is empty" << std::endl;
@@ -255,15 +272,15 @@ int main(int argc, char *argv[]) {
         output_info->setPrecision(Precision::FP32);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Loading a model to the device ----------------------------------------
+        // --------------------------- Step 4. Loading a model to the device ----------------------------------------
         ExecutableNetwork executable_network = ie.LoadNetwork(network, device_name);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Create an infer request ----------------------------------------------
+        // --------------------------- Step 5. Create an infer request ----------------------------------------------
         InferRequest infer_request = executable_network.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 6. Prepare input --------------------------------------------------------
+        // --------------------------- Step 6. Prepare input --------------------------------------------------------
         auto image_bufs = readImagesDataFromFiles(image_names, input_width * (input_height * 3 / 2));
 
         auto inputs = readInputBlobs(image_bufs, input_width, input_height);
@@ -296,12 +313,12 @@ int main(int argc, char *argv[]) {
             infer_request.SetBlob(input_name, input);
             // -------------------------------------------------------------------------------------------------
 
-            // --------------------------- 7. Do inference -----------------------------------------------------
+            // --------------------------- Step 7. Do inference -----------------------------------------------------
             /* Running the request synchronously */
             infer_request.Infer();
             // -------------------------------------------------------------------------------------------------
 
-            // --------------------------- 8. Process output ---------------------------------------------------
+            // --------------------------- Step 8. Process output ---------------------------------------------------
             Blob::Ptr output = infer_request.GetBlob(output_name);
 
             // Print classification results

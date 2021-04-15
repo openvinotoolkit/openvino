@@ -17,7 +17,7 @@ using namespace InferenceEngine;
 
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (argc != 5) {
             std::cout << "Usage : "<< argv[0] <<" <path_to_model> <path_to_image> <device> <batch>"
                       << std::endl;
@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
         const size_t batch_size{std::stoul(argv[4])};
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load inference engine -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
         Core ie;
 
         IExtensionPtr inPlaceExtension;
@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
 
         OutputsDataMap outputs_info(network.getOutputsInfo());
@@ -63,17 +63,19 @@ int main(int argc, char* argv[]) {
         network.reshape(input_shapes);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 3. Configure input & output ---------------------------------------------
+        // --------------------------- Step 3. Configure input & output ---------------------------------------------
         // --------------------------- Prepare input blobs -----------------------------------------------------
         InputInfo::Ptr input_info;
         std::tie(input_name, input_info) = *inputs_info.begin();
+        // Set input layout and precision
         input_info->setLayout(Layout::NCHW);
         input_info->setPrecision(Precision::U8);
         // --------------------------- Prepare output blobs ----------------------------------------------------
         DataPtr output_info;
         std::string output_name;
         std::tie(output_name, output_info) = *outputs_info.begin();
-
+        // SSD has an additional post-processing DetectionOutput layer
+        // that simplifies output filtering, try to find it.
         if (auto ngraphFunction = network.getFunction()) {
             for (const auto & op : ngraphFunction->get_ops()) {
                 if (op->get_type_info() == ngraph::op::DetectionOutput::type_info) {
@@ -112,26 +114,26 @@ int main(int argc, char* argv[]) {
         std::cout << "Resulting output shape = " << dumpVec(output_shape) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Loading model to the device ------------------------------------------
+        // --------------------------- Step 4. Loading a model to the device ------------------------------------------
         ExecutableNetwork executable_network = ie.LoadNetwork(network, device_name);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Create infer request -------------------------------------------------
+        // --------------------------- Step 5. Create an infer request -------------------------------------------------
         InferRequest infer_request = executable_network.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 6. Prepare input --------------------------------------------------------
+        // --------------------------- Step 6. Prepare input --------------------------------------------------------
         Blob::Ptr input = infer_request.GetBlob(input_name);
         for (size_t b = 0; b < batch_size; b++) {
             matU8ToBlob<uint8_t>(image, input, b);
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 7. Do inference --------------------------------------------------------
+        // --------------------------- Step 7. Do inference --------------------------------------------------------
         infer_request.Infer();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 8. Process output ------------------------------------------------------
+        // --------------------------- Step 8. Process output ------------------------------------------------------
         Blob::Ptr output = infer_request.GetBlob(output_name);
         MemoryBlob::CPtr moutput = as<MemoryBlob>(output);
         if (!moutput) {

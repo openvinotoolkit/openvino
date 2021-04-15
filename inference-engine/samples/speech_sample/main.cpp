@@ -26,14 +26,17 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#define MAX_SCORE_DIFFERENCE 0.0001f
-#define MAX_VAL_2B_FEAT 16384
+#define MAX_SCORE_DIFFERENCE 0.0001f // max score difference for frame error threshold
+#define MAX_VAL_2B_FEAT 16384  // max to find scale factor
 
 using namespace InferenceEngine;
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
 typedef std::chrono::duration<float> fsec;
+/**
+* @brief struct to store score error
+*/
 typedef struct {
     uint32_t numScores;
     uint32_t numErrors;
@@ -48,12 +51,21 @@ typedef struct {
     float sumSquaredRelError;
 } score_error_t;
 
+/**
+* @brief struct to store infer request data per frame
+*/
 struct InferRequestStruct {
     InferRequest inferRequest;
     int frameIndex;
     uint32_t numFramesThisBatch;
 };
 
+/**
+* @brief Check number of input files and model network inputs
+* @param numInputs number model inputs
+* @param numInputArkFiles number of input ARK files
+* @return none.
+*/
 void CheckNumberOfInputs(size_t numInputs, size_t numInputArkFiles) {
     if (numInputs != numInputArkFiles) {
         throw std::logic_error("Number of network inputs (" + std::to_string(numInputs) + ")"
@@ -61,6 +73,14 @@ void CheckNumberOfInputs(size_t numInputs, size_t numInputArkFiles) {
     }
 }
 
+/**
+* @brief Get info from Kaldi ARK speech feature vector file
+* @param fileName .ark file name
+* @param numArrayToFindSize number speech feature vectors in the file
+* @param ptrNumArrays pointer to specific number array
+* @param ptrNumMemoryBytes pointer to specific number of memory bytes
+* @return none.
+*/
 void GetKaldiArkInfo(const char *fileName,
                      uint32_t numArrayToFindSize,
                      uint32_t *ptrNumArrays,
@@ -99,6 +119,17 @@ void GetKaldiArkInfo(const char *fileName,
     if (ptrNumMemoryBytes != NULL) *ptrNumMemoryBytes = numMemoryBytes;
 }
 
+/**
+* @brief Load Kaldi ARK speech feature vector file
+* @param fileName .ark file name
+* @param arrayIndex number speech feature vector in the file
+* @param ptrName reference to variable length name
+* @param memory reference to speech feature vector to save
+* @param ptrNumRows pointer to number of rows to read
+* @param ptrNumColumns pointer to number of columns to read
+* @param ptrNumBytesPerElement pointer to number bytes per element (size of float by default)
+* @return none.
+*/
 void LoadKaldiArkArray(const char *fileName, uint32_t arrayIndex, std::string &ptrName, std::vector<uint8_t> &memory,
                        uint32_t *ptrNumRows, uint32_t *ptrNumColumns, uint32_t *ptrNumBytesPerElement) {
     std::ifstream in_file(fileName, std::ios::binary);
@@ -134,13 +165,23 @@ void LoadKaldiArkArray(const char *fileName, uint32_t arrayIndex, std::string &p
         }
         in_file.close();
     } else {
-        fprintf(stderr, "Failed to open %s for reading in GetKaldiArkInfo()!\n", fileName);
+        fprintf(stderr, "Failed to open %s for reading in LoadKaldiArkArray()!\n", fileName);
         exit(-1);
     }
 
     *ptrNumBytesPerElement = sizeof(float);
 }
 
+/**
+* @brief Save Kaldi ARK speech feature vector file
+* @param fileName .ark file name
+* @param shouldAppend bool flag to rewrite or add to the end of file
+* @param name reference to variable length name
+* @param ptrMemory pointer to speech feature vector to save
+* @param numRows number of rows
+* @param numColumns number of columns
+* @return none.
+*/
 void SaveKaldiArkArray(const char *fileName,
                        bool shouldAppend,
                        std::string name,
@@ -167,6 +208,13 @@ void SaveKaldiArkArray(const char *fileName,
     }
 }
 
+/**
+* @brief Get scale factor for quantization
+* @param ptrFloatMemory pointer to float memory with speech feature vector
+* @param targetMax max scale factor
+* @param numElements number of elements in speech feature vector
+* @return scale factor
+*/
 float ScaleFactorForQuantization(void *ptrFloatMemory, float targetMax, uint32_t numElements) {
     float *ptrFloatFeat = reinterpret_cast<float *>(ptrFloatMemory);
     float max = 0.0;
@@ -187,6 +235,11 @@ float ScaleFactorForQuantization(void *ptrFloatMemory, float targetMax, uint32_t
     return (scaleFactor);
 }
 
+/**
+* @brief Clean score error
+* @param error pointer to score error struct
+* @return none.
+*/
 void ClearScoreError(score_error_t *error) {
     error->numScores = 0;
     error->numErrors = 0;
@@ -200,6 +253,12 @@ void ClearScoreError(score_error_t *error) {
     error->sumSquaredRelError = 0.0;
 }
 
+/**
+* @brief Update total score error
+* @param error pointer to score error struct
+* @param totalError pointer to total score error struct
+* @return none.
+*/
 void UpdateScoreError(score_error_t *error, score_error_t *totalError) {
     totalError->numErrors += error->numErrors;
     totalError->numScores += error->numScores;
@@ -216,11 +275,20 @@ void UpdateScoreError(score_error_t *error, score_error_t *totalError) {
     }
 }
 
-uint32_t CompareScores(float *ptrScoreArray,
-                       void *ptrRefScoreArray,
-                       score_error_t *scoreError,
-                       uint32_t numRows,
-                       uint32_t numColumns) {
+/**
+* @brief Compare score errors, array should be the same length
+* @param ptrScoreArray - pointer to score error struct array
+* @param ptrRefScoreArray - pointer to score error struct array to compare
+* @param scoreError - pointer to score error struct to save a new error
+* @param numRows - number rows in score error arrays
+* @param numColumns - number columns in score error arrays
+* @return none.
+*/
+void CompareScores(float *ptrScoreArray,
+                   void *ptrRefScoreArray,
+                   score_error_t *scoreError,
+                   uint32_t numRows,
+                   uint32_t numColumns) {
     uint32_t numErrors = 0;
 
     ClearScoreError(scoreError);
@@ -254,10 +322,13 @@ uint32_t CompareScores(float *ptrScoreArray,
     scoreError->rmsError = sqrt(scoreError->sumSquaredError / (numRows * numColumns));
     scoreError->sumRmsError += scoreError->rmsError;
     scoreError->numErrors = numErrors;
-
-    return (numErrors);
 }
 
+/**
+* @brief Get total stdev error
+* @param error pointer to score error struct
+* @return error
+*/
 float StdDevError(score_error_t error) {
     return (sqrt(error.sumSquaredError / error.numScores
                  - (error.sumError / error.numScores) * (error.sumError / error.numScores)));
@@ -288,7 +359,10 @@ inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 #endif
 }
 
-// return GNA module frequency in MHz
+/**
+* @brief Get GNA module frequency
+* @return GNA module frequency in MHz
+*/
 float getGnaFrequencyMHz() {
     uint32_t eax = 1;
     uint32_t ebx = 0;
@@ -333,6 +407,13 @@ float getGnaFrequencyMHz() {
 
 #endif  // if not ARM
 
+/**
+* @brief Print a report on the statistical score error
+* @param totalError reference to a total score error struct
+* @param framesNum number of frames in utterance
+* @param stream output stream
+* @return none.
+*/
 void printReferenceCompareResults(score_error_t const &totalError,
                                   size_t framesNum,
                                   std::ostream &stream) {
@@ -347,6 +428,14 @@ void printReferenceCompareResults(score_error_t const &totalError,
     stream << std::endl;
 }
 
+/**
+* @brief Print a report on the performance counts
+* @param utterancePerfMap reference to a map to store performance counters
+* @param callsNum frame index
+* @param stream output stream
+* @param fullDeviceName full device name string
+* @return none.
+*/
 void printPerformanceCounters(std::map<std::string,
         InferenceEngine::InferenceEngineProfileInfo> const &utterancePerfMap,
                               size_t callsNum,
@@ -383,6 +472,12 @@ void printPerformanceCounters(std::map<std::string,
 #endif
 }
 
+/**
+* @brief Get performance counts
+* @param request reference to infer request
+* @param perfCounters reference to a map to save performance counters
+* @return none.
+*/
 void getPerformanceCounters(InferenceEngine::InferRequest &request,
                             std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfCounters) {
     auto retPerfCounters = request.GetPerformanceCounts();
@@ -392,6 +487,12 @@ void getPerformanceCounters(InferenceEngine::InferRequest &request,
     }
 }
 
+/**
+* @brief Summarize performance counts
+* @param perfCounters reference to a map to get performance counters
+* @param totalPerfCounters reference to a map to save total performance counters
+* @return none.
+*/
 void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const &perfCounters,
                             std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &totalPerfCounters) {
     for (const auto &pair : perfCounters) {
@@ -399,6 +500,11 @@ void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngi
     }
 }
 
+/**
+* @brief Parse scale factors
+* @param str reference to user-specified input scale factor for quantization, can be separated by comma
+* @return vector scale factors
+*/
 std::vector<std::string> ParseScaleFactors(const std::string& str) {
     std::vector<std::string> scaleFactorInput;
 
@@ -421,7 +527,12 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
     return scaleFactorInput;
 }
 
-std::vector<std::string> ParseBlobName(std::string str) {
+/**
+* @brief Parse string of file names separated by comma to save it to vector of file names
+* @param str file names separated by comma
+* @return vector of file names
+*/
+std::vector<std::string> ConvertStrToVector(std::string str) {
     std::vector<std::string> blobName;
     if (!str.empty()) {
         size_t pos_last = 0;
@@ -435,8 +546,13 @@ std::vector<std::string> ParseBlobName(std::string str) {
     return blobName;
 }
 
+/**
+* @brief Checks input arguments
+* @param argc number of args
+* @param argv list of input arguments
+* @return bool status true(Success) or false(Fail)
+*/
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
-    // ---------------------------Parsing and validation of input args--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
 
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
@@ -449,6 +565,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     // input not required only in dump mode and if external scale factor provided
     if (FLAGS_i.empty() && (!isDumpMode || FLAGS_q.compare("user") != 0)) {
+        showUsage();
         if (isDumpMode) {
             throw std::logic_error("In model dump mode either static quantization is used (-i) or user scale"
                                    " factor need to be provided. See -q user option");
@@ -457,6 +574,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     if (FLAGS_m.empty() && FLAGS_rg.empty()) {
+        showUsage();
         throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
     }
 
@@ -528,24 +646,13 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
  */
 int main(int argc, char *argv[]) {
     try {
+        // ------------------------------ Get Inference Engine version ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
 
-        // ------------------------------ Parsing and validation of input args ---------------------------------
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
-
-        if (FLAGS_l.empty()) {
-            slog::info << "No extensions provided" << slog::endl;
-        }
-
-        auto isFeature = [&](const std::string xFeature) { return FLAGS_d.find(xFeature) != std::string::npos; };
-
-        bool useGna = isFeature("GNA");
-        bool useHetero = isFeature("HETERO");
-        std::string deviceStr =
-                useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
-        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t) FLAGS_bs;
 
         std::vector<std::string> inputArkFiles;
         std::vector<uint32_t> numBytesThisUtterance;
@@ -571,19 +678,36 @@ int main(int argc, char *argv[]) {
         size_t numInputArkFiles(inputArkFiles.size());
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load inference engine -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
         slog::info << "Loading Inference Engine" << slog::endl;
         Core ie;
         CNNNetwork network;
         ExecutableNetwork executableNet;
 
-        /** Printing device version **/
+        if (!FLAGS_l.empty()) {
+            // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
+            IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
+            ie.AddExtension(extension_ptr);
+            slog::info << "Custom Extension loaded: " << FLAGS_l << slog::endl;
+        }
+
+        // ------------------------------ Get Available Devices ------------------------------------------------------
+        auto isFeature = [&](const std::string xFeature) { return FLAGS_d.find(xFeature) != std::string::npos; };
+
+        bool useGna = isFeature("GNA");
+        bool useHetero = isFeature("HETERO");
+
+        std::string deviceStr =
+                useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
+
         slog::info << "Device info: " << slog::endl;
         std::cout << ie.GetVersions(deviceStr) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
-        slog::info << "Loading network files" << slog::endl;
+        // --------------------------- Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
+        slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
+
+        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t) FLAGS_bs;
 
         if (!FLAGS_m.empty()) {
             /** Read network model **/
@@ -682,8 +806,7 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 3. Loading model to the device ------------------------------------------
-
+        // --------------------------- Step 4. Loading model to the device ------------------------------------------
         if (useGna) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
         }
@@ -691,7 +814,7 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> outputs;
 
         if (!FLAGS_oname.empty()) {
-            std::vector<std::string> output_names = ParseBlobName(FLAGS_oname);
+            std::vector<std::string> output_names = ConvertStrToVector(FLAGS_oname);
             std::vector<size_t> ports;
             for (const auto& outBlobName : output_names) {
                 int pos_layer = outBlobName.rfind(":");
@@ -738,18 +861,18 @@ int main(int argc, char *argv[]) {
             }
             return 0;
         }
+        // ---------------------------------------------------------------------------------------------------------
 
-
-        // --------------------------- 4. Create infer request --------------------------------------------------
+        // --------------------------- Step 5. Create infer request --------------------------------------------------
         std::vector<InferRequestStruct> inferRequests((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         for (auto& inferRequest : inferRequests) {
             inferRequest = {executableNet.CreateInferRequest(), -1, batchSize};
         }
         // ---------------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Configure input & output --------------------------------------------------
-
-        //--- Prepare input blobs ----------------------------------------------
+        // --------------------------- Step 3. Configure input & output --------------------------------------------------
+        // This step executed after creating infer request to check input/output layers mentioned via -iname and -oname args
+        // --------------------------- Prepare input blobs -----------------------------------------------------
         /** Taking information about all topology inputs **/
         ConstInputsDataMap cInputInfo = executableNet.GetInputsInfo();
         CheckNumberOfInputs(cInputInfo.size(), numInputArkFiles);
@@ -757,7 +880,7 @@ int main(int argc, char *argv[]) {
         /** Stores all input blobs data **/
         std::vector<Blob::Ptr> ptrInputBlobs;
         if (!FLAGS_iname.empty()) {
-            std::vector<std::string> inputNameBlobs = ParseBlobName(FLAGS_iname);
+            std::vector<std::string> inputNameBlobs = ConvertStrToVector(FLAGS_iname);
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
                                        " ) is not equal to the number of inputs entered in the -iname argument ( " +
@@ -786,10 +909,9 @@ int main(int argc, char *argv[]) {
             Precision inputPrecision = Precision::FP32;  // specify Precision::I16 to provide quantized inputs
             item.second->setPrecision(inputPrecision);
         }
-
         // ---------------------------------------------------------------------
 
-        //--- Prepare output blobs ---------------------------------------------
+        // ------------------------------ Prepare output blobs -------------------------------------------------
         ConstOutputsDataMap cOutputInfo(executableNet.GetOutputsInfo());
         OutputsDataMap outputInfo;
         if (!FLAGS_m.empty()) {
@@ -820,27 +942,27 @@ int main(int argc, char *argv[]) {
             Precision outputPrecision = Precision::FP32;  // specify Precision::I32 to retrieve quantized outputs
             outData->setPrecision(outputPrecision);
         }
-        // ---------------------------------------------------------------------
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 6. Do inference --------------------------------------------------------
         std::vector<std::string> output_name_files;
         std::vector<std::string> reference_name_files;
         size_t count_file = 1;
         if (!FLAGS_o.empty()) {
-            output_name_files = ParseBlobName(FLAGS_o);
+            output_name_files = ConvertStrToVector(FLAGS_o);
             if (output_name_files.size() != outputs.size() && !outputs.empty()) {
                 throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
             count_file = output_name_files.empty() ? 1 : output_name_files.size();
         }
         if (!FLAGS_r.empty()) {
-            reference_name_files = ParseBlobName(FLAGS_r);
+            reference_name_files = ConvertStrToVector(FLAGS_r);
             if (reference_name_files.size() != outputs.size() && !outputs.empty()) {
                 throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
         }
+        // ---------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------------------------
+
+        // --------------------------- Step 7. Do inference --------------------------------------------------------
         for (size_t next_output = 0; next_output < count_file; next_output++) {
             std::vector<std::vector<uint8_t>> ptrUtterances;
             std::vector<uint8_t> ptrScores;
@@ -961,7 +1083,7 @@ int main(int argc, char *argv[]) {
                             numFramesThisBatch = (numFrames - frameIndex < batchSize) ? (numFrames - frameIndex)
                                                                                       : batchSize;
                         }
-
+                        /* waits until inference result becomes available */
                         if (inferRequest.frameIndex != -1) {
                             StatusCode code = inferRequest.inferRequest.Wait(
                                     InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
@@ -970,6 +1092,7 @@ int main(int argc, char *argv[]) {
                                 if (!useHetero) continue;
                                 if (code != StatusCode::INFER_NOT_STARTED) continue;
                             }
+                            // --------------------------- Step 8. Process output part 1 -------------------------------------------------------
                             ConstOutputsDataMap newOutputInfo;
                             if (inferRequest.frameIndex >= 0) {
                                 if (!FLAGS_o.empty()) {
@@ -1028,6 +1151,7 @@ int main(int argc, char *argv[]) {
                                     sumPerformanceCounters(callPerfMap, utterancePerfMap);
                                 }
                             }
+                            // -----------------------------------------------------------------------------------------------------
                         }
 
                         if (frameIndex == numFrames) {
@@ -1035,14 +1159,14 @@ int main(int argc, char *argv[]) {
                             continue;
                         }
 
-                        /** Prepare input blobs**/
+                        // --------------------------- Step 6. Prepare input --------------------------------------------------------
                         ptrInputBlobs.clear();
                         if (FLAGS_iname.empty()) {
                             for (auto &input : cInputInfo) {
                                 ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
                             }
                         } else {
-                            std::vector<std::string> inputNameBlobs = ParseBlobName(FLAGS_iname);
+                            std::vector<std::string> inputNameBlobs = ConvertStrToVector(FLAGS_iname);
                             for (const auto& input : inputNameBlobs) {
                                 Blob::Ptr blob = inferRequests.begin()->inferRequest.GetBlob(input);
                                 if (!blob) {
@@ -1053,6 +1177,7 @@ int main(int argc, char *argv[]) {
                             }
                         }
 
+                        /** Iterate over all the input blobs **/
                         for (size_t i = 0; i < numInputArkFiles; ++i) {
                             MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
                             if (!minput) {
@@ -1068,9 +1193,10 @@ int main(int argc, char *argv[]) {
                                         inputFrame[i],
                                         minput->byteSize());
                         }
+                        // -----------------------------------------------------------------------------------------------------
 
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
-                        /** Start inference **/
+                        /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.StartAsync();
                         inferRequest.frameIndex = index < 0 ? -2 : index;
                         inferRequest.numFramesThisBatch = numFramesThisBatch;
@@ -1110,6 +1236,9 @@ int main(int argc, char *argv[]) {
                 for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
                     state.Reset();
                 }
+                // -----------------------------------------------------------------------------------------------------
+
+                // --------------------------- Step 8. Process output part 2 -------------------------------------------------------
 
                 if (!FLAGS_o.empty()) {
                     /* Save output data to file */
@@ -1126,13 +1255,15 @@ int main(int argc, char *argv[]) {
                 std::cout << "Average Infer time per frame:\t\t" << totalTime / static_cast<double>(numFrames) << " ms"
                           << std::endl;
                 if (FLAGS_pc) {
-                    // print
+                    // print performance results
                     printPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d));
                 }
                 if (!FLAGS_r.empty()) {
+                    // print statistical score error
                     printReferenceCompareResults(totalError, numFrames, std::cout);
                 }
                 std::cout << "End of Utterance " << utteranceIndex << std::endl << std::endl;
+                // -----------------------------------------------------------------------------------------------------
             }
         }
         // -----------------------------------------------------------------------------------------------------
@@ -1147,5 +1278,6 @@ int main(int argc, char *argv[]) {
     }
 
     slog::info << "Execution successful" << slog::endl;
+
     return 0;
 }

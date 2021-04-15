@@ -16,6 +16,12 @@
 #include <dirent.h>
 #endif
 
+/**
+* @brief Checks input file argument and add it to files vector
+* @param files reference to vector to store file names
+* @param arg file or folder name
+* @return none
+*/
 void readInputFilesArguments(std::vector<std::string> &files, const std::string& arg) {
     struct stat sb;
     if (stat(arg.c_str(), &sb) != 0) {
@@ -46,17 +52,13 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
     } else {
         files.push_back(arg);
     }
-
-    if (files.size() < 20) {
-        slog::info << "Files were added: " << files.size() << slog::endl;
-        for (const auto& filePath : files) {
-            slog::info << "    " << filePath << slog::endl;
-        }
-    } else {
-        slog::info << "Files were added: " << files.size() << ". Too many to display each of them." << slog::endl;
-    }
 }
 
+/**
+* @brief This function find -i key in input args. It's necessary to process multiple values for single key
+* @param files reference to vector
+* @return none.
+*/
 void parseInputFilesArguments(std::vector<std::string> &files) {
     std::vector<std::string> args = gflags::GetArgvs();
     const auto is_image_arg = [](const std::string& s){ return s == "-i" || s == "--images";};
@@ -69,6 +71,16 @@ void parseInputFilesArguments(std::vector<std::string> &files) {
     const auto img_end = std::find_if(img_begin, end(args), is_arg);
     for (auto img = img_begin; img != img_end; ++img) {
         readInputFilesArguments(files, *img);
+    }
+
+    size_t max_files = 20;
+    if (files.size() < max_files) {
+        slog::info << "Files were added: " << files.size() << slog::endl;
+        for (const auto& filePath : files) {
+            slog::info << "    " << filePath << slog::endl;
+        }
+    } else {
+        slog::info << "Files were added: " << files.size() << ". Too many to display each of them." << slog::endl;
     }
 }
 

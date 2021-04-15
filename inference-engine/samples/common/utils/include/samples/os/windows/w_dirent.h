@@ -42,6 +42,7 @@
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 
+/// @brief structure to store directory names
 struct dirent {
     char *d_name;
 
@@ -56,6 +57,7 @@ struct dirent {
     }
 };
 
+/// @brief class to store directory data (files meta)
 class DIR {
     WIN32_FIND_DATAA FindFileData;
     HANDLE hFind;
@@ -90,10 +92,18 @@ public:
         FindClose(hFind);
     }
 
+    /**
+    * @brief Check file handler is valid
+    * @return status True(success) or False(fail)
+    */
     bool isValid() const {
         return (hFind != INVALID_HANDLE_VALUE && FindFileData.dwReserved0);
     }
 
+    /**
+    * @brief Add directory to directory names struct
+    * @return pointer to directory names struct
+    */
     dirent* nextEnt() {
         if (next != nullptr) delete next;
         next = nullptr;
@@ -110,7 +120,11 @@ public:
     }
 };
 
-
+/**
+* @brief Create directory data struct element
+* @param string directory path
+* @return pointer to directory data struct element
+*/
 static DIR* opendir(const char *dirPath) {
     auto dp = new DIR(dirPath);
     if (!dp->isValid()) {
@@ -120,10 +134,20 @@ static DIR* opendir(const char *dirPath) {
     return dp;
 }
 
+/**
+* @brief Walk throw directory data struct
+* @param pointer to directory data struct
+* @return pointer to directory data struct next element
+*/
 static struct dirent* readdir(DIR *dp) {
     return dp->nextEnt();
 }
 
+/**
+* @brief Remove directory data struct
+* @param pointer to struct directory data
+* @return void
+*/
 static void closedir(DIR *dp) {
     delete dp;
 }
