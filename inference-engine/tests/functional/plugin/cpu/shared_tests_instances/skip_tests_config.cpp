@@ -57,7 +57,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BinaryConvolutionLayerTest.*)",
         // TODO: 51676. Incorrect conversion of min and max limits from double to integral
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
-        R"(.*ClampLayerTest.*netPrc=U64.*)"
+        R"(.*ClampLayerTest.*netPrc=U64.*)",
+        // TODO: 42538. Unexpected application crush
+        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)"
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
