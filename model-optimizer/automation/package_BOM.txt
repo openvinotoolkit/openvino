@@ -987,6 +987,7 @@ mo/utils/error.py
 mo/utils/extract_release_version.py
 mo/utils/find_ie_version.py
 mo/utils/find_inputs.py
+mo/utils/frontendmanager_wrapper.py
 mo/utils/get_ov_update_message.py
 mo/utils/graph.py
 mo/utils/guess_framework.py

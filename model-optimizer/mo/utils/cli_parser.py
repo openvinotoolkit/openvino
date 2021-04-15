@@ -18,9 +18,7 @@ from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
-
-from ngraph import FrontEndManager
-
+from mo.utils.frontendmanager_wrapper import create_fem
 
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
@@ -621,13 +619,14 @@ def get_all_cli_parser():
 
     Returns
     -------
-        ArgumentParser instance
+        Tuple
+            ArgumentParser instance
+            FrontEndManager instance
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
-    # TODO: Move FE API load to a single place (except this place there is another one when it is loaded).
-    fem = FrontEndManager()
-    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + fem.availableFrontEnds()))
+    fem = create_fem()
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (fem.availableFrontEnds() if fem else [])))
 
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
@@ -642,7 +641,7 @@ def get_all_cli_parser():
     get_kaldi_cli_parser(parser=parser)
     get_onnx_cli_parser(parser=parser)
 
-    return parser
+    return parser, fem
 
 
 def remove_data_type_from_input_value(input_value: str):

@@ -12,5 +12,5 @@ if ret_code:
 from mo.main import main
 from mo.utils.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module
 
-sys.exit(main(get_all_cli_parser(), None))
+sys.exit(main(*get_all_cli_parser(), None))
 

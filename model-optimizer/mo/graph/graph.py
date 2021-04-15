@@ -998,7 +998,7 @@ class Graph(nx.MultiDiGraph):
 
     def get_input_ids(self):
         if 'network' in self.graph:
-            import ngraph as ng
+            import ngraph as ng                                # pylint: disable=import-error
             func = ng.function_from_cnn(self.graph['network'])
             return func.get_parameters()
         else:
