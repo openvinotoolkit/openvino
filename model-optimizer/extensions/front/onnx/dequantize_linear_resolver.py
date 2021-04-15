@@ -37,7 +37,7 @@ class DequantizeLinearResolver(FrontReplacementOp):
         cast = Cast(graph, {'dst_type': model_data_type, 'name': node_name + '/Cast'}).create_node()
 
         axis = node.soft_get('axis', node.id)
-        if axis or axis != 1:
+        if axis is not None and axis != 1:
             data_shape_node = Shape(graph, {'name': node_name + '/Shape'}).create_node()
             node.in_port(0).get_source().connect(data_shape_node.in_port(0))
             gather_node = create_op_with_const_inputs(graph, Gather, {1: int64_array([axis])},
