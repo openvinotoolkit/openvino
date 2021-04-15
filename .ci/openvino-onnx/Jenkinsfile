@@ -196,10 +196,14 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 // Set result to ABORTED if exception contains exit code of a process interrupted by SIGTERM
                 if ("$e".contains("143")) {
                     currentBuild.result = "ABORTED"
-                    rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing
+                    sh '''
+                        rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing
+                    '''
                 } else {
                     currentBuild.result = "FAILURE"
-                    rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing
+                    sh '''
+                        rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing
+                    '''
                 }
                 gitPrInfo = getGitPrInfo(${PROJECT_NAME})
                 notifyByEmail(gitPrInfo)
