@@ -66,7 +66,7 @@ class QuantizeLinearResolver(FrontReplacementOp):
         # Calculate input_high value
         mul_high = create_op_with_const_inputs(graph, Mul, {1: float_array(output_high_value - zerop.value)},
                                               {'name': node_name + '/Mul/High'})
-        mul_low.in_port(0).get_connection().add_destination(mul_high.in_port(0))
+
 
         cast = Cast(graph, {'dst_type': zero_point_type, 'name': node_name + '/Cast'}).create_node()
         rename_nodes([(node, node_name + '/TBD'), (cast, node_name)])
@@ -76,7 +76,8 @@ class QuantizeLinearResolver(FrontReplacementOp):
         if axis is not None and axis != 1:
             data_shape_node = Shape(graph, {'name': node_name + '/Shape'}).create_node()
             fake_quantize.in_port(0).get_source().connect(data_shape_node.in_port(0))
-            gather_node = create_op_with_const_inputs(graph, Gather, {1: int64_array([axis])},
+            gather_node = create_op_with_const_inputs(graph, Gather, {1: int64_array([axis]),
+                                                                      2: int64_array(0)},
                                                       {'name': node_name + '/Gather'})
             data_shape_node.out_port(0).connect(gather_node.in_port(0))
 
@@ -91,7 +92,8 @@ class QuantizeLinearResolver(FrontReplacementOp):
                                                              {'name': node_name + '/GreaterEqual'})
             range_node.out_port(0).connect(greater_equal_node.in_port(0))
 
-            scatter_elements_node = create_op_with_const_inputs(graph, ScatterElementsUpdate, {1: int64_array([axis])},
+            scatter_elements_node = create_op_with_const_inputs(graph, ScatterElementsUpdate, {1: int64_array([axis]),
+                                                                                               3: int64_array(0)},
                                                                 {'name': node_name + '/ScatterElements'})
 
             cast_node = Cast(graph, {'dst_type': np.int64, 'name': node_name + '/Cast'}).create_node()
@@ -111,5 +113,5 @@ class QuantizeLinearResolver(FrontReplacementOp):
         else:
             mul_low.out_port(0).connect(fake_quantize.in_port(1))
             mul_high.out_port(0).connect(fake_quantize.in_port(2))
-
+        mul_low.in_port(0).get_connection().add_destination(mul_high.in_port(0))
         return [cast.id]
