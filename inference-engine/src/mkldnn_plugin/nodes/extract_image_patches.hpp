@@ -19,6 +19,7 @@ struct jit_eximpat_params {
     int SH, SW;
     int dtype_size;
     int block_size;
+    bool need_padding;
 };
 
 struct jit_eximpat_args {

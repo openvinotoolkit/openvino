@@ -43,13 +43,15 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
         mov(reg_w_lo_pad, ptr[reg_params + GET_OFF(w_lo_pad)]);
         mov(reg_h_hi_pad, ptr[reg_params + GET_OFF(h_hi_pad)]);
 
-        mov(reg_src_h_incr, jpp.SH * jpp.IW * jpp.dtype_size);
-        mov(reg_src_w_incr, reg_w_hi_pad);
-        mul_by_const(reg_src_w_incr, reg_aux64, jpp.SW * jpp.dtype_size);
-        sub(reg_src_h_incr, reg_src_w_incr);
+        mov(reg_src_incr, jpp.SH * jpp.IW * jpp.dtype_size);
+        mov(reg_aux64, reg_w_hi_pad);
+        mul_by_const(reg_aux64, reg_aux64_2, jpp.SW * jpp.dtype_size);
+        sub(reg_src_incr, reg_aux64);
 
-        mov(reg_src_w_incr, reg_w_lo_pad);
-        mul_by_const(reg_src_w_incr, reg_aux64, jpp.SW * jpp.dtype_size);
+        mov(reg_aux64, reg_w_lo_pad);
+        mul_by_const(reg_aux64, reg_aux64_2, jpp.SW * jpp.dtype_size);
+        add(reg_src_incr, reg_aux64);
+        add(reg_src, reg_aux64);
 
         mov(reg_ow_work_amount, reg_w_hi_pad);
         sub(reg_ow_work_amount, reg_w_lo_pad);
@@ -78,12 +80,12 @@ private:
     reg64_t reg_oh_count = r10;
     reg64_t reg_ow_count = r11;
     reg64_t reg_num_pads = r12;
-    reg64_t reg_src_h_incr = r13;
+    reg64_t reg_src_incr = r13;
     reg64_t reg_aux64 = rax;
     reg64_t reg_w_hi_pad = r14;
     reg64_t reg_w_lo_pad = r15;
     reg64_t reg_h_hi_pad = rbp;
-    reg64_t reg_src_w_incr = rbx;
+    reg64_t reg_aux64_2 = rbx;
     reg64_t reg_ow_work_amount = rsi;
     reg64_t reg_params = abi_param1;
 
@@ -206,16 +208,19 @@ private:
         mov(reg_oh_count, reg_h_hi_pad);
         mov(reg_num_pads, ptr[reg_params + GET_OFF(h_lo_pad)]);
         sub(reg_oh_count, reg_num_pads);
-        mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
-        pad_with_zeros(reg_num_pads, reg_dst);
+        if (jpp.need_padding) {
+            mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
+            pad_with_zeros(reg_num_pads, reg_dst);
+        }
         L(ih_loop);
         {
             cmp(reg_oh_count, 0);
             jle(ih_exit, T_NEAR);
-            mov(reg_num_pads, reg_w_lo_pad);
-            pad_with_zeros(reg_num_pads, reg_dst);
+            if (jpp.need_padding) {
+                mov(reg_num_pads, reg_w_lo_pad);
+                pad_with_zeros(reg_num_pads, reg_dst);
+            }
             mov(reg_ow_count, reg_ow_work_amount);
-            add(reg_src, reg_src_w_incr);
             L(iw_loop);
             {
                 cmp(reg_ow_count, jpp.block_size);
@@ -238,18 +243,22 @@ private:
                 jmp(iw_tail);
             }
             L(iw_exit);
-            mov(reg_num_pads, jpp.OW);
-            sub(reg_num_pads, reg_w_hi_pad);
-            pad_with_zeros(reg_num_pads, reg_dst);
+            if (jpp.need_padding) {
+                mov(reg_num_pads, jpp.OW);
+                sub(reg_num_pads, reg_w_hi_pad);
+                pad_with_zeros(reg_num_pads, reg_dst);
+            }
             dec(reg_oh_count);
-            add(reg_src, reg_src_h_incr);
+            add(reg_src, reg_src_incr);
             jmp(ih_loop, T_NEAR);
         }
         L(ih_exit);
-        mov(reg_num_pads, jpp.OH);
-        sub(reg_num_pads, reg_h_hi_pad);
-        mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
-        pad_with_zeros(reg_num_pads, reg_dst);
+        if (jpp.need_padding) {
+            mov(reg_num_pads, jpp.OH);
+            sub(reg_num_pads, reg_h_hi_pad);
+            mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
+            pad_with_zeros(reg_num_pads, reg_dst);
+        }
     }
 
     void prepare_table() {
@@ -310,6 +319,8 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         SizeVector in_dims = inData->getTensorDesc().getDims();
         _pad_left = 0;
         _pad_top = 0;
+        jit_eximpat_params jpp;
+        jpp.need_padding = false;
         if (!CaselessEq<std::string>()(auto_pad, "valid")) {
             const int64_t iheight = in_dims[2];
             const int64_t iwidth = in_dims[3];
@@ -328,13 +339,14 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
 
             if ((PW > 0) && (PW < iwStep)) {
                 _pad_left = (PW + increment_sign * (PW % 2) ) / 2;
+                jpp.need_padding = true;
             }
             if ((PH > 0) && (PH < ihStep)) {
                 _pad_top = (PH + increment_sign * (PH % 2) ) / 2;
+                jpp.need_padding = true;
             }
         }
 
-        jit_eximpat_params jpp;
         jpp.IW = in_dims[3];
         SizeVector out_dims = layer->outData[0]->getTensorDesc().getDims();
         jpp.OH = out_dims[2];
