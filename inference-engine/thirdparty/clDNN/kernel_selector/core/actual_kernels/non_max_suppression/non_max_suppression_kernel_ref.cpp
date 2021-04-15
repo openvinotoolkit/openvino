@@ -116,6 +116,14 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     return jit;
 }
 
+int GetPartitionStep(int localWorkItemNum) {
+    int step_size = 0;
+    for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
+        step_size++;
+    }
+    return step_size;
+}
+
 size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
     const size_t lws_max = info.maxWorkGroupSize;
     const size_t optimal_lws_values[] = {8, 7, 6, 5, 4, 2, 1};
@@ -245,7 +253,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
         } else if (i == 1) {
             cldnn_jit.AddConstants({ MakeJitConstant("IS_FIRST_ITER", "true")
                                    , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
-                                   , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])});
+                                   , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
+                                   , MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
         } else if (i == 2) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
         } else {
