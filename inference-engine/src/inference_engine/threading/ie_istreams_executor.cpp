@@ -157,7 +157,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // TBB with hybrid CPU aware task_arena api
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
         const auto core_types = custom::info::core_types();
-        const auto num_little_cores = custom::info::default_concurrency(core_types.front());
+        const auto num_little_cores = custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
         const auto num_big_cores_phys = getNumberOfCPUCores(true);
         const int int8_threshold = 4; // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2; // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
@@ -173,7 +173,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         // additionally selecting the #cores to use in the "Big-only" case
         if (bLatencyCaseBigOnly) {
             const int hyper_threading_threshold = 2; // min #cores, for which the hyper-threading becomes useful for the latency case
-            const auto num_big_cores = custom::info::default_concurrency(core_types.back());
+            const auto num_big_cores = custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.back()));
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
     }

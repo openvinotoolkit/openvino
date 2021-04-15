@@ -75,7 +75,7 @@ struct CPUStreamsExecutor::Impl {
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
-                       _taskArena.reset(new custom::task_arena{ concurrency });
+                       _taskArena.reset(new custom::task_arena{concurrency});
                        // TODO: REMOVE THE DEBUG PRINTF
                        printf("%s, NO BINDING, StreamId: %d (%d threads) \n",
                            _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream);
@@ -83,7 +83,8 @@ struct CPUStreamsExecutor::Impl {
                        const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                            ? custom::info::core_types().back() // runing on Big cores only
                            : custom::info::core_types().front(); // runing on Little cores only
-                       _taskArena.reset(new custom::task_arena{ custom::task_arena::constraints{selected_core_type, concurrency} });
+                       _taskArena.reset(new custom::task_arena{
+                           custom::task_arena::constraints{}.set_core_type(selected_core_type).set_max_concurrency(concurrency)});
                        // TODO: REMOVE THE DEBUG PRINTF
                        printf("%s, EXPLICIT BINDING, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
                            _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
@@ -96,7 +97,8 @@ struct CPUStreamsExecutor::Impl {
                     const auto streamId_wrapped = _streamId % total_streams;
                     const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(), _impl->total_streams_on_core_types.cend(),
                         [streamId_wrapped](const decltype(_impl->total_streams_on_core_types)::value_type & p) { return p.second > streamId_wrapped; })->first;
-                    _taskArena.reset(new custom::task_arena{ custom::task_arena::constraints{selected_core_type, concurrency} });
+                    _taskArena.reset(new custom::task_arena{
+                        custom::task_arena::constraints{}.set_core_type(selected_core_type).set_max_concurrency(concurrency)});
                     // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s StreamId: %d (wrapped %d) assigned CORE TYPE : %d (total #streams: %d) \n",
                         _impl->_config._name.c_str(), _streamId, streamId_wrapped, static_cast<int>(selected_core_type), total_streams);
@@ -186,6 +188,9 @@ struct CPUStreamsExecutor::Impl {
         _streams([this] {
             return std::make_shared<Impl::Stream>(this);
         }) {
+        // TODO: REMOVE THE DEBUG PRINTF
+        printf("INIT (%s), STREAMS: %d, THREADS_PER_STREAM: %d \n", _config._name.c_str(), _config._streams, _config._threadsPerStream);
+
         auto numaNodes = getAvailableNUMANodes();
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
@@ -204,12 +209,17 @@ struct CPUStreamsExecutor::Impl {
             for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
                 const auto& type = *iter;
                 // calculating the #streams per core type
-                const int num_streams_for_core_type = std::max(1, custom::info::default_concurrency(type) / threadsPerStream);
+                const int num_streams_for_core_type = std::max(1, custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(type)) / threadsPerStream);
                 sum += num_streams_for_core_type;
                 // prefix sum, so the core type for a given stream id will be deduced just as a upper_bound
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated first)
                 total_streams_on_core_types.push_back({type, sum});
             }
+            // TODO: REMOVE THE DEBUG PRINTF
+            printf("%s total_streams_on_core_types: [%d core_type, %d #streams], [%d core_type, %d #streams]) \n",
+            config._name.c_str(), static_cast<int>(total_streams_on_core_types.front().first), total_streams_on_core_types.front().second,
+            static_cast<int>(total_streams_on_core_types.back().first), total_streams_on_core_types.back().second);
+
         }
         #endif
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
