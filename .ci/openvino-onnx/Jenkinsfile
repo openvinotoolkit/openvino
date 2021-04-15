@@ -185,6 +185,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
             }
             stage("Run tests") {
                 timeout(time: 60, unit: 'MINUTES') {
+                    runTests(configuration)
                 }
             }
         }
