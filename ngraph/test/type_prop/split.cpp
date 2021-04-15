@@ -19,7 +19,7 @@ TEST(type_prop, split_v1_axis_const_positive)
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(split->get_output_element_type(i), element::f16);
         EXPECT_EQ(split->get_output_shape(i), (Shape{2, 1, 4}));
