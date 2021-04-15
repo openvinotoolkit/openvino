@@ -114,7 +114,7 @@ namespace shape_of
             }
             auto dimensions = OutputVector{};
             auto output_dimensions = vector<Dimension>(partial_shape);
-            for (int64_t i = 0; i < output_dimensions.size(); ++i)
+            for (size_t i = 0; i < output_dimensions.size(); ++i)
             {
                 if (output_dimensions[i].is_static())
                 {
@@ -123,17 +123,17 @@ namespace shape_of
                         Shape{1},
                         std::vector<int64_t>{output_dimensions[i].get_length()});
                     temp->set_friendly_name("ConstDim/" + temp->get_name());
-                    dimensions.push_back(temp);
+                    dimensions.emplace_back(temp);
                 }
                 else
                 {
                     auto index = std::make_shared<op::v0::Constant>(
-                        output_type, Shape{1}, std::vector<int64_t>{i});
+                        output_type, Shape{1}, std::vector<int64_t>{static_cast<int64_t>(i)});
                     auto axis = std::make_shared<op::v0::Constant>(
                         element::i64, Shape{}, std::vector<int64_t>{0});
                     auto temp = make_shared<op::v1::Gather>(shape_of, index, axis);
                     temp->set_friendly_name("DynDim/" + temp->get_name());
-                    dimensions.push_back(temp);
+                    dimensions.emplace_back(temp);
                 }
             }
 
