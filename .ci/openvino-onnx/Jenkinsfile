@@ -143,9 +143,9 @@ def runTests(Map configuration) {
         WORKER_NAME = updateModels()
         sh """
             docker run --name ${DOCKER_CONTAINER_NAME} \
-            --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
+            --volume ${HOME}/ONNX_CI/data/${WORKER_NAME}/model_zoo:/root/.onnx/model_zoo \
             ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models"
-            rm -f ${HOME}/ONNX_CI/data/worker_${i}/executing
+            rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing
         """
 
     }
