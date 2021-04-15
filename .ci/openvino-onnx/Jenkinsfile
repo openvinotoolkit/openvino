@@ -109,7 +109,7 @@ def updateModels() {
                                 fi
                             done
                           """).trim().reverse().take(8).reverse()
-
+    }
     return WORKER_NAME
 }
 
