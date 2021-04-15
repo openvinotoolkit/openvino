@@ -443,7 +443,6 @@ static Vector3Box generateBoxInput(size_t batchNum, size_t classNum, size_t boxN
 static std::vector<float> convertBoxToBoxCoord(Vector3Box& input);
 static std::vector<float> convertBoxToBoxScore(Vector3Box& input);
 static void sortBox(Vector3Box& input);
-static void printBox(const char* title, Vector3Box& input);
 static bool compareOutput(Vector3Box& sortedBox, cldnn::pointer<int>& gpuResultBox);
 
 
@@ -496,18 +495,8 @@ struct non_max_suppression_sort : public testing::Test {
 
 TYPED_TEST_CASE(non_max_suppression_sort, nms_types);
 
-TYPED_TEST(non_max_suppression_sort, sort_1_80_64) {
-    auto ret = this->run(1, 80, 8);
-    EXPECT_TRUE(ret);
-}
-
-TYPED_TEST(non_max_suppression_sort, sort_2_80_64) {
-    auto ret = this->run(1, 1, 5450);//10000);//17050);
-    EXPECT_TRUE(ret);
-}
-
-TYPED_TEST(non_max_suppression_sort, sort_4_80_64) {
-    auto ret = this->run(1, 1, 10000);
+TYPED_TEST(non_max_suppression_sort, sort_1_80_400) {
+    auto ret = this->run(1, 80, 400);
     EXPECT_TRUE(ret);
 }
 
@@ -557,22 +546,6 @@ void sortBox(Vector3Box& input) {
     for (size_t batchId = 0; batchId < batchNum; batchId++) {
         for (size_t classId = 0; classId < classNum; classId++) {
             std::sort(input[batchId][classId].begin(), input[batchId][classId].end(), compareBox);
-        }
-    }
-}
-
-void printBox(const char* title, Vector3Box& input) {
-    size_t batchNum = input.size();
-    size_t classNum = input[0].size();
-    size_t boxNum = input[0][0].size();
-
-    printf("%s [%ld][%ld][%ld]\n", title, batchNum, classNum, boxNum);
-    for (size_t batchId = 0; batchId < batchNum; batchId++) {
-        for (size_t classId = 0; classId < classNum; classId++) {
-            for (size_t boxId = 0; boxId < boxNum; boxId++) {
-                const Box& box = input[batchId][classId][boxId];
-                printf("  [%3d][%3d][%3d]: %.2f\n", box.batchId, box.classId, box.boxId, box.score);
-            }
         }
     }
 }

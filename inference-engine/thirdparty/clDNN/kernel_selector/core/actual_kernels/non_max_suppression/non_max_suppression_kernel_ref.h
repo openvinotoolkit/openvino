@@ -72,7 +72,7 @@ protected:
     Datatype GetAccumulatorType(const non_max_suppression_params& params) const;
     virtual JitConstants GetJitConstants(const non_max_suppression_params& params) const;
     bool Validate(const Params& p, const optional_params& o) const override;
-    void SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel) const;
+    void SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel, size_t idx) const;
 };
 
 }  // namespace kernel_selector

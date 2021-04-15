@@ -202,42 +202,17 @@ inline void FUNC(sortOutputBoxList)(__global BOX_INFO *outSortedBoxes, int boxNu
     }
 }
 
-#define PRINT printf
-//#define PRINT
 
-// boxes shape: {num_batches, num_boxes, 4}
-// scores shape: {num_batches, num_classes, num_boxes}
-KERNEL (non_max_suppression_ref)(
-    const __global INPUT0_TYPE *boxes
-    , const __global INPUT1_TYPE *scores
-    , __global OUTPUT_TYPE *output
+#ifdef IS_ZERO_ITER
+KERNEL (non_max_suppression_ref_stage_0)(
+    const __global INPUT1_TYPE *scores
     , __global uchar *buffer0
-    , __global uchar *buffer1
-    , __global uchar *buffer2
     , __global int *buffer3
-    #if NUM_SELECT_PER_CLASS_IDX
-    , const __global INPUT2_TYPE *num_select_per_class
-    #endif
-    #if IOU_THRESHOLD_IDX
-    , const __global INPUT3_TYPE *iou_threshold
-    #endif
     #if SCORE_THRESHOLD_IDX
     , const __global INPUT4_TYPE *score_threshold
     #endif
-    #if SOFT_NMS_SIGMA_IDX
-    , const __global INPUT5_TYPE *soft_nms_sigma
-    #endif
-    #if SELECTED_SCORES_TERM
-    , __global SELECTED_SCORES_TYPE *selected_scores
-    #endif
-    #if VALID_OUTPUTS_TERM
-    , __global VALID_OUTPUTS_TYPE *valid_outputs
-    #endif
-
     )
 {
-
-#ifdef IS_ZERO_ITER
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
     const int box_gid = get_global_id(2);
@@ -245,15 +220,8 @@ KERNEL (non_max_suppression_ref)(
     const int start_bid = box_gid * NUM_SCORE_PER_ITEM;
     const int end_bid = min(start_bid + NUM_SCORE_PER_ITEM, NUM_BOXES);
 
-    //printf("IS_ZERO_ITER-1 [%3d][%3d][%3d]\n", batchId, classId, box_gid);
-
-    //printf("batchId[%d] classId[%d] box_gid[%d] start_bid[%d] end_bid[%d] %d\n", batchId, classId, box_gid, start_bid, end_bid, NUM_SCORE_PER_ITEM);
-
     __local char bit_mask[NUM_BIT_MASK];
     __local int block_num[NUM_SCORE_BLOCK];
-    // printf("(%3d %3d %3d) (%3zu %3zu %3zu) (%3zu %3zu %3zu) \n", batchId, classId, box_gid
-    // , get_group_id(0), get_group_id(1), get_group_id(2)
-    // , get_local_id(0), get_local_id(1), get_local_id(2));
 
     block_num[box_gid] = 0;
 
@@ -265,9 +233,12 @@ KERNEL (non_max_suppression_ref)(
 
             char mask = 0;
             for (int bi = 0; bi < 8; bi++) {
-                if (TO_ACCUMULATOR_TYPE(score8[bi]) < SCORE_THRESHOLD_VAL || (i + bi) >= NUM_BOXES)
+                if ((i + bi) >= NUM_BOXES)
+                    break;
+
+                if (TO_ACCUMULATOR_TYPE(score8[bi]) < SCORE_THRESHOLD_VAL)
                     continue;
-                // printf("[%d %d %d] %f (%f) %d\n", batchId, classId, i + bi, TO_ACCUMULATOR_TYPE(score8[bi]), SCORE_THRESHOLD_VAL, NUM_BOXES);
+
                 mask |= (1 << bi);
                 total_block_selected_num++;
             }
@@ -292,7 +263,6 @@ KERNEL (non_max_suppression_ref)(
                 acc_num += n;
             }
             buffer3[batchId * NUM_CLASSES + classId] = acc_num;
-            // printf("[%3d %3d] %d\n", batchId, classId, acc_num);
         }
     }
 
@@ -309,8 +279,7 @@ KERNEL (non_max_suppression_ref)(
             const char mask = bit_mask[mask_id];
 
             for (int bi = 0; bi < 8; bi++) {
-                if ((mask & (1 << bi)) && (i + bi) < NUM_BOXES)
-                {
+                if ((mask & (1 << bi)) && (i + bi) < NUM_BOXES) {
                     SBOX_INFO binfo;
                     binfo.boxId = i + bi;
                     binfo.suppress_begin_index = 0;
@@ -327,15 +296,22 @@ KERNEL (non_max_suppression_ref)(
             mask_id++;
         }
     }
-    //printf("IS_ZERO_ITER-END [%3d][%3d][%3d]\n", batchId, classId, box_gid);
-#elif IS_FIRST_ITER
+}
+#endif /* IS_ZERO_ITER */
+
+// boxes shape: {num_batches, num_boxes, 4}
+// scores shape: {num_batches, num_classes, num_boxes}
+#ifdef IS_FIRST_ITER
+KERNEL (non_max_suppression_ref_stage_1)(
+    __global uchar *buffer0
+    , __global int *buffer3
+    )
+{
     int batchId = get_global_id(0);
     int classId = get_global_id(1);
     int workItemId = get_global_id(2);
     int localClassId = get_local_id(1);
     __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 4];
-
-    PRINT("IS_FIRST_ITER-1 [%3d][%3d][%3d]\n", batchId, classId, workItemId);
 
     int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
@@ -354,12 +330,7 @@ KERNEL (non_max_suppression_ref)(
             int second_id = first_id + range_step;
 
             if (begin_id < end_id) {
-                //printf("[%d/%d/%d] partition[%d ~ %d] sortedBoxNum(%d) i(%d)\n",
-                //    batchId, classId, workItemId, begin_id, end_id, sortedBoxNum, i);
-
                 int pivot = FUNC_CALL(partition)(sortedBoxList, begin_id, end_id);
-                //printf("[%d/%d/%d] partition[%d ~ %d] sortedBoxNum(%d) i(%d) pivot(%d) done\n",
-                //    batchId, classId, workItemId, begin_id, end_id, sortedBoxNum, i, pivot);
                 __range[localClassId][first_id     ] = begin_id;
                 __range[localClassId][first_id + 1 ] = max(pivot - 1, begin_id);
                 __range[localClassId][second_id    ] = min(pivot + 1, end_id);
@@ -373,49 +344,52 @@ KERNEL (non_max_suppression_ref)(
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
-    //printf("IS_FIRST_ITER-2 [%3d][%3d][%3d]\n", batchId, classId, workItemId);
-    //barrier(CLK_LOCAL_MEM_FENCE);
-
     if (sortedBoxNum > 1) {
         int begin_id = __range[localClassId][first_id];
         int end_id = __range[localClassId][first_id + 1];
         if (begin_id < end_id) {
-            //printf("[%d/%d/%d] quickSortIterative[%d ~ %d] sortedBoxNum(%d)\n",
-            //    batchId, classId, workItemId, begin_id, end_id, sortedBoxNum);
             FUNC_CALL(quickSortIterative)(sortedBoxList, begin_id, end_id);
-            //printf("[%d/%d/%d] quickSortIterative[%d ~ %d] sortedBoxNum(%d) done.\n",
-            //    batchId, classId, workItemId, begin_id, end_id, sortedBoxNum);
         }
     }
-    PRINT("IS_FIRST_ITER-END [%3d][%3d][%3d]\n", batchId, classId, workItemId);
-#elif IS_SECOND_ITER
+}
+#endif /* IS_FIRST_ITER */
+
+#ifdef IS_SECOND_ITER
+KERNEL (non_max_suppression_ref_stage_2)(
+    const __global INPUT0_TYPE *boxes
+    , __global uchar *buffer0
+    , __global uchar *buffer1
+    , __global int *buffer3
+    #if NUM_SELECT_PER_CLASS_IDX
+    , const __global INPUT2_TYPE *num_select_per_class
+    #endif
+    #if IOU_THRESHOLD_IDX
+    , const __global INPUT3_TYPE *iou_threshold
+    #endif
+    #if SCORE_THRESHOLD_IDX
+    , const __global INPUT4_TYPE *score_threshold
+    #endif
+    #if SOFT_NMS_SIGMA_IDX
+    , const __global INPUT5_TYPE *soft_nms_sigma
+    #endif
+    )
+{
     int batchId = get_global_id(0);
     int classId = get_global_id(1);
     PRINT("IS_SECOND_ITER-1 [%3d][%3d][0]\n", batchId, classId);
 
     float scale = 0.0f;
-    if (SOFT_NMS_SIGMA_VAL > 0.0f)
-    {
+    if (SOFT_NMS_SIGMA_VAL > 0.0f) {
         scale = -0.5f / SOFT_NMS_SIGMA_VAL;
     }
-
-    //if (batchId == 0 && classId == 0)
-    //    printf("{K} NUM_SELECT_PER_CLASS_VAL(%d), IOU_THRESHOLD_VAL(%.2f)\n"
-    //            "{K} SCORE_THRESHOLD_VAL(%.2f) SOFT_NMS_SIGMA_VAL(%.2f)\n",
-    //        NUM_SELECT_PER_CLASS_VAL, IOU_THRESHOLD_VAL,
-    //        SCORE_THRESHOLD_VAL, SOFT_NMS_SIGMA_VAL);
-
-    int outputIdx = 0;
 
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int sortedBoxNum = buffer3[batchId * NUM_CLASSES + classId];
 
     __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int selectedBoxNum = 0;
+    int iouNum = 0;
     while (sortedBoxNum != 0 && selectedBoxNum < NUM_SELECT_PER_CLASS_VAL) {
-        //printf("sortedBoxNum(%d) selectedBoxNum(%d) NUM_SELECT_PER_CLASS_VAL(%d)\n",
-        //    sortedBoxNum, selectedBoxNum, NUM_SELECT_PER_CLASS_VAL);
-
         SBOX_INFO next_candidate = sortedBoxList[sortedBoxNum - 1];
         INPUT1_TYPE original_score = next_candidate.score;
         --sortedBoxNum;
@@ -423,32 +397,25 @@ KERNEL (non_max_suppression_ref)(
         bool should_hard_suppress = false;
         for (int j = selectedBoxNum - 1;
                 j >= next_candidate.suppress_begin_index;
-                --j)
-        {
+                --j) {
             const float iou = FUNC_CALL(intersectionOverUnion)(boxes, batchId, next_candidate.boxId, batchId, selectedBoxList[j].boxId);
             next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
-            // printf("[%d, %d] iou(%f) next.score(%f)  next(%d)-vs-selt(%d)  %f %f\n"
-            //     , batchId, classId, iou, next_candidate.score, next_candidate.boxId, selectedBoxList[j].boxId, IOU_THRESHOLD_VAL, scale);
+            iouNum++;
 
-            if (iou >= IOU_THRESHOLD_VAL)
-            {
+            if (iou >= IOU_THRESHOLD_VAL) {
                 should_hard_suppress = true;
                 break;
             }
 
-            if (next_candidate.score <= SCORE_THRESHOLD_VAL)
-            {
-                //printf("[%d/%d/%d] iou(%.2f) next.score(%.2f) SCORE_THRESHOLD_VAL(%.2f)\n", batchId, classId, next_candidate.boxId, iou, next_candidate.score, SCORE_THRESHOLD_VAL);
+            if (next_candidate.score <= SCORE_THRESHOLD_VAL) {
                 break;
             }
         }
 
         next_candidate.suppress_begin_index = selectedBoxNum;
 
-        if (!should_hard_suppress)
-        {
-            if (next_candidate.score == original_score)
-            {
+        if (!should_hard_suppress) {
+            if (next_candidate.score == original_score) {
                 BOX_INFO binfo;
                 binfo.batchId = batchId;
                 binfo.classId = classId;
@@ -458,8 +425,8 @@ KERNEL (non_max_suppression_ref)(
                 ++selectedBoxNum;
                 continue;
             }
-            if (next_candidate.score > SCORE_THRESHOLD_VAL)
-            {
+
+            if (next_candidate.score > SCORE_THRESHOLD_VAL) {
                 sortedBoxList[sortedBoxNum] = next_candidate;
                 ++sortedBoxNum;
                 FUNC_CALL(quickSortIterative)(sortedBoxList, 0, sortedBoxNum - 1);
@@ -467,14 +434,32 @@ KERNEL (non_max_suppression_ref)(
         }
     }
 
+    //if (iouNum > 100)
+    //    printf("  [%3d][%3d][0] sortedNum(%d) iouNum(%d) selectedBoxNum(%d)\n", batchId, classId, buffer3[batchId * NUM_CLASSES + classId], iouNum, selectedBoxNum);
+
     // Set pad value to indicate the end of selected box list.
     //printf("{K} selectedBoxNum(%d) NUM_BOXES(%ld)\n", selectedBoxNum, NUM_BOXES);
     if (selectedBoxNum < NUM_BOXES) {
         selectedBoxList[selectedBoxNum].batchId = -1;
     }
-    PRINT("IS_SECOND_ITER-END [%3d][%3d][0]\n", batchId, classId);
-#elif IS_THIRD_ITER
-    PRINT("IS_THIRD_ITER-1\n");
+}
+#endif /* IS_SECOND_ITER */
+
+// boxes shape: {num_batches, num_boxes, 4}
+// scores shape: {num_batches, num_classes, num_boxes}
+#ifdef IS_THIRD_ITER
+KERNEL (non_max_suppression_ref_stage_final)(
+    __global OUTPUT_TYPE *output
+    , __global uchar *buffer1
+    , __global uchar *buffer2
+    #if SELECTED_SCORES_TERM
+    , __global SELECTED_SCORES_TYPE *selected_scores
+    #endif
+    #if VALID_OUTPUTS_TERM
+    , __global VALID_OUTPUTS_TYPE *valid_outputs
+    #endif
+    )
+{
     int outputIdx = 0;
     __global BOX_INFO *sortedBoxList = (__global BOX_INFO*)&buffer2[0];
     for (int batchId = 0; batchId < NUM_BATCHES; batchId++) {
@@ -512,10 +497,8 @@ KERNEL (non_max_suppression_ref)(
         output[offset + 1] = -1;
         output[offset + 2] = -1;
     }
-
-    PRINT("IS_THIRD_ITER-END\n");
-#endif
 }
+#endif  /* IS_THIRD_ITER */
 
 #undef unroll_for
 #undef NUM_BATCHES

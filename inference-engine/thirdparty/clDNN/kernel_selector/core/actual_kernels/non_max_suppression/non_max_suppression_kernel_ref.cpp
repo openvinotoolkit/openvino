@@ -101,8 +101,6 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "ACCUMULATOR_VAL_ZERO"));
     }
 
-    jit.AddConstant(MakeJitConstant("INPUT_ARG_SIZE", input_index));
-
     if (params.has_second_output) {
         jit.AddConstants({ MakeJitConstant("SELECTED_SCORES_TERM", true),
                            MakeJitConstant("SELECTED_SCORES", params.second_output) });
@@ -149,7 +147,7 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
         dispatchData.gws = {input.Batch().v, input.Feature().v, 256};
         dispatchData.lws = {1, 1, 256};
     } else if (idx == 1) {
-        const size_t kSplitNum = 4;    // 1, 2, 4, 8
+        const size_t kSplitNum = 8;    // 1, 2, 4, 8
         dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
         const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
         dispatchData.lws = {1, kClassSize, kSplitNum};
@@ -161,10 +159,6 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
         dispatchData.lws = {1, 1, 1};
     }
 
-    if (idx == 1) {
-        printf("[%d] gws: %zd, %zd, %zd\n", idx, dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]);
-        printf("[%d] lws: %zd, %zd, %zd\n", idx, dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2]);
-    }
     return dispatchData;
 }
 
@@ -183,37 +177,70 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p, const optional_params
     return true;
 }
 
+/*
+ *  INPUT[0]: boxes
+ *  INPUT[1]: scores
+ *  INTERNAL_BUFFER[0]: intermidiate_sorted_box
+ *  INTERNAL_BUFFER[1]: intermidiate_selected_box
+ *  INTERNAL_BUFFER[2]: intermidiate_out_sorted_box
+ *  INTERNAL_BUFFER[3]: intermidiate_sorted_box_num
+ *
+ */
 void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_params& params,
-                                                    clKernelData& kernel) const {
-    uint32_t input_idx = 0;
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
+                                                    clKernelData& kernel, size_t idx) const {
+    uint32_t num_select_per_class_idx = 0;
+    uint32_t iou_threshold_idx = 0;
+    uint32_t score_threshold_idx = 0;
+    uint32_t soft_nms_sigma_idx = 0;
 
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
-
+    uint32_t input_idx = 2;
     if (params.has_num_select_per_class) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        num_select_per_class_idx = input_idx++;
     }
     if (params.has_iou_threshold) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        iou_threshold_idx = input_idx++;
     }
     if (params.has_score_threshold) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        score_threshold_idx = input_idx++;
     }
     if (params.has_soft_nms_sigma) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        soft_nms_sigma_idx = input_idx++;
     }
 
-    if (params.has_second_output) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::SECOND_OUTPUT, 0 });
-    }
 
-    if (params.has_third_output) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::THIRD_OUTPUT, 0 });
+    if (idx == 0) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
+
+        if (score_threshold_idx > 0)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, score_threshold_idx });
+    } else if (idx == 1) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
+    } else if (idx == 2) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 3 });
+
+        if (num_select_per_class_idx > 0)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, num_select_per_class_idx });
+        if (iou_threshold_idx > 0)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, iou_threshold_idx });
+        if (score_threshold_idx > 0)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, score_threshold_idx });
+        if (soft_nms_sigma_idx > 0)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, soft_nms_sigma_idx });
+    } else if (idx == 3) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
+
+        if (params.has_second_output)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::SECOND_OUTPUT, 0 });
+        if (params.has_third_output)
+            kernel.arguments.push_back({ ArgumentDescriptor::Types::THIRD_OUTPUT, 0 });
     }
 }
 
@@ -222,7 +249,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
         return {};
     }
 
-    KernelData kd = KernelData::Default<non_max_suppression_params>(params, 4);
+    constexpr size_t kKernelsNum = 4;
+    KernelData kd = KernelData::Default<non_max_suppression_params>(params, kKernelsNum);
     const non_max_suppression_params& orgParams = static_cast<const non_max_suppression_params&>(params);
 
     // Assign internel buffer
@@ -234,7 +262,14 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     size_t buffer_size = batch_num * class_num * buffer_stride;
     size_t sel_num_buffer_size = batch_num * class_num * 4;
 
-    for (int i = 0; i < 4; i++) {
+    kd.internalBufferSizes.push_back(buffer_size);
+    kd.internalBufferSizes.push_back(buffer_size);
+    kd.internalBufferSizes.push_back(buffer_size);
+    kd.internalBufferSizes.push_back(sel_num_buffer_size);
+    kd.internalBufferDataType = Datatype::F32;
+
+    // Build clKernelData.
+    for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = SetDefault(orgParams, i);
         auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
         auto cldnn_jit = GetJitConstants(orgParams);
@@ -267,14 +302,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
         kernel.workGroups.global = dispatchData.gws;
         kernel.workGroups.local  = dispatchData.lws;
         kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
-        SetKernelArguments(orgParams, kernel);
+        SetKernelArguments(orgParams, kernel, i);
     }
-
-    kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(sel_num_buffer_size);
-    kd.internalBufferDataType = Datatype::F32;
 
     return {kd};
 }
