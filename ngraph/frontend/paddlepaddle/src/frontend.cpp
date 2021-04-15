@@ -30,7 +30,7 @@
 #include <paddlepaddle_frontend/model.hpp>
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 
 #include "utility.hpp"
 #include "decoder.hpp"
@@ -39,15 +39,15 @@
 
 #include <functional>
 
+using namespace ngraph::opset7;
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 
-std::shared_ptr<ngraph::Node>
-make_ng_node(std::map<std::string, Output<Node>>& nodes,
-             const std::shared_ptr<OpPlacePDPD>& op_place,
-             const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
+std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, Output<Node>>& nodes,
+                                           const std::shared_ptr<OpPlacePDPD>& op_place,
+                                           const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
     const auto& op = op_place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
@@ -74,24 +74,24 @@ bool endsWith(const std::string &str, const std::string &suffix) {
 
 } // namespace pdpd
 
-std::shared_ptr<opset6::Constant> FrontEndPDPD::read_tensor(std::shared_ptr<TensorPlacePDPD> tensor_place,
-                std::shared_ptr<InputModelPDPD> model) const
+std::shared_ptr<Constant> FrontEndPDPD::read_tensor(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
+                const std::shared_ptr<InputModelPDPD>& model)
 {
     const auto& var_desc = tensor_place->getDesc();
     std::cout << "Reading tensor " << var_desc->name() << std::endl;
     MY_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
-    auto tensor = var_desc->type().lod_tensor().tensor();
-    auto tensor_length = std::accumulate(
+    const auto& tensor = var_desc->type().lod_tensor().tensor();
+    const auto& tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
     // TODO: implement for other types
     auto tensor_data = model->readWeight(var_desc->name(), tensor_length);    
 
-    auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
-    return opset6::Constant::create(element::f32, Shape(shape), tensor_data);
+    std::vector<size_t> shape(tensor.dims().cbegin(), tensor.dims().cend());
+    return Constant::create(element::f32, Shape(shape), tensor_data);
 }
 
 std::shared_ptr<Function>
-    FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model) const
+    FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model)
 {
     std::cout << "Convert Model Start" << std::endl;    
     
@@ -114,9 +114,8 @@ std::shared_ptr<Function>
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     for (int i = 0; i < model->getBlockNumber(); i++) {
         const auto& op_places = model->getOpPlaces(i);
-        const auto& var_places = model->getVarPlaces(i);
         for (const auto& op_place : op_places) {
-            auto op_type = op_place->getDesc()->type();
+            const auto& op_type = op_place->getDesc()->type();
             std::cerr << "Observing " << op_type << "\n";
             if (op_type == "feed") {
                 const auto& var_desc = op_place->getOutputPortByName("Out")->getTargetTensorPDPD(0)->getDesc();
@@ -133,8 +132,7 @@ std::shared_ptr<Function>
                         shape[idx] = dims[idx];
                 }
 
-                auto param = std::make_shared<ngraph::opset6::Parameter>(TYPE_MAP[dtype],
-                                                                         ngraph::Shape(shape));
+                auto param = std::make_shared<Parameter>(TYPE_MAP[dtype], ngraph::Shape(shape));
                 param->set_friendly_name(var_desc->name());
                 nodes_dict[var_desc->name()] = param;
                 parameter_nodes.push_back(param);
@@ -143,7 +141,7 @@ std::shared_ptr<Function>
                 // TODO: resolve names for multiple outputs from one node
                 const auto& in_var = op_place->getInputPortByName("X")->getSourceTensorPDPD(0)->getDesc();
                 const auto& input_var_name = in_var->name();
-                auto result = std::make_shared<ngraph::opset6::Result>(nodes_dict.at(input_var_name));
+                auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
                 result->set_friendly_name(input_var_name + "/Result");
                 result_nodes.push_back(result);
             } else {
@@ -154,7 +152,7 @@ std::shared_ptr<Function>
 
                 std::cerr << "Named with " << node->get_friendly_name() << "\n";
                 for (const auto &name_to_port : op_place->getOutputPorts()) {
-                    for (int idx = 0; idx < name_to_port.second->getTargetTensors().size(); ++idx) {
+                    for (size_t idx = 0; idx < name_to_port.second->getTargetTensors().size(); ++idx) {
                         const auto& var = name_to_port.second->getTargetTensorPDPD(idx)->getDesc();
                         nodes_dict[var->name()] = node->output(idx);
                     }
