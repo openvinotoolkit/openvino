@@ -22,6 +22,9 @@
 #include <cmath>
 #include <gmock/gmock.h>
 #include <limits>
+#ifdef TEST
+#include <iostream>
+#endif
 
 using namespace cldnn;
 using namespace tests;
@@ -29,6 +32,10 @@ using namespace testing;
 
 TEST(fused_conv_eltwise, basic_0)
 {
+#ifdef TEST
+    std::cout << "run fused_conv_eltwise" << std::endl;
+#endif
+
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
