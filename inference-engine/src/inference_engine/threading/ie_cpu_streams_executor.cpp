@@ -209,7 +209,9 @@ struct CPUStreamsExecutor::Impl {
             for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
                 const auto& type = *iter;
                 // calculating the #streams per core type
-                const int num_streams_for_core_type = std::max(1, custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(type)) / threadsPerStream);
+                const int num_streams_for_core_type = std::max(1,
+                        custom::info::default_concurrency(
+                                custom::task_arena::constraints{}.set_core_type(type)) / threadsPerStream);
                 sum += num_streams_for_core_type;
                 // prefix sum, so the core type for a given stream id will be deduced just as a upper_bound
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated first)
@@ -217,9 +219,9 @@ struct CPUStreamsExecutor::Impl {
             }
             // TODO: REMOVE THE DEBUG PRINTF
             printf("%s total_streams_on_core_types: [%d core_type, %d #streams], [%d core_type, %d #streams]) \n",
-            config._name.c_str(), static_cast<int>(total_streams_on_core_types.front().first), total_streams_on_core_types.front().second,
-            static_cast<int>(total_streams_on_core_types.back().first), total_streams_on_core_types.back().second);
-
+                config._name.c_str(), static_cast<int>(total_streams_on_core_types.front().first),
+                total_streams_on_core_types.front().second,
+                static_cast<int>(total_streams_on_core_types.back().first), total_streams_on_core_types.back().second);
         }
         #endif
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
