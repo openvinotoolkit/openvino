@@ -11,6 +11,7 @@
 #include "ie_plugin_config.hpp"
 #include "ie_common.h"
 #include "ie_parallel.hpp"
+#include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
 
 #include <cpp_interfaces/exception2status.hpp>
@@ -26,23 +27,17 @@ Config::Config() {
 
     // for the TBB code-path, additional configuration depending on the OS and CPU types
     #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        #if TBB_NUMA_SUPPORT_PRESENT // NUMA-aware TBB support
-            #if defined(__APPLE__) || defined(_WIN32)
-            // 'CORES' is not implemented for Win/MacOS, so the 'NUMA' is default
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
-            #endif
-        #else
-            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+        #if defined(__APPLE__) || defined(_WIN32)
+        // 'CORES' is not implemented for Win/MacOS; so the 'NUMA' is default (on multi-socket machine), and NONE otherwise
+        streamExecutorConfig._threadBindingType = getAvailableNUMANodes().size() > 1
+            ? InferenceEngine::IStreamsExecutor::NUMA : InferenceEngine::IStreamsExecutor::NONE;
         #endif
 
-        #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // hybrid-aware TBB
-        const auto core_types = custom::info::core_types();
-        if (core_types.size() > 1 /*Hybrid CPU*/) {
+        if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
             streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
             // TODO: REMOVE THE DEBUG PRINTF
             printf("%s stream get the HYBRID_AWARE as default! \n", streamExecutorConfig._name.c_str());
         }
-        #endif
     #endif
 
     if (!with_cpu_x86_bfloat16())

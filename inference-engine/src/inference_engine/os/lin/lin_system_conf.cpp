@@ -8,10 +8,11 @@
 #include <vector>
 #include <iostream>
 #include <sched.h>
+#include <numeric>
 #include "ie_system_conf.h"
 #include "ie_parallel.hpp"
+#include "ie_parallel_custom_arena.hpp"
 #include "ie_common.h"
-#include <numeric>
 
 
 namespace InferenceEngine {
@@ -82,7 +83,7 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         }
     }
     int phys_cores = CPU_COUNT(&currentCoreSet);
-    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 12010) // TBB has hybrid CPU aware task_arena api
+    #if TBB_HYBRID_CPUS_SUPPORT_PRESENT // TBB has hybrid CPU aware task_arena api
     auto core_types = oneapi::tbb::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         const auto little_cores = core_types.front();

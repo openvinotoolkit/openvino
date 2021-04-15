@@ -37,6 +37,13 @@ INFERENCE_ENGINE_API_CPP(bool) checkOpenMpEnvVars(bool includeOMPNumThreads = tr
 INFERENCE_ENGINE_API_CPP(std::vector<int>) getAvailableNUMANodes();
 
 /**
+ * @brief      Returns available CPU cores types (on Linux, and Windows) and ONLY with TBB, single core type is assumed otherwise
+ * @ingroup    ie_dev_api_system_conf
+ * @return     NUMA nodes
+ */
+INFERENCE_ENGINE_API_CPP(std::vector<int>) getAvailableCoresTypes();
+
+/**
  * @brief      Returns number of CPU physical cores on Linux/Windows (which is considered to be more performance friendly for servers)
  *             (on other OSes it simply relies on the original parallel API of choice, which usually uses the logical cores )
  * @ingroup    ie_dev_api_system_conf

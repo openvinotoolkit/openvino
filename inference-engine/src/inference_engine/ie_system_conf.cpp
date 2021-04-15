@@ -98,6 +98,8 @@ std::vector<int> getAvailableNUMANodes() { return {0}; }
 #endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+// we have to put this under a check for the TBB code-path
+// because (for Linux) the alternative impl that parses system config exeists (for OMP/SEQ codepaths)
 std::vector<int> getAvailableNUMANodes() {
 #if TBB_NUMA_SUPPORT_PRESENT
     return custom::info::numa_nodes();
@@ -106,6 +108,15 @@ std::vector<int> getAvailableNUMANodes() {
 #endif
 }
 #endif
+
+// this is impl only with the TBB, so the fallback is same for any OS
+std::vector<int> getAvailableCoresTypes() {
+#if TBB_HYBRID_CPUS_SUPPORT_PRESENT
+    return custom::info::core_types();
+#else
+    return { 0 };
+#endif
+}
 
 std::exception_ptr& CurrentException() {
      static thread_local std::exception_ptr currentException = nullptr;

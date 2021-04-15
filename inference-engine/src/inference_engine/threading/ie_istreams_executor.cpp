@@ -6,6 +6,7 @@
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_parallel.hpp"
+#include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
 #include "ie_parameter.hpp"
 #include <string>
@@ -42,7 +43,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                         ? IStreamsExecutor::ThreadBindingType::CORES : IStreamsExecutor::ThreadBindingType::NUMA;
                #endif
             } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
-                #if !TBB_HYBRID_CPUS_SUPPORT_PRESENT
+                #if !(TBB_HYBRID_CPUS_SUPPORT_PRESENT)
                 IE_THROW() << CONFIG_KEY(CPU_BIND_THREAD) << " property value was set to HYBRID_AWARE. But IE was built without "
                 << "TBB, so Hybrid-aware code-path is not available.";
                 #endif
