@@ -76,11 +76,18 @@ struct CPUStreamsExecutor::Impl {
                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
                        _taskArena.reset(new custom::task_arena{ concurrency });
+                       // TODO: REMOVE THE DEBUG PRINTF
+                       printf("%s, NO BINDING, StreamId: %d (%d threads) \n",
+                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream);
                    } else {
                        const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                            ? custom::info::core_types().back() // runing on Big cores only
                            : custom::info::core_types().front(); // runing on Little cores only
                        _taskArena.reset(new custom::task_arena{ custom::task_arena::constraints{selected_core_type, concurrency} });
+                       // TODO: REMOVE THE DEBUG PRINTF
+                       printf("%s, EXPLICIT BINDING, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
+                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
+                           static_cast<int>(selected_core_type), concurrency);
                    }
                 } else {
                     // assigning the stream to the core type in the round-robin fashion
@@ -90,16 +97,23 @@ struct CPUStreamsExecutor::Impl {
                     const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(), _impl->total_streams_on_core_types.cend(),
                         [streamId_wrapped](const decltype(_impl->total_streams_on_core_types)::value_type & p) { return p.second > streamId_wrapped; })->first;
                     _taskArena.reset(new custom::task_arena{ custom::task_arena::constraints{selected_core_type, concurrency} });
+                    // TODO: REMOVE THE DEBUG PRINTF
+                    printf("%s StreamId: %d (wrapped %d) assigned CORE TYPE : %d (total #streams: %d) \n",
+                        _impl->_config._name.c_str(), _streamId, streamId_wrapped, static_cast<int>(selected_core_type), total_streams);
                 }
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                  #if TBB_NUMA_SUPPORT_PRESENT
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+                    // TODO: REMOVE THE DEBUG PRINTF
+                    printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
                  #else
                 _taskArena.reset(new custom::task_arena{concurrency});
                  #endif
                 } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
+                        // TODO: REMOVE THE DEBUG PRINTF
+                        printf("%s, conventional ThreadBindingType::CORES codepath \n", _impl->_config._name.c_str());
                     CpuSet processMask;
                     int    ncpus = 0;
                     std::tie(processMask, ncpus) = GetProcessMask();
@@ -112,7 +126,9 @@ struct CPUStreamsExecutor::Impl {
                                                      _impl->_config._threadBindingStep,
                                                      _impl->_config._threadBindingOffset});
                         _observer->observe(true);
-                    }
+                    } else {
+                        // TODO: REMOVE THE DEBUG PRINTF
+                        printf("%s, conventional ThreadBindingType::NONE codepath \n", _impl->_config._name.c_str());
                 }
             }
 #elif IE_THREAD == IE_THREAD_OMP

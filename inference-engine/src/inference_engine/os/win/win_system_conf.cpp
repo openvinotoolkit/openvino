@@ -39,6 +39,8 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         const auto little_cores = core_types.front();
         // assuming the Little cores feature no hyper-threading
         phys_cores -= custom::info::default_concurrency(little_cores);
+        // TODO: REMOVE THE DEBUG PRINTF
+        printf("patched getNumberOfCPUCores: %d \n", phys_cores);
     }
     #endif
     return phys_cores;
