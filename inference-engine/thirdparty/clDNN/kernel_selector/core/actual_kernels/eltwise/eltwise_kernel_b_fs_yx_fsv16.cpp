@@ -9,9 +9,13 @@
 
 namespace kernel_selector {
 
-#define IS_BROADCASTING_POSSIBLE_INPUT  ((params.inputs[i].LogicalSize() == 1) || \
-                                         (params.inputs[i].LogicalSize() == params.output.Feature().v && \
-                                          params.inputs[i].Feature().v == params.output.Feature().v))
+static inline bool IsBroadcastingPossibleInput(const DataTensor& input, const DataTensor& output) {
+    if ((input.LogicalSize() == 1) ||
+        (input.LogicalSize() == output.Feature().v && input.Feature().v == output.Feature().v)) {
+            return true;
+        }
+    return false;
+}
 
 ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
@@ -38,7 +42,7 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 static inline size_t GetBlockSize(const eltwise_params& params) {
     // Set blocksize 1 when broadcasting X dim
     for (size_t i = 0; i < params.inputs.size(); i++) {
-        if ((params.inputs[i].X().v == 1) && !IS_BROADCASTING_POSSIBLE_INPUT) {
+        if ((params.inputs[i].X().v == 1) && !IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
             return 1;
         }
     }
@@ -200,7 +204,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     if (params.broadcast) {
         bool need_idx_safe = true;
         for (size_t i = 0; i < params.inputs.size(); i++) {
-            if (IS_BROADCASTING_POSSIBLE_INPUT) {
+            if (IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
                     need_idx_safe = false;
                     break;
             }
@@ -226,7 +230,7 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
 
     for (size_t i = 0; i < params.inputs.size(); i++) {
         if ((params.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
-            !IS_BROADCASTING_POSSIBLE_INPUT) {
+            !IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
             return false;
         }
     }
