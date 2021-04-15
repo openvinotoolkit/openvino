@@ -3,12 +3,10 @@
 //
 
 #include "ngraph/op/gather.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/op/util/gather_base.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/shape.hpp"
-
-#include <ngraph/validation_util.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -26,7 +24,9 @@ op::v1::Gather::Gather(const Output<Node>& params,
 void op::v1::Gather::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_Gather_validate_and_infer_types);
-    op::util::GatherBase::common_validate_and_infer_types();
+    // according to Gather_1 specification can accept any input type,
+    // validate_tensor_type is not needed
+    op::util::GatherBase::common_validate_and_infer_pshape();
 }
 
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
@@ -56,7 +56,12 @@ op::v7::Gather::Gather(const Output<Node>& data,
 void op::v7::Gather::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v7_Gather_validate_and_infer_types);
-    op::util::GatherBase::common_validate_and_infer_types({element::i32, element::i64});
+
+    // according to Gather_7 specification for indices and axis only int32/int64 are allowed
+    validate_tensor_type(this, "indices", get_input_element_type(1), {element::i32, element::i64});
+    validate_tensor_type(this, "axis", get_input_element_type(2), {element::i32, element::i64});
+
+    op::util::GatherBase::common_validate_and_infer_pshape();
 }
 
 bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)

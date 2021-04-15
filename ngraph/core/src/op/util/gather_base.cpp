@@ -28,46 +28,10 @@ op::util::GatherBase::GatherBase(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-void op::util::GatherBase::common_validate_and_infer_types(
-    const std::vector<element::Type>& allowed_index_types)
+void op::util::GatherBase::common_validate_and_infer_pshape()
 {
     NGRAPH_OP_SCOPE(util_GatherBase_common_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
-    const auto& indices_type = get_input_element_type(1);
-    const auto& axis_type = get_input_element_type(2);
-
-    // according to Gather_7 spec we should accept only int32/int64 for indices and axis
-    if (!allowed_index_types.empty())
-    {
-        string allowed_types;
-        for (auto const& val : allowed_index_types)
-        {
-            allowed_types += val.c_type_string();
-            if (val != *allowed_index_types.rbegin())
-            {
-                if (val == *(allowed_index_types.end() - 2))
-                    allowed_types += " or ";
-                else
-                    allowed_types += ", ";
-            }
-        }
-
-        NODE_VALIDATION_CHECK(
-            this,
-            std::count(allowed_index_types.begin(), allowed_index_types.end(), indices_type) > 0,
-            "indices must be of type ",
-            allowed_types,
-            ". But instead got: ",
-            indices_type.c_type_string());
-
-        NODE_VALIDATION_CHECK(
-            this,
-            std::count(allowed_index_types.begin(), allowed_index_types.end(), axis_type) > 0,
-            "axis must be of type ",
-            allowed_types,
-            ". But instead got: ",
-            axis_type.c_type_string());
-    }
 
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);

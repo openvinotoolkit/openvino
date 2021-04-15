@@ -42,8 +42,7 @@ namespace ngraph
 
             protected:
                 int64_t m_batch_dims = 0;
-                void common_validate_and_infer_types(
-                    const std::vector<element::Type>& allowed_index_types = {});
+                void common_validate_and_infer_pshape();
             };
         } // namespace utils
     }     // namespace op
