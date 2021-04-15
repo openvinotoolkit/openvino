@@ -62,32 +62,61 @@ private:
 
 class InPortPlacePDPD : public PlacePDPD {
 public:
-    InPortPlacePDPD(const InputModel& input_model,
-                    const std::weak_ptr<TensorPlacePDPD>& from_tensor,
-                    const std::weak_ptr<OpPlacePDPD>& consuming_op)
-            : PlacePDPD(input_model),
-              m_tensor(from_tensor),
-              m_consuming_op(consuming_op) {
+    explicit InPortPlacePDPD(const InputModel& input_model)
+            : PlacePDPD(input_model) {
     }
 
+    void setOp(const std::weak_ptr<OpPlacePDPD>& op) {
+        m_op = op;
+    }
+
+    void addSourceTensor(const std::weak_ptr<TensorPlacePDPD>& source_tensor) {
+        m_source_tensors.push_back(source_tensor);
+    }
+
+    const std::vector<std::weak_ptr<TensorPlacePDPD>>& getSourceTensors() const {
+        return m_source_tensors;
+    }
+
+    std::shared_ptr<Place> getSourceTensor(int idx) const override {
+        return std::dynamic_pointer_cast<Place>(m_source_tensors[idx].lock());
+    }
+
+    std::shared_ptr<TensorPlacePDPD> getSourceTensorPDPD(int idx) const {
+        return m_source_tensors[idx].lock();
+    }
 private:
-    std::weak_ptr<TensorPlacePDPD> m_tensor;
-    std::weak_ptr<OpPlacePDPD> m_consuming_op;
+    std::vector<std::weak_ptr<TensorPlacePDPD>> m_source_tensors;
+    std::weak_ptr<OpPlacePDPD> m_op;
 };
 
 class OutPortPlacePDPD : public PlacePDPD {
 public:
-    OutPortPlacePDPD(const InputModel& input_model,
-                     const std::weak_ptr<OpPlacePDPD>& producing_op,
-                     const std::weak_ptr<TensorPlacePDPD>& to_tensor)
-            : PlacePDPD(input_model),
-              m_producing_op(producing_op),
-              m_tensor(to_tensor) {
+    explicit OutPortPlacePDPD(const InputModel& input_model)
+            : PlacePDPD(input_model) {
     }
 
+    void setOp(const std::weak_ptr<OpPlacePDPD>& op) {
+        m_op = op;
+    }
+
+    void addTargetTensor(const std::weak_ptr<TensorPlacePDPD>& target_tensor) {
+        m_target_tensors.push_back(target_tensor);
+    }
+
+    std::shared_ptr<Place> getTargetTensor(int idx) const override {
+        return std::static_pointer_cast<Place>(m_target_tensors[idx].lock());
+    }
+
+    std::shared_ptr<TensorPlacePDPD> getTargetTensorPDPD(int idx) const {
+        return m_target_tensors[idx].lock();
+    }
+    const std::vector<std::weak_ptr<TensorPlacePDPD>>& getTargetTensors() const {
+        return m_target_tensors;
+    }
 private:
-    std::weak_ptr<OpPlacePDPD> m_producing_op;
-    std::weak_ptr<TensorPlacePDPD> m_tensor;
+    std::weak_ptr<OpPlacePDPD> m_op;
+    std::vector<std::weak_ptr<TensorPlacePDPD>> m_target_tensors;
 };
 
 class OpPlacePDPD : public PlacePDPD {
@@ -99,53 +128,36 @@ public:
     OpPlacePDPD(const InputModel& input_model,
                 const std::shared_ptr<paddle::framework::proto::OpDesc>& op_desc);
 
-    void addInput(const std::weak_ptr<TensorPlacePDPD>& input, const std::string& name) {
-        m_input_names.push_back(name);
-        m_input_name_to_idx[name].push_back(m_inputs_tensors.size());
-        m_inputs_tensors.push_back(input);
+    void addInPort(const std::shared_ptr<InPortPlacePDPD>& input, const std::string& name) {
+        m_input_ports[name] = input;
     }
 
-    void addOutput(const std::weak_ptr<TensorPlacePDPD>& output, const std::string& name) {
-        m_output_names.push_back(name);
-        m_output_name_to_idx[name].push_back(m_outputs_tensors.size());
-        m_outputs_tensors.push_back(output);
+    void addOutPort(const std::shared_ptr<OutPortPlacePDPD>& output, const std::string& name) {
+        m_output_ports[name] = output;
     }
 
-    const std::vector<std::weak_ptr<TensorPlacePDPD>>& getOutputTensors() const {
-        return m_outputs_tensors;
+    const std::map<std::string, std::shared_ptr<OutPortPlacePDPD>>& getOutputPorts() const {
+        return m_output_ports;
     }
 
-    const std::vector<std::weak_ptr<TensorPlacePDPD>>& getInputTensors() const {
-        return m_inputs_tensors;
+    const std::map<std::string, std::shared_ptr<InPortPlacePDPD>>& getInputPorts() const {
+        return m_input_ports;
     }
 
-    std::shared_ptr<TensorPlacePDPD> getOutputTensorByName(const std::string& name, int idx = 0) {
-        return m_outputs_tensors[m_output_name_to_idx.at(name)[idx]].lock();
+    std::shared_ptr<OutPortPlacePDPD> getOutputPortByName(const std::string& name) {
+        return m_output_ports[name];
     }
 
-    std::shared_ptr<TensorPlacePDPD> getInputTensorByName(const std::string& name, int idx = 0) {
-        return m_inputs_tensors[m_input_name_to_idx.at(name)[idx]].lock();
-    }
-
-    std::string getInputNameByIdx(int idx) {
-        return m_input_names[idx];
-    }
-
-    std::string getOutputNameByIdx(int idx) {
-        return m_output_names[idx];
+    std::shared_ptr<InPortPlacePDPD> getInputPortByName(const std::string& name) {
+        return m_input_ports[name];
     }
 
     const std::shared_ptr<paddle::framework::proto::OpDesc>& getDesc() const { return m_op_desc; }
 
 private:
     std::shared_ptr<paddle::framework::proto::OpDesc> m_op_desc;
-    std::map<std::reference_wrapper<const std::string>, std::vector<int>, std::less<std::string>> m_input_name_to_idx;
-    std::map<std::reference_wrapper<const std::string>, std::vector<int>, std::less<std::string>> m_output_name_to_idx;
-
-    std::vector<std::string> m_input_names;
-    std::vector<std::string> m_output_names;
-    std::vector<std::weak_ptr<TensorPlacePDPD>> m_inputs_tensors;
-    std::vector<std::weak_ptr<TensorPlacePDPD>> m_outputs_tensors;
+    std::map<std::string, std::shared_ptr<InPortPlacePDPD>> m_input_ports;
+    std::map<std::string, std::shared_ptr<OutPortPlacePDPD>> m_output_ports;
 };
 
 class TensorPlacePDPD : public PlacePDPD {
@@ -157,12 +169,12 @@ public:
     TensorPlacePDPD(const InputModel& input_model,
                     const std::shared_ptr<paddle::framework::proto::VarDesc>& var_desc);
 
-    void addInput(const std::weak_ptr<OpPlacePDPD>& input) {
-        m_producing_ops.push_back(input);
+    void addProducingPort(const std::shared_ptr<OutPortPlacePDPD>& out_port) {
+        m_producing_ports.push_back(out_port);
     }
 
-    void addOutput(const std::weak_ptr<OpPlacePDPD>& output) {
-        m_consuming_ops.push_back(output);
+    void addConsumingPort(const std::shared_ptr<InPortPlacePDPD>& in_port) {
+        m_consuming_ports.push_back(in_port);
     }
 
     const PartialShape& getPartialShape() const { return m_pshape; }
@@ -180,8 +192,8 @@ private:
     PartialShape m_pshape;
     element::Type m_type;
 
-    std::vector<std::weak_ptr<OpPlacePDPD>> m_producing_ops;
-    std::vector<std::weak_ptr<OpPlacePDPD>> m_consuming_ops;
+    std::vector<std::weak_ptr<OutPortPlacePDPD>> m_producing_ports;
+    std::vector<std::weak_ptr<InPortPlacePDPD>> m_consuming_ports;
 };
 
 } // namespace frontend

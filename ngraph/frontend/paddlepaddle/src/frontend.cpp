@@ -45,19 +45,21 @@ namespace frontend {
 namespace pdpd {
 
 std::shared_ptr<ngraph::Node>
-make_ng_node(std::map<std::string, Output<Node>> &nodes,
-             const std::shared_ptr<OpPlacePDPD>& place,
+make_ng_node(std::map<std::string, Output<Node>>& nodes,
+             const std::shared_ptr<OpPlacePDPD>& op_place,
              const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
-    const auto& op = place->getDesc();
+    const auto& op = op_place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
     MY_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
     std::map<std::string, OutputVector> inputs_preproc;
-    const auto& input_tensors = place->getInputTensors();
-    for (int idx = 0; idx < input_tensors.size(); ++idx) {
-        const auto& var = input_tensors[idx].lock()->getDesc();
-        inputs_preproc[place->getInputNameByIdx(idx)].push_back(nodes[var->name()]);
-   }
+    const auto& input_ports = op_place->getInputPorts();
+    for (const auto& name_to_port : input_ports) {
+        for (const auto& tensor_place : name_to_port.second->getSourceTensors()) {
+            const auto& var_desc = tensor_place.lock()->getDesc();
+            inputs_preproc[name_to_port.first].push_back(nodes[var_desc->name()]);
+        }
+    }
 
     // TODO: Temporary repacking data to fit new creator API based on OutputVector instead of direct
     // TODO: nodes manipulation.
@@ -129,9 +131,9 @@ std::shared_ptr<Function>
             auto op_type = op_place->getDesc()->type();
             std::cerr << "Observing " << op_type << "\n";
             if (op_type == "feed") {
-                auto out_var = op_place->getOutputTensorByName("Out")->getDesc();
-                MY_ASSERT(out_var->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
-                const auto& tensor_desc = out_var->type().lod_tensor().tensor();
+                const auto& var_desc = op_place->getOutputPortByName("Out")->getTargetTensorPDPD(0)->getDesc();
+                MY_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
+                const auto& tensor_desc = var_desc->type().lod_tensor().tensor();
                 const auto& dtype = tensor_desc.data_type();
                 const auto& dims = tensor_desc.dims();
 
@@ -145,13 +147,13 @@ std::shared_ptr<Function>
 
                 auto param = std::make_shared<ngraph::opset6::Parameter>(TYPE_MAP[dtype],
                                                                          ngraph::Shape(shape));
-                param->set_friendly_name(out_var->name());
-                nodes_dict[out_var->name()] = param;
+                param->set_friendly_name(var_desc->name());
+                nodes_dict[var_desc->name()] = param;
                 parameter_nodes.push_back(param);
                 std::cout << "Parameter created" << std::endl;
             } else if (op_type == "fetch") {
                 // TODO: resolve names for multiple outputs from one node
-                auto in_var = op_place->getInputTensorByName("X")->getDesc();
+                auto in_var = op_place->getInputPortByName("X")->getSourceTensorPDPD(0)->getDesc();
                 const auto& input_var_name = in_var->name();
                 auto result = std::make_shared<ngraph::opset6::Result>(nodes_dict.at(input_var_name));
                 result->set_friendly_name(input_var_name + "/Result");
@@ -159,14 +161,15 @@ std::shared_ptr<Function>
             } else {
                 auto node = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
                 // set layer name by the name of first output var
-                auto& first_output_var_place = op_place->getOutputTensors()[0];
-                auto var = first_output_var_place.lock()->getDesc();
-                node->set_friendly_name(var->name());
+                auto& first_output_var = op_place->getOutputPorts().begin()->second->getTargetTensorPDPD(0)->getDesc();
+                node->set_friendly_name(first_output_var->name());
 
                 std::cerr << "Named with " << node->get_friendly_name() << "\n";
-                for (const auto &item : op_place->getOutputTensors()) {
-                        auto var = item.lock()->getDesc();
+                for (const auto &name_to_port : op_place->getOutputPorts()) {
+                    for (const auto &tensor : name_to_port.second->getTargetTensors()) {
+                        auto var = tensor.lock()->getDesc();
                         nodes_dict[var->name()] = node;
+                    }
                 }
             }
         }
