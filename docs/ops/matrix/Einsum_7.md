@@ -9,7 +9,7 @@
 **Detailed description**: *Einsum* can represent many common multidimensional linear algebraic tensor operations: matrix multiplication;
 inner (or dot), outer and cross products; transpose; trace and diagonal extraction.
 Also, a single *Einsum* operation can express complex combination of these common linear algebraic tensor operations on multiple operands,
-for example, a dot product of a diagonal, extracted from a tensor with shape [5, 5], and 5D vector is performed by single Einsum operation.
+for example, a dot product of a diagonal, extracted from a tensor with shape `[5, 5]`, and 5D vector is performed by single Einsum operation.
 The Einstein summation convention on input tensors is defined by `equation`, which is a mandatory attribute of *Einsum* operation.
 The format of `equation` is described below.
 
@@ -18,13 +18,13 @@ In explicit mode, the einsum `equation` has the output subscript separated from 
 Each input subscript `<subscript for input1>` contains a sequence of labels (lowercase letters `['a',...,'z']`), where each label refers to a dimension of 
 the corresponsing operand. Labels do not need to appear in a subscript in alphabetical order. The subscript for a scalar input is empty.
 The input subscripts are separated with a comma `,`.
-The output subscript `<subscript for output>` is separated from the input subscripts by `->` and represents a sequence of labels
-(lowercase letters `['a',...,'z']`). The length of an input subscript matches a rank of the input. The input subscript is empty for a scalar input.
+The output subscript `<subscript for output>` represents a sequence of labels (lowercase letters `['a',...,'z']`).
+The length of an input subscript matches a rank of the input. The input subscript is empty for a scalar input.
 
 *Einsum* operation on multiple inputs can be treated as several consecutive *Einsum* operations. In the first step, *Einsum* applies the first two inputs. 
 In the second step, it operates on the result of the first step and the third input, and so forth.
-*Einsum* operates on two operands similar to element-wise multiplication by all pairs of batches from both operands. The batch dimensions are defined
-with labels that enter only one subscript from the two corresponding subscripts.
+*Einsum* operates on two operands similar to element-wise multiplication by all pairs of batches from both operands.
+The batch dimensions are defined with labels belonging to only one of the two input subscripts.
 
 For example, the intermediate result after the first step for *Einsum* with three inputs of shapes `[2, 5]`, `[5, 3, 6]` and `[5, 3]`,
 and `equation` equal to `ab,bcd,bc->ca` will be a tensor of shape `[2, 5, 3, 6]` with a subscript `abcd`,
@@ -106,16 +106,16 @@ A = [[[1.0, 2.0, 3.0],
       [4.0, 5.0, 6.0],
       [7.0, 8.0, 9.0]]]
 equation = "ijk->kij"
-output = [[[1.0, 4.0, 7.0],
-           [2.0, 5.0, 8.0],
-           [3.0, 6.0, 9.0]]]
+output = [[[1.0, 4.0, 7.0]],
+          [[2.0, 5.0, 8.0]],
+          [[3.0, 6.0, 9.0]]]
 ```
 
 In addition to a lowercase label, ellipsis `...` can be used as a label in a subscript to cover broadcasted dimensions.
 Each input subscript can contain at most one ellipsis. For example, the ellipsis in input subscript `a...bc` for five rank tensor covers 
 the second and third dimensions. In case input subscripts contain ellipsis for several operands, the dimensions covered by the ellipsis
 must be broadcastable to satisfy numpy broadcasting (or multidirectional broadcasting) rules available in
-<a href="https://numpy.org/doc/stable/user/basics.broadcasting.html#general-broadcasting-rules">numpy broadcasting documentation</a>.
+[Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
 If at least one input subscript contains an ellipsis, the output subscript must always contain one ellipsis.
 For example, *Einsum* operation on two inputs of shapes `[11, 1, 4, 3]` and `[3, 11, 7, 1]` with `equation="a...b,b...->a..."`
 has ellipsis for both operands covering dimensions with sizes `[1, 4]` and `[11, 7, 1]` that are broadcasted to `[11, 7, 4]`.
