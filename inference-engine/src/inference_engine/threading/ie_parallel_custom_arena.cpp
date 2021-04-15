@@ -121,21 +121,21 @@ void destroy_binding_observer(binding_observer* observer) {
 } // namespace detail
 
 task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
-    : my_task_arena{max_concurrency_, reserved_for_masters}
+    : tbb::task_arena{max_concurrency_, reserved_for_masters}
     , my_initialization_state{}
     , my_constraints{}
     , my_binding_observer{nullptr}
 {}
 
 task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_masters)
-    : my_task_arena{info::default_concurrency(constraints_), reserved_for_masters}
+    : tbb::task_arena{info::default_concurrency(constraints_), reserved_for_masters}
     , my_initialization_state{}
     , my_constraints{constraints_}
     , my_binding_observer{nullptr}
 {}
 
 task_arena::task_arena(const task_arena &s)
-    : my_task_arena{s.my_task_arena}
+    : tbb::task_arena{s}
     , my_initialization_state{}
     , my_constraints{s.my_constraints}
     , my_binding_observer{nullptr}
@@ -143,33 +143,32 @@ task_arena::task_arena(const task_arena &s)
 
 void task_arena::initialize() {
     std::call_once(my_initialization_state, [this] {
-        my_task_arena.initialize();
+        tbb::task_arena::initialize();
         my_binding_observer = detail::construct_binding_observer(
-            my_task_arena, my_task_arena.max_concurrency(), my_constraints);
+            *this, tbb::task_arena::max_concurrency(), my_constraints);
     });
 }
 
 void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters) {
     std::call_once(my_initialization_state, [this, &max_concurrency_, &reserved_for_masters] {
-        my_task_arena.initialize(max_concurrency_, reserved_for_masters);
+        tbb::task_arena::initialize(max_concurrency_, reserved_for_masters);
         my_binding_observer = detail::construct_binding_observer(
-            my_task_arena, my_task_arena.max_concurrency(), my_constraints);
+            *this, tbb::task_arena::max_concurrency(), my_constraints);
     });
 }
 
 void task_arena::initialize(constraints constraints_, unsigned reserved_for_masters) {
     std::call_once(my_initialization_state, [this, &constraints_, &reserved_for_masters] {
         my_constraints = constraints_;
-        my_task_arena.initialize(info::default_concurrency(constraints_), reserved_for_masters);
+        tbb::task_arena::initialize(info::default_concurrency(constraints_), reserved_for_masters);
         my_binding_observer = detail::construct_binding_observer(
-            my_task_arena, my_task_arena.max_concurrency(), my_constraints);
+            *this, tbb::task_arena::max_concurrency(), my_constraints);
     });
 }
 
 int task_arena::max_concurrency() {
-    //TODO: calculate concurrency without initialization
     initialize();
-    return my_task_arena.max_concurrency();
+    return tbb::task_arena::max_concurrency();
 }
 
 task_arena::~task_arena() {

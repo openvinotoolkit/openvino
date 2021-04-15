@@ -37,8 +37,8 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_scheduler_observer.h"
 
-#define TBB_NUMA_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 11100 || TBBBIND_2_4_AVAILABLE
-#define TBB_HYBRID_CPUS_SUPPORT_PRESENT TBB_INTERFACE_VERSION >= 12020 || TBBBIND_2_4_AVAILABLE
+#define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100 || TBBBIND_2_4_AVAILABLE)
+#define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 12020 || TBBBIND_2_4_AVAILABLE)
 
 namespace custom {
 
@@ -52,8 +52,8 @@ struct constraints {
     constraints(numa_node_id id, int maximal_concurrency)
         : numa_id{id}
         , max_concurrency{maximal_concurrency}
-        , core_type{-1}
-        , max_threads_per_core{-1}
+        , core_type{tbb::task_arena::automatic}
+        , max_threads_per_core{tbb::task_arena::automatic}
     {}
 
     constraints& set_numa_id(numa_node_id id) {
@@ -74,10 +74,10 @@ struct constraints {
         return *this;
     }
 
-    numa_node_id numa_id = -1;
-    int max_concurrency = -1;
-    core_type_id core_type = -1;
-    int max_threads_per_core = -1;
+    numa_node_id numa_id = tbb::task_arena::automatic;
+    int max_concurrency = tbb::task_arena::automatic;
+    core_type_id core_type = tbb::task_arena::automatic;
+    int max_threads_per_core = tbb::task_arena::automatic;
 };
 
 class binding_handler;
@@ -92,8 +92,7 @@ public:
 };
 } // namespace detail
 
-class task_arena {
-    tbb::task_arena my_task_arena;
+class task_arena : public tbb::task_arena {
     std::once_flag my_initialization_state;
     detail::constraints my_constraints;
     detail::binding_observer* my_binding_observer;
@@ -110,25 +109,20 @@ public:
     void initialize(int max_concurrency_, unsigned reserved_for_masters = 1);
     void initialize(constraints constraints_, unsigned reserved_for_masters = 1);
 
-    //TODO: Make custom::task_arena inherited from tbb::task_arena
-    operator tbb::task_arena&() { return my_task_arena; }
-
     int max_concurrency();
 
     template<typename F>
     void enqueue(F&& f) {
         initialize();
-        my_task_arena.enqueue(std::forward<F>(f));
+        tbb::task_arena::enqueue(std::forward<F>(f));
     }
     template<typename F>
     auto execute(F&& f) -> decltype(f()) {
         initialize();
-        return my_task_arena.execute(std::forward<F>(f));
+        return tbb::task_arena::execute(std::forward<F>(f));
     }
 
     ~task_arena();
-
-    friend tbb::task_arena& get_arena_ref(task_arena& ta);
 };
 
 namespace info {
@@ -138,12 +132,9 @@ namespace info {
     int default_concurrency(task_arena::constraints c);
 } // namespace info
 
-inline tbb::task_arena& get_arena_ref(task_arena& ta) { return ta.my_task_arena; }
-
 #else /*TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020*/
 
 using task_arena = tbb::task_arena;
-inline tbb::task_arena& get_arena_ref(task_arena& ta) { return ta; }
 
 #if TBB_NUMA_SUPPORT_PRESENT
 using numa_node_id = tbb::numa_node_id;
@@ -151,6 +142,10 @@ namespace info {
     using namespace tbb::info;
 } // namespace info
 #endif /*TBB_NUMA_SUPPORT_PRESENT*/
+
+#if TBB_HYBRID_CPUS_SUPPORT_PRESENT
+using core_type_id = tbb::core_type_id;
+#endif
 
 #endif /*TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020*/
 } // namespace custom
