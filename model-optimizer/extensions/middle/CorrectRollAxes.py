@@ -26,6 +26,17 @@ def correct_roll_axes(roll: Node):
 
 
 class CorrectRollAxes(MiddleReplacementPattern):
+    """
+    If TFRoll operation was a part of a pattern for the transformation
+    StridedSliceComplexRollFFTRollPackBlockReplacement, then the input of the TF Roll was a complex in the TF model,
+    and input data shape were [N_0, ..., N_{r - 1}].
+
+    But after the transformation, we have the input data shape [N_0, ..., N_{r - 1}, 2] for TFRoll.
+
+    If 'axes' input contained negative axes, the these indices will be incorrect after the transformation.
+
+    Hence, we should correct these axes. If axis 'a' was negative, then correct new axis is 'a - 1'
+    """
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):

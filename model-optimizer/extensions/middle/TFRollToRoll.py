@@ -21,6 +21,9 @@ def convert_roll(graph: Graph, roll: Node):
 
 
 class TFRollToRoll(MiddleReplacementPattern):
+    """
+    The transformation replaces TFRoll with Roll.
+    """
     enabled = True
 
     def run_after(self):
