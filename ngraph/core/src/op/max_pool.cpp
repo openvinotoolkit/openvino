@@ -97,22 +97,26 @@ void op::v1::MaxPool::validate_and_infer_types()
     if (arg_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              m_pads_end.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_pads_end.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected pads_end size to be equal to input size - 2. Got: ",
                               m_pads_end.size());
 
         NODE_VALIDATION_CHECK(this,
-                              m_pads_begin.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_pads_begin.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected pads_begin size to be equal to input size - 2. Got: ",
                               m_pads_begin.size());
         NODE_VALIDATION_CHECK(this,
-                              m_kernel.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_kernel.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected kernel size to be equal to input size - 2. Got: ",
                               m_kernel.size());
         NODE_VALIDATION_CHECK(this,
-                              m_strides.size() == arg_shape.rank().get_max_length() - 2,
+                              static_cast<int64_t>(m_pads_end.size()) ==
+                                  arg_shape.rank().get_max_length() - 2,
                               "Expected strides size to be equal to input size - 2. Got: ",
-                              m_kernel.size());
+                              m_strides.size());
     }
 
     auto output_shape = PartialShape::dynamic();
