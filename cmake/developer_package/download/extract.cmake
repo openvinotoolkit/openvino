@@ -31,13 +31,16 @@ function (extract archive_path unpacked_path folder files_to_extract result)
       RESULT_VARIABLE rv
       ERROR_VARIABLE err)
 
-    if (NOT (err STREQUAL ""))
+    if (NOT (rv EQUAL 0))
       message(STATUS "error: extract of '${archive_path}' failed: ${err}")
       #invalid archive
       file(REMOVE_RECURSE "${unpacked_path}")
       file(REMOVE_RECURSE "${archive_path}")
       set(${result} 0 PARENT_SCOPE)
     else()
+      if (NOT (err STREQUAL ""))
+         message(STATUS "${err}")
+	  endif()
       set(${result} 1 PARENT_SCOPE)
     endif()
 
