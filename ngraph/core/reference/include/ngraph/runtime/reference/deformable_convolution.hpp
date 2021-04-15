@@ -182,6 +182,7 @@ namespace ngraph
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
                 ConvolutionParams params{strides, dilation, pads_begin, pads_end};
+                const size_t groups_count = static_cast<size_t>(groups);
 
                 const size_t batches_count = in_shape[in_batch_axis];
                 const Shape group_in_shape = shape_scale(shape_reduce(in_shape), groups);
@@ -203,7 +204,7 @@ namespace ngraph
                 {
                     const T* group_filters = filters;
                     const T* group_offsets = offsets;
-                    for (size_t group_idx = 0; group_idx < groups; ++group_idx)
+                    for (size_t group_idx = 0; group_idx < groups_count; ++group_idx)
                     {
                         for (size_t f_idx = 0; f_idx < group_filters_count; ++f_idx)
                         {
