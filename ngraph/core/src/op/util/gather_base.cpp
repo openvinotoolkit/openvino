@@ -28,7 +28,7 @@ op::util::GatherBase::GatherBase(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-void op::util::GatherBase::common_validate_and_infer_pshape()
+void op::util::GatherBase::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(util_GatherBase_common_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
@@ -149,6 +149,9 @@ void op::util::GatherBase::common_validate_and_infer_pshape()
 int64_t op::util::GatherBase::get_axis() const
 {
     const auto& const_op = get_constant_from_source(input_value(2));
+    if (!const_op)
+        throw ngraph_error("axis value is not set");
+
     int64_t axis = const_op->cast_vector<int64_t>()[0];
     if (axis < 0)
     {

@@ -477,7 +477,7 @@ TEST(type_prop, DISABLED_gather_7_indices_type_check)
     {
         EXPECT_HAS_SUBSTRING(
                 error.what(),
-                std::string("indices must be of type int32_t or int64_t. But instead got: "));
+                std::string("Indices element type must be of an integral number type"));
     }
     catch (...)
     {
@@ -507,7 +507,7 @@ TEST(type_prop, DISABLED_gather_7_axis_type_check)
     {
         EXPECT_HAS_SUBSTRING(
                 error.what(),
-                std::string("axis must be of type int32_t or int64_t. But instead got: "));
+                std::string("Axis element type must be of an integral number type"));
     }
     catch (...)
     {

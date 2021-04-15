@@ -28,12 +28,14 @@ namespace ngraph
                            const Output<Node>& axis,
                            const int64_t batch_dims = 0);
 
+                void validate_and_infer_types() override;
                 int64_t get_batch_dims() const;
                 int64_t get_axis() const;
                 bool is_axis_set() const;
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
 
@@ -42,7 +44,6 @@ namespace ngraph
 
             protected:
                 int64_t m_batch_dims = 0;
-                void common_validate_and_infer_pshape();
             };
         } // namespace utils
     }     // namespace op

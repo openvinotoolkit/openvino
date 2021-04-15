@@ -21,14 +21,6 @@ op::v1::Gather::Gather(const Output<Node>& params,
     constructor_validate_and_infer_types();
 }
 
-void op::v1::Gather::validate_and_infer_types()
-{
-    NGRAPH_OP_SCOPE(v1_Gather_validate_and_infer_types);
-    // according to Gather_1 specification can accept any input type,
-    // validate_tensor_type is not needed
-    op::util::GatherBase::common_validate_and_infer_pshape();
-}
-
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
@@ -56,11 +48,15 @@ op::v7::Gather::Gather(const Output<Node>& data,
 void op::v7::Gather::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v7_Gather_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(1).is_integral_number(),
+                          "Indices element type must be of an integral number type.");
 
-    // according to Gather_7 specification for indices and axis only int32/int64 are allowed
-    // todo: align with specification
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(2).is_integral_number(),
+                          "Axis element type must be of an integral number type.");
 
-    op::util::GatherBase::common_validate_and_infer_pshape();
+    op::util::GatherBase::validate_and_infer_types();
 }
 
 bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)
