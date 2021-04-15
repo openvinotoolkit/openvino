@@ -13,7 +13,7 @@ from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 
 
-class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgraph):
+class SSliceComplexRolledFFTPackBlockReplacement(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
@@ -45,7 +45,9 @@ class StridedSliceComplexRollFFTRollPackBlockReplacement(FrontReplacementSubgrap
         strided_slice_real = match['strided_slice_real']
         strided_slice_imag = match['strided_slice_imag']
 
-        if strided_slice_real['pb'].input[0] != strided_slice_imag['pb'].input[0]:
+        real_input = strided_slice_real.in_port(0).get_source().node
+        imag_input = strided_slice_imag.in_port(0).get_source().node
+        if real_input.soft_get('name', real_input.id) != imag_input.soft_get('name', imag_input.id):
             log.debug('The pattern does not correspond to (i)fftxd with shift. Different inputs.')
             return
 
