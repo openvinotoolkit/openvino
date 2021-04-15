@@ -305,37 +305,39 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         COMPONENT ngraph)
 endif()
 
+set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS ON)
+
+if (MSVC)
+    # When we build dll libraries. These flags make sure protobuf build with /MD, not /MT.
+    # These two options can't be mixed, because they requires link two incompatible runtime.
+    set(protobuf_WITH_ZLIB  OFF CACHE BOOL "" FORCE)
+
+    if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
+        set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
+    endif()
+    if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+        set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+    endif()
+endif()
+
+if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
+    include(cmake/external_protobuf.cmake)
+else()
+    find_package(Protobuf 2.6.1 REQUIRED)
+endif()
+
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    if (MSVC)
-        # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
-        # These two options can't be mixed, because they requires link two imcompatiable runtime.
-        set(protobuf_WITH_ZLIB  OFF CACHE BOOL "" FORCE)
-
-        if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
-            set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
-        endif()
-        if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
-            set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
-        endif()
-    endif()
-
-    set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS ON)
-
-    if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
-        include(cmake/external_protobuf.cmake)
-    else()
-        find_package(Protobuf 2.6.1 REQUIRED)
-    endif()
 
     # target onnx_proto will be shared lib, onnx static
     include(cmake/external_onnx.cmake)
     if (TARGET ext_protobuf)
         add_dependencies(onnx ext_protobuf)
     endif()
-    set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
-    unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
 endif()
+
+set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
+unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
 
 add_subdirectory(frontend)
 

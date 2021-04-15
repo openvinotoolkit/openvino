@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,20 +15,16 @@
 //*****************************************************************************
 
 #pragma once
-
-#include <ngraph/pass/pass.hpp>
-#include <ngraph/util.hpp>
+#include "node_context.hpp"
 
 namespace ngraph {
-namespace pass {
+namespace frontend {
+namespace pdpd {
+namespace op {
 
-class NGRAPH_API TransposeSinking : public ngraph::pass::FunctionPass {
- public:
-  TransposeSinking() {
-    set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
-  }
-  bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
-};
+    OutputVector split(const NodeContext& node);
 
-}  // namespace pass
-}  // namespace ngraph
+} // namespace op
+} // namespace pdpd
+} // namespace frontend
+} // namespace ngraph

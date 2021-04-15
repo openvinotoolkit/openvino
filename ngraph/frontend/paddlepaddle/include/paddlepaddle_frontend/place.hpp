@@ -32,6 +32,9 @@ class VarDesc;
 namespace ngraph {
 namespace frontend {
 
+class TensorPlacePDPD;
+class OpPlacePDPD;
+
 class PlacePDPD : public Place {
 public:
     PlacePDPD(const InputModel& input_model, const std::vector<std::string>& names)
@@ -56,9 +59,6 @@ private:
     std::vector<std::string> m_names;
     const InputModel& m_input_model;
 };
-
-class TensorPlacePDPD;
-class OpPlacePDPD;
 
 class InPortPlacePDPD : public PlacePDPD {
 public:
@@ -168,6 +168,10 @@ public:
     const PartialShape& getPartialShape() const { return m_pshape; }
 
     const element::Type& getElementType() const { return m_type; }
+
+    void setPartialShape(const PartialShape& pshape) { m_pshape = pshape; }
+
+    void setElementType(const element::Type& type) { m_type = type; }
 
     const std::shared_ptr<paddle::framework::proto::VarDesc>& getDesc() const { return m_var_desc; }
 

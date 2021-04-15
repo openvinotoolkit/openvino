@@ -18,7 +18,7 @@
 #include <fstream>
 
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/transpose_sinking.h>
+#include <ngraph/pass/core_transpose_sinking.h>
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "graph.pb.h"
@@ -66,7 +66,7 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert 
     std::cerr << "[ STATUS ] Running Transpose Sinking transformation\n";
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::TransposeSinking>();
+    manager.register_pass<ngraph::pass::CoreTransposeSinking>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.run_passes(f);
 

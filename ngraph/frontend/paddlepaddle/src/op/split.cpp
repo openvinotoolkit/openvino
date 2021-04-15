@@ -14,34 +14,27 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-
-#include <frontend_manager/frontend_manager.hpp>
-
-#include "model.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include "split.h"
+#include "utility.hpp"
 
 namespace ngraph {
 namespace frontend {
+namespace pdpd {
+namespace op {
+    OutputVector split(const NodeContext& node) {
+        using namespace ngraph;
+        using namespace opset6;
+        const auto& data = node.get_ng_input("X");
+        auto dim = node.get_attribute<int32_t>("axis");
+        // todo: 'num' can be list of values, in this case we should create VariadicSplit
+        // todo: support VariadicSplit
+        auto num_or_sections = node.get_attribute<int32_t>("num");
+        auto axis = std::make_shared<Constant>(ngraph::element::i32, Shape{}, dim);
 
-class NGRAPH_API FrontEndPDPD : public FrontEnd
-{
-    std::shared_ptr<Function> convert_model(const std::shared_ptr<InputModelPDPD>& model) const;
-    std::shared_ptr<opset6::Constant> read_tensor(std::shared_ptr<TensorPlacePDPD> place,
-                                                  std::shared_ptr<InputModelPDPD> model) const;
-public:
-
-    FrontEndPDPD ()
-    {
+        return std::make_shared<ngraph::opset6::Split>(data, axis, num_or_sections)->outputs();
     }
-
-    virtual InputModel::Ptr loadFromFile (const std::string& path) const override
-    {
-        return std::make_shared<InputModelPDPD>(path);
-    }
-
-    virtual std::shared_ptr<Function> convert (InputModel::Ptr model) const override;
-};
-
+} // namespace op
+} // namespace pdpd
 } // namespace frontend
 } // namespace ngraph

@@ -45,14 +45,14 @@ namespace frontend {
 namespace pdpd {
 
 std::shared_ptr<ngraph::Node>
-make_ng_node(std::map<std::string, std::shared_ptr<ngraph::Node>> &nodes,
+make_ng_node(std::map<std::string, Output<Node>> &nodes,
              const std::shared_ptr<OpPlacePDPD>& place,
              const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
     const auto& op = place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
     MY_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
-    std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs_preproc;
+    std::map<std::string, OutputVector> inputs_preproc;
     const auto& input_tensors = place->getInputTensors();
     for (int idx = 0; idx < input_tensors.size(); ++idx) {
         const auto& var = input_tensors[idx].lock()->getDesc();
@@ -70,7 +70,6 @@ make_ng_node(std::map<std::string, std::shared_ptr<ngraph::Node>> &nodes,
     }
 
     OutputVector outputs = CREATORS_MAP.at(op->type())(NodeContext(*op, named_inputs));
-    MY_ASSERT(outputs.size() == 1);
     return outputs[0].get_node_shared_ptr();
 }
 
@@ -93,18 +92,18 @@ std::shared_ptr<opset6::Constant> FrontEndPDPD::read_tensor(std::shared_ptr<Tens
     auto tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
     // TODO: implement for other types
-    auto tensor_data = model->getWeight(var_desc->name(), tensor_length);
+    auto tensor_data = model->readWeight(var_desc->name(), tensor_length);    
 
     auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
     return opset6::Constant::create(element::f32, Shape(shape), tensor_data);
 }
 
 std::shared_ptr<Function>
-    FrontEndPDPD::convert_model(std::shared_ptr<InputModelPDPD> model) const
+    FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model) const
 {
     std::cout << "Convert Model Start" << std::endl;    
     
-    std::map<std::string, std::shared_ptr<Node>> nodes_dict;
+    std::map<std::string, Output<Node>> nodes_dict;
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
     
@@ -132,18 +131,18 @@ std::shared_ptr<Function>
             if (op_type == "feed") {
                 auto out_var = op_place->getOutputTensorByName("Out")->getDesc();
                 MY_ASSERT(out_var->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
-                auto tensor_desc = out_var->type().lod_tensor().tensor();
-                auto dtype = tensor_desc.data_type();
-                std::vector<size_t> shape;
+                const auto& tensor_desc = out_var->type().lod_tensor().tensor();
+                const auto& dtype = tensor_desc.data_type();
+                const auto& dims = tensor_desc.dims();
+
                 // set all -1 dims to 1
                 // TODO: remove when input shape can be specified
-                for (auto dim : tensor_desc.dims()) {
-                    if (dim >= 0) {
-                        shape.push_back(dim);
-                    } else {
-                        shape.push_back(1);
-                    }
+                std::vector<size_t> shape(tensor_desc.dims_size(), 1);
+                for (int idx = 0; idx < shape.size(); ++idx) {
+                    if (dims[idx] >= 0)
+                        shape[i] = dims[idx];
                 }
+
                 auto param = std::make_shared<ngraph::opset6::Parameter>(TYPE_MAP[dtype],
                                                                          ngraph::Shape(shape));
                 param->set_friendly_name(out_var->name());
@@ -166,8 +165,8 @@ std::shared_ptr<Function>
 
                 std::cerr << "Named with " << node->get_friendly_name() << "\n";
                 for (const auto &item : op_place->getOutputTensors()) {
-                    auto var_desc = item.lock()->getDesc();
-                    nodes_dict[var_desc->name()] = node;
+                        auto var = item.lock()->getDesc();
+                        nodes_dict[var->name()] = node;
                 }
             }
         }
