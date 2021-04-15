@@ -14,8 +14,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -102,7 +100,7 @@ namespace
         }
 
         result_shape = target_shape;
-        for (auto i = 0; i < target_shape.size(); ++i)
+        for (size_t i = 0; i < target_shape.size(); ++i)
         {
             if (arg_shape_vec[i].is_dynamic())
             {

@@ -15,6 +15,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
+#include "perf_counters.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -54,6 +55,21 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GraphRewrite, "ngraph::pass::GraphRewrite", 0);
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0);
+
+namespace ngraph
+{
+    namespace pass
+    {
+        namespace
+        {
+            PerfCounters& perf_counters()
+            {
+                static PerfCounters counters;
+                return counters;
+            }
+        } // namespace
+    }     // namespace pass
+} // namespace ngraph
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
@@ -394,7 +410,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "ngraph::pass::MatcherPass::apply");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, pass::perf_counters()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
         return m_handler(node);

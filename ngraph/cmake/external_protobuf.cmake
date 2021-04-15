@@ -92,14 +92,17 @@ else()
         set(_proto_libs ${Protobuf_LIBRARIES})
         if(TARGET libprotoc)
             list(APPEND _proto_libs libprotoc)
+            set_target_properties(libprotoc PROPERTIES
+                COMPILE_FLAGS "-Wno-unused-variable -Wno-sign-compare")
         endif()
         set_target_properties(${_proto_libs} PROPERTIES
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
         set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
-            COMPILE_FLAGS "-Wno-unused-variable -Wno-inconsistent-missing-override")
+            COMPILE_FLAGS "-Wno-unused-variable -Wno-sign-compare -Wno-inconsistent-missing-override")
     endif()
+
     if(NGRAPH_USE_PROTOBUF_LITE)
         # if only libprotobuf-lite is used, both libprotobuf and libprotobuf-lite are built
         # libprotoc target needs symbols from libprotobuf, even in libprotobuf-lite configuration

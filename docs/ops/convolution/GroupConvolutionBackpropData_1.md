@@ -66,9 +66,9 @@
 
 **Inputs**:
 
-*   **1**: Input tensor of type `T1` and rank 3, 4 or 5. Layout is `NCZYX` (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type `T1` and rank 3, 4 or 5. Layout is `[N, GROUPS * C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
 
-*   **2**: Kernel tensor of type `T1` and rank 4, 5 or 6. Layout is `GOIZYX` (number of groups, number of output channels, number of input channels, spatial axes Z, Y, X). Required.
+*   **2**: Kernel tensor of type `T1` and rank 4, 5 or 6. Layout is `[GROUPS, C_IN, C_OUT, X, Y, Z]` (number of groups, number of input channels, number of output channels, spatial axes X, Y, Z). Required.
 
 *   **3**: Output shape tensor of type `T2` and rank 1. It specifies spatial shape of the output. Optional.
 *   **Note** Number of groups is derived from the shape of the kernel and not specified by any attribute. 
@@ -79,11 +79,11 @@
   
 **Outputs**:
 
-*   **1**: Output tensor of type `T1` and rank 3, 4 or 5 (the same as input *1*). Layout is `NOZYX` (number of batches, number of kernel output channels, spatial axes Z, Y, X).
+*   **1**: Output tensor of type `T1` and rank 3, 4 or 5 (the same as input *1*). Layout is `[N, GROUPS * C_OUT, Z, Y, X]` (number of batches, number of kernel output channels, spatial axes Z, Y, X).
 
 **Types**:
 
-* *T1*: any floating point type.
+* *T1*: any numeric type.
 * *T2*: any integer type.
 
 **Example**
