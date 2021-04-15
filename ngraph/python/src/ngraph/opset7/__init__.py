@@ -120,6 +120,7 @@ from ngraph.opset3.ops import rnn_cell
 from ngraph.opset5.ops import rnn_sequence
 from ngraph.opset3.ops import roi_align
 from ngraph.opset2.ops import roi_pooling
+from ngraph.opset7.ops import roll
 from ngraph.opset5.ops import round
 from ngraph.opset3.ops import scatter_elements_update
 from ngraph.opset3.ops import scatter_update
