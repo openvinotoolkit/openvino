@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "op/convolution.hpp"
 #include "gtest/gtest.h"
@@ -2659,7 +2647,8 @@ TEST(type_prop, conv_v1_partial_data_shape_dynamic)
     auto conv = make_shared<op::v1::Convolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({PartialShape::dynamic()}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
+        {Dimension::dynamic(), 1, Dimension::dynamic(), Dimension::dynamic()}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
 }

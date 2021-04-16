@@ -39,6 +39,7 @@
 #include <layers/gna_fake_quantize_layer.hpp>
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
+#include <debug.h>
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -54,6 +55,7 @@
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -84,12 +86,10 @@ using namespace std;
 using namespace GNAPluginNS;
 using namespace InferenceEngine::details;
 
-#ifdef __clang__
 namespace InferenceEngine {
     template<>
-    InferenceEngine::TBlob<intel_compound_bias_t, std::enable_if<true, void> >::~TBlob() { free(); }
+    InferenceEngine::TBlob<gna_compound_bias_t, std::enable_if<true, void> >::~TBlob() { free(); }
 }
-#endif  // __clang__
 
 template <typename T, typename U>
 void GNAPlugin::copyInputData(T *dst,
@@ -107,7 +107,11 @@ void GNAPlugin::copyInputData(T *dst,
         for (uint32_t i = 0; i < num_frames; i++) {
             for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
-                    dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
+                    if (!gnaFlags->input_low_precision) {
+                        dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
+                    } else {
+                        dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
+                    }
                 } else {
                     dst[j * num_group + i] = src[i * num_vector_elements + j];
                 }
@@ -129,8 +133,14 @@ void GNAPlugin::copyInputData(T *dst,
                 T *ptr_dst_vec = reinterpret_cast<T *>(dst) + i * num_vector_stride;
                 const U *ptr_src_vec = reinterpret_cast<const U *>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                for (int j=0; j < num_vector_elements; j++) {
-                    ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
+                if (!gnaFlags->input_low_precision) {
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
+                        ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
+                    }
+                } else {
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
+                        ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
+                    }
                 }
             }
 
@@ -218,6 +228,10 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                     auto dst_ptr = dst + (i * num_vector_elements + j);
 
                     switch (num_bytes_per_element_input) {
+                        case 1: {
+                            *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(input_ptr));
+                            break;
+                        }
                         case 2 : {
                             *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
                             break;
@@ -284,21 +298,36 @@ void GNAPlugin::ImportFrames(
         // TODO : fix that as well
         if (input_precision == Precision::U8) {
             auto src = reinterpret_cast<const uint8_t *>(ptr_src);
-            auto dst = reinterpret_cast<int16_t *>(ptr_dst);
-            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            if (!gnaFlags->input_low_precision) {
+                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            } else {
+                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            }
         } else if (input_precision.size() == 2) {
-            auto dst = reinterpret_cast<int16_t *>(ptr_dst);
             auto src = reinterpret_cast<const int16_t *>(ptr_src);
-            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            if (!gnaFlags->input_low_precision) {
+                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            } else {
+                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            }
         } else if (input_precision.size() == 4) {
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
-                auto dst = reinterpret_cast<int16_t *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+                if (!gnaFlags->input_low_precision) {
+                    auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+                } else {
+                    auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+                }
             }
         }
     } else {
@@ -307,24 +336,36 @@ void GNAPlugin::ImportFrames(
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            } else if (!gnaFlags->input_low_precision) {
+                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
-                auto dst = reinterpret_cast<int16_t *>(ptr_dst);
+                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-
         } else if (input_precision.size()== 2) {
-            auto dst = reinterpret_cast<int16_t *>(ptr_dst);
             auto src = reinterpret_cast<const int16_t *>(ptr_src);
-            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            if (!gnaFlags->input_low_precision) {
+                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            } else {
+                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+            }
         } else if (input_precision.size() == 4) {
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
-                auto dst = reinterpret_cast<uint16_t *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+                if (!gnaFlags->input_low_precision) {
+                    auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+                } else {
+                    auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+                }
             }
         }
     }
@@ -636,6 +677,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
         pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
+        // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue 52034
+        pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
@@ -661,8 +704,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // network optimisation phases
     int passIdx = 0;
-    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy) {
-        auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy}, network);
+    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
+        auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
@@ -714,8 +757,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         };
         newNet = InferenceEngine::CNNNetCopy(network, visitor);
         // to run all passes need to have two calls to pass manager
-        run_passes(newNet, true);
-        run_passes(newNet, false);
+        run_passes(newNet, true, gnaFlags->input_low_precision);
+        run_passes(newNet, false, gnaFlags->input_low_precision);
     } else if (gnaFlags->fake_quantized) {
         switch (config.gnaPrecision) {
             case Precision::I16:
@@ -736,8 +779,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             case Precision::I8:
-                ModelQuantizer<QuantI8> q8;
-                newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                if (gnaFlags->input_low_precision == false) {
+                    ModelQuantizer<QuantI8> q8;
+                    newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                } else {
+                    ModelQuantizer<QuantI8_I8> q8_8;
+                    newNet = q8_8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                }
                 break;
             default:
                 THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
@@ -1108,7 +1156,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             Wait(0);
             freeNnet = nnets.begin();
         } else {
-            THROW_IE_EXCEPTION << as_status << REQUEST_BUSY
+            IE_THROW(RequestBusy)
                                << "GNA executable network has max of "
                                << static_cast<uint32_t >(gnaFlags->gna_lib_async_threads_num)
                                << " parallel infer requests, please sync one of already running";
@@ -1162,7 +1210,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
 
-        auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : 2;
+        auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : (gnaFlags->input_low_precision ? 1 : 2);
         auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
 
         if (inputsDesc->bytes_allocated_for_input[input.first] < importedBytes) {
@@ -1271,9 +1319,9 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
-            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+        if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CHW) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
         }
@@ -1428,7 +1476,7 @@ void GNAPlugin::SetName(const std::string & pluginName) noexcept {
     _pluginName = pluginName;
 }
 
-InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networkModel) {
+InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
     InitGNADevice();
@@ -1589,7 +1637,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     InferenceEngine::QueryNetworkResult res;
 
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
+        IE_THROW(NotImplemented) << " ngraph::Function is not supported natively";
     }
 
     std::unordered_set<CNNLayer *> allLayers;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,7 +205,7 @@ public:
      *
      * @param str input string with float value
      * @return float value if parsing was successful
-     * @throws InferenceEngineException in case of parsing error
+     * @throws Exception in case of parsing error
      */
     static float ie_parse_float(const std::string& str);
 
@@ -299,6 +299,23 @@ public:
      * @return An unsigned integer value for the specified parameter
      */
     unsigned int GetParamAsUInt(const char* param) const;
+
+    /**
+     * @brief Returns an size_t value for the given parameter or returns the default value
+     *
+     * @param param Name of the layer parameter
+     * @param def Default value of the parameter if not found
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param, size_t def) const;
+
+    /**
+     * @brief Returns an size_t value for the given parameter
+     *
+     * @param param Name of the layer parameter
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param) const;
 
     /**
      * @brief Returns a vector of unsigned int values for the given parameter or returns the default value
@@ -1953,7 +1970,7 @@ public:
     /**
      * @brief The number of quantization levels
      */
-    int levels = 1;
+    size_t levels = 1;
 
     /**
      * @brief Creates a new QuantizeLayer instance.

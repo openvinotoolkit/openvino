@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,8 +84,8 @@ struct QuantizedLayerParams {
     // deprecate this
     Quantization _weights_quant;
     Quantization _bias_quant;
-    float _o_shift = 0.0f;
-    float _b_shift = 0.0f;
+
+    bool lowPrecision = false;
 };
 
 }  // namespace GNAPluginNS

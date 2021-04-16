@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "op/org.openvinotoolkit/group_norm.hpp"
 #include "default_opset.hpp"
@@ -96,15 +84,35 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
-                    const auto& rank = data.get_partial_shape().rank();
-                    NGRAPH_CHECK(rank.is_static());
-                    auto data_rank_size = rank.get_length();
+                    const auto& scale_shape = scale.get_partial_shape();
+                    NGRAPH_CHECK(scale_shape.rank().is_static());
+                    auto scale_rank = scale_shape.rank().get_length();
 
-                    result = std::make_shared<default_opset::Multiply>(
-                        result,
-                        reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank_size));
-                    result = std::make_shared<default_opset::Add>(
-                        result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank_size));
+                    const auto& bias_shape = bias.get_partial_shape();
+                    NGRAPH_CHECK(bias_shape.rank().is_static());
+                    auto bias_rank = bias_shape.rank().get_length();
+
+                    const auto data_rank =
+                        std::make_shared<default_opset::ShapeOf>(data_shape_node);
+
+                    if (scale_rank == 1)
+                    {
+                        result = std::make_shared<default_opset::Multiply>(
+                            result, reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank));
+                    }
+                    else
+                    {
+                        result = std::make_shared<default_opset::Multiply>(result, scale);
+                    }
+                    if (bias_rank == 1)
+                    {
+                        result = std::make_shared<default_opset::Add>(
+                            result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank));
+                    }
+                    else
+                    {
+                        result = std::make_shared<default_opset::Add>(result, bias);
+                    }
 
                     return {result};
                 }

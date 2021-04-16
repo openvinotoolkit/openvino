@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,13 +48,13 @@ static inline void parsePluginName(std::istream& networkModel) {
  */
 class InferencePluginInternal : public IInferencePlugin {
 public:
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
+    IExecutableNetworkInternal::Ptr LoadNetwork(const CNNNetwork& network,
                                   const std::map<std::string, std::string>& config) override {
         return LoadNetwork(network, config, nullptr);
     }
 
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
-                                  RemoteContext::Ptr context) override {
+    IExecutableNetworkInternal::Ptr LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
+                                                RemoteContext::Ptr context) override {
         InputsDataMap networkInputs = network.getInputsInfo(), networkInputsCloned;
         OutputsDataMap networkOutputs = network.getOutputsInfo(), networkOutputsCloned;
         copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
@@ -70,33 +70,32 @@ public:
         impl->setNetworkOutputs(networkOutputsCloned);
         impl->SetPointerToPlugin(shared_from_this());
 
-        auto executableNetwork = make_executable_network(impl);
-        return ExecutableNetwork(executableNetwork);
+        return impl;
     }
 
-    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
-                                    const std::map<std::string, std::string>& config) override {
+    IExecutableNetworkInternal::Ptr ImportNetwork(const std::string& modelFileName,
+                                                  const std::map<std::string, std::string>& config) override {
         (void)modelFileName;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const std::map<std::string, std::string>& config) override {
+    IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                  const std::map<std::string, std::string>& config) override {
         parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, config);
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const RemoteContext::Ptr& context,
-                                    const std::map<std::string, std::string>& config) override {
+    IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                  const RemoteContext::Ptr& context,
+                                                  const std::map<std::string, std::string>& config) override {
         parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, context, config);
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) override {
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     void SetCore(ICore* core) noexcept override {
@@ -109,11 +108,11 @@ public:
     }
 
     void AddExtension(InferenceEngine::IExtensionPtr /*extension*/) override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/) const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     void SetName(const std::string& pluginName) noexcept override {
@@ -126,20 +125,20 @@ public:
 
     Parameter GetConfig(const std::string& /*name*/,
                         const std::map<std::string, Parameter>& /*options*/) const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     Parameter GetMetric(const std::string& /*name*/,
                         const std::map<std::string, Parameter>& /*options*/) const override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     RemoteContext::Ptr CreateContext(const ParamMap& /*params*/) override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     RemoteContext::Ptr GetDefaultContext(const ParamMap& /*params*/) override {
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
 protected:
@@ -172,7 +171,7 @@ protected:
         (void)network;
         (void)context;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     /**
@@ -184,11 +183,11 @@ protected:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
-                                                const std::map<std::string, std::string>& config) {
+    virtual ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& networkModel,
+                                                             const std::map<std::string, std::string>& config) {
         (void)networkModel;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     /**
@@ -199,13 +198,13 @@ protected:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
-                                                const RemoteContext::Ptr& context,
-                                                const std::map<std::string, std::string>& config) {
+    virtual ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& networkModel,
+                                                             const RemoteContext::Ptr& context,
+                                                             const std::map<std::string, std::string>& config) {
         (void)networkModel;
         (void)context;
         (void)config;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        IE_THROW(NotImplemented);
     }
 
     std::string _pluginName;  //!< A device name that plugins enables

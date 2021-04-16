@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
      */
     Precision getPrecision() const {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         return _inputData->getPrecision();
     }
@@ -57,7 +57,7 @@ public:
      */
     void setPrecision(Precision p) {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         _inputData->setPrecision(p);
     }
@@ -76,7 +76,7 @@ public:
      */
     Layout getLayout() {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         return _inputData->getLayout();
     }
@@ -89,7 +89,7 @@ public:
      */
     void setLayout(Layout l) {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         _inputData->setLayout(l);
     }
@@ -101,7 +101,7 @@ public:
      */
     const std::string& name() const {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         return _inputData->getName();
     }
@@ -133,7 +133,7 @@ public:
      */
     const TensorDesc& getTensorDesc() const {
         if (!_inputData) {
-            THROW_IE_EXCEPTION << "Data is empty!";
+            IE_THROW() << "Data is empty!";
         }
         return _inputData->getTensorDesc();
     }

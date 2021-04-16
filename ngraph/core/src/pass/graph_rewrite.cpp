@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <deque>
@@ -27,6 +15,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
+#include "perf_counters.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -66,6 +55,21 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GraphRewrite, "ngraph::pass::GraphRewrite", 0);
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0);
+
+namespace ngraph
+{
+    namespace pass
+    {
+        namespace
+        {
+            PerfCounters& perf_counters()
+            {
+                static PerfCounters counters;
+                return counters;
+            }
+        } // namespace
+    }     // namespace pass
+} // namespace ngraph
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
@@ -406,7 +410,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "ngraph::pass::MatcherPass::apply");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, pass::perf_counters()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
         return m_handler(node);

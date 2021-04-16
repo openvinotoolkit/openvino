@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,7 @@ namespace InferenceEngine {
  * The class is recommended to be used as a base class for Executable Network impleentation during plugin development.
  * @ingroup ie_dev_api_exec_network_api
  */
-class ExecutableNetworkThreadSafeDefault : public ExecutableNetworkInternal,
-                                           public std::enable_shared_from_this<ExecutableNetworkThreadSafeDefault> {
+class ExecutableNetworkThreadSafeDefault : public ExecutableNetworkInternal {
 public:
     /**
      * @brief A shared pointer to a ExecutableNetworkThreadSafeDefault object
