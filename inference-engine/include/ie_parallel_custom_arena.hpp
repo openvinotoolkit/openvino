@@ -37,12 +37,8 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_scheduler_observer.h"
 
-#define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100 || TBBBIND_2_4_AVAILABLE)
-#define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 12020 || TBBBIND_2_4_AVAILABLE)
-
 namespace custom {
 
-#if TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020
 using numa_node_id = int;
 using core_type_id = int;
 
@@ -64,7 +60,6 @@ struct constraints {
         max_concurrency = maximal_concurrency;
         return *this;
     }
-
     constraints& set_core_type(core_type_id id) {
         core_type = id;
         return *this;
@@ -80,16 +75,7 @@ struct constraints {
     int max_threads_per_core = tbb::task_arena::automatic;
 };
 
-class binding_handler;
-
-class binding_observer : public tbb::task_scheduler_observer {
-    binding_handler* my_binding_handler;
-public:
-    binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c);
-    void on_scheduler_entry(bool) override;
-    void on_scheduler_exit(bool) override;
-    ~binding_observer();
-};
+class binding_observer;
 } // namespace detail
 
 class task_arena : public tbb::task_arena {
@@ -131,22 +117,5 @@ namespace info {
     std::vector<core_type_id> core_types();
     int default_concurrency(task_arena::constraints c);
 } // namespace info
-
-#else /*TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020*/
-
-using task_arena = tbb::task_arena;
-
-#if TBB_NUMA_SUPPORT_PRESENT
-using numa_node_id = tbb::numa_node_id;
-namespace info {
-    using namespace tbb::info;
-} // namespace info
-#endif /*TBB_NUMA_SUPPORT_PRESENT*/
-
-#if TBB_HYBRID_CPUS_SUPPORT_PRESENT
-using core_type_id = tbb::core_type_id;
-#endif
-
-#endif /*TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020*/
 } // namespace custom
 #endif /*(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)*/

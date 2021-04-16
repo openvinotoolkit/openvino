@@ -73,21 +73,17 @@ struct CPUStreamsExecutor::Impl {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic : _impl->_config._threadsPerStream;
             if (true/*ThreadBindingType::Hybrid== _impl->_config._threadBindingType*/) {
-#if TBB_HYBRID_CPUS_SUPPORT_PRESENT
-                auto latency_cores_type = custom::info::core_types().back();
                 _taskArena.reset(new custom::task_arena{
-                    custom::task_arena::constraints{}.
-                        set_core_type(latency_cores_type)
+                    custom::task_arena::constraints{}
+                        .set_core_type(custom::info::core_types().back())
+                        .set_max_concurrency(concurrency)
                 });
-#else
-                _taskArena.reset(new custom::task_arena{concurrency});
-#endif
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-#if TBB_NUMA_SUPPORT_PRESENT
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
-#else
-                _taskArena.reset(new custom::task_arena{concurrency});
-#endif
+                _taskArena.reset(new custom::task_arena{
+                    custom::task_arena::constraints{}
+                        .set_numa_id(_numaNodeId)
+                        .set_max_concurrency(concurrency)
+                });
             } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
