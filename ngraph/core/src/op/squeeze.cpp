@@ -43,6 +43,7 @@ void op::Squeeze::validate_and_infer_types()
     auto data = input_value(0);
     bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
+    auto data_partial_shape = data.get_partial_shape();
 
     std::shared_ptr<op::v0::Constant> axes_constant;
     if (get_input_size() == 1)
@@ -70,11 +71,32 @@ void op::Squeeze::validate_and_infer_types()
     if (data_has_dynamic_rank || !axes_constant || !axes_constant->get_data_ptr() ||
         (data_has_dynamic_shape && axes_is_empty_constant))
     {
+        // If data has a static rank despite being dynamic, it's possible none
+        // of the dimensions will be equal to 1. If so, the input shape can be
+        // propagated at this point to the output shape.
+        if (!data_has_dynamic_rank && axes_is_empty_constant)
+        {
+            bool no_squeezable_dimension_present = true;
+            uint64_t data_rank = data_partial_shape.rank().get_length();
+            for (uint64_t idx = 0; idx < data_rank; ++idx)
+            {
+                if (data_partial_shape[idx].compatible(1))
+                {
+                    no_squeezable_dimension_present = false;
+                    break;
+                }
+            }
+            if (no_squeezable_dimension_present)
+            {
+                set_output_type(0, get_input_element_type(0), data_partial_shape);
+                return;
+            }
+        }
+
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;
     }
 
-    auto data_partial_shape = data.get_partial_shape();
     uint64_t data_rank = data_partial_shape.rank().get_length();
 
     // Get value of axes from Constant
