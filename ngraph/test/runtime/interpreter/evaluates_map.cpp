@@ -504,7 +504,7 @@ namespace
             T* a = axes_input->get_data_ptr<T>();
             auto v = std::vector<T>(a, a + axes_input->get_shape()[0]);
             std::vector<size_t> axes(v.size(), 0);
-            for (int i = 0; i < v.size(); i++)
+            for (size_t i = 0; i < v.size(); i++)
             {
                 if (v[i] < 0)
                 {
@@ -2114,7 +2114,7 @@ namespace
                                                   outputs[0]->get_data_ptr<T>(),
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
-                                                  ngraph::op::AutoBroadcastSpec::NUMPY);
+                                                  op->get_autob());
         return true;
     }
 

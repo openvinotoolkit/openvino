@@ -87,7 +87,7 @@ void op::v1::Reverse::validate_and_infer_types()
 
     if (input_rank.is_static())
     {
-        const auto rank = input_rank.get_length();
+        const size_t rank = input_rank.get_length();
 
         if (const auto& rev_axes_constant = get_constant_from_source(input_value(1)))
         {
