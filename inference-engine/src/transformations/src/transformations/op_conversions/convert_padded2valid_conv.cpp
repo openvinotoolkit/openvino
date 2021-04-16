@@ -117,7 +117,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         size_t input_width = input.get_shape()[3];
 
         size_t filter_count = filters.get_shape()[0];
-        size_t filter_channel_count = filters.get_shape()[1];
+
         size_t filter_height = filters.get_shape()[2];
         size_t filter_width = filters.get_shape()[3];
 
@@ -129,7 +129,6 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         std::shared_ptr<Node>last_op_in_sequence_for_replacement = trailing_transpose;
 
         std::shared_ptr<ngraph::Node> bias_const;
-        bool disable_nhwc_to_nchw_option = false;
         if (leading_transpose && trailing_transpose && conv) {
             auto trailing_transpose_output_0 = trailing_transpose->get_output_target_inputs(0);
             if (trailing_transpose_output_0.size() == 1) {
@@ -145,7 +144,6 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
                         if (bias_size == filter_count) {
                             conv_bias = add_op;
                             last_op_in_sequence_for_replacement = add_op;
-                            disable_nhwc_to_nchw_option = true;
 
                             auto bias_output_0 = add_op->get_output_target_inputs(0);
                             if (bias_output_0.size() == 1) {
@@ -170,29 +168,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(bias_output_0_node);
         }
 
-        size_t pool_size_x = 1;
-        size_t pool_size_y = 1;
-        size_t pool_stride_x = 1;
-        size_t pool_stride_y = 1;
-
         if (max_pool) {
-            // Check if MaxPool vertical stride == pool size
-            auto pool_strides = max_pool->get_strides();
-            auto pool_kernel = max_pool->get_kernel();
-            // We support only VALID PADDING
-            if (max_pool->get_auto_pad() != PadType::VALID)
-                continue;
-
-            if (pool_kernel.size() != 2 || pool_strides.size() != 2)
-                continue;
-
-            if (pool_kernel[0] != pool_strides[0] || pool_kernel[0] > 8)
-                continue;
-            pool_size_x = pool_kernel[1];
-            pool_size_y = pool_kernel[0];
-            pool_stride_x = pool_strides[1];
-            pool_stride_y = pool_strides[0];
-
             auto maxpool_output_0 = max_pool->get_output_target_inputs(0);
             if (maxpool_output_0.size() != 1)
                 continue;
@@ -203,7 +179,6 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
                 last_op_in_sequence_for_replacement = trailing_transpose;
             } else {
                 last_op_in_sequence_for_replacement = max_pool;
-                disable_nhwc_to_nchw_option = true;
             }
             af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(maxpool_output_0_node);
         }
@@ -219,7 +194,6 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
                 last_op_in_sequence_for_replacement = trailing_transpose;
             } else {
                 last_op_in_sequence_for_replacement = af;
-                disable_nhwc_to_nchw_option = true;
             }
         }
 
@@ -252,19 +226,18 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         case ngraph::op::PadType::VALID:
             // all padding equal to 0 - already set
             break;
-
         case ngraph::op::PadType::SAME_LOWER:
         case ngraph::op::PadType::SAME_UPPER:
         {
             output_height = output_shape[2];
             output_width = output_shape[3];
 
-            size_t pad_begin_n_end_y = output_height * filter_stride_y + (filter_height)*filter_dilation_y - input_height - 1;
-            size_t pad_begin_n_end_x = output_width * filter_stride_x + (filter_width)*filter_dilation_x - input_width - 1;
+            size_t pad_begin_n_end_y = output_height * filter_stride_y + (filter_height)* filter_dilation_y - input_height - 1;
+            size_t pad_begin_n_end_x = output_width * filter_stride_x + (filter_width) * filter_dilation_x - input_width - 1;
             pads_begin_y = (ngraph::op::PadType::SAME_LOWER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
-            pads_end_y = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
+            pads_end_y = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_x >> 1) + (pad_begin_n_end_x & 1) : (pad_begin_n_end_x >> 1);
             pads_begin_x = (ngraph::op::PadType::SAME_LOWER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
-            pads_end_x = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
+            pads_end_x = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_x >> 1) + (pad_begin_n_end_x & 1) : (pad_begin_n_end_x >> 1);
 
             break;
         }
@@ -302,7 +275,6 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             Shape{ (size_t)1, shape_size(leading_transpose->input_value(0).get_shape()) });
         // zero padding
         auto const_holding_padding = std::make_shared<opset1::Constant>(element::Type_t::f32, Shape{ 1, biggest_padding }, 0);
-        ngraph::copy_runtime_info(conv, const_holding_padding);
 
         // padding
         // padding
@@ -385,10 +357,15 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         //NHWC => NCWH
         auto transposed2chw = builder::opset1::reorder_axes(padded_input_plane_reshaped, { 0, 3, 1, 2 });
 
-        conv->set_pads_begin(ngraph::CoordinateDiff{ 0, 0 });
-        conv->set_adding_above(ngraph::CoordinateDiff{ 0, 0 });
+        auto conv_copy = std::make_shared<ngraph::opset1::Convolution>(
+            transposed2chw->output(0),
+            conv->input_value(1),
+            conv->get_strides(),
+            CoordinateDiff{ 0, 0 },
+            CoordinateDiff{ 0, 0 },
+            conv->get_dilations(),
+            PadType::EXPLICIT);
 
-        auto conv_copy = conv->clone_with_new_inputs({ transposed2chw, conv->input_value(1) });
         ngraph::replace_node(conv, conv_copy);
 
         is_graph_modfied = true;
