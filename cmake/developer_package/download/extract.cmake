@@ -40,7 +40,7 @@ function (extract archive_path unpacked_path folder files_to_extract result)
     else()
       if (NOT (err STREQUAL ""))
          message(STATUS "${err}")
-	  endif()
+      endif()
       set(${result} 1 PARENT_SCOPE)
     endif()
 
