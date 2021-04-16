@@ -72,11 +72,12 @@ struct CPUStreamsExecutor::Impl {
                     (_streamId % _impl->_config._streams) /
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
+            // default arena (the rest of code may replace that to accomodate more specific config)
+            _taskArena.reset(new custom::task_arena{concurrency});
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 #if TBB_HYBRID_CPUS_SUPPORT_PRESENT
                 if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
-                       _taskArena.reset(new custom::task_arena{concurrency});
                        // TODO: REMOVE THE DEBUG PRINTF
                        printf("%s, NO BINDING, StreamId: %d (%d threads) \n",
                            _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream);
@@ -107,14 +108,11 @@ struct CPUStreamsExecutor::Impl {
                 #endif
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                  #if TBB_NUMA_SUPPORT_PRESENT
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
                     // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
-                 #else
-                _taskArena.reset(new custom::task_arena{concurrency});
                  #endif
             } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
-                _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                     // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s, conventional ThreadBindingType::CORES codepath \n", _impl->_config._name.c_str());
