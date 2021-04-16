@@ -68,6 +68,7 @@ extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
+extensions/front/AttributedRollToRoll.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
 extensions/front/caffe/__init__.py
@@ -217,6 +218,7 @@ extensions/front/mxnet/reshape_ext.py
 extensions/front/mxnet/RNN_ext.py
 extensions/front/mxnet/rnn_param_concat.py
 extensions/front/mxnet/roi_pooling_ext.py
+extensions/front/mxnet/roll_ext.py
 extensions/front/mxnet/shape_array_ext.py
 extensions/front/mxnet/sigmoid.py
 extensions/front/mxnet/slice_channel_ext.py
@@ -353,6 +355,7 @@ extensions/front/reciprocal.py
 extensions/front/reduce_axis_normalizer.py
 extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
+extensions/front/RollWithEmptyAxesReplacer.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
 extensions/front/Softplus_fusion.py
@@ -465,6 +468,7 @@ extensions/front/tf/rfcn_support.json
 extensions/front/tf/rfcn_support_api_v1.10.json
 extensions/front/tf/rfcn_support_api_v1.13.json
 extensions/front/tf/rfcn_support_api_v1.14.json
+extensions/front/tf/roll_ext.py
 extensions/front/tf/select_ext.py
 extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
@@ -725,6 +729,7 @@ extensions/ops/RNN.py
 extensions/ops/RNNCell.py
 extensions/ops/roialign.py
 extensions/ops/roifeatureextractor_onnx.py
+extensions/ops/roll.py
 extensions/ops/scatter.py
 extensions/ops/scatternd.py
 extensions/ops/select.py
