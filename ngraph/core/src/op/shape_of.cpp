@@ -114,7 +114,7 @@ namespace shape_of
             }
             auto dimensions = OutputVector{};
             auto output_dimensions = vector<Dimension>(partial_shape);
-            for (int64_t i = 0; i < output_dimensions.size(); ++i)
+            for (size_t i = 0; i < output_dimensions.size(); ++i)
             {
                 if (output_dimensions[i].is_static())
                 {
@@ -123,17 +123,17 @@ namespace shape_of
                         Shape{1},
                         std::vector<int64_t>{output_dimensions[i].get_length()});
                     temp->set_friendly_name("ConstDim/" + temp->get_name());
-                    dimensions.push_back(temp);
+                    dimensions.emplace_back(temp);
                 }
                 else
                 {
                     auto index = std::make_shared<op::v0::Constant>(
-                        output_type, Shape{1}, std::vector<int64_t>{i});
+                        output_type, Shape{1}, std::vector<int64_t>{static_cast<int64_t>(i)});
                     auto axis = std::make_shared<op::v0::Constant>(
                         element::i64, Shape{}, std::vector<int64_t>{0});
                     auto temp = make_shared<op::v1::Gather>(shape_of, index, axis);
                     temp->set_friendly_name("DynDim/" + temp->get_name());
-                    dimensions.push_back(temp);
+                    dimensions.emplace_back(temp);
                 }
             }
 
@@ -216,8 +216,8 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
@@ -280,8 +280,8 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 

@@ -183,11 +183,12 @@ namespace ngraph
                     }
 
                     const auto& outputs_from_parent = body_graph.get_outputs_from_parent();
-                    CHECK_VALID_NODE(node,
-                                     std::distance(body_inputs_it, body_inputs.end()) ==
-                                         outputs_from_parent.size(),
-                                     "Expected number of invariant parameters is"
-                                     " not equal number of provided outputs from parent scope");
+                    CHECK_VALID_NODE(
+                        node,
+                        static_cast<size_t>(std::distance(body_inputs_it, body_inputs.end())) ==
+                            outputs_from_parent.size(),
+                        "Expected number of invariant parameters is"
+                        " not equal number of provided outputs from parent scope");
 
                     // Set-up parameters from parent graph which are not changed during Loop's
                     // iterations

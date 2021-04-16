@@ -21,6 +21,12 @@
 using namespace InferenceEngine;
 using namespace ngraph;
 
+/**
+* @brief Checks input args
+* @param argc number of args
+* @param argv list of input arguments
+* @return bool status true(Success) or false(Fail)
+*/
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     slog::info << "Parsing input parameters" << slog::endl;
 
@@ -48,6 +54,13 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     return true;
 }
 
+/**
+* @brief Read file to the buffer
+* @param file_name string
+* @param buffer to store file content
+* @param maxSize length of file
+* @return none
+*/
 void readFile(const std::string& file_name, void* buffer, size_t maxSize) {
     std::ifstream inputFile;
 
@@ -64,6 +77,11 @@ void readFile(const std::string& file_name, void* buffer, size_t maxSize) {
     inputFile.close();
 }
 
+/**
+* @brief Read .bin file with weights for the trained model
+* @param filepath string
+* @return weightsPtr tensor blob
+*/
 TBlob<uint8_t>::CPtr ReadWeights(std::string filepath) {
     std::ifstream weightFile(filepath, std::ifstream::ate | std::ifstream::binary);
     int64_t fileSize = weightFile.tellg();
@@ -81,11 +99,15 @@ TBlob<uint8_t>::CPtr ReadWeights(std::string filepath) {
     return weightsPtr;
 }
 
+/**
+* @brief Create ngraph function
+* @return Ptr to ngraph function
+*/
 std::shared_ptr<Function> createNgraphFunction() {
     TBlob<uint8_t>::CPtr weightsPtr = ReadWeights(FLAGS_m);
 
     if (weightsPtr->byteSize() != 1724336)
-        IE_THROW() << "Incorrect weights file";
+        IE_THROW() << "Incorrect weights file. This sample works only with LeNet classification network.";
 
     // -------input------
     std::vector<ptrdiff_t> padBegin{ 0, 0 };
@@ -220,33 +242,35 @@ std::shared_ptr<Function> createNgraphFunction() {
  */
 int main(int argc, char* argv[]) {
     try {
+        // ------------------------------ Get Inference Engine version ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
-
+        // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
-
+        // ------------------------------ Read input -----------------------------------------------------------
         /** This vector stores paths to the processed images **/
         std::vector<std::string> images;
         parseInputFilesArguments(images);
         if (images.empty()) {
             throw std::logic_error("No suitable images were found");
         }
+        // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load inference engine -------------------------------------
+        // --------------------------- Step 1. Initialize inference engine core -------------------------------------
         slog::info << "Loading Inference Engine" << slog::endl;
         Core ie;
-
+        // ------------------------------ Get Available Devices ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;
         std::cout << ie.GetVersions(FLAGS_d) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        //--------------------------- 2. Create network using ngraph function -----------------------------------
+        //--------------------------- Step 2. Create network using ngraph function -----------------------------------
 
         CNNNetwork network(createNgraphFunction());
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 3. Configure input & output ---------------------------------------------
+        // --------------------------- Step 3. Configure input & output ---------------------------------------------
         // --------------------------- Prepare input blobs -----------------------------------------------------
         slog::info << "Preparing input blobs" << slog::endl;
 
@@ -287,7 +311,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
         // --------------------------- Prepare output blobs -----------------------------------------------------
-        slog::info << "Checking that the outputs are as the demo expects" << slog::endl;
+        slog::info << "Checking that the outputs are as the sample expects" << slog::endl;
         OutputsDataMap outputInfo(network.getOutputsInfo());
         std::string firstOutputName;
 
@@ -325,17 +349,17 @@ int main(int argc, char* argv[]) {
 
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Loading model to the device ------------------------------------------
+        // --------------------------- Step 4. Loading model to the device ------------------------------------------
         slog::info << "Loading model to the device" << slog::endl;
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, FLAGS_d);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Create infer request -------------------------------------------------
+        // --------------------------- Step 5. Create infer request -------------------------------------------------
         slog::info << "Create infer request" << slog::endl;
         InferRequest infer_request = exeNetwork.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 6. Prepare input --------------------------------------------------------
+        // --------------------------- Step 6. Prepare input --------------------------------------------------------
         /** Iterate over all the input blobs **/
         for (const auto& item : inputInfo) {
             /** Creating input blob **/
@@ -363,12 +387,12 @@ int main(int argc, char* argv[]) {
         inputInfo = {};
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 7. Do inference ---------------------------------------------------------
+        // --------------------------- Step 7. Do inference ---------------------------------------------------------
         slog::info << "Start inference" << slog::endl;
         infer_request.Infer();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 8. Process output -------------------------------------------------------
+        // --------------------------- Step 8. Process output -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
 
         const Blob::Ptr outputBlob = infer_request.GetBlob(firstOutputName);
@@ -395,9 +419,10 @@ int main(int argc, char* argv[]) {
             }
             inputFile.close();
         }
-
+        // Prints formatted classification results
         ClassificationResult classificationResult(outputBlob, images, batchSize, FLAGS_nt, labels);
         classificationResult.print();
+        // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return EXIT_FAILURE;

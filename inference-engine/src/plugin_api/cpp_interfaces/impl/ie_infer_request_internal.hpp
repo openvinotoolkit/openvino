@@ -22,7 +22,7 @@
 
 namespace InferenceEngine {
 
-class ExecutableNetworkInternal;
+class IExecutableNetworkInternal;
 
 /**
  * @brief An optimal implementation of IInferRequestInternal interface to avoid duplication in all plugins
@@ -223,7 +223,7 @@ public:
      * @note       Needed to correctly handle ownership between objects.
      * @param[in]  exeNetwork  The executable network
      */
-    void setPointerToExecutableNetworkInternal(std::shared_ptr<ExecutableNetworkInternal> exeNetwork) {
+    void setPointerToExecutableNetworkInternal(std::shared_ptr<IExecutableNetworkInternal> exeNetwork) {
         _exeNetwork = exeNetwork;
     }
 
@@ -258,7 +258,7 @@ protected:
      * @brief A shared pointer to ExecutableNetworkInternal interface
      * @note Needed to correctly handle ownership between objects.
      */
-    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
+    std::shared_ptr<IExecutableNetworkInternal> _exeNetwork;
     /**
      * @brief Checks and executes input data pre-processing if needed.
      * @param inputs Inputs blobs to perform preprocessing on
