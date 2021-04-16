@@ -100,7 +100,7 @@ namespace
         }
 
         result_shape = target_shape;
-        for (auto i = 0; i < target_shape.size(); ++i)
+        for (size_t i = 0; i < target_shape.size(); ++i)
         {
             if (arg_shape_vec[i].is_dynamic())
             {
