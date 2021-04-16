@@ -17,16 +17,15 @@ namespace ngraph
                 throw error::attribute::InvalidData{m_attribute_proto->type()};
             }
 
-            auto model_proto =
-                std::unique_ptr<ONNX_NAMESPACE::ModelProto>(new ONNX_NAMESPACE::ModelProto());
+            auto model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>();
 
             const auto& graph = m_attribute_proto->g();
             *(model_proto->mutable_graph()) = graph;
 
             // set opset version and domain from the parent graph
             *model_proto->mutable_opset_import() = parent_graph.get_opset_imports();
-            auto model = std::unique_ptr<Model>(new Model{std::move(model_proto)});
-            return Subgraph{std::move(model), parent_graph};
+            auto model = common::make_unique<Model>(model_proto);
+            return Subgraph{model, parent_graph};
         }
 
     } // namespace onnx_import

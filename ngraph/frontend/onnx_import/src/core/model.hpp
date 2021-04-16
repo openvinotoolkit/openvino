@@ -28,7 +28,7 @@ namespace ngraph
         {
         public:
             Model() = delete;
-            explicit Model(std::unique_ptr<ONNX_NAMESPACE::ModelProto> model_proto);
+            explicit Model(std::unique_ptr<ONNX_NAMESPACE::ModelProto>& model_proto);
 
             Model(const Model&) = default;
             Model(Model&&) = default;
