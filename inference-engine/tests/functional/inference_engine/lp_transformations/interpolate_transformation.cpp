@@ -230,7 +230,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 
-    // mode is not nearest - not transformed
+    // mode is not nearest - transformed
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
@@ -251,9 +251,9 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
+            {{}, {}, {}},
             ngraph::element::u8,
-            {{}, {}, {}}
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
         }
     },
 
@@ -364,7 +364,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 
-    // mode is not nearest - not transformed
+    // mode is not nearest - transformed
     {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
@@ -383,9 +383,9 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         },
         {
             ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
+            {{}, {}, {}},
             ngraph::element::i8,
-            {{}, {}, {}}
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
         }
     },
 
