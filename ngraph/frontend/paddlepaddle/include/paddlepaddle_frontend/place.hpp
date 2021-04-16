@@ -17,6 +17,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
+#include <utility.hpp>
 
 namespace paddle {
 namespace framework {
@@ -74,17 +75,13 @@ public:
         m_source_tensors.push_back(source_tensor);
     }
 
-    const std::vector<std::weak_ptr<TensorPlacePDPD>>& getSourceTensors() const {
-        return m_source_tensors;
-    }
+    std::vector<std::shared_ptr<TensorPlacePDPD>> getSourceTensors() const;
 
-    std::shared_ptr<Place> getSourceTensor(int idx) const override {
-        return std::dynamic_pointer_cast<Place>(m_source_tensors[idx].lock());
-    }
+    std::shared_ptr<Place> getSourceTensor(int idx) const override;
 
-    std::shared_ptr<TensorPlacePDPD> getSourceTensorPDPD(int idx) const {
-        return m_source_tensors[idx].lock();
-    }
+    std::shared_ptr<TensorPlacePDPD> getSourceTensorPDPD(int idx) const;
+
+    std::shared_ptr<OpPlacePDPD> getOp();
 private:
     std::vector<std::weak_ptr<TensorPlacePDPD>> m_source_tensors;
     std::weak_ptr<OpPlacePDPD> m_op;
@@ -96,24 +93,17 @@ public:
             : PlacePDPD(input_model) {
     }
 
-    void setOp(const std::weak_ptr<OpPlacePDPD>& op) {
-        m_op = op;
-    }
+    void setOp(const std::weak_ptr<OpPlacePDPD>& op) { m_op = op; }
 
     void addTargetTensor(const std::weak_ptr<TensorPlacePDPD>& target_tensor) {
         m_target_tensors.push_back(target_tensor);
     }
 
-    std::shared_ptr<Place> getTargetTensor(int idx) const override {
-        return std::static_pointer_cast<Place>(m_target_tensors[idx].lock());
-    }
+    std::shared_ptr<Place> getTargetTensor(int idx) const override;
 
-    std::shared_ptr<TensorPlacePDPD> getTargetTensorPDPD(int idx) const {
-        return m_target_tensors[idx].lock();
-    }
-    const std::vector<std::weak_ptr<TensorPlacePDPD>>& getTargetTensors() const {
-        return m_target_tensors;
-    }
+    std::shared_ptr<TensorPlacePDPD> getTargetTensorPDPD(int idx) const;
+
+    std::vector<std::shared_ptr<TensorPlacePDPD>> getTargetTensors() const;
 private:
     std::weak_ptr<OpPlacePDPD> m_op;
     std::vector<std::weak_ptr<TensorPlacePDPD>> m_target_tensors;
@@ -176,6 +166,10 @@ public:
     void addConsumingPort(const std::shared_ptr<InPortPlacePDPD>& in_port) {
         m_consuming_ports.push_back(in_port);
     }
+
+    std::vector<Place::Ptr> getConsumingPorts () const override;
+
+    Ptr getProducingPort () const override;
 
     const PartialShape& getPartialShape() const { return m_pshape; }
 
