@@ -834,6 +834,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     THROW_GNA_EXCEPTION << "Two Input layers " << (*sourceLayerIt)->name
                         << " and " << (*nextInputIt)->name << " have different scales in concat!!! \n";
                 }
+                ++nextInputIt;
             }
         }
 
