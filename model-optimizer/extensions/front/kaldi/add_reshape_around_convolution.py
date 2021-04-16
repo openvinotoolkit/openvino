@@ -62,11 +62,22 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             graph, Div, {1: float32_array([node.patch_stride * node.kernel[2]])}, {'name': node_name + '/div_stride_h'})
         div.in_port(0).connect(H.out_port(0))
 
-        concat = create_op_with_const_inputs(graph, Concat, {2: float32_array([node.patch_stride]),
-                                                             1: float32_array([node.kernel[2]])},
+        # added if to avoid changes in old networks where channel dimension is 1 and transpose is not needed
+        # (GNA doesn't support)
+        if node.kernel[1] == 1:
+            channel_dim = 1
+            sp_dim_1 = 2
+            sp_dim_2 = 3
+        else:
+            channel_dim = 3
+            sp_dim_1 = 1
+            sp_dim_2 = 2
+
+        concat = create_op_with_const_inputs(graph, Concat, {sp_dim_2: float32_array([node.patch_stride]),
+                                                             sp_dim_1: float32_array([node.kernel[2]])},
                                              {'name': node_name + '/concat_all_dims', 'in_ports_count': 4, 'axis': 0})
         concat.in_port(0).connect(N.out_port(0))
-        concat.in_port(3).connect(div.out_port(0))
+        concat.in_port(channel_dim).connect(div.out_port(0))
 
         reshape_pattern = Cast(graph, {'name': node_name + '/to_int', 'dst_type': np.int64}).create_node()
         concat.out_port(0).connect(reshape_pattern.in_port(0))
@@ -76,9 +87,10 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
 
         # change layout from NHWC to NCHW
         # should be replaced by common Permute logic in future
-        # added if to avoid changes in old networks where channel dimension is 1 and transpose is not needed
-        transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 3, 1, 2]),
-                                                     {'name': node.name + '/Transpose'}, reshape_in)
+        transpose = None
+        if node.kernel[1] != 1:
+            transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 3, 1, 2]),
+                                                         {'name': node.name + '/Transpose'}, reshape_in)
 
         # create Reshape after Convolution
         reshape_out = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
@@ -86,7 +98,7 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
 
         # connect input_reshape_node
         source = node.in_port(0).get_source()
-        node.in_port(0).get_connection().set_source(transpose.out_port(0))
+        node.in_port(0).get_connection().set_source(transpose.out_port(0) if transpose else reshape_in.out_port(0))
         reshape_in.in_port(0).connect(source)
         # connect output_reshape_node
         node.out_port(0).get_connection().set_source(reshape_out.out_port(0))
