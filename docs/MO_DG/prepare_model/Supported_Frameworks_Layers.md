@@ -380,6 +380,7 @@ Standard Kaldi\* Layers:
 | splicecomponent | No |
 | tanhcomponent | No |
 | tdnncomponent | No |
+| timeheightconvolutioncomponent | No |
 
 
 ## ONNX\* Supported Operators
