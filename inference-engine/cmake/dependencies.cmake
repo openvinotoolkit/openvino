@@ -307,8 +307,8 @@ if (ENABLE_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.1191.0")
-            set(GNA_HASH "a61b4a9133549b0a9f0b46d069f72906ced28bcbbe7d5c361e687645f53a1c8b")
+            set(GNA_VERSION "02.00.00.1095")
+            set(GNA_HASH "5cea616f01b554c4125eb9ff6f2e25bec5087954f3bcee4e3917b13f037f7213")
         endif()
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
@@ -318,12 +318,14 @@ if (ENABLE_GNA)
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
      
+        set(IE_PATH_TO_DEPS "http://nnt-srv01.inn.intel.com/dl_score_engine")
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH})
+        unset(IE_PATH_TO_DEPS)
     endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
