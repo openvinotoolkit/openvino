@@ -25,7 +25,8 @@ namespace ngraph
                     std::find_if(input_descs.begin(),
                                  input_descs.end(),
                                  [&cur_iter_idx](const op::util::InputDescriptionPtr& in_desc) {
-                                     return in_desc->m_body_parameter_index == cur_iter_idx;
+                                     return in_desc->m_body_parameter_index ==
+                                            static_cast<uint64_t>(cur_iter_idx);
                                  });
                 bool cur_iter_initial_value_exist = val != input_descs.end();
                 bool cur_iter_back_edge_exist = false;
@@ -71,8 +72,8 @@ namespace ngraph
                     {
                         back_edges.push_back(
                             {merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
-                        cur_iter_back_edge_exist |=
-                            merged_desc->m_body_parameter_index == cur_iter_idx;
+                        cur_iter_back_edge_exist |= merged_desc->m_body_parameter_index ==
+                                                    static_cast<uint64_t>(cur_iter_idx);
                     }
                 }
 
@@ -130,7 +131,7 @@ namespace ngraph
                             uint64_t num_iterations = shape.at(slice_desc->m_axis);
                             shape.at(slice_desc->m_axis) = 1;
                             sliced_values.emplace_back(HostTensorVector());
-                            for (int i = 0; i < num_iterations; ++i)
+                            for (uint64_t i = 0; i < num_iterations; ++i)
                             {
                                 sliced_values.back().emplace_back(std::make_shared<HostTensor>(
                                     args[slice_desc->m_input_index]->get_element_type(), shape));
@@ -164,7 +165,7 @@ namespace ngraph
                         // Copy new values for sliced inputs
                         for (size_t i = 0; i < slice_inputs.size(); ++i)
                         {
-                            if (sliced_values[i].size() > cur_iter)
+                            if (static_cast<int64_t>(sliced_values[i].size()) > cur_iter)
                                 inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
                                     sliced_values[i][cur_iter];
                         }
@@ -182,7 +183,8 @@ namespace ngraph
 
                         // Check execution condition
                         bool body_exec_condition(false);
-                        if (body_outputs.size() > special_ports.body_condition_output_idx &&
+                        if (static_cast<int64_t>(body_outputs.size()) >
+                                special_ports.body_condition_output_idx &&
                             body_outputs[special_ports.body_condition_output_idx])
                             body_outputs[special_ports.body_condition_output_idx]->read(
                                 &body_exec_condition, sizeof(bool));

@@ -48,7 +48,7 @@ void runtime::LRUCache::add_entry(const vector<int>& shape,
     std::lock_guard<std::mutex> guard(m_mutex);
     ostringstream key;
     // check if the list is empty
-    if (m_list.size() == m_cache_size)
+    if (m_list.size() == static_cast<size_t>(m_cache_size))
     {
         ostringstream key;
         convert_shape_to_string(m_list.back(), key);
