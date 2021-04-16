@@ -271,6 +271,12 @@ void op::v1::TopK::validate_and_infer_types()
                           "Index element type attribute should be either \'i32\' or \'i64\'. Got: ",
                           m_index_element_type);
 
+    if (op::is_constant(input_value(1).get_node()))
+    {
+        // Check k value
+        read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
+    }
+
     PartialShape output_shape{input_partial_shape};
 
     if (output_shape.rank().is_static())
