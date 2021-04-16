@@ -103,7 +103,7 @@ class AttributedGather(Op):
 
             'force_precision_in_ports': {1: 'int32'},
 
-            'in_ports_count': 3,
+            'in_ports_count': 2,
             'out_ports_count': 1,
         }, attrs)
 
@@ -121,15 +121,17 @@ class AttributedGather(Op):
             "AttributedGather should have 2 connected input port, but it doesn't for node: `{}`. Ports: {}" \
             "".format(name, connected_in_ports)
 
-        assert node.has_valid('axis')
-        # Convert negative axis
-        axis = Gather.get_axis(node)
-        node.axis = axis
+        axis = node.soft_get('axis', None)
+        assert axis is not None
 
         data_shape = node.in_port(0).data.get_shape()
         assert data_shape is not None
         indices_shape = node.in_port(1).data.get_shape()
         assert indices_shape is not None
+
+        # Convert negative axis
+        axis = get_canonical_axis_index(data_shape, axis)
+        node.axis = axis
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 

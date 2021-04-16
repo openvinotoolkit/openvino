@@ -6,11 +6,11 @@ from copy import deepcopy
 
 import networkx as nx
 
+from extensions.ops.parameter import Parameter
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
 from mo.ops.const import Const
-from extensions.ops.parameter import Parameter
 from mo.utils.error import Error
 
 
