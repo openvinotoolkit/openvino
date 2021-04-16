@@ -143,7 +143,7 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
         const auto withDetectionOutput = model->attrs().getOrDefault<bool>("withDetectionOutput", false);
         stage->attrs().set<bool>("convertFromDetOutput", withDetectionOutput);
 
-        const auto haveBatch = _unbatchedOutputs.count(output->origData()) == 0;
+        const auto haveBatch = model->batchSize() != 1 && _unbatchedOutputs.count(output->origData()) == 0;
         stage->attrs().set<bool>("haveBatch", haveBatch);
     }
 }

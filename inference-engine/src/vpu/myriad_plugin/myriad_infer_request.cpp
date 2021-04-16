@@ -122,9 +122,9 @@ void MyriadInferRequest::InferAsync() {
         const auto byteSize = blob->byteSize();
         const auto requiredSize = vpu::checked_cast<size_t>(offset) + byteSize;
         IE_ASSERT(requiredSize <= inputBuffer.size())  << "MyriadInferRequest::InferAsync()\n"
-                                                       << "Input offset is too big."
+                                                       << "Input offset is too big. "
                                                        << "Required size: " << requiredSize
-                                                       << "Input buffer size: " << inputBuffer.size();
+                                                       << ", Input buffer size: " << inputBuffer.size();
 
         const auto foundBlob = getNetInputInfo(name);
         const auto vpuLayout = foundBlob->second->getTensorDesc().getLayout();
