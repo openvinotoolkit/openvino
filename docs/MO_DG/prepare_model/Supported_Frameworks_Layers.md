@@ -51,6 +51,7 @@ Standard MXNet\* symbols:
 | _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
 | _maximum | No |
 | _minimum | No |
+| _np_roll | No |
 | add_n | No |
 | arccosh | No |
 | arcsinh | No |
@@ -219,6 +220,7 @@ Standard TensorFlow\* operations:
 | ResizeNearestNeighbor | No |
 | ResourceGather| No |
 | ReverseSequence | No |
+| Roll | No |
 | Round | No |
 | Rsqrt | No |
 | Shape | No |
@@ -325,6 +327,7 @@ Standard TensorFlow 2 Keras\* operations:
 | ReLU | No |
 | RepeatVector | No |
 | Reshape | No |
+| Roll | No |
 | SeparableConv1D | No |
 | SeparableConv2D | No |
 | SimpleRNN | No |
