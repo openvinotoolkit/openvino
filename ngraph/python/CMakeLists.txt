@@ -68,7 +68,7 @@ endif()
 
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND Python_VERSION VERSION_GREATER_EQUAL "3.9")
     # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
-    add_compile_options(-Wno-deprecated-declarations)
+    add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
 
 # create target
