@@ -15,9 +15,9 @@ std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>&
     size_t C   = data.get_shape().at(1);
     bool random = true;
     std::vector<float> values(C);
-    auto gamma = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1, 0);
-    auto beta  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1, 0);
-    auto mean  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1, 0);
+    auto gamma = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1.f, 0.f);
+    auto beta  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1.f, 0.f);
+    auto mean  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1.f, 0.f);
 
     // Fill the vector for variance with positive values
     std::default_random_engine gen;

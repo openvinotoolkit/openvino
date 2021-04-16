@@ -17,12 +17,24 @@ namespace Utils {
 
 template<ngraph::element::Type_t dType>
 std::vector<typename ngraph::helpers::nGraphTypesTrait<dType>::value_type> inline
-generateVector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1, int32_t seed = 1) {
-    std::vector<typename ngraph::helpers::nGraphTypesTrait<dType>::value_type> res;
+generateVector(size_t vec_len, typename ngraph::helpers::nGraphTypesTrait<dType>::value_type upTo = 10,
+               typename ngraph::helpers::nGraphTypesTrait<dType>::value_type startFrom = 1, int32_t seed = 1) {
+    using DataType = typename ngraph::helpers::nGraphTypesTrait<dType>::value_type;
+    // chose values between int and bool
+    using cast_bool_to_int = typename std::conditional<
+            std::is_same<DataType, bool>::value,
+            unsigned int,
+            DataType> :: type;
+
+    std::vector<DataType> res;
 
     std::mt19937 gen(seed);
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
-    std::uniform_int_distribution<unsigned long> dist(startFrom, upTo);
+    typename std::conditional<
+            std::is_integral<DataType>::value,
+            std::uniform_int_distribution<cast_bool_to_int>,
+            std::uniform_real_distribution<cast_bool_to_int>>::type dist(
+                    static_cast<cast_bool_to_int>(startFrom), static_cast<cast_bool_to_int>(upTo));
 
     for (size_t i = 0; i < vec_len; i++) {
         res.push_back(
