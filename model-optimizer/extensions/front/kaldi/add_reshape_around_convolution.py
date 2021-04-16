@@ -49,7 +49,7 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
         # create Reshape before convolution
-        # shape = [in_shape[0], in_shape[1]/patch_stride, patch_stride/in_channels, in_channels]
+        # shape = [in_shape[0], t, patch_stride/t, in_shape[1]/patch_stride]
         i_shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
         shape = Cast(graph, {'name': node_name + '/to_float',
                              'dst_type': dst_dtype}).create_node()
@@ -62,11 +62,11 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             graph, Div, {1: float32_array([node.patch_stride])}, {'name': node_name + '/div_stride_h'})
         div.in_port(0).connect(H.out_port(0))
 
-        concat = create_op_with_const_inputs(graph, Concat, {2: float32_array([node.patch_stride//node.kernel[1]]),
-                                                             3: float32_array([node.kernel[1]])},
+        concat = create_op_with_const_inputs(graph, Concat, {2: float32_array([node.patch_stride//node.kernel[2]]),
+                                                             1: float32_array([node.kernel[2]])},
                                              {'name': node_name + '/concat_all_dims', 'in_ports_count': 4, 'axis': 0})
         concat.in_port(0).connect(N.out_port(0))
-        concat.in_port(1).connect(div.out_port(0))
+        concat.in_port(3).connect(div.out_port(0))
 
         reshape_pattern = Cast(graph, {'name': node_name + '/to_int', 'dst_type': np.int64}).create_node()
         concat.out_port(0).connect(reshape_pattern.in_port(0))

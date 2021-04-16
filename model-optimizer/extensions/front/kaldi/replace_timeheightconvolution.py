@@ -80,7 +80,7 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementOp):
         mapping_rule = {
             'name': in_name + '/Convolution',
             'output': node['out_channels'],
-            'patch_stride': node.height_in * node.in_channels,
+            'patch_stride': node.height_in * kernel[0],
             'bias_term': None,
             'pad': int64_array([[0, 0], [0, 0], [0, 0], pad_h]),
             'pad_spatial_shape': int64_array([[0, 0], pad_h]),
