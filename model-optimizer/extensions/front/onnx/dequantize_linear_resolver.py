@@ -35,18 +35,28 @@ class DequantizeLinearResolver(FrontReplacementOp):
         node_name = node.soft_get('name', node.id)
         model_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
         cast = Cast(graph, {'dst_type': model_data_type, 'name': node_name + '/Cast'}).create_node()
+        mul = Mul(graph, {}).create_node()
+
+        if node.is_in_port_connected(2):
+            sub = Sub(graph, {'name': node_name + '/Sub'}).create_node()
+            cast.out_port(0).connect(sub.in_port(0))
+            #node.in_port(2).get_connection().set_destination(sub.in_port(1))
+            sub.out_port(0).connect(mul.in_port(0))
+        else:
+            cast.out_port(0).connect(mul.in_port(0))
+        node.in_port(0).get_connection().set_destination(cast.in_port(0))
 
         axis = node.soft_get('axis', node.id)
         if axis is not None and axis != 1:
             data_shape_node = Shape(graph, {'name': node_name + '/Shape'}).create_node()
-            node.in_port(0).get_source().connect(data_shape_node.in_port(0))
+            cast.in_port(0).get_source().connect(data_shape_node.in_port(0))
             gather_node = create_op_with_const_inputs(graph, Gather, {1: int64_array([axis]),
                                                                       2: int64_array(0)},
                                                       {'name': node_name + '/Gather'})
             data_shape_node.out_port(0).connect(gather_node.in_port(0))
 
             rank_node = Rank(graph, {'name': node_name + '/Rank'}).create_node()
-            node.in_port(0).get_source().connect(rank_node.in_port(0))
+            cast.in_port(0).get_source().connect(rank_node.in_port(0))
 
             range_node = create_op_with_const_inputs(graph, Range, {0: int64_array([0]),
                                                                     2: int64_array([1])},
@@ -65,22 +75,25 @@ class DequantizeLinearResolver(FrontReplacementOp):
             cast_node.out_port(0).connect(scatter_elements_node.in_port(0))
 
             gather_node.out_port(0).connect(scatter_elements_node.in_port(2))
-            reshape_node = Reshape(graph, {'name': node_name + '/Reshape_low'}).create_node()
-            scatter_elements_node.out_port(0).connect(reshape_node.in_port(1))
+            reshape_y_scale_node = Reshape(graph, {'name': node_name + '/Reshape_y_scale'}).create_node()
+            scatter_elements_node.out_port(0).connect(reshape_y_scale_node.in_port(1))
 
-            reshape_node.out_port(0).connect(cast.in_port(0))
-            node.in_port(0).get_connection().set_destination(reshape_node.in_port(0))
-        else:
-            node.in_port(0).get_connection().set_destination(cast.in_port(0))
-        mul = Mul(graph, {}).create_node()
+            node.in_port(1).get_connection().set_destination(reshape_y_scale_node.in_port(0))
+            reshape_y_scale_node.out_port(0).connect(mul.in_port(1))
 
-        if node.is_in_port_connected(2):
-            sub = Sub(graph, {'name': node_name + '/Sub'}).create_node()
-            cast.out_port(0).connect(sub.in_port(0))
-            node.in_port(2).get_connection().set_destination(sub.in_port(1))
-            sub.out_port(0).connect(mul.in_port(0))
-        else:
-            cast.out_port(0).connect(mul.in_port(0))
+            reshape_y_zero_point_node = Reshape(graph, {'name': node_name + '/Reshape_y_zero_point'}).create_node()
+            scatter_elements_node.out_port(0).connect(reshape_y_zero_point_node.in_port(1))
+            #node.in_port(2).get_connection().set_destination(reshape_y_zero_point_node.in_port(0))
+            #reshape_y_zero_point_node.out_port(0).connect(sub.in_port(1))
+            node.in_port(2).get_connection().set_destination(reshape_y_zero_point_node.in_port(0))
+            reshape_y_zero_point_node.out_port(0).connect(sub.in_port(1))
+            # node.in_port(1).get_connection().set_destination(mul.in_port(1))
+            #reshape_node.out_port(0).connect(cast.in_port(0))
+            #node.in_port(0).get_connection().set_destination(reshape_node.in_port(0))
+            #node.in_port(0).get_connection().set_destination(cast.in_port(0))
+        #else:
+        #    node.in_port(0).get_connection().set_destination(cast.in_port(0))
+
 
         node.in_port(1).get_connection().set_destination(mul.in_port(1))
         rename_nodes([(node, node_name + '/TBD'), (mul, node_name)])
