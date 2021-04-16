@@ -70,8 +70,8 @@ IF /I "%1%" EQU "" (
 pip3 install --user -r ..\requirements%postfix%.txt
 
 :: Chek MO version
-set sourcepath=%~dp0
-set python_command="python %sourcepath%..\mo\utils\extract_release_version.py"
+set python_command='python "%~dp0..\mo\utils\extract_release_version.py"'
+
 FOR /F "delims=" %%i IN (%python_command%) DO set mo_release_version=%%i
 IF "%mo_release_version%" == "None.None" (
     set mo_is_custom="true"
