@@ -23,7 +23,7 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
         **regular_op('memoryoffset_0', {'type': None, 'op': 'MemoryOffset', 't': -1, 'has_default': False}),
         **regular_op('memoryoffset_1', {'type': None, 'op': 'MemoryOffset', 't': 0, 'has_default': False}),
         **regular_op('memoryoffset_2', {'type': None, 'op': 'MemoryOffset', 't': 1, 'has_default': True}),
-        **regular_op('conv', {'op': 'Convolution', 'type': 'Convolution'}),
+        **regular_op('conv', {'op': 'Convolution', 'type': 'Convolution', 'output': 12, 'patch_stride': 80}),
     }
 
     def test_timeheightconvolution_1offset(self):
@@ -54,20 +54,17 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
             *connect_front('conv', 'placeholder_out')
         ], nodes_with_edges_only=True)
         ref_graph.nodes['weights']['value'] = np.zeros([36])
+        new_conv = ref_graph.nodes['conv']
+        new_conv['pad'] = int64_array([[0, 0], [0, 0], [0, 0], [1, 1]])
+        new_conv['dilation'] = int64_array([1, 1, 1, 1])
+        new_conv['kernel'] = int64_array([12, 1, 1, 3])
+        new_conv['stride'] = int64_array([1, 1, 1, 1])
+
 
         ReplaceTimeHeightConvolutionPattern().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder_out', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-        new_conv = graph.nodes['timeheightconv/Convolution']
-        self.assertEqual(new_conv['output'], 12)
-        self.assertEqual(new_conv['patch_stride'], 80)
-        self.assertTrue(np.all(new_conv['pad'][3, :] == int64_array([1, 1]))),
-        self.assertTrue(np.all(new_conv['dilation'] == int64_array([1, 1, 1, 1]))),
-        self.assertTrue(np.all(new_conv['kernel'] == int64_array([12, 1, 1, 3]))),
-        self.assertTrue(np.all(new_conv['stride'] == int64_array([1, 1, 1, 1]))),
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset']['has_default'])
 
     def test_timeheightconvolution_2_offsets(self):
         graph = build_graph(self.nodes, [
@@ -100,21 +97,16 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
             *connect_front('conv', 'placeholder_out')
         ], nodes_with_edges_only=True)
         ref_graph.nodes['weights']['value'] = np.zeros([72])
+        new_conv = ref_graph.nodes['conv']
+        new_conv['pad'] = int64_array([[0, 0], [0, 0], [0, 0], [1, 1]])
+        new_conv['dilation'] = int64_array([1, 1, 1, 1])
+        new_conv['kernel'] = int64_array([12, 1, 2, 3])
+        new_conv['stride'] = int64_array([1, 1, 1, 1])
 
         ReplaceTimeHeightConvolutionPattern().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder_out', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-        new_conv = graph.nodes['timeheightconv/Convolution']
-        self.assertEqual(new_conv['output'], 12)
-        self.assertEqual(new_conv['patch_stride'], 80)
-        self.assertTrue(np.all(new_conv['pad'][3, :] == int64_array([1, 1]))),
-        self.assertTrue(np.all(new_conv['dilation'] == int64_array([1, 1, 1, 1]))),
-        self.assertTrue(np.all(new_conv['kernel'] == int64_array([12, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['stride'] == int64_array([1, 1, 1, 1]))),
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset_0']['has_default'])
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset_1']['has_default'])
 
     def test_timeheightconvolution_2_offsets_def(self):
         graph = build_graph(self.nodes, [
@@ -147,21 +139,16 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
             *connect_front('conv', 'placeholder_out')
         ], nodes_with_edges_only=True)
         ref_graph.nodes['weights']['value'] = np.zeros([72])
+        new_conv = ref_graph.nodes['conv']
+        new_conv['pad'] = int64_array([[0, 0], [0, 0], [0, 0], [1, 1]])
+        new_conv['dilation'] = int64_array([1, 1, 1, 1])
+        new_conv['kernel'] = int64_array([12, 1, 2, 3])
+        new_conv['stride'] = int64_array([1, 1, 1, 1])
 
         ReplaceTimeHeightConvolutionPattern().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder_out', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-        new_conv = graph.nodes['timeheightconv/Convolution']
-        self.assertEqual(new_conv['output'], 12)
-        self.assertEqual(new_conv['patch_stride'], 80)
-        self.assertTrue(np.all(new_conv['pad'][3, :] == int64_array([1, 1]))),
-        self.assertTrue(np.all(new_conv['dilation'] == int64_array([1, 1, 1, 1]))),
-        self.assertTrue(np.all(new_conv['kernel'] == int64_array([12, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['stride'] == int64_array([1, 1, 1, 1]))),
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset_0']['has_default'])
-        self.assertTrue(graph.nodes['timeheightconv/MemoryOffset_1']['has_default'])
 
     def test_timeheightconvolution_2_offsets_dilation(self):
         graph = build_graph(self.nodes, [
@@ -194,21 +181,16 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
             *connect_front('conv', 'placeholder_out')
         ], nodes_with_edges_only=True)
         ref_graph.nodes['weights']['value'] = np.zeros([72])
+        new_conv = ref_graph.nodes['conv']
+        new_conv['pad'] = int64_array([[0, 0], [0, 0], [0, 0], [3, 3]])
+        new_conv['dilation'] = int64_array([1, 1, 2, 3])
+        new_conv['kernel'] = int64_array([12, 1, 2, 3])
+        new_conv['stride'] = int64_array([1, 1, 1, 1])
 
         ReplaceTimeHeightConvolutionPattern().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder_out', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-        new_conv = graph.nodes['timeheightconv/Convolution']
-        self.assertEqual(new_conv['output'], 12)
-        self.assertEqual(new_conv['patch_stride'], 80)
-        self.assertTrue(np.all(new_conv['pad'][3, :] == int64_array([3, 3]))),
-        self.assertTrue(np.all(new_conv['dilation'] == int64_array([1, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['kernel'] == int64_array([12, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['stride'] == int64_array([1, 1, 1, 1]))),
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset_0']['has_default'])
-        self.assertTrue(graph.nodes['timeheightconv/MemoryOffset_1']['has_default'])
 
     def test_timeheightconvolution_2_offsets_pad(self):
         graph = build_graph(self.nodes, [
@@ -240,21 +222,16 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
             *connect_front('conv', 'placeholder_out')
         ], nodes_with_edges_only=True)
         ref_graph.nodes['weights']['value'] = np.zeros([72])
+        new_conv = ref_graph.nodes['conv']
+        new_conv['pad'] = int64_array([[0, 0], [0, 0], [0, 0], [0, 0]])
+        new_conv['dilation'] = int64_array([1, 1, 2, 3])
+        new_conv['kernel'] = int64_array([12, 1, 2, 3])
+        new_conv['stride'] = int64_array([1, 1, 1, 1])
 
         ReplaceTimeHeightConvolutionPattern().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder_out', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-        new_conv = graph.nodes['timeheightconv/Convolution']
-        self.assertEqual(new_conv['output'], 12)
-        self.assertEqual(new_conv['patch_stride'], 80)
-        self.assertTrue(np.all(new_conv['pad'][3, :] == int64_array([0, 0]))),
-        self.assertTrue(np.all(new_conv['dilation'] == int64_array([1, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['kernel'] == int64_array([12, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['stride'] == int64_array([1, 1, 1, 1]))),
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset_0']['has_default'])
-        self.assertTrue(graph.nodes['timeheightconv/MemoryOffset_1']['has_default'])
 
     def test_timeheightconvolution_out_channels(self):
         graph = build_graph(self.nodes, [
@@ -292,22 +269,17 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
                                                         19, 22, 25, 28, 31, 34, 20, 23, 26, 29, 32, 35, 21, 24, 27, 30, 33, 36,
                                                         37, 40, 43, 46, 49, 52, 38, 41, 44, 47, 50, 53, 39, 42, 45, 48, 51, 54,
                                                         55, 58, 61, 64, 67, 70, 56, 59, 62, 65, 68, 71, 57, 60, 63, 66, 69, 72])
-
+        new_conv = ref_graph.nodes['conv']
+        new_conv['output'] = 4
+        new_conv['pad'] = int64_array([[0, 0], [0, 0], [0, 0], [0, 0]])
+        new_conv['dilation'] = int64_array([1, 1, 2, 3])
+        new_conv['kernel'] = int64_array([4, 3, 2, 3])
+        new_conv['stride'] = int64_array([1, 1, 1, 1])
 
         ReplaceTimeHeightConvolutionPattern().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder_out', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-        new_conv = graph.nodes['timeheightconv/Convolution']
-        self.assertEqual(new_conv['output'], 4)
-        self.assertEqual(new_conv['patch_stride'], 240)
-        self.assertTrue(np.all(new_conv['pad'][3, :] == int64_array([0, 0]))),
-        self.assertTrue(np.all(new_conv['dilation'] == int64_array([1, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['kernel'] == int64_array([4, 3, 2, 3]))),
-        self.assertTrue(np.all(new_conv['stride'] == int64_array([1, 1, 1, 1]))),
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset_0']['has_default'])
-        self.assertTrue(graph.nodes['timeheightconv/MemoryOffset_1']['has_default'])
 
     def test_timeheightconvolution_2_offsets_stride(self):
         graph = build_graph(self.nodes, [
@@ -339,18 +311,13 @@ class TimeheightconvolutionReplacerTest(unittest.TestCase):
             *connect_front('conv', 'placeholder_out')
         ], nodes_with_edges_only=True)
         ref_graph.nodes['weights']['value'] = np.zeros([72])
+        new_conv = ref_graph.nodes['conv']
+        new_conv['pad'] = int64_array([[0, 0], [0, 0], [0, 0], [0, 0]])
+        new_conv['dilation'] = int64_array([1, 1, 2, 3])
+        new_conv['kernel'] = int64_array([12, 1, 2, 3])
+        new_conv['stride'] = int64_array([1, 1, 1, 2])
 
         ReplaceTimeHeightConvolutionPattern().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder_out', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-        new_conv = graph.nodes['timeheightconv/Convolution']
-        self.assertEqual(new_conv['output'], 12)
-        self.assertEqual(new_conv['patch_stride'], 80)
-        self.assertTrue(np.all(new_conv['pad'][3, :] == int64_array([0, 0]))),
-        self.assertTrue(np.all(new_conv['dilation'] == int64_array([1, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['kernel'] == int64_array([12, 1, 2, 3]))),
-        self.assertTrue(np.all(new_conv['stride'] == int64_array([1, 1, 1, 2]))),
-        self.assertFalse(graph.nodes['timeheightconv/MemoryOffset_0']['has_default'])
-        self.assertTrue(graph.nodes['timeheightconv/MemoryOffset_1']['has_default'])

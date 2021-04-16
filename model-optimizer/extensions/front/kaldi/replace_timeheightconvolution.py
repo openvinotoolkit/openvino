@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
+from mo.front.common.replacement import FrontReplacementPattern
+from mo.graph.graph import Node, Graph, rename_node
 from mo.ops.concat import Concat
 from mo.ops.convolution import Convolution
 from mo.ops.memoryoffset import MemoryOffset
 
 
-class ReplaceTimeHeightConvolutionPattern(FrontReplacementOp):
-    op = "timeheightconvolutioncomponent"
+class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
     enabled = True
+    run_not_recursively = True
 
     def run_after(self):
         from extensions.front.MoveEmbeddedInputsToInputs import MoveEmbeddedInputsToInputs
@@ -26,12 +26,17 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementOp):
         return [MemoryOffsetAdjustment, ReplaceConvolutionReshape, ReplaceConvolutionTranspose,
                 SplitRecurrentMemoryOffset]
 
-    def replace_op(self, graph: Graph, node: Node):
+    def find_and_replace_pattern(self, graph: Graph):
+        for node in graph.get_op_nodes(op='timeheightconvolutioncomponent'):
+            self.replace_timeheightconv(graph, node)
+
+    def replace_timeheightconv(self, graph: Graph, node: Node):
         req_time_offsets = node.soft_get('time_offsets')
         offsets = node.soft_get("offsets", [[]])
         all_time_offsets = list(set(offsets[:, 0]))
         all_time_offsets.sort()
         in_name = node.soft_get('name', node.id)
+        rename_node(node, in_name + '/to_delete')
 
         # input for convolution
         prev = node.in_port(0).get_source()
@@ -76,9 +81,9 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementOp):
         dilation_h = (max(offsets[:, 1]) - min(offsets[:, 1])) / (kernel[1] - 1) if kernel[0] > 1 else 1
 
         mapping_rule = {
-            'name': in_name + '/Convolution',
+            'name': in_name,
             'output': node['out_channels'],
-            'patch_stride': node.height_in * kernel[0],
+            'patch_stride': node.height_in,
             'bias_term': None,
             'pad': int64_array([[0, 0], [0, 0], [0, 0], pad_h]),
             'pad_spatial_shape': int64_array([[0, 0], pad_h]),
@@ -109,5 +114,9 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementOp):
         conv.in_port(1).get_source().node.value = weights
 
         conv.in_port(2).connect(node.in_port(2).get_source())
+        node.out_port(0).get_connection().set_source(conv.out_port(0))
+        node.in_port(0).disconnect()
+        node.in_port(1).disconnect()
+        node.in_port(2).disconnect()
 
-        return [conv.id]
+        return
