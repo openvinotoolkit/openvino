@@ -8,7 +8,6 @@ Use this script to create a wheel with OpenVINO™ Python* tools:
 
 $ python setup.py sdist bdist_wheel
 """
-import os
 from setuptools import setup, find_packages
 
 with open('README.md', 'r', encoding='utf-8') as f:
