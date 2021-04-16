@@ -72,7 +72,8 @@ TEST_P(FrontEndCutModelTest, testOverrideInputs)
     ASSERT_NO_THROW(m_inputModel->getInputs());
     EXPECT_EQ(m_param.m_newInputs.size(), m_inputModel->getInputs().size());
     for (auto newInput : m_inputModel->getInputs()) {
-        auto names = newInput->getNames();
+        std::vector<std::string> names;
+        ASSERT_NO_THROW(names = newInput->getNames());
         bool found = false;
         for (const auto& name: m_param.m_newInputs) {
             if (std::find(names.begin(), names.begin(), name) != names.end()) {
@@ -93,7 +94,8 @@ TEST_P(FrontEndCutModelTest, testOverrideOutputs)
     ASSERT_NO_THROW(m_inputModel->getOutputs());
     EXPECT_EQ(m_param.m_newOutputs.size(), m_inputModel->getOutputs().size());
     for (auto newOutput : m_inputModel->getOutputs()) {
-        auto names = newOutput->getNames();
+        std::vector<std::string> names;
+        ASSERT_NO_THROW(names = newOutput->getNames());
         bool found = false;
         for (const auto& name: m_param.m_newOutputs) {
             if (std::find(names.begin(), names.begin(), name) != names.end()) {
@@ -165,7 +167,7 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->overrideAllInputs(newPlaces));
+    ASSERT_NO_THROW(m_inputModel->overrideAllOutputs(newPlaces));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));

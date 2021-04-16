@@ -57,7 +57,9 @@ TEST_P(FrontEndBasicTest, testInputModel_getInputsOutputs)
         EXPECT_EQ(placesSet.size(), places.size());
         std::for_each(places.begin(), places.end(), [&](Place::Ptr place) {
             ASSERT_NE(place, nullptr);
-            EXPECT_GT(place->getNames().size(), 0);
+            std::vector<std::string> names;
+            ASSERT_NO_THROW(names = place->getNames());
+            EXPECT_GT(names.size(), 0);
             cb(place);
         });
     };
@@ -82,7 +84,9 @@ TEST_P(FrontEndBasicTest, testInputModel_getPlaceByTensorName)
         EXPECT_GT(places.size(), 0);
         for (auto place : places) {
             ASSERT_NE(place, nullptr);
-            for (auto name : place->getNames()) {
+            std::vector<std::string> names;
+            ASSERT_NO_THROW(names = place->getNames());
+            for (auto name : names) {
                 EXPECT_NE(name, std::string());
                 Place::Ptr placeByName;
                 ASSERT_NO_THROW(placeByName = m_inputModel->getPlaceByTensorName(name));
@@ -144,7 +148,9 @@ TEST_P(FrontEndBasicTest, testInputModel_overrideAll_empty)
         ASSERT_NO_THROW(newPlaces = getCB());
         ASSERT_EQ(newPlaces.size(), 0);
         std::for_each(places.begin(), places.end(), [&](Place::Ptr place) {
-            for (auto name : place->getNames()) {
+            std::vector<std::string> names;
+            ASSERT_NO_THROW(names = place->getNames());
+            for (auto name : names) {
                 customCB(name);
             }
         });
