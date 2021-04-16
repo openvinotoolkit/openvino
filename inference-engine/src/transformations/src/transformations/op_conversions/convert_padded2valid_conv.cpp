@@ -252,14 +252,15 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         case ngraph::op::PadType::VALID:
             // all padding equal to 0 - already set
             break;
+
         case ngraph::op::PadType::SAME_LOWER:
         case ngraph::op::PadType::SAME_UPPER:
         {
             output_height = output_shape[2];
             output_width = output_shape[3];
 
-            size_t pad_begin_n_end_y = output_height * filter_stride_y + filter_height * filter_dilation_y - input_height;
-            size_t pad_begin_n_end_x = output_width * filter_stride_x + filter_width * filter_dilation_x - input_width;
+            size_t pad_begin_n_end_y = output_height * filter_stride_y + (filter_height)*filter_dilation_y - input_height - 1;
+            size_t pad_begin_n_end_x = output_width * filter_stride_x + (filter_width)*filter_dilation_x - input_width - 1;
             pads_begin_y = (ngraph::op::PadType::SAME_LOWER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
             pads_end_y = (ngraph::op::PadType::SAME_UPPER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
             pads_begin_x = (ngraph::op::PadType::SAME_LOWER == padding_type) ? (pad_begin_n_end_y >> 1) + (pad_begin_n_end_y & 1) : (pad_begin_n_end_y >> 1);
