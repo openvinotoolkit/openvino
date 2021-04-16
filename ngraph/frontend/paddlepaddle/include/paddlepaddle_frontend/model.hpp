@@ -35,15 +35,15 @@ class NGRAPH_API InputModelPDPD : public InputModel
     size_t getBlockNumber() const;
 
 public:
-    InputModelPDPD (const std::string& _path);
-    std::vector<Place::Ptr> getInputs () const;
-    std::vector<Place::Ptr> getOutputs () const;
-    Place::Ptr getPlaceByTensorName (const std::string& tensorName) const;
-    void overrideAllOutputs (const std::vector<Place::Ptr>& outputs);
-    void overrideAllInputs (const std::vector<Place::Ptr>& inputs);
-    void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
-    void setDefaultShape (Place::Ptr place, const ngraph::Shape&);
-    void setPartialShape (Place::Ptr place, const ngraph::PartialShape&);
+    explicit InputModelPDPD (const std::string& _path);
+    std::vector<Place::Ptr> getInputs () const override;
+    std::vector<Place::Ptr> getOutputs () const override;
+    Place::Ptr getPlaceByTensorName (const std::string& tensorName) const override;
+    void overrideAllOutputs (const std::vector<Place::Ptr>& outputs) override;
+    void overrideAllInputs (const std::vector<Place::Ptr>& inputs) override;
+    void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
+    void setDefaultShape (Place::Ptr place, const ngraph::Shape&) override;
+    void setPartialShape (Place::Ptr place, const ngraph::PartialShape&) override;
 };
 
 } // namespace frontend
