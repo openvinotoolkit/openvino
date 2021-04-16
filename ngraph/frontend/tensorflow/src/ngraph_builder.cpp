@@ -857,7 +857,7 @@ static Status TranslateBiasAddOp(
   if (tf_data_format == "NCHW") {
     auto channel_dim = ng_input_shape[1];
     std::vector<int64_t> target_shape(ng_input_shape.size());
-    for (int64_t i = 0; i < ng_input_shape.size(); i++) {
+    for (uint64_t i = 0; i < ng_input_shape.size(); i++) {
       if (i == 1) {
         target_shape[i] = channel_dim;
       } else {
@@ -1498,7 +1498,7 @@ static Status TranslateGatherV2Op(
   } else {
     axis = tf_axis[0] + ng_input_rank;
   }
-  if (axis < 0 || axis >= ng_input_rank) {
+  if (axis < 0 || axis >= int32_t(ng_input_rank)) {
       std:ostringstream buf;
       buf << "Expected axis in the range [-" <<
               ng_input_rank << ", " << ng_input_rank <<
@@ -2312,7 +2312,7 @@ static Status TranslateSliceOp(
     if (begin_vec[i] > end_vec[i])
       err_stream << "upper < lower: upper = " << end_vec[i]
                  << ", lower = " << begin_vec[i] << "\n";
-    if (begin_vec[i] > ng_input_shape[i])
+    if (begin_vec[i] > int32_t(ng_input_shape[i]))
       err_stream << "dim < upper: dim = " << ng_input_shape[i]
                  << ", upper = " << end_vec[i] << "\n";
 
@@ -2463,7 +2463,7 @@ static Status TranslateSplitVOp(
     split_lengths_vec[idx] = shape[split_dim] - length;
   }
 
-  if ((!has_one_neg && length != shape[split_dim]) ||
+  if ((!has_one_neg && length != int32_t(shape[split_dim])) ||
       (has_one_neg && split_lengths_vec[idx] < 0)) {
     return errors::InvalidArgument(
         "The length of size_splits must sum to the value of the dimension "
@@ -2562,7 +2562,7 @@ static Status TranslateStridedSliceOp(
     if (mask == 0) {
       return vec;
     }
-    for (auto i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i) {
       if ((unsigned char)(mask >> i & 0x01) == 1) {
         vec[i] = 1;
       }
@@ -2885,7 +2885,7 @@ public:
     {\
         const auto& list = node_def->attr().at(name).list();\
         x->reserve(/*node_def->attr().at(name).FIELD##_size()*/list.FIELD##_size());\
-        for(size_t i = 0; i < list.FIELD##_size(); ++i)\
+        for(int i = 0; i < list.FIELD##_size(); ++i)\
         {\
             x->push_back(list.FIELD(i));\
         }\
@@ -2925,7 +2925,7 @@ public:
         return node_def->op();
     }
 
-    virtual unsigned int num_inputs () const override { return node_def->input_size(); }
+    virtual int32_t num_inputs () const override { return node_def->input_size(); }
 
     virtual std::string name () const override
     {

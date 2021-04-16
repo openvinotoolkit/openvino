@@ -104,7 +104,8 @@ public:
     // a way to read Const value as a tensor
     virtual void getAttrValue (const char* name, TensorWrapper** x) const = 0;
 
-    virtual unsigned int num_inputs () const = 0;
+    // Signed integer as an output type to avoid massive warnings about signed/unsided comparison
+    virtual int32_t num_inputs () const = 0;
     virtual std::string name () const = 0;
     virtual bool IsArg () const = 0;
     virtual std::string type_string () const = 0;

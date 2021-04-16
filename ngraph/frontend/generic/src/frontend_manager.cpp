@@ -302,6 +302,16 @@ namespace ngraph
                 editor.set_input_shapes(m);
             }
 
+            void overrideAllInputs (const std::vector<Place::Ptr>& inputs) override
+            {
+               extractSubgraph(inputs, {});
+            }
+
+            void overrideAllOutputs (const std::vector<Place::Ptr>& outputs) override
+            {
+                extractSubgraph({}, outputs);
+            }
+
             void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override
             {
                 std::cerr << "\nTTTTTTTTTTTTT\n";

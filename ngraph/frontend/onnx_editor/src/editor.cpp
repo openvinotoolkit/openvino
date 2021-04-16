@@ -390,7 +390,7 @@ std::vector<InputEdge> onnx_editor::ONNXModelEditor::find_consuming_input_edges(
     for (int i = 0; i < graph.node_size(); ++i) {
         const auto &inputs = graph.node(i).input();
         size_t candidate_count = 0;
-        for(size_t input_index = 0; input_index < inputs.size(); ++input_index)
+        for(int input_index = 0; input_index < inputs.size(); ++input_index)
         {
             if(inputs[input_index] == tensorName) {
                 // TODO: What if a node consume the same tensor on multiple input ports? They cannot be differentiated with InputEdge

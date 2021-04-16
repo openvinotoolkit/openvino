@@ -42,7 +42,7 @@ InputModelTensorflow::InputModelTensorflow (const std::string& _path) : path(_pa
 std::vector<Place::Ptr> InputModelTensorflow::getInputs () const {
 // TODO: Cache results
     std::vector<Place::Ptr> result;
-    for (size_t i = 0; i < graph_def->node_size(); ++i) {
+    for (int i = 0; i < graph_def->node_size(); ++i) {
         if (graph_def->node(i).op() == "Placeholder")
             result.push_back(std::make_shared<PlaceTensorflow>(graph_def->node(i).name()));
     }
