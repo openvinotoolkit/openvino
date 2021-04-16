@@ -1422,7 +1422,8 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
 
             return ((eltwiseNode->getOpType() == MulAdd) ||
                     (eltwiseNode->getOpType() == Prelu) ||
-                     eltwiseNode->getOpType() == Relu);
+                     eltwiseNode->getOpType() == Relu ||
+                     eltwiseNode->getOpType() == Elu);
         }
 
         return false;
