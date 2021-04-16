@@ -16,8 +16,7 @@
 using namespace ngraph;
 using namespace op;
 
-bool IsTransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<size_t> order)
-{
+bool IsTransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<size_t> order) {
     if (!transpose)
         return false;
     const Output<Node>& transpose_order = transpose->input_value(1);
@@ -42,8 +41,7 @@ bool IsTransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<s
     return true;
 }
 
-std::shared_ptr<opset1::StridedSlice> FlatCrop(Output<Node> input, size_t offset, size_t size)
-{
+std::shared_ptr<opset1::StridedSlice> FlatCrop(Output<Node> input, size_t offset, size_t size) {
     auto shape = input.get_shape();
     if (shape.size() == 1) {
         return std::make_shared<ngraph::opset1::StridedSlice>(
@@ -51,19 +49,16 @@ std::shared_ptr<opset1::StridedSlice> FlatCrop(Output<Node> input, size_t offset
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { offset }), // begin slice index
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { offset + size }), // end slice index
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 }), // strides
-            std::vector<int64_t>{0}, // begin mask
-            std::vector<int64_t>{0} // end mask
-        );
-    }
-    else if (shape.size() == 2) {
+            std::vector<int64_t>{0},  // begin mask
+            std::vector<int64_t>{0}); // end mask
+    } else if (shape.size() == 2) {
         return std::make_shared<ngraph::opset1::StridedSlice>(
             input, // data
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)0, offset }), // begin sice index
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)0, offset + size }), // end slice index
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)1, (size_t)1 }), // strides
-            std::vector<int64_t>{1, 0}, // begin mask
-            std::vector<int64_t>{1, 0} // end mask
-        );
+            std::vector<int64_t>{1, 0},  // begin mask
+            std::vector<int64_t>{1, 0}); // end mask
     }
     return nullptr;
 }
@@ -105,7 +100,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS  => Transpose(NCHW->NHWC) (output of MO --disable_nhwc_to_nchw option)
         //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS => AF => Transpose(NCHW->NHWC) (output of MO --disable_nhwc_to_nchw option)
         auto leading_transpose = std::dynamic_pointer_cast<Transpose>(input.get_node_shared_ptr());
-        if (!leading_transpose || !IsTransposeOrderMatches(leading_transpose, { 0,3,1,2 }))
+        if (!leading_transpose || !IsTransposeOrderMatches(leading_transpose, { 0, 3, 1, 2 }))
             continue;
 
         // check if convolution output port is connected with only one Op
@@ -162,8 +157,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
                     }
                 }
             }
-        }
-        else if (!trailing_transpose && conv_bias) {
+        } else if (!trailing_transpose && conv_bias) {
             // the NCHW order
             auto bias_output_0 = conv_bias->get_output_target_inputs(0);
             if (bias_output_0.size() != 1)
@@ -207,8 +201,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             if (!trailing_transpose) {
                 trailing_transpose = std::dynamic_pointer_cast<Transpose>(maxpool_output_0_node);
                 last_op_in_sequence_for_replacement = trailing_transpose;
-            }
-            else {
+            } else {
                 last_op_in_sequence_for_replacement = max_pool;
                 disable_nhwc_to_nchw_option = true;
             }
@@ -224,14 +217,13 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             if (!trailing_transpose) {
                 trailing_transpose = std::dynamic_pointer_cast<Transpose>(af_output_0_node);
                 last_op_in_sequence_for_replacement = trailing_transpose;
-            }
-            else {
+            } else {
                 last_op_in_sequence_for_replacement = af;
                 disable_nhwc_to_nchw_option = true;
             }
         }
 
-        if (!last_op_in_sequence_for_replacement || !trailing_transpose || !IsTransposeOrderMatches(trailing_transpose, { 0,2,3,1 }))
+        if (!last_op_in_sequence_for_replacement || !trailing_transpose || !IsTransposeOrderMatches(trailing_transpose, { 0, 2, 3, 1 }))
             continue;
 
         size_t filter_dilation_x = conv->get_dilations()[1];
@@ -304,7 +296,9 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             biggest_padding = biggest_padding > padded_row_size ? biggest_padding : padded_row_size;
         }
 
-        auto flat_input = builder::opset1::reshape(leading_transpose->input_value(0), Shape{ (size_t)1, shape_size(leading_transpose->input_value(0).get_shape()) });
+        auto flat_input = builder::opset1::reshape(
+            leading_transpose->input_value(0),
+            Shape{ (size_t)1, shape_size(leading_transpose->input_value(0).get_shape()) });
         // zero padding
         auto const_holding_padding = std::make_shared<opset1::Constant>(element::Type_t::f32, Shape{ 1, biggest_padding }, 0);
         ngraph::copy_runtime_info(conv, const_holding_padding);
@@ -325,8 +319,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         for (size_t p = 0; p < pads_begin_y; p++) {
             if (padded_row_size == biggest_padding) {
                 input_rows_to_concat.push_back(const_holding_padding);
-            }
-            else {
+            } else {
                 auto slice = FlatCrop(const_holding_padding, 0, padded_row_size);
                 ngraph::copy_runtime_info(conv, slice);
                 input_rows_to_concat.push_back(slice);
@@ -341,15 +334,16 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
             //                    |
             //                 concat
 
-            auto not_padded_row = input_height == 1 ? flat_input : FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
+            auto not_padded_row = input_height == 1 ?
+                flat_input :
+                FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
             ngraph::copy_runtime_info(conv, not_padded_row);
             if (flat_left_padding || flat_right_padding) {
                 OutputVector single_row_concat_inputs;
                 if (flat_left_padding) {
                     if (flat_left_padding == biggest_padding) {
                         single_row_concat_inputs.push_back(const_holding_padding);
-                    }
-                    else {
+                    } else {
                         auto slice = FlatCrop(const_holding_padding, 0, flat_left_padding);
                         ngraph::copy_runtime_info(conv, slice);
                         single_row_concat_inputs.push_back(slice);
@@ -359,8 +353,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
                 if (flat_right_padding) {
                     if (flat_right_padding == biggest_padding) {
                         single_row_concat_inputs.push_back(const_holding_padding);
-                    }
-                    else {
+                    } else {
                         auto slice = FlatCrop(const_holding_padding, 0, flat_right_padding);
                         ngraph::copy_runtime_info(conv, slice);
                         single_row_concat_inputs.push_back(slice);
@@ -369,8 +362,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
                 auto padded_row_concat = std::make_shared<opset1::Concat>(single_row_concat_inputs, 1);
                 ngraph::copy_runtime_info(conv, padded_row_concat);
                 input_rows_to_concat.push_back(padded_row_concat);
-            }
-            else {
+            } else {
                 input_rows_to_concat.push_back(not_padded_row);
             }
         }
@@ -378,8 +370,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         for (size_t p = 0; p < pads_end_y; p++) {
             if (padded_row_size == biggest_padding) {
                 input_rows_to_concat.push_back(const_holding_padding);
-            }
-            else {
+            } else {
                 auto slice = FlatCrop(const_holding_padding, 0, padded_row_size);
                 ngraph::copy_runtime_info(conv, slice);
                 input_rows_to_concat.push_back(slice);
@@ -391,7 +382,7 @@ bool ngraph::pass::ConvertPadded2ValidConv::run_on_function(std::shared_ptr<ngra
         auto padded_input_plane_reshaped = builder::opset1::reshape(padded_input_plane,
             Shape{ 1, pads_begin_y + input_height + pads_end_y, pads_begin_x + input_width + pads_end_x, input_channel_count });
         //NHWC => NCWH
-        auto transposed2chw = builder::opset1::reorder_axes(padded_input_plane_reshaped, { 0,3,1,2 });
+        auto transposed2chw = builder::opset1::reorder_axes(padded_input_plane_reshaped, { 0, 3, 1, 2 });
 
         conv->set_pads_begin(ngraph::CoordinateDiff{ 0, 0 });
         conv->set_adding_above(ngraph::CoordinateDiff{ 0, 0 });
