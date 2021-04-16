@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include <ngraph/opsets/opset6.hpp>
-#include "utility.hpp"
+#include <paddlepaddle_frontend/utility.hpp>
 #include "mul.hpp"
 
 namespace ngraph {

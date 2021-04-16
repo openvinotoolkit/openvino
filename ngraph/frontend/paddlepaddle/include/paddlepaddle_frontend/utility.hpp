@@ -18,8 +18,6 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
-#include <paddlepaddle_frontend/place.hpp>
-
 namespace ngraph {
 namespace frontend {
 
