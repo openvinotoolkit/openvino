@@ -457,7 +457,8 @@ namespace ngraph
                                     (m_axes == axes_without_batch_and_channels));
                 }
 
-                assert(correct_axes);
+                if (!correct_axes)
+                    throw ngraph_error("Axes are not correct!");
 
                 const auto info = helper.get_info_for_generic_linear_onnx();
 
