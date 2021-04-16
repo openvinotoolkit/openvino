@@ -164,19 +164,18 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     // As Constant operations can be shared between multiple nGraph Functions so before
     // changing precision we need to understand which Constant consumers belongs
     // to the current nGraph Function
-    std::map<const std::shared_ptr<ngraph::Node>, std::vector<Input<Node>>>
-        const_to_internal_output;
+    std::unordered_map<const ngraph::Node*, std::vector<Input<Node>>> const_to_internal_output;
 
-    std::function<void(const std::shared_ptr<Function>&)> register_constants =
-        [&const_to_internal_output](const std::shared_ptr<Function>& f) {
-            for (auto& node : f->get_ordered_ops())
+    auto register_constants =
+        [&const_to_internal_output](const std::vector<std::shared_ptr<Node>>& ops) {
+            for (auto& node : ops)
             {
                 for (auto& input : node->inputs())
                 {
                     if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(
                             input.get_source_output().get_node_shared_ptr()))
                     {
-                        const_to_internal_output[const_node].emplace_back(input);
+                        const_to_internal_output[const_node.get()].emplace_back(input);
                     }
                 }
             }
@@ -190,21 +189,22 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
             {
                 // Handle case with Constants as they can have consumers from other nGraph Function
                 // object
-                if (ngraph::op::is_constant(node) && const_to_internal_output.count(node))
+                auto it = const_to_internal_output.find(node.get());
+                if (it != const_to_internal_output.end())
                 {
-                    fuse_type_to_constant(node, m_to, const_to_internal_output.at(node));
-                    break;
+                    return fuse_type_to_constant(node, m_to, it->second);
                 }
 
                 // Check that node type exists in map and we can fuse type into node
-                if (type_to_fuse.count(node->get_type_info()) &&
-                    type_to_fuse.at(node->get_type_info())(node, m_to, output.get_index()))
+                auto t2f_it = type_to_fuse.find(node->get_type_info());
+                if (t2f_it != type_to_fuse.end() && t2f_it->second(node, m_to, output.get_index()))
                 {
                     // We need to break if original node was replaced
-                    break;
+                    return true;
                 }
             }
         }
+        return false;
     };
 
     auto convert_node_input_precision = [this](const std::shared_ptr<ngraph::Node>& node) {
@@ -213,25 +213,30 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
             if (input.get_element_type() == m_from)
             {
                 // For some operations we need to extend their input types to support new type
-                if (type_to_extend.count(node->get_type_info()) &&
-                    type_to_extend.at(node->get_type_info())(node, m_to, input.get_index()))
+                auto it = type_to_extend.find(node->get_type_info());
+                if (it != type_to_extend.end() && it->second(node, m_to, input.get_index()))
                 {
-                    break;
+                    return true;
                 }
             }
         }
+        return false;
     };
 
-    std::function<void(const std::shared_ptr<Function>&)> convert_function_precision =
+    std::function<bool(const std::shared_ptr<Function>&, bool)> convert_function_precision =
         [this,
          &register_constants,
          &convert_node_output_precision,
          &convert_node_input_precision,
-         &convert_function_precision](const std::shared_ptr<Function>& f) {
+         &convert_function_precision](const std::shared_ptr<Function>& f, bool is_subgraph) {
+            bool is_changed = false;
+
+            auto ops = f->get_ordered_ops();
+
             // Iterate over all nodes in topological order and then iterate over node outputs.
             // If output type mismatch given type we try to fuse type into this operation
             // otherwise we insert Convert operation.
-            for (auto& node : f->get_ordered_ops())
+            for (auto& node : ops)
             {
                 transformation_callback(node);
                 // Recursively apply transformation for sub-graph based operations
@@ -239,39 +244,58 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
                 {
                     if (auto sub_graph = sub_graph_node->get_function())
                     {
-                        convert_function_precision(sub_graph);
+                        is_changed |= convert_function_precision(sub_graph, true);
                     }
                 }
-                convert_node_input_precision(node);
+                is_changed |= convert_node_input_precision(node);
             }
+
+            if (is_changed)
+                ops = f->get_ordered_ops();
+
             // Register internal constants only after fixing input type that could lead to nodes
             // replacement
-            register_constants(f);
+            register_constants(ops);
 
-            for (auto& node : f->get_ordered_ops())
+            bool is_output_precision_changed = false;
+
+            for (auto& node : ops)
             {
-                convert_node_output_precision(node);
+                is_output_precision_changed |= convert_node_output_precision(node);
             }
+
+            if (is_output_precision_changed)
+            {
+                ops = f->get_ordered_ops();
+                is_changed |= is_output_precision_changed;
+            }
+
+            if (!is_subgraph)
+            {
+                if (is_changed)
+                    f->validate_nodes_and_infer_types(ops);
+
+                // TODO: we need to split NopElimination pass to separate MatcherPasses and call
+                // Convert elimination here
+                for (auto& node : ops)
+                {
+                    if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node))
+                    {
+                        // WA for topK, dont remove fake convert
+                        if (convert->input(0).get_element_type() ==
+                                convert->get_convert_element_type() &&
+                            convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1)
+                        {
+                            replace_output_update_name(convert->output(0), convert->input_value(0));
+                        }
+                    }
+                }
+            }
+
+            return is_changed;
         };
 
-    convert_function_precision(f);
-    f->validate_nodes_and_infer_types();
-
-    // TODO: we need to split NopElimination pass to separate MatcherPasses and call Convert
-    // elimination here
-    for (auto& node : f->get_ordered_ops())
-    {
-        if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node))
-        {
-            // WA for topK, dont remove fake convert
-            if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
-                convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1)
-            {
-                replace_output_update_name(convert->output(0), convert->input_value(0));
-            }
-        }
-    }
-    return true;
+    return convert_function_precision(f, false);
 }
 
 bool fuse_type_to_shapeof(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx)

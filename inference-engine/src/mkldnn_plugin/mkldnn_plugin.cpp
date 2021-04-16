@@ -14,6 +14,7 @@
 #include <ie_plugin_config.hpp>
 #include <vector>
 #include <tuple>
+#include <unordered_set>
 #include <ie_system_conf.h>
 #include <nodes/list.hpp>
 #include <legacy/ie_util_internal.hpp>
@@ -62,7 +63,6 @@
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
-#include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
@@ -74,6 +74,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/graph_util.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
@@ -89,6 +90,8 @@
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_quantize_node.h"
+
+#include "transformations/convert_precision.h"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 # ifdef _WIN32
@@ -148,22 +151,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
 
-    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
-            {ngraph::element::i64,     ngraph::element::i32},
-            {ngraph::element::u64,     ngraph::element::i32},
-            {ngraph::element::i16,     ngraph::element::i32},
-            {ngraph::element::u16,     ngraph::element::i32},
-            {ngraph::element::u32,     ngraph::element::i32},
-            {ngraph::element::f64,     ngraph::element::f32},
-            {ngraph::element::f16,     ngraph::element::f32},
-            {ngraph::element::boolean, ngraph::element::u8},
-            {ngraph::element::i4, ngraph::element::i8},
-            {ngraph::element::u4, ngraph::element::u8},
-    };
-
-    for (auto &precision : convert_precision_list) {
-        manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
-    }
+    manager.register_pass<MKLDNNPlugin::pass::ConvertPrecision>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -337,7 +325,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     legacyManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    legacyManager.set_per_pass_validation(false);
     legacyManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+    legacyManager.set_per_pass_validation(true);
     // not legacy actually, but it should be the last transformation in the transformation pipeline
     legacyManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
@@ -377,7 +367,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
-    for (auto & precision : convert_precision_list) {
+    for (auto & precision : pass::ConvertPrecision::list) {
         NetPass::ConvertIOPrecision(clonedNetwork,
             InferenceEngine::details::convertPrecision(precision.first),
             InferenceEngine::details::convertPrecision(precision.second));

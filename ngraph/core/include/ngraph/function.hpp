@@ -96,6 +96,7 @@ namespace ngraph
         void replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl);
 
         void validate_nodes_and_infer_types() const;
+        void validate_nodes_and_infer_types(const std::vector<std::shared_ptr<Node>>& ops) const;
 
         /// \brief Returns the sum of the size of all nodes in the graph plus the size of
         /// all constant data. This has little value beyond comparing the relative size of

@@ -102,7 +102,7 @@ void Function::check_all_parameters_registered() const
                            unregistered_parameters.str());
 }
 
-void Function::validate_nodes_and_infer_types() const
+void Function::validate_nodes_and_infer_types(const std::vector<std::shared_ptr<Node>>& ops) const
 {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
 
@@ -113,7 +113,7 @@ void Function::validate_nodes_and_infer_types() const
     };
     std::map<Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
-    for (auto& node : get_ordered_ops())
+    for (auto& node : ops)
     {
         node->revalidate_and_infer_types();
         if (op::is_parameter(node) &&
@@ -140,6 +140,11 @@ void Function::validate_nodes_and_infer_types() const
         throw ngraph_error(
             "Function is incorrect. Assign and ReadValue operations must be in pairs on the "
             "network.");
+}
+
+void Function::validate_nodes_and_infer_types() const
+{
+    validate_nodes_and_infer_types(get_ordered_ops());
 }
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const

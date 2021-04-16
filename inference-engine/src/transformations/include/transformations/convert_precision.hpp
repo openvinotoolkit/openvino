@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <unordered_map>
 
 #include <transformations_visibility.hpp>
 
@@ -69,11 +70,11 @@ class NGRAPH_API ConvertPrecision;
  *     LessEqual
  */
 
-using type_to_fuse_map = std::map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
+using type_to_fuse_map = std::unordered_map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to, type_to_fuse_map additional_type_to_fuse_map = {})
+    ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to, const type_to_fuse_map & additional_type_to_fuse_map = {})
         : FunctionPass(),
         m_from(from),
         m_to(to),
