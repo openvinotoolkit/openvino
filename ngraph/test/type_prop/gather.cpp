@@ -395,7 +395,7 @@ TEST(type_prop, gather_7_batch_dims_less_check)
 TEST(type_prop, gather_7_batch_dims_less_indices_rank_check)
 {
     PartialShape data_shape{1, 20, 20, 22, 22};
-    PartialShape indices_shape{1, 3, 8};
+    PartialShape indices_shape{1, 3};
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
@@ -413,7 +413,7 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check)
     {
         EXPECT_HAS_SUBSTRING(
                 error.what(),
-                std::string("batch_dims must be < indices_rank"));
+                std::string("batch_dims must be <= indices_rank"));
     }
     catch (...)
     {

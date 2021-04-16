@@ -11,6 +11,8 @@
 #include <ngraph/runtime/reference/rnn_cell.hpp>
 #include <ngraph/runtime/reference/split.hpp>
 
+#include "reverse_sequence.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -177,10 +179,10 @@ namespace ngraph
                     if (enable_mask)
                     {
                         size_t part_size_single_batch = part_shape_size / batch * sizeof(T);
-                        for (int i = 0; i < batch; ++i)
+                        for (size_t i = 0; i < batch; ++i)
                         {
                             auto shift = i * part_size_single_batch;
-                            if ((time_step + 1) > seq_len_values[i])
+                            if ((time_step + 1) > static_cast<size_t>(seq_len_values[i]))
                             {
                                 continue;
                             }
@@ -207,9 +209,9 @@ namespace ngraph
                         }
                         else
                         {
-                            for (int i = 0; i < batch; ++i)
+                            for (size_t i = 0; i < batch; ++i)
                             {
-                                auto idx = seq_len_values[i] - 1;
+                                size_t idx = seq_len_values[i] - 1;
                                 auto shift = i * part_size_single_batch;
                                 if (idx >= 0 && idx < h_list.size())
                                 {
@@ -352,7 +354,7 @@ namespace ngraph
                     // update H,C,W,R,B shapes after split
                     shapes[2][1] = 1;
                     shapes[3][1] = 1;
-                    for (int i = 4; i < shapes.size(); ++i)
+                    for (size_t i = 4; i < shapes.size(); ++i)
                     {
                         shapes[i][0] = 1;
                     }
@@ -491,7 +493,7 @@ namespace ngraph
                         X_shape, seq_lengths_shape, H_shape, W_shape, R_shape, B_shape};
                     // update H,W,R,B shapes after split
                     shapes[2][1] = 1;
-                    for (int i = 3; i < shapes.size(); ++i)
+                    for (size_t i = 3; i < shapes.size(); ++i)
                     {
                         shapes[i][0] = 1;
                     }
@@ -614,7 +616,7 @@ namespace ngraph
                         X_shape, seq_lengths_shape, H_shape, W_shape, R_shape, B_shape};
                     // update H,W,R,B shapes after split
                     shapes[2][1] = 1;
-                    for (int i = 3; i < shapes.size(); ++i)
+                    for (size_t i = 3; i < shapes.size(); ++i)
                     {
                         shapes[i][0] = 1;
                     }

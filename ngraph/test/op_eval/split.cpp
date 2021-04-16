@@ -47,7 +47,7 @@ TEST(op_eval, split)
                     {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{1})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{3, 2, 3}));
@@ -81,7 +81,7 @@ TEST(op_eval, split_neg_axis)
                     {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{-2})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1}));
@@ -115,7 +115,7 @@ TEST(op_eval, split_boolean_type)
                     {make_host_tensor<element::Type_t::boolean>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{2})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::boolean);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1, 2}));
@@ -150,7 +150,7 @@ TEST(op_eval, split_1d)
                     {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{0})}));
 
-    for (int i = 0; i < num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::f32);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2}));
