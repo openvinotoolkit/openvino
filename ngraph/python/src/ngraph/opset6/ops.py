@@ -84,7 +84,7 @@ def gather_elements(
     axis: Optional[int] = 0,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which performs GatherND.
+    """Return a node which performs GatherElements.
 
     @param data:       N-D tensor with data for gathering
     @param indices:    N-D tensor with indices by which data is gathered

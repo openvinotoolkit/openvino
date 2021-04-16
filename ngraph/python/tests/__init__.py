@@ -165,3 +165,4 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
                                       "Not equal to tolerance")
 
 xfail_issue_49391 = xfail_test(reason="Roll is not implemented in CPU plugin.")
+xfail_issue_49062 = xfail_test(reason="Gather with batch_dims is not implemented in CPU plugin yet.")
