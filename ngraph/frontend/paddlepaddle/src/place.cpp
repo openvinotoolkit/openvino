@@ -17,6 +17,7 @@
 
 #include <paddlepaddle_frontend/place.hpp>
 #include "framework.pb.h"
+#include "decoder.hpp"
 
 using namespace ngraph;
 using namespace frontend;
@@ -54,6 +55,12 @@ TensorPlacePDPD::TensorPlacePDPD(const InputModel &input_model, const std::vecto
                                  const std::shared_ptr<paddle::framework::proto::VarDesc> &var_desc)
         : PlacePDPD(input_model, names),
           m_var_desc(var_desc) {
+    const auto& var_type = var_desc->type();
+    if (var_type.type() == paddle::framework::proto::VarType::LOD_TENSOR) {
+        const auto& tensor_desc = var_type.lod_tensor().tensor();
+        m_type = TYPE_MAP[tensor_desc.data_type()];
+        m_pshape = PartialShape(std::vector<Dimension>(tensor_desc.dims().begin(), tensor_desc.dims().end()));
+    }
 }
 
 TensorPlacePDPD::TensorPlacePDPD(const InputModel &input_model,
