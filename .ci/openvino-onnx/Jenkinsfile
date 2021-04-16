@@ -7,7 +7,7 @@ DOCKER_IMAGE_PREFIX= "openvino-onnx-ci-image"
 BACKEND_CONFIGURATIONS = [
     [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
     [ name: "Debug", build_type: "Debug", protobuf_lite : "OFF" ],
-    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ],
+    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ]
 ]
 
 // workaround for aborting previous builds on PR update
@@ -91,19 +91,29 @@ def prepare_repository() {
 }
 
 def get_commit_id(){
-    dir("${WORKDIR}/PROJECT_NAME") {
+    dir("${WORKDIR}/${PROJECT_NAME}") {
         GIT_COMMIT_ID = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
     }
 }
 
 def updateModels() {
-    sh """
-        ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data -o
-    """
+    dir("${HOME}/ONNX_CI/data") {
+        def WORKER_NAME = sh(returnStdout: true, script: """
+                            mkdir -p worker_1 worker_2 worker_3
+                            for i in \$(seq 3); do
+                                if [ ! -f ./worker_\${i}/executing ]; then
+                                    touch ./worker_\${i}/executing
+                                    ${WORKDIR}/ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data/worker_\${i} -o
+                                    echo "worker_\${i}"
+                                    exit
+                                fi
+                            done
+                          """).trim().reverse().take(8).reverse()
+    }
+    return WORKER_NAME
 }
 
 def buildDockerImage(Map configuration) {
-    updateModels()
     get_commit_id()
     DOCKER_IMAGE_TAG="${DOCKER_IMAGE_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}".toLowerCase()
     sh """
@@ -130,11 +140,16 @@ def runTests(Map configuration) {
 
     // Run unit-tests AND large model tests by default
     else {
+        WORKER_NAME = updateModels()
         sh """
             docker run --name ${DOCKER_CONTAINER_NAME} \
-            --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-            ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models"
+            --volume ${HOME}/ONNX_CI/data/${WORKER_NAME}/model_zoo:/root/.onnx/model_zoo \
+            --volume ${HOME}/ONNX_CI/data/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
+            ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models" \
+            && rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing || \
+            (rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing && exit 1)
         """
+
     }
 }
 
@@ -172,7 +187,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 }
             }
             stage("Run tests") {
-                timeout(time: 35, unit: 'MINUTES') {
+                timeout(time: 120, unit: 'MINUTES') {
                     runTests(configuration)
                 }
             }
@@ -184,7 +199,7 @@ CONFIGURATION_WORKFLOW = { configuration ->
                 } else {
                     currentBuild.result = "FAILURE"
                 }
-                gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                gitPrInfo = getGitPrInfo(${PROJECT_NAME})
                 notifyByEmail(gitPrInfo)
         }
         finally {
@@ -194,7 +209,6 @@ CONFIGURATION_WORKFLOW = { configuration ->
                     DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${GIT_COMMIT_ID}_${configuration.name}"
                 sh """
                     docker rm -f ${DOCKER_CONTAINER_NAME}
-                    docker image prune -f
                 """
             }
         }
