@@ -104,21 +104,22 @@ namespace ngraph
 
             Output<ngraph::Node>
                 reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                    size_t expected_rank)
+                                                    const Output<ngraph::Node>& expected_rank)
             {
-                const auto& rank = node.get_partial_shape().rank();
-                NGRAPH_CHECK(rank.is_static());
-                size_t node_rank = rank.get_length();
-                if (node_rank == 1)
-                {
-                    // reshape the node with shape {C} to {1, C, 1, 1, ..., 1}
-                    std::vector<size_t> reshape_pattern_values(expected_rank, 1U);
-                    reshape_pattern_values[1] = node.get_shape().front();
-                    const auto reshape_pattern = default_opset::Constant::create(
-                        element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
-                    return std::make_shared<default_opset::Reshape>(node, reshape_pattern, false);
-                }
-                return node;
+                // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
+                const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
+                const auto two_const = default_opset::Constant::create(element::i64, Shape{1}, {2});
+                const auto tail_shape_rank =
+                    std::make_shared<default_opset::Subtract>(expected_rank, two_const);
+                const auto tail_shape =
+                    std::make_shared<default_opset::Broadcast>(one_const, tail_shape_rank);
+
+                // Construct new bias shape: [1, C, 1, 1, ... ]
+                const auto C_dim = std::make_shared<default_opset::ShapeOf>(node);
+                const auto new_shape = std::make_shared<default_opset::Concat>(
+                    OutputVector{one_const, C_dim, tail_shape}, 0);
+
+                return std::make_shared<default_opset::Reshape>(node, new_shape, false);
             }
 
         } // namespace  reshape

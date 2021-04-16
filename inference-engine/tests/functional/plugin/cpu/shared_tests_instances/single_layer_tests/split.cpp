@@ -13,12 +13,14 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U8
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
+                                ::testing::Values(1, 2, 3, 5),
                                 ::testing::Values(0, 1, 2, 3),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

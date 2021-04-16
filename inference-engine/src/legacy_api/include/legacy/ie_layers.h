@@ -301,6 +301,23 @@ public:
     unsigned int GetParamAsUInt(const char* param) const;
 
     /**
+     * @brief Returns an size_t value for the given parameter or returns the default value
+     *
+     * @param param Name of the layer parameter
+     * @param def Default value of the parameter if not found
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param, size_t def) const;
+
+    /**
+     * @brief Returns an size_t value for the given parameter
+     *
+     * @param param Name of the layer parameter
+     * @return An size_t value for the specified parameter
+     */
+    size_t GetParamAsSizeT(const char* param) const;
+
+    /**
      * @brief Returns a vector of unsigned int values for the given parameter or returns the default value
      *
      * @param param Name of the layer parameter
@@ -1953,7 +1970,7 @@ public:
     /**
      * @brief The number of quantization levels
      */
-    int levels = 1;
+    size_t levels = 1;
 
     /**
      * @brief Creates a new QuantizeLayer instance.
