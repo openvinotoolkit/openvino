@@ -12,7 +12,8 @@ git checkout HEAD speech_recognition/rnnt
 ```
 
 **Step 2**. If you already have a full clone of MLCommons inference repository create a folder for 
-pre-trained PyTorch model and where conversion into IR will take place. Skip this step if you did a shallow clone:
+pre-trained PyTorch model and where conversion into IR will take place. Skip this step if you did a shallow clone.
+Also further you will need to specify path your full clone:
 ```bash
 mkdir rnnt_for_openvino 
 cd rnnt_for_openvino
@@ -32,7 +33,10 @@ pip install torch toml
 ```
 
 **Step 5**. Export RNN-t model into ONNX with the script below. Copy it into a file with a name `export_rnnt_to_onnx.py` 
-and run in the current directory `rnnt_for_openvino`: 
+and run in the current directory `rnnt_for_openvino`:
+
+> **note**: If you already had a full clone of MLComons inferene repository then you need to
+> specify `mlcommons_inference_path` variable.
 
 ```python
 import toml
@@ -49,12 +53,12 @@ def load_and_migrate_checkpoint(ckpt_path):
     del migrated_state_dict["audio_preprocessor.featurizer.window"]
     return migrated_state_dict
 
-
+mlcommons_inference_path = './'  # specify relative path for MLCommons inferene
 checkpoint_path = 'DistributedDataParallel_1576581068.9962234-epoch-100.pt'
 config_toml = 'speech_recognition/rnnt/pytorch/configs/rnnt.toml'
 config = toml.load(config_toml)
 rnnt_vocab = config['labels']['labels']
-sys.path.insert(0, 'speech_recognition/rnnt/pytorch')
+sys.path.insert(0,  mlcommons_inference_path + 'speech_recognition/rnnt/pytorch')
 
 from model_separable_rnnt import RNNT
 model = RNNT(config['rnnt'], len(rnnt_vocab) + 1, feature_config=config['input_eval'])
