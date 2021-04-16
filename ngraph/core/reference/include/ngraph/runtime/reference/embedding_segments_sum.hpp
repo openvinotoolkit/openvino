@@ -31,7 +31,11 @@ namespace ngraph
                 {
                     embDepth *= outShape[i];
                 }
-                memset(out, 0, shape_size(outShape) * sizeof(T));
+                size_t out_size = shape_size(outShape);
+                for (size_t i = 0; i < out_size; i++)
+                {
+                    out[i] = T(0);
+                }
 
                 bool with_weights = (weights != nullptr);
 
