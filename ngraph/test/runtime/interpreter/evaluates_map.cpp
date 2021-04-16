@@ -890,8 +890,8 @@ namespace
             Shape output_shape;
         };
 
-        std::vector<int64_t> get_signal_size(
-            const std::vector<std::shared_ptr<HostTensor>>& inputs, size_t num_of_axes)
+        std::vector<int64_t> get_signal_size(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                             size_t num_of_axes)
         {
             if (inputs.size() == 3)
             {
@@ -914,9 +914,8 @@ namespace
 
             int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
             int64_t complex_data_rank = input_rank - 1;
-            auto canonicalized_axes = runtime::reference::canonicalize_axes(result.axes_data.data(),
-                                                                            result.axes_data_shape,
-                                                                            complex_data_rank);
+            auto canonicalized_axes = runtime::reference::canonicalize_axes(
+                result.axes_data.data(), result.axes_data_shape, complex_data_rank);
 
             size_t num_of_axes = result.axes_data.size();
             auto signal_size = get_signal_size(inputs, num_of_axes);
@@ -1939,7 +1938,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         runtime::reference::pad(inputs[0]->get_data_ptr<char>(),
                                 inputs[1]->get_data_ptr<char>(),
                                 outputs[0]->get_data_ptr<char>(),
@@ -1957,7 +1955,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         runtime::reference::gather_tree(inputs[0]->get_data_ptr<const char>(),
                                         inputs[1]->get_data_ptr<const char>(),
                                         inputs[2]->get_data_ptr<const char>(),
