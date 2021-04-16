@@ -40,22 +40,24 @@ class DequantizeLinearResolver(FrontReplacementOp):
         if axis is not None and axis != 1:
             data_shape_node = Shape(graph, {'name': node_name + '/Shape'}).create_node()
             node.in_port(0).get_source().connect(data_shape_node.in_port(0))
-            gather_node = create_op_with_const_inputs(graph, Gather, {1: int64_array([axis])},
+            gather_node = create_op_with_const_inputs(graph, Gather, {1: int64_array([axis]),
+                                                                      2: int64_array(0)},
                                                       {'name': node_name + '/Gather'})
             data_shape_node.out_port(0).connect(gather_node.in_port(0))
 
             rank_node = Rank(graph, {'name': node_name + '/Rank'}).create_node()
             node.in_port(0).get_source().connect(rank_node.in_port(0))
 
-            range_node = create_op_with_const_inputs(graph, Range, {0: int64_array([1]),
+            range_node = create_op_with_const_inputs(graph, Range, {0: int64_array([0]),
                                                                     2: int64_array([1])},
                                                      {'name': node_name + '/Range'})
             rank_node.out_port(0).connect(range_node.in_port(1))
-            greater_equal_node = create_op_with_const_inputs(graph, GreaterEqual, {1: int64_array([1])},
+            greater_equal_node = create_op_with_const_inputs(graph, GreaterEqual, {1: int64_array([0])},
                                                              {'name': node_name + '/GreaterEqual'})
             range_node.out_port(0).connect(greater_equal_node.in_port(0))
 
-            scatter_elements_node = create_op_with_const_inputs(graph, ScatterElementsUpdate, {1: int64_array([axis])},
+            scatter_elements_node = create_op_with_const_inputs(graph, ScatterElementsUpdate, {1: int64_array([axis]),
+                                                                                               3: int64_array(0)},
                                                                 {'name': node_name + '/ScatterElements'})
 
             cast_node = Cast(graph, {'dst_type': np.int64, 'name': node_name + '/Cast'}).create_node()
