@@ -306,7 +306,7 @@ namespace ngraph
                         std::end(m_attribute_proto->strings())};
             }
 
-            std::vector<Graph> get_graph_array(Model&) const;
+            // std::vector<Graph> get_graph_array(Model&) const;
 
             /* explicit */ operator ONNX_NAMESPACE::AttributeProto_AttributeType() const
             {

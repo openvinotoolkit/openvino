@@ -10,15 +10,15 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        std::vector<Graph> Attribute::get_graph_array(Model& model) const
-        {
-            std::vector<Graph> result;
-            for (const auto& graph : m_attribute_proto->graphs())
-            {
-                result.emplace_back(graph, model);
-            }
-            return result;
-        }
+        // std::vector<Graph> Attribute::get_graph_array(Model& model) const
+        // {
+        //     std::vector<Graph> result;
+        //     for (const auto& graph : m_attribute_proto->graphs())
+        //     {
+        //         result.emplace_back(model);
+        //     }
+        //     return result;
+        // }
 
         Subgraph Attribute::get_subgraph(const Graph& parent_graph) const
         {
@@ -35,7 +35,7 @@ namespace ngraph
             *model_proto.mutable_opset_import() = parent_graph.get_opset_imports();
 
             Model model{model_proto};
-            return Subgraph{graph, model, parent_graph};
+            return Subgraph{model, parent_graph};
         }
 
     } // namespace onnx_import

@@ -23,7 +23,7 @@ namespace ngraph
         class Graph
         {
         public:
-            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model);
+            Graph(Model& model);
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -31,14 +31,13 @@ namespace ngraph
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
             bool is_node_in_cache(const std::string& name) const;
             Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
-            const std::string& get_name() const { return m_graph_proto->name(); }
+            const std::string& get_name() const { return m_model->get_graph().name(); }
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
             const OpsetImports& get_opset_imports() const;
 
         protected:
-            Graph(const ONNX_NAMESPACE::GraphProto& proto,
-                  Model& model,
+            Graph(Model& model,
                   std::unique_ptr<GraphCache>&& cache);
 
             void set_friendly_names(const Node& onnx_node,
@@ -58,7 +57,6 @@ namespace ngraph
             std::unique_ptr<GraphCache> m_cache;
 
         private:
-            const ONNX_NAMESPACE::GraphProto* m_graph_proto;
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
@@ -76,8 +74,7 @@ namespace ngraph
             /// \param[in]  proto          The ONNX protobuf graph representation.
             /// \param[in]  model          The ONNX model object.
             /// \param[in]  parent_graph   The reference to the parent graph.
-            Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
-                     Model& model,
+            Subgraph(Model& model,
                      const Graph& parent_graph);
 
             /// \brief      Return outputs which are on the edge the subgraph and the parent graph.
