@@ -20,7 +20,7 @@ namespace ngraph
             {
                 auto p_model_proto = std::unique_ptr<ONNX_NAMESPACE::ModelProto>(
                     new ONNX_NAMESPACE::ModelProto(model_proto));
-                auto model = std::unique_ptr<Model>(new Model{std : move(p_model_proto)});
+                auto model = std::unique_ptr<Model>(new Model{std::move(p_model_proto)});
 
                 Graph graph{std::move(model)};
                 auto function = std::make_shared<Function>(
