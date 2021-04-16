@@ -44,7 +44,7 @@ void op::v0::Unsqueeze::validate_and_infer_types()
 
     // Get value of axes from Constant
     const auto axes_values = axes_constant->cast_vector<int64_t>();
-    const auto expanded_rank = data_rank_value + axes_values.size();
+    const int64_t expanded_rank = data_rank_value + axes_values.size();
 
     NODE_VALIDATION_CHECK(this, !axes_values.empty(), "'axes' input is mandatory");
 
@@ -138,8 +138,8 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
 

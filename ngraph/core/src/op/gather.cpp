@@ -77,16 +77,16 @@ void op::v1::Gather::validate_and_infer_types()
     {
         std::vector<Dimension> result_dims(params_shape.rank().get_length() +
                                            indices_shape.rank().get_length() - 1);
-        uint64_t i = 0;
+        int64_t i = 0;
         for (; i < axis; i++)
         {
             result_dims[i] = params_shape[i];
         }
-        for (uint64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
+        for (int64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
         {
             result_dims[i] = indices_shape[j];
         }
-        for (uint64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
+        for (int64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
         {
             result_dims[i] = params_shape[j];
         }
@@ -126,24 +126,208 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
 
+NGRAPH_RTTI_DEFINITION(op::v7::Gather, "Gather", 7);
+
+op::v7::Gather::Gather(const Output<Node>& data,
+                       const Output<Node>& indices,
+                       const Output<Node>& axis,
+                       const int64_t batch_dims)
+    : Op({data, indices, axis})
+    , m_batch_dims(batch_dims)
+{
+    constructor_validate_and_infer_types();
+}
+
+bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v7_Gather_visit_attributes);
+    visitor.on_attribute("batch_dims", m_batch_dims);
+    return true;
+}
+
+void op::v7::Gather::validate_and_infer_types()
+{
+    NGRAPH_OP_SCOPE(v7_Gather_validate_and_infer_types);
+    const auto& data_type = get_input_element_type(0);
+    const auto& indices_type = get_input_element_type(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          indices_type == element::Type_t::i32 ||
+                              indices_type == element::Type_t::i64,
+                          "indices must be of int32 or int64 type. But instead got: ",
+                          indices_type);
+
+    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& indices_pshape = get_input_partial_shape(1);
+    const auto& axis_pshape = get_input_partial_shape(2);
+    auto data_rank = data_pshape.rank();
+    auto indices_rank = indices_pshape.rank();
+    auto axis_rank = axis_pshape.rank();
+
+    if (axis_rank.is_static() && axis_pshape.is_static())
+    {
+        const auto axis_is_scalar = axis_rank.get_length() == 0;
+        const auto axis_has_one_elem =
+            axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
+        NODE_VALIDATION_CHECK(
+            this,
+            axis_is_scalar || axis_has_one_elem,
+            "Axes input must be scalar or have 1 element. But instead got axis_shape = ",
+            axis_pshape);
+    }
+
+    int64_t batch_dims = get_batch_dims(); // will not be converted to positive if axis is not set
+    if (is_axis_set())
+    {
+        int64_t axis = get_axis();
+        NODE_VALIDATION_CHECK(this,
+                              batch_dims <= axis,
+                              "The batch_dims <= axis. But instead got: batch_dims = ",
+                              batch_dims,
+                              ", axis = ",
+                              axis);
+
+        if (data_rank.is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  axis >= 0 && axis < data_rank.get_length(),
+                                  "The axis must be => 0 and < data_rank. But instead got axis = ",
+                                  axis,
+                                  " data_rank = ",
+                                  data_rank.get_length());
+        }
+    }
+
+    if (indices_rank.is_static() && batch_dims >= 0)
+    {
+        NODE_VALIDATION_CHECK(
+            this,
+            batch_dims <= indices_rank.get_length(),
+            "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
+            batch_dims,
+            ", indices_rank = ",
+            indices_rank.get_length());
+    }
+
+    if (data_rank.is_static() && indices_rank.is_static())
+    {
+        if (batch_dims >= 0)
+        {
+            auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
+            PartialShape output_pshape = PartialShape::dynamic(out_rank);
+
+            // implementation of out_shape formula
+            // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
+            // data.shape[axis + 1:]
+            int i = 0;
+            for (; i < batch_dims; i++)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      data_pshape[i].compatible(indices_pshape[i]),
+                                      "Shapes ",
+                                      data_pshape,
+                                      " and ",
+                                      indices_pshape,
+                                      " are not consistent. data and indices must have equal or "
+                                      "intersecting sizes until batch_dims");
+
+                output_pshape[i] = data_pshape[i] & indices_pshape[i];
+            }
+
+            if (is_axis_set())
+            {
+                int64_t axis = get_axis();
+                for (; i < axis; i++)
+                {
+                    output_pshape[i] = data_pshape[i];
+                }
+                for (; i < axis + indices_rank.get_length() - batch_dims; i++)
+                {
+                    output_pshape[i] = indices_pshape[batch_dims - axis + i];
+                }
+                for (; i < out_rank; i++)
+                {
+                    output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
+                }
+            }
+
+            set_output_type(0, data_type, output_pshape);
+        }
+        else if (batch_dims < 0)
+        {
+            // batch_dims < 0 could be only if axis is not set
+            // as soon as axis value will arrive negative batch_dims should be resolved
+            // batch_dims value will be within [0, data_rank] && [0, indices_rank]
+            int64_t max_rank = data_rank.get_length() + indices_rank.get_length() - 1;
+            int64_t min_rank = max_rank - max(data_rank.get_length(), indices_rank.get_length());
+
+            set_output_type(0, data_type, PartialShape::dynamic(Dimension(min_rank, max_rank)));
+        }
+    }
+    else
+    {
+        set_output_type(0, data_type, PartialShape::dynamic());
+    }
+}
+
+int64_t op::v7::Gather::get_axis() const
+{
+    const auto& const_op = get_constant_from_source(input_value(2));
+    int64_t axis = const_op->cast_vector<int64_t>()[0];
+    if (axis < 0)
+    {
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        if (data_rank.is_static())
+        {
+            axis += data_rank.get_length();
+        }
+    }
+    return axis;
+}
+
+int64_t op::v7::Gather::get_batch_dims() const
+{
+    if (m_batch_dims < 0 && is_axis_set())
+        return get_axis() + m_batch_dims;
+    else
+        return m_batch_dims;
+}
+
+bool op::v7::Gather::is_axis_set() const
+{
+    const auto& axes_constant = get_constant_from_source(input_value(2));
+    if (axes_constant)
+        return true;
+    else
+        return false;
+}
+
+shared_ptr<Node> op::v7::Gather::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    NGRAPH_OP_SCOPE(v7_Gather_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v7::Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
+}
+
 namespace gather
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
                   const HostTensorPtr& arg1,
                   const HostTensorPtr& out,
-                  size_t axis)
+                  size_t axis,
+                  size_t batch_dims)
     {
         using T = typename element_type_traits<ET>::value_type;
         Shape params_shape = arg0->get_shape();
         Shape indices_shape = arg1->get_shape();
-        Shape out_shape(params_shape.size() + indices_shape.size() - 1);
+        Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
         uint64_t i = 0;
         for (; i < axis; i++)
         {
             out_shape[i] = params_shape[i];
         }
-        for (uint64_t j = 0; j < indices_shape.size(); i++, j++)
+        for (uint64_t j = batch_dims; j < indices_shape.size(); i++, j++)
         {
             out_shape[i] = indices_shape[j];
         }
@@ -162,7 +346,8 @@ namespace gather
                                                    arg0->get_shape(),
                                                    arg1->get_shape(),
                                                    out->get_shape(),
-                                                   axis);
+                                                   axis,
+                                                   batch_dims);
         }
         else if (arg1->get_element_type() == element::i32)
         {
@@ -172,7 +357,8 @@ namespace gather
                                                    arg0->get_shape(),
                                                    arg1->get_shape(),
                                                    out->get_shape(),
-                                                   axis);
+                                                   axis,
+                                                   batch_dims);
         }
         else
         {
@@ -185,19 +371,20 @@ namespace gather
     bool evaluate_gather(const HostTensorPtr& arg0,
                          const HostTensorPtr& arg1,
                          const HostTensorPtr& out,
-                         size_t axis)
+                         size_t axis,
+                         size_t batch_dims = 0)
     {
         bool rc = true;
 
         switch (out->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis);
-            NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis);
-            NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis);
-            NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis);
-            NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis);
-            NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis);
-            NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis, batch_dims);
+            NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis, batch_dims);
         default: rc = false; break;
         }
         return rc;
@@ -301,8 +488,8 @@ bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Gather_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_gather(outputs, inputs);
 }
 
@@ -323,6 +510,66 @@ bool op::v1::Gather::evaluate_upper(const HostTensorVector& output_values) const
 }
 
 bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)
+{
+    // try the regular constant folding just for the Gather node
+    if (Node::constant_fold(output_values, input_values))
+    {
+        return true;
+    }
+    else
+    {
+        return gather::cf_gather_with_subgraph(
+            output_values, input_values, get_output_partial_shape(0));
+    }
+}
+
+bool op::v7::Gather::evaluate_gather(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const
+{
+    int64_t axis = 0;
+    switch (inputs[2]->get_element_type())
+    {
+    case element::Type_t::i32: axis = inputs[2]->get_data_ptr<element::Type_t::i32>()[0]; break;
+    case element::Type_t::i64: axis = inputs[2]->get_data_ptr<element::Type_t::i64>()[0]; break;
+    default: throw ngraph_error("axis must be of int32 or int64 type.");
+    }
+
+    if (axis < 0)
+    {
+        const auto& input_rank = get_input_partial_shape(0).rank();
+        if (input_rank.is_static())
+        {
+            axis += input_rank.get_length();
+        }
+    }
+    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, get_batch_dims());
+}
+
+bool op::v7::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v7_Gather_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    return evaluate_gather(outputs, inputs);
+}
+
+bool op::v7::Gather::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v7::Gather::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v7::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     // try the regular constant folding just for the Gather node
     if (Node::constant_fold(output_values, input_values))

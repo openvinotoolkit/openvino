@@ -199,3 +199,15 @@ class TensorContentParsing(unittest.TestCase):
             self.assertEqual([warning_message], cm.output)
             self.assertEqual(ref_val, result)
 
+    def test_str_decode_list(self):
+        pb_tensor = PB({
+            'dtype': 7,
+            'string_val': [b'\377\330\377\377\330\377'],
+        })
+        shape = int64_array([])
+        warning_message = 'ERROR:root:Failed to parse a tensor with Unicode characters. Note that Inference Engine ' \
+                          'does not support string literals, so the string constant should be eliminated from the ' \
+                          'graph.'
+        with self.assertLogs(log.getLogger(), level="ERROR") as cm:
+            result = tf_tensor_content(pb_tensor.dtype, shape, pb_tensor)
+            self.assertEqual([warning_message, warning_message], cm.output)

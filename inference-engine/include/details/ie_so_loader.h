@@ -46,7 +46,7 @@ public:
     /**
      * @brief A destructor
      */
-    ~SharedObjectLoader() noexcept(false);
+    ~SharedObjectLoader();
 
     /**
      * @brief Searches for a function symbol in the loaded module

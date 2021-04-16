@@ -122,7 +122,7 @@ private:
     void executeBinarization();
     void executeQuantization();
 
-    int levels = -1;
+    size_t levels = 0;
 
     std::vector<float> binarizationThresholds;
     std::vector<uint32_t> binarizationOutputMask;
