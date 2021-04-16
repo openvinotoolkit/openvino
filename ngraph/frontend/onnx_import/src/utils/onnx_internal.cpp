@@ -19,8 +19,6 @@ namespace ngraph
                 convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
                 auto p_model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>(model_proto);
-                // auto p_model_proto = std::unique_ptr<ONNX_NAMESPACE::ModelProto>(
-                //     new ONNX_NAMESPACE::ModelProto(model_proto));
                 auto model = common::make_unique<Model>(p_model_proto);
 
                 Graph graph{model};
