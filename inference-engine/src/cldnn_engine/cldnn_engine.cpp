@@ -62,6 +62,7 @@
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include <transformations/op_conversions/convert_lstmcell1_to_lstmcell4.hpp> // TODO: remove
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -161,11 +162,15 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
+            manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+            manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+            manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
             manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+            // manager.register_pass<ngraph::pass::ConvertLSTMCell1ToLSTMCell4>(); // TODO:remove
 
             manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
             manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
@@ -173,9 +178,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
             manager.register_pass<ngraph::pass::GRUCellDecomposition>();
             manager.register_pass<ngraph::pass::RNNCellDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
             manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
@@ -348,6 +350,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
             pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
+            pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+            pass_config->disable<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+            pass_config->disable<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+
+            // pass_config->disable<ngraph::pass::ConvertLSTMCell1ToLSTMCell4>();// TODO: renive
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
             if (enableInt8) {
@@ -403,7 +410,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
             // TODO: check why we have these reshapes
             manager.register_pass<ngraph::pass::ConstantFolding>();
-            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            // manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.run_passes(nGraphFunc);
         }
     }

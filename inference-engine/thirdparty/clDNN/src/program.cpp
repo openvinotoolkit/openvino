@@ -56,6 +56,7 @@
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
 #include "cldnn_itt.h"
+#include "loop_inst.h"
 
 #include "gpu/ocl_toolkit.h"
 
@@ -482,6 +483,8 @@ void program_impl::post_optimize_graph(bool is_internal) {
 
     if (options.get<build_option_type::optimize_data>()->enabled())
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
+
+    apply_opt_pass<update_loop_primitive_map>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -868,6 +871,11 @@ bool program_impl::extract_and_remove(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
+    static int a = 1;
+    if (node.id() == "tensoriterator:TensorIterator_63.1") {
+        ++a;
+    }
+
     if (node.is_output() && !is_debug_build()) {
         auto& prev = node.get_dependency(0);
         auto node_id = node.id();
@@ -885,6 +893,20 @@ bool program_impl::extract_and_remove(program_node& node) {
     auto& input = node.get_dependency(0);
     node.dependencies.clear();
     input.users.remove(&node);
+
+    // update primitive_map of loop primitive,
+    // if extracted node is input of loop
+    if (node.users.size() == 1) {
+        if (node.users.front()->is_type<loop>()) {
+            loop_node& loop = *node.users.front();
+            loop.update_primitive_map(node.id(), input.id());
+        }
+        if (node.dependencies.front()->is_type<loop>()) {
+            loop_node& loop = *node.dependencies.front();
+            const auto node_user = node.users.front();
+            loop.update_primitive_map(node.id(), node_user->id());
+        }
+    }
 
     if (!node.is_endpoint())
         replace_all_usages(node, input);

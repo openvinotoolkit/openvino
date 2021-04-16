@@ -145,17 +145,17 @@ struct loop : public primitive_base<loop> {
     /// @param trip_count_id Data primitive id in external topology specifying maximum number of iterations.
     ///                      Its data primitive should have 1 integer element. Negative value means infinite
     ///                      number of iteration.
-    /// @param initial_execution_condition_id Data primitive id in external topology specifying initial execution
+    /// @param initial_condition_id Data primitive id in external topology specifying initial execution
     ///                                       condition. Its data primitive should have 1 integer element. Zero means
     ///                                       loop will not be executed, otherwise loop will be executed.
     /// @param num_iteration_id mutable_data primitive id to get the actual number of loop iterations.
     /// @param current_iteration_id Optional data primitive id in the body network to specify current iteration.
     ///                             If current_iteration_id is specified but body does not have data whose primitive
     ///                             id is same as current_iteration_id, data primitive will be added in the body network.
-    /// @param execution_condition_id Optional data primitive id in the body network to specify execution condition
+    /// @param condition_id Optional data primitive id in the body network to specify execution condition
     ///                               for the next iteration. Its data primitive should have 1 integer element. Zero means
-    ///                               loop will not be executed, otherwise loop will be executed.  If execution_condition_id
-    ///                               is specified but body does not have data whose primitive id is same as execution_condition_id,
+    ///                               loop will not be executed, otherwise loop will be executed.  If condition_id
+    ///                               is specified but body does not have data whose primitive id is same as condition_id,
     ///                               data primitive will be added in the body network.
     /// @param primitive_map Rules to map input of loop or output of body topology to input of the body topology
     /// @param back_edges Output data primitive id.
@@ -164,22 +164,24 @@ struct loop : public primitive_base<loop> {
         const std::vector<primitive_id>& inputs,
         const topology& body,
         const primitive_id& trip_count_id,
-        const primitive_id& initial_execution_id,
+        const primitive_id& initial_condition_id,
         const primitive_id& num_iteration_id,
         const std::vector<primitive_mapping>& primitive_map,
         const std::vector<backedge_mapping>& back_edges,
+        int32_t max_iteration = -1,
         const primitive_id& current_iteration_id = primitive_id(),
-        const primitive_id& execution_condition_id = primitive_id(),
+        const primitive_id& condition_id = primitive_id(),
         const padding& output_padding = padding())
             : primitive_base(id, inputs, output_padding),
               body(body),
               trip_count_id(trip_count_id),
-              initial_execution_id(initial_execution_id),
+              initial_execution_id(initial_condition_id),
               num_iteration_id(num_iteration_id),
               current_iteration_id(current_iteration_id),
-              execution_condition_id(execution_condition_id),
+              condition_id(condition_id),
               primitive_map(primitive_map),
-              back_edges(back_edges)
+              back_edges(back_edges),
+              max_iteration(max_iteration)
               {}
 
     /// @brief Topology to be recurrently executed.
@@ -198,13 +200,17 @@ struct loop : public primitive_base<loop> {
     primitive_id current_iteration_id;
 
     /// @brief Data primitive id in the body network to store execution condition
-    primitive_id execution_condition_id;
+    primitive_id condition_id;
 
     /// @brief Rules to map input or output data of loop layer onto input or output data of body topology.
     std::vector<primitive_mapping> primitive_map;
 
     /// @brief Rules to transfer data from body outputs at one iteration to body input at the next iteration.
     std::vector<backedge_mapping> back_edges;
+
+    int32_t max_iteration;
+
+    static const int32_t DEFAULT_MAX_ITERATION = 128;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

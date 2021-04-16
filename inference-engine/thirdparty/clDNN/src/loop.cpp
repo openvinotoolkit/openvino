@@ -19,6 +19,8 @@
 #include "error_handler.h"
 #include "json_object.h"
 #include "primitive_type_base.h"
+#include "api/data.hpp"
+#include "api/mutable_data.hpp"
 #include <string>
 #include <exception>
 #include <algorithm>
@@ -33,14 +35,12 @@ primitive_type_id loop::type_id() {
     return &instance;
 }
 
-static int32_t MAX_ITERATION = 128;
-
 static bool check_if_axis_is_set_properly(loop_node const & node) {
-    // check if all iteration are performed on the same axis
-    const auto& primitive_map = node.get_primitive()->primitive_map;
+    const auto& input_primitive_map = node.get_input_primitive_map();
+
     std::vector<std::reference_wrapper<const loop::primitive_mapping>> input_with_axis_iteration;
-    for (const auto& input : primitive_map) {
-        if (input.type == loop::INPUT && input.axis >= 0) {
+    for (const auto& input : input_primitive_map) {
+        if (input.axis >= 0) {
             input_with_axis_iteration.push_back(std::cref(input));
         }
     }
@@ -76,7 +76,7 @@ static bool check_if_axis_is_set_properly(loop_node const & node) {
             return false;
         }
 
-        // TODO(cldnn loop): need this check? axis 제외한 나머지가 1이어야 한다
+        // TODO(cldnn loop): need this check? all axis size should be 1 except iteration axis
         // tensor size = node.get_dependency(input.from).get_output_layout().size;
         // for (int i = translate_between_bfyx_and_raw_axis(input.axis) - 1; i >= 0; i--) {
         //     if (size.raw[translate_between_bfyx_and_raw_axis(i)] != 1)
@@ -88,11 +88,11 @@ static bool check_if_axis_is_set_properly(loop_node const & node) {
 
 static void validate_backedges(loop_node const & node) {
     const auto& back_edges = node.get_back_edges();
-    const auto& primitive_map = node.get_primitive_map();
+    const auto& input_primitive_map = node.get_input_primitive_map();
 
     // check input with iteration axis has backedge
     for (const auto& back_edge : back_edges) {
-        for (const auto& mapping : primitive_map) {
+        for (const auto& mapping : input_primitive_map) {
             if (mapping.internal_id == back_edge.to && mapping.axis >= 0) {
                 CLDNN_ERROR_MESSAGE(node.id(),
                     "input with iteration axis should not have backedges");
@@ -105,7 +105,9 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
     // body program should be built here to calculate body input layout
     // from outputs of loop's dependency and calculate loop output layout
     // from the outputs of body program
-    node.build_body_program();
+    if (!node.get_body_program()) {
+        node.build_body_program();
+    }
 
     // type checks
     const primitive_id& num_iteration_id = node.get_num_iteration_id();
@@ -121,7 +123,7 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
     const auto& output_primitive_map = node.get_output_primitive_map();
 
     // assert single output
-    assert(output_primitive_map.size() == 1);
+    // assert(output_primitive_map.size() == 1);
     // // set body network output
     // const auto& body_outputs = node.get_body_program()->get_outputs();
     // for (auto output : body_outputs) {
@@ -132,7 +134,7 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
     // can internal_id and external_id have the same id ?
 
     // finds internal output
-    const auto& output_mapping = output_primitive_map.begin()->second.get();
+    const auto& output_mapping = output_primitive_map.front();
     const auto& body_outputs = node.get_body_program()->get_outputs();
     const primitive_id& output_internal_id = output_mapping.internal_id;
     auto target = std::find_if(body_outputs.begin(), body_outputs.end(), [&](const cldnn::program_node * output) {
@@ -149,7 +151,7 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
         const auto shape = loop_output_layout.size.sizes(loop_output_layout.format);
         const size_t ndim = shape.size();
         const size_t raw_axis = node.convert_to_raw_axis(axis_to_iterate_throgh, ndim);
-        loop_output_layout.size.raw[raw_axis] = MAX_ITERATION;
+        loop_output_layout.size.raw[raw_axis] = node.get_max_iteration();
     }
     return loop_output_layout;
 }
@@ -164,7 +166,7 @@ std::string loop_inst::to_string(const loop_node & node) {
     //   - [x] trip_count_id
     //   - [x] initial_execution_id
     //   - [x] current_iteration_id if not empty
-    //   - [x] execution_condition_id if not empty
+    //   - [x] condition_id if not empty
     //   - [] primitive_map [json_composite{external_id, internal_id, axis, ...}]
     //   - [] back_edges [json_composite{from, to}]
     json_composite loop_info;
@@ -172,7 +174,7 @@ std::string loop_inst::to_string(const loop_node & node) {
     loop_info.add("trip_count_id", desc->trip_count_id);
     loop_info.add("initial_execution_id", desc->initial_execution_id);
     loop_info.add("current_iteration_id", desc->current_iteration_id);
-    loop_info.add("execution_condition_id", desc->execution_condition_id);
+    loop_info.add("condition_id", desc->condition_id);
     // TODO(cldnn loop): Fix json_composite to take std::vector<json_composite>()
     // loop_info.add("primitive_map", std::vector<json_composite>());
     // loop_info.add("back_edges", std::vector<json_composite>());
@@ -184,17 +186,71 @@ std::string loop_inst::to_string(const loop_node & node) {
     return primitive_description.str();
 }
 
+static void validate_primitive_map(loop_node const & node) {
+    const auto outer_inputs = node.get_dependencies_ids();
+    const auto& input_primitive_map = node.get_input_primitive_map();
+    const auto& output_primitive_map = node.get_output_primitive_map();
+
+    // check all loop inputs have their own primitive_map
+    for (const auto& id : outer_inputs) {
+        if (id == node.get_trip_count_id() ||
+            id == node.get_initial_execution_id() ||
+            id == node.get_num_iteration_id()) {
+            continue;
+        }
+        const auto results = node.find_primitive_mappings(id, input_primitive_map);
+        if (results.size() == 0) {
+            std::string msg = "outer input '" + id + "' does not have primitive map";
+            CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
+        }
+    }
+
+    // check all primitive_mappings have their corresponding external id
+    for (const auto& pm : input_primitive_map) {
+        auto found = std::find(outer_inputs.begin(), outer_inputs.end(), pm.external_id);
+        if (found == outer_inputs.end()) {
+            std::string msg = "external id '" + pm.external_id + "' in primitive map cannot be found loop inputs";
+            CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
+        }
+    }
+
+    const std::list<program_node*>& body_inputs = node.get_body_program()->get_inputs();
+    const std::vector<program_node*>& body_outputs = node.get_body_program()->get_outputs();
+
+    // check all primitive_mappings have their corresponding interal id
+    for (const auto& pm : input_primitive_map) {
+        auto found = std::find_if(body_inputs.begin(), body_inputs.end(), [&pm](const program_node* body_input) {
+            return body_input->id() == pm.internal_id;
+        });
+        if (found == body_inputs.end()) {
+            std::string msg = "internal id '" + pm.internal_id + "' in primitive map cannot be found body inputs";
+            CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
+        }
+    }
+    for (const auto& pm : output_primitive_map) {
+        auto found = std::find_if(body_outputs.begin(), body_outputs.end(), [&pm](const program_node* body_output) {
+            return body_output->id() == pm.internal_id;
+        });
+        if (found == body_outputs.end()) {
+            std::string msg = "internal id '" + pm.internal_id + "' in primitive map cannot be found body outputs";
+            CLDNN_ERROR_MESSAGE(node.id(), msg.c_str());
+        }
+    }
+}
+
 loop_inst::typed_primitive_inst(network_impl & network, loop_node const & node)
     : parent(network, node),
-      body_network(node.get_program().get_engine().allocate_network(
-                                                     *node.get_body_program(),
-                                                     network.get_stream_id(),
-                                                     true)) {
+      body_network(node.get_program()
+        .get_engine()
+        .allocate_network(*node.get_body_program(),
+                          network.get_stream_id(),
+                          false)) {
     // TODO(cldnn loop): move validation code in calc_output_layout to here
     if (!check_if_axis_is_set_properly(node))
         CLDNN_ERROR_MESSAGE(node.id(), "axis is not set properly");
 
     validate_backedges(node);
+    validate_primitive_map(node);
 }
 
 }  // namespace cldnn

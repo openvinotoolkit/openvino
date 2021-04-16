@@ -73,7 +73,7 @@ TEST(loop_gpu, basic_no_concat)
         mutable_data("num_iteration", num_iteration_mem),
         loop("loop", {"input"}, body,
              "trip_count", "initial_condition", "num_iteration",
-             primitive_map, back_edges)
+             primitive_map, back_edges, 8)
     );
 
     network network(engine, topology);
@@ -151,7 +151,7 @@ TEST(loop_gpu, basic_concat)
         mutable_data("num_iteration", num_iteration_mem),
         loop("loop", {"input"}, body,
              "trip_count", "initial_condition", "num_iteration",
-             primitive_map, back_edges)
+             primitive_map, back_edges, trip_count)
     );
 
     network network(engine, topology);
@@ -167,7 +167,7 @@ TEST(loop_gpu, basic_concat)
     EXPECT_EQ(output_layout.size.batch[0], 1);
     EXPECT_EQ(output_layout.size.feature[0], 1);
     EXPECT_EQ(output_layout.size.spatial[0], 4);
-    EXPECT_EQ(output_layout.size.spatial[1], 128);
+    EXPECT_EQ(output_layout.size.spatial[1], 5);
 
     auto ptr = num_iteration_mem.pointer<int32_t>();
     const int32_t actual_iterations = ptr[0];

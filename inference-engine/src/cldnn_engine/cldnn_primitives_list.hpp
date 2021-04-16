@@ -73,7 +73,7 @@ REGISTER_FACTORY(v0, Unsqueeze);
 // REGISTER_FACTORY(v0, Less);
 // REGISTER_FACTORY(v0, LessEq);
 // REGISTER_FACTORY(v0, LSTMSequence);
-// REGISTER_FACTORY(v0, LSTMCell);
+REGISTER_FACTORY(v0, LSTMCell);
 // REGISTER_FACTORY(v0, Maximum);
 // REGISTER_FACTORY(v0, Minimum);
 // REGISTER_FACTORY(v0, Multiply);
@@ -88,7 +88,7 @@ REGISTER_FACTORY(v0, Unsqueeze);
 // REGISTER_FACTORY(v0, Range);
 // REGISTER_FACTORY(v0, RNNCell);
 // REGISTER_FACTORY(v0, ShapeOf);
-// REGISTER_FACTORY(v0, TensorIterator);
+REGISTER_FACTORY(v0, TensorIterator);
 
 // ------------------------------ Supported v1 ops ------------------------------ //
 REGISTER_FACTORY(v1, Add);

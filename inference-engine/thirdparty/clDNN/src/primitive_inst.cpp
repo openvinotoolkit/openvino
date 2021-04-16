@@ -164,6 +164,20 @@ memory_impl::ptr primitive_inst::allocate_output() {
                                || std::any_of(_node.get_users().begin(), _node.get_users().end(),
                                               [](const program_node* n) {return n->get_selected_impl()->is_cpu() || n->can_be_optimized(); })
                                || engine.supports_allocation(allocation_type::usm_device) == false;
+    // auto use_lockable_memory =
+    //     _node.is_output() ||
+    //     (_node.get_selected_impl()?_node.get_selected_impl()->is_cpu():false) ||
+    //     std::any_of(_node.get_users().begin(), _node.get_users().end(),
+    //         [](const program_node* n) {
+    //             if (n->can_be_optimized()) {
+    //                 return true;
+    //             } else if (const auto& selected_impl = n->get_selected_impl()) {
+    //                 return selected_impl->is_cpu();
+    //             } else {
+    //                 return false;
+    //             }
+    //         }) ||
+    //     engine.supports_allocation(allocation_type::usm_device) == false;
     allocation_type alloc_type = use_lockable_memory ?
                                  engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d())
                                                      : allocation_type::usm_device;
