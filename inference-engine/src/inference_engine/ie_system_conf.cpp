@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include "ie_parallel.hpp"
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
 
