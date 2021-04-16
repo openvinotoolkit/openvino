@@ -16,7 +16,7 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include "reshape2.hpp"
-#include "utility.hpp"
+#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph {
 namespace frontend {

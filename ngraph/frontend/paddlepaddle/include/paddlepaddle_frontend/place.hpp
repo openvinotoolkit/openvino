@@ -17,7 +17,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
-#include <utility.hpp>
+#include <paddlepaddle_frontend/utility.hpp>
 
 namespace paddle {
 namespace framework {

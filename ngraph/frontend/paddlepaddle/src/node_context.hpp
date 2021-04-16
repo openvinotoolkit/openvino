@@ -16,7 +16,7 @@
 
 #pragma once
 #include "decoder.hpp"
-#include "utility.hpp"
+#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph {
 namespace frontend {

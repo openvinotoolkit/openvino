@@ -16,6 +16,7 @@
 
 
 #include <paddlepaddle_frontend/place.hpp>
+#include "framework.pb.h"
 
 using namespace ngraph;
 using namespace frontend;
@@ -57,7 +58,7 @@ TensorPlacePDPD::TensorPlacePDPD(const InputModel &input_model, const std::vecto
 
 TensorPlacePDPD::TensorPlacePDPD(const InputModel &input_model,
                                  const std::shared_ptr<paddle::framework::proto::VarDesc> &var_desc)
-        : TensorPlacePDPD(input_model, {}, var_desc) {
+        : TensorPlacePDPD(input_model, {var_desc->name()}, var_desc) {
 }
 
 std::vector<Place::Ptr> TensorPlacePDPD::getConsumingPorts() const {

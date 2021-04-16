@@ -3,10 +3,10 @@
 //
 
 #include <paddlepaddle_frontend/model.hpp>
+#include <paddlepaddle_frontend/utility.hpp>
 
 #include <fstream>
 #include "framework.pb.h"
-#include "utility.hpp"
 #include "decoder.hpp"
 
 namespace ngraph {
