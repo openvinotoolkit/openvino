@@ -91,9 +91,9 @@ bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
-    NGRAPH_CHECK(this, !inputs.empty());
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(!inputs.empty());
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     return scatter::evaluate_scatter(inputs[0], inputs[1], inputs[2], outputs[0]);
 }

@@ -49,7 +49,7 @@ void runtime::reference::tile(const char* arg,
     const std::vector<int64_t> pitches = create_pitches(out_shape);
     const char* copy = nullptr;
 
-    std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
+    std::vector<size_t> indices(in_shape_expanded.size() - 1, 0);
     size_t axis = indices.size();
 
     // Copy and repeat data for innermost axis as many times as described in the repeats parameter
