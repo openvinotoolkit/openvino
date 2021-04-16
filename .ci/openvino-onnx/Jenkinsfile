@@ -7,7 +7,7 @@ DOCKER_IMAGE_PREFIX= "openvino-onnx-ci-image"
 BACKEND_CONFIGURATIONS = [
     [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
     [ name: "Debug", build_type: "Debug", protobuf_lite : "OFF" ],
-    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ],
+    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ]
 ]
 
 // workaround for aborting previous builds on PR update
@@ -105,7 +105,7 @@ def updateModels() {
                                     touch ./worker_\${i}/executing
                                     ${WORKDIR}/ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data/worker_\${i} -o
                                     echo "worker_\${i}"
-                                    exit 1
+                                    exit
                                 fi
                             done
                           """).trim().reverse().take(8).reverse()
@@ -144,7 +144,10 @@ def runTests(Map configuration) {
         sh """
             docker run --name ${DOCKER_CONTAINER_NAME} \
             --volume ${HOME}/ONNX_CI/data/${WORKER_NAME}/model_zoo:/root/.onnx/model_zoo \
-            ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models" || (rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing && exit 1)
+            --volume ${HOME}/ONNX_CI/data/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
+            ${DOCKER_IMAGE_TAG} /bin/bash -c "tox && tox -e zoo_models" \
+            && rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing || \
+            (rm -f ${HOME}/ONNX_CI/data/${WORKER_NAME}/executing && exit 1)
         """
 
     }
