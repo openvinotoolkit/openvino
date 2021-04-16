@@ -128,7 +128,6 @@ std::shared_ptr<Function>
     
     for (int i = 0; i < model->getBlockNumber(); i++) {
         const auto& op_places = model->getOpPlaces(i);
-        const auto& var_places = model->getVarPlaces(i);
         for (const auto &op_place : op_places) {
             const auto& op_type = op_place->getDesc()->type();
             std::cerr << "Observing " << op_type << "\n";

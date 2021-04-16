@@ -68,6 +68,9 @@ TEST_P(FrontEndCutModelTest, testOverrideInputs)
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewInputs());
+    for (const auto& place : newPlaces) {
+        ASSERT_NO_THROW(m_inputModel->setElementType(place, element::f32));
+    }
     ASSERT_NO_THROW(m_inputModel->overrideAllInputs(newPlaces));
     ASSERT_NO_THROW(m_inputModel->getInputs());
     EXPECT_EQ(m_param.m_newInputs.size(), m_inputModel->getInputs().size());
@@ -89,6 +92,9 @@ TEST_P(FrontEndCutModelTest, testOverrideOutputs)
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
+    for (const auto& place : newPlaces) {
+        ASSERT_NO_THROW(m_inputModel->setElementType(place, element::f32));
+    }
     ASSERT_NO_THROW(m_inputModel->overrideAllOutputs(newPlaces));
     ASSERT_NO_THROW(m_inputModel->getOutputs());
     EXPECT_EQ(m_param.m_newOutputs.size(), m_inputModel->getOutputs().size());
@@ -138,6 +144,9 @@ TEST_P(FrontEndCutModelTest, testNewInputs_func) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewInputs());
+    for (const auto& place : newPlaces) {
+        ASSERT_NO_THROW(m_inputModel->setElementType(place, element::f32));
+    }
     ASSERT_NO_THROW(m_inputModel->overrideAllInputs(newPlaces));
 
     std::shared_ptr<ngraph::Function> function;
@@ -165,6 +174,9 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
+    for (const auto& place : newPlaces) {
+        ASSERT_NO_THROW(m_inputModel->setElementType(place, element::f32));
+    }
     ASSERT_NO_THROW(m_inputModel->overrideAllInputs(newPlaces));
 
     std::shared_ptr<ngraph::Function> function;
@@ -192,6 +204,9 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newInputs, newOutputs;
     ASSERT_NO_THROW(newInputs = constructNewOutputs());
+    for (const auto& place : newInputs) {
+        ASSERT_NO_THROW(m_inputModel->setElementType(place, element::f32));
+    }
     ASSERT_NO_THROW(newOutputs = constructNewOutputs());
     ASSERT_NO_THROW(m_inputModel->extractSubgraph(newInputs, newOutputs));
 
