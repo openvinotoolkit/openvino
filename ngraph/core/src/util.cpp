@@ -478,17 +478,6 @@ void ngraph::parse_version_string(
     }
 }
 
-std::vector<uint8_t> read_raw_data(std::shared_ptr<ngraph::runtime::Tensor> tv)
-{
-    const size_t element_count = ngraph::shape_size(tv->get_shape());
-    const size_t size_in_bits = element_count * tv->get_element_type().bitwidth();
-    const auto round_up_to_full_bytes = [](size_t bits) { return (bits + 7) / 8; };
-    const size_t mem_size = round_up_to_full_bytes(size_in_bits);
-    std::vector<uint8_t> rc(mem_size);
-    tv->read(rc.data(), mem_size);
-    return rc;
-}
-
 vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv)
 {
     vector<float> float_vec;

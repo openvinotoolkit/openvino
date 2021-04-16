@@ -221,9 +221,7 @@ namespace ngraph
                                                         const Shape& shape,
                                                         const std::vector<T>& values)
                 {
-                    auto result = std::make_shared<Constant>(type, shape, values);
-                    result->validate_and_infer_types();
-                    return result;
+                    return std::make_shared<Constant>(type, shape, values);
                 }
 
                 /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -236,9 +234,7 @@ namespace ngraph
                                                         const Shape& shape,
                                                         std::initializer_list<T> values)
                 {
-                    auto result = std::make_shared<Constant>(type, shape, std::vector<T>{values});
-                    result->validate_and_infer_types();
-                    return result;
+                    return std::make_shared<Constant>(type, shape, std::vector<T>{values});
                 }
 
                 /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -249,9 +245,7 @@ namespace ngraph
                 static std::shared_ptr<Constant>
                     create(const element::Type& type, const Shape& shape, const void* memory)
                 {
-                    auto result = std::make_shared<Constant>(type, shape, memory);
-                    result->validate_and_infer_types();
-                    return result;
+                    return std::make_shared<Constant>(type, shape, memory);
                 }
 
                 virtual std::shared_ptr<Node>

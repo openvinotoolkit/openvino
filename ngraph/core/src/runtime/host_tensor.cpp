@@ -68,8 +68,7 @@ void runtime::HostTensor::allocate_buffer()
     NGRAPH_CHECK(get_element_type().is_static(),
                  "Attempt to allocate buffer for tensor with dynamic type: ",
                  get_element_type());
-    m_buffer_size =
-        ceil(shape_size(m_descriptor->get_shape()) * get_element_type().bitwidth() / 8.f);
+    m_buffer_size = m_descriptor->size();
     if (m_memory_pointer != nullptr)
     {
         m_aligned_buffer_pool = m_memory_pointer;

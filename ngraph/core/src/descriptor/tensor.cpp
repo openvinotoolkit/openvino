@@ -93,7 +93,13 @@ const Shape& descriptor::Tensor::get_shape() const
 
 size_t descriptor::Tensor::size() const
 {
-    return ceil(shape_size(get_shape()) * m_element_type.bitwidth() / 8.f);
+    const bool bitwidth_less_than_byte = m_element_type.bitwidth() < 8;
+    if (bitwidth_less_than_byte)
+    {
+        // TODO consider caching this value
+        return ceil((1.0 * shape_size(get_shape()) * m_element_type.bitwidth()) / 8);
+    }
+    return shape_size(get_shape()) * m_element_type.size();
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START

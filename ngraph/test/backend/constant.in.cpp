@@ -179,6 +179,14 @@ NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool)
 
 namespace
 {
+    std::vector<uint8_t> read_raw_data(std::shared_ptr<ngraph::runtime::Tensor> tv)
+    {
+        const size_t mem_size = tv->get_size_in_bytes();
+        std::vector<uint8_t> rc(mem_size);
+        tv->read(rc.data(), mem_size);
+        return rc;
+    }
+
     void run_constant_equality_for_low_precision(const Shape& shape,
                                                  const std::vector<uint8_t>& data,
                                                  element::Type element_type)
