@@ -281,7 +281,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                     fillBlobImage(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
 #ifdef USE_REMOTE_MEM
                     if (preallocImage) {
-                        remoteContextHelper.PreallocRemoteMem(requests.at(requestId), item.first, inputBlob);
+                        remoteContextHelper.preallocRemoteMem(requests.at(requestId), item.first, inputBlob);
                     }
 #endif
                     continue;
@@ -349,7 +349,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
             }
 #ifdef USE_REMOTE_MEM
             if (preallocImage) {
-                remoteContextHelper.PreallocRemoteMem(requests.at(requestId), item.first, inputBlob);
+                remoteContextHelper.preallocRemoteMem(requests.at(requestId), item.first, inputBlob);
             }
 #endif
         }

@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
         }
 #ifdef USE_REMOTE_MEM
         if (FLAGS_d.find("VPUX") != std::string::npos) {
-            remoteContextHelper.Init(ie);
+            remoteContextHelper.init(ie);
         }
 #endif
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
