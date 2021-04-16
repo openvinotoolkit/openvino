@@ -522,6 +522,8 @@ std::string get_precision_name(const ngraph::element::Type & elem_type) {
         return "I32";
     case ::ngraph::element::Type_t::i64:
         return "I64";
+    case ::ngraph::element::Type_t::u4:
+            return "U4";
     case ::ngraph::element::Type_t::u8:
         return "U8";
     case ::ngraph::element::Type_t::u16:
