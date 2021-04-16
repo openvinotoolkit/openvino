@@ -23,7 +23,7 @@ namespace ngraph
         class Graph
         {
         public:
-            Graph(Model& model);
+            Graph(std::unique_ptr<Model> model);
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -37,7 +37,7 @@ namespace ngraph
             const OpsetImports& get_opset_imports() const;
 
         protected:
-            Graph(Model& model,
+            Graph(std::unique_ptr<Model> model,
                   std::unique_ptr<GraphCache>&& cache);
 
             void set_friendly_names(const Node& onnx_node,
@@ -55,12 +55,12 @@ namespace ngraph
         protected:
             ParameterVector m_parameters;
             std::unique_ptr<GraphCache> m_cache;
+            std::unique_ptr<Model> m_model;
 
         private:
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
-            Model* m_model;
         };
 
         /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
@@ -71,10 +71,9 @@ namespace ngraph
         public:
             /// \brief      Subgraph a GraphCache class object.
             ///
-            /// \param[in]  proto          The ONNX protobuf graph representation.
             /// \param[in]  model          The ONNX model object.
             /// \param[in]  parent_graph   The reference to the parent graph.
-            Subgraph(Model& model,
+            Subgraph(std::unique_ptr<Model> model,
                      const Graph& parent_graph);
 
             /// \brief      Return outputs which are on the edge the subgraph and the parent graph.

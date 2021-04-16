@@ -52,8 +52,8 @@ namespace ngraph
             }
         } // namespace detail
 
-        Graph::Graph(Model& model)
-            : Graph(model, std::unique_ptr<GraphCache>(new GraphCache()))
+        Graph::Graph(std::unique_ptr<Model> model)
+            : Graph(std::move(model), std::unique_ptr<GraphCache>(new GraphCache()))
         {
             // Remove dangling Parameters
             for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();)
@@ -76,8 +76,8 @@ namespace ngraph
             }
         }
 
-        Graph::Graph(Model& model, std::unique_ptr<GraphCache>&& cache)
-            : m_model{&model}
+        Graph::Graph(std::unique_ptr<Model> model, std::unique_ptr<GraphCache>&& cache)
+            : m_model{std::move(model)}
             , m_cache{std::move(cache)}
         {
             std::map<std::string, Tensor> initializers;
@@ -322,15 +322,15 @@ namespace ngraph
             return m_model->get_opset_imports();
         }
 
-        Subgraph::Subgraph(Model& model,
+        Subgraph::Subgraph(std::unique_ptr<Model> model,
                            const Graph& parent_graph)
             : Graph(
-                  model,
+                  std::move(model),
                   std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))
         {
             // find all nodes on edge parent graph-subgraph
             // (it means input of node from parent graph, output from subgraph)
-            for (const auto& node_proto : model.get_graph().node())
+            for (const auto& node_proto : m_model->get_graph().node())
             {
                 int input_index = 0;
                 for (const auto& in_name : node_proto.input())

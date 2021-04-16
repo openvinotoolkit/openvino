@@ -18,8 +18,7 @@ namespace ngraph
             std::shared_ptr<Function>
                 convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
-                Model model{model_proto};
-                Graph graph{model};
+                Graph graph{std::move(std::unique_ptr<Model>(new Model{model_proto}))};
                 auto function = std::make_shared<Function>(
                     graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
                 for (std::size_t i{0}; i < function->get_output_size(); ++i)
