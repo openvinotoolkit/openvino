@@ -169,7 +169,9 @@ CONFIGURATION_WORKFLOW = { configuration ->
     node("OpenVino") {
         try {
             PROJECT_NAME = "openvino"
-            WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}_${configuration.name}"
+            random = Math.random()
+
+            WORKDIR = "${HOME}/workspace/${BUILD_NUMBER}_${random}"
 
             stage("Clone repository") {
                 stopPreviousRunningBuilds()
