@@ -12,7 +12,7 @@ from mo.utils.unittest.graph import build_graph
 
 nodes1_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},
-    'quantize': {'kind': 'op', 'op': 'QuantizeLinear'},
+    'quantize': {'kind': 'op', 'op': 'QuantizeLinear', 'axis': 1},
     'scale_param_q': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'zerop_param_q': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'out': {'kind': 'op', 'op': 'AnyOp'},
