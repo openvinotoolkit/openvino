@@ -322,8 +322,7 @@ namespace ngraph
             return m_model->get_opset_imports();
         }
 
-        Subgraph::Subgraph(std::unique_ptr<Model> model,
-                           const Graph& parent_graph)
+        Subgraph::Subgraph(std::unique_ptr<Model> model, const Graph& parent_graph)
             : Graph(
                   std::move(model),
                   std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))

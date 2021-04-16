@@ -37,8 +37,7 @@ namespace ngraph
             const OpsetImports& get_opset_imports() const;
 
         protected:
-            Graph(std::unique_ptr<Model> model,
-                  std::unique_ptr<GraphCache>&& cache);
+            Graph(std::unique_ptr<Model> model, std::unique_ptr<GraphCache>&& cache);
 
             void set_friendly_names(const Node& onnx_node,
                                     const OutputVector& ng_node_vector) const;
@@ -73,8 +72,7 @@ namespace ngraph
             ///
             /// \param[in]  model          The ONNX model object.
             /// \param[in]  parent_graph   The reference to the parent graph.
-            Subgraph(std::unique_ptr<Model> model,
-                     const Graph& parent_graph);
+            Subgraph(std::unique_ptr<Model> model, const Graph& parent_graph);
 
             /// \brief      Return outputs which are on the edge the subgraph and the parent graph.
             /// \return     Vector of edge nodes from parent scope.
