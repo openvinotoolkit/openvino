@@ -116,6 +116,6 @@ namespace ngraph
 
             } // embeddingBagOffsetsSum
 
-        } // reference
-    }     // runtime
-} // ngraph
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

@@ -42,9 +42,9 @@ namespace ngraph
 
                 bool is_dynamic() const override;
             };
-        }
+        } // namespace v0
         using v0::Squeeze;
-    }
-}
+    } // namespace op
+} // namespace ngraph
 
 NGRAPH_SUPPRESS_DEPRECATED_END

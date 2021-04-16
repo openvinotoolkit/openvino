@@ -49,8 +49,8 @@ namespace ngraph
                         }
                         return std::make_shared<default_opset::Concat>(new_shape, 0);
                     }
-                }
-            } // detail
+                } // namespace
+            }     // namespace detail
 
             namespace set_1
             {

@@ -264,6 +264,6 @@ namespace ngraph
                         "ExecutionCondition is false. Zero count of iteration not supported.");
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

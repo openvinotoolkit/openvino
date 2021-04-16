@@ -36,9 +36,9 @@ namespace ngraph
                 static PerfCounters counters;
                 return counters;
             }
-        }
-    }
-}
+        } // namespace
+    }     // namespace pass
+} // namespace ngraph
 
 pass::Manager::Manager()
     : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))

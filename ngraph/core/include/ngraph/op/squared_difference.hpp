@@ -50,7 +50,7 @@ namespace ngraph
             private:
                 AutoBroadcastSpec m_autobroadcast;
             };
-        }
+        } // namespace v0
         using v0::SquaredDifference;
     } // namespace op
 } // namespace ngraph

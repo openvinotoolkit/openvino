@@ -202,7 +202,7 @@ namespace topk
         }
         return k;
     }
-}
+} // namespace topk
 
 // v1 version starts
 constexpr NodeTypeInfo op::v1::TopK::type_info;

@@ -21,7 +21,7 @@ namespace
     {
         return (idx >= 0) ? std::min(idx, last_idx) : std::max<int64_t>(0, last_idx + idx);
     }
-}
+} // namespace
 
 namespace ngraph
 {
@@ -163,7 +163,7 @@ namespace ngraph
 
                     return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
                 }
-            }
+            } // namespace
 
             namespace set_10
             {

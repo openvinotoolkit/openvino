@@ -63,7 +63,7 @@ namespace expop
         }
         return rc;
     }
-}
+} // namespace expop
 
 bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {

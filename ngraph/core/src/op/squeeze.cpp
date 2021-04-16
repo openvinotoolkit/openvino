@@ -195,7 +195,7 @@ namespace squeeze
         }
         return rc;
     }
-}
+} // namespace squeeze
 
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
