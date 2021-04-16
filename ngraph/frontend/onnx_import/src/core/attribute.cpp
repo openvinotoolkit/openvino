@@ -10,16 +10,6 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        // std::vector<Graph> Attribute::get_graph_array(Model& model) const
-        // {
-        //     std::vector<Graph> result;
-        //     for (const auto& graph : m_attribute_proto->graphs())
-        //     {
-        //         result.emplace_back(model);
-        //     }
-        //     return result;
-        // }
-
         Subgraph Attribute::get_subgraph(const Graph& parent_graph) const
         {
             if (m_attribute_proto->type() != ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH)
