@@ -32,7 +32,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
-#include "utility.hpp"
+#include <paddlepaddle_frontend/utility.hpp>
 #include "decoder.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
