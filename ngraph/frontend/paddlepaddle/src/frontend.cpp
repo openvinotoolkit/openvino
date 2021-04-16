@@ -27,10 +27,10 @@
 
 #include "framework.pb.h"
 
-#include "../include/paddlepaddle_frontend/model.hpp"
+#include <paddlepaddle_frontend/model.hpp>
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 
 #include "utility.hpp"
 #include "decoder.hpp"
@@ -39,23 +39,24 @@
 
 #include <functional>
 
+using namespace ngraph::opset7;
 
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
 
-std::shared_ptr<ngraph::Node>
-make_ng_node(std::map<std::string, Output<Node>> &nodes,
-             const std::shared_ptr<OpPlacePDPD>& place,
-             const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
-    auto op = (paddle::framework::proto::OpDesc*)place->op;
+std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, Output<Node>>& nodes,
+                                           const std::shared_ptr<OpPlacePDPD>& op_place,
+                                           const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
+    const auto& op = op_place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
     MY_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
-    NamedInputs named_inputs;
-    for (const auto &item : place->inputs) {
-        for (auto& var_place : item.second) {
-            auto var = (paddle::framework::proto::VarDesc*)var_place.lock()->var;
+    std::map<std::string, OutputVector> named_inputs;
+    const auto& input_ports = op_place->getInputPorts();
+    for (const auto& name_to_port : input_ports) {
+        for (int idx = 0; idx < name_to_port.second->getSourceTensors().size(); ++idx) {
+            const auto& var_desc = name_to_port.second->getSourceTensorPDPD(idx)->getDesc();
             if (nodes.count(var->name()))
                 named_inputs[item.first].push_back(nodes.at(var->name()));
             else
@@ -76,24 +77,24 @@ bool endsWith(const std::string &str, const std::string &suffix) {
 
 } // namespace pdpd
 
-std::shared_ptr<opset6::Constant> FrontEndPDPD::read_tensor(std::shared_ptr<VarPlacePDPD> place,
-                std::shared_ptr<InputModelPDPD> model) const
+std::shared_ptr<Constant> FrontEndPDPD::read_tensor(const std::shared_ptr<TensorPlacePDPD>& tensor_place,
+                const std::shared_ptr<InputModelPDPD>& model)
 {
-    auto _var = (paddle::framework::proto::VarDesc*)place->var;
-    std::cout << "Reading tensor " << _var->name() << std::endl;
-    MY_ASSERT(_var->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
-    auto tensor = _var->type().lod_tensor().tensor();
-    auto tensor_length = std::accumulate(
+    const auto& var_desc = tensor_place->getDesc();
+    std::cout << "Reading tensor " << var_desc->name() << std::endl;
+    MY_ASSERT(var_desc->type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
+    const auto& tensor = var_desc->type().lod_tensor().tensor();
+    const auto& tensor_length = std::accumulate(
         tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
     // TODO: implement for other types
-    auto tensor_data = model->readWeight(_var->name(), tensor_length);    
+    auto tensor_data = model->readWeight(var_desc->name(), tensor_length);    
 
-    auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
-    return opset6::Constant::create(element::f32, Shape(shape), tensor_data);
+    std::vector<size_t> shape(tensor.dims().cbegin(), tensor.dims().cend());
+    return Constant::create(element::f32, Shape(shape), tensor_data);
 }
 
 std::shared_ptr<Function>
-    FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model) const
+    FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model)
 {
     std::cout << "Convert Model Start" << std::endl;    
     
@@ -104,7 +105,7 @@ std::shared_ptr<Function>
     const auto& global_var_places = model->getVarPlaces(0);
     for (const auto& name_var : global_var_places)
     {
-        auto var = (paddle::framework::proto::VarDesc*)name_var.second->var;
+        const auto& var = name_var.second->getDesc();
         if (pdpd::endsWith(name_var.first, "feed") || pdpd::endsWith(name_var.first, "fetch"))
             continue;
         if (!var->persistable())
@@ -114,7 +115,6 @@ std::shared_ptr<Function>
     std::cout << "Reading consts finished" << std::endl;
 
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
-
     for (const auto& _inp_place: model->getInputs()) {
         const auto& inp_place = std::dynamic_pointer_cast<VarPlacePDPD>(_inp_place);
         auto var = (paddle::framework::proto::VarDesc*)inp_place->var;
@@ -129,23 +129,22 @@ std::shared_ptr<Function>
         const auto& op_places = model->getOpPlaces(i);
         const auto& var_places = model->getVarPlaces(i);
         for (const auto &op_place : op_places) {
-            auto op = (paddle::framework::proto::OpDesc*)op_place->op;
+            const auto& op_type = op_place->getDesc()->type();
             std::cerr << "Observing " << op->type() << "\n";
-            if (op->type() == "feed" || op->type() == "fetch") {
+            if (op_type == "feed" || op_type == "fetch") {
                 // inputs and outputs are stored in the model already
                 continue;
             } else {
-                auto node = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                const auto& node = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
                 if (node) {
-                    // set layer name by the name of first output var
-                    auto& first_output_var_place = op_place->outputs.begin()->second[0];
-                    auto var = (paddle::framework::proto::VarDesc*)first_output_var_place.lock()->var;
-                    node->set_friendly_name(var->name());
+                // set layer name by the name of first output var
+                const auto& first_output_var = op_place->getOutputPorts().begin()->second->getTargetTensorPDPD(0)->getDesc();
+                node->set_friendly_name(first_output_var->name());
 
                 std::cerr << "Named with " << node->get_friendly_name() << "\n";
-                for (const auto &item : op_place->outputs) {
-                    for (size_t idx = 0; idx < item.second.size(); ++idx) {
-                        auto var = (paddle::framework::proto::VarDesc *)item.second[idx].lock()->var;
+                for (const auto &name_to_port : op_place->getOutputPorts()) {
+                    for (size_t idx = 0; idx < name_to_port.second->getTargetTensors().size(); ++idx) {
+                        const auto& var = name_to_port.second->getTargetTensorPDPD(idx)->getDesc();
                         nodes_dict[var->name()] = node->output(idx);
                     }
                 }
