@@ -32,14 +32,15 @@ private:
                                 const InferenceEngine::Precision& weightsPrec);
     void verifyWeights();
     void verifyBiases();
-    void convertWeightsBlobPrecision(const InferenceEngine::Precision cur_precision,
-                                     const InferenceEngine::Precision new_precision);
+    void convertWeightsBlobToBF16();
+
     template <typename Prec>
     void fillWeights(const int* gate_map);
     template <typename Prec>
     void fillBiases(const int* gate_map);
 
 private:
+    InferenceEngine::Precision runtimePrecision;
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 
