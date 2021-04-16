@@ -17,9 +17,9 @@
 #include <ngraph/except.hpp>
 #include "onnx_import/onnx.hpp"
 #include "onnx_editor/editor.hpp"
-#include "tensorflow_frontend/tensorflow.hpp"
+//#include "tensorflow_frontend/tensorflow.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "paddlepaddle_frontend/frontend.hpp"
+//#include "paddlepaddle_frontend/frontend.hpp"
 
 
 namespace ngraph
@@ -491,8 +491,8 @@ namespace ngraph
 
             void registerDefault() {
                 registerFrontEnd("onnx", [](FrontEndCapabilities){return std::make_shared<FrontEndONNX>();});
-                registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
-                registerFrontEnd("tf", [](FrontEndCapabilities){return std::make_shared<FrontEndTensorflow>();});
+                //registerFrontEnd("pdpd", [](FrontEndCapabilities){return std::make_shared<FrontEndPDPD>();});
+                //registerFrontEnd("tf", [](FrontEndCapabilities){return std::make_shared<FrontEndTensorflow>();});
             }
         public:
             Impl() {

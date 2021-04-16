@@ -79,7 +79,7 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/generic/include")
-target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer ngraph::frontend_manager ngraph::tensorflow_frontend)
+target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer ngraph::frontend_manager)
 if (TARGET ngraph::onnx_importer)
     add_dependencies(_${PROJECT_NAME} ngraph::onnx_importer)
 endif()

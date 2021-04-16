@@ -10,6 +10,7 @@ endif()
 
 if (NGRAPH_ONNX_EDITOR_ENABLE)
     add_subdirectory(onnx_editor)
-    add_subdirectory(tensorflow)
-    add_subdirectory(paddlepaddle)
 endif()
+
+#add_subdirectory(tensorflow)
+#add_subdirectory(paddlepaddle)
