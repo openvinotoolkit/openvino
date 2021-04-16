@@ -640,7 +640,8 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
         switch (eltwiseLayer->_operation) {
             case InferenceEngine::EltwiseLayer::Prod: {
                 quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
-                quantData->_dst_quant.SetScale(quantParams0->_dst_quant.GetScale() * quantParams1->_dst_quant.GetScale());
+                quantData->_dst_quant.SetScale(
+                            quantParams0->_dst_quant.GetScale() * quantParams1->_dst_quant.GetScale());
                 break;
             }
             case InferenceEngine::EltwiseLayer::Sub:
@@ -1182,51 +1183,54 @@ class ScaleFactorPerLayer<InferenceEngine::ConvolutionLayer*> : public ScaleFact
 
 template<>
 class ScaleFactorPerLayer<InferenceEngine::GemmLayer*> {
-private:
-    float const _scale_reduction_50 = 0.15;
-    float const _scale_reduction_45 = 0.15;
-    float const _scale_reduction_40 = 0.10;
-    float const _scale_reduction_35 = 0.05;
-
-    uint16_t const _scale_change_req_threshold = 30;
-    uint16_t const _scale_change_threshold_100 = 100;
-    uint16_t const _scale_change_threshold_150 = 150;
-    uint16_t const _scale_change_threshold_200 = 200;
-
 public:
     bool operator() (InferenceEngine::GemmLayer* gemmLayer, int weightsSize, ScaleFactorUpdateResult &result, const bool fakeQuantize) {
         if ( !gemmLayer ) {
             THROW_GNA_EXCEPTION << "Incorrect Gemm Layer pointer \n";
         }
+        auto PrevFunctionalLayer = [](InferenceEngine::CNNLayerPtr l, int idx = 0) {
+            auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [](InferenceEngine::CNNLayerPtr ptr) {
+                return (LayerInfo(ptr).isNonFunctional());
+            });
+            gnalog() << "CNNNetPrevLayerSkipCertain for :: " << l->name << "returned: " << prevLayer->name << std::endl;
+            return prevLayer;
+        };
         auto in0 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 0);
         auto in1 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 1);
+        auto func_layer = PrevFunctionalLayer(in1);
+        if (LayerInfo(func_layer).isFakeQuantize()) {
+            func_layer = PrevFunctionalLayer(func_layer, 0);
+        }
+
+        gnalog() << "functional layer: " << func_layer->name << std::endl;
 
         auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*gemmLayer);
-        auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
         auto quantParams1 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in1);
+        auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
         quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
-        if (!quantData->_weights_quant.IsScaleSet()) {
-            quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
-            double tmp_dst_quant_scale = quantData->_weights_quant.GetScale() * quantData->_src_quant.GetScale();
-            if (static_cast<uint64_t>(tmp_dst_quant_scale * quantData->_src_quant.GetScale()) >
-                static_cast<uint64_t>(std::numeric_limits<int32_t>::max() - 1) * _scale_change_req_threshold) {
-                // reduce weight scale according experimental heuristic
-                if (quantData->_dst_quant.GetScale() * quantData->_src_quant.GetScale() /
-                    static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_100) {
-                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_50);
-                } else if (quantData->_dst_quant.GetScale() * quantData->_src_quant.GetScale() /
-                           static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_150) {
-                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_45);
-                } else if (quantData->_dst_quant.GetScale() * quantData->_src_quant.GetScale() /
-                           static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_200) {
-                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_40);
-                } else {
-                    quantData->_weights_quant.SetScale(quantData->_weights_quant.GetScale() * _scale_reduction_35);
-                }
+        quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
+        if (quantParams0->_dst_quant.IsStatsSet()) {
+            auto getScale = [&quantParams0](size_t i) {
+                return (quantParams0->_dst_quant.GetLevels() - 1) /
+                       (quantParams0->_dst_quant.GetMaxValues(false)[i] - quantParams0->_dst_quant.GetMinValues(false)[i]);
+            };
+            float min_channel_scale = getScale(0);
+            auto multiplier = 1.0f;
+            if (quantParams0->_dst_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
+                // GNA supports additional multiplier for only 8bit weights.
+                // The multipler is used to extend dynamic range.
+                multiplier = MAX_OUT_MULTIPLIER;
             }
+            quantData->_src_quant.SetScale(min_channel_scale * multiplier);
         }
-        quantData->_bias_quant.SetScale(-1.f);
-        quantData->_dst_quant.SetScale(quantData->_weights_quant.GetScale() * quantData->_src_quant.GetScale());
+        if (LayerInfo(func_layer).isEltwise()) {
+            if (func_layer->insData[0].lock() == func_layer->insData[1].lock())
+            quantData->_dst_quant.SetScale(
+                    quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale() * 0.5);
+        } else {
+            quantData->_dst_quant.SetScale(
+                    quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale());
+        }
         return true;
     }
 };
