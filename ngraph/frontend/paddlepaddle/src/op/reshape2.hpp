@@ -22,7 +22,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 	
-OutputVector reshape2(const NodeContext& node);
+NamedOutputs reshape2(const NodeContext& node);
 
 } // namespace op
 } // namespace pdpd

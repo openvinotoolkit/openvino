@@ -23,7 +23,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector mul (const NodeContext& node) {
+NamedOutputs mul (const NodeContext& node) {
     auto x = node.get_ng_input("X");
     auto y = node.get_ng_input("Y");
     MY_ASSERT(x.get_partial_shape().rank().is_static(), "matmul: X rank must be static!");
@@ -50,9 +50,9 @@ OutputVector mul (const NodeContext& node) {
         auto out_shape = std::make_shared<ngraph::opset6::Concat>(ngraph::NodeVector{first_dim, second_dim},
                                                                   0);
         auto x_reshaped = std::make_shared<ngraph::opset6::Reshape>(x, out_shape, false);
-        return {std::make_shared<ngraph::opset6::MatMul>(x_reshaped, y)};
+        return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::MatMul>(x_reshaped, y)});
     }
-    return {std::make_shared<ngraph::opset6::MatMul>(x, y)};
+    return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::MatMul>(x, y)});
 
 }
 

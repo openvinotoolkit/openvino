@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector multiclass_nms (const NodeContext& node);
+NamedOutputs multiclass_nms (const NodeContext& node);
 
 }}}}

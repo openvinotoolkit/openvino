@@ -62,6 +62,9 @@ public:
 
     // TODO: Further populate get_XXX methods on demand
     ngraph::element::Type get_dtype(const std::string& name, ngraph::element::Type def) const;
+
+    std::vector<std::string> get_all_output_tensor_names() const;
+    std::map<std::string, std::vector<std::string>> get_output_names() const;
 };
 
 }

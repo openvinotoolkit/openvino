@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector leaky_relu (const NodeContext& node);
+NamedOutputs leaky_relu (const NodeContext& node);
 
 }}}}

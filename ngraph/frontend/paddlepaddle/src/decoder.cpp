@@ -147,5 +147,25 @@ bool DecoderPDPDProto::get_bool(const std::string& name, bool def) const
     }
 }
 
+std::vector<std::string> DecoderPDPDProto::get_all_output_tensor_names() const {
+    std::vector<std::string> output_names;
+    for (const auto& output : op.outputs()) {
+        for (const auto& name : output.arguments()) {
+            output_names.push_back(name);
+        }
+    }
+    return output_names;
+}
+
+std::map<std::string, std::vector<std::string>> DecoderPDPDProto::get_output_names() const {
+    std::map<std::string, std::vector<std::string>> output_names;
+    for (const auto& output : op.outputs()) {
+        for (const auto& name : output.arguments()) {
+            output_names[output.parameter()].push_back(name);
+        }
+    }
+    return output_names;
+}
+
 }
 }

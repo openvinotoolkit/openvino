@@ -45,14 +45,14 @@ namespace ngraph {
 namespace frontend {
 namespace pdpd {
 
-std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, Output<Node>>& nodes,
-                                           const std::shared_ptr<OpPlacePDPD>& op_place,
-                                           const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
+NamedOutputs make_ng_node(std::map<std::string, Output<Node>>& nodes,
+                          const std::shared_ptr<OpPlacePDPD>& op_place,
+                          const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
     const auto& op = op_place->getDesc();
     std::cout << "Making node: " << op->type() << std::endl;
 
     MY_ASSERT(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(), "No creator found");
-    std::map<std::string, OutputVector> named_inputs;
+    NamedInputs named_inputs;
     const auto& input_ports = op_place->getInputPorts();
     for (const auto& name_to_port : input_ports) {
         for (int idx = 0; idx < name_to_port.second->getSourceTensors().size(); ++idx) {
@@ -61,8 +61,7 @@ std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, Output<Node>>& 
         }
     }
 
-    OutputVector outputs = CREATORS_MAP.at(op->type())(NodeContext(*op, named_inputs));
-    return outputs[0].get_node_shared_ptr();
+    return CREATORS_MAP.at(op->type())(NodeContext(*op, named_inputs));
 }
 
 bool endsWith(const std::string &str, const std::string &suffix) {
@@ -145,18 +144,12 @@ std::shared_ptr<Function>
                 result->set_friendly_name(input_var_name + "/Result");
                 result_nodes.push_back(result);
             } else {
-                const auto& node = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                const auto& named_outputs = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
                 // set layer name by the name of first output var
-                const auto& first_output_var = op_place->getOutputPorts().begin()->second->getTargetTensorPDPD(0)->getDesc();
-                node->set_friendly_name(first_output_var->name());
-
-                std::cerr << "Named with " << node->get_friendly_name() << "\n";
-                for (const auto &name_to_port : op_place->getOutputPorts()) {
-                    for (size_t idx = 0; idx < name_to_port.second->getTargetTensors().size(); ++idx) {
-                        const auto& var = name_to_port.second->getTargetTensorPDPD(idx)->getDesc();
-                        nodes_dict[var->name()] = node->output(idx);
-                    }
-                }
+//                const auto& first_output_var = op_place->getOutputPorts().begin()->second->getTargetTensorPDPD(0)->getDesc();
+//                node->set_friendly_name(first_output_var->name());
+//                std::cerr << "Named with " << node->get_friendly_name() << "\n";
+                nodes_dict.insert(named_outputs.begin(), named_outputs.end());
             }
         }
     }

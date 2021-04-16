@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector cast (const NodeContext& node);
+NamedOutputs cast (const NodeContext& node);
 
 }}}}

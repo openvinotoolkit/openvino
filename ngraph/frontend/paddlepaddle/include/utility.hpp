@@ -21,7 +21,8 @@
 namespace ngraph {
 namespace frontend {
 
-inline void MY_ASSERT(bool ex, const std::string& msg = "Unspecified error.") {
+inline void MY_ASSERT(bool ex, const std::string& msg = "Unspecified error.")
+{
     if (!ex) throw std::runtime_error(msg);
 }
 

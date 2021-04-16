@@ -22,7 +22,11 @@ namespace ngraph {
 namespace frontend {
 namespace pdpd {
 
-typedef std::map<std::string, OutputVector> NamedInputs;
+using TensorName = std::string;
+using InputPortName = std::string;
+using OutputPortName = std::string;
+using NamedOutputs = std::map<TensorName, Output<Node>>;
+using NamedInputs = std::map<InputPortName, OutputVector>;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate conversion process in the rules code.
 class NodeContext
@@ -70,6 +74,9 @@ public:
             return false;
         }
     }
+
+    std::vector<TensorName> get_output_tensors_names() const { return node.get_all_output_tensor_names(); }
+    std::map<OutputPortName, std::vector<TensorName>> get_output_names() const { return node.get_output_names(); }
 };
 
 template <>
@@ -100,6 +107,18 @@ template <>
 inline ngraph::element::Type NodeContext::get_attribute (const std::string& name, const ngraph::element::Type& def) const
 { return node.get_dtype(name, def); }
 
+
+inline NamedOutputs default_single_output_mapping(const pdpd::NodeContext &context, const std::shared_ptr<Node> &ngraph_node)
+{
+    NamedOutputs named_outputs;
+    const auto& ngraph_outputs = ngraph_node->outputs();
+    const auto& pdpd_op_output_names = context.get_output_tensors_names();
+    MY_ASSERT(ngraph_outputs.size() == 1, "nGraph node must have exactly one output");
+    for (const auto& pdpd_name : pdpd_op_output_names) {
+        named_outputs[pdpd_name] = ngraph_outputs[0];
+    }
+    return named_outputs;
+}
 }
 }
 }

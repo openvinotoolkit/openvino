@@ -22,6 +22,6 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector batch_norm (const NodeContext& node);
+NamedOutputs batch_norm (const NodeContext& node);
 
 }}}}

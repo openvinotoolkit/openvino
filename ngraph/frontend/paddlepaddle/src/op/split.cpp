@@ -22,7 +22,7 @@ namespace ngraph {
 namespace frontend {
 namespace pdpd {
 namespace op {
-    OutputVector split(const NodeContext& node) {
+    NamedOutputs split(const NodeContext& node) {
         using namespace ngraph;
         using namespace opset6;
         const auto& data = node.get_ng_input("X");
@@ -32,7 +32,13 @@ namespace op {
         auto num_or_sections = node.get_attribute<int32_t>("num");
         auto axis = std::make_shared<Constant>(ngraph::element::i32, Shape{}, dim);
 
-        return std::make_shared<ngraph::opset6::Split>(data, axis, num_or_sections)->outputs();
+        NamedOutputs named_outputs;
+        const auto& split_outputs = std::make_shared<ngraph::opset6::Split>(data, axis, num_or_sections)->outputs();
+        const auto out_tensors_names = node.get_output_names()["Out"];
+        for (int idx = 0; idx < out_tensors_names.size(); ++idx) {
+            named_outputs[out_tensors_names[idx]] = split_outputs[idx];
+        }
+        return named_outputs;
     }
 } // namespace op
 } // namespace pdpd

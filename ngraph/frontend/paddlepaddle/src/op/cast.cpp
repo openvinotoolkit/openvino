@@ -22,11 +22,11 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector cast (const NodeContext& node) {
+NamedOutputs cast (const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto out_dtype = node.get_attribute<ngraph::element::Type>("out_dtype");
  
-    return {std::make_shared<ngraph::opset6::Convert>(data, out_dtype)};
+    return default_single_output_mapping(node, {std::make_shared<ngraph::opset6::Convert>(data, out_dtype)});
 }
 
 }}}}

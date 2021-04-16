@@ -22,7 +22,7 @@ namespace frontend {
 namespace pdpd {
 namespace op {
 
-OutputVector softmax(const NodeContext& node);
+NamedOutputs softmax(const NodeContext& node);
 
 } // namespace op
 } // namespace pdpd

@@ -29,7 +29,7 @@ namespace ngraph {
 namespace frontend {
 namespace pdpd {
 
-using CreatorFunction = std::function<OutputVector(const NodeContext &)>;
+using CreatorFunction = std::function<NamedOutputs(const NodeContext &)>;
 
 std::map<std::string, CreatorFunction> get_supported_ops();
 
