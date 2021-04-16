@@ -24,8 +24,9 @@ namespace ngraph
                 ///
                 /// \brief      Constructs Einsum operation.
                 ///
-                /// \param      inputs        Input nodes on which Einsum operation performs contraction
-                /// \param      equation      Einstein summation convention in explicit mode
+                /// \param      inputs        Input nodes on which Einsum operation performs
+                /// contraction \param      equation      Einstein summation convention in explicit
+                /// mode
                 ///
                 Einsum(const OutputVector& inputs, const std::string& equation);
 
@@ -39,7 +40,8 @@ namespace ngraph
             private:
                 std::string m_equation;
 
-                /// \brief      Check equation format and extracts input subscripts and output subscript
+                /// \brief      Check equation format and extracts input subscripts and output
+                /// subscript
                 ///
                 /// \param      input_subscripts      A vector of extracted input subscripts
                 /// \param      output_subscript      An output subscript
