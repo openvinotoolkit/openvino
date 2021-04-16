@@ -71,11 +71,11 @@ namespace ngraph
 
                     // Save the sample coords and weights as they will be identical across all
                     // channels
-                    for (unsigned int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
+                    for (int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
                     {
-                        for (unsigned int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
+                        for (int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
                         {
-                            for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio_y;
+                            for (int y_sample_ind = 0; y_sample_ind < sampling_ratio_y;
                                  y_sample_ind++)
                             {
                                 T sample_y = y1 + static_cast<T>(y_bin_ind) * bin_height +
@@ -151,9 +151,9 @@ namespace ngraph
                     {
                         tmp_out.reserve(pooled_height * pooled_width);
                         unsigned int sample_index = 0;
-                        for (unsigned int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
+                        for (int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
                         {
-                            for (unsigned int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
+                            for (int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
                             {
                                 T pooled_value = 0;
                                 for (unsigned int bin_sample_ind = 0;
