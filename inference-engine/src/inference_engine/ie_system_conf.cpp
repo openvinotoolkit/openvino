@@ -91,7 +91,7 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
 int getNumberOfCPUCores(bool bigCoresOnly) { return parallel_get_max_threads();}
 #if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() { return {0}; }
+std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 #endif
 
@@ -102,7 +102,7 @@ std::vector<int> getAvailableNUMANodes() {
 #if TBB_NUMA_SUPPORT_PRESENT
     return custom::info::numa_nodes();
 #else
-    return {0};
+    return {-1};
 #endif
 }
 #endif
@@ -112,7 +112,7 @@ std::vector<int> getAvailableCoresTypes() {
 #if TBB_HYBRID_CPUS_SUPPORT_PRESENT
     return custom::info::core_types();
 #else
-    return { 0 };
+    return {-1};
 #endif
 }
 

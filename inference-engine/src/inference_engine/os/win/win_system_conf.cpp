@@ -53,7 +53,7 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
 
 #if !(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 // OMP/SEQ threading on the Windows doesn't support NUMA
-std::vector<int> getAvailableNUMANodes() { return std::vector<int>(1, 0); }
+std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 
 }  // namespace InferenceEngine

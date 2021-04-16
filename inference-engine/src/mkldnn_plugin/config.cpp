@@ -27,8 +27,10 @@ Config::Config() {
     #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         #if defined(__APPLE__) || defined(_WIN32)
         // 'CORES' is not implemented for Win/MacOS; so the 'NUMA' is default (on multi-socket machine), and NONE otherwise
-        streamExecutorConfig._threadBindingType = getAvailableNUMANodes().size() > 1
-            ? InferenceEngine::IStreamsExecutor::NUMA : InferenceEngine::IStreamsExecutor::NONE;
+        auto nodes = getAvailableNUMANodes();
+        IE_ASSERT(nodes.size());
+        streamExecutorConfig._threadBindingType = (nodes[0] != -1) // system config is recognized
+                                    ? InferenceEngine::IStreamsExecutor::NUMA : InferenceEngine::IStreamsExecutor::NONE;
         #endif
 
         if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
