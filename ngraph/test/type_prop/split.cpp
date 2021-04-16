@@ -88,6 +88,61 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown)
     }
 }
 
+TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_divisible)
+{
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension(3, 6), 3, 5});
+    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (size_t i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i),
+                  (PartialShape{4, Dimension(1, 2), 3, 5}));
+    }
+}
+
+TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_upper_bound_divisible)
+{
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension(2, 4), 3, 5});
+    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (size_t i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i),
+                  (PartialShape{4, Dimension(0, 1), 3, 5}));
+    }
+}
+
+TEST(type_prop, split_v1_axis_const_invalid_data_axis_dim_interval_known)
+{
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension(1, 2), 3, 5});
+    const auto axis = op::Constant::create(element::i8, {}, {1});
+    const size_t num_splits = 3;
+    try
+    {
+        const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+        FAIL() << "Invalid dimension of data input along axis not detected";
+    }
+    catch(const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+            "The interval maximum of the dimension for data input shape along 'axis' must be "
+            "greater or equal to 'num_splits' attribute.");
+    }
+    catch (...)
+    {
+        FAIL() << "Invalid dimension of data input along axis validation check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, split_v1_axis_const_only_data_rank_known)
 {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));

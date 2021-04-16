@@ -71,7 +71,25 @@ void op::v1::Split::validate_and_infer_types()
         }
         else
         {
-            each_output_shape[axis] = Dimension::dynamic();
+            const auto dim_interval_at_axis = data_ps[axis].get_interval();
+            NODE_VALIDATION_CHECK(
+                this,
+                dim_interval_at_axis.get_max_val() >= static_cast<int64_t>(m_num_splits),
+                "The interval maximum of the dimension for data input shape along 'axis' must be "
+                "greater or equal to 'num_splits' attribute. Got: ",
+                dim_interval_at_axis,
+                " and ",
+                m_num_splits);
+
+            auto dim_interval_at_axis_min =
+                static_cast<int64_t>(dim_interval_at_axis.get_min_val() * (1.0f / m_num_splits));
+            auto dim_interval_at_axis_max = dim_interval_at_axis.get_max_val();
+            if (dim_interval_at_axis.has_upper_bound())
+            {
+                dim_interval_at_axis_max =
+                    static_cast<int64_t>(dim_interval_at_axis_max * (1.0f / m_num_splits));
+            }
+            each_output_shape[axis] = Dimension(dim_interval_at_axis_min, dim_interval_at_axis_max);
         }
     }
     else
