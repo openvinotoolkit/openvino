@@ -174,7 +174,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+    static const precisions_array convert_precision_list {
             {ngraph::element::i64, ngraph::element::i32},
             {ngraph::element::u64, ngraph::element::i32},
             {ngraph::element::u16, ngraph::element::i32},
@@ -183,12 +183,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
             {ngraph::element::boolean, ngraph::element::u8},
     };
 
-    for (auto & precision : convert_precision_list) {
-        manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
-    }
-
+    manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
 
     manager.run_passes(f);
 
