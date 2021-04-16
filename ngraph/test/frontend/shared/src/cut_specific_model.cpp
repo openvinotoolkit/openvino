@@ -167,7 +167,7 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->overrideAllInputs(newPlaces));
+    ASSERT_NO_THROW(m_inputModel->overrideAllOutputs(newPlaces));
 
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
