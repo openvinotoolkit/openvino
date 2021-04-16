@@ -73,7 +73,8 @@ struct CPUStreamsExecutor::Impl {
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
                 : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-               if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
+                #if TBB_HYBRID_CPUS_SUPPORT_PRESENT
+                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
                        _taskArena.reset(new custom::task_arena{concurrency});
                        // TODO: REMOVE THE DEBUG PRINTF
@@ -103,6 +104,7 @@ struct CPUStreamsExecutor::Impl {
                     printf("%s StreamId: %d (wrapped %d) assigned CORE TYPE : %d (total #streams: %d) \n",
                         _impl->_config._name.c_str(), _streamId, streamId_wrapped, static_cast<int>(selected_core_type), total_streams);
                 }
+                #endif
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                  #if TBB_NUMA_SUPPORT_PRESENT
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
