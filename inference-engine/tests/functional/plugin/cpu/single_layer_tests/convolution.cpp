@@ -126,8 +126,8 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
-    // since tails processing for sse41 nspc layout is not supported.
-    if ( (inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos ) {
+    // since tails processing for sse41 nspc layout is not supported yet (see 52736).
+    if ((inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
         auto inpChannels = function->get_parameters().front()->get_shape()[1];
         auto outChannels = function->get_output_shape(0)[1];
         if ((inpChannels % 8) || (outChannels % 8)) {

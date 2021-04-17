@@ -579,10 +579,15 @@ const VecFusingParams fusingParamsSetReducedBF16 {
         fusingSum,
 };
 
-const VecPrcConnectedParams vecPrcConnectParamsFP32only = {{Precision::FP32, Precision::FP32, fusingParamsSetReducedFP32}};
+const VecPrcConnectedParams vecPrcConnectParamsFP32 = {{Precision::FP32, Precision::FP32, fusingParamsSetReducedFP32}};
 const VecPrcConnectedParams vecPrcConnectParams = {{Precision::FP32, Precision::FP32, fusingParamsSetReducedFP32},
                                                    {Precision::BF16, Precision::BF16, fusingParamsSetReducedBF16},
                                                    {Precision::BF16, Precision::FP32, fusingParamsSetReducedBF16}};
+
+const VecPrcConnectedParams vecPrcConnectParamsFP32Default = {{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
+const VecPrcConnectedParams vecPrcConnectParamsDefault = {{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}},
+                                                          {Precision::BF16, Precision::BF16, VecFusingParams{emptyFusingSpec}},
+                                                          {Precision::BF16, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
 
 /* ============= GEMM GroupConvolution ============= */
 const std::vector<groupConvLayerCPUTestParamsSet> gemmGroupConvTestCases = generateSingleGroupConvCPUTestCases(
@@ -605,13 +610,13 @@ const std::vector<groupConvLayerCPUTestParamsSet> gemmGroupConvTestCases = gener
 
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {129, 129}, 4, 2, CPUParams_Gemm_2D, vecPrcConnectParams),
+                                        3, 2, {129, 129}, 4, 2, CPUParams_Gemm_2D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10}, 3, 3, CPUParams_Gemm_2D, vecPrcConnectParams),
+                                        2, 1, {10, 10}, 3, 3, CPUParams_Gemm_2D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {33, 33, 33}, 4, 2, CPUParams_Gemm_3D, vecPrcConnectParams),
+                                        3, 2, {33, 33, 33}, 4, 2, CPUParams_Gemm_3D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10, 10}, 3, 3, CPUParams_Gemm_3D, vecPrcConnectParams)
+                                        2, 1, {10, 10, 10}, 3, 3, CPUParams_Gemm_3D, vecPrcConnectParamsDefault)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_GEMM_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(gemmGroupConvTestCases)),
@@ -629,34 +634,34 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_SSE42_GroupConvTestCases =
 
         //  jcp.ur_w == 3, jcp.ur_w_tail == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 10}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 10}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32),
         //  jcp.ur_w < 3 (jcp.ur_w == jcp.ow)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 4}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 4}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32),
         //  jcp.ur_w == 3, jcp.ur_w_tail == 0
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 11}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 11}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32),
         //  jcp.kw > 7
         makeSingleGroupConvCPUTestCases({3, 8}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 10}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 10}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32),
         //  jcp.nb_oc == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 8, 16, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 8, 16, sse42_GroupConv, vecPrcConnectParamsFP32),
         //  jcp.nb_ic == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 16, 8, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 16, 8, sse42_GroupConv, vecPrcConnectParamsFP32),
         //  ocb_work > 1 (ocb_work == 2)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 8, 40, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 8, 40, sse42_GroupConv, vecPrcConnectParamsFP32),
         //  jcp.nb_ic == 2, ocb_work == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 16, 40, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 16, 40, sse42_GroupConv, vecPrcConnectParamsFP32),
 
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {129, 129}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32only),
+                                        3, 2, {129, 129}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32only)
+                                        2, 1, {10, 10}, 8, 8, sse42_GroupConv, vecPrcConnectParamsFP32Default)
 
         //  not supported jit_sse42 for 3d
         //  makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
@@ -681,38 +686,38 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX2_GroupConvTestCases = 
 
         //  jcp.ur_w == 3, jcp.ur_w_tail == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 10}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 10}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
         //  jcp.ur_w < 3 (jcp.ur_w == jcp.ow)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 4}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 4}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
         //  jcp.ur_w == 3, jcp.ur_w_tail == 0
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 11}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 11}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
         //  jcp.kw > 7
         makeSingleGroupConvCPUTestCases({3, 8}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 10}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 10}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
         //  jcp.nb_oc == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 8, 16, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 8, 16, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
         //  jcp.nb_ic == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 16, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 16, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
         //  ocb_work > 1 (ocb_work == 2)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 8, 40, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 8, 40, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
         //  jcp.nb_ic == 2, ocb_work == 2
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        2, 1, {5, 5}, 16, 40, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {5, 5}, 16, 40, avx2_GroupConv_2D, vecPrcConnectParamsFP32),
 
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {129, 129}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        3, 2, {129, 129}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32only),
+                                        2, 1, {10, 10}, 8, 8, avx2_GroupConv_2D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {33, 33, 33}, 8, 8, avx2_GroupConv_3D, vecPrcConnectParamsFP32only),
+                                        3, 2, {33, 33, 33}, 8, 8, avx2_GroupConv_3D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10, 10}, 8, 8, avx2_GroupConv_3D, vecPrcConnectParamsFP32only)
+                                        2, 1, {10, 10, 10}, 8, 8, avx2_GroupConv_3D, vecPrcConnectParamsFP32Default)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX2_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX2_GroupConvTestCases)),
@@ -739,11 +744,11 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_GroupConvTestCases 
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 3, 2, {129, 129}, 16, 16,
                                         avx512_GroupConv_2D, vecPrcConnectParams),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10}, 16, 16, avx512_GroupConv_2D, vecPrcConnectParams),
+                                        2, 1, {10, 10}, 16, 16, avx512_GroupConv_2D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        3, 2, {33, 33, 33}, 16, 16, avx512_GroupConv_3D, vecPrcConnectParams),
+                                        3, 2, {33, 33, 33}, 16, 16, avx512_GroupConv_3D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {10, 10, 10}, 16, 16, avx512_GroupConv_3D, vecPrcConnectParams)
+                                        2, 1, {10, 10, 10}, 16, 16, avx512_GroupConv_3D, vecPrcConnectParamsDefault)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX512_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX512_GroupConvTestCases)),
@@ -760,26 +765,26 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_SSE42_DW_GroupConvTestCase
 
         //  jcp.ngroups % simd_w == 0, jcp.nb_ch == 1, jcp.nb_ch_blocking == 1 (jcp.ngroups == 8)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        8, 1, {5, 5}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32only),
+                                        8, 1, {5, 5}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32),
         //  jcp.ngroups % simd_w == 0, jcp.nb_ch == 2, jcp.nb_ch_blocking == 2 (jcp.ngroups == 16)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        16, 1, {5, 5}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32only),
+                                        16, 1, {5, 5}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32),
         //  jcp.ngroups % simd_w != 0, jcp.nb_ch == 3, jcp.nb_ch_blocking == 2 (jcp.ngroups == 17) TODO: pad channels not supported for SSE42
         //  makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
         //  17, 1, {5, 5}, 1, 1, conv_sse42_DW_2D, vecPrcConnectParamsFP32only),
         //  jcp.ow > jcp.ur_w (jcp.ow == 7)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        8, 1, {5, 9}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32only),
+                                        8, 1, {5, 9}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32),
 
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 8, 2, {129, 129}, 1, 1,
-                                        sse42_DW_2D, vecPrcConnectParamsFP32only),
+                                        sse42_DW_2D, vecPrcConnectParamsFP32),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        8, 1, {10, 10}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32only),
+                                        8, 1, {10, 10}, 1, 1, sse42_DW_2D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        8, 2, {33, 33, 33}, 1, 1, sse42_DW_3D, vecPrcConnectParamsFP32only),
+                                        8, 2, {33, 33, 33}, 1, 1, sse42_DW_3D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        8, 1, {10, 10, 10}, 1, 1, sse42_DW_3D, vecPrcConnectParamsFP32only)
+                                        8, 1, {10, 10, 10}, 1, 1, sse42_DW_3D, vecPrcConnectParamsFP32Default)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_JIT_SSE42_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
@@ -796,26 +801,26 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX2_DW_GroupConvTestCases
 
         //  jcp.ngroups % simd_w == 0, jcp.nb_ch == 1, jcp.nb_ch_blocking == 1 (jcp.ngroups == 8)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        8, 1, {5, 5}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32only),
+                                        8, 1, {5, 5}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32),
         //  jcp.ngroups % simd_w == 0, jcp.nb_ch == 3, jcp.nb_ch_blocking == 3 (jcp.ngroups == 24)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        24, 1, {5, 5}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32only),
+                                        24, 1, {5, 5}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32),
         //  jcp.ngroups % simd_w != 0, jcp.nb_ch == 4, jcp.nb_ch_blocking == 3 (jcp.ngroups == 25)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        25, 1, {5, 5}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32only),
+                                        25, 1, {5, 5}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32),
         //  jcp.ow > jcp.ur_w (jcp.ow == 7)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        8, 1, {5, 9}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32only),
+                                        8, 1, {5, 9}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32),
 
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 8, 2, {129, 129}, 1, 1,
-                                        avx2_DW_2D, vecPrcConnectParamsFP32only),
+                                        avx2_DW_2D, vecPrcConnectParamsFP32),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        8, 1, {10, 10}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32only),
+                                        8, 1, {10, 10}, 1, 1, avx2_DW_2D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        8, 2, {33, 33, 33}, 1, 1, avx2_DW_3D, vecPrcConnectParamsFP32only),
+                                        8, 2, {33, 33, 33}, 1, 1, avx2_DW_3D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        8, 1, {10, 10, 10}, 1, 1, avx2_DW_3D, vecPrcConnectParamsFP32only)
+                                        8, 1, {10, 10, 10}, 1, 1, avx2_DW_3D, vecPrcConnectParamsFP32Default)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX2_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
@@ -832,25 +837,26 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_DW_GroupConvTestCas
 
         //  jcp.ngroups % simd_w == 0, jcp.nb_ch == 1, jcp.nb_ch_blocking == 1 (jcp.ngroups == 16)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        16, 1, {5, 5}, 1, 1, avx512_DW_2D, vecPrcConnectParamsFP32only),
+                                        16, 1, {5, 5}, 1, 1, avx512_DW_2D, vecPrcConnectParams),
         //  jcp.ngroups % simd_w == 0, jcp.nb_ch == 4, jcp.nb_ch_blocking == 4 (jcp.ngroups == 64)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        64, 1, {5, 5}, 1, 1, avx512_DW_2D, vecPrcConnectParamsFP32only),
+                                        64, 1, {5, 5}, 1, 1, avx512_DW_2D, vecPrcConnectParams),
         //  jcp.ngroups % simd_w != 0, jcp.nb_ch == 5, jcp.nb_ch_blocking == 4 (jcp.ngroups == 65)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        65, 1, {5, 5}, 1, 1, avx512_DW_2D, vecPrcConnectParamsFP32only),
+                                        65, 1, {5, 5}, 1, 1, avx512_DW_2D, vecPrcConnectParams),
         //  jcp.ow > jcp.ur_w (jcp.ow == 7)
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::VALID,
-                                        8, 1, {5, 9}, 1, 1, avx512_DW_2D, vecPrcConnectParamsFP32only),
+                                        8, 1, {5, 9}, 1, 1, avx512_DW_2D, vecPrcConnectParams),
         //  "hard" cases
         makeSingleGroupConvCPUTestCases({3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 16, 2, {129, 129}, 1, 1,
-                                        avx512_DW_2D, vecPrcConnectParamsFP32only),
+                                        avx512_DW_2D, vecPrcConnectParamsDefault),
         makeSingleGroupConvCPUTestCases({2, 4}, {1, 2}, {3, 2}, {2, 1}, {1, 0}, ngraph::op::PadType::EXPLICIT, 16, 1, {10, 10}, 1, 1,
-                                        avx512_DW_2D, vecPrcConnectParamsFP32only),
+                                        avx512_DW_2D, vecPrcConnectParamsDefault),
+        // todo [mkutakov]: fork DW bf16 convolution does not support 3d cases yet 53578
         makeSingleGroupConvCPUTestCases({3, 3, 3}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, ngraph::op::PadType::EXPLICIT,
-                                        16, 2, {33, 33, 33}, 1, 1, avx512_DW_3D, vecPrcConnectParamsFP32only),
+                                        16, 2, {33, 33, 33}, 1, 1, avx512_DW_3D, vecPrcConnectParamsFP32Default),
         makeSingleGroupConvCPUTestCases({2, 3, 4}, {1, 2, 2}, {3, 1, 2}, {2, 2, 1}, {1, 1, 0}, ngraph::op::PadType::EXPLICIT,
-                                        16, 1, {10, 10, 10}, 1, 1, avx512_DW_3D, vecPrcConnectParamsFP32only)
+                                        16, 1, {10, 10, 10}, 1, 1, avx512_DW_3D, vecPrcConnectParamsFP32Default)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
