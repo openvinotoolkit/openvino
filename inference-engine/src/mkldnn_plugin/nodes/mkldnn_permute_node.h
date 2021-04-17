@@ -11,11 +11,11 @@
 #include <utility>
 #include <map>
 #include <memory>
-#include "common/permute_utils.h"
+#include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
 
-class MKLDNNPermuteNode : public MKLDNNNode, PermuteUtils {
+class MKLDNNPermuteNode : public MKLDNNNode {
 public:
     MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNPermuteNode() override = default;
@@ -34,6 +34,7 @@ public:
     }
 
 private:
+    InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;
 
     typedef std::function<void(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> permuteImpl;
@@ -46,6 +47,7 @@ private:
     };
 
     static const std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
+    std::unique_ptr<PermuteKernel> permuteKernel;
 };
 
 }  // namespace MKLDNNPlugin

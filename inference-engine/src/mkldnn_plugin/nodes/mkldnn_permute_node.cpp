@@ -5,7 +5,6 @@
 #include "mkldnn_permute_node.h"
 #include <legacy/ie_layers.h>
 #include <string>
-#include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 
@@ -119,22 +118,23 @@ void MKLDNNPermuteNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    Precision precision = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision();
-    optimizedParams.data_size = precision.size();
+    PermuteUtils::PermuteParams params;
+    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
+    params.order = order;
 
     auto srcDesc = getParentEdgeAt(0)->getDesc();
-    optimizedParams.src_dims = srcDesc.getDims();
-    optimizedParams.src_block_dims = srcDesc.getBlockingDesc().getBlockDims();
-    optimizedParams.src_block_order = srcDesc.getBlockingDesc().getOrder();
-    optimizedParams.src_block_strides = srcDesc.getBlockingDesc().getStrides();
+    params.src_dims = srcDesc.getDims();
+    params.src_block_dims = srcDesc.getBlockingDesc().getBlockDims();
+    params.src_block_order = srcDesc.getBlockingDesc().getOrder();
+    params.src_block_strides = srcDesc.getBlockingDesc().getStrides();
 
     auto dstDesc = getChildEdgeAt(0)->getDesc();
-    optimizedParams.dst_dims = dstDesc.getDims();
-    optimizedParams.dst_block_dims = dstDesc.getBlockingDesc().getBlockDims();
-    optimizedParams.dst_block_order = dstDesc.getBlockingDesc().getOrder();
-    optimizedParams.dst_block_strides = dstDesc.getBlockingDesc().getStrides();
+    params.dst_dims = dstDesc.getDims();
+    params.dst_block_dims = dstDesc.getBlockingDesc().getBlockDims();
+    params.dst_block_order = dstDesc.getBlockingDesc().getOrder();
+    params.dst_block_strides = dstDesc.getBlockingDesc().getStrides();
 
-    prepareConfigParams();
+    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
 static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
@@ -630,25 +630,25 @@ const std::multimap<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl>
 void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    int MB = batchToProcess();
 
     if (prec == Precision::FP32 && !getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
         for (const auto &impl : OptimizedCases) {
-            if (impl.first == order && impl.second.isValidParams(batchToProcess(), srcMemPtr, dstMemPtr)) {
-                impl.second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
+            if (impl.first == order && impl.second.isValidParams(MB, srcMemPtr, dstMemPtr)) {
+                impl.second.execute(MB, srcMemPtr, dstMemPtr);
                 return;
             }
         }
     }
 
-    if (permute_kernel) {
-        auto &jcp = (*permute_kernel).jcp;
-        if (jcp.supported_dynamic_batch)
-            jcp.dst_block_dims[0] = batchToProcess();
-
-        auto srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-        optimizedExecute(srcData, dstData);
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    if (permuteKernel->isOptimized()) {
+        permuteKernel->optimizedExecute(srcData, dstData, MB);
+        return;
     }
+
+    permuteKernel->execute(srcData, dstData, MB);
 }
 
 bool MKLDNNPermuteNode::created() const {

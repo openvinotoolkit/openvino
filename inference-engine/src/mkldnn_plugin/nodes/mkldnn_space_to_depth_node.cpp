@@ -5,21 +5,20 @@
 #include "mkldnn_space_to_depth_node.h"
 
 #include <legacy/ie_layers.h>
-#include <ie_parallel.hpp>
-#include <ie_common.h>
-
-#include <mkldnn_types.h>
+#include <cpu/x64/jit_generator.hpp>
 #include <mkldnn_extension_utils.h>
-#include "common/cpu_memcpy.h"
+#include "common/tensor_desc_creator.h"
 
 #include <string>
 #include <cmath>
 
 #define THROW_ERROR IE_THROW() << "SpaceToDepth layer with name '" << getName() << "' "
 
-using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace mkldnn;
+using namespace mkldnn::impl;
+using namespace mkldnn::impl::cpu::x64;
 
 MKLDNNSpaceToDepthNode::MKLDNNSpaceToDepthNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(layer, eng, cache) {}
@@ -82,10 +81,19 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
     auto srcDims = getParentEdgeAt(0)->getDims();
-    int nDims = srcDims.ToSizeVector().size();
+    const size_t nDims = srcDims.ndims();
+
+    impl_desc_type impl_type;
+    if (mayiuse(impl::cpu::x64::avx512_common)) {
+        impl_type = impl_desc_type::jit_avx512;
+    } else if (mayiuse(cpu::x64::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+    } else if (mayiuse(cpu::x64::sse41)) {
+        impl_type = impl_desc_type::jit_sse42;
+    } else {
+        impl_type = impl_desc_type::ref;
+    }
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
@@ -96,30 +104,27 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
 
-    auto pushSupportedPrimitiveDescriptor = [&](const mkldnn::memory::format_tag memoryFormat) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, memoryFormat);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, memoryFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memoryFormat});
-    };
+    std::vector<TensorDescCreatorTypes> supportedTypes;
+    if (nDims > 2 && impl_type != impl_desc_type::ref) {
+        auto canUseBlocked = [=](const size_t block) {
+            return mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true;
+        };
 
-    auto canUseBlocked = [=](const size_t block) {
-        return mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true;
-    };
-
-    if (nDims == 4) {
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nhwc);
-        if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw8c);
-        if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw16c);
-    } else if (nDims == 5) {
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
-        if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw8c);
-        if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw16c);
+        supportedTypes.push_back(TensorDescCreatorTypes::nspc);
+        if (canUseBlocked(8lu))
+            supportedTypes.push_back(TensorDescCreatorTypes::nCsp8c);
+        if (canUseBlocked(16lu))
+            supportedTypes.push_back(TensorDescCreatorTypes::nCsp16c);
     }
-    pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
+    supportedTypes.push_back(TensorDescCreatorTypes::ncsp);
+    auto creators = TensorDescCreator::getCommonCreators();
+    auto range = TensorDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
+
+    for (auto itr = range.first; itr != range.second; ++itr) {
+        config.inConfs[0].desc = itr->second->createDesc(precision, getParentEdgeAt(0)->getDims().ToSizeVector());
+        config.outConfs[0].desc = itr->second->createDesc(precision, getChildEdgeAt(0)->getDims().ToSizeVector());
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
+    }
 }
 
 void MKLDNNSpaceToDepthNode::createPrimitive() {
@@ -134,7 +139,6 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
 
     SizeVector srcDims = getParentEdgeAt(0)->getBlob()->getTensorDesc().getDims();
     SizeVector dstDims = getChildEdgeAt(0)->getBlob()->getTensorDesc().getDims();
-    prepareParams(srcDims, dstDims);
 
     size_t nDims = srcDims.size();
     const size_t nSpatialDims = nDims - 2;
@@ -143,17 +147,25 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
 
-    order.resize(reshapedRank, 0);
-    optimizedParams.src_block_dims.resize(reshapedRank);
-    optimizedParams.src_block_dims[0] = srcDims[0];
+    PermuteUtils::PermuteParams params;
+    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
+    params.order.resize(reshapedRank, 0);
+    params.src_block_dims.resize(reshapedRank);
+    params.src_block_dims[0] = srcDims[0];
+
+    // reshaping of src dimensions and creating the permutation order for each layout:
+    // new shape: [N, C, D1 / block_size, block_size, D2 / block_size, block_size, ... , DK / block_size, block_size]
+    // order    : mode = blocks_first : [0,  3, 5, ..., K + (K + 1), 1,  2, 4, ..., K + K]
+    //            mode = depth_first  : [0,  1, 3, 5, ..., K + (K + 1),  2, 4, ..., K + K]
+    // where `k` is number of spatial dimensions
 
     auto reshapeAndSetPermOrder = [&](const size_t idx1, const size_t idx2, const size_t shift, const SizeVector& dims) {
         for (size_t i = 0; i < nSpatialDims; i++) {
-            order[i + idx1] = i * 2 + shift;
-            order[i + idx2] = i * 2 + shift + 1;
+            params.order[i + idx1] = i * 2 + shift;
+            params.order[i + idx2] = i * 2 + shift + 1;
 
-            optimizedParams.src_block_dims[order[i + idx1]] = dims[i + shift];
-            optimizedParams.src_block_dims[order[i + idx2]] = blockSize;
+            params.src_block_dims[params.order[i + idx1]] = dims[i + shift];
+            params.src_block_dims[params.order[i + idx2]] = blockSize;
         }
     };
 
@@ -166,23 +178,23 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
             orderShiftForBlocks = nSpatialDims + 2;
             orderShiftForDims = 1;
 
-            order[nSpatialDims + 1] = 1;
-            order[lastIdx] = lastIdx;
+            params.order[nSpatialDims + 1] = 1;
+            params.order[lastIdx] = lastIdx;
 
-            optimizedParams.src_block_dims[order[nSpatialDims + 1]] = srcBlockedDims[1];
-            optimizedParams.src_block_dims[order[lastIdx]] = srcBlockedDims.back();
+            params.src_block_dims[params.order[nSpatialDims + 1]] = srcBlockedDims[1];
+            params.src_block_dims[params.order[lastIdx]] = srcBlockedDims.back();
         } else {
             orderShiftForBlocks = 3;
             orderShiftForDims = nSpatialDims + 4;
 
             size_t extraBlockSize = srcBlockedDims.back() / blockStep;
-            optimizedParams.src_block_dims[1] = srcBlockedDims[1];
-            optimizedParams.src_block_dims[lastIdx] = extraBlockSize;
-            optimizedParams.src_block_dims[lastIdx - 1] = blockStep;
+            params.src_block_dims[1] = srcBlockedDims[1];
+            params.src_block_dims[lastIdx] = extraBlockSize;
+            params.src_block_dims[lastIdx - 1] = blockStep;
 
-            order[1] = 1;
-            order[2] = lastIdx - 1;
-            order[lastIdx - nSpatialDims] = lastIdx;
+            params.order[1] = 1;
+            params.order[2] = lastIdx - 1;
+            params.order[lastIdx - nSpatialDims] = lastIdx;
         }
 
         reshapeAndSetPermOrder(orderShiftForBlocks, orderShiftForDims, firstSpatialOrder, dstBlockedDims);
@@ -194,155 +206,32 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
         firstSpatialOrder = 1;
 
         size_t shift = static_cast<size_t>(mode == DEPTH_FIRST) + nSpatialDims + 1;
-        order[mode == Mode::DEPTH_FIRST ? nSpatialDims + 1 : lastIdx] = lastIdx;
-        optimizedParams.src_block_dims[lastIdx] = srcDims.back();
+        params.order[mode == Mode::DEPTH_FIRST ? nSpatialDims + 1 : lastIdx] = lastIdx;
+        params.src_block_dims[lastIdx] = srcDims.back();
 
         reshapeAndSetPermOrder(firstSpatialOrder, shift, firstSpatialOrder, dstDims);
     } else {
         size_t shift = static_cast<size_t>(mode == DEPTH_FIRST) + 1;
-        order[mode == Mode::DEPTH_FIRST ? 1 : nSpatialDims + 1] = 1;
-        optimizedParams.src_block_dims[1] = srcDims[1];
+        params.order[mode == Mode::DEPTH_FIRST ? 1 : nSpatialDims + 1] = 1;
+        params.src_block_dims[1] = srcDims[1];
 
         reshapeAndSetPermOrder(nSpatialDims + firstSpatialOrder, shift, firstSpatialOrder, dstDims);
     }
 
-    prepareOptimizedParams(getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision());
-    prepareConfigParams();
+    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params, false));
 }
 
 void MKLDNNSpaceToDepthNode::execute(mkldnn::stream strm) {
-    auto srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     int MB = batchToProcess();
-    if (params.shape5D[0] != MB)
-        params.shape5D[0] = MB;
-
-    if (permute_kernel) {
-        auto &jcp = (*permute_kernel).jcp;
-        if (jcp.dst_block_dims[0] != MB)
-            jcp.dst_block_dims[0] = MB;
-
-        optimizedExecute(srcData, dstData);
+    if (permuteKernel->isOptimized()) {
+        permuteKernel->optimizedExecute(srcData, dstData, MB);
         return;
     }
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
-        const size_t srcCountBlocks = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getBlockingDesc().getBlockDims()[1];
-        const size_t block = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getBlockingDesc().getBlockDims().back();
-        const size_t blockRemainder = params.srcChannels % block;
-        const size_t lastBlock = blockRemainder == 0 ? block : blockRemainder;
-
-        const size_t dstBlock = block * params.shape5D[2] * params.shape5D[3] * params.shape5D[4];
-        const size_t srcBlock = block * params.shape5D[2] * params.block3D[0] * params.shape5D[3] * params.block3D[1] *
-                                params.shape5D[4] * params.block3D[2];
-
-        parallel_for2d(params.shape5D[0], params.shape5D[2], [&](size_t i0, size_t i2) {
-            const size_t srcIdx1 = i0 * srcBlock * srcCountBlocks;
-            const size_t dstIdx1 = i0 * params.batchStep + i2 * params.shape5D[3] * params.shape5D[4] * block;
-            for (size_t b2 = 0; b2 < params.block3D[0]; ++b2) {
-                const size_t blk2 = (b2 * params.block3D[1] * params.block3D[2] * params.blockShift);
-                const size_t blockNum2 = blk2 / block;
-                const size_t blockRemainder2 = blk2 - blockNum2 * block;
-
-                const size_t srcIdx2 = srcIdx1 + (i2 * params.block3D[0] + b2) * params.shape5D[3] * params.block3D[1] *
-                                       params.shape5D[4] * params.block3D[2] * block;
-                const size_t dstIdx2 = dstIdx1 + blockNum2 * dstBlock;
-                for (size_t b3 = 0; b3 < params.block3D[1]; ++b3) {
-                    const size_t blk3 = (blockRemainder2 + b3 * params.blockShift * params.block3D[2]);
-                    const size_t blockNum3 = blk3 / block;
-                    const size_t blockRemainder3 = blk3 - blockNum3 * block;
-
-                    for (size_t i3 = 0; i3 < params.shape5D[3]; ++i3) {
-                        const size_t srcIdx3 = srcIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2] * block;
-                        const size_t dstIdx3 = dstIdx2 + i3 * params.shape5D[4] * block + blockNum3 * dstBlock;
-                        for (size_t b4 = 0; b4 < params.block3D[2]; ++b4) {
-                            const size_t blk4 = (blockRemainder3 + b4 * params.blockShift);
-                            const size_t blockNum4 = blk4 / block;
-                            const size_t blockRemainder4 = blk4 - blockNum4 * block;
-
-                            for (size_t i4 = 0; i4 < params.shape5D[4]; ++i4) {
-                                const size_t srcIdx4 = srcIdx3 + (i4 * params.block3D[2] + b4) * block;
-                                const size_t dstIdx4 = dstIdx3 + i4 * block + blockNum4 * dstBlock;
-                                for (size_t i5 = 0; i5 < srcCountBlocks; ++i5) {
-                                    const size_t size = (i5 == srcCountBlocks - 1) ? lastBlock : block;
-                                    for (size_t i6 = 0; i6 < size; ++i6) {
-                                        const size_t blk5 = blockRemainder4 + (i6 + i5 * block) * params.channelShift;
-                                        const size_t blockNum5 = blk5 / block;
-                                        const size_t blockRemainder5 = blk5 - blockNum5 * block;
-
-                                        const size_t dstIdx5 = dstIdx4 + blockRemainder5 + blockNum5 * dstBlock;
-                                        const size_t srcIdx5 = srcIdx4 + i6 + i5 * srcBlock;
-                                        cpu_memcpy(dstData + dstIdx5 * optimizedParams.data_size,
-                                                   srcData + srcIdx5 * optimizedParams.data_size,
-                                                   optimizedParams.data_size);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    } else if (getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
-        parallel_for2d(params.shape5D[0], params.shape5D[2], [&](size_t i0, size_t i2) {
-            const size_t srcIdx1 = i0 * params.batchStep;
-            const size_t dstIdx1 = i0 * params.batchStep;
-            for (size_t b2 = 0; b2 < params.block3D[0]; b2++) {
-                const size_t srcIdx2 = srcIdx1 + (i2 * params.block3D[0] + b2) * params.shape5D[3] * params.block3D[1] *
-                                       params.shape5D[4] * params.block3D[2] * params.srcChannels;
-                const size_t dstIdx2 = dstIdx1 + i2 * params.shape5D[3] * params.shape5D[4] * params.dstChannels +
-                                       b2 * params.block3D[1] * params.block3D[2] * params.blockShift;
-                for (size_t i3 = 0; i3 < params.shape5D[3]; i3++) {
-                    for (size_t b3 = 0; b3 < params.block3D[1]; b3++) {
-                        const size_t dstIdx3 = dstIdx2 + i3 * params.shape5D[4] * params.dstChannels + b3 * params.block3D[2] * params.blockShift;
-                        const size_t srcIdx3 = srcIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2] * params.srcChannels;
-                        for (size_t i4 = 0; i4 < params.shape5D[4]; i4++) {
-                            for (size_t b4 = 0; b4 < params.block3D[2]; b4++) {
-                                const size_t srcIdx4 = srcIdx3 + (i4 * params.block3D[2] + b4) * params.srcChannels;
-                                const size_t dstIdx4 = dstIdx3 + i4 * params.dstChannels + b4 * params.blockShift;
-                                for (size_t i1 = 0; i1 < params.srcChannels; i1++) {
-                                    const size_t srcIdx5 = srcIdx4 + i1;
-                                    const size_t dstIdx5 = dstIdx4 + i1 * params.channelShift;
-                                    cpu_memcpy(dstData + dstIdx5 * optimizedParams.data_size,
-                                               srcData + srcIdx5 * optimizedParams.data_size,
-                                               optimizedParams.data_size);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    } else {
-        parallel_for2d(params.shape5D[0], params.srcChannels, [&](size_t i0, size_t i1) {
-            const size_t srcIdx1 = i0 * params.batchStep + i1 * blockStep * params.spatialStep;
-            const size_t dstIdx1 = i0 * params.batchStep + i1 * params.channelShift * params.spatialStep;
-            for (size_t i2 = 0; i2 < params.shape5D[2]; i2++) {
-                for (size_t b2 = 0; b2 < params.block3D[0]; b2++) {
-                    const size_t srcIdx2 = srcIdx1 + (i2 * params.block3D[0] + b2) *
-                                           params.shape5D[3] * params.block3D[1] * params.shape5D[4] * params.block3D[2];
-                    const size_t dstIdx2 = dstIdx1 + i2 * params.shape5D[3] * params.shape5D[4] +
-                                           b2 * params.block3D[1] * params.block3D[2] * params.blockShift * params.spatialStep;
-                    for (size_t i3 = 0; i3 < params.shape5D[3]; i3++) {
-                        for (size_t b3 = 0; b3 < params.block3D[1]; b3++) {
-                            const size_t srcIdx3 = srcIdx2 + (i3 * params.block3D[1] + b3) * params.shape5D[4] * params.block3D[2];
-                            const size_t dstIdx3 = dstIdx2 + i3 * params.shape5D[4] + b3 * params.block3D[2] * params.blockShift * params.spatialStep;
-                            for (size_t i4 = 0; i4 < params.shape5D[4]; i4++) {
-                                for (size_t b4 = 0; b4 < params.block3D[2]; b4++) {
-                                    const size_t srcIdx4 = srcIdx3 + i4 * params.block3D[2] + b4;
-                                    const size_t dstIdx4 = dstIdx3 + i4 + b4 * params.blockShift * params.spatialStep;
-                                    cpu_memcpy(dstData + dstIdx4 * optimizedParams.data_size,
-                                               srcData + srcIdx4 * optimizedParams.data_size,
-                                               optimizedParams.data_size);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
+    permuteKernel->execute(srcData, dstData, MB);
 }
 
 bool MKLDNNSpaceToDepthNode::created() const {

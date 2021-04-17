@@ -7,11 +7,11 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
-#include "common/depth_and_space_utils.h"
+#include "common/permute_kernel.h"
 
 namespace MKLDNNPlugin {
 
-class MKLDNNDepthToSpaceNode : public MKLDNNNode, DepthAndSpaceUtils {
+class MKLDNNDepthToSpaceNode : public MKLDNNNode {
 public:
     MKLDNNDepthToSpaceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNDepthToSpaceNode() override = default;
@@ -21,6 +21,18 @@ public:
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+private:
+    enum Mode {
+        BLOCKS_FIRST = 0,
+        DEPTH_FIRST = 1
+    };
+
+    Mode mode;
+    size_t blockSize;
+    size_t blockStep;
+
+    std::unique_ptr<PermuteKernel> permuteKernel;
 };
 
 }  // namespace MKLDNNPlugin
