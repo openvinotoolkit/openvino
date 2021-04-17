@@ -14,6 +14,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/convert_precision.hpp>
 
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
@@ -58,6 +59,8 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
     ngraph::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
+    // Template plugin handles only FP32 networks
+    passManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
     // Example: register plugin specific transformation
     passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
     passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
@@ -115,14 +118,13 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network_impl]
-InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) {
+InferenceEngine::ExecutableNetworkInternal::Ptr
+Plugin::ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetworkImpl");
 
     Configuration cfg(config);
-    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg,
+    return std::make_shared<ExecutableNetwork>(model, cfg,
         std::static_pointer_cast<Plugin>(shared_from_this()));
-
-    return make_executable_network(exec_network_impl);
 }
 // ! [plugin:import_network_impl]
 

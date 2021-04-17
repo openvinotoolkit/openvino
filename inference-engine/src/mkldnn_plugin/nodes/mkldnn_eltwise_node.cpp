@@ -406,7 +406,8 @@ private:
         OV_CASE(LogicalXor, jit_logical_xor_emitter),
         OV_CASE(LogicalNot, jit_logical_not_emitter),
         OV_CASE(PowerStatic, jit_power_static_emitter),
-        OV_CASE(Prelu, jit_prelu_emitter));
+        OV_CASE(Prelu, jit_prelu_emitter),
+        OV_CASE(Erf, jit_erf_emitter));
 
         if (precisions.empty())
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -467,7 +468,8 @@ private:
         OV_CASE(LogicalXor, jit_logical_xor_emitter),
         OV_CASE(LogicalNot, jit_logical_not_emitter),
         OV_CASE(PowerStatic, jit_power_static_emitter),
-        OV_CASE(Prelu, jit_prelu_emitter));
+        OV_CASE(Prelu, jit_prelu_emitter),
+        OV_CASE(Erf, jit_erf_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -779,7 +781,13 @@ MKLDNNEltwiseNode::initializers = {
             alpha = 0.0f;
             beta = 0.0f;
             opType = Gelu;
-            algorithm = mkldnn::algorithm::eltwise_gelu;
+            std::string approximationMode = activationLayer->GetParamAsString("approximation_mode", "erf");
+            if (approximationMode == "erf")
+                algorithm = mkldnn::algorithm::eltwise_gelu_erf;
+            else if (approximationMode == "tanh")
+                algorithm = mkldnn::algorithm::eltwise_gelu_tanh;
+            else
+                IE_THROW() << "Gelu layer with name " << activationLayer->name << " doesn't support approximation mode " << approximationMode;
         }},
         {"elu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
@@ -900,6 +908,11 @@ MKLDNNEltwiseNode::initializers = {
             else
                 IE_THROW() << "Round layer with name " << activationLayer->name << " doesn't support mode " << mode;
         }},
+        {"erf", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Erf;
+        }},
 };
 
 void MKLDNNEltwiseNode::init() {
@@ -972,6 +985,8 @@ void MKLDNNEltwiseNode::init() {
                comparator(layerType, "hsigmoid") ||
                comparator(layerType, "round")) {
         initializers[layerType](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
+    } else if (comparator(layerType, "erf")) {
+        eltwiseOp = Erf;
     } else {
         IE_THROW() << "Unsupported algorithm for Eltwise node with name `" << getName() << "`.";
     }
@@ -983,6 +998,7 @@ size_t MKLDNNEltwiseNode::getOpInputsNum() const {
         case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
         case Mish: case Hsigmoid: case Round:
         case LogicalNot:
+        case Erf:
             return 1;
         case Add: case Subtract: case Multiply: case Divide: case FloorMod: case Mod: case Maximum: case Minimum: case SquaredDifference:
         case PowerDynamic: case Equal: case NotEqual: case Greater: case GreaterEqual: case Less: case LessEqual: case LogicalAnd:
@@ -1733,7 +1749,8 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::algorithm::eltwise_soft_relu:
         case mkldnn::algorithm::eltwise_logistic:
         case mkldnn::algorithm::eltwise_exp:
-        case mkldnn::algorithm::eltwise_gelu:
+        case mkldnn::algorithm::eltwise_gelu_erf:
+        case mkldnn::algorithm::eltwise_gelu_tanh:
         case mkldnn::algorithm::eltwise_clip:
         case mkldnn::algorithm::eltwise_swish:
         case mkldnn::algorithm::eltwise_hswish:

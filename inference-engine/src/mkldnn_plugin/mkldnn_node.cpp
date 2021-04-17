@@ -16,7 +16,6 @@
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_conv_node.h>
-#include <nodes/mkldnn_crop_node.h>
 #include <nodes/mkldnn_deconv_node.h>
 #include <nodes/mkldnn_eltwise_node.h>
 #include <nodes/mkldnn_gemm_node.h>
@@ -41,6 +40,7 @@
 #include <nodes/mkldnn_interpolate_node.h>
 #include <nodes/mkldnn_depth_to_space_node.h>
 #include <nodes/mkldnn_space_to_depth_node.h>
+#include <nodes/mkldnn_strided_slice_node.h>
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
@@ -95,7 +95,6 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Eltwise", Eltwise },
         { "Mod", Eltwise },
         { "Power", Eltwise },
-        { "Crop", Crop },
         { "Reshape", Reshape },
         { "Tile", Tile },
         { "SimplerNMS", SimplerNMS },
@@ -107,6 +106,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Pad", Pad },
         { "Permute", Permute },
         { "SpaceToDepth", SpaceToDepth },
+        { "StridedSlice", StridedSlice },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
         { "GRUCell", RNNCell },
@@ -141,6 +141,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceProd", ReduceProd},
         { "ReduceSum", ReduceSum},
         { "ReduceSumSquare", ReduceSumSquare},
+        { "Erf", Eltwise },
 };
 
 Type TypeFromName(const std::string type) {

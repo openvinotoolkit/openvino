@@ -1,23 +1,10 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import unittest
 
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph, regular_op
+from mo.utils.unittest.graph import build_graph, regular_op, valued_const_with_data, result, connect
 
 nodes = {
     **regular_op('input', {'type': 'Parameter'}),
@@ -139,3 +126,29 @@ class TestPortMethods(unittest.TestCase):
         op1_node = Node(graph, 'Op1')
         op1_node.out_port(0).disconnect()
         self.assertTrue(op1_node.out_port(0).disconnected())
+
+
+class TestForceShape(unittest.TestCase):
+    def test_set_value_and_shape_with_force_shape_attribute_in_op(self):
+        import numpy as np
+        graph = build_graph({**valued_const_with_data('const', np.array([1, 2, 3])), **result()},
+                            [*connect('const', 'output')])
+
+        node = Node(graph, 'const')
+        node['force_shape'] = np.array([2, 5, 7], dtype=np.int64)
+        node.out_port(0).data.set_value(np.zeros(35))
+        self.assertTrue(np.array_equal(node.out_port(0).data.get_shape(), np.array([2, 5, 7], dtype=np.int64)),
+                        "node.out_port(0).data.get_shape()={} != [2, 5, 7]".format(node.out_port(0).data.get_shape()))
+
+    def test_set_value_and_shape_with_force_shape_attribute_in_data(self):
+        import numpy as np
+        graph = build_graph({**valued_const_with_data('const', np.array([1, 2, 3])), **result()},
+                            [*connect('const', 'output')])
+
+        node = Node(graph, 'const')
+        Node(graph, 'const_d')['force_shape'] = np.array([2, 5, 7], dtype=np.int64)
+        node.out_port(0).data.set_value(np.zeros(30))
+        self.assertTrue(np.array_equal(node.out_port(0).data.get_shape(), np.array([2, 5, 7], dtype=np.int64)),
+                        "node.out_port(0).data.get_shape()={} != [2, 5, 7]".format(
+                            node.out_port(0).data.get_shape()))
+

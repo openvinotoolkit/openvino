@@ -10,6 +10,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::LogicalReduction, "LogicalReduction", 1);
+
 op::util::LogicalReduction::LogicalReduction() {}
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
@@ -95,7 +97,7 @@ void op::util::LogicalReduction::validate_and_infer_types()
         }
 
         std::vector<Dimension> dims;
-        for (size_t i = 0; i < input_rank.get_length(); i++)
+        for (int64_t i = 0; i < input_rank.get_length(); i++)
         {
             if (reduction_axes.count(i) == 0)
             {

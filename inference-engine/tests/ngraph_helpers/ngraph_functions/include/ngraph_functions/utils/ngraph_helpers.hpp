@@ -120,7 +120,9 @@ enum ActivationTypes {
     Swish,
     HSigmoid,
     RoundHalfToEven,
-    RoundHalfAwayFromZero
+    RoundHalfAwayFromZero,
+    GeluErf,
+    GeluTanh
 };
 
 enum EltwiseTypes {
@@ -131,7 +133,8 @@ enum EltwiseTypes {
     SQUARED_DIFF,
     POWER,
     FLOOR_MOD,
-    MOD
+    MOD,
+    ERF
 };
 
 enum ComparisonTypes {
