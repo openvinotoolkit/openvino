@@ -231,7 +231,7 @@ CV_ALWAYS_INLINE void horizontal_anyLPI(std::array<std::array<uint8_t*, 4>, chan
 CV_ALWAYS_INLINE void vertical_4LPI(const uint8_t* src0[], const uint8_t* src1[],
                                     uchar tmp[], const short beta[], const int length) {
     constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
-    const int half_nlanes = nlanes / 2;
+    constexpr int half_nlanes = nlanes / 2;
     GAPI_Assert(length >= half_nlanes);
 
     v_int16 b0 = vx_setall_s16(beta[0]);
@@ -239,8 +239,8 @@ CV_ALWAYS_INLINE void vertical_4LPI(const uint8_t* src0[], const uint8_t* src1[]
     v_int16 b2 = vx_setall_s16(beta[2]);
     v_int16 b3 = vx_setall_s16(beta[3]);
 
-    //v_int16 lo, hi;
-    //v_int32 res1, res2;
+    v_int16 lo1, hi1, lo2, hi2;
+    v_int32 res1_s32, res2_s32;
     int w = 0;
     for (;;) {
         for (; w <= length - half_nlanes; w += half_nlanes) {
@@ -263,59 +263,30 @@ CV_ALWAYS_INLINE void vertical_4LPI(const uint8_t* src0[], const uint8_t* src1[]
             v_int16 r1 = v_add_wrap(val1_1, t1);
             v_int16 r2 = v_add_wrap(val1_2, t2);
             v_int16 r3 = v_add_wrap(val1_3, t3);
-#if 0
-            v_interleave(r0, r1, lo, hi);
-            v_int32 v3 = v_reinterpret_as_s32(lo);
-            v_int32 v4 = v_reinterpret_as_s32(hi);
 
-            v_interleave(v3, v4, res1, res2);
-            v_int16 res3 = v_reinterpret_as_s16(res1);
-            v_int16 res4 = v_reinterpret_as_s16(res2);
+            v_interleave(r0, r1, lo1, hi1);
+            v_interleave(r2, r3, lo2, hi2);
 
-            v_pack_u_store(&tmp[4 * w + 0], res3);
-            v_pack_u_store(&tmp[4 * w + half_nlanes], res4);
+            v_int32 lo1_s32 = v_reinterpret_as_s32(lo1);
+            v_int32 hi1_s32 = v_reinterpret_as_s32(hi1);
+            v_int32 lo2_s32 = v_reinterpret_as_s32(lo2);
+            v_int32 hi2_s32 = v_reinterpret_as_s32(hi2);
 
-            v_interleave(r2, r3, lo, hi);
-            v_int32 v5 = v_reinterpret_as_s32(lo);
-            v_int32 v6 = v_reinterpret_as_s32(hi);
+            v_interleave(lo1_s32, lo2_s32, res1_s32, res2_s32);
 
-            v_interleave(v5, v6, res1, res2);
-            v_int16 res5 = v_reinterpret_as_s16(res1);
-            v_int16 res6 = v_reinterpret_as_s16(res2);
+            v_int16 res1 = v_reinterpret_as_s16(res1_s32);
+            v_int16 res2 = v_reinterpret_as_s16(res2_s32);
 
-            v_pack_u_store(&tmp[4 * w + 2*half_nlanes], res5);
-            v_pack_u_store(&tmp[4 * w + 3*half_nlanes], res6);
-#else
-            int16x8x2_t p1 = vzipq_s16(r0.val, r1.val);
-            int16x8x2_t p2 = vzipq_s16(r2.val, r3.val);
+            v_pack_u_store(&tmp[4 * w + 0], res1);
+            v_pack_u_store(&tmp[4 * w + half_nlanes], res2);
 
-            int16x8_t p1lo = p1.val[0];
-            int16x8_t p1hi = p1.val[1];
+            v_interleave(hi1_s32, hi2_s32, res1_s32, res2_s32);
 
-            int16x8_t p2lo = p2.val[0];
-            int16x8_t p2hi = p2.val[1];
+            v_int16 res3 = v_reinterpret_as_s16(res1_s32);
+            v_int16 res4 = v_reinterpret_as_s16(res2_s32);
 
-            int32x4_t p1loRe32 = vreinterpretq_s32_s16(p1lo);
-            int32x4_t p2loRe32 = vreinterpretq_s32_s16(p2lo);
-            int32x4x2_t p3 = vzipq_s32(p1loRe32, p2loRe32);
-            int16x8_t p3lo = vreinterpretq_s16_s32(p3.val[0]);
-            int16x8_t p3hi = vreinterpretq_s16_s32(p3.val[1]);
-            uint8x8_t a1 = vqmovun_s16(p3lo);
-            uint8x8_t b1 = vqmovun_s16(p3hi);
-            v_uint8 q4(vcombine_u8(a1, b1));
-
-            int32x4_t p1hiRe32 = vreinterpretq_s32_s16(p1hi);
-            int32x4_t p2hiRe32 = vreinterpretq_s32_s16(p2hi);
-            int32x4x2_t p4 = vzipq_s32(p1hiRe32, p2hiRe32);
-            int16x8_t p4lo = vreinterpretq_s16_s32(p4.val[0]);
-            int16x8_t p4hi = vreinterpretq_s16_s32(p4.val[1]);
-            uint8x8_t a2 = vqmovun_s16(p4lo);
-            uint8x8_t b2 = vqmovun_s16(p4hi);
-            v_uint8 q5(vcombine_u8(a2, b2));
-
-            vx_store(&tmp[4 * w + 0], q4);
-            vx_store(&tmp[4 * w + 2 * half_nlanes], q5);
-#endif
+            v_pack_u_store(&tmp[4 * w + 2*half_nlanes], res3);
+            v_pack_u_store(&tmp[4 * w + 3*half_nlanes], res4);
         }
 
         if (w < length) {
@@ -332,7 +303,7 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
                                       const short clone[],
                                       const int length) {
     constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
-    const int half_nlanes = nlanes / 2;
+    constexpr int half_nlanes = nlanes / 2;
     GAPI_Assert(length >= half_nlanes);
 
     const int shift = static_cast<int>(half_nlanes / 4);
@@ -513,7 +484,6 @@ void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3>& dst,
                       const short    mapsx[],
                       const short    beta[],
                           uint8_t    tmp[],
-                    const uint8_t    vmask[],
                     const uint8_t    hmask[],
                       const Size&    inSz,
                       const Size&    outSz,
@@ -531,7 +501,6 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4>& dst,
                       const short    mapsx[],
                       const short    beta[],
                           uint8_t    tmp[],
-                    const uint8_t    vmask[],
                     const uint8_t    hmask[],
                       const Size&    inSz,
                       const Size&    outSz,
@@ -606,12 +575,11 @@ CV_ALWAYS_INLINE void horizontal_4LPI(uint8_t* dst[],
     }
 }
 
-CV_ALWAYS_INLINE void horizontal_anyLPI(uint8_t* dst[],
+CV_ALWAYS_INLINE void horizontal_anyLPI(uint8_t* dst,
                                         const uchar* src, const short mapsx[],
-                                        const short alpha[], const int length,
-                                        const int line) {
+                                        const short alpha[], const int length) {
     constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
-    const int half_nlanes = nlanes / 2;
+    constexpr int half_nlanes = nlanes / 2;
     GAPI_Assert(length >= half_nlanes);
     v_int16 t0, t1;
     int x = 0;
@@ -622,7 +590,7 @@ CV_ALWAYS_INLINE void horizontal_anyLPI(uint8_t* dst[],
 
             v_deinterleave_expand(t, t0, t1);
             v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
-            v_pack_u_store(&dst[line][x], d);
+            v_pack_u_store(&dst[x], d);
         }
 
         if (x < length) {
@@ -657,79 +625,26 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     if (!xRatioEq && !yRatioEq) {
         GAPI_Assert(inSz.width >= half_nlanes);
 
+        uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
+                                           1, 5, 9, 13, 3, 7, 11, 15 };
         if (4 == lpi) {
             // vertical pass
-#if 0
-            v_int16 b0 = vx_setall_s16(beta[0]);
-            v_int16 b1 = vx_setall_s16(beta[1]);
-            v_int16 b2 = vx_setall_s16(beta[2]);
-            v_int16 b3 = vx_setall_s16(beta[3]);
-
-            uchar _mask_vertical[nlanes] = { 0, 8, 4, 12, 1, 9, 5, 13,
-                                            2, 10, 6, 14, 3, 11, 7, 15 };
-            v_uint8 vmask = vx_load(_mask_vertical);
-
-            int w = 0;
-            for (;;) {
-                for (; w <= inSz.width - half_nlanes; w += half_nlanes) {
-                    v_int16 val0_0 = v_reinterpret_as_s16(vx_load_expand(&src0[0][w]));
-                    v_int16 val0_1 = v_reinterpret_as_s16(vx_load_expand(&src0[1][w]));
-                    v_int16 val0_2 = v_reinterpret_as_s16(vx_load_expand(&src0[2][w]));
-                    v_int16 val0_3 = v_reinterpret_as_s16(vx_load_expand(&src0[3][w]));
-
-                    v_int16 val1_0 = v_reinterpret_as_s16(vx_load_expand(&src1[0][w]));
-                    v_int16 val1_1 = v_reinterpret_as_s16(vx_load_expand(&src1[1][w]));
-                    v_int16 val1_2 = v_reinterpret_as_s16(vx_load_expand(&src1[2][w]));
-                    v_int16 val1_3 = v_reinterpret_as_s16(vx_load_expand(&src1[3][w]));
-
-                    v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), b0);
-                    v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), b1);
-                    v_int16 t2 = v_mulhrs(v_sub_wrap(val0_2, val1_2), b2);
-                    v_int16 t3 = v_mulhrs(v_sub_wrap(val0_3, val1_3), b3);
-
-                    v_int16 r0 = v_add_wrap(val1_0, t0);
-                    v_int16 r1 = v_add_wrap(val1_1, t1);
-                    v_int16 r2 = v_add_wrap(val1_2, t2);
-                    v_int16 r3 = v_add_wrap(val1_3, t3);
-
-                    v_uint8 q0 = v_pack_u(r0, r1);
-                    v_uint8 q1 = v_pack_u(r2, r3);
-
-                    v_uint8 q2 = v_blend<0xCC /*0b11001100*/>(q0, v_shift_left<4>(q1));
-                    v_uint8 q3 = v_blend<0xCC /*0b11001100*/>(v_shift_right<4>(q0), q1);
-
-                    v_uint8 q4 = v_shuffle(q2, vmask);
-                    v_uint8 q5 = v_shuffle(q3, vmask);
-
-                    vx_store(&tmp[4 * w + 0], q4);
-                    vx_store(&tmp[4 * w + 2 * half_nlanes], q5);
-                }
-
-                if (w < inSz.width) {
-                    w = inSz.width - half_nlanes;
-                    continue;
-                }
-                break;
-            }
-#else
             vertical_4LPI(src0, src1, tmp, beta, inSz.width);
-#endif
 
             // horizontal pass
-            uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
-                                                1, 5, 9, 13, 3, 7, 11, 15 };
              horizontal_4LPI(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
         } else {  // if any lpi
             for (int l = 0; l < lpi; ++l) {
                 short beta0 = beta[l];
                 const uchar* s0 = src0[l];
                 const uchar* s1 = src1[l];
+                uchar* _dst = dst[l];
 
                 // vertical pass
                 vertical_anyLPI(s0, s1, tmp, inSz.width, beta0);
 
                 // horizontal pass
-                horizontal_anyLPI(dst, tmp, mapsx, alpha, outSz.width, l);
+                horizontal_anyLPI(_dst, tmp, mapsx, alpha, outSz.width);
             }
         }  // if lpi == 4
 
@@ -758,15 +673,16 @@ void calcRowLinear_8UC1(uint8_t* dst[],
 
             // horizontal pass
             uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
-                                                1, 5, 9, 13, 3, 7, 11, 15 };
+                                               1, 5, 9, 13, 3, 7, 11, 15 };
             horizontal_4LPI(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
         } else {  // any LPI
             GAPI_Assert(outSz.width >= half_nlanes);
             for (int l = 0; l < lpi; ++l) {
                 const uchar* src = src0[l];
+                uchar* _dst = dst[l];
 
                 // horizontal pass
-                horizontal_anyLPI(dst, src, mapsx, alpha, outSz.width, l);
+                horizontal_anyLPI(_dst, src, mapsx, alpha, outSz.width);
             }
         }
 
