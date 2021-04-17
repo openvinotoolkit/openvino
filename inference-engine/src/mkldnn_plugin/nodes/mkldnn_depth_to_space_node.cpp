@@ -105,7 +105,7 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant = false;
 
     std::vector<TensorDescCreatorTypes> supportedTypes;
-    if (nDims > 2 && impl_type != impl_desc_type::ref) {
+    if (nDims > 2) {
         auto canUseBlocked = [=](const size_t block) {
             return srcDims[1] % block == 0 && (mode == Mode::BLOCKS_FIRST ? (srcDims[1] / block) % blockStep == 0 : block % blockStep == 0);
         };

@@ -139,7 +139,7 @@ private:
     Xbyak::Xmm xmm = Xbyak::Xmm(0);
 };
 
-PermuteKernel::PermuteKernel(const PermuteUtils::PermuteParams& params, const bool areDefault) : params(params) {
+PermuteKernel::PermuteKernel(const PermuteParams& params, const bool areDefault) : params(params) {
     if (!areDefault)
         prepareDefaultParams();
 
