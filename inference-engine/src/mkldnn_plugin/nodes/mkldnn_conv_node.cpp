@@ -234,8 +234,10 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                                                                                                   : memory::format_tag::nhwc);
         createDescriptor({in_candidate}, {out_candidate});
     } else {
-        inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16) ? memory::data_type::bf16 : memory::data_type::f32;
-        outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16) ? memory::data_type::bf16 : memory::data_type::f32;
+        inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
+                && !(isDW && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
+        outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16
+                && !(isDW && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
         eltwisePrecision = Precision::FP32;
         for (int i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == EltwiseAdd) {
