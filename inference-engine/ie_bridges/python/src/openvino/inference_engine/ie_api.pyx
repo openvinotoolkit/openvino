@@ -214,13 +214,7 @@ cdef class Blob:
 
     def __deepcopy__(self, memodict):
         res = Blob(deepcopy(self.tensor_desc, memodict), deepcopy(self._array_data, memodict))
-        precision = self.tensor_desc.precision
-        if precision == "FP16":
-            res.buffer[:] = deepcopy(self.buffer[:].view(dtype=np.float16), memodict)
-        elif precision == "BF16":
-            raise BufferError("Can't represent BF16 precision in python memory")
-        else:
-            res.buffer[:] = deepcopy(self.buffer[:], memodict)
+        res.buffer[:] = deepcopy(self.buffer[:], memodict)
         return res
 
     ## Blob's memory as numpy.ndarray representation
@@ -1539,5 +1533,15 @@ cdef class BlobBuffer:
 
         return precision_to_format[name].encode()
 
-    def to_numpy(self):
-        return np.asarray(self)
+    def to_numpy(self): 
+        precision = deref(self.ptr).getTensorDesc().getPrecision()
+        name = bytes(precision.name()).decode()   
+        if name == "FP16":    
+            return np.asarray(self).view(dtype=np.float16)
+        elif name == "BF16":
+            raise BufferError("Can't represent BF16 precision in python memory")
+        else:
+            return np.asarray(self)
+
+
+
