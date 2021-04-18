@@ -6448,7 +6448,16 @@ struct permute_reorder_params {
 #define CASE_PERMUTE_REORDER_TILED_F32_3 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
 
 // permute opt for blocked format => reorder to different dim/type
-#define CASE_PERMUTE_REORDER_TILED_F32_4 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_I8_4 {1, 45, 1, 3, 259}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_5 {1, 48, 3, 256}, {0, 3, 1, 2}, {0, 2, 4, 3, 1},  data_types::f16, data_types::f32, format::b_fs_yx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_TILED_F16_6 {1, 48, 2, 3, 256}, {0, 4, 1, 2, 3}, {0, 2, 5, 4, 3, 1},  data_types::f16, data_types::f32, format::b_fs_zyx_fsv16, format::bfwzyx
+
+// permute opt for non_blocked format => reorder to differnt dim/type
+#define CASE_PERMUTE_REORDER_TILED_F16_7 {1, 48, 2, 3, 256}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f16, data_types::f32, format::bfzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_8 {1, 28, 2, 2, 3, 256}, {0, 5, 1, 2, 3, 4}, {0, 2, 3, 1},  data_types::f16, data_types::f32, format::bfwzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_9 {1, 24, 2, 3, 256}, {0, 4, 1, 2, 3}, {0, 2, 3, 1},  data_types::f16, data_types::f32, format::bfzyx, format::bfyx
+#define CASE_PERMUTE_REORDER_TILED_F16_10 {1, 35, 3, 253}, {0, 3, 1, 2}, {0, 2, 4, 3, 1},  data_types::f16, data_types::f32, format::bfyx, format::bfzyx
+#define CASE_PERMUTE_REORDER_TILED_F16_11 {1, 32, 3, 253}, {0, 3, 1, 2}, {0, 2, 4, 5, 3, 1},  data_types::f16, data_types::f32, format::bfyx, format::bfwzyx
 
 class PermuteReorderFusingTest : public ::BaseFusingTest<permute_reorder_params> {
 public:
@@ -6504,7 +6513,14 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_redundant_reorder,
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_1, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_2, 3, 4},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_3, 3, 4},
-                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_4, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_I8_4, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_5, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_6, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_7, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_8, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_9, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_10, 3, 4},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_11, 3, 4},
                                 }),);
 
 class permute_act_reorder : public PermuteReorderFusingTest {};
@@ -6541,6 +6557,13 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_act_reorder,
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_1, 3, 5},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_2, 3, 5},
                                 permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F32_3, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_5, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_6, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_7, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_8, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_9, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_10, 3, 5},
+                                permute_reorder_params{CASE_PERMUTE_REORDER_TILED_F16_11, 3, 5},
                                 }),);
 
 class NormalizeFusingTest : public ::BaseFusingTest<normalize_test_params> {

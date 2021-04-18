@@ -42,6 +42,7 @@ ParamsKey PermuteKernel_tile_8x8_4x4_fsv::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -76,16 +77,43 @@ static inline std::string GetTiledOutputOrder(size_t size) {
     return order_str;
 }
 
-static inline std::string GetReorderedTiledOutputOrder(size_t size) {
+static inline std::string GetReorderedTiledOutputOrder(const permute_params& params) {
+    std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.output.GetDims().size()};
+
     std::string order_str = "";
-    switch (size) {
-        case 4 :
-            order_str = "b, y + lh, x, f";
-            break;
-       case 5 :
-            order_str = "b, z + lh, y, x, f";
-            break;
-       default : throw std::runtime_error("Unsupported combination\n");
+    int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
+    if (dim_diff == 0) {
+        switch (params.output.GetDims().size()) {
+           case 4 :
+                order_str = "b, y + lh, x, f";
+                break;
+           case 5 :
+                order_str = "b, z + lh, y, x, f";
+                break;
+           default : throw std::runtime_error("Unsupported combination\n");
+        }
+    } else if (dim_diff > 0) {
+        // dim is shrinked (5 -> 4 only)
+        order_str = "b, z + lh, y * INPUT0_SIZE_X + x, f";
+    } else {
+        // dim is expanded
+        if (dim_change.first == 4 && dim_change.second == 5) {
+            order_str = ("b, y + lh, x / " + std::to_string(params.output.Y().v)
+                                 + ", x % " + std::to_string(params.output.Y().v)
+                                 + ", f");
+        } else if (dim_change.first == 4 && dim_change.second == 6) {
+            order_str = ("b, y + lh, x / (" + std::to_string(params.output.Y().v)
+                                 + " * " + std::to_string(params.output.Z().v) + ")"
+                                 + ", x / " + std::to_string(params.output.Y().v)
+                                 + ", x % " + std::to_string(params.output.Y().v)
+                                 + ", f");
+        } else if (dim_change.first == 5 && dim_change.second == 6) {
+            order_str = ("b, z + lh, y /" + std::to_string(params.output.Z().v)
+                                 + ", y % " + std::to_string(params.output.Z().v)
+                                 + ", x, f");
+        } else {
+            throw std::runtime_error("Unsupported combination\n");
+        }
     }
     return order_str;
 }
@@ -161,14 +189,15 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     const size_t fsv_alignment = GetFsvAlignment(params);
 
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
-    jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_SLICE_NUM", CeilDiv(f, fsv_alignment)));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
 
     if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
-        jit.AddConstant(MakeJitConstant("REORDERED_OUTPUT_TILED_ORDER", GetReorderedTiledOutputOrder(params.output.GetDims().size())));
+        jit.AddConstant(MakeJitConstant("REORDERED_OUTPUT_TILED_ORDER", GetReorderedTiledOutputOrder(params)));
+    } else {
+        jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
     }
 
     // whether F is tile_size-aligned
@@ -192,8 +221,8 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     }
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> output_order = GetFusedOpOrderVector(output_ndims);
-        FusedOpsConfiguration conf = {"", output_order, "input_var", params.inputs[0].GetDType(), 1};
+        std::vector<std::string> original_output_order = GetFusedOpOrderVector(input_ndims);
+        FusedOpsConfiguration conf = {"", original_output_order, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jit;
@@ -278,27 +307,26 @@ bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p, const optional_pa
     };
 
     const permute_params& params = static_cast<const permute_params&>(p);
-
+    // blocked format => blocked format is not supported
     if (params.inputs[0].GetLayout() != params.output.GetLayout()) {
         if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4) ||
             (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) ||
             (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32)) {
-            if (params.output.GetLayout() != DataLayout::bfyx)
+            if (params.output.GetLayout() != DataLayout::bfyx
+                && params.output.GetLayout() != DataLayout::bfzyx
+                && params.output.GetLayout() != DataLayout::bfwzyx)
                 return false;
         } else if ((params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) ||
                    (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32)) {
-            if (params.output.GetLayout() != DataLayout::bfzyx) {
+            if (params.output.GetLayout() != DataLayout::bfyx
+                && params.output.GetLayout() != DataLayout::bfzyx
+                && params.output.GetLayout() != DataLayout::bfwzyx) {
                 return false;
             }
         } else {
             return false;
         }
     }
-
-    if (params.inputs[0].GetDims().size() != params.output.GetDims().size()) {
-        return false;
-    }
-
     if (!is_rotating_except_batch(params.order)) {
         return false;
     }

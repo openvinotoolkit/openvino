@@ -18,6 +18,8 @@
 #define VLOAD CAT(vload, TILE_SIZE)
 #define VSTORE CAT(vstore, TILE_SIZE)
 #define AS_INPUTVTYPE CAT(as_, INPUTVTYPE)
+#define AS_OUTPUTVTYPE CAT(as_, OUTPUTVTYPE)
+#define TO_OUTPUTVTYPE CAT(convert_, OUTPUTVTYPE)
 
 #define GET_GLOBAL_ID(IDX) ((uint)get_global_id(IDX))
 #define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))
@@ -69,7 +71,7 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
             VSTORE(out_data, 0, output + output_idx);
           #else
             const uint output_idx = OUTPUT_GET_TILED_INDEX(REORDERED_OUTPUT_TILED_ORDER);
-            VSTORE(ACTIVATION(read_data, ACTIVATION_PARAMS), 0, output + output_idx);
+            VSTORE(ACTIVATION(TO_OUTPUTVTYPE(read_data), ACTIVATION_PARAMS), 0, output + output_idx);
           #endif
         }
     }
@@ -87,7 +89,7 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
                 FUSED_OPS;
                 output[output_idx + lw] = FUSED_OPS_RESULT;
               #else
-                output[output_idx + lw] = read_data[lw];
+                output[output_idx + lw] = TO_OUTPUT_TYPE(read_data[lw]);
               #endif
             }
         }
@@ -198,3 +200,20 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
 #endif // F_REMAINDER_CONDITION
 #endif // REORDERED_OUTPUT)TILED_ORDER
 }
+
+#undef unroll_for
+#undef CEIL_DIV(A, B)
+#undef INPUT0_GET_TILED_INDEX(ORDER)
+#undef OUTPUT_GET_TILED_INDEX(ORDER)
+#undef YZ_REMAINDER_LESS_THAN_TILE_SIZE
+#undef YZ_REMAINDER_MORE_THAN_TILE_SIZE
+#undef INPUTVTYPE
+#undef OUTPUTVTYPE
+#undef VLOAD
+#undef VSTORE
+#undef AS_INPUTVTYPE
+#undef AS_OUTPUTVTYPE
+#undef TO_OUTPUTVTYPE
+#undef GET_GLOBAL_ID(IDX)
+#undef GET_LOCAL_ID(IDX)
+#undef GET_LOCAL_SIZE(IDX)
