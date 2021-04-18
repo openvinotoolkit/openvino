@@ -24,8 +24,8 @@ namespace ngraph
 
             // set opset version and domain from the parent graph
             *model_proto->mutable_opset_import() = parent_graph.get_opset_imports();
-            auto model = common::make_unique<Model>(model_proto);
-            return Subgraph{model, parent_graph};
+            auto model = common::make_unique<Model>(std::move(model_proto));
+            return Subgraph{std::move(model), parent_graph};
         }
 
     } // namespace onnx_import
