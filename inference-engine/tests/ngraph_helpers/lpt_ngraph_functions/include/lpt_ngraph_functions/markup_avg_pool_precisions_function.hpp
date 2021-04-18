@@ -23,7 +23,11 @@ public:
         const ngraph::Shape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        // -1 - no Convolution
+        const int convoutionBranch,
+        // -1 - no FakeQuantize
+        const int fakeQuantizeBranch);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,

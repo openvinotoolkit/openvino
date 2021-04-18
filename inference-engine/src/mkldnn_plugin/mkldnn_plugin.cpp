@@ -298,13 +298,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     manager.run_passes(nGraphFunc);
 
-    //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.common").run_on_function(nGraphFunc);
+    // ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.common").run_on_function(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
         OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
-
-        ngraph::pass::Manager manager;
 
         auto supportedPrecisionsOnActivation = std::vector<OperationPrecisionRestriction>({
             OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
@@ -317,29 +315,10 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             })
         });
 
-        //// TODO: transformation refactoring: let's skip it right now: use pattern matching for quantized weights identification
-        //manager.register_pass<ngraph::pass::low_precision::MarkupPortWeights>(supportedPrecisionsOnActivation);
-
-
-        // LayerTransformation::Params(true) - updatePrecisions configuration
+        ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisionsOnActivation);
-
-        // TODO: comment: apply callback for a transformation from all groups
-        //auto pass_config = manager.get_pass_config();
-        //const auto supportedPrecisionsOnActivations = { ngraph::element::u8 };
-        //pass_config->set_callback<MaxPoolTransformation>([&](const_node_ptr& node) -> bool {
-        //    return true;
-        //});
-
-        // just FYI:
-        //pass_config->disable<MaxPoolTransformation>();
-
-        //pass_config->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
-        //    return MultiplyToGroupConvolutionTransformation::checkPrecisionOnActivation(node, supportedPrecisionsOnActivations);
-        //});
-
         manager.run_passes(nGraphFunc);
-        //ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
+        // ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.transformed").run_on_function(nGraphFunc);
     }
 
     bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);

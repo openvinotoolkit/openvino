@@ -8,10 +8,10 @@
 #include <map>
 
 #include "ngraph/descriptor/tensor.hpp"
+#include "ngraph/output_vector.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/output_vector.hpp"
 #include "ngraph/variant.hpp"
 
 namespace ngraph

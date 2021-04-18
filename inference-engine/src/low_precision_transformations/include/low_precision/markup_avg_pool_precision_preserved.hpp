@@ -16,14 +16,15 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API MarkupAvgPoolPrecisions;
+class TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
 
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
 
 // Transformation is used to add customization options runtime
-class ngraph::pass::low_precision::MarkupAvgPoolPrecisions : public ngraph::pass::FunctionPass {
+// TODO: make template: AvgPool => Operation, AvgPoolPrecisionPreserved => Attribute
+class ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved : public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

@@ -13,8 +13,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API AvgPoolTransformation : public LayerTransformation {
 public:
-    AvgPoolTransformation();
-    AvgPoolTransformation(const Params& params);
+    AvgPoolTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;

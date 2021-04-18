@@ -503,7 +503,8 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                         for (const auto& item : rt)
                         {
                             auto attributeValue = item.second->get_string();
-                            label << (first ? " " : ", ") << item.first + "(" + attributeValue + ") ";
+                            label << (first ? " " : ", ")
+                                  << item.first + "(" + attributeValue + ") ";
                             first = false;
                         }
                     }

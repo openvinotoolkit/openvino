@@ -194,6 +194,89 @@ public:
 
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
+    static void replaceAttributeInNodes(
+        std::shared_ptr<ngraph::Function> f,
+        const std::string& name,
+        const std::shared_ptr<ngraph::Variant> newAttribute,
+        const std::shared_ptr<ngraph::Variant> oldAttribute,
+        const std::shared_ptr<ngraph::Node>& initialNode) {
+        std::set<std::shared_ptr<Node>> visited;
+        std::deque<std::shared_ptr<Node>> nodes;
+        nodes.emplace_back(initialNode);
+
+        // bool initialNodeIsNotInitialized = true;
+
+        while (!nodes.empty()) {
+            auto node = nodes.front();
+            nodes.pop_front();
+
+            if (visited.count(node) || is_type<op::Constant>(node)) {
+                continue;
+            }
+
+            visited.insert(node);
+
+            bool handleConnectedNodes = false;
+            if (NetworkHelper::isPrecisionPreserved(node) || is_type<opset1::FakeQuantize>(node)) {
+                auto& rt = node->get_rt_info();
+
+                if (node == initialNode) {
+                    rt[name] = newAttribute;
+                    handleConnectedNodes = true;
+                } else {
+                    auto it = rt.find(name);
+                    if (it != rt.end()) {
+                        const auto currentAttribute = it->second;
+                        if (oldAttribute.get() == currentAttribute.get()) {
+                            rt[name] = newAttribute;
+                        }
+                        handleConnectedNodes = true;
+                    }
+                }
+            }
+
+            if (!handleConnectedNodes) {
+                continue;
+            }
+
+            if (!is_type<opset1::FakeQuantize>(node)) {
+                for (size_t index = 0ul; index < node->get_input_size(); ++index) {
+                    auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
+                        const auto dequantization = NetworkHelper::getDequantization(node, index);
+                        if (!dequantization.empty() &&
+                            (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                            is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                            const auto input = dequantization.data.get_node()->input(0);
+                            return input;
+                        }
+                        return node->input(index);
+                    };
+
+                    const auto& input = getInput(node, index);
+                    const auto& input_node = input.get_source_output().get_node_shared_ptr();
+
+                    //const auto& input_node = input.get_source_output().get_node_shared_ptr();
+                    if (visited.count(input_node) || is_type<op::Constant>(input_node)) {
+                        continue;
+                    }
+
+                    nodes.push_front(input_node);
+                }
+            }
+
+            for (auto& output : node->outputs()) {
+                for (auto& input_value : output.get_target_inputs()) {
+                    const auto& output_node = input_value.get_node()->shared_from_this();
+                    if (visited.count(output_node) || is_type<op::Constant>(output_node)) {
+                        continue;
+                    }
+
+                    nodes.push_front(output_node);
+                }
+            }
+        }
+    }
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
 
@@ -285,6 +368,33 @@ std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<No
     auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
     assert(attribute != nullptr);
     return attribute;
+}
+
+// merge: share between other operations - implicit backward propagation
+template <typename T>
+void mergeAndReplace(
+    std::shared_ptr<ngraph::Function> f,
+    const std::shared_ptr<ngraph::Node>& node,
+    std::shared_ptr<ngraph::VariantWrapper<T>> firstExistingIntervalsAttribute,
+    const std::vector<std::shared_ptr<ngraph::Node>>& inputNodes) {
+    if (firstExistingIntervalsAttribute != nullptr) {
+        auto attribute = firstExistingIntervalsAttribute->merge(inputNodes);
+        auto newAttribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(attribute);
+        assert(newAttribute != nullptr);
+
+        bool wasReplaced = false;
+        for (size_t i = 1ul; i < inputNodes.size(); i++) {
+            auto oldAttribute = ngraph::pass::low_precision::getAttribute<T>(inputNodes[i]);
+            if (oldAttribute != nullptr) {
+                const std::string name = ngraph::VariantWrapper<T>::type_info.name;
+                NetworkHelper::replaceAttributeInNodes(f, name, newAttribute, oldAttribute, node);
+                wasReplaced = true;
+            }
+        }
+        if (!wasReplaced) {
+            node->get_rt_info()[ngraph::VariantWrapper<T>::type_info.name] = newAttribute;
+        }
+    }
 }
 
 }  // namespace low_precision

@@ -21,7 +21,7 @@
 #include <low_precision/align_concat_quantization_parameters.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/markup_precisions.hpp>
-#include <low_precision/markup_avg_pool_precisions.hpp>
+#include <low_precision/markup_avg_pool_precision_preserved.hpp>
 #include <low_precision/propagate_precisions.hpp>
 
 #include <low_precision/concat.hpp>
@@ -127,12 +127,12 @@ public:
             })
         });
 
-#define VISUALIZE_TREE
+// #define VISUALIZE_TREE
 #ifndef VISUALIZE_TREE
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(supportedPrecisionsOnActivation);
-        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
         manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
         manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
 
@@ -156,7 +156,7 @@ public:
 
         {
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+            manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
             manager.run_passes(actualFunction);
             ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
         }

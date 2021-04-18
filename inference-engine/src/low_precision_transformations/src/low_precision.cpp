@@ -8,9 +8,13 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include "ngraph_ops/type_relaxed.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 #include "low_precision/markup_precisions.hpp"
-#include "low_precision/markup_avg_pool_precisions.hpp"
+#include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include "low_precision/propagate_precisions.hpp"
 #include "low_precision/align_concat_quantization_parameters.hpp"
 
@@ -65,9 +69,73 @@ ngraph::pass::low_precision::LowPrecision::LowPrecision(
     const LayerTransformation::Params params) : restrictions(restrictions), params(params) {
 }
 
+template <typename BaseOp>
+void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
+    using namespace ngraph;
+
+    auto is_op_type = [](std::shared_ptr<Node> n) {
+        return !!as_type_ptr<BaseOp>(n);
+    };
+
+    auto p_node = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_op_type);
+
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
+        auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
+        if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
+            return false;
+        }
+        if (!l_node) {
+            THROW_IE_LPT_EXCEPTION(*l_node) << "unexpected operation type";
+        }
+
+        std::vector<element::Type> inputPrecisions;
+        for (auto& inputs : l_node->inputs()) {
+            inputPrecisions.push_back(inputs.get_element_type());
+        }
+
+        std::vector<element::Type> outputPrecisions;
+        for (auto& output : l_node->outputs()) {
+            outputPrecisions.push_back(output.get_element_type());
+        }
+
+        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
+
+        copy_runtime_info(l_node, replacement);
+        replace_node(l_node, replacement);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
+}
+
+ngraph::pass::low_precision::LowPrecision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
+    make_matcher_type_relaxed<opset1::Add>(this);
+    make_matcher_type_relaxed<opset1::AvgPool>(this);
+    make_matcher_type_relaxed<opset1::Clamp>(this);
+    make_matcher_type_relaxed<opset1::Concat>(this);
+    make_matcher_type_relaxed<opset1::Convolution>(this);
+    make_matcher_type_relaxed<opset1::DepthToSpace>(this);
+    make_matcher_type_relaxed<opset1::FakeQuantize>(this);
+    make_matcher_type_relaxed<opset1::GroupConvolution>(this);
+    make_matcher_type_relaxed<opset1::PRelu>(this);
+    make_matcher_type_relaxed<opset1::Subtract>(this);
+    make_matcher_type_relaxed<opset1::Interpolate>(this);
+    make_matcher_type_relaxed<opset1::Multiply>(this);
+    make_matcher_type_relaxed<op::MVN>(this);
+    make_matcher_type_relaxed<opset6::MVN>(this);
+    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
+    make_matcher_type_relaxed<opset4::Interpolate>(this);
+}
+
 bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // TODO: to debug only
     // TransformationContext context(f);
+
+    TypeRelaxedReplacer pass;
+    pass.run_on_function(f);
 
     // pass config should be reused
     const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
@@ -77,7 +145,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     //prerequisites.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
     manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(restrictions);
-    manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+    manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
     manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
     manager.register_pass<ngraph::pass::low_precision::AlignConcatQuantizationParamters>();
 

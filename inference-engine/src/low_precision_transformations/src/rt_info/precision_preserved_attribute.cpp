@@ -69,8 +69,18 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrecisionPreservedAttribute>::me
 }
 
 std::string VariantWrapper<PrecisionPreservedAttribute>::get_string() {
-    auto value = this->m_value;
-    return
-        std::string("value: ") + (value.sharedValue->value ? "true" : "false") +
+    auto& value = this->m_value;
+    std::stringstream ss;
+
+#ifdef _DEBUG
+    const size_t rawPointer = (size_t)&this->m_value;
+    ss << rawPointer << ": ";
+
+    const size_t sharedRawPointer = (size_t)value.sharedValue.get();
+    ss << "shared: " << sharedRawPointer << ",";
+#endif
+
+    ss << "value: " << (value.sharedValue->value ? "true" : "false") <<
         (value.sharedValue->operationName.empty() ? "" : ", operation: " + value.sharedValue->operationName);
+    return ss.str();
 }

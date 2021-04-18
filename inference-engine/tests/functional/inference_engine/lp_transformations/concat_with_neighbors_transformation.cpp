@@ -16,7 +16,7 @@
 #include <low_precision/align_concat_quantization_parameters.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/markup_precisions.hpp>
-#include <low_precision/markup_avg_pool_precisions.hpp>
+#include <low_precision/markup_avg_pool_precision_preserved.hpp>
 #include <low_precision/propagate_precisions.hpp>
 
 //#include <low_precision/transformer.hpp>
@@ -122,7 +122,7 @@ public:
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming1").run_on_function(actualFunction);
 
         ngraph::pass::Manager manager2;
-        manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisions>();
+        manager2.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
         manager2.run_passes(actualFunction);
         ngraph::pass::VisualizeTree("c:\\Projects\\temp\\test.transforming2").run_on_function(actualFunction);
 

@@ -16,8 +16,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-AvgPoolTransformation::AvgPoolTransformation() : LayerTransformation(Params()) {}
-
 AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::AvgPool>({ pattern::wrap_type<opset1::Multiply>() });
 
@@ -33,43 +31,13 @@ AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransf
     this->register_matcher(m, callback);
 }
 
-bool getUpdatePrecision(const std::shared_ptr<Node>& node) {
-    auto& rtInfo = node->get_rt_info();
-    auto it = rtInfo.find(ngraph::VariantWrapper<PrecisionPreservedAttribute>::type_info.name);
-    if (it == rtInfo.end()) {
-        return false;
-    }
-
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttribute>>(it->second);
-    return !attribute->get().sharedValue->value;
-}
-
 bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
     const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    const bool updatePrecision = getUpdatePrecision(pooling);
-
-    //const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(pooling);
-
-    //bool updatePrecision;
-
-    //if ((children.size() == 1ul) && (!this->layerTransformationsManager->isQuantized(children[0]))) {
-    //    updatePrecision = false;
-    //} else {
-    //    updatePrecision = false;
-    //    // NOTE: This check was added for models that don't have FQ after AvgPool
-    //    //       They will have transparent precision as it was in old LPT.
-    //    for (const auto& child : children) {
-    //        if (!is_type<opset1::FakeQuantize>(child)) {
-    //            updatePrecision = true;
-    //            break;
-    //        }
-    //    }
-    //}
-
+    const bool updatePrecision = isPrecisionPreserved(pooling);
     moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), updatePrecision);
     return true;
 }
@@ -85,15 +53,7 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
 }
 
 bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(layer);
-    // NOTE: This check was added for models that don't have FQ after AvgPool
-    //       They will have transparent precision as it was in old LPT.
-    for (const auto& child : children) {
-        if (!is_type<opset1::FakeQuantize>(child)) {
-            return true;
-        }
-    }
-    return false;
+    return NetworkHelper::isPrecisionPreserved(layer);
 }
 
 } // namespace low_precision

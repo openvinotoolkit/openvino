@@ -7,6 +7,18 @@
 #include <vector>
 #include <memory>
 
+// one place to include all Low Precision Transformations from ngraph::pass::low_precision
+#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
+#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include <low_precision/rt_info/precisions_attribute.hpp>
+#include <low_precision/rt_info/precision_preserved_attribute.hpp>
+
+#include <low_precision/markup_precisions.hpp>
+#include <low_precision/markup_avg_pool_precision_preserved.hpp>
+#include <low_precision/propagate_precisions.hpp>
+#include <low_precision/align_concat_quantization_parameters.hpp>
+
+
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "low_precision/layer_transformation.hpp"
@@ -22,8 +34,13 @@ class TRANSFORMATIONS_API LowPrecision;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
+class TRANSFORMATIONS_API ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
 public:
+    class TRANSFORMATIONS_API TypeRelaxedReplacer : public GraphRewrite {
+    public:
+        TypeRelaxedReplacer();
+    };
+
     NGRAPH_RTTI_DECLARATION;
     LowPrecision(
         const std::vector<OperationPrecisionRestriction>& restrictions = {},
@@ -32,6 +49,7 @@ public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
     static bool isFunctionQuantized(const std::shared_ptr<ngraph::Function>& function);
+
 protected:
     std::vector<OperationPrecisionRestriction> restrictions;
     // remove
