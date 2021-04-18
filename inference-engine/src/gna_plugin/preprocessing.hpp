@@ -21,4 +21,5 @@ void ConvertToFloat(float *ptr_dst,
                     const float scale_factor);
 
 int16_t ConvertFloatToInt16(float src);
+int8_t ConvertFloatToInt8(float src);
 }  // namespace GNAPluginNS

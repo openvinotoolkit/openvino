@@ -852,6 +852,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(BIN));
+        capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
         if (device_info.supports_fp16)
             capabilities.push_back(METRIC_VALUE(FP16));
         if (device_info.supports_imad || device_info.supports_immad)
