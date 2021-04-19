@@ -26,6 +26,7 @@
 
 #include "cldnn_executable_network.h"
 #include "threading/ie_cpu_streams_executor.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
 
 using namespace InferenceEngine;
@@ -62,8 +63,8 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
     }
 }
 
-InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
-                                                                   OutputsDataMap networkOutputs) {
+IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
+                                                                    OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     if (m_graphs.empty()) {
         IE_THROW(NetworkNotLoaded);
@@ -91,7 +92,7 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
     return ptr;
 }
 
-IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
+IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequest");
     return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
