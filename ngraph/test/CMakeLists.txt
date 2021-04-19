@@ -325,6 +325,7 @@ set(MULTI_TEST_SRC
     backend/detection_output.in.cpp
     backend/dft.in.cpp
     backend/divide.in.cpp
+    backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -396,6 +397,7 @@ set(MULTI_TEST_SRC
     backend/softmax.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
+    backend/squared_difference.in.cpp
     backend/subtract.in.cpp
     backend/tan.in.cpp
     backend/tanh.in.cpp

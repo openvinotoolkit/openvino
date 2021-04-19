@@ -6,6 +6,18 @@ This guide provides installation steps for the Intel® Distribution of OpenVINO�
 
 > **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ YUM distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime).
 
+> **NOTE**: Only runtime packages are available via the YUM repository.
+
+## Included with Runtime Package
+
+The following components are installed with the OpenVINO runtime package:
+
+| Component | Description|
+|-----------|------------|
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
+| [OpenCV*](https://docs.opencv.org/master/) | OpenCV* community version compiled for Intel® hardware. |
+| Deep Learning Stream (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
+
 ## Set up the Repository
 
 > **NOTE:** You must be logged in as root to set up and install the repository.
@@ -61,7 +73,7 @@ Results:
 intel-openvino-2021 Intel(R) Distribution of OpenVINO 2021
 ```
   
-### To list the available OpenVINO packages
+### To list available OpenVINO packages
 Use the following command:
 ```sh
 yum list intel-openvino*
@@ -69,11 +81,11 @@ yum list intel-openvino*
 
 ---
   
-## Install the runtime packages Using the YUM Package Manager
+## Install Runtime Packages Using the YUM Package Manager
 
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
 <br>
-A symlink will be created: `/opt/intel/openvino`
+A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
 ---
 
