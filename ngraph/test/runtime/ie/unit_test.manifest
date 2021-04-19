@@ -901,6 +901,14 @@ divide_python_rounding_int32
 convert_int32_bool
 lesseq_int32
 
+# Constant and Low Precision
+constant_equality_u4_2x2x3
+constant_equality_u4_1x3
+constant_equality_u4_1x10
+constant_equality_i4_2x2x3
+constant_equality_i4_1x3
+
+
 # Uncategorized
 convolution_2d_1item
 convolution_2d_1item_padded_1_1x1_1
