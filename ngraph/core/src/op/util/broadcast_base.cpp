@@ -57,7 +57,7 @@ PartialShape op::util::BroadcastBase::get_result_shape_pdpd(
                           target_shape.size(),
                           " than arg shape ",
                           arg_rank_length);
-    for (auto i = start_axis; i < target_shape.size(); i++)
+    for (size_t i = start_axis; i < target_shape.size(); i++)
     {
         if (arg0_shape[i - start_axis].is_dynamic())
         {
@@ -136,7 +136,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg
     for (size_t i = 0; i < axes_mapping_val.size(); i++)
     {
         NODE_VALIDATION_CHECK(this,
-                              axes_mapping_val[i] < target_rank_length,
+                              static_cast<int64_t>(axes_mapping_val[i]) < target_rank_length,
                               "Broadcast axes_mapping[",
                               i,
                               "]: ",
@@ -513,9 +513,8 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     Shape target_shape = get_target_shape(inputs[1]);
 

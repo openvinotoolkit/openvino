@@ -165,12 +165,13 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
     NGRAPH_CHECK(ind_Pshape.is_static() && out_Pshape.is_static(),
                  "Only static input/output shapes are supported");
     const auto out_shape = out_Pshape.get_shape();
-    const auto axis = get_axis();
+    const size_t axis = get_axis();
     NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
     const auto depth = get_constant_from_source(input_value(1))->cast_vector<int64_t>()[0];
     const auto ind_shape = ind_Pshape.get_shape();
     NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
                  "Incompatible I/O shapes or wrong depth value.");
-    NGRAPH_CHECK(out_shape[axis] == depth, "Incompatible axis and depth values.");
+    NGRAPH_CHECK(static_cast<int64_t>(out_shape[axis]) == depth,
+                 "Incompatible axis and depth values.");
     return one_hot::evaluate_onehot(output_values, input_values, axis);
 }

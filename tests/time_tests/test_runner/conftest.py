@@ -59,13 +59,6 @@ def pytest_addoption(parser):
         help="number of iterations to run executable and aggregate results",
         default=3
     )
-    # TODO: add support of --mo, --omz etc. required for OMZ support
-    helpers_args_parser = parser.getgroup("test helpers")
-    helpers_args_parser.addoption(
-        "--dump_refs",
-        type=Path,
-        help="path to dump test config with references updated with statistics collected while run",
-    )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
@@ -133,22 +126,43 @@ def temp_dir(pytestconfig):
 
 
 @pytest.fixture(scope="function")
-def cl_cache_dir(pytestconfig):
+def cl_cache_dir(pytestconfig, instance):
     """Generate directory to save OpenCL cache before test run and clean up after run.
 
     Folder `cl_cache` should be created in a directory where tests were run. In this case
     cache will be saved correctly. This behaviour is OS independent.
     More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
     """
-    cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
-    # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
-    # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
-    os.environ["cl_cache_dir"] = str(cl_cache_dir)
-    if cl_cache_dir.exists():
+    if instance["device"]["name"] == "GPU":
+        cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
+        # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
+        # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
+        os.environ["cl_cache_dir"] = str(cl_cache_dir)
+        if cl_cache_dir.exists():
+            shutil.rmtree(cl_cache_dir)
+        cl_cache_dir.mkdir()
+        logging.info("cl_cache will be created in {}".format(cl_cache_dir))
+        yield cl_cache_dir
         shutil.rmtree(cl_cache_dir)
-    cl_cache_dir.mkdir()
-    yield cl_cache_dir
-    shutil.rmtree(cl_cache_dir)
+    else:
+        yield None
+
+
+@pytest.fixture(scope="function")
+def model_cache_dir(pytestconfig, instance):
+    """
+    Generate directory to IE model cache before test run and clean up after run.
+    """
+    if instance.get("use_model_cache"):
+        model_cache_dir = pytestconfig.invocation_dir / "models_cache"
+        if model_cache_dir.exists():
+            shutil.rmtree(model_cache_dir)
+        model_cache_dir.mkdir()
+        logging.info("model_cache will be created in {}".format(model_cache_dir))
+        yield model_cache_dir
+        shutil.rmtree(model_cache_dir)
+    else:
+        yield None
 
 
 @pytest.fixture(scope="function")
@@ -159,16 +173,11 @@ def test_info(request, pytestconfig):
     fixtures with timetests information which will be used for
     internal purposes.
     """
-    setattr(request.node._request, "test_info", {"orig_instance": request.node.funcargs["instance"],
-                                                 "results": {},
+    setattr(request.node._request, "test_info", {"results": {},
                                                  "raw_results": {},
                                                  "db_info": {}})
-    if not hasattr(pytestconfig, "session_info"):
-        setattr(pytestconfig, "session_info", [])
 
     yield request.node._request.test_info
-
-    pytestconfig.session_info.append(request.node._request.test_info)
 
 
 @pytest.fixture(scope="function")
@@ -198,7 +207,7 @@ def validate_test_case(request, test_info):
             }
         },
         "required": ["device", "model"],
-        "additionalProperties": false
+        "additionalProperties": true
     }
     """
     schema = json.loads(schema)
@@ -330,23 +339,6 @@ def manifest_metadata(request):
     yield manifest_meta
 
 
-@pytest.fixture(scope="session", autouse=True)
-def prepare_tconf_with_refs(pytestconfig):
-    """Fixture for preparing test config based on original test config
-    with timetests results saved as references.
-    """
-    yield
-    new_tconf_path = pytestconfig.getoption('dump_refs')
-    if new_tconf_path:
-        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
-        upd_cases = pytestconfig.orig_cases.copy()
-        for record in pytestconfig.session_info:
-            rec_i = upd_cases.index(record["orig_instance"])
-            upd_cases[rec_i]["references"] = record["results"]
-        with open(new_tconf_path, "w") as tconf:
-            yaml.safe_dump(upd_cases, tconf)
-
-
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.
 
@@ -357,7 +349,6 @@ def pytest_generate_tests(metafunc):
         test_cases = yaml.safe_load(file)
     if test_cases:
         metafunc.parametrize("instance", test_cases)
-        setattr(metafunc.config, "orig_cases", test_cases)
 
 
 def pytest_make_parametrize_id(config, val, argname):

@@ -3,10 +3,11 @@
 //
 
 /**
- * @brief A header file that provides wrapper classes for IExecutableNetwork
- * 
+ * @brief A header file that provides ExecutableNetwork class
+ *
  * @file ie_executable_network.hpp
  */
+
 #pragma once
 
 #include <map>
@@ -18,6 +19,7 @@
 #include "cpp/ie_infer_request.hpp"
 
 namespace InferenceEngine {
+
 namespace details {
 class SharedObjectLoader;
 }
@@ -72,12 +74,13 @@ public:
     ConstInputsDataMap GetInputsInfo() const;
 
     /**
+     * @deprecated The method Will be removed
      * @brief reset owned object to new pointer.
      *
      * Essential for cases when simultaneously loaded networks not expected.
      * @param newActual actual pointed object
      */
-    INFERENCE_ENGINE_DEPRECATED("Will be removed")
+    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
     void reset(std::shared_ptr<IExecutableNetwork> newActual);
 
     /**
@@ -90,12 +93,13 @@ public:
     InferRequest CreateInferRequest();
 
     /**
+     * @deprecated Use ExecutableNetwork::CreateInferRequest
      * @copybrief IExecutableNetwork::CreateInferRequest
      *
      * Wraps IExecutableNetwork::CreateInferRequest.
      * @return shared pointer on InferenceEngine::InferRequest object
      */
-    INFERENCE_ENGINE_DEPRECATED("Use CreateInferRequest")
+    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::CreateInferRequest instead")
     InferRequest::Ptr CreateInferRequestPtr();
 
     /**
@@ -117,10 +121,11 @@ public:
     void Export(std::ostream& networkModel);
 
     /**
+     * @deprecated Will be removed. Use operator bool
      * @brief cast operator is used when this wrapper initialized by LoadNetwork
      * @return A shared pointer to IExecutableNetwork interface.
      */
-    INFERENCE_ENGINE_DEPRECATED("Will be removed")
+    INFERENCE_ENGINE_DEPRECATED("The method will be removed. Use operator bool")
     operator std::shared_ptr<IExecutableNetwork>();
 
     /**
@@ -185,6 +190,7 @@ public:
      * @return true if current ExecutableNetwork object is not initialized, false - otherwise
      */
     bool operator!() const noexcept;
+
     /**
      * @brief Checks if current ExecutableNetwork object is initialized
      * @return true if current ExecutableNetwork object is initialized, false - otherwise

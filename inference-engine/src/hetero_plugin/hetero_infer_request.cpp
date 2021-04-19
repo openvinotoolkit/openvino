@@ -20,7 +20,7 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
                                        InferenceEngine::OutputsDataMap networkOutputs,
                                        const SubRequestsList& inferRequests,
                                        const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) :
-    InferRequestInternal(networkInputs, networkOutputs),
+    IInferRequestInternal(networkInputs, networkOutputs),
     _inferRequests(inferRequests) {
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         IE_THROW() << "Internal error: no information about network's output/input";
@@ -65,7 +65,7 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
 }
 
 void HeteroInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) {
-    InferenceEngine::InferRequestInternal::SetBlob(name, data);
+    InferenceEngine::IInferRequestInternal::SetBlob(name, data);
     assert(!_inferRequests.empty());
     for (auto &&desc : _inferRequests) {
         auto &r = desc._request;
