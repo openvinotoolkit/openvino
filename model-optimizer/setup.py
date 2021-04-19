@@ -22,9 +22,9 @@ PACKAGE_NAME = 'mo'
 requirements_txt = []
 py_modules = []
 for name in os.listdir():
-    if re.match(r'requirements(.*).txt', name):
+    if re.match(r'requirements(.*)\.txt', name):
         requirements_txt.append(name)
-    if re.match(r'mo(.*).py', name):
+    if re.match(r'mo(.*)\.py', name):
         py_modules.append(name.split('.')[0])
 
 # Minimal set of dependencies
@@ -92,6 +92,7 @@ setup(name='openvino-mo',
            ],
       },
       package_data={
+        'mo.mo.front.caffe.proto': ['*.proto'],
         'mo.extensions.front.mxnet': ['*.json'],
         'mo.extensions.front.onnx': ['*.json'],
         'mo.extensions.front.tf': ['*.json'],
