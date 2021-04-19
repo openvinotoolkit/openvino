@@ -26,6 +26,8 @@
 
 #include "ngraph/ngraph.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include "ngraph_transformations/op/power_static.hpp"
+#include "ngraph_transformations/op/leaky_relu.hpp"
 
 #include <string>
 #include <vector>
@@ -800,6 +802,13 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
     {ngraph::op::v1::Power::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwisePowerDynamic;
     }},
+    {PowerStaticNode::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto powerStatic = getNgraphOpAs<PowerStaticNode>(op);
+        node.algorithm = EltwisePowerStatic;
+        node.alpha = powerStatic->get_power();
+        node.beta = powerStatic->get_scale();
+        node.gamma = powerStatic->get_shift();
+    }},
     {ngraph::op::v1::Equal::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseEqual;
     }},
@@ -833,6 +842,13 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
     {ngraph::op::v0::Relu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseRelu;
         node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_relu;
+    }},
+    {LeakyReluNode::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto leakyRelu = getNgraphOpAs<LeakyReluNode>(op);
+        node.algorithm = EltwiseRelu;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_relu;
+        node.alpha = leakyRelu->get_slope();
+        node.beta = 0.0f;
     }},
     {ngraph::op::v0::Gelu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseGelu;
@@ -947,9 +963,9 @@ MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, co
 size_t MKLDNNEltwiseNode::getOpInputsNum() const {
     switch (getAlgorithm()) {
         case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseSquare: case EltwiseAbs: case EltwiseSqrt:
-        case EltwisePowerStatic: case EltwiseLinear: case EltwiseBoundedRelu: case EltwiseSoftRelu: case EltwiseRelu6: case EltwiseExp: case EltwiseClamp:
+        case EltwiseLinear: case EltwiseBoundedRelu: case EltwiseSoftRelu: case EltwiseRelu6: case EltwiseExp: case EltwiseClamp: case EltwiseErf:
         case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
-        case EltwiseLogicalNot: case EltwiseErf:
+        case EltwiseLogicalNot: case EltwisePowerStatic:
             return 1;
         case EltwiseAdd: case EltwiseSubtract: case EltwiseMultiply: case EltwiseDivide: case EltwiseFloorMod: case EltwiseMod: case EltwiseMaximum:
         case EltwiseMinimum: case EltwiseSquaredDifference: case EltwisePowerDynamic: case EltwiseEqual: case EltwiseNotEqual: case EltwiseGreater:

@@ -956,7 +956,7 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
         const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
-        bool binarization = levels == 2;
+        binarization = levels == 2;
 
         if (binarization) {
             for (int i = 0; i < outputLowAxisSize; i++) {
@@ -1085,20 +1085,6 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 
             algorithm = quantizationOnly ? FQQuantization : FQCommon;
         }
-
-        if (binarization) {
-            inputPrecision = Precision::FP32;
-            outputPrecision = Precision::BIN;
-        } else {
-            inputPrecision = getOriginalInputPrecisionAtPort(0);
-            outputPrecision = getOriginalOutputPrecisionAtPort(0);
-
-            if (inputPrecision != Precision::FP32 && inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
-                inputPrecision = Precision::FP32;
-
-            if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
-                outputPrecision = Precision::FP32;
-        }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -1131,6 +1117,22 @@ std::vector<mkldnn::memory::format_tag> MKLDNNFakeQuantizeNode::getDataFormats()
                     return {MKLDNNMemory::GetPlainFormat(getParentEdgesAtPort(0)[0]->getDims())};
             }
         }
+    }
+}
+
+void MKLDNNFakeQuantizeNode::init() {
+    if (binarization) {
+        inputPrecision = Precision::FP32;
+        outputPrecision = Precision::BIN;
+    } else {
+        inputPrecision = getOriginalInputPrecisionAtPort(0);
+        outputPrecision = getOriginalOutputPrecisionAtPort(0);
+
+        if (inputPrecision != Precision::FP32 && inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
+            inputPrecision = Precision::FP32;
+
+        if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
+            outputPrecision = Precision::FP32;
     }
 }
 

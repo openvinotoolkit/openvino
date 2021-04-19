@@ -7,6 +7,10 @@
 #include <string>
 #include <vector>
 #include "ie_parallel.hpp"
+#include <utils/general_utils.h>
+#include <ngraph/opsets/opset1.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -15,74 +19,115 @@ namespace Cpu {
 class SelectImpl: public ExtLayerBase {
     enum { CONDITION, THEN, ELSE, numOfInputs };
     enum { N, C, D, H, W, numOfDims };
+    enum class SelectBroadcastType {
+        NONE,
+        NUMPY
+    };
 
-    std::string broadcast;
+    SelectBroadcastType broadcastType;
     std::vector<size_t> resDims;
     std::vector<size_t> resOffset;
     std::vector<size_t> condOffset;
     std::vector<size_t> thenOffset;
     std::vector<size_t> elseOffset;
 
-public:
-    explicit SelectImpl(const CNNLayer* layer) {
+    std::string errorPrefix;
+
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.size() != numOfInputs || layer->outData.size() != 1)
-                IE_THROW() << "Select layer with name '" << layer->name << "' has incorrect number of input/output edges!";
+            const auto select = std::dynamic_pointer_cast<const ngraph::opset1::Select>(op);
+            if (!select) {
+                errorMessage = "Only opset1 Select operation is supported";
+                return false;
+            }
+            const auto broadcast = select->get_auto_broadcast();
+            if (!one_of(broadcast, ngraph::op::AutoBroadcastSpec::NONE, ngraph::op::AutoBroadcastSpec::NUMPY)) {
+                errorMessage = "Does not support broadcast type: " + ngraph::as_string(broadcast.m_type);
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            broadcast = layer->GetParamAsString("auto_broadcast", "numpy");
-
-            auto inputPrecision = layer->insData[THEN].lock()->getTensorDesc().getPrecision();
-            if (inputPrecision == Precision::BF16 || layer->insData[ELSE].lock()->getTensorDesc().getPrecision() == Precision::BF16) {
-                inputPrecision = Precision::BF16;
-            } else if (layer->insData[THEN].lock()->getTensorDesc().getPrecision() != layer->insData[ELSE].lock()->getTensorDesc().getPrecision()) {
-                IE_THROW() << "Select layer with name '" << layer->name << "' has different precisions on 'Then' and 'Else' inputs ";
+public:
+    explicit SelectImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
             }
 
-            const auto& conditionPrecision = layer->insData[CONDITION].lock()->getTensorDesc().getPrecision();
+            errorPrefix = "Select layer with name '" + op->get_friendly_name() + "'";
+            const auto select = std::dynamic_pointer_cast<const ngraph::opset1::Select>(op);
+
+            if (op->get_input_size() != numOfInputs || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            const auto broadcast = select->get_auto_broadcast();
+            if (broadcast == ngraph::op::AutoBroadcastSpec::NONE) {
+                broadcastType = SelectBroadcastType::NONE;
+            } else if (broadcast == ngraph::op::AutoBroadcastSpec::NUMPY) {
+                broadcastType = SelectBroadcastType::NUMPY;
+            } else {
+                IE_THROW() << errorPrefix << " has unsupported broadcast type: " + ngraph::as_string(broadcast.m_type);
+            }
+
+            const auto inputThenPrecision = details::convertPrecision(op->get_input_element_type(THEN));
+            const auto inputElsePrecision = details::convertPrecision(op->get_input_element_type(ELSE));
+            auto inputPrecision = inputThenPrecision;
+            if (inputThenPrecision == Precision::BF16 || inputElsePrecision == Precision::BF16) {
+                inputPrecision = Precision::BF16;
+            } else if (inputThenPrecision != inputElsePrecision) {
+                IE_THROW() << errorPrefix << " has different precisions on 'Then' and 'Else' inputs ";
+            }
+
+            const auto conditionPrecision = details::convertPrecision(op->get_input_element_type(CONDITION));
             if (conditionPrecision != Precision::BOOL && conditionPrecision != Precision::I32  && conditionPrecision != Precision::U8)
-                IE_THROW() << "Select layer with name '" << layer->name << "' has unsupported precision: " << conditionPrecision
-                                                                                                                << " on 'Condition' input";
+                IE_THROW() << errorPrefix << " has unsupported precision: " << conditionPrecision << " on 'Condition' input";
 
-            const auto& inputPrecisionSize = layer->insData[THEN].lock()->getTensorDesc().getPrecision().size();
+            const auto inputPrecisionSize = inputPrecision.size();
             if (inputPrecisionSize != 1 && inputPrecisionSize != 2 && inputPrecisionSize != 4 && inputPrecisionSize != 8)
-                IE_THROW() << "Select layer with name '" << layer->name << "' has unsupported precision: " <<
-                                                        layer->insData[THEN].lock()->getTensorDesc().getPrecision() << " on 'Then' and 'Else' inputs";
+                IE_THROW() << errorPrefix << " has unsupported precision: " << inputPrecision << " on 'Then' and 'Else' inputs";
 
-            const auto &conditionShapes = layer->insData[CONDITION].lock()->getTensorDesc().getDims();
-            const auto &thenShapes = layer->insData[THEN].lock()->getTensorDesc().getDims();
-            const auto &elseShapes = layer->insData[ELSE].lock()->getTensorDesc().getDims();
-            const auto &outputShapes = layer->outData[0]->getTensorDesc().getDims();
+            auto conditionShapes = op->get_input_shape(CONDITION);
+            if (ngraph::is_scalar(conditionShapes))
+                conditionShapes = ngraph::Shape{1};
+            auto thenShapes = op->get_input_shape(THEN);
+            if (ngraph::is_scalar(thenShapes))
+                thenShapes = ngraph::Shape{1};
+            auto elseShapes = op->get_input_shape(ELSE);
+            if (ngraph::is_scalar(elseShapes))
+                elseShapes = ngraph::Shape{1};
+            auto outputShapes = op->get_output_shape(0);
+            if (ngraph::is_scalar(outputShapes))
+                outputShapes = ngraph::Shape{1};
 
-            if (broadcast != "none" && broadcast != "numpy")
-                IE_THROW() << "Select layer with name '" << layer->name << "' has unsupported broadcast type: " << broadcast;
+            if (broadcastType == SelectBroadcastType::NONE && ((conditionShapes != outputShapes) || (thenShapes != outputShapes) ||
+                (elseShapes != outputShapes)))
+                IE_THROW() << errorPrefix << " and auto_broadcast='none' has input shapes mismatch";
 
-            if (broadcast == "none" && ((conditionShapes != outputShapes) || (thenShapes != outputShapes) || (elseShapes != outputShapes)))
-                IE_THROW() << "Select layer with name '" << layer->name << "' and auto_broadcast='none' has input shapes mismatch";
-
-            if (broadcast == "numpy") {
+            if (broadcastType == SelectBroadcastType::NUMPY) {
                 if (outputShapes.size() < conditionShapes.size() || outputShapes.size() < thenShapes.size() || outputShapes.size() < elseShapes.size())
-                    IE_THROW() << "Select layer with name '" << layer->name << "' and auto_broadcast='numpy' has incompatible input and output shapes";
+                    IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible input and output shapes";
 
                 for (int condIt = conditionShapes.size() - 1, outIt = outputShapes.size() - 1; condIt >= 0; condIt--, outIt--)
                         if (conditionShapes[condIt] != outputShapes[outIt] && conditionShapes[condIt] != 1)
-                            IE_THROW() << "Select layer with name '" << layer->name
-                                                                        << "' and auto_broadcast='numpy' has incompatible 'Condition' input and output shapes";
+                            IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Condition' input and output shapes";
 
                 for (int thenIt = thenShapes.size() - 1, outIt = outputShapes.size() - 1; thenIt >= 0; thenIt--, outIt--)
                         if (thenShapes[thenIt] != outputShapes[outIt] && thenShapes[thenIt] != 1)
-                            IE_THROW() << "Select layer with name '" << layer->name
-                                                                            << "' and auto_broadcast='numpy' has incompatible 'Then' input and output shapes";
-
+                            IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Then' input and output shapes";
 
                 for (int elseIt = elseShapes.size() - 1, outIt = outputShapes.size() - 1; elseIt >= 0; elseIt--, outIt--)
                         if (elseShapes[elseIt] != outputShapes[outIt] && elseShapes[elseIt] != 1)
-                            IE_THROW() << "Select layer with name '" << layer->name
-                                                                             << "' and auto_broadcast='numpy' has incompatible 'Else' input and output shapes";
+                            IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Else' input and output shapes";
             }
 
             resDims.resize(numOfDims, 1);
             std::copy(std::begin(outputShapes), std::end(outputShapes), std::begin(resDims) + (numOfDims - outputShapes.size()));
-            if (broadcast == "numpy") {
+            if (broadcastType == SelectBroadcastType::NUMPY) {
                 calcOutOffset(resOffset, resDims);
 
                 std::vector<size_t> condDims(numOfDims, 1);
@@ -98,28 +143,10 @@ public:
                 calcInOffset(elseOffset, elseDims, resDims);
             }
 
-            LayerConfig config;
-            for (size_t i = 0; i < numOfInputs; i++) {
-                DataConfig inConfig;
-                inConfig.inPlace = -1;
-                inConfig.constant = false;
-
-                Precision inPrecision = i == CONDITION ? conditionPrecision : inputPrecision;
-                const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
-                inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
-
-                config.inConfs.push_back(inConfig);
-            }
-
-            DataConfig outConfig;
-            outConfig.inPlace = -1;
-            outConfig.constant = false;
-            const SizeVector& outDims = layer->outData[0]->getTensorDesc().getDims();
-            outConfig.desc = TensorDesc(inputPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
-            config.outConfs.push_back(outConfig);
-
-            config.dynBatchSupport = false;
-            confs.push_back(config);
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, conditionPrecision},
+                           {TensorDescCreatorTypes::ncsp, inputPrecision},
+                           {TensorDescCreatorTypes::ncsp, inputPrecision}},
+                          {{TensorDescCreatorTypes::ncsp, inputPrecision}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
@@ -204,7 +231,7 @@ private:
         auto *elseData = inputs[ELSE]->cbuffer().as<const DATA_T *>() + inputs[ELSE]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         auto *dstData = output->buffer().as<DATA_T *>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        if (broadcast == "none") {
+        if (broadcastType == SelectBroadcastType::NONE) {
             size_t dstDataSize = std::accumulate(begin(resDims), end(resDims), 1, std::multiplies<size_t>());
             parallel_for(dstDataSize, [&](size_t i) {
                 dstData[i] = conditionData[i] ? thenData[i] : elseData[i];

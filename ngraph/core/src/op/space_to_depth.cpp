@@ -226,7 +226,7 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
 namespace ngraph
 {
     template <>
-    EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>&
+    NGRAPH_API EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>&
         EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>::get()
     {
         static auto enum_names = EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>(
