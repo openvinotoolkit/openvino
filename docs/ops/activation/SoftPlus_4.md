@@ -21,10 +21,11 @@ SoftPlus(x) = \left\{\begin{array}{r}
 
 **Note**: For numerical stability the operation reverts the linear function when `x > threshold` where `threshold` depends on *T* and
 is chosen in such a way that the difference between the linear function and exact calculation is no more than `1e-6`.
-The `threshold` can be calculated with the following formula where `alpha` is the count of the numbers after the decimal point:
+The `threshold` can be calculated with the following formula where `alpha` is the count of the numbers after the decimal point,
+`beta` is maximum value of *T* data type:
 
 \f[
-threshold > -log(e^{10^{-\alpha}} - 1.0)
+-log(e^{10^{-\alpha}} - 1.0) < threshold < log(\beta)
 \f]
 
 For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `threshold` should be `12`.
