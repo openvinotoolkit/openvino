@@ -19,7 +19,7 @@
 
 **Outputs**:
 
-*   **1**: A tensor of type `T` and shape with transposed first input tensor dimensions.
+*   **1**: A tensor of type `T` and first input rank shape with transposed first input tensor dimensions.
 
 **Types**
 
