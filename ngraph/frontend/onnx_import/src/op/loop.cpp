@@ -70,7 +70,14 @@ namespace ngraph
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
 
-                    const Subgraph& body_graph{node.get_attribute_value<Subgraph>("body")};
+                    std::map<std::size_t, element::Type_t> subgraph_inputs_types_map;
+                    for (std::size_t i = 2; i < ng_inputs.size(); i++)
+                    {
+                        subgraph_inputs_types_map[i] = ng_inputs[i].get_element_type();
+                    }
+
+                    const Subgraph& body_graph{
+                        node.get_subgraph_from_attribute("body", subgraph_inputs_types_map)};
                     auto body_outputs = body_graph.get_ng_outputs();
                     const auto& body_inputs = body_graph.get_ng_parameters();
 
