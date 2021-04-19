@@ -8,7 +8,7 @@
 `InferRequest` Class
 ------------------------
 
-Inference Engine Plugin API provides the helper InferenceEngine::InferRequestInternal class recommended 
+Inference Engine Plugin API provides the helper InferenceEngine::IInferRequestInternal class recommended 
 to use as a base class for a synchronous inference request implementation. Based of that, a declaration 
 of a synchronous request class can look as follows: 
 
@@ -46,7 +46,7 @@ Decrements a number of created inference requests:
 
 ### `InferImpl()`
 
-**Implementation details:** Base InferRequestInternal class implements the public InferenceEngine::InferRequestInternal::Infer method as following:
+**Implementation details:** Base IInferRequestInternal class implements the public InferenceEngine::IInferRequestInternal::Infer method as following:
 - Checks blobs set by users
 - Calls the `InferImpl` method defined in a derived class to call actual pipeline stages synchronously
 
@@ -59,7 +59,7 @@ Below is the code of the the `inferPreprocess` method to demonstrate Inference E
 @snippet src/template_infer_request.cpp infer_request:infer_preprocess
 
 **Details:**
-* `InferImpl` must call the InferenceEngine::InferRequestInternal::execDataPreprocessing function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via InferenceEngine::CNNNetwork::getInputsInfo.
+* `InferImpl` must call the InferenceEngine::IInferRequestInternal::execDataPreprocessing function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via InferenceEngine::CNNNetwork::getInputsInfo.
 * If `inputBlob` passed by user differs in terms of precisions from precision expected by plugin, `blobCopy` is performed which does actual precision conversion.
 
 #### 2. `startPipeline`

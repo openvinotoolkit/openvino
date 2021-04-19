@@ -29,7 +29,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-InferenceEngine::InferRequestInternal::Ptr
+InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                           InferenceEngine::OutputsDataMap networkOutputs) {
     return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
@@ -323,7 +323,7 @@ void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &pr
     }
 }
 
-InferenceEngine::IInferRequest::Ptr MKLDNNExecNetwork::CreateInferRequest() {
+InferenceEngine::IInferRequestInternal::Ptr MKLDNNExecNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>();
 }
 

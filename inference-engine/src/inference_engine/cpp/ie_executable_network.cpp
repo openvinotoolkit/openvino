@@ -54,7 +54,7 @@ InferRequest ExecutableNetwork::CreateInferRequest() {
 }
 
 InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
-    CALL_STATEMENT(return std::make_shared<InferRequest>(_impl->CreateInferRequest(), _so));
+    CALL_STATEMENT(return std::make_shared<InferRequest>(InferRequest{_impl->CreateInferRequest(), _so}));
 }
 
 void ExecutableNetwork::Export(const std::string& modelFileName) {

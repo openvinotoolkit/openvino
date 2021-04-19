@@ -18,44 +18,13 @@
 #include "ie_iinfer_request.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_blob.h"
+#include "ie_iinfer_request.hpp"
 
 namespace InferenceEngine {
-
 namespace details {
-
-class ICompletionCallbackWrapper {
-public:
-    virtual ~ICompletionCallbackWrapper() = default;
-
-    virtual void call(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) const noexcept = 0;
-};
-
-template <class T>
-class CompletionCallbackWrapper : public ICompletionCallbackWrapper {
-    T lambda;
-
-public:
-    explicit CompletionCallbackWrapper(const T& lambda): lambda(lambda) {}
-
-    void call(InferenceEngine::IInferRequest::Ptr /*request*/, InferenceEngine::StatusCode /*code*/) const
-        noexcept override {
-        lambda();
-    }
-};
-
-template <>
-class CompletionCallbackWrapper<IInferRequest::CompletionCallback> : public ICompletionCallbackWrapper {
-    IInferRequest::CompletionCallback callBack;
-
-public:
-    explicit CompletionCallbackWrapper(const IInferRequest::CompletionCallback& callBack): callBack(callBack) {}
-
-    void call(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) const noexcept override {
-        callBack(request, code);
-    }
-};
-
-}  // namespace details
+class SharedObjectLoader;
+}
+class IInferRequestInternal;
 
 /**
  * @copybrief IInferRequest
@@ -63,42 +32,41 @@ public:
  * Wraps IInferRequest
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class InferRequest {
-    IInferRequest::Ptr actual;
-    InferenceEngine::details::SharedObjectLoader::Ptr plg;
-    std::shared_ptr<details::ICompletionCallbackWrapper> callback;
+class INFERENCE_ENGINE_API_CLASS(InferRequest) {
+    std::shared_ptr<IInferRequestInternal>          _impl;
+    std::shared_ptr<details::SharedObjectLoader>    _so;
 
-    static void callWrapper(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
-        details::ICompletionCallbackWrapper* pWrapper = nullptr;
-        ResponseDesc dsc;
-        request->GetUserData(reinterpret_cast<void**>(&pWrapper), &dsc);
-        pWrapper->call(request, code);
-    }
+    explicit InferRequest(const std::shared_ptr<IInferRequestInternal>&         impl,
+                          const std::shared_ptr<details::SharedObjectLoader>&   so);
+
+    friend class ExecutableNetwork;
 
 public:
+    /**
+     * @enum WaitMode
+     * @brief Enumeration to hold wait mode for IInferRequest
+     */
+    enum WaitMode : int64_t {
+        /** Wait until inference result becomes available */
+        RESULT_READY = -1,
+        /** IInferRequest doesn't block or interrupt current thread and immediately returns inference status */
+        STATUS_ONLY = 0,
+    };
+
+    /**
+     * @brief A smart pointer to the InferRequest object
+     */
+    using Ptr = std::shared_ptr<InferRequest>;
+
     /**
      * @brief Default constructor
      */
     InferRequest() = default;
 
     /**
-     * constructs InferRequest from the initialized shared_pointer
-     * @param request Initialized shared pointer to IInferRequest interface
-     * @param splg Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
-     */
-    explicit InferRequest(IInferRequest::Ptr request,
-                          InferenceEngine::details::SharedObjectLoader::Ptr splg = {}):
-                          actual(request), plg(splg) {
-        //  plg can be null, but not the actual
-        if (actual == nullptr) IE_THROW() << "InferRequest was not initialized.";
-    }
-
-    /**
      * @brief Destructor
      */
-    ~InferRequest() {
-        actual = nullptr;
-    }
+    ~InferRequest();
 
     /**
      * @brief Sets input/output data to infer
@@ -108,27 +76,16 @@ public:
      * @param data Reference to input or output blob. The type of a blob must match the network input precision and
      * size.
      */
-    void SetBlob(const std::string& name, const Blob::Ptr& data) {
-        CALL_STATUS_FNC(SetBlob, name.c_str(), data);
-    }
+    void SetBlob(const std::string& name, const Blob::Ptr& data);
 
     /**
-     * @copybrief IInferRequest::GetBlob
+     * @brief Gets input/output data for inference
      *
-     * Wraps IInferRequest::GetBlob
+     * @note Memory allocation does not happen
      * @param name A name of Blob to get
      * @return A shared pointer to a Blob with a name @p name. If a blob is not found, an exception is thrown.
      */
-    Blob::Ptr GetBlob(const std::string& name) {
-        Blob::Ptr data;
-        CALL_STATUS_FNC(GetBlob, name.c_str(), data);
-        std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
-        auto blobPtr = data.get();
-        const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
-        if (blobPtr == nullptr) IE_THROW() << error;
-        if (!remoteBlobPassed && blobPtr->buffer() == nullptr) IE_THROW() << error;
-        return data;
-    }
+    Blob::Ptr GetBlob(const std::string& name);
 
     /**
      * @brief Sets blob with a pre-process information
@@ -137,51 +94,37 @@ public:
      * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
      * @param info Preprocess info for blob.
      */
-    void SetBlob(const std::string &name, const Blob::Ptr &data, const PreProcessInfo& info) {
-        CALL_STATUS_FNC(SetBlob, name.c_str(), data, info);
-    }
+    void SetBlob(const std::string &name, const Blob::Ptr &data, const PreProcessInfo& info);
 
     /**
      * @brief Gets pre-process for input data
      * @param name Name of input blob.
      * @return pointer to pre-process info of blob with name
      */
-    const PreProcessInfo& GetPreProcess(const std::string& name) const {
-        const PreProcessInfo* info = nullptr;
-        CALL_STATUS_FNC(GetPreProcess, name.c_str(), &info);
-        return *info;
-    }
+    const PreProcessInfo& GetPreProcess(const std::string& name) const;
 
     /**
-     * @copybrief IInferRequest::Infer
+     * @brief Infers specified input(s) in synchronous mode
+     *
      * @note blocks all methods of InferRequest while request is ongoing (running or waiting in queue)
      *
-     * Wraps IInferRequest::Infer
      */
-    void Infer() {
-        CALL_STATUS_FNC_NO_ARGS(Infer);
-    }
+    void Infer();
 
     /**
-     * @copybrief IInferRequest::Cancel
-     *
-     * Wraps IInferRequest::Cancel
+     * @brief Cancel inference request
+     * @param name Name of input blob.
+     * @return pointer to pre-process info of blob with name
      */
-    void Cancel() {
-        CALL_STATUS_FNC_NO_ARGS(Cancel);
-    }
+    void Cancel();
 
     /**
-     * @copybrief IInferRequest::GetPerformanceCounts
+     * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer
      *
-     * Wraps IInferRequest::GetPerformanceCounts
+     * @note not all plugins provide meaningful data
      * @return Map of layer names to profiling information for that layer
      */
-    std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const {
-        std::map<std::string, InferenceEngineProfileInfo> perfMap;
-        CALL_STATUS_FNC(GetPerformanceCounts, perfMap);
-        return perfMap;
-    }
+    std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const;
 
     /**
      * @brief Sets input data to infer
@@ -190,11 +133,7 @@ public:
      * @param inputs A reference to a map of input blobs accessed by input names.
      *        The type of Blob must correspond to the network input precision and size.
      */
-    void SetInput(const BlobMap& inputs) {
-        for (auto&& input : inputs) {
-            CALL_STATUS_FNC(SetBlob, input.first.c_str(), input.second);
-        }
-    }
+    void SetInput(const BlobMap& inputs);
 
     /**
      * @brief Sets data that will contain result of the inference
@@ -203,34 +142,27 @@ public:
      * @param results - a reference to a map of result blobs accessed by output names.
      *        The type of Blob must correspond to the network output precision and size.
      */
-    void SetOutput(const BlobMap& results) {
-        for (auto&& result : results) {
-            CALL_STATUS_FNC(SetBlob, result.first.c_str(), result.second);
-        }
-    }
+    void SetOutput(const BlobMap& results);
 
     /**
      * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
      *
      * @param batch new batch size to be used by all the following inference calls for this request.
      */
-    void SetBatch(const int batch) {
-        CALL_STATUS_FNC(SetBatch, batch);
-    }
+    void SetBatch(const int batch);
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode
      *
      * @note It returns immediately. Inference starts also immediately.
      */
-    void StartAsync() {
-        CALL_STATUS_FNC_NO_ARGS(StartAsync);
-    }
+    void StartAsync();
 
     /**
-     * @copybrief IInferRequest::Wait
+     * @brief Waits for the result to become available. Blocks until specified millis_timeout has elapsed or the result
+     * becomes available, whichever comes first.
      *
-     * Wraps IInferRequest::Wait
+     *
      * @param millis_timeout Maximum duration in milliseconds to block for
      * @note There are special cases when millis_timeout is equal some value of the WaitMode enum:
      * * STATUS_ONLY - immediately returns inference status (IInferRequest::RequestStatus). It does not block or
@@ -238,105 +170,69 @@ public:
      * * RESULT_READY - waits until inference result becomes available
      * @return A status code of operation
      */
-    StatusCode Wait(int64_t millis_timeout) {
-        ResponseDesc resp;
-        if (actual == nullptr) IE_THROW() << "InferRequest was not initialized.";
-        auto res = actual->Wait(millis_timeout, &resp);
-        if (res != OK && res != RESULT_NOT_READY &&
-            res != INFER_NOT_STARTED && res != INFER_CANCELLED) {
-            IE_EXCEPTION_SWITCH(res, ExceptionType,
-                InferenceEngine::details::ThrowNow<ExceptionType>{}
-                    <<= std::stringstream{} << IE_LOCATION << resp.msg)
-        }
-        return res;
-    }
+    StatusCode Wait(int64_t millis_timeout = RESULT_READY);
 
+private:
+    void SetCompletionCallbackImpl(std::function<void()>);
+    void SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)>);
+    void SetCompletionCallbackImpl(IInferRequest::CompletionCallback);
+    template<typename T>
+    struct SetCallback {
+        void operator()(std::function<void()> f) {_this.SetCompletionCallbackImpl(std::move(f));}
+        InferRequest& _this;
+    };
+
+public:
     /**
-     * @copybrief IInferRequest::SetCompletionCallback
+     * @brief Sets a callback function that will be called on success or failure of asynchronous request
      *
-     * Wraps IInferRequest::SetCompletionCallback
-     *
-     * @param callbackToSet Lambda callback object which will be called on processing finish.
+     * @param callbackToSet callback object which will be called on when inference finish.
      */
-    template <class T>
-    void SetCompletionCallback(const T& callbackToSet) {
-        callback.reset(new details::CompletionCallbackWrapper<T>(callbackToSet));
-        CALL_STATUS_FNC(SetUserData, callback.get());
-        actual->SetCompletionCallback(callWrapper);
+    template<typename F>
+    void SetCompletionCallback(F callbackToSet) {
+        return SetCallback<F>{*this}(std::move(callbackToSet));
     }
 
+
     /**
-     * @copybrief IExecutableNetwork::QueryState
+     * @brief Gets state control interface for given infer request.
      *
-     * Wraps IExecutableNetwork::QueryState
+     * State control essential for recurrent networks
      * @return A vector of Memory State objects
      */
-    std::vector<VariableState> QueryState() {
-        IE_SUPPRESS_DEPRECATED_START
-        if (actual == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
-        IVariableState::Ptr pState = nullptr;
-        auto res = OK;
-        std::vector<VariableState> controller;
-        for (size_t idx = 0; res == OK; ++idx) {
-            ResponseDesc resp;
-            res = actual->QueryState(pState, idx, &resp);
-            if (res != OK && res != OUT_OF_BOUNDS) {
-                IE_THROW() << resp.msg;
-            }
-            if (res != OUT_OF_BOUNDS) {
-                controller.push_back(VariableState(pState, plg));
-            }
-        }
-        IE_SUPPRESS_DEPRECATED_END
-
-        return controller;
-    }
+    std::vector<VariableState> QueryState();
 
     /**
      * @brief  IInferRequest pointer to be used directly in CreateInferRequest functions
-     * @return A shared pointer to underlying IInferRequest interface
+     * @return A shared pointer to IInferRequest interface
      */
-    operator IInferRequest::Ptr&() {
-        if (actual == nullptr) IE_THROW() << "InferRequest was not initialized.";
-        return actual;
-    }
+    INFERENCE_ENGINE_DEPRECATED("Will be removed")
+    operator std::shared_ptr<IInferRequest> ();
 
     /**
      * @brief Checks if current InferRequest object is not initialized
      * @return true if current InferRequest object is not initialized, false - otherwise
      */
-    bool operator!() const noexcept {
-        return !actual;
-    }
+    bool operator!() const noexcept;
 
     /**
      * @brief Checks if current InferRequest object is initialized
      * @return true if current InferRequest object is initialized, false - otherwise
      */
-    explicit operator bool() const noexcept {
-        return !!actual;
-    }
-
-    /**
-     * @brief A smart pointer to the InferRequest object
-     */
-    using Ptr = std::shared_ptr<InferRequest>;
+    explicit operator bool() const noexcept;
 };
-
-namespace details {
-
-template <>
-class CompletionCallbackWrapper<std::function<void(InferRequest, StatusCode)>> : public ICompletionCallbackWrapper {
-    std::function<void(InferRequest, StatusCode)> lambda;
-
-public:
-    explicit CompletionCallbackWrapper(const std::function<void(InferRequest, InferenceEngine::StatusCode)>& lambda)
-        : lambda(lambda) {}
-
-    void call(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) const noexcept override {
-        lambda(InferRequest(request), code);
+template<>
+struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> {
+    void operator()(std::function<void(InferRequest, StatusCode)> f) {
+        _this.SetCompletionCallbackImpl(std::move(f));
     }
+    InferRequest& _this;
 };
-
-}  // namespace details
+template<>
+struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
+    void operator()(IInferRequest::CompletionCallback f) {
+        _this.SetCompletionCallbackImpl(std::move(f));
+    }
+    InferRequest& _this;
+};
 }  // namespace InferenceEngine

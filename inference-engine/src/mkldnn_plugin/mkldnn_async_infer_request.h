@@ -13,10 +13,10 @@ namespace MKLDNNPlugin {
 
 class MKLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    MKLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
+    MKLDNNAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
                             const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
                             const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
-    ~MKLDNNAsyncInferRequest() override;
+    ~MKLDNNAsyncInferRequest();
 };
 
 }  // namespace MKLDNNPlugin

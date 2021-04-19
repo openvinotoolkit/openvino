@@ -2,7 +2,7 @@
 
 int main() {
 InferenceEngine::Core core;
-InferenceEngine::IInferRequest::CompletionCallback callback;
+InferenceEngine::IInferRequest::CompletionCallback callback = nullptr;
 int numRequests = 42;
 int i = 1;
 auto network = core.ReadNetwork("sample.xml");

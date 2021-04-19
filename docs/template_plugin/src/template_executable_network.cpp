@@ -131,21 +131,18 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
 
 
 // ! [executable_network:create_infer_request_impl]
-InferenceEngine::InferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                      InferenceEngine::OutputsDataMap networkOutputs) {
     return std::make_shared<TemplateInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
-InferenceEngine::IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
     InferenceEngine::IInferRequest::Ptr asyncRequest;
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    auto asyncThreadSafeImpl = std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
+    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                                            _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl));
-    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-    return asyncRequest;
 }
 // ! [executable_network:create_infer_request]
 

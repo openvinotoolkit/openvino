@@ -13,8 +13,24 @@
 #include "description_buffer.hpp"
 
 namespace InferenceEngine {
+#define CATCH_IE_EXCEPTION_TO_STATUS(StatusCode, ExceptionType) catch (const ExceptionType& ex) {   \
+    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();                       \
+}
 
-INFERENCE_ENGINE_API_CPP(StatusCode) ExceptionToStatus(const Exception& exception);
+#define CATCH_IE_EXCEPTIONS_TO_STATUS                                         \
+        CATCH_IE_EXCEPTION_TO_STATUS(GENERAL_ERROR, GeneralError)             \
+        CATCH_IE_EXCEPTION_TO_STATUS(NOT_IMPLEMENTED, NotImplemented)         \
+        CATCH_IE_EXCEPTION_TO_STATUS(NETWORK_NOT_LOADED, NetworkNotLoaded)    \
+        CATCH_IE_EXCEPTION_TO_STATUS(PARAMETER_MISMATCH, ParameterMismatch)   \
+        CATCH_IE_EXCEPTION_TO_STATUS(NOT_FOUND, NotFound)                     \
+        CATCH_IE_EXCEPTION_TO_STATUS(OUT_OF_BOUNDS, OutOfBounds)              \
+        CATCH_IE_EXCEPTION_TO_STATUS(UNEXPECTED, Unexpected)                  \
+        CATCH_IE_EXCEPTION_TO_STATUS(REQUEST_BUSY, RequestBusy)               \
+        CATCH_IE_EXCEPTION_TO_STATUS(RESULT_NOT_READY, ResultNotReady)        \
+        CATCH_IE_EXCEPTION_TO_STATUS(NOT_ALLOCATED, NotAllocated)             \
+        CATCH_IE_EXCEPTION_TO_STATUS(INFER_NOT_STARTED, InferNotStarted)      \
+        CATCH_IE_EXCEPTION_TO_STATUS(NETWORK_NOT_READ, NetworkNotRead)        \
+        CATCH_IE_EXCEPTION_TO_STATUS(INFER_CANCELLED, InferCancelled)
 
 /**
  * @def TO_STATUS(x)
@@ -25,42 +41,7 @@ INFERENCE_ENGINE_API_CPP(StatusCode) ExceptionToStatus(const Exception& exceptio
     try {                                                                                                       \
         x;                                                                                                      \
         return OK;                                                                                              \
-    } catch (const ::InferenceEngine::Exception& iex) {                                                         \
-        return InferenceEngine::DescriptionBuffer(InferenceEngine::ExceptionToStatus(iex), resp) << iex.what(); \
-    } catch (const std::exception& ex) {                                                                        \
-        return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();                            \
-    } catch (...) {                                                                                             \
-        return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                  \
-    }
-
-/**
- * @def TO_STATUS_NO_RESP(x)
- * @brief Converts C++ exceptioned function call into a status code. Does not work with a ResponseDesc object
- * @ingroup ie_dev_api_error_debug
- */
-#define TO_STATUS_NO_RESP(x)                                                                                        \
-    try {                                                                                                           \
-        x;                                                                                                          \
-        return OK;                                                                                                  \
-    } catch (const ::InferenceEngine::Exception& iex) {                                                             \
-        return InferenceEngine::DescriptionBuffer(InferenceEngine::ExceptionToStatus(iex)) << iex.what();           \
-    } catch (const std::exception& ex) {                                                                            \
-        return InferenceEngine::DescriptionBuffer(GENERAL_ERROR) << ex.what();                                      \
-    } catch (...) {                                                                                                 \
-        return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                      \
-    }
-
-/**
- * @def NO_EXCEPT_CALL_RETURN_STATUS(x)
- * @brief Returns a status code of a called function, handles exeptions and converts to a status code.
- * @ingroup ie_dev_api_error_debug
- */
-#define NO_EXCEPT_CALL_RETURN_STATUS(x)                                                                         \
-    try {                                                                                                       \
-        return x;                                                                                               \
-    } catch (const ::InferenceEngine::Exception& iex) {                                                         \
-        return InferenceEngine::DescriptionBuffer(InferenceEngine::ExceptionToStatus(iex), resp) << iex.what(); \
-    } catch (const std::exception& ex) {                                                                        \
+    } CATCH_IE_EXCEPTIONS_TO_STATUS catch (const std::exception& ex) {                                          \
         return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();                            \
     } catch (...) {                                                                                             \
         return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                  \
@@ -82,5 +63,4 @@ INFERENCE_ENGINE_API_CPP(StatusCode) ExceptionToStatus(const Exception& exceptio
         CATCH_IE_EXCEPTION(InferNotStarted)     \
         CATCH_IE_EXCEPTION(NetworkNotRead)      \
         CATCH_IE_EXCEPTION(InferCancelled)
-
 }  // namespace InferenceEngine

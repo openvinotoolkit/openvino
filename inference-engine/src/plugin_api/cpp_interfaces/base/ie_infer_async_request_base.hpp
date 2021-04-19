@@ -11,25 +11,92 @@
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 #include <cpp_interfaces/base/ie_variable_state_base.hpp>
-#include <cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
 
 namespace InferenceEngine {
 
+#define CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(StatusCode, ExceptionType) catch (const ExceptionType& ex) {       \
+    return InferenceEngine::DescriptionBuffer(StatusCode) << ex.what();                                         \
+}
+
+#define CATCH_IE_EXCEPTIONS_TO_STATUS_NO_RESP                                         \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(GENERAL_ERROR, GeneralError)             \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_IMPLEMENTED, NotImplemented)         \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NETWORK_NOT_LOADED, NetworkNotLoaded)    \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(PARAMETER_MISMATCH, ParameterMismatch)   \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_FOUND, NotFound)                     \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(OUT_OF_BOUNDS, OutOfBounds)              \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(UNEXPECTED, Unexpected)                  \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(REQUEST_BUSY, RequestBusy)               \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(RESULT_NOT_READY, ResultNotReady)        \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NOT_ALLOCATED, NotAllocated)             \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(INFER_NOT_STARTED, InferNotStarted)      \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(NETWORK_NOT_READ, NetworkNotRead)        \
+        CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(INFER_CANCELLED, InferCancelled)
+
 /**
- * @brief Inference request `noexcept` wrapper which accepts IAsyncInferRequestInternal derived instance which can throw exceptions
- * @ingroup ie_dev_api_async_infer_request_api
+ * @def TO_STATUS_NO_RESP(x)
+ * @brief Converts C++ exceptioned function call into a status code. Does not work with a ResponseDesc object
+ * @ingroup ie_dev_api_error_debug
+ */
+#define TO_STATUS_NO_RESP(x)                                                                                        \
+    try {                                                                                                           \
+        x;                                                                                                          \
+        return OK;                                                                                                  \
+    } CATCH_IE_EXCEPTIONS_TO_STATUS_NO_RESP catch (const std::exception& ex) {                                      \
+        return InferenceEngine::DescriptionBuffer(GENERAL_ERROR) << ex.what();                                      \
+    } catch (...) {                                                                                                 \
+        return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                      \
+    }
+
+#define CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(StatusCode, ExceptionType) catch (const ExceptionType& ex) {   \
+    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();                       \
+}
+
+#define CATCH_IE_EXCEPTIONS_CALL_RETURN_STATUS                                         \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(GENERAL_ERROR, GeneralError)             \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(NOT_IMPLEMENTED, NotImplemented)         \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(NETWORK_NOT_LOADED, NetworkNotLoaded)    \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(PARAMETER_MISMATCH, ParameterMismatch)   \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(NOT_FOUND, NotFound)                     \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(OUT_OF_BOUNDS, OutOfBounds)              \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(UNEXPECTED, Unexpected)                  \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(REQUEST_BUSY, RequestBusy)               \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(RESULT_NOT_READY, ResultNotReady)        \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(NOT_ALLOCATED, NotAllocated)             \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(INFER_NOT_STARTED, InferNotStarted)      \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(NETWORK_NOT_READ, NetworkNotRead)        \
+        CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(INFER_CANCELLED, InferCancelled)
+
+/**
+ * @def NO_EXCEPT_CALL_RETURN_STATUS(x)
+ * @brief Returns a status code of a called function, handles exeptions and converts to a status code.
+ * @ingroup ie_dev_api_error_debug
+ */
+#define NO_EXCEPT_CALL_RETURN_STATUS(x)                                                                         \
+    try {                                                                                                       \
+        return x;                                                                                               \
+    } CATCH_IE_EXCEPTIONS_CALL_RETURN_STATUS catch (const std::exception& ex) {                                 \
+        return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();                            \
+    } catch (...) {                                                                                             \
+        return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                  \
+    }
+
+/**
+ * @brief Inference request `noexcept` wrapper which accepts IInferRequestInternal derived instance which can throw exceptions
+ * @ingroup ie_dev_api_infer_request_api
  */
 class InferRequestBase : public IInferRequest {
-    std::shared_ptr<IAsyncInferRequestInternal> _impl;
+    std::shared_ptr<IInferRequestInternal> _impl;
 
 public:
     /**
      * @brief Constructor with actual underlying implementation.
-     * @param impl Underlying implementation of type IAsyncInferRequestInternal
+     * @param impl Underlying implementation of type IInferRequestInternal
      */
-    explicit InferRequestBase(std::shared_ptr<IAsyncInferRequestInternal> impl): _impl(impl) {}
+    explicit InferRequestBase(std::shared_ptr<IInferRequestInternal> impl): _impl(impl) {}
 
     StatusCode Infer(ResponseDesc* resp) noexcept override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Infer");
@@ -73,15 +140,30 @@ public:
     }
 
     StatusCode SetCompletionCallback(CompletionCallback callback) noexcept override {
-        TO_STATUS_NO_RESP(_impl->SetCompletionCallback(callback));
+        TO_STATUS_NO_RESP(_impl->SetCallback([callback, this] (std::exception_ptr exceptionPtr) {
+            StatusCode statusCode = [&] ()-> StatusCode {
+                if (exceptionPtr) {
+                    TO_STATUS_NO_RESP(std::rethrow_exception(exceptionPtr));
+                } else {
+                    return OK;
+                }
+            } ();
+            callback(std::shared_ptr<InferRequestBase>{this, [](InferRequestBase*){}}, statusCode);
+        }));
     }
 
-    StatusCode GetUserData(void** data, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->GetUserData(data));
+    StatusCode GetUserData(void** data, ResponseDesc*) noexcept override {
+        if (data != nullptr) {
+            *data = _data;
+            return OK;
+        } else {
+            return GENERAL_ERROR;
+        }
     }
 
-    StatusCode SetUserData(void* data, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->SetUserData(data));
+    StatusCode SetUserData(void* data, ResponseDesc*) noexcept override {
+        _data = data;
+        return OK;
     }
 
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
@@ -104,6 +186,8 @@ public:
         }
     }
     IE_SUPPRESS_DEPRECATED_END
+
+    void* _data = nullptr;
 };
 
 }  // namespace InferenceEngine

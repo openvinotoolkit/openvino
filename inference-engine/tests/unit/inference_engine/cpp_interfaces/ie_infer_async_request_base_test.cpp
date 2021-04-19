@@ -7,13 +7,16 @@
 #include <gmock/gmock-generated-actions.h>
 
 #include <cpp/ie_infer_request.hpp>
+#include <cpp/ie_executable_network.hpp>
+#include <ie_plugin_cpp.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_internal.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iasync_infer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -25,7 +28,7 @@ constexpr const char* MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME;
 
 class InferRequestBaseTests : public ::testing::Test {
 protected:
-    std::shared_ptr<MockIAsyncInferRequestInternal> mock_impl;
+    std::shared_ptr<MockIInferRequestInternal> mock_impl;
     shared_ptr<IInferRequest> request;
     ResponseDesc dsc;
 
@@ -33,7 +36,7 @@ protected:
     }
 
     virtual void SetUp() {
-        mock_impl.reset(new MockIAsyncInferRequestInternal());
+        mock_impl.reset(new MockIInferRequestInternal());
         request = std::make_shared<InferRequestBase>(mock_impl);
     }
 };
@@ -53,42 +56,6 @@ TEST_F(InferRequestBaseTests, canReportErrorInStartAsync) {
 TEST_F(InferRequestBaseTests, canCatchUnknownErrorInStartAsync) {
     EXPECT_CALL(*mock_impl.get(), StartAsync()).WillOnce(Throw(5));
     ASSERT_EQ(UNEXPECTED, request->StartAsync(nullptr));
-}
-
-// GetUserData
-TEST_F(InferRequestBaseTests, canForwardGetUserData) {
-    void **data = nullptr;
-    EXPECT_CALL(*mock_impl.get(), GetUserData(data)).Times(1);
-    ASSERT_EQ(OK, request->GetUserData(data, &dsc));
-}
-
-TEST_F(InferRequestBaseTests, canReportErrorInGetUserData) {
-    EXPECT_CALL(*mock_impl.get(), GetUserData(_)).WillOnce(Throw(std::runtime_error("compare")));
-    ASSERT_NE(request->GetUserData(nullptr, &dsc), OK);
-    ASSERT_STREQ(dsc.msg, "compare");
-}
-
-TEST_F(InferRequestBaseTests, canCatchUnknownErrorInGetUserData) {
-    EXPECT_CALL(*mock_impl.get(), GetUserData(_)).WillOnce(Throw(5));
-    ASSERT_EQ(UNEXPECTED, request->GetUserData(nullptr, nullptr));
-}
-
-// SetUserData
-TEST_F(InferRequestBaseTests, canForwardSetUserData) {
-    void *data = nullptr;
-    EXPECT_CALL(*mock_impl.get(), SetUserData(data)).Times(1);
-    ASSERT_EQ(OK, request->SetUserData(data, &dsc));
-}
-
-TEST_F(InferRequestBaseTests, canReportErrorInSetUserData) {
-    EXPECT_CALL(*mock_impl.get(), SetUserData(_)).WillOnce(Throw(std::runtime_error("compare")));
-    ASSERT_NE(request->SetUserData(nullptr, &dsc), OK);
-    ASSERT_STREQ(dsc.msg, "compare");
-}
-
-TEST_F(InferRequestBaseTests, canCatchUnknownErrorInSetUserData) {
-    EXPECT_CALL(*mock_impl.get(), SetUserData(_)).WillOnce(Throw(5));
-    ASSERT_EQ(UNEXPECTED, request->SetUserData(nullptr, nullptr));
 }
 
 // Wait
@@ -192,23 +159,27 @@ TEST_F(InferRequestBaseTests, canCatchUnknownErrorInSetBlob) {
 // SetCompletionCallback
 TEST_F(InferRequestBaseTests, canForwardSetCompletionCallback) {
     InferenceEngine::IInferRequest::CompletionCallback callback = nullptr;
-    EXPECT_CALL(*mock_impl.get(), SetCompletionCallback(callback)).Times(1);
+    EXPECT_CALL(*mock_impl.get(), SetCallback(_)).Times(1);
     ASSERT_NO_THROW(request->SetCompletionCallback(callback));
 }
 
 TEST_F(InferRequestBaseTests, canReportErrorInSetCompletionCallback) {
-    EXPECT_CALL(*mock_impl.get(), SetCompletionCallback(_)).WillOnce(Throw(std::runtime_error("compare")));
-    ASSERT_NO_THROW(request->SetCompletionCallback(nullptr));
+    EXPECT_CALL(*mock_impl.get(), SetCallback(_)).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NE(request->SetCompletionCallback(nullptr), OK);
 }
 
 
 class InferRequestTests : public ::testing::Test {
 protected:
-    std::shared_ptr<MockIInferRequest> mock_request;
-    InferRequest::Ptr requestWrapper;
+    std::shared_ptr<MockIInferRequestInternal> mock_request;
+    InferRequest request;
     ResponseDesc dsc;
 
-    shared_ptr<MockAsyncInferRequestInternal> mockInferRequestInternal;
+    std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
+    InferenceEngine::ExecutableNetwork              exeNetwork;
+    MockIInferencePlugin*                           mockIPlugin;
+    InferencePlugin                                 plugin;
+    shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     MockNotEmptyICNNNetwork mockNotEmptyNet;
     std::string _incorrectName;
     std::string _inputName;
@@ -216,15 +187,21 @@ protected:
     std::string _inputDataNotAllocatedError;
     std::string _inputDataIsEmptyError;
 
-    virtual void TearDown() {
+    void TearDown() override {
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockInferRequestInternal.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mock_request.get()));
-        EXPECT_TRUE(Mock::VerifyAndClearExpectations(requestWrapper.get()));
+        request = {};
     }
 
-    virtual void SetUp() {
-        mock_request = make_shared<MockIInferRequest>();
-        requestWrapper = make_shared<InferRequest>(mock_request);
+    void SetUp() override {
+        mock_request = make_shared<MockIInferRequestInternal>();
+        mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
+        ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mock_request));
+        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
+        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockIExeNet));
+        plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
+        exeNetwork = plugin.LoadNetwork({}, {});
+        request = exeNetwork.CreateInferRequest();
         _incorrectName = "incorrect_name";
         _inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
         _failedToFindInOutError =
@@ -235,15 +212,20 @@ protected:
                                  + _inputName + "\'";
     }
 
-    InferRequest::Ptr getInferRequestWithMockImplInside() {
+    InferRequest getInferRequestWithMockImplInside() {
         IInferRequest::Ptr inferRequest;
         InputsDataMap inputsInfo;
         mockNotEmptyNet.getInputsInfo(inputsInfo);
         OutputsDataMap outputsInfo;
         mockNotEmptyNet.getOutputsInfo(outputsInfo);
-        mockInferRequestInternal = make_shared<MockAsyncInferRequestInternal>(inputsInfo, outputsInfo);
-        inferRequest = std::make_shared<InferRequestBase>(mockInferRequestInternal);
-        return make_shared<InferRequest>(inferRequest);
+        mockInferRequestInternal = make_shared<MockIInferRequestInternal>(inputsInfo, outputsInfo);
+        auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
+        ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
+        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
+        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockIExeNet));
+        auto plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
+        auto exeNetwork = plugin.LoadNetwork({}, {});
+        return exeNetwork.CreateInferRequest();
     }
 
     std::string getExceptionMessage(std::function<void()> function) {
@@ -274,60 +256,52 @@ protected:
     }
 };
 
-// constructor tests
-TEST_F(InferRequestTests, constructorsTests) {
-    // construction from the non-null should not throw
-    ASSERT_NO_THROW(InferRequest req(mock_request));
-    IInferRequest::Ptr tmp;
-    // InferRequest's "actual" is nullptr, let's check it throws on construction
-    ASSERT_THROW(InferRequest req(tmp), Exception);
-}
 
 // StartAsync
 TEST_F(InferRequestTests, canForwardStartAsync) {
-    EXPECT_CALL(*mock_request.get(), StartAsync(_)).WillOnce(Return(OK));
-    ASSERT_NO_THROW(requestWrapper->StartAsync());
+    EXPECT_CALL(*mock_request.get(), StartAsync());
+    ASSERT_NO_THROW(request.StartAsync());
 }
 
 TEST_F(InferRequestTests, throwsIfStartAsyncReturnNotOK) {
-    EXPECT_CALL(*mock_request.get(), StartAsync(_)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(requestWrapper->StartAsync(), Exception);
+    EXPECT_CALL(*mock_request.get(), StartAsync()).WillOnce(Throw(GeneralError{""}));
+    ASSERT_THROW(request.StartAsync(), Exception);
 }
 
 // Wait
 TEST_F(InferRequestTests, canForwardWait) {
     int64_t ms = 0;
-    EXPECT_CALL(*mock_request.get(), Wait(ms, _)).WillOnce(Return(OK));
-    ASSERT_TRUE(OK == requestWrapper->Wait(ms));
+    EXPECT_CALL(*mock_request.get(), Wait(_)).WillOnce(Return(OK));
+    ASSERT_TRUE(OK == request.Wait(ms));
 }
 
 TEST_F(InferRequestTests, canForwardStatusFromWait) {
-    EXPECT_CALL(*mock_request.get(), Wait(_, _)).WillOnce(Return(RESULT_NOT_READY));
-    ASSERT_EQ(requestWrapper->Wait(0), RESULT_NOT_READY);
+    EXPECT_CALL(*mock_request.get(), Wait(_)).WillOnce(Return(RESULT_NOT_READY));
+    ASSERT_EQ(request.Wait(0), RESULT_NOT_READY);
 }
 
 // Infer
 TEST_F(InferRequestTests, canForwardInfer) {
-    EXPECT_CALL(*mock_request.get(), Infer(_)).WillOnce(Return(OK));
-    ASSERT_NO_THROW(requestWrapper->Infer());
+    EXPECT_CALL(*mock_request.get(), Infer());
+    ASSERT_NO_THROW(request.Infer());
 }
 
 TEST_F(InferRequestTests, throwsIfInferReturnNotOK) {
-    EXPECT_CALL(*mock_request.get(), Infer(_)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(requestWrapper->Infer(), Exception);
+    EXPECT_CALL(*mock_request.get(), Infer()).WillOnce(Throw(GeneralError{""}));
+    ASSERT_THROW(request.Infer(), Exception);
 }
 
 // GetPerformanceCounts
 TEST_F(InferRequestTests, canForwardGetPerformanceCounts) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-    EXPECT_CALL(*mock_request.get(), GetPerformanceCounts(_, _)).WillOnce(Return(OK));
-    ASSERT_NO_THROW(info = requestWrapper->GetPerformanceCounts());
+    EXPECT_CALL(*mock_request.get(), GetPerformanceCounts()).WillOnce(Return(info));
+    ASSERT_NO_THROW(info = request.GetPerformanceCounts());
 }
 
 TEST_F(InferRequestTests, throwsIfGetPerformanceCountsReturnNotOK) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-    EXPECT_CALL(*mock_request.get(), GetPerformanceCounts(_, _)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(info = requestWrapper->GetPerformanceCounts(), Exception);
+    EXPECT_CALL(*mock_request.get(), GetPerformanceCounts()).WillOnce(Throw(GeneralError{""}));
+    ASSERT_THROW(info = request.GetPerformanceCounts(), Exception);
 }
 
 MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
@@ -343,15 +317,15 @@ TEST_F(InferRequestTests, getInputCallsSetBlob) {
     BlobMap blobMap{{blobName1, inblob},
                     {blobName2, inblob}};
 
-    EXPECT_CALL(*mock_request.get(), SetBlob(StrEq(blobName1.c_str()), inblob, _)).WillOnce(Return(OK));
-    EXPECT_CALL(*mock_request.get(), SetBlob(StrEq(blobName2.c_str()), inblob, _)).WillOnce(Return(OK));
-    ASSERT_NO_THROW(requestWrapper->SetInput(blobMap));
+    EXPECT_CALL(*mock_request.get(), SetBlob(blobName1, inblob));
+    EXPECT_CALL(*mock_request.get(), SetBlob(blobName2, inblob));
+    ASSERT_NO_THROW(request.SetInput(blobMap));
 }
 
 TEST_F(InferRequestTests, throwsIfSetInputReturnNotOK) {
-    EXPECT_CALL(*mock_request.get(), SetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
+    EXPECT_CALL(*mock_request.get(), SetBlob(_, _)).WillOnce(Throw(GeneralError{""}));
     BlobMap blobMap{{{}, {}}};
-    ASSERT_THROW(requestWrapper->SetInput(blobMap), Exception);
+    ASSERT_THROW(request.SetInput(blobMap), Exception);
 }
 
 // SetOutput
@@ -362,9 +336,9 @@ TEST_F(InferRequestTests, getOutputCallsSetBlob) {
     BlobMap blobMap{{blobName1, inblob},
                     {blobName2, inblob}};
 
-    EXPECT_CALL(*mock_request.get(), SetBlob(StrEq(blobName1.c_str()), inblob, _)).WillOnce(Return(OK));
-    EXPECT_CALL(*mock_request.get(), SetBlob(StrEq(blobName2.c_str()), inblob, _)).WillOnce(Return(OK));
-    ASSERT_NO_THROW(requestWrapper->SetOutput(blobMap));
+    EXPECT_CALL(*mock_request.get(), SetBlob(blobName1, inblob));
+    EXPECT_CALL(*mock_request.get(), SetBlob(blobName2, inblob));
+    ASSERT_NO_THROW(request.SetOutput(blobMap));
 }
 
 // GetBlob
@@ -373,16 +347,16 @@ TEST_F(InferRequestTests, canForwardGetBlob) {
     blob->allocate();
     std::string name = "blob1";
 
-    EXPECT_CALL(*mock_request.get(), GetBlob(StrEq(name.c_str()), _, _)).WillOnce(DoAll(SetArgReferee<1>(blob), Return(OK)));
-    ASSERT_NO_THROW(requestWrapper->GetBlob(name));
+    EXPECT_CALL(*mock_request.get(), GetBlob(_)).WillOnce(Return(blob));
+    ASSERT_NO_THROW(request.GetBlob(name));
 }
 
 TEST_F(InferRequestTests, throwsIfGetBlobReturnNotOK) {
     Blob::Ptr blob;
     std::string name = "blob1";
 
-    EXPECT_CALL(*mock_request.get(), GetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(blob = requestWrapper->GetBlob(name), Exception);
+    EXPECT_CALL(*mock_request.get(), GetBlob(_)).WillOnce(Throw(GeneralError{""}));
+    ASSERT_THROW(blob = request.GetBlob(name), Exception);
 }
 
 // SetBlob
@@ -390,79 +364,49 @@ TEST_F(InferRequestTests, canForwardSetBlob) {
     Blob::Ptr blob;
     std::string name = "blob1";
 
-    EXPECT_CALL(*mock_request.get(), SetBlob(StrEq(name.c_str()), blob, _)).WillOnce(Return(OK));
-    ASSERT_NO_THROW(requestWrapper->SetBlob(name, blob));
+    EXPECT_CALL(*mock_request.get(), SetBlob(name, blob));
+    ASSERT_NO_THROW(request.SetBlob(name, blob));
 }
 
 TEST_F(InferRequestTests, throwsIfSetBlobReturnNotOK) {
     Blob::Ptr blob;
     std::string name = "blob1";
 
-    EXPECT_CALL(*mock_request.get(), SetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
-    ASSERT_THROW(requestWrapper->SetBlob(name, blob), Exception);
+    EXPECT_CALL(*mock_request.get(), SetBlob(_, _)).WillOnce(Throw(GeneralError{""}));
+    ASSERT_THROW(request.SetBlob(name, blob), Exception);
 }
 
 TEST_F(InferRequestTests, throwsIfSetOutputReturnNotOK) {
-    EXPECT_CALL(*mock_request.get(), SetBlob(_, _, _)).WillOnce(Return(GENERAL_ERROR));
+    EXPECT_CALL(*mock_request.get(), SetBlob(_, _)).WillOnce(Throw(GeneralError{""}));
     BlobMap blobMap{{{}, {}}};
-    ASSERT_THROW(requestWrapper->SetOutput(blobMap), Exception);
-}
-
-// SetCompletionCallback API
-void callme(InferenceEngine::IInferRequest::Ptr p, InferenceEngine::StatusCode) {
-    void *data = nullptr;
-    p->GetUserData(&data, nullptr);
-    ASSERT_NE(nullptr, data);
-}
-
-TEST_F(InferRequestTests, canForwardCompletionCallback) {
-    void *data = nullptr;
-    EXPECT_CALL(*mock_request.get(), SetCompletionCallback(_)).WillOnce(
-            DoAll(InvokeArgument<0>(static_pointer_cast<IInferRequest>(mock_request), OK), Return(OK)));
-    EXPECT_CALL(*mock_request.get(), GetUserData(_, _)).WillRepeatedly(
-            DoAll(Invoke([&](void **pData, ResponseDesc *resp) {
-                *pData = data;
-            }), Return(OK)));
-    EXPECT_CALL(*mock_request.get(), SetUserData(_, _)).WillOnce(DoAll(SaveArg<0>(&data), Return(OK)));
-    ASSERT_NO_THROW(requestWrapper->SetCompletionCallback(&callme));
+    ASSERT_THROW(request.SetOutput(blobMap), Exception);
 }
 
 TEST_F(InferRequestTests, canForwardAnyCallback) {
-    void *data = nullptr;
-    EXPECT_CALL(*mock_request.get(), SetCompletionCallback(_)).WillOnce(
-            DoAll(InvokeArgument<0>(static_pointer_cast<IInferRequest>(mock_request), OK), Return(OK)));
-    EXPECT_CALL(*mock_request.get(), GetUserData(_, _)).WillRepeatedly(
-            DoAll(Invoke([&](void **pData, ResponseDesc *resp) {
-                *pData = data;
-            }), Return(OK)));
-    EXPECT_CALL(*mock_request.get(), SetUserData(_, _)).WillOnce(DoAll(SaveArg<0>(&data), Return(OK)));
-
-    ASSERT_NO_THROW(requestWrapper->SetCompletionCallback([&]() {
-        // data used to store callback pointer
-        ASSERT_NE(data, nullptr);
-    }));
+    EXPECT_CALL(*mock_request.get(), SetCallback(_));
+    ASSERT_NO_THROW(request.SetCompletionCallback([] {}));
 }
 
 TEST_F(InferRequestTests, failToSetInputWithInCorrectName) {
-    auto InferRequest = getInferRequestWithMockImplInside();
+    EXPECT_CALL(*mock_request.get(), SetBlob(_, _)).WillOnce(Throw(NotFound{""}));
     auto blobMap = getBlobMapWithIncorrectName();
-    ASSERT_THROW(InferRequest->SetInput(blobMap), NotFound);
+    ASSERT_THROW(request.SetInput(blobMap), NotFound);
 }
 
 TEST_F(InferRequestTests, failToSetOutputWithInCorrectName) {
-    auto InferRequest = getInferRequestWithMockImplInside();
+    EXPECT_CALL(*mock_request.get(), SetBlob(_, _)).WillOnce(Throw(NotFound{""}));
     auto blobMap = getBlobMapWithIncorrectName();
-    ASSERT_THROW(InferRequest->SetOutput(blobMap), NotFound);
+    ASSERT_THROW(request.SetOutput(blobMap), NotFound);
 }
 
 TEST_F(InferRequestTests, failToSetInputWithNotAllocatedInput) {
-    auto InferRequest = getInferRequestWithMockImplInside();
+    EXPECT_CALL(*mock_request.get(), SetBlob(_, _)).WillOnce(Throw(NotAllocated{""}));
     auto blobMap = getBlobMapWithNotAllocatedInput();
-    ASSERT_THROW(InferRequest->SetInput(blobMap), NotAllocated);
+    ASSERT_THROW(request.SetInput(blobMap), NotAllocated);
 }
 
 TEST_F(InferRequestTests, failToSetInputWithEmptyDimensions) {
-    auto InferRequest = getInferRequestWithMockImplInside();
+    EXPECT_CALL(*mock_request.get(), SetBlob(_, _)).WillOnce(Throw(GeneralError{""}));
     auto blobMap = getBlobMapWithEmptyDimensions();
-    ASSERT_THROW(InferRequest->SetInput(blobMap), GeneralError);
+    ASSERT_THROW(request.SetInput(blobMap), GeneralError);
 }

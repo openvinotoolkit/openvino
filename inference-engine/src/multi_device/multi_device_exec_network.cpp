@@ -174,7 +174,7 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
                        << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
-InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
     auto num = _numRequestsCreated++;
     size_t sum = 0;
@@ -192,17 +192,13 @@ InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateI
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
-IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
-    IInferRequest::Ptr asyncRequest;
+IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncTreadSafeImpl = std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
-                                                                             _needPerfCounters,
-                                                                             std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
-                                                                             _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase(asyncTreadSafeImpl));
-    asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-    return asyncRequest;
+    return std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
+                                                          _needPerfCounters,
+                                                          std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
+                                                          _callbackExecutor);
 }
 
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {

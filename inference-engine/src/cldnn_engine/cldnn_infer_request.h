@@ -9,7 +9,6 @@
 #include <vector>
 #include <memory>
 #include <atomic>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include "cldnn_graph.h"
 #include <threading/ie_istreams_executor.hpp>
 
@@ -22,7 +21,7 @@ struct buf_info {
 
 class CLDNNExecNetwork;
 
-class CLDNNInferRequest : public InferenceEngine::InferRequestInternal {
+class CLDNNInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     // make sure all blobs and cldnn::memory objects
     // are in place and valid

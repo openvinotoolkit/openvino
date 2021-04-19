@@ -114,9 +114,9 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     void run(InferenceEngine::Task inferTask) override;
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                      InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
     ~MultiDeviceExecutableNetwork() override;
 

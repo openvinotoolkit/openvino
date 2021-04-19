@@ -15,6 +15,7 @@
 #include <multi-device/multi_device_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "multi_device_plugin.hpp"
+#include <ie_algorithm.hpp>
 
 // ------------------------------MultiDeviceInferencePlugin----------------------------
 namespace MultiDevicePlugin {

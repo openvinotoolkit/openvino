@@ -1202,7 +1202,7 @@ TEST_F(MKLDNNGraphStructureTests, TestOutputAfterInplacePlusConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
+    InferenceEngine::IInferRequestInternal::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 2, 2}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -1211,8 +1211,7 @@ TEST_F(MKLDNNGraphStructureTests, TestOutputAfterInplacePlusConcat) {
 
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::StatusCode sts = inferRequest->SetBlob("data", src, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob("data", src));
 
     InferenceEngine::OutputsDataMap out = network.getOutputsInfo();
 
@@ -1222,11 +1221,8 @@ TEST_F(MKLDNNGraphStructureTests, TestOutputAfterInplacePlusConcat) {
     output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
     output->allocate();
 
-    sts = inferRequest->SetBlob(item.first.c_str(), output, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
-
-    sts = inferRequest->Infer(&resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob(item.first, output));
+    ASSERT_NO_THROW(inferRequest->Infer());
 
     compare(*output, *src);
 }
@@ -1717,7 +1713,7 @@ TEST_F(MKLDNNGraphStructureTests, TestResnetPart) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
+    InferenceEngine::IInferRequestInternal::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 224, 224}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -1726,8 +1722,7 @@ TEST_F(MKLDNNGraphStructureTests, TestResnetPart) {
 
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::StatusCode sts = inferRequest->SetBlob("input", src, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob("input", src));
 
     InferenceEngine::OutputsDataMap out = network.getOutputsInfo();
 
@@ -1737,18 +1732,16 @@ TEST_F(MKLDNNGraphStructureTests, TestResnetPart) {
     output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
     output->allocate();
 
-    sts = inferRequest->SetBlob(item.first.c_str(), output, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob(item.first.c_str(), output));
 
-    sts = inferRequest->Infer(&resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->Infer());
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
     std::string model = R"V0G0N(
 <net batch="1" name="model" version="2">
 	<layers>
-		<layer id="0" name="data" precision="FP32" type="Input">
+		<layer id="0" name="data1" precision="FP32" type="Input">
 			<output>
 				<port id="0">
 					<dim>1</dim>
@@ -1866,7 +1859,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
+    InferenceEngine::IInferRequestInternal::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -1885,10 +1878,9 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
 
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::StatusCode sts = inferRequest->SetBlob("data1", src1, &resp);
-    sts = inferRequest->SetBlob("data2", src2, &resp);
-    sts = inferRequest->SetBlob("data3", src3, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob("data1", src1));
+    ASSERT_NO_THROW(inferRequest->SetBlob("data2", src2));
+    ASSERT_NO_THROW(inferRequest->SetBlob("data3", src3));
 
     InferenceEngine::OutputsDataMap out = network.getOutputsInfo();
 
@@ -1898,11 +1890,9 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
     output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
     output->allocate();
 
-    sts = inferRequest->SetBlob(item.first.c_str(), output, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob(item.first, output));
 
-    sts = inferRequest->Infer(&resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->Infer());
 
 //    compare(*output, *src);
 }
@@ -2046,7 +2036,7 @@ TEST_F(MKLDNNGraphStructureTests, Test2ConcatFromConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
+    InferenceEngine::IInferRequestInternal::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 2, 2}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2070,14 +2060,10 @@ TEST_F(MKLDNNGraphStructureTests, Test2ConcatFromConcat) {
 
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::StatusCode sts = inferRequest->SetBlob("data1", src1, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
-    sts = inferRequest->SetBlob("data2", src2, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
-    sts = inferRequest->SetBlob("data3", src3, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
-    sts = inferRequest->SetBlob("data4", src4, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob("data1", src1));
+    ASSERT_NO_THROW(inferRequest->SetBlob("data2", src2));
+    ASSERT_NO_THROW(inferRequest->SetBlob("data3", src3));
+    ASSERT_NO_THROW(inferRequest->SetBlob("data4", src4));
 
     InferenceEngine::OutputsDataMap out = network.getOutputsInfo();
 
@@ -2127,12 +2113,10 @@ TEST_F(MKLDNNGraphStructureTests, Test2ConcatFromConcat) {
         }
         refOutputs.push_back(refOutput);
 
-        sts = inferRequest->SetBlob(it.first.c_str(), output, &resp);
-        ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+        ASSERT_NO_THROW(inferRequest->SetBlob(it.first, output));
     }
 
-    sts = inferRequest->Infer(&resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->Infer());
 
     for (size_t i = 0; i < outputs.size(); i++) {
         compare(*outputs[i], *refOutputs[i]);
@@ -2376,7 +2360,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
+    InferenceEngine::IInferRequestInternal::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2385,8 +2369,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
 
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::StatusCode sts = inferRequest->SetBlob("data", src1, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob("data", src1));
 
     InferenceEngine::OutputsDataMap out = network.getOutputsInfo();
 
@@ -2396,11 +2379,9 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
     output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
     output->allocate();
 
-    sts = inferRequest->SetBlob(item.first.c_str(), output, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob(item.first.c_str(), output));
 
-    sts = inferRequest->Infer(&resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->Infer());
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
@@ -2523,7 +2504,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
+    InferenceEngine::IInferRequestInternal::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2535,8 +2516,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
 
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::StatusCode sts = inferRequest->SetBlob("data", src1, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob("data", src1));
 
     InferenceEngine::OutputsDataMap out = network.getOutputsInfo();
 
@@ -2546,11 +2526,9 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
     output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
     output->allocate();
 
-    sts = inferRequest->SetBlob(item.first.c_str(), output, &resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->SetBlob(item.first.c_str(), output));
 
-    sts = inferRequest->Infer(&resp);
-    ASSERT_EQ(InferenceEngine::OK, sts) << resp.msg;
+    ASSERT_NO_THROW(inferRequest->Infer());
 
     auto *res_ptr = output->buffer().as<float*>();
     size_t res_size = output->size();
