@@ -163,6 +163,8 @@ TEST(TransformationTests, GeluFusionPatternIncorrectDivConstValue) {
         auto mul = std::make_shared<opset7::Multiply>(mul_first, mul_const);
 
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        f_ref =
+            std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
@@ -171,16 +173,8 @@ TEST(TransformationTests, GeluFusionPatternIncorrectDivConstValue) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        auto data =
-            std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref =
-            std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
-    }
-
     auto res = compare_functions(f, f_ref);
-    ASSERT_FALSE(res.first) << res.second;
+    ASSERT_TRUE(res.first) << res.second;
 }
 
 TEST(TransformationTests, GeluFusionPatternTooShortDivConstValue) {
@@ -203,6 +197,8 @@ TEST(TransformationTests, GeluFusionPatternTooShortDivConstValue) {
         auto mul = std::make_shared<opset7::Multiply>(mul_first, mul_const);
 
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        f_ref =
+            std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
@@ -211,14 +207,6 @@ TEST(TransformationTests, GeluFusionPatternTooShortDivConstValue) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        auto data =
-            std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref =
-            std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
-    }
-
     auto res = compare_functions(f, f_ref);
-    ASSERT_FALSE(res.first) << res.second;
+    ASSERT_TRUE(res.first) << res.second;
 }
