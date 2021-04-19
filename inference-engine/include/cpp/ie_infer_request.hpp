@@ -112,9 +112,7 @@ public:
     void Infer();
 
     /**
-     * @brief Cancel inference request
-     * @param name Name of input blob.
-     * @return pointer to pre-process info of blob with name
+     * @brief Cancels inference request
      */
     void Cancel();
 

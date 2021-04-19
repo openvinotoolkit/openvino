@@ -143,6 +143,8 @@ public:
      */
     virtual StatusCode StartAsync(ResponseDesc* resp) noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief Completion callback definition as pointer to a function
      *
@@ -150,6 +152,8 @@ public:
      * @param code Completion result status: InferenceEngine::OK (0) for success
      */
     typedef void (*CompletionCallback)(InferenceEngine::IInferRequest::Ptr context, InferenceEngine::StatusCode code);
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets a callback function that will be called on success or failure of asynchronous request
