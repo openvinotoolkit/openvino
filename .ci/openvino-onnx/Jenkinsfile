@@ -78,7 +78,7 @@ def gitSubmoduleUpdate(String repository_name) {
             git submodule init && git submodule update \
                 --init \
                 --no-fetch \
-                --recursive 
+                --recursive
         """
     }
 }
