@@ -152,7 +152,6 @@ function(ie_headers_compilation_with_custom_flags)
     # has an issue with cmake config which lead to fail in case of multiple call of find_package
     # from one cmake script file.
     set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
-    set("TBBBIND_2_4_FOUND" ${TBBBIND_2_4_FOUND} PARENT_SCOPE)
     set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
     set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
 
