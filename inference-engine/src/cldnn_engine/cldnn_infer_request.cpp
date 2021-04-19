@@ -12,6 +12,8 @@
 #include "cldnn_remote_context.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_itt.h"
+#include <ie_algorithm.hpp>
+#include <debug.h>
 
 using namespace InferenceEngine;
 
@@ -812,7 +814,7 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 
 CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : InferRequestInternal(networkInputs, networkOutputs)
+        : IInferRequestInternal(networkInputs, networkOutputs)
         , m_useProfiling(false)
         , m_useStreams(false) {
     IE_ASSERT(nullptr != execNetwork);
