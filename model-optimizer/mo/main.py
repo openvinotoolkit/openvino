@@ -150,7 +150,7 @@ def prepare_ir(argv: argparse.Namespace):
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
-        print("[ ERROR ] check_requirements exit with return code {}".format(ret_code))
+        raise Error('check_requirements exit with return code {}'.format(ret_code))
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
