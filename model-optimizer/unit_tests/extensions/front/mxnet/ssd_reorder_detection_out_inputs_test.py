@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.mxnet.ssd_reorder_detection_out_inputs import SsdReorderDetectionOutInputs
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestSsdReorderDetectionOutInputs(unittest.TestCase):

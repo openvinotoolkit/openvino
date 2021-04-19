@@ -9,7 +9,7 @@ from generator import generator, generate
 from extensions.ops.scatter import ScatterElementsUpdate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph, regular_op_with_empty_data, result, connect, \
+from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, result, connect, \
     valued_const_with_data
 
 

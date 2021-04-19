@@ -4,10 +4,10 @@
 import numpy as np
 
 from extensions.ops.normalize import NormalizeOp
-from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.front.kaldi.extractors.normalize_component_ext import NormalizeComponentFrontExtractor
-from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from mo.ops.op import Op
+from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
+from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 
 
 class NormalizeComponentFrontExtractorTest(KaldiFrontExtractorTest):

@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.mxnet.leaky_relu import LeakyReLUFrontExtractor
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestLeakyReLUFrontExtractorOp(unittest.TestCase):

@@ -11,8 +11,8 @@ import extensions.front.onnx.activation_ext as extractors
 from extensions.ops.activation_ops import Elu
 from mo.graph.graph import Node
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import PB
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.extractors import PB
+from unit_tests.utils.graph import build_graph
 
 
 @generator

@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.mxnet.activation import ActivationFrontExtractor
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestActivationFrontExtractorOp(unittest.TestCase):

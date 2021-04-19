@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.cumsum import CumSum
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph, valued_const_with_data, regular_op_with_shaped_data, result, connect
+from unit_tests.utils.graph import build_graph, valued_const_with_data, regular_op_with_shaped_data, result, connect
 
 nodes_attributes = {
     **regular_op_with_shaped_data('data', [1, 3, 224, 224], {'type': 'Parameter', 'value': None,

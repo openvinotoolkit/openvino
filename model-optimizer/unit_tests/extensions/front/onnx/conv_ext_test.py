@@ -9,7 +9,7 @@ import onnx
 from extensions.front.onnx.conv_ext import ConvTransposeFrontExtractor
 from mo.graph.graph import Node
 from mo.utils.error import Error
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class ConvTransposeONNXExtractorTest(unittest.TestCase):

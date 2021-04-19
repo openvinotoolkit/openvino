@@ -4,7 +4,7 @@
 import numpy as np
 
 from extensions.front.tf.conv_ext import Conv2DFrontExtractor, DepthwiseConv2dNativeFrontExtractor
-from unit_tests.unittest.extractors import PB, BaseExtractorsTestingClass
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class ConvExtractorTest(BaseExtractorsTestingClass):

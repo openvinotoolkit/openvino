@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.front.freeze_placeholder_value import FreezePlaceholderValue
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_bool = {
     '0': {'name': 'input1', 'kind': 'op', 'op': 'Parameter', 'data_type': bool, 'shape': np.array([])},

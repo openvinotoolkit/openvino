@@ -6,7 +6,7 @@ import unittest
 from extensions.middle.ConcatOptimization import ConcatOdInputEraserAndPortsReconnect
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, regular_op_with_shaped_data, shaped_const_with_data, connect
+from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, shaped_const_with_data, connect
 
 
 class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):

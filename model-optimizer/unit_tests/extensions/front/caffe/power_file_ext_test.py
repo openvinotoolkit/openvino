@@ -8,8 +8,8 @@ from extensions.front.caffe.power_file_ext import PowerFileFrontExtractor
 from extensions.ops.power_file import PowerFileOp
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakePowerFileProtoLayer:

@@ -8,7 +8,7 @@ import onnx
 
 from extensions.front.onnx.affine_ext import AffineFrontExtractor
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class AffineONNXExtractorTest(unittest.TestCase):

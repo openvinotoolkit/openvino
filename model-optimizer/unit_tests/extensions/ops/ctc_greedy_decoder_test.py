@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 nodes_attributes = {'logits': {'kind': 'op'},

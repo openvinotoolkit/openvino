@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.instance_normalization import InstanceNormalization
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},

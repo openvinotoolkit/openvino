@@ -5,7 +5,7 @@ import unittest
 
 from extensions.middle.CheckForCycle import CheckForCycle
 from mo.utils.error import Error
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_1_data': {'value': None, 'kind': 'data', 'data_type': None},

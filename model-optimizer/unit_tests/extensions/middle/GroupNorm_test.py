@@ -6,7 +6,7 @@ import unittest
 from extensions.middle.GroupNorm import GroupNormToMVN
 from mo.front.common.partial_infer.utils import float_array, int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, connect, \
+from unit_tests.utils.graph import build_graph, result, connect, \
     regular_op_with_shaped_data, valued_const_with_data
 
 shape = int64_array([1, 3, 5, 2])

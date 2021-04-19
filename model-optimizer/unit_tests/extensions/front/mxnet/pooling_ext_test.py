@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.front.mxnet.pooling_ext import PoolingFrontExtractor
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class TestPoolingShapesParsing(unittest.TestCase):

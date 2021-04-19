@@ -9,7 +9,7 @@ from generator import generate, generator
 from extensions.ops.ReduceOps import reduce_infer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph, regular_op_with_shaped_data, result, connect, valued_const_with_data
+from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, valued_const_with_data
 
 nodes_attributes = {
     **regular_op_with_shaped_data('data', [1, 3, 224, 224], {'type': 'Parameter', 'value': None,

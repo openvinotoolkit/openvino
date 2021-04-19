@@ -9,7 +9,7 @@ from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
 from mo.middle.passes.fusing.fuse_linear_ops import _fuse_mul, fuse_linear_ops
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

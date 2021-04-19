@@ -9,7 +9,7 @@ import onnx
 from extensions.front.onnx.priorbox_ext import PriorBoxFrontExtractor
 from extensions.ops.priorbox import PriorBoxOp
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class TestPriorBoxExt(unittest.TestCase):

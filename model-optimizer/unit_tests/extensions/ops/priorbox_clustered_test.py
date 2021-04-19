@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'data'},
                     'node_2': {'type': 'Identity', 'value': None, 'kind': 'data'},

@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.back.insert_compatibility_l2normalization import CompatibilityL2NormalizationPattern
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class CompatibilityL2NormalizationPatternTest(unittest.TestCase):

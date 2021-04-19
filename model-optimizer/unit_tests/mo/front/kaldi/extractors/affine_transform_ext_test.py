@@ -5,9 +5,9 @@ import numpy as np
 
 from extensions.ops.MatMul import FullyConnected
 from mo.front.kaldi.extractors.affine_transform_ext import AffineTransformFrontExtractor
+from mo.ops.op import Op
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
-from mo.ops.op import Op
 
 
 class AffineTransformFrontExtractorTest(KaldiFrontExtractorTest):

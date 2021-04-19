@@ -4,11 +4,11 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.ops.upsample import UpsampleOp
-from generator import generator, generate
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'upsample': {'type': 'Upsample', 'kind': 'op'},

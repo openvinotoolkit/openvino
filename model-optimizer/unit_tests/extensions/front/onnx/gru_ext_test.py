@@ -7,7 +7,7 @@ import numpy as np
 import onnx
 
 from extensions.front.onnx.gru_ext import GRUFrontExtractor
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class GRUExtractorTest(unittest.TestCase):

@@ -4,10 +4,10 @@
 import numpy as np
 
 from extensions.ops.MatMul import FullyConnected
-from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.front.kaldi.extractors.fixed_affine_component_ext import FixedAffineComponentFrontExtractor
-from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from mo.ops.op import Op
+from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
+from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 
 
 class FixedAffineComponentFrontExtractorTest(KaldiFrontExtractorTest):

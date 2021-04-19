@@ -7,8 +7,8 @@ from unittest.mock import patch
 from extensions.front.caffe.accum_ext import AccumFrontExtractor
 from extensions.ops.accum import AccumOp
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakeAccumProtoLayer:

@@ -7,7 +7,7 @@ from extensions.ops.proposal import ProposalOp
 from mo.front.common.extractors.utils import layout_attrs
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'proposal_input': {'kind': 'data', 'shape': None, 'value': None},
                     'proposal': {'type': 'Proposal', 'kind': 'op'},

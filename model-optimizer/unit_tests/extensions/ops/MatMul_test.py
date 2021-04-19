@@ -9,7 +9,7 @@ from generator import generator, generate
 from extensions.ops.MatMul import MatMul
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph_with_attrs
+from unit_tests.utils.graph import build_graph_with_attrs
 
 
 @generator

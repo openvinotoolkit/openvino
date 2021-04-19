@@ -5,9 +5,9 @@ import unittest
 
 import numpy as np
 
-from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from mo.graph.graph import Node, Graph
-from unit_tests.unittest.graph import build_graph
+from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
+from unit_tests.utils.graph import build_graph
 
 
 class KaldiFrontExtractorTest(unittest.TestCase):

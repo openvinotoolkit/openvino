@@ -11,7 +11,7 @@ from extensions.ops.fakequantize import FakeQuantize
 from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.reshape import Reshape
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, regular_op_with_shaped_data, regular_op_with_empty_data, \
+from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, regular_op_with_empty_data, \
     valued_const_with_data, connect
 
 

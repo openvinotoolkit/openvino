@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.tf.extractors.identity import tf_identity_ext
-from unit_tests.unittest.extractors import BaseExtractorsTestingClass
+from unit_tests.utils.extractors import BaseExtractorsTestingClass
 
 
 class IdentityExtractorTest(BaseExtractorsTestingClass):

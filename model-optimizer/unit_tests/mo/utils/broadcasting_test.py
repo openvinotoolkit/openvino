@@ -1,11 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.broadcasting import bi_directional_broadcasting, bi_directional_shape_broadcasting, uni_directional_broadcasting, uni_directional_shape_broadcasting
-from generator import generator, generate
-import numpy as np
 import unittest
+
+import numpy as np
+from generator import generator, generate
+
+from mo.front.common.partial_infer.utils import int64_array
+from mo.utils.broadcasting import uni_directional_broadcasting, uni_directional_shape_broadcasting
 
 
 @generator

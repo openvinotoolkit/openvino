@@ -4,7 +4,7 @@
 import numpy as np
 
 from extensions.front.tf.deconv_ext import Conv2DBackpropInputFrontExtractor
-from unit_tests.unittest.extractors import PB, BaseExtractorsTestingClass
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class DeconvolutionExtractorTest(BaseExtractorsTestingClass):

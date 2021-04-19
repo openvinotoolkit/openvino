@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.onnx.quantize_dequantize_linear import QuantizeDequantizeLinear
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 # quantize and dequantize share tensors with scale/zp
 nodes0_attributes = {

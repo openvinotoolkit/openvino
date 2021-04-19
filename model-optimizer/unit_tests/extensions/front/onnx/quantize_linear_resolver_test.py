@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.onnx.quantize_linear_resolver import QuantizeLinearResolver
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes1_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},

@@ -11,7 +11,7 @@ from generator import generator, generate
 from extensions.front.onnx.transpose_ext import TransposeFrontExtractor
 from extensions.ops.transpose import Transpose
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 @generator

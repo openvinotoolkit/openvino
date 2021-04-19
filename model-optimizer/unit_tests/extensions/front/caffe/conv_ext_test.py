@@ -9,7 +9,7 @@ import numpy as np
 from extensions.front.caffe.conv_ext import ConvFrontExtractor, DeconvFrontExtractor, conv_create_attrs, conv_set_params
 from mo.front.caffe.extractors.utils import get_list_from_container
 from mo.utils.error import Error
-from unit_tests.unittest.extractors import PB, FakeParam, FakeMultiParam
+from unit_tests.utils.extractors import PB, FakeParam, FakeMultiParam
 
 
 class FakeConvProtoLayer:

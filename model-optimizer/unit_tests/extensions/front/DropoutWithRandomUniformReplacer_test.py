@@ -7,7 +7,7 @@ import unittest
 
 from extensions.front.DropoutWithRandomUniformReplacer import DropoutWithRandomUniformReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, regular_op
+from unit_tests.utils.graph import build_graph, result, regular_op
 
 
 class DropoutWithRandomUniformReplacerTest(unittest.TestCase):

@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.Reverse import Reverse
 from mo.front.common.extractors.utils import layout_attrs
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'node_1_data': {'type': 'Identity', 'kind': 'data', 'value': np.array([[1, 3, 227, 227]])},

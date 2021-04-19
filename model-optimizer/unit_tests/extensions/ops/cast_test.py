@@ -1,15 +1,16 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import unittest
+
+import numpy as np
 from generator import generator, generate
 
 from extensions.ops.Cast import Cast
 from mo.middle.passes.convert_data_type import packed_U4, packed_I4
 from mo.middle.passes.infer import partial_infer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import valued_const_with_data, regular_op_with_empty_data, \
+from unit_tests.utils.graph import valued_const_with_data, regular_op_with_empty_data, \
     result, build_graph, connect
 
 nodes = lambda value, dst_type: {

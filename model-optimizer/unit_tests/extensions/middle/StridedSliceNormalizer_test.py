@@ -15,7 +15,7 @@ from mo.graph.graph import Node
 from mo.middle.passes.infer import partial_infer
 from mo.ops.strided_slice import StridedSlice
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
+from unit_tests.utils.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
     connect, regular_op, empty_data, regular_op_with_shaped_data
 
 edges = (

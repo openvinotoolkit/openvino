@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.Log1p import Log1p
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'placeholder': {'shape': np.array([4, 5, 6]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

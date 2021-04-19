@@ -7,7 +7,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': 2, 'kind': 'data'},
                     'node_2': {'value': 3, 'kind': 'data'},

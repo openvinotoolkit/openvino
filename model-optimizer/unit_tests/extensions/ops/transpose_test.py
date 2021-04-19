@@ -9,7 +9,7 @@ from generator import generator, generate
 
 from extensions.ops.transpose import Transpose
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 input_shape = np.array([1, 3, 224, 224])
 

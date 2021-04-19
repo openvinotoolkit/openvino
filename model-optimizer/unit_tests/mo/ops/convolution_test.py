@@ -9,8 +9,8 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.convolution import Convolution
 from mo.utils.error import Error
-from unit_tests.unittest.extractors import FakeValue
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.extractors import FakeValue
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'conv_input': {'value': None, 'kind': 'data'},
                     'conv_node': {'type': 'Convolution', 'kind': 'op'},

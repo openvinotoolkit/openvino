@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.front.mxnet.conv_ext import DeconvFrontExtractor
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class TestDeconvShapesParsing(unittest.TestCase):

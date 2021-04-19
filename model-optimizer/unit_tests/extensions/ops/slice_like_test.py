@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.slice_like import SliceLike
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'input': {'kind': 'op', 'op': 'Const'},

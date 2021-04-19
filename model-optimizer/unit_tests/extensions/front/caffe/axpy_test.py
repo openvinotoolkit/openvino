@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.caffe.axpy import AxpyToSSandAdd
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph_with_edge_attrs
+from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 
 class TestAxpyReplacer(unittest.TestCase):

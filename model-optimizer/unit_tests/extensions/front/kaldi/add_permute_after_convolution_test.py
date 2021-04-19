@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class ReplaceConvolutionTransposeTests(unittest.TestCase):

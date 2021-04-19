@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.mxnet.RNN_ext import RNNFrontExtractor
 from mo.utils.error import Error
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class RNNFrontExtractorTest(unittest.TestCase):

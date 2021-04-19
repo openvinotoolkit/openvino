@@ -10,7 +10,7 @@ from extensions.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSl
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

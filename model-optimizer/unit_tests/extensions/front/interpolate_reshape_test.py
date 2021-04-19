@@ -9,7 +9,7 @@ from generator import generator, generate
 from extensions.front.interpolate_reshape import InterpolateWithConcat
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, regular_op_with_shaped_data, valued_const_with_data, connect, \
+from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, valued_const_with_data, connect, \
     connect_data
 
 nodes = {

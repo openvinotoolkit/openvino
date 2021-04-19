@@ -8,7 +8,7 @@ from mo.front.common.partial_infer.utils import float_array, int64_array
 from mo.graph.graph import Node
 from mo.ops.result import Result
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, build_graph_with_edge_attrs, connect, \
+from unit_tests.utils.graph import build_graph, result, build_graph_with_edge_attrs, connect, \
     regular_op_with_shaped_data, valued_const_with_data, connect_data
 
 shape = int64_array([1, 3, 5, 2])

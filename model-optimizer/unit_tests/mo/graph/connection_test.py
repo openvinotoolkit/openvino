@@ -5,7 +5,7 @@ import unittest
 
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, regular_op
+from unit_tests.utils.graph import build_graph, regular_op
 
 nodes = {
     **regular_op('input', {'type': 'Parameter'}),

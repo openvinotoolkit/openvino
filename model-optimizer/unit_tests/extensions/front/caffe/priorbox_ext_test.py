@@ -9,8 +9,8 @@ import numpy as np
 from extensions.front.caffe.priorbox_ext import PriorBoxFrontExtractor
 from extensions.ops.priorbox import PriorBoxOp
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import FakeMultiParam, FakeParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeMultiParam, FakeParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakeMultiParamListFields(FakeMultiParam):

@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.mxnet.mx_reshape_to_reshape import MXReshapeToReshape
 from mo.front.common.partial_infer.utils import int64_array
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestMXReshapeToReshape(unittest.TestCase):

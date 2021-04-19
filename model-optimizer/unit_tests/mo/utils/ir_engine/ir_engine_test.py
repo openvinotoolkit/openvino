@@ -20,9 +20,9 @@ class TestFunction(unittest.TestCase):
     def setUp(self):
         path, _ = os.path.split(os.path.dirname(__file__))
         self.xml = os.path.join(path, os.pardir, os.pardir,
-                                "unittest", "test_data", "mxnet_synthetic_gru_bidirectional_FP16_1_v6.xml")
+                                "utils", "test_data", "mxnet_synthetic_gru_bidirectional_FP16_1_v6.xml")
         self.xml_negative = os.path.join(path, os.pardir, os.pardir,
-                                         "unittest", "test_data",
+                                         "utils", "test_data",
                                          "mxnet_synthetic_gru_bidirectional_FP16_1_v6_negative.xml")
         self.bin = os.path.splitext(self.xml)[0] + '.bin'
         self.assertTrue(os.path.exists(self.xml), 'XML file not found: {}'.format(self.xml))
@@ -85,7 +85,7 @@ class TestFunction(unittest.TestCase):
     @unittest.mock.patch('numpy.savez_compressed')
     def test_generate_bin_hashes_file_custom_directory(self, numpy_savez):
         # Generate bin_hashes file in custom directory
-        directory_for_file = os.path.join(os.path.split(os.path.dirname(__file__))[0], "unittest", "test_data",
+        directory_for_file = os.path.join(os.path.split(os.path.dirname(__file__))[0], "utils", "test_data",
                                           "bin_hash")
         self.IR.generate_bin_hashes_file(path_for_file=directory_for_file)
         numpy_savez.assert_called_once()

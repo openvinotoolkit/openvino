@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Round
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 def round_test_graph(nodes_attributes, value, mode: str):
     graph = build_graph(nodes_attributes,

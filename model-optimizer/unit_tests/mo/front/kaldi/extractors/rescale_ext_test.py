@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.front.kaldi.extractors.rescale_ext import RescaleFrontExtractor
-from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from mo.ops.op import Op
 from mo.ops.scale_shift import ScaleShiftOp
+from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
+from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 
 
 class RescaleFrontExtractorTest(KaldiFrontExtractorTest):

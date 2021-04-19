@@ -5,8 +5,8 @@ import unittest
 from unittest.mock import patch
 
 from extensions.front.caffe.elementwise_ext import BiasToAdd
-from unit_tests.unittest.extractors import FakeModelLayer, FakeMultiParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeModelLayer, FakeMultiParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakeBiasProtoLayer:

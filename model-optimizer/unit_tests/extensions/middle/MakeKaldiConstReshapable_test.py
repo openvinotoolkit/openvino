@@ -8,7 +8,7 @@ import numpy as np
 from extensions.middle.MakeKaldiConstReshapable import MakeKaldiConstReshapable
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, regular_op_with_shaped_data, connect
+from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, connect
 
 nodes = {
     **regular_op_with_shaped_data('placeholder_1', [1, 13], {'kind': 'op', 'op': 'Parameter', 'shape': [1, 13]}),

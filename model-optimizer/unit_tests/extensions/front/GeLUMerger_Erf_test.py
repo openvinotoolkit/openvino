@@ -7,7 +7,7 @@ from math import sqrt
 from extensions.front.GeLUMerger_Erf import GeLUMergerErf
 from mo.front.common.partial_infer.utils import float_array, int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import const, regular_op, result, build_graph
+from unit_tests.utils.graph import const, regular_op, result, build_graph
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),
              **regular_op('gelu', {'type': 'Gelu', 'approximation_mode': 'erf', 'name': 'final_mul'}),

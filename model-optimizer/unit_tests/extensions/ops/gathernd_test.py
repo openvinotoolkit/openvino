@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.gathernd import GatherND
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'data': {'kind': 'op'},
                     'data_data': {'shape': None, 'value': None, 'kind': 'data'},

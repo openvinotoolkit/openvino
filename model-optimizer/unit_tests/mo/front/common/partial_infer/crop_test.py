@@ -7,7 +7,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.crop import crop_infer
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'node_2': {'value': None, 'kind': 'data'},

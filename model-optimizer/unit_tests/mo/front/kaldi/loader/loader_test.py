@@ -10,7 +10,7 @@ import numpy as np
 from mo.front.kaldi.loader.loader import load_topology_map, load_components
 from mo.graph.graph import Graph, Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestKaldiModelsLoading(unittest.TestCase):

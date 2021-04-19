@@ -4,7 +4,7 @@
 import unittest
 
 from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
-from unit_tests.unittest.graph import build_graph_with_attrs
+from unit_tests.utils.graph import build_graph_with_attrs
 
 
 class AddIsCyclicAttributeTest(unittest.TestCase):

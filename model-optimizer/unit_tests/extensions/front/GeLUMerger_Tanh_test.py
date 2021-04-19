@@ -8,7 +8,7 @@ import numpy as np
 
 from extensions.front.GeLUMerger_Tanh import GeLUMergerTanh
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes_erf = {
     'inp': {'kind': 'op', 'op': 'AnyOp'},

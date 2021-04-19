@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.tf.floor_div_decomposition import FloorDivDecomposition
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, connect, \
+from unit_tests.utils.graph import build_graph, result, connect, \
     connect_data, regular_op_with_empty_data
 
 nodes = {

@@ -7,8 +7,8 @@ from unittest.mock import patch
 from extensions.front.caffe.ctcgreedydecoder_ext import CTCGreedyDecoderFrontExtractor
 from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakeCTCGreedyDecoderProtoLayer:

@@ -7,8 +7,8 @@ from unittest.mock import patch
 from extensions.front.caffe.spatial_transformer_ext import SpatialTransformFrontExtractor
 from extensions.ops.spatial_transformer import SpatialTransformOp
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakeSpatialTransformProtoLayer:

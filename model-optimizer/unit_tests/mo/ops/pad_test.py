@@ -7,7 +7,7 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.ops.pad import Pad, AttributedPad
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestPadOps(unittest.TestCase):

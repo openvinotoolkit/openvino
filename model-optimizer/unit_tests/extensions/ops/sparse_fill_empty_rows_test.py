@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.sparse_fill_empty_rows import SparseFillEmptyRows
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'input_indices': {'shape': None, 'value': None, 'kind': 'data'},
                     'input_values': {'shape': None, 'value': None, 'kind': 'data'},

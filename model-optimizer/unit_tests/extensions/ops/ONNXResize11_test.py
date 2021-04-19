@@ -9,7 +9,7 @@ from generator import generator, generate
 from extensions.ops.ONNXResize11 import ONNXResize11Op
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 graph_node_attrs_sizes = {

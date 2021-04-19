@@ -9,7 +9,7 @@ from generator import generator, generate
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.ir_reader.layer_to_class import groupconv_to_conv, restore_tensor_names
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 @generator

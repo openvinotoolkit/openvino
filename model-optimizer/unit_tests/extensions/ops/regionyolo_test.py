@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.regionyolo import RegionYoloOp
 from mo.front.common.extractors.utils import layout_attrs
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'region': {'type': 'RegionYolo', 'kind': 'op'},

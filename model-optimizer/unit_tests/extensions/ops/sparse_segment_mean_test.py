@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.sparse_segment_mean import SparseSegmentMean
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 # graph 1
 nodes_attributes1 = {'input_data': {'shape': None, 'value': None, 'kind': 'data'},

@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.mxnet.crop_ext import CropFrontExtractor
 from mo.ops.crop import Crop
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class TestCropExt(unittest.TestCase):

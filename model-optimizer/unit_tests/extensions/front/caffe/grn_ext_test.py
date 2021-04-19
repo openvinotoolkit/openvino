@@ -8,8 +8,8 @@ from extensions.front.caffe.grn_ext import GRNFrontExtractor
 from extensions.ops.grn import GRNOp
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakeGRNProtoLayer:

@@ -7,8 +7,8 @@ from unittest.mock import patch
 from extensions.front.caffe.regionyolo_ext import RegionYoloFrontExtractor
 from extensions.ops.regionyolo import RegionYoloOp
 from mo.ops.op import Op
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import FakeNode
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
 
 
 class FakeRegionYoloProtoLayer:

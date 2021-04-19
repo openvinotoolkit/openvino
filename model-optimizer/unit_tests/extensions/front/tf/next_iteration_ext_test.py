@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.front.tf.next_iteration_ext import NextIterationExtractor
-from unit_tests.unittest.extractors import PB, BaseExtractorsTestingClass
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class TestNextIteration(BaseExtractorsTestingClass):

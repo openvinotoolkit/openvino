@@ -8,7 +8,7 @@ from argparse import Namespace
 from extensions.front.tf.CTCLossReplacement import CTCLossReplacement
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, const
+from unit_tests.utils.graph import build_graph, const
 
 
 class CTCLossFrontReplacementTest(unittest.TestCase):

@@ -10,7 +10,7 @@ from generator import generator, generate
 from extensions.front.onnx.unsqueeze_ext import UnsqueezeFrontExtractor
 from mo.ops.op import Op
 from mo.ops.unsqueeze import Unsqueeze
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 @generator

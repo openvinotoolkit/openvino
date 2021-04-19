@@ -9,7 +9,7 @@ from mo.front.common.partial_infer.concat import concat_infer
 from mo.graph.graph import Node
 from mo.middle.passes.infer import override_placeholder_shapes, partial_infer
 from mo.utils.error import Error
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_1_data': {'value': None, 'kind': 'data', 'data_type': None},

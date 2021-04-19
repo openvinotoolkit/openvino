@@ -6,8 +6,8 @@ import onnx
 from extensions.front.onnx.upsample_ext import UpsampleFrontExtractor
 from mo.graph.graph import Node
 from mo.utils.error import Error
-from unit_tests.unittest.extractors import BaseExtractorsTestingClass
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.extractors import BaseExtractorsTestingClass
+from unit_tests.utils.graph import build_graph
 
 
 class UpsampleONNXExtractorTest(BaseExtractorsTestingClass):

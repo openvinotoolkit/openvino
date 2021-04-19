@@ -5,7 +5,7 @@ import unittest
 
 from extensions.analysis.inputs import InputsAnalysis
 from mo.front.common.partial_infer.utils import int64_array
-from unit_tests.unittest.graph import build_graph_with_edge_attrs
+from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 
 class IteratorGetNextAnalysisTest(unittest.TestCase):

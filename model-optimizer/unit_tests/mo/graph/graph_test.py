@@ -6,11 +6,12 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
+from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs, get_edge_attribute_between_nodes, \
+    set_edge_attribute_between_nodes
 from mo.ops.const import Const
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes = {
     '0': {'name': 'input1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},

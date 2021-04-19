@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.scatter_normalizer import ScatterNormalizer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, result, connect, \
+from unit_tests.utils.graph import build_graph, result, connect, \
     regular_op_with_empty_data
 
 nodes = {

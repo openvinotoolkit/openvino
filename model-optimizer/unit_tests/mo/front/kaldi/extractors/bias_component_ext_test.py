@@ -4,10 +4,10 @@
 import numpy as np
 
 from mo.front.kaldi.extractors.bias_component_ext import FixedBiasComponentFrontExtractor
-from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
-from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from mo.ops.op import Op
 from mo.ops.scale_shift import ScaleShiftOp
+from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
+from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 
 
 class FixedBiasComponentFrontExtractorTest(KaldiFrontExtractorTest):

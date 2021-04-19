@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.ops.activation_ops import Elu, SoftPlus, Mish
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestActivationOp(unittest.TestCase):

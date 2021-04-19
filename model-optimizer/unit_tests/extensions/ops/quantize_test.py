@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.ops.fakequantize import FakeQuantize, broadcastable
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestBroadcastable(unittest.TestCase):

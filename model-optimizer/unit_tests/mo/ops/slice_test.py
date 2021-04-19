@@ -10,7 +10,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.slice import Slice
 from mo.utils.error import Error
-from unit_tests.unittest.graph import build_graph, valued_const_with_data, valued_data, regular_op_with_empty_data, \
+from unit_tests.utils.graph import build_graph, valued_const_with_data, valued_data, regular_op_with_empty_data, \
     connect, shaped_data, shaped_const_with_data
 
 

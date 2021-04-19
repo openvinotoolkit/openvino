@@ -7,7 +7,7 @@ import numpy as np
 import onnx
 
 from extensions.front.onnx.lstm_ext import LSTMFrontExtractor
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class LSTMExtractorTest(unittest.TestCase):

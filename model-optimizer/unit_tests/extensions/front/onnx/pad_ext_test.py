@@ -5,7 +5,7 @@ import onnx
 
 from extensions.front.onnx.pad_ext import PadFrontExtractor
 from mo.graph.graph import Graph
-from unit_tests.unittest.extractors import PB, BaseExtractorsTestingClass
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class TestPad(BaseExtractorsTestingClass):

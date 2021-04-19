@@ -8,7 +8,7 @@ from generator import generator, generate
 
 from mo.graph.graph import Node
 from mo.ops.expand_dims import ExpandDims
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'data_1': {

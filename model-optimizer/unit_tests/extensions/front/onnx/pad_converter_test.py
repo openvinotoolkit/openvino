@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.onnx.pad_converter import ONNXPadToPad
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, const
+from unit_tests.utils.graph import build_graph, const
 
 nodes_attributes = {
     'placeholder': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.tf.extractors.concat import tf_concat_ext
-from unit_tests.unittest.extractors import PB, BaseExtractorsTestingClass
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class ConcatExtractorTest(BaseExtractorsTestingClass):

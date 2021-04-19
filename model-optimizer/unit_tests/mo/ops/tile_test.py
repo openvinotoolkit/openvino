@@ -7,7 +7,7 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.ops.tile import Tile, AttributedTile
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'op': {'kind': 'op'},

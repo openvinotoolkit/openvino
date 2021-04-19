@@ -9,7 +9,7 @@ from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit, AddFakeOut
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node
 from mo.middle.passes.eliminate import graph_clean_up
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
     'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter', 'shape': np.array([1, 227, 227, 3])},

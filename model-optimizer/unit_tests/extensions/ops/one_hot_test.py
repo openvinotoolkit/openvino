@@ -9,7 +9,7 @@ from generator import generator, generate
 from extensions.ops.one_hot import OneHot
 from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, connect
+from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, connect
 
 
 def generate_nodes(data, axis=-1, depth=4, on_value=1., off_value=0.):

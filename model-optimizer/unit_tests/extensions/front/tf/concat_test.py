@@ -4,7 +4,7 @@
 import unittest
 
 from extensions.front.tf.concat import Concat
-from unit_tests.unittest.graph import build_graph_with_edge_attrs
+from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 
 class TestConcatEdgesReshuffler(unittest.TestCase):

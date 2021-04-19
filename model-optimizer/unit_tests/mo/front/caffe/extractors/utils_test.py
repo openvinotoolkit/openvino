@@ -7,7 +7,7 @@ from unittest.mock import patch, call
 import numpy as np
 
 from mo.front.caffe.extractors.utils import weights_biases, embed_input, get_canonical_axis_index
-from unit_tests.unittest.extractors import FakeModelLayer
+from unit_tests.utils.extractors import FakeModelLayer
 
 
 class TestWeightsBiases(unittest.TestCase):

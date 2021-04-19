@@ -5,7 +5,7 @@ import unittest
 
 from mo.front.mxnet.extractors.relu import ReLUFrontExtractor
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestReluFrontExtractorOp(unittest.TestCase):

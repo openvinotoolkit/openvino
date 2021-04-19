@@ -7,7 +7,7 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.middle.passes.eliminate import mark_output_reachable_nodes, mark_const_producer_nodes
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'placeholder_2': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

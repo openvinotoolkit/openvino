@@ -6,7 +6,7 @@ import numpy as np
 from extensions.ops.space_to_depth import SpaceToDepth
 from mo.graph.graph import Node
 from mo.utils.error import Error
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes = {
     'in_data_node': {'value': None, 'kind': 'data', 'shape': np.array([1, 2048, 1152, 64])},

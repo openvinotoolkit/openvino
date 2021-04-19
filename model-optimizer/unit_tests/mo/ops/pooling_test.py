@@ -7,8 +7,8 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.ops.pooling import Pooling
-from unit_tests.unittest.graph import build_graph
 from mo.utils.error import Error
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'pool': {'type': 'Pooling', 'value': None, 'kind': 'op'},

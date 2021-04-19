@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.output_cut import OutputCut
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph, regular_op
+from unit_tests.utils.graph import build_graph, regular_op
 
 nodes = {
     **regular_op('Parameter1', {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'}),

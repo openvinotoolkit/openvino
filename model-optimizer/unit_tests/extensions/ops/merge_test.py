@@ -8,7 +8,7 @@ import numpy as np
 from extensions.ops.merge import Merge
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph_with_attrs
+from unit_tests.utils.graph import build_graph_with_attrs
 
 
 class TestMerge(unittest.TestCase):

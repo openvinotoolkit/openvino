@@ -13,8 +13,8 @@ from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, 
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
 
 
 class FakePythonParam:

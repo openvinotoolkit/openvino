@@ -8,7 +8,7 @@ import numpy as np
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.crop import Crop
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestCropPartialInfer(unittest.TestCase):

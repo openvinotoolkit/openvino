@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 from extensions.ops.assert_op import Assert
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph_with_edge_attrs
+from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 
 class TestAssert(unittest.TestCase):

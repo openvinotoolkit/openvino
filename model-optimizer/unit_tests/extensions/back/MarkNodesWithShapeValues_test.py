@@ -9,8 +9,8 @@ from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
-from unit_tests.unittest.graph import result, regular_op_with_empty_data, \
+from unit_tests.utils.graph import build_graph
+from unit_tests.utils.graph import result, regular_op_with_empty_data, \
     shaped_const_with_data, connect, regular_op
 
 

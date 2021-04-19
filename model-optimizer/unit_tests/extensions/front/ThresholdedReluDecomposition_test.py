@@ -6,7 +6,7 @@ import unittest
 from extensions.front.ThresholdedReluDecomposition import ThresholdedReluDecomposition
 from mo.front.common.partial_infer.utils import float_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, const
+from unit_tests.utils.graph import build_graph, const
 
 nodes_attributes = {
     'parameter': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

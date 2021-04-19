@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.front.LayerNorm import LayerNorm
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestMVNPatternReplacement(unittest.TestCase):

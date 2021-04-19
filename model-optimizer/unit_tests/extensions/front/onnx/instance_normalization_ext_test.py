@@ -4,7 +4,7 @@
 import onnx
 
 from extensions.front.onnx.instance_normalization_ext import InstanceNormalizationExtractor
-from unit_tests.unittest.extractors import PB, BaseExtractorsTestingClass
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class TestInstanceNormalization(BaseExtractorsTestingClass):

@@ -7,7 +7,7 @@ import numpy as np
 import onnx
 
 from extensions.front.onnx.image_scaler_ext import ImageScalerFrontExtractor
-from unit_tests.unittest.extractors import PB
+from unit_tests.utils.extractors import PB
 
 
 class TestImageScalerONNXExt(unittest.TestCase):

@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.back.ClampNormalizer import ClampNormalizer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect
+from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect
 
 
 class AttributedClampNormalizerTests(unittest.TestCase):

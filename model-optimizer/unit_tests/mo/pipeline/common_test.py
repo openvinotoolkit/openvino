@@ -7,7 +7,7 @@ from generator import generator, generate
 
 from mo.graph.graph import Node
 from mo.pipeline.common import determined_sort, get_fw_tensor_debug_info, get_sorted_outputs
-from unit_tests.unittest.graph import build_graph_with_edge_attrs
+from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 
 @generator

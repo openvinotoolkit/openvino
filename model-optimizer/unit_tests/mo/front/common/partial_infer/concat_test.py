@@ -7,7 +7,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.concat import concat_infer
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'kind': 'data', 'value': None},
                     'node_2': {'kind': 'data', 'value': None},

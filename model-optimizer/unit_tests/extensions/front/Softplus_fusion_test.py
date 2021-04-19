@@ -6,7 +6,7 @@ import unittest
 from extensions.front.Softplus_fusion import SoftplusFusion
 from mo.front.common.partial_infer.utils import float_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, const, regular_op, result, build_graph_with_edge_attrs
+from unit_tests.utils.graph import build_graph, const, regular_op, result, build_graph_with_edge_attrs
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),
              **regular_op('softplus', {'type': 'SoftPlus', 'name': 'final_log'}),

@@ -9,7 +9,7 @@ from generator import generator, generate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.broadcast import Broadcast
-from unit_tests.unittest.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
+from unit_tests.utils.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
     shaped_data
 
 

@@ -6,7 +6,7 @@ import unittest
 from extensions.middle.PoolV2ToAttributedPool import PoolV2ToAttributedPool
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.shape import int64_array
-from unit_tests.unittest.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
+from unit_tests.utils.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
     connect, shaped_const_with_data, result
 
 

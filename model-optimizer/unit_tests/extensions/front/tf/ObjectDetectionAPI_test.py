@@ -14,7 +14,7 @@ from mo.graph.graph import Graph
 from mo.utils.custom_replacement_config import CustomReplacementDescriptor
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import const, regular_op, result, build_graph, connect_front
+from unit_tests.utils.graph import const, regular_op, result, build_graph, connect_front
 
 
 class FakePipelineConfig:

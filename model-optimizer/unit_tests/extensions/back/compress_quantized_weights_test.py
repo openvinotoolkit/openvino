@@ -13,7 +13,7 @@ from extensions.ops.elementwise import Sub, Mul
 from extensions.ops.fakequantize import FakeQuantize
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect, \
+from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect, \
     shaped_const_with_data
 
 

@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPatternFlattenSoftmaxActivation
 from mo.graph.graph import Node
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestSsdPatternFlattenSoftmaxActivation(unittest.TestCase):

@@ -7,8 +7,8 @@ from unittest.mock import patch
 from mo.front.caffe.extractor import check_phase, register_caffe_python_extractor
 from mo.front.extractor import CaffePythonFrontExtractorOp
 from mo.graph.graph import Node
-from unit_tests.unittest.extractors import FakeMultiParam
-from unit_tests.unittest.graph import build_graph
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'kind': 'op'}}

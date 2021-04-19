@@ -5,7 +5,7 @@ import unittest
 
 from extensions.front.Mish_fusion import MishFusion
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.unittest.graph import build_graph, regular_op, result, build_graph_with_edge_attrs
+from unit_tests.utils.graph import build_graph, regular_op, result, build_graph_with_edge_attrs
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),
              **regular_op('mish', {'type': 'Mish', 'name': 'final_mul'}),
