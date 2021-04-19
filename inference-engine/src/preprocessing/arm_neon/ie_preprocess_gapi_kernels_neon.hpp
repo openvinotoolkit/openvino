@@ -50,7 +50,6 @@ void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
                         const short  mapsx[],
                         const short  beta[],
                             uint8_t  tmp[],
-                       const uint8_t  hmask[],
                         const Size&  inSz,
                         const Size&  outSz,
                                 int  lpi);
@@ -64,7 +63,6 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
                         const short  mapsx[],
                         const short  beta[],
                             uint8_t  tmp[],
-                      const uint8_t  hmask[],
                         const Size&  inSz,
                         const Size&  outSz,
                                 int  lpi);
@@ -78,11 +76,10 @@ void calcRowLinear_8UC(std::array<std::array<uint8_t*, 4>, numChan> &dst,
                          const short  mapsx[],
                          const short  beta[],
                              uint8_t  tmp[],
-                       const uint8_t  hmask[],
                          const Size&  inSz,
                          const Size&  outSz,
                                  int  lpi) {
-    calcRowLinear_8U(std::integral_constant<int, numChan>{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, hmask, inSz, outSz, lpi);
+    calcRowLinear_8U(std::integral_constant<int, numChan>{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 32F)

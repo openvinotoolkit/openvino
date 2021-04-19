@@ -308,7 +308,6 @@ CV_ALWAYS_INLINE void horizontal_4LPI(std::array<std::array<uint8_t*, 4>, chanNu
 
     const int shift = static_cast<int>(half_nlanes / 4);
 
-    //uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15 };
     v_uint8 hmask = vx_load(_mask_horizontal);
 
     v_uint8 val_0, val_1, val_2, val_3;
@@ -380,7 +379,6 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
                                               const short    mapsx[],
                                               const short    beta[],
                                                   uint8_t    tmp[],
-                                            const uint8_t    _mask_horizontal[],
                                               const Size&    inSz,
                                               const Size&    outSz,
                                               const int      lpi) {
@@ -392,6 +390,8 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
     bool yRatioEq = inSz.height == outSz.height;
 
     if (!xRatioEq && !yRatioEq) {
+        uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
+                                           1, 5, 9, 13, 3, 7, 11, 15 };
         if (4 == lpi) {
             // vertical pass
             vertical_4LPI(src0, src1, tmp, beta, inSz.width * chanNum);
@@ -415,6 +415,8 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>
           }
     } else if (!xRatioEq) {
         GAPI_DbgAssert(yRatioEq);
+        uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
+                                           1, 5, 9, 13, 3, 7, 11, 15 };
 
         if (4 == lpi) {
             int inLength = inSz.width * chanNum;
@@ -484,12 +486,11 @@ void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3>& dst,
                       const short    mapsx[],
                       const short    beta[],
                           uint8_t    tmp[],
-                    const uint8_t    hmask[],
                       const Size&    inSz,
                       const Size&    outSz,
                         const int    lpi) {
     calcRowLinear_8UC_Impl_<3>(dst, src0, src1, alpha, clone, mapsx,
-                               beta, tmp, hmask, inSz, outSz, lpi);
+                               beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 8UC4)
@@ -501,23 +502,21 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4>& dst,
                       const short    mapsx[],
                       const short    beta[],
                           uint8_t    tmp[],
-                    const uint8_t    hmask[],
                       const Size&    inSz,
                       const Size&    outSz,
                       const int      lpi) {
     calcRowLinear_8UC_Impl_<4>(dst, src0, src1, alpha, clone, mapsx,
-                               beta, tmp, hmask, inSz, outSz, lpi);
+                               beta, tmp, inSz, outSz, lpi);
 }
 
 CV_ALWAYS_INLINE void horizontal_4LPI(uint8_t* dst[],
-                                      const uchar* tmp, const short mapsx[], const uchar _mask_horizontal[],
+                                      const uchar* tmp, const short mapsx[],
+                                      const uchar _mask_horizontal[],
                                       const short clone[], const int length) {
     constexpr int nlanes = static_cast<int>(v_uint8::nlanes);
-    const int half_nlanes = nlanes / 2;
+    constexpr int half_nlanes = nlanes / 2;
     GAPI_Assert(length >= half_nlanes);
 
-    //uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
-    //                                  1, 5, 9, 13, 3, 7, 11, 15 };
     v_uint8 hmask = vx_load(_mask_horizontal);
     int x = 0;
     for (;;) {
@@ -632,7 +631,7 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             vertical_4LPI(src0, src1, tmp, beta, inSz.width);
 
             // horizontal pass
-             horizontal_4LPI(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
+            horizontal_4LPI(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
         } else {  // if any lpi
             for (int l = 0; l < lpi; ++l) {
                 short beta0 = beta[l];
@@ -651,6 +650,8 @@ void calcRowLinear_8UC1(uint8_t* dst[],
     } else if (!xRatioEq) {
         GAPI_DbgAssert(yRatioEq);
         GAPI_Assert(inSz.width >= nlanes);
+        uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
+                                           1, 5, 9, 13, 3, 7, 11, 15 };
 
         if (4 == lpi) {
             // vertical pass
@@ -672,8 +673,6 @@ void calcRowLinear_8UC1(uint8_t* dst[],
             }
 
             // horizontal pass
-            uchar _mask_horizontal[nlanes] = { 0, 4, 8, 12, 2, 6, 10, 14,
-                                               1, 5, 9, 13, 3, 7, 11, 15 };
             horizontal_4LPI(dst, tmp, mapsx, _mask_horizontal, clone, outSz.width);
         } else {  // any LPI
             GAPI_Assert(outSz.width >= half_nlanes);

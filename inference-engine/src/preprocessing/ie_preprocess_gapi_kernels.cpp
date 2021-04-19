@@ -885,32 +885,23 @@ struct linearScratchDesc {
     alpha_t* beta;
     index_t* mapsy;
     T*       tmp;
-#ifdef HAVE_NEON
-    T* shuffle_mask_horizontal;
-#endif
-    linearScratchDesc(int inW, int /*inH*/, int outW, int outH,  void* data, const int lpi) {
+
+    linearScratchDesc(int /*inW*/, int /*inH*/, int outW, int outH,  void* data) {
         alpha = reinterpret_cast<alpha_t*>(data);
         clone = reinterpret_cast<alpha_t*>(alpha + outW);
         mapsx = reinterpret_cast<index_t*>(clone + outW*4);
         beta  = reinterpret_cast<alpha_t*>(mapsx + outW);
         mapsy = reinterpret_cast<index_t*>(beta  + outH);
         tmp   = reinterpret_cast<T*>      (mapsy + outH*2);
-#ifdef HAVE_NEON
-        shuffle_mask_horizontal = reinterpret_cast<T*>(tmp + lpi * chanNum * inW);
-#endif
     }
 
-    static int bufSize(int inW, int inH, int outW, int outH, int lpi) {
+    static int bufSize(int inW, int /*inH*/, int outW, int outH, int lpi) {
         auto size = outW * sizeof(alpha_t)     +
                     outW * sizeof(alpha_t) * 4 +  // alpha clones // previous alpha is redundant?
                     outW * sizeof(index_t)     +
                     outH * sizeof(alpha_t)     +
                     outH * sizeof(index_t) * 2 +
                      inW * sizeof(T) * lpi * chanNum;
-#ifdef HAVE_NEON
-        if (std::is_same<T, uint8_t>::value)
-            size += sizeof(T)*16;
-#endif
 
         return static_cast<int>(size);
     }
@@ -919,7 +910,7 @@ struct linearScratchDesc {
 template<typename T, typename Mapper, int chanNum = 1>
 static void initScratchLinear(const cv::GMatDesc& in,
                               const         Size& outSz,
-                         cv::gapi::fluid::Buffer& scratch,
+                              cv::gapi::fluid::Buffer& scratch,
                                              int  lpi) {
     using alpha_type = typename Mapper::alpha_type;
     static const auto unity = Mapper::unity;
@@ -940,23 +931,11 @@ static void initScratchLinear(const cv::GMatDesc& in,
     double hRatio = ratio(in.size.width, outSz.width);
     double vRatio = ratio(in.size.height, outSz.height);
 
-    linearScratchDesc<T, Mapper, chanNum> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB(), lpi);
+    linearScratchDesc<T, Mapper, chanNum> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
 
     auto *alpha = scr.alpha;
     auto *clone = scr.clone;
     auto *index = scr.mapsx;
-#ifdef HAVE_NEON
-    auto* hmask = scr.shuffle_mask_horizontal;
-
-    if (std::is_same<T, uint8_t>::value) {
-        for (int i = 0; i < 16/4; ++i) {
-            hmask[i] = i * 4;
-            hmask[i + 4] = i * 4 + 2;
-            hmask[i + 8] = i * 4 + 1;
-            hmask[i + 12] = i * 4 + 3;
-        }
-    }
-#endif
 
     for (int x = 0; x < outSz.width; x++) {
         auto map = Mapper::map(hRatio, 0, in.size.width, x);
@@ -1026,7 +1005,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 
     GAPI_DbgAssert(lpi <= 4);
 
-    linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB(), lpi);
+    linearScratchDesc<T, Mapper, 1> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
 
     const auto *alpha = scr.alpha;
     const auto *clone = scr.clone;
@@ -1192,7 +1171,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 template<typename T, class Mapper, int numChan>
 static void calcRowLinearC(const cv::gapi::fluid::View  & in,
                            std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan>& out,
-                                  cv::gapi::fluid::Buffer& scratch) {
+                           cv::gapi::fluid::Buffer& scratch) {
     using alpha_type = typename Mapper::alpha_type;
 
     auto  inSz =  in.meta().size;
@@ -1205,7 +1184,7 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
     GAPI_DbgAssert(outY + lpi <= outSz.height);
     GAPI_DbgAssert(lpi <= 4);
 
-    linearScratchDesc<T, Mapper, numChan> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB(), lpi);
+    linearScratchDesc<T, Mapper, numChan> scr(inSz.width, inSz.height, outSz.width, outSz.height, scratch.OutLineB());
 
     const auto *alpha = scr.alpha;
     const auto *clone = scr.clone;
@@ -1213,9 +1192,6 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
     const auto *beta0 = scr.beta;
     const auto *mapsy = scr.mapsy;
     auto *tmp         = scr.tmp;
-#ifdef HAVE_NEON
-    auto *hmask = scr.shuffle_mask_horizontal;
-#endif
 
     const auto *beta = beta0 + outY;
     const T *src0[4];
@@ -1303,7 +1279,6 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
                                              reinterpret_cast<const short*>(mapsx),
                                              reinterpret_cast<const short*>(beta),
                                              reinterpret_cast<uint8_t*>(tmp),
-                                             reinterpret_cast<uint8_t*>(hmask),
                                              inSz, outSz, lpi);
             return;
          }
