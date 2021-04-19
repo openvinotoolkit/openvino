@@ -25,7 +25,6 @@ namespace InferenceEngine {
  * @brief This is an interface of asynchronous infer request
  *
  */
-IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_DEPRECATED("Do not use IInferRequest API") IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
@@ -38,6 +37,9 @@ public:
         /** IInferRequest doesn't block or interrupt current thread and immediately returns inference status */
         STATUS_ONLY = 0,
     };
+
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief A shared pointer to the IInferRequest object
      */
@@ -46,6 +48,8 @@ public:
      * @brief A smart pointer to the IInferRequest object
      */
     using WeakPtr = std::weak_ptr<IInferRequest>;
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets input/output data to infer
@@ -198,10 +202,10 @@ public:
      * given index
      */
     virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
 protected:
     ~IInferRequest() = default;
 };
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

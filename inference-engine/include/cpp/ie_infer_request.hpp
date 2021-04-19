@@ -175,7 +175,10 @@ public:
 private:
     void SetCompletionCallbackImpl(std::function<void()>);
     void SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)>);
+    IE_SUPPRESS_DEPRECATED_START
     void SetCompletionCallbackImpl(IInferRequest::CompletionCallback);
+    IE_SUPPRESS_DEPRECATED_END
+
     template<typename T>
     struct SetCallback {
         void operator()(std::function<void()> f) {_this.SetCompletionCallbackImpl(std::move(f));}
@@ -202,12 +205,14 @@ public:
      */
     std::vector<VariableState> QueryState();
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief  IInferRequest pointer to be used directly in CreateInferRequest functions
      * @return A shared pointer to IInferRequest interface
      */
     INFERENCE_ENGINE_DEPRECATED("Will be removed")
     operator std::shared_ptr<IInferRequest> ();
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Checks if current InferRequest object is not initialized
@@ -221,6 +226,7 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+
 template<>
 struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> {
     void operator()(std::function<void(InferRequest, StatusCode)> f) {
@@ -228,6 +234,9 @@ struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> 
     }
     InferRequest& _this;
 };
+
+IE_SUPPRESS_DEPRECATED_START
+
 template<>
 struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
     void operator()(IInferRequest::CompletionCallback f) {
@@ -235,4 +244,7 @@ struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
     }
     InferRequest& _this;
 };
+
+IE_SUPPRESS_DEPRECATED_END
+
 }  // namespace InferenceEngine

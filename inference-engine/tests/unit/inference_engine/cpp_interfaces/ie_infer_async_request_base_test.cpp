@@ -29,7 +29,9 @@ constexpr const char* MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME;
 class InferRequestBaseTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIInferRequestInternal> mock_impl;
+    IE_SUPPRESS_DEPRECATED_START
     shared_ptr<IInferRequest> request;
+    IE_SUPPRESS_DEPRECATED_END
     ResponseDesc dsc;
 
     virtual void TearDown() {

@@ -20,7 +20,7 @@ TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
         InferenceEngine::RemoteContext::Ptr ctx;
         ASSERT_NE(ctx = exec_net.GetContext(), nullptr);
         InferRequest req = exec_net.CreateInferRequest();
-        ASSERT_NE((std::shared_ptr<InferenceEngine::IInferRequest>)req, nullptr);
+        ASSERT_TRUE(req);
         const InferenceEngine::ConstInputsDataMap inputInfo = exec_net.GetInputsInfo();
         for (auto i : inputInfo) {
             auto rblob = InferenceEngine::make_shared_blob(i.second->getTensorDesc(), ctx);
