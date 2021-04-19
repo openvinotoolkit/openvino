@@ -11,6 +11,7 @@ using namespace LayerTestsUtils;
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;
 bool Summary::saveReportWithUniqueName = false;
+size_t Summary::saveReportTimeout = 0;
 const char* Summary::outputFolder = ".";
 SummaryDestroyer Summary::destroyer;
 
@@ -120,7 +121,6 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
 }
 
 void Summary::saveReport() {
-//    if (isReported && !saveReportWithUniqueName) {
     if (isReported) {
         return;
     }
@@ -234,7 +234,13 @@ void Summary::saveReport() {
             }
         }
     }
-    bool result = doc.save_file(outputFilePath.c_str());
+
+    auto exitTime = std::chrono::system_clock::now() + std::chrono::seconds(saveReportTimeout);
+    bool result = false;
+    do {
+        result = doc.save_file(outputFilePath.c_str());
+    } while (!result || std::chrono::system_clock::now() < exitTime);
+
     if (!result) {
         std::string errMessage = "Failed to write report to " + outputFilePath;
         throw std::runtime_error(errMessage);
