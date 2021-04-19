@@ -12,7 +12,6 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 using LayerTestsDefinitions::extractImagePatchesTuple;
-//using LayerTestsDefinitions::convLayerTestParamsSet;
 
 typedef std::tuple<
     extractImagePatchesTuple,

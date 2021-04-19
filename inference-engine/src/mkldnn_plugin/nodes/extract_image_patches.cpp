@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,16 +18,15 @@ using details::CaselessEq;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
-using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-#define GET_OFF(field) offsetof(jit_eximpat_args, field)
+#define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
 template <cpu_isa_t isa>
-struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_eximpat_kernel)
+struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_extract_image_patches_kernel)
 
-    explicit jit_eximpat_kernel(jit_eximpat_params jpp) : jit_uni_eximpat_kernel(jpp), jit_generator() {}
+    explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : jit_uni_extract_image_patches_kernel(jpp), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -37,11 +36,12 @@ struct jit_eximpat_kernel : public jit_uni_eximpat_kernel, public jit_generator 
     void generate() override {
         this->preamble();
 
+        mov(reg_num_pads, ptr[reg_params + GET_OFF(h_lo_pad)]);
+        mov(reg_h_hi_pad, ptr[reg_params + GET_OFF(h_hi_pad)]);
+        mov(reg_w_lo_pad, ptr[reg_params + GET_OFF(w_lo_pad)]);
+        mov(reg_w_hi_pad, ptr[reg_params + GET_OFF(w_hi_pad)]);
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
-        mov(reg_w_hi_pad, ptr[reg_params + GET_OFF(w_hi_pad)]);
-        mov(reg_w_lo_pad, ptr[reg_params + GET_OFF(w_lo_pad)]);
-        mov(reg_h_hi_pad, ptr[reg_params + GET_OFF(h_hi_pad)]);
 
         mov(reg_src_incr, jpp.SH * jpp.IW * jpp.dtype_size);
         mov(reg_aux64, reg_w_hi_pad);
@@ -104,8 +104,7 @@ private:
             case 4: uni_vmovss(vmm_arg, op); break;
             case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
             case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
-            default:
-                assert(!"unknown dtype size");
+            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
         }
     }
     inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
@@ -114,8 +113,7 @@ private:
             case 4: uni_vmovss(op, vmm_arg); break;
             case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
             case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
-            default:
-                assert(!"unknown dtype size");
+            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
         }
     }
 
@@ -155,8 +153,7 @@ private:
             case x64::sse41:
                 emulate_gather(vmm_arg, mem_base);
                 break;
-            default:
-                assert(!"unsupported instruction set in custom_uni_vgatherdps");
+            default: IE_THROW() << "Got unsupported instruction set.";
         }
     }
 
@@ -165,10 +162,8 @@ private:
             case 4: custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
             case 2:
             case 1: emulate_gather(vmm_arg, mem_base); break;
-            default:
-                assert(!"unknown dtype size for gather");
+            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
         }
-        add(mem_base, jpp.SW * jpp.dtype_size * jpp.block_size);
     }
 
     inline void emulate_gather(const Xbyak::Xmm &xmm_arg, reg64_t &mem_base, int xmm_offset = 0) {
@@ -181,8 +176,7 @@ private:
                 case 4: uni_vpinsrd(xmm_arg, xmm_arg, addr, i); break;
                 case 2: uni_vpinsrw(xmm_arg, xmm_arg, addr, i); break;
                 case 1: uni_vpinsrb(xmm_arg, xmm_arg, addr, i); break;
-                default:
-                    assert(!"unknown dtype size");
+                default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
             }
         }
     }
@@ -203,11 +197,12 @@ private:
     }
 
     void loop() {
+        mov(reg_oh_count, reg_h_hi_pad);
+        // reg_num_pads contains h_lo_pad at this point
+        sub(reg_oh_count, reg_num_pads);
+
         Xbyak::Label ih_loop, ih_tail, ih_exit;
         Xbyak::Label iw_loop, iw_tail, iw_exit;
-        mov(reg_oh_count, reg_h_hi_pad);
-        mov(reg_num_pads, ptr[reg_params + GET_OFF(h_lo_pad)]);
-        sub(reg_oh_count, reg_num_pads);
         if (jpp.need_padding) {
             mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
             pad_with_zeros(reg_num_pads, reg_dst);
@@ -226,6 +221,7 @@ private:
                 cmp(reg_ow_count, jpp.block_size);
                 jle(iw_tail, T_NEAR);
                 gather_src2vmm(vmm, reg_src);
+                add(reg_src, jpp.SW * jpp.dtype_size * jpp.block_size);
                 uni_vmovups(ptr[reg_dst], vmm);
                 add(reg_dst, jpp.dtype_size * jpp.block_size);
                 sub(reg_ow_count, jpp.block_size);
@@ -309,21 +305,30 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
         _ksizes.clear();
         _strides.clear();
         _rates.clear();
-        for (size_t i = 0; i < ksizes.size(); i++)
-            _ksizes.push_back((int64_t)ksizes[i]);
-        for (size_t i = 0; i < strides.size(); i++)
-            _strides.push_back((int64_t)strides[i]);
-        for (size_t i = 0; i < rates.size(); i++)
-            _rates.push_back((int64_t)rates[i]);
+        for (const auto& x :  ksizes) {
+            if (x < 0)
+                IE_THROW() << "Kernel sizes must be non-negative, got '" << x << "'.";
+            _ksizes.push_back(static_cast<size_t>(x));
+        }
+        for (const auto& x :  strides) {
+            if (x < 0)
+                IE_THROW() << "Strides must be non-negative, got '" << x << "'.";
+            _strides.push_back(static_cast<size_t>(x));
+        }
+        for (const auto& x :  rates) {
+            if (x < 0)
+                IE_THROW() << "Rates must be non-negative, got '" << x << "'.";
+            _rates.push_back(static_cast<size_t>(x));
+        }
 
         SizeVector in_dims = inData->getTensorDesc().getDims();
         _pad_left = 0;
         _pad_top = 0;
-        jit_eximpat_params jpp;
+        jit_extract_image_patches_params jpp;
         jpp.need_padding = false;
         if (!CaselessEq<std::string>()(auto_pad, "valid")) {
-            const int64_t iheight = in_dims[2];
-            const int64_t iwidth = in_dims[3];
+            const size_t iheight = in_dims[2];
+            const size_t iwidth = in_dims[3];
             const int64_t ihStep = _ksizes[0] + (_rates[0] - 1) * (_ksizes[0] - 1);
             const int64_t iwStep = _ksizes[1] + (_rates[1] - 1) * (_ksizes[1] - 1);
 
@@ -338,11 +343,11 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
             }
 
             if ((PW > 0) && (PW < iwStep)) {
-                _pad_left = (PW + increment_sign * (PW % 2) ) / 2;
+                _pad_left = static_cast<size_t>((PW + increment_sign * (PW % 2)) / 2);
                 jpp.need_padding = true;
             }
             if ((PH > 0) && (PH < ihStep)) {
-                _pad_top = (PH + increment_sign * (PH % 2) ) / 2;
+                _pad_top = static_cast<size_t>((PH + increment_sign * (PH % 2)) / 2);
                 jpp.need_padding = true;
             }
         }
@@ -360,17 +365,17 @@ ExtractImagePatchesImpl::ExtractImagePatchesImpl(const CNNLayer* layer) {
 
         if (mayiuse(x64::avx512_common)) {
             jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / jpp.dtype_size;
-            eximpat_kernel.reset(new jit_eximpat_kernel<x64::avx512_common>(jpp));
+            extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::avx512_common>(jpp));
         } else if (mayiuse(x64::avx2)) {
             jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / jpp.dtype_size;
-            eximpat_kernel.reset(new jit_eximpat_kernel<x64::avx2>(jpp));
+            extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::avx2>(jpp));
         } else if (mayiuse(x64::sse41)) {
             jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / jpp.dtype_size;
-            eximpat_kernel.reset(new jit_eximpat_kernel<x64::sse41>(jpp));
+            extract_image_patches_kernel.reset(new jit_extract_image_patches_kernel<x64::sse41>(jpp));
         }
 
-        if (eximpat_kernel)
-            eximpat_kernel->create_ker();
+        if (extract_image_patches_kernel)
+            extract_image_patches_kernel->create_ker();
 
         LayerConfig config;
 
@@ -397,61 +402,63 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
             inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
     char *dst_data = outputs[0]->buffer().as<char *>() +
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    const int64_t dtype_size = inputs[0]->getTensorDesc().getPrecision().size();
+    const size_t dtype_size = inputs[0]->getTensorDesc().getPrecision().size();
 
     const auto& inDims = inputs[0]->getTensorDesc().getDims();
-    const int64_t IC = inDims[1];
-    const int64_t IH = inDims[2];
-    const int64_t IW = inDims[3];
+    const size_t IC = inDims[1];
+    const size_t IH = inDims[2];
+    const size_t IW = inDims[3];
 
     const auto& outDims = outputs[0]->getTensorDesc().getDims();
-    const int64_t OB = outDims[0];
-    const int64_t OH = outDims[2];
-    const int64_t OW = outDims[3];
+    const size_t OB = outDims[0];
+    const size_t OH = outDims[2];
+    const size_t OW = outDims[3];
 
-    const int64_t KH = _ksizes[0], KW = _ksizes[1];
-    const int64_t SH = _strides[0], SW = _strides[1];
-    const int64_t RH = _rates[0], RW = _rates[1];
-    const int64_t PT = _pad_top, PL = _pad_left;
+    const size_t KH = _ksizes[0], KW = _ksizes[1];
+    const size_t SH = _strides[0], SW = _strides[1];
+    const size_t RH = _rates[0], RW = _rates[1];
+    const size_t PT = _pad_top, PL = _pad_left;
 
-    const std::vector<int64_t> ostrides = {KH * KW * IC * OH * OW, KW * IC * OH * OW, IC * OH * OW, OH * OW};
-    const std::vector<int64_t> istrides = {IC * IH * IW, IH * IW, IW};
-    if (eximpat_kernel) {
-        auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
+    const std::vector<size_t> istrides = inputs[0]->getTensorDesc().getBlockingDesc().getStrides();
+    const std::vector<size_t> ostrides = outputs[0]->getTensorDesc().getBlockingDesc().getStrides();
+    const std::vector<size_t> ostrides_partial = {ostrides[0], KW * IC * ostrides[1], IC * ostrides[1], ostrides[1]};
+
+    if (extract_image_patches_kernel) {
+        parallel_for4d(OB, KH, KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
             const int64_t ih_start = kh * RH - PT;
             const int64_t iw_start = kw * RW - PL;
-            const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
-            const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
-            const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH - 1.f * ih_start) / SH);
-            const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
+            const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / SH);
+            const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / SW);
+            const size_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH - 1.f * ih_start) / SH);
+            const size_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
-            int64_t dst_offset = ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3];
-            int64_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
+            size_t dst_offset = ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3];
+            size_t src_offset = ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * SH * IW;
 
-            auto args = jit_eximpat_args();
+            auto args = jit_extract_image_patches_args();
             args.src = src_data + src_offset * dtype_size;
             args.dst = dst_data + dst_offset * dtype_size;
             args.h_lo_pad = ih_lpad;
             args.h_hi_pad = ih_hpad;
             args.w_lo_pad = iw_lpad;
             args.w_hi_pad = iw_hpad;
-            (*eximpat_kernel)(&args);
-        };
-        parallel_for4d(OB, KH, KW, IC, thread_body);
+            (*extract_image_patches_kernel)(&args);
+        });
     } else {
-        auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
+        parallel_for4d(OB, KH, KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
             const int64_t iw_start = kw * RW - PL;
             const int64_t ih_start = kh * RH - PT;
-            const int64_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
-            const int64_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
+            const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(- 1.f * ih_start / SH);
+            const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(- 1.f * iw_start / SW);
 
-            const int64_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
-            const int64_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
+            const size_t ih_hpad = std::ceil((IH - 1.f * ih_start) / SH) > OH ? OH : std::ceil((IH + -1.f * ih_start) / SH);
+            const size_t iw_hpad = std::ceil((IW - 1.f * iw_start) / SW) > OW ? OW : std::ceil((IW - 1.f * iw_start) / SW);
 
-            char *my_dst_ptr = dst_data + (ob * ostrides[0] + kh * ostrides[1] + kw * ostrides[2] + ic * ostrides[3]) * dtype_size;
+            char *my_dst_ptr = dst_data +
+                    (ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3]) * dtype_size;
             const char *my_src_ptr = src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * dtype_size;
 
-            int64_t num_bytes_to_set = ih_lpad * OW * dtype_size;
+            size_t num_bytes_to_set = ih_lpad * OW * dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
             my_dst_ptr += num_bytes_to_set;
 
@@ -475,8 +482,7 @@ StatusCode ExtractImagePatchesImpl::execute(std::vector<Blob::Ptr>& inputs, std:
             }
             num_bytes_to_set = (OH - ih_hpad) * OW * dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
-        };
-        parallel_for4d(OB, KH, KW, IC, thread_body);
+        });
     }
     return OK;
 }
