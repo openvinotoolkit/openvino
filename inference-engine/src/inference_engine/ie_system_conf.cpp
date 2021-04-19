@@ -4,8 +4,7 @@
 
 #include <cstdlib>
 #include <cstring>
-#include "ie_parallel.hpp"
-#include "ie_parallel_custom_arena.hpp"
+#include "threading/ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
 #include <iostream>
 #include <vector>

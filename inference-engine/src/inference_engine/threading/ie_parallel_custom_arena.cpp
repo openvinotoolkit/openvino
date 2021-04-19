@@ -131,7 +131,7 @@ void destroy_binding_observer(binding_observer* observer) {
 #endif /*USE_TBBBIND_2_4*/
 
 #if TBB_NUMA_SUPPORT_PRESENT
-tbb::task_arena::constraints constraints_convert(task_arena::constraints& c) {
+tbb::task_arena::constraints convert_constraints(task_arena::constraints& c) {
     tbb::task_arena::constraints result{};
 #if TBB_HYBRID_CPUS_SUPPORT_PRESENT
     result.core_type = c.core_type;
@@ -143,7 +143,6 @@ tbb::task_arena::constraints constraints_convert(task_arena::constraints& c) {
 }
 #endif
 } // namespace detail
-
 
 task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
     : tbb::task_arena{max_concurrency_, reserved_for_masters}
@@ -174,7 +173,7 @@ void task_arena::initialize() {
             *this, tbb::task_arena::max_concurrency(), my_constraints);
     });
 #elif TBB_NUMA_SUPPORT_PRESENT && TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    tbb::task_arena::initialize(constraints_convert(my_constraints));
+    tbb::task_arena::initialize(convert_constraints(my_constraints));
 #else
     tbb::task_arena::initialize();
 #endif
@@ -188,7 +187,8 @@ void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters)
             *this, tbb::task_arena::max_concurrency(), my_constraints);
     });
 #elif TBB_NUMA_SUPPORT_PRESENT && TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    tbb::task_arena::initialize(constraints_convert(my_constraints), reserverd_for_masters);
+    my_constraints.max_concurrency = max_concurrency_;
+    tbb::task_arena::initialize(convert_constraints(my_constraints), reserverd_for_masters);
 #else
     tbb::task_arena::initialize(max_concurrency_, reserved_for_masters);
 #endif
@@ -202,9 +202,9 @@ void task_arena::initialize(constraints constraints_, unsigned reserved_for_mast
         my_binding_observer = detail::construct_binding_observer(
             *this, tbb::task_arena::max_concurrency(), my_constraints);
 #elif TBB_NUMA_SUPPORT_PRESENT && TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    tbb::task_arena::initialize(constraints_convert(my_constraints), reserverd_for_masters);
+        tbb::task_arena::initialize(convert_constraints(my_constraints), reserverd_for_masters);
 #else
-    tbb::task_arena::initialize(my_constraints.max_concurrency, reserved_for_masters);
+        tbb::task_arena::initialize(my_constraints.max_concurrency, reserved_for_masters);
 #endif
     });
 }
@@ -226,9 +226,9 @@ namespace info {
 std::vector<numa_node_id> numa_nodes() {
 #if USE_TBBBIND_2_4
     detail::initialize_system_topology();
-    std::vector<numa_node_id> node_indices(detail::numa_nodes_count);
-    std::memcpy(node_indices.data(), detail::numa_nodes_indexes, detail::numa_nodes_count * sizeof(int));
-    return node_indices;
+    std::vector<numa_node_id> node_indexes(detail::numa_nodes_count);
+    std::memcpy(node_indexes.data(), detail::numa_nodes_indexes, detail::numa_nodes_count * sizeof(int));
+    return node_indexes;
 #elif TBB_NUMA_SUPPORT_PRESENT
     return tbb::info::numa_nodes();
 #else
@@ -250,6 +250,9 @@ std::vector<core_type_id> core_types() {
 }
 
 int default_concurrency(task_arena::constraints c) {
+    if (c.max_concurrency > 0) {
+        return c.max_concurrency;
+    }
 #if USE_TBBBIND_2_4
     if (detail::is_binding_environment_valid()) {
         detail::initialize_system_topology();
@@ -257,7 +260,7 @@ int default_concurrency(task_arena::constraints c) {
     }
     return tbb::this_task_arena::max_concurrency();
 #elif TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    return tbb::info::default_concurrency(constraints_convert(c));
+    return tbb::info::default_concurrency(convert_constraints(c));
 #elif TBB_NUMA_SUPPORT_PRESENT
     return tbb::info::default_concurrency(c.numa_id);
 #else
