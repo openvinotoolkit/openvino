@@ -216,7 +216,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 // Check that output port exists
                 if (layer->outputs().size() <= outputIndex) {
                     return DescriptionBuffer(OUT_OF_BOUNDS, resp)
-                    << "port index " << outputIndex << " exceeds layer's outputs which is " << layer->outputs().size();
+                    << "port index " << outputIndex << " exceeds the number of layer outputs " << layer->outputs().size();
                 }
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
