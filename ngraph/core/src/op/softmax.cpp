@@ -73,7 +73,7 @@ void op::v1::Softmax::validate_and_infer_types()
     const PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
-                              m_axis < input_shape.rank().get_length(),
+                              m_axis < static_cast<size_t>(input_shape.rank().get_length()),
                               "Reduction axis (",
                               m_axis,
                               ") is out of bounds (argument shape: ",
@@ -94,8 +94,7 @@ bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Softmax_evaluate);
-    NGRAPH_CHECK(this,
-                 validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
 }
