@@ -109,7 +109,8 @@ namespace ngraph
                     if (indices_shape.rank().is_static() &&
                         indices_shape.rank().get_length() == 1 && indices_shape[0].is_static())
                     {
-                        if (indices_shape[0].get_length() >= slice_indices_length &&
+                        if (static_cast<uint64_t>(indices_shape[0].get_length()) >=
+                                slice_indices_length &&
                             are_axes_sorted)
                         {
                             // adjusting indices is not needed
@@ -132,7 +133,7 @@ namespace ngraph
                         default_opset::Constant::create(indices.get_element_type(), {}, {0});
 
                     int added_indices_number = 0;
-                    for (int i = 0; i < slice_indices_length; ++i)
+                    for (uint64_t i = 0; i < slice_indices_length; ++i)
                     {
                         if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
                         {
@@ -154,7 +155,7 @@ namespace ngraph
                     if (!are_axes_sorted)
                     {
                         OutputVector indices_tmp(adjusted_indices);
-                        for (int i = 0; i < target_axes.size(); ++i)
+                        for (size_t i = 0; i < target_axes.size(); ++i)
                         {
                             adjusted_indices[target_axes[i]] = indices_tmp[i];
                         }
@@ -205,7 +206,7 @@ namespace ngraph
                     std::vector<uint64_t> axes_vec =
                         get_normalized_axes_vector(node, data_rank, raw_axes_vec);
 
-                    const uint64_t slice_indices_length =
+                    const size_t slice_indices_length =
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
                     const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
@@ -263,7 +264,7 @@ namespace ngraph
                     std::vector<uint64_t> normalized_axes =
                         get_normalized_axes_vector(node, data_rank, axes);
 
-                    const uint64_t slice_indices_length =
+                    const size_t slice_indices_length =
                         *std::max_element(std::begin(normalized_axes), std::end(normalized_axes)) +
                         1;
                     const auto begin_end_mask = axes_to_mask(normalized_axes, slice_indices_length);
