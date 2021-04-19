@@ -44,6 +44,12 @@ public:
     std::vector<float> weightsZeroPoints;
     std::vector<int32_t> outputCompensation;
 
+    const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
+    const std::vector<ptrdiff_t> &getStride() { return stride; }
+    const std::vector<ptrdiff_t> &getDilation() { return dilation; }
+    const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
+    const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
+
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
@@ -65,13 +71,12 @@ private:
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
 
-// TODO: fusing with Convolution is not ported yet
-//    ptrdiff_t dw_conv_oc;
-//    ptrdiff_t dw_conv_ih;
-//    ptrdiff_t dw_conv_iw;
-//    std::vector<ptrdiff_t> dw_conv_kernel;
-//    std::vector<ptrdiff_t> dw_conv_strides;
-//    mkldnn::memory::data_type dw_conv_in_dt;
+    ptrdiff_t dw_conv_oc;
+    ptrdiff_t dw_conv_ih;
+    ptrdiff_t dw_conv_iw;
+    std::vector<ptrdiff_t> dw_conv_kernel;
+    std::vector<ptrdiff_t> dw_conv_strides;
+    mkldnn::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;
     size_t IC;
@@ -79,6 +84,9 @@ private:
     size_t groupOC;
 
     InferenceEngine::Precision eltwisePrecision;
+
+    const size_t X_AXIS = 0;
+    const size_t Y_AXIS = 1;
 };
 
 }  // namespace MKLDNNPlugin

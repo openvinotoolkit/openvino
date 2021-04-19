@@ -80,6 +80,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Mod", Eltwise },
         { "FloorMod", Eltwise },
         { "Power", Eltwise },
+        { "PowerStatic", Eltwise },
         { "Equal", Eltwise },
         { "NotEqual", Eltwise },
         { "Greater", Eltwise },
@@ -91,6 +92,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "LogicalXor", Eltwise },
         { "LogicalNot", Eltwise },
         { "Relu", Eltwise },
+        { "LeakyRelu", Eltwise },
         { "Gelu", Eltwise },
         { "Elu", Eltwise },
         { "Tanh", Eltwise },
@@ -225,7 +227,8 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     }
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
-        inDims.emplace_back(op->get_input_shape(i));
+        const auto &shape = op->get_input_shape(i);
+        inDims.emplace_back(ngraph::is_scalar(shape) ? ngraph::Shape{1} : shape);
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
@@ -234,7 +237,8 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
             IE_THROW() << "Node with type '" << typeStr << "' and name '" << name << "' does not have any outputs.";
         }
         for (size_t i = 0; i < op->get_output_size(); i++) {
-            outDims.emplace_back(op->get_output_shape(i));
+            const auto &shape = op->get_output_shape(i);
+            outDims.emplace_back(ngraph::is_scalar(shape) ? ngraph::Shape{1} : shape);
             originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
         }
     }
