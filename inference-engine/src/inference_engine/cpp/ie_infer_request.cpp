@@ -30,7 +30,7 @@ namespace InferenceEngine {
         CATCH_IE_EXCEPTION(NetworkNotRead)      \
         CATCH_IE_EXCEPTION(InferCancelled)
 
-#define CALL_STATEMENT(...)                                                                        \
+#define INFER_REQ_CALL_STATEMENT(...)                                                                        \
     if (_impl == nullptr) IE_THROW() << "Inference Requst is not initialized";                     \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
@@ -52,12 +52,12 @@ InferRequest::~InferRequest() {
 }
 
 void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
-    CALL_STATEMENT(_impl->SetBlob(name, data);)
+    INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data);)
 }
 
 Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     Blob::Ptr blobPtr;
-    CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
+    INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
     const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (blobPtr == nullptr) IE_THROW() << error;
@@ -66,27 +66,27 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 }
 
 void InferRequest::SetBlob(const std::string &name, const Blob::Ptr &data, const PreProcessInfo& info) {
-    CALL_STATEMENT(_impl->SetBlob(name, data, info);)
+    INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data, info);)
 }
 
 const PreProcessInfo& InferRequest::GetPreProcess(const std::string& name) const {
-    CALL_STATEMENT(return _impl->GetPreProcess(name);)
+    INFER_REQ_CALL_STATEMENT(return _impl->GetPreProcess(name);)
 }
 
 void InferRequest::Infer() {
-    CALL_STATEMENT(_impl->Infer();)
+    INFER_REQ_CALL_STATEMENT(_impl->Infer();)
 }
 
 void InferRequest::Cancel() {
-    CALL_STATEMENT(_impl->Cancel();)
+    INFER_REQ_CALL_STATEMENT(_impl->Cancel();)
 }
 
 std::map<std::string, InferenceEngineProfileInfo> InferRequest::GetPerformanceCounts() const {
-    CALL_STATEMENT(return _impl->GetPerformanceCounts();)
+    INFER_REQ_CALL_STATEMENT(return _impl->GetPerformanceCounts();)
 }
 
 void InferRequest::SetInput(const BlobMap& inputs) {
-    CALL_STATEMENT(
+    INFER_REQ_CALL_STATEMENT(
         for (auto&& input : inputs) {
             _impl->SetBlob(input.first, input.second);
         }
@@ -94,7 +94,7 @@ void InferRequest::SetInput(const BlobMap& inputs) {
 }
 
 void InferRequest::SetOutput(const BlobMap& results) {
-    CALL_STATEMENT(
+    INFER_REQ_CALL_STATEMENT(
         for (auto&& result : results) {
             _impl->SetBlob(result.first, result.second);
         }
@@ -102,20 +102,20 @@ void InferRequest::SetOutput(const BlobMap& results) {
 }
 
 void InferRequest::SetBatch(const int batch) {
-    CALL_STATEMENT(_impl->SetBatch(batch);)
+    INFER_REQ_CALL_STATEMENT(_impl->SetBatch(batch);)
 }
 
 void InferRequest::StartAsync() {
-    CALL_STATEMENT(_impl->StartAsync();)
+    INFER_REQ_CALL_STATEMENT(_impl->StartAsync();)
 }
 
 
 StatusCode InferRequest::Wait(int64_t millis_timeout) {
-    CALL_STATEMENT(return _impl->Wait(millis_timeout);)
+    INFER_REQ_CALL_STATEMENT(return _impl->Wait(millis_timeout);)
 }
 
 void InferRequest::SetCompletionCallbackImpl(std::function<void()> callback) {
-    CALL_STATEMENT(
+    INFER_REQ_CALL_STATEMENT(
         _impl->SetCallback([callback] (std::exception_ptr) {
             callback();
         });
@@ -142,7 +142,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callback) {
 
 
 void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callback) {
-    CALL_STATEMENT(
+    INFER_REQ_CALL_STATEMENT(
         auto weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
         _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
@@ -163,7 +163,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
 }
 
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callback) {
-    CALL_STATEMENT(
+    INFER_REQ_CALL_STATEMENT(
         IInferRequest::Ptr weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
         _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
@@ -185,7 +185,7 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
 
 std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
-    CALL_STATEMENT(
+    INFER_REQ_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
             controller.emplace_back(std::make_shared<VariableStateBase>(state), _so);
         }
@@ -194,7 +194,7 @@ std::vector<VariableState> InferRequest::QueryState() {
 }
 
 InferRequest::operator IInferRequest::Ptr () {
-    CALL_STATEMENT(
+    INFER_REQ_CALL_STATEMENT(
         return std::make_shared<InferRequestBase>(_impl);
     )
 }
