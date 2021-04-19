@@ -20,7 +20,7 @@ namespace ngraph
             static size_t point_to_flat_idx(const Shape& shape, const std::vector<size_t>& point)
             {
                 size_t idx = point[0];
-                for (int i = 1; i < point.size(); i++)
+                for (size_t i = 1; i < point.size(); i++)
                 {
                     idx *= shape[i];
                     idx += point[i];
@@ -38,7 +38,7 @@ namespace ngraph
                 std::vector<size_t> indices;
                 indices.reserve(slice_size);
                 indices.push_back(point_to_flat_idx(full_shape, coord));
-                for (int i = 0; i < slice_size - 1; i++)
+                for (size_t i = 0; i < slice_size - 1; i++)
                 {
                     for (int r = rank - 1; r >= 0; r--)
                     {
