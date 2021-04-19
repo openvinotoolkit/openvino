@@ -209,8 +209,9 @@ void InputModelPDPD::InputModelPDPDImpl::setElementType (Place::Ptr place, const
 
 InputModelPDPD::InputModelPDPD (const std::string& _path) : _impl{std::make_shared<InputModelPDPDImpl>(_path, *this)} {}
 
-std::vector<float> InputModelPDPD::readWeight(const std::string& name, int64_t tensor_length) {
-    return _impl->readWeight<float>(name, tensor_length);
+template<typename T>
+std::vector<T> InputModelPDPD::readWeight(const std::string& name, int64_t tensor_length) {
+    return _impl->readWeight<T>(name, tensor_length);
 }
 
 std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::getOpPlaces(int i) const {
