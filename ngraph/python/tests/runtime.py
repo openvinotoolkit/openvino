@@ -121,6 +121,17 @@ class Computation(object):
         out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
         return output_blobs[out_name].buffer
 
+    def convert_buffers(self, source_buffers, target_dtypes):
+        converted_buffers = []
+        for i in range(len(source_buffers)):
+            target_dtype = target_dtypes[i]
+            # custom conversion for bf16
+            if self.results[i].get_output_element_type(0) == Type.bf16:
+                converted_buffers.append((source_buffers[i].view(np.uint32) >> 16).astype(np.uint16))
+            else:
+                converted_buffers.append(source_buffers[i].astype(target_dtype))
+        return converted_buffers
+
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
         # Input validation
@@ -173,6 +184,5 @@ class Computation(object):
 
         # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
-        converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
-                             zip(result_buffers, original_dtypes)]
+        converted_buffers = self.convert_buffers(result_buffers, original_dtypes)
         return converted_buffers

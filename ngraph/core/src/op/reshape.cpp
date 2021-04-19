@@ -36,7 +36,7 @@ namespace reshapeop
         using T = typename element_type_traits<ET>::value_type;
         T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
         size_t output_rank = shape_pattern->get_shape()[0];
-        for (int i = 0; i < output_rank; i++)
+        for (size_t i = 0; i < output_rank; i++)
         {
             output_shape.push_back(shape_pattern_ptr[i]);
         }
@@ -55,7 +55,7 @@ namespace reshapeop
             return;
         }
         Dimension output_product(1);
-        for (size_t i = 0; i < reshape_pattern.size(); ++i)
+        for (int64_t i = 0; i < static_cast<int64_t>(reshape_pattern.size()); ++i)
         {
             if (i == minus_one_idx) // resolving everything except -1
                 continue;
@@ -90,9 +90,10 @@ namespace reshapeop
         }
         Dimension input_product(1);
         if (input_pshape.rank().is_static())
-            for (size_t i = 0; i < input_pshape.rank().get_length(); ++i)
+            for (int64_t i = 0; i < input_pshape.rank().get_length(); ++i)
             {
-                if (i < reshape_pattern.size() && reshape_pattern[i].get_min_length() == 0 &&
+                if (i < static_cast<int64_t>(reshape_pattern.size()) &&
+                    reshape_pattern[i].get_min_length() == 0 &&
                     reshape_pattern[i].get_max_length() == 0)
                     continue;
                 input_product *= input_pshape[i];
@@ -323,8 +324,8 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
-    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_reshape(outputs, inputs);
 }
 
