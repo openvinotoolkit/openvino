@@ -14,8 +14,8 @@
 
 **Inputs**:
 
-* **1**: `arg` - the tensor to be transposed. A tensor of type `T`. **Required.**
-* **2**: `input_order` - the permutation to apply to the axes of the first input shape. Must be a vector of element `T_AXIS` type, with shape `[n]`, where `n` is the rank of the first input. The tensor's value must contain every integer in the range `[0, n-1]`. If an empty list is specified `[]` then the axes will be inverted. A tensor of type `T_AXIS`. **Required.**
+* **1**: `arg` - the tensor to be transposed. A tensor of type `T` and arbitrary shape. **Required.**
+* **2**: `input_order` - the permutation to apply to the axes of the first input shape. A 1D tensor of `n` elements `T_AXIS` type and shape `[n]`, where `n` is the rank of the first input or `0`. The tensor's value must contain every integer in the range `[0, n-1]`, but if an empty tensor is specified (shape `[0]`) then the axes will be inverted. **Required.**
 
 **Outputs**:
 
