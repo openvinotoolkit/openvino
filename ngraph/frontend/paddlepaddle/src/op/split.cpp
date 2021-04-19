@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include "split.h"
 #include <paddlepaddle_frontend/utility.hpp>
 
@@ -24,7 +24,7 @@ namespace pdpd {
 namespace op {
     NamedOutputs split(const NodeContext& node) {
         using namespace ngraph;
-        using namespace opset6;
+        using namespace opset7;
         const auto& data = node.get_ng_input("X");
         auto dim = node.get_attribute<int32_t>("axis");
         // todo: 'num' can be list of values, in this case we should create VariadicSplit
@@ -33,10 +33,14 @@ namespace op {
         auto axis = std::make_shared<Constant>(ngraph::element::i32, Shape{}, dim);
 
         NamedOutputs named_outputs;
-        const auto& split_outputs = std::make_shared<ngraph::opset6::Split>(data, axis, num_or_sections)->outputs();
-        const auto out_tensors_names = node.get_output_names()["Out"];
-        for (int idx = 0; idx < out_tensors_names.size(); ++idx) {
-            named_outputs[out_tensors_names[idx]] = split_outputs[idx];
+        const auto& split_outputs = std::make_shared<Split>(data, axis, num_or_sections)->outputs();
+        const auto& out_names = node.get_output_names();
+        MY_ASSERT(out_names.size() == 1, "Unexpected number of outputs");
+
+        auto it = std::find(out_names.begin(), out_names.end(), "Out");
+        MY_ASSERT(it != out_names.end(), "Expected output not found");
+        for (const auto& split_output : split_outputs) {
+            named_outputs[*it].push_back(split_output);
         }
         return named_outputs;
     }

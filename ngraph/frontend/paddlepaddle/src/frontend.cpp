@@ -136,10 +136,17 @@ std::shared_ptr<Function>
             } else {
                 const auto& named_outputs = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
                 // set layer name by the name of first output var
-//                const auto& first_output_var = op_place->getOutputPorts().begin()->second->getTargetTensorPDPD(0)->getDesc();
-//                node->set_friendly_name(first_output_var->name());
-//                std::cerr << "Named with " << node->get_friendly_name() << "\n";
-                nodes_dict.insert(named_outputs.begin(), named_outputs.end());
+                const auto& first_output_var = op_place->getOutputPorts().begin()->second.at(0)->getTargetTensorPDPD()->getDesc();
+                const auto& node = named_outputs.begin()->second[0].get_node_shared_ptr();
+                node->set_friendly_name(first_output_var->name());
+                std::cerr << "Named with " << node->get_friendly_name() << "\n";
+
+                for (const auto& name_to_ports : op_place->getOutputPorts()) {
+                    for (size_t idx = 0; idx < name_to_ports.second.size(); ++idx) {
+                        const auto& var = name_to_ports.second[idx]->getTargetTensorPDPD()->getDesc();
+                        nodes_dict[var->name()] = named_outputs.at(name_to_ports.first)[idx];
+                    }
+                }
             }
         }
     }
