@@ -102,10 +102,9 @@ namespace transpose
         Shape in_shape = arg1->get_shape();
         if (shape_size(arg2->get_shape()) == 0)
         {
-            axes_order.clear();
-            size_t rank = in_shape.size();
-            for (int64_t i = 1; i <= rank; ++i)
-                axes_order.emplace_back(rank - i);
+            axes_order.resize(in_shape.size());
+            std::iota(axes_order.begin(), axes_order.end(), 0);
+            std::reverse(axes_order.begin(), axes_order.end());
         }
 
         Shape out_shape(in_shape.size());
