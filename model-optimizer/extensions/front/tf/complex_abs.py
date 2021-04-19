@@ -27,7 +27,6 @@ class ComplexAbs(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
         cmp = match['complex']
         complex_abs = match['abs']
-        cmp_name = cmp.soft_get('name', cmp.id)
         complex_abs_name = complex_abs.soft_get('name', complex_abs.id)
 
         pow0 = create_op_with_const_inputs(graph, Pow, {1: np.float32(2.0)}, {})
