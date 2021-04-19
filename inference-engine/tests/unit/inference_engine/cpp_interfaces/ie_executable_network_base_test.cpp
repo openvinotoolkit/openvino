@@ -66,4 +66,3 @@ TEST_F(ExecutableNetworkThreadSafeTests, returnErrorIfStartAsyncThrowsException)
     EXPECT_NO_THROW(sts = req->Wait(InferRequest::WaitMode::RESULT_READY, &dsc));
     ASSERT_EQ(StatusCode::GENERAL_ERROR, sts) << dsc.msg;
 }
-

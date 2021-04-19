@@ -71,15 +71,12 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-            [&](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+            [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
                 if (status != InferenceEngine::StatusCode::OK) {
                     data.promise.set_value(status);
                 } else {
                     if (data.numIter.fetch_add(1) != NUM_ITER) {
-                        auto sts = request->StartAsync(nullptr);
-                        if (sts != InferenceEngine::StatusCode::OK) {
-                            data.promise.set_value(sts);
-                        }
+                        request.StartAsync();
                     } else {
                         data.promise.set_value(InferenceEngine::StatusCode::OK);
                     }
@@ -107,7 +104,7 @@ TEST_P(CallbackTests, inferDoesNotCallCompletionCallback) {
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
-            [&](InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode status) {
+            [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode status) {
                 isCalled = true;
             });
     req.Infer();
