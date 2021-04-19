@@ -10,32 +10,13 @@
 
 #pragma once
 
-#include <cstddef>
-#include <type_traits>
-
-#define IE_THREAD_TBB 0
-#define IE_THREAD_OMP 1
-#define IE_THREAD_SEQ 2
-#define IE_THREAD_TBB_AUTO 3
+#include "ie_parallel.hpp"
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#ifndef NOMINMAX
-# define NOMINMAX
-#endif
-#ifndef TBB_PREVIEW_LOCAL_OBSERVER
-# define TBB_PREVIEW_LOCAL_OBSERVER 1
-#endif
-#ifndef TBB_PREVIEW_NUMA_SUPPORT
-# define TBB_PREVIEW_NUMA_SUPPORT 1
-#endif
-#ifndef TBBBIND_2_4_AVAILABLE
-# define TBBBIND_2_4_AVAILABLE 0
-#endif
 
+#include <cstddef>
+#include <type_traits>
 #include <mutex>
-
-#include "tbb/task_arena.h"
-#include "tbb/task_scheduler_observer.h"
 
 namespace custom {
 
@@ -44,8 +25,7 @@ using core_type_id = int;
 
 namespace detail {
 struct constraints {
-    constraints() = default;
-    constraints(numa_node_id id, int maximal_concurrency)
+    constraints(numa_node_id id = -1, int maximal_concurrency = -1)
         : numa_id{id}
         , max_concurrency{maximal_concurrency}
         , core_type{tbb::task_arena::automatic}
@@ -113,8 +93,9 @@ public:
 
 namespace info {
     std::vector<numa_node_id> numa_nodes();
-    int default_concurrency(numa_node_id id = task_arena::automatic);
     std::vector<core_type_id> core_types();
+
+    int default_concurrency(numa_node_id id = task_arena::automatic);
     int default_concurrency(task_arena::constraints c);
 } // namespace info
 } // namespace custom

@@ -10,8 +10,7 @@
 #include <memory>
 #include <vector>
 #include "ie_system_conf.h"
-#include "ie_parallel.hpp"
-#include "ie_parallel_custom_arena.hpp"
+#include "threading/ie_parallel_custom_arena.hpp"
 
 namespace InferenceEngine {
 int getNumberOfCPUCores(bool bigCoresOnly) {

@@ -173,8 +173,8 @@ struct CPUStreamsExecutor::Impl {
         bool _execute = false;
         std::queue<Task> _taskQueue;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-        std::unique_ptr<custom::task_arena>          _taskArena;
-        std::unique_ptr<Observer> _observer;
+        std::unique_ptr<custom::task_arena> _taskArena;
+        std::unique_ptr<Observer>           _observer;
 #endif
     };
 
