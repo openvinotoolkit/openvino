@@ -36,9 +36,9 @@ public:
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
     void ExportImpl(std::ostream& model) override;
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
