@@ -4,7 +4,6 @@
 
 set (TARGET_NAME "inference_engine")
 
-message(STATUS "--- THREADING ${THREADING}")
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     find_package(TBBBIND_2_4)
 endif()
