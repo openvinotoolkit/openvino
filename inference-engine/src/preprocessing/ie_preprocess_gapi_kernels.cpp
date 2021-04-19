@@ -895,7 +895,7 @@ struct linearScratchDesc {
         tmp   = reinterpret_cast<T*>      (mapsy + outH*2);
     }
 
-    static int bufSize(int inW, int inH, int outW, int outH, int lpi) {
+    static int bufSize(int inW, int /*inH*/, int outW, int outH, int lpi) {
         auto size = outW * sizeof(alpha_t)     +
                     outW * sizeof(alpha_t) * 4 +  // alpha clones // previous alpha is redundant?
                     outW * sizeof(index_t)     +
@@ -910,7 +910,7 @@ struct linearScratchDesc {
 template<typename T, typename Mapper, int chanNum = 1>
 static void initScratchLinear(const cv::GMatDesc& in,
                               const         Size& outSz,
-                         cv::gapi::fluid::Buffer& scratch,
+                              cv::gapi::fluid::Buffer& scratch,
                                              int  lpi) {
     using alpha_type = typename Mapper::alpha_type;
     static const auto unity = Mapper::unity;
@@ -1171,7 +1171,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 template<typename T, class Mapper, int numChan>
 static void calcRowLinearC(const cv::gapi::fluid::View  & in,
                            std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, numChan>& out,
-                                  cv::gapi::fluid::Buffer& scratch) {
+                           cv::gapi::fluid::Buffer& scratch) {
     using alpha_type = typename Mapper::alpha_type;
 
     auto  inSz =  in.meta().size;
