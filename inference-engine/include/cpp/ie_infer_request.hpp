@@ -196,7 +196,6 @@ public:
         return SetCallback<F>{*this}(std::move(callbackToSet));
     }
 
-
     /**
      * @brief Gets state control interface for given infer request.
      *
