@@ -12,7 +12,8 @@ std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<Basi
     std::string fe, path, fileName;
     std::tie(fe, path, fileName) = obj.param;
     // need to replace special characters to create valid test case name
-    fileName = std::regex_replace(fileName, std::regex("[/\\.]"), "_");
+    // GCC 4.8 limitation, need to use std::string("_")
+    fileName = std::regex_replace(fileName, std::regex("[/\\.]"), std::string("_"));
     return fe + "_" + fileName;
 }
 

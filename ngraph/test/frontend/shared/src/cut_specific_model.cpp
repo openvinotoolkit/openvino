@@ -21,7 +21,8 @@ std::string FrontEndCutModelTest::getTestCaseName(const testing::TestParamInfo<C
     res += "I" + joinStrings(obj.param.m_oldInputs) + joinStrings(obj.param.m_newInputs);
     res += "O" + joinStrings(obj.param.m_oldOutputs) + joinStrings(obj.param.m_newOutputs);
     // need to replace special characters to create valid test case name
-    res = std::regex_replace(res, std::regex("[/\\.]"), "_");
+    // GCC 4.8 limitation, need to use std::string("_")
+    res = std::regex_replace(res, std::regex("[/\\.]"), std::string("_"));
     return res;
 }
 
