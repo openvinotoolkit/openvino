@@ -13,7 +13,7 @@ git checkout HEAD speech_recognition/rnnt
 
 **Step 2**. If you already have a full clone of MLCommons inference repository create a folder for 
 pre-trained PyTorch model and where conversion into IR will take place. Skip this step if you did a shallow clone.
-Also further you will need to specify path your full clone:
+Also further you will need to specify path to your full clone:
 ```bash
 mkdir rnnt_for_openvino 
 cd rnnt_for_openvino
